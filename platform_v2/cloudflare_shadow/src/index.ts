@@ -4243,7 +4243,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   if (joinMatch?.[1]) {
     return getObservationEventJoinPage(request, env, decodeURIComponent(joinMatch[1]));
   }
-  const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|console|recap|report)$/);
+  const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|gallery|console|recap|report)$/);
   if (!eventPageMatch?.[1] || !eventPageMatch[2]) return null;
   return getObservationEventSessionPage(request, url, env, decodeURIComponent(eventPageMatch[1]), eventPageMatch[2]);
 }
@@ -4454,7 +4454,7 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   }
   let canManage = Boolean(auth?.userId && auth.userId === session.organizerUserId);
   let liveViewer: Awaited<ReturnType<typeof observationEventParticipantContext>> | null = null;
-  if (page === "live" || page === "rally") {
+  if (page === "live" || page === "rally" || page === "gallery") {
     liveViewer = await observationEventParticipantContext(request, env, session);
     canManage = canManage || liveViewer.isOrganizer;
     if (!liveViewer.isOrganizer && !liveViewer.isCheckedInParticipant) {
@@ -4474,6 +4474,20 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   }
   if (page === "report") {
     return getObservationEventReportPage(request, env, session);
+  }
+  if (page === "gallery") {
+    const mediaResponse = await getObservationEventGuestMedia(request, env, session.sessionId).catch(() => json({ error: "guest_media_read_failed" }, 503));
+    if (!mediaResponse.ok) {
+      const status = mediaResponse.status;
+      const message = status === 403
+        ? "チェックイン済みの参加者または主催者のみ閲覧できます。"
+        : status === 404
+          ? "この観察会では非公開ギャラリーを利用できません。"
+          : "写真・動画を読み込めませんでした。時間をおいて再読み込みしてください。";
+      return pageHtml(status === 403 ? "権限がありません" : "写真・動画を読み込めません", observationEventGuestGalleryErrorPage(session.sessionId, message), status === 403 ? "event-gallery-forbidden" : "event-gallery-error", status);
+    }
+    const data = await mediaResponse.json() as Record<string, unknown>;
+    return pageHtml(`${session.title} 非公開ギャラリー`, renderObservationEventGuestGalleryPage(session, data, canManage), "event-page-private-gallery");
   }
   if (page === "rally") {
     const rally = await getObservationRallySnapshot(env, session.sessionId).catch(() => ({ course: null, stations: [], missions: [], progress: [] }));
@@ -4542,7 +4556,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}.site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17231b;font:inherit;font-size:13px}.site-search-icon{font-size:13px;opacity:.72}
     .site-header-actions{display:flex;align-items:center;gap:8px}.site-header-actions-mobile{display:none}.site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}.lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}.lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}.site-account-icons{gap:4px;padding:3px;border-radius:999px}.site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}.desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .site-mobile-menu{position:relative;display:none}.site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:#17231b;cursor:pointer}.site-mobile-menu-toggle::-webkit-details-marker{display:none}.site-mobile-menu-icon,.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{display:block;width:14px;height:2px;border-radius:999px;background:currentColor}.site-mobile-menu-icon{position:relative}.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{content:"";position:absolute;left:0}.site-mobile-menu-icon::before{top:-5px}.site-mobile-menu-icon::after{top:5px}.site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}.event-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}.event-photo-card{margin:0;padding:0;overflow:hidden}.event-photo-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e8f1ed}.event-photo-card figcaption{padding:12px 14px;font-weight:700}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}.event-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}.event-photo-card{margin:0;padding:0;overflow:hidden}.event-photo-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e8f1ed}.event-photo-card figcaption{padding:12px 14px;font-weight:700}.event-private-media{display:block;width:100%;max-height:360px;object-fit:contain;border-radius:8px;background:#e8f1ed}.event-private-gallery-card form{display:grid;gap:10px;margin-top:14px}.event-private-gallery-card label{display:grid;gap:6px;font-weight:700}.event-private-gallery-card textarea{box-sizing:border-box;width:100%;min-height:88px;padding:10px;border:1px solid #cbd8d0;border-radius:6px;font:inherit}
     .muted{color:#587062}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;background:#0b6b54;color:#fff;text-decoration:none;font-weight:600}
     button.btn{border:0;cursor:pointer;font:inherit}.area-sketch-card{margin-top:14px}.area-sketch-label,.area-sketch-cover label{display:grid;gap:6px;font-weight:700;color:#315241}.area-sketch-label input,.area-sketch-cover input,textarea[data-area-sketch-polygon]{width:100%;box-sizing:border-box;border:1px solid #cbd8d0;border-radius:6px;padding:9px 10px;font:inherit;background:#fff;color:#17231b}.area-sketch-map{height:420px;min-height:320px;border:1px solid #cbd8d0;border-radius:8px;overflow:hidden;background:#dce6df;margin:12px 0}.area-sketch-cover{margin-top:12px}
     .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
@@ -5199,7 +5213,7 @@ function renderObservationEventRallyPage(
 function renderObservationEventGuestMediaPanel(sessionId: string, canReview: boolean, canSubmit: boolean): string {
   const sessionIdJson = JSON.stringify(sessionId).replace(/</g, "\\u003c");
   const captureForm = canSubmit ? `<form data-guest-media-form><label>写真を撮る、または選ぶ<input name="media" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" capture="environment" required></label><label class="evt-check-row"><input name="private_storage_consent" type="checkbox" value="yes" required><span>写真・動画を非公開で保存し、このイベント内の権利確認に使うことに同意します。</span></label><label class="evt-check-row"><input name="creator_rights_attestation" type="checkbox" value="yes" required><span>自分で撮影した写真・動画、またはこの用途で使う許可を得たものです。人物・名札・車の番号など、見せたくないものが写っていないことを確認しました。</span></label><button class="btn" type="submit">非公開で保存する</button></form>` : "";
-  return `<section class="card" data-guest-media-panel data-session-id="${escapeHtml(sessionId)}"><h2>写真と動画を非公開で残す</h2><p class="muted">保存した写真・動画はあなたと主催者だけが確認できます。動画の音声・位置情報を含め、主催者の確認が終わるまで結果や公開ページには表示しません。</p>${captureForm}<p class="muted" data-guest-media-status role="status" aria-live="polite"></p><h3>この端末の受取</h3><ul data-guest-media-receipts></ul><h3>イベント内の結果</h3><p data-guest-media-results role="status" aria-live="polite">権利確認が済んだメディアだけを集計します。公開には使いません。</p>${canReview ? `<div data-guest-media-review><h3>権利確認が必要な写真・動画</h3><ul data-guest-media-review-list></ul></div>` : ""}</section><script>
+  return `<section class="card" data-guest-media-panel data-session-id="${escapeHtml(sessionId)}"><h2>写真と動画を非公開で残す</h2><p class="muted">保存した写真・動画はあなたと主催者だけが確認できます。動画の音声・位置情報を含め、主催者の確認が終わるまで結果や公開ページには表示しません。</p>${captureForm}<p class="muted" data-guest-media-status role="status" aria-live="polite"></p><h3>この端末の受取</h3><ul data-guest-media-receipts></ul><h3>イベント内の結果</h3><p data-guest-media-results role="status" aria-live="polite">権利確認が済んだメディアだけを集計します。公開には使いません。</p><p><a class="btn secondary" href="/events/${encodeURIComponent(sessionId)}/gallery">保存した写真・動画を見る</a></p>${canReview ? `<div data-guest-media-review><h3>権利確認が必要な写真・動画</h3><ul data-guest-media-review-list></ul></div>` : ""}</section><script>
 (() => {
   const sessionId = ${sessionIdJson};
   const root = document.querySelector('[data-guest-media-panel]');
@@ -5258,6 +5272,80 @@ function renderObservationEventGuestMediaPanel(sessionId: string, canReview: boo
     finally { if (button) button.disabled = false; }
   });
   void load();
+})();
+</script>`;
+}
+
+function observationEventGuestGalleryErrorPage(sessionId: string, message: string): string {
+  return `<section class="card"><h1>写真・動画を表示できません</h1><p class="muted">${escapeHtml(message)}</p><div class="actions"><a class="btn secondary" href="/events/${encodeURIComponent(sessionId)}/rally">観察ラリーへ戻る</a></div></section>`;
+}
+
+function renderObservationEventGuestGalleryPage(
+  session: ObservationEventTemplate,
+  data: Record<string, unknown>,
+  isOrganizer: boolean,
+): string {
+  const receipts = Array.isArray(data.receipts)
+    ? data.receipts.map(asPlainObject).filter((receipt): receipt is Record<string, unknown> => Boolean(receipt))
+    : [];
+  const reviewQueue = Array.isArray(data.reviewQueue)
+    ? data.reviewQueue.map(asPlainObject).filter((receipt): receipt is Record<string, unknown> => Boolean(receipt))
+    : [];
+  const mediaCard = (receipt: Record<string, unknown>, index: number, review = false) => {
+    const href = typeof receipt.privateContentHref === "string" ? receipt.privateContentHref : "";
+    const mediaType = typeof receipt.mediaType === "string" ? receipt.mediaType : typeof receipt.mime === "string" ? receipt.mime : "";
+    const isVideo = mediaType.startsWith("video/");
+    const status = String(receipt.rightsReviewStatus ?? "pending");
+    const statusLabel: Record<string, string> = {
+      pending: "権利確認待ち・非公開",
+      approved: "権利確認済み・非公開",
+      rejected: "掲載対象外・非公開",
+      withdrawn: receipt.cleanupPending === true ? "取り下げ処理を確認中・非公開" : "取り下げ済み・非公開",
+    };
+    const statusCopy = statusLabel[status] ?? "状態を確認できません・非公開";
+    const preview = href && status !== "withdrawn"
+      ? isVideo
+        ? `<video class="event-private-media" controls playsinline preload="metadata" src="${escapeHtml(href)}"></video>`
+        : `<a href="${escapeHtml(href)}" rel="noreferrer"><img class="event-private-media" src="${escapeHtml(href)}" alt="保存した非公開写真" loading="lazy"></a>`
+      : `<p class="muted">${status === "withdrawn" ? "取り下げたメディアは表示できません。" : "メディアの受取先がありません。再読み込みしてください。"}</p>`;
+    const reviewControls = review && href
+      ? `<form data-gallery-review data-media-id="${escapeHtml(receipt.receiptId ?? "")}"><label>権利確認の理由<textarea name="note" minlength="8" maxlength="500" required aria-label="確認した権利と写り込みの理由"></textarea></label><div class="actions"><button class="btn" name="decision" value="approved" type="submit">権利確認を記録</button><button class="btn secondary" name="decision" value="rejected" type="submit">掲載対象外にする</button></div></form>`
+      : "";
+    return `<article class="card event-private-gallery-card" data-private-gallery-item><h2>${isVideo ? "動画" : "写真"} ${index + 1}</h2><p>${escapeHtml(statusCopy)}</p>${preview}${reviewControls}</article>`;
+  };
+  const content = isOrganizer
+    ? reviewQueue.length
+      ? `<div class="event-photo-grid">${reviewQueue.map((receipt, index) => mediaCard(receipt, index, true)).join("")}</div>`
+      : `<p class="muted" data-gallery-empty>権利確認待ちの写真・動画はありません。</p>`
+    : receipts.length
+      ? `<div class="event-photo-grid">${receipts.map((receipt, index) => mediaCard(receipt, index)).join("")}</div>`
+      : `<p class="muted" data-gallery-empty>保存した写真・動画はありません。観察ラリーから記録できます。</p>`;
+  const audience = isOrganizer ? "主催者には権利確認待ちのメディアだけを表示します。" : "ここにはご自身の写真・動画だけが表示されます。";
+  return `<section data-private-gallery-endpoint="/api/v1/observation-events/${escapeHtml(encodeURIComponent(session.sessionId))}/guest-media"><h1>${escapeHtml(session.title)} 写真・動画</h1><p class="muted">${escapeHtml(audience)} すべて非公開で、公開ページやみんなの振り返りには表示されません。</p><p class="muted" role="status" aria-live="polite" data-gallery-status></p>${content}<div class="actions"><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/rally">観察ラリーへ戻る</a></div></section><script>
+(() => {
+  const root = document.querySelector('[data-private-gallery-endpoint]');
+  const status = document.querySelector('[data-gallery-status]');
+  const endpoint = root?.getAttribute('data-private-gallery-endpoint');
+  document.querySelectorAll('[data-gallery-review]').forEach(form => form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submitter = event.submitter;
+    const decision = submitter instanceof HTMLButtonElement ? submitter.value : '';
+    const note = form.querySelector('textarea');
+    const id = form.getAttribute('data-media-id');
+    if (!note || note.value.trim().length < 8 || !id || !endpoint || !['approved', 'rejected'].includes(decision)) { note?.focus(); return; }
+    for (const button of form.querySelectorAll('button')) button.disabled = true;
+    try {
+      const response = await fetch(endpoint + '/' + encodeURIComponent(id) + '/review', {
+        method: 'PATCH', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ decision, note: note.value.trim() })
+      });
+      if (!response.ok) throw new Error('権利確認を保存できませんでした。再読み込みして状態を確認してください。');
+      location.reload();
+    } catch (error) {
+      if (status) status.textContent = error instanceof Error ? error.message : '権利確認を保存できませんでした。';
+      for (const button of form.querySelectorAll('button')) button.disabled = false;
+    }
+  }));
 })();
 </script>`;
 }
