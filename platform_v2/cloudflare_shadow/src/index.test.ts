@@ -7,6 +7,7 @@ import * as bcrypt from "bcryptjs";
 import {
   listPublicSiteMapMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes";
+import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
 import { worker } from "./index";
 
 type D1Value = string | number | null;
@@ -25055,6 +25056,121 @@ test("production field detail can render from Cloudflare public readmodel withou
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Ryuyo field page renders real OSM provenance and distinct core/nearby record sections", async () => {
+  const { env, obs } = createEnv();
+  const fieldId = RYUYO_FIELD_ID;
+  const geometry = {
+    type: "Polygon",
+    coordinates: [[
+      [137.8393578, 34.6684471],
+      [137.8391405, 34.6708363],
+      [137.8391517, 34.6712001],
+      [137.8394498, 34.6708521],
+      [137.8405761, 34.6693071],
+      [137.8407421, 34.6690781],
+      [137.8393578, 34.6684471],
+    ]],
+  };
+  obs.productionFieldDetails.set(fieldId, {
+    field_id: fieldId,
+    source: "osm_park",
+    admin_level: "osm_park",
+    name: "竜洋昆虫自然観察公園",
+    name_kana: null,
+    summary: "昆虫と自然にふれあえる磐田市の自然観察公園です。",
+    prefecture: "静岡県",
+    city: "磐田市",
+    public_cell: "34.67,137.84",
+    public_lat: 34.67,
+    public_lng: 137.84,
+    radius_m: 169,
+    area_ha: null,
+    has_polygon: 1,
+    has_simplified_geometry: 0,
+    certification_id: null,
+    certification_url: null,
+    official_url: "https://ryu-yo.jp/",
+    owner_url: null,
+    story_url: null,
+    verification_level: "registry_matched",
+    verification_method: "official_site_and_osm_way",
+    verification_label: "竜洋昆虫自然観察公園の園内境界：OpenStreetMap Way 530835577（ODbL 1.0）",
+    source_confidence: 0.9,
+    valid_from: null,
+    valid_to: null,
+    entity_key: "osm:way:530835577",
+    updated_at: "2026-09-29T00:00:00.000Z",
+  });
+
+  const originalObsDb = env.OBS_DB;
+  const coreRows = [{
+    visit_id: "ryuyo-core-public-record",
+    observed_at: "2026-09-28T08:00:00.000Z",
+    exact_lat: 34.6698,
+    exact_lng: 137.8398,
+    display_name: "園内の公開記録",
+  }];
+  const nearbyRows = [{
+    visit_id: "ryuyo-nearby-public-record",
+    observed_at: "2026-09-29T08:00:00.000Z",
+    exact_lat: 34.6698,
+    exact_lng: 137.8415,
+    display_name: "周辺の公開記録",
+  }];
+  env.OBS_DB = {
+    prepare(query: string) {
+      const normalized = normalize(query);
+      if (normalized.toLowerCase().startsWith("select field_id, bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, geometry_json")) {
+        return {
+          bind() {
+            return { first: async () => ({
+              field_id: fieldId,
+              bbox_min_lat: 34.6684471,
+              bbox_max_lat: 34.6712001,
+              bbox_min_lng: 137.8391405,
+              bbox_max_lng: 137.8407421,
+              geometry_json: JSON.stringify(geometry),
+            }) };
+          },
+        } as unknown as ReturnType<typeof originalObsDb.prepare>;
+      }
+      if (normalized.toLowerCase().startsWith("select v.visit_id, v.observed_at, v.exact_lat, v.exact_lng")) {
+        return {
+          bind() {
+            return { all: async () => ({ results: [...coreRows, ...nearbyRows] }) };
+          },
+        } as unknown as ReturnType<typeof originalObsDb.prepare>;
+      }
+      return originalObsDb.prepare(query);
+    },
+    batch(statements: FakeStatement[]) {
+      return originalObsDb.batch(statements);
+    },
+  } as typeof env.OBS_DB;
+
+  const response = await worker.fetch(
+    new Request(`https://zukan.earth/ja/community/fields/${fieldId}`),
+    { ...env, ENVIRONMENT: "production" },
+  );
+  const html = await response.text();
+  const coreStart = html.indexOf("<h2>園内の新着</h2>");
+  const nearbyStart = html.indexOf("<h2>周辺で見つかったもの</h2>");
+  assert.equal(response.status, 200);
+  assert.ok(coreStart >= 0);
+  assert.ok(nearbyStart > coreStart);
+  const coreSection = html.slice(coreStart, html.indexOf("</section>", coreStart));
+  const nearbySection = html.slice(nearbyStart, html.indexOf("</section>", nearbyStart));
+  assert.match(coreSection, /ryuyo-core-public-record/);
+  assert.doesNotMatch(coreSection, /ryuyo-nearby-public-record/);
+  assert.match(nearbySection, /ryuyo-nearby-public-record/);
+  assert.doesNotMatch(nearbySection, /ryuyo-core-public-record/);
+  assert.match(html, /href="https:\/\/www\.openstreetmap\.org\/way\/530835577"/);
+  assert.match(html, /href="https:\/\/www\.openstreetmap\.org\/copyright"/);
+  assert.match(html, /© OpenStreetMap contributors · ODbL 1\.0/);
+  assert.doesNotMatch(html, /認定情報/);
+  assert.doesNotMatch(html, /34\.6698|137\.8398|137\.8393578|exact_lat|exact_lng|EXIF|GPSLatitude|private_note/i);
 });
 
 test("production field detail misses return 404 when readmodel table is unavailable", async () => {

@@ -36000,7 +36000,8 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, recor
     [isEnglish ? "Official" : "公式", payload.links.official],
     [isEnglish ? "Certification" : "認定情報", payload.links.certification],
     [isEnglish ? "Owner" : "管理主体", payload.links.owner],
-    [isEnglish ? "Story" : "事例", payload.links.story]
+    [isEnglish ? "Story" : "事例", payload.links.story],
+    ...osmBoundaryLinks(row.source, payload.entityKey, isEnglish)
   ].filter(([, href]) => href);
   const linkHtml = links.length > 0
     ? `<div class="links">${links.map(([label, href]) => `<a href="${escapeHtml(href)}" rel="nofollow noopener">${escapeHtml(label)} ↗</a>`).join("")}</div>`
@@ -36171,6 +36172,16 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, recor
 </main>
 </body>
 </html>`;
+}
+
+function osmBoundaryLinks(source: string, entityKey: string, isEnglish: boolean): string[][] {
+  if (source !== "osm_park") return [];
+  const match = /^osm:(node|way|relation):(\d+)$/.exec(entityKey);
+  if (!match) return [];
+  return [
+    [isEnglish ? "OpenStreetMap boundary" : "園内境界の出典", `https://www.openstreetmap.org/${match[1]}/${match[2]}`],
+    ["© OpenStreetMap contributors · ODbL 1.0", "https://www.openstreetmap.org/copyright"]
+  ];
 }
 
 function renderAreaRecordSections(fieldId: string, records: AreaRecordContext, isEnglish: boolean): string {
