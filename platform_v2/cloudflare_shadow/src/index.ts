@@ -4,6 +4,7 @@ import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsS
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { handleEventTemplatePreviewPage } from "./eventTemplatePages";
 import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
 import * as bcrypt from "bcryptjs";
 import {
@@ -4173,6 +4174,8 @@ function renderSyntheticRenriRallyInteractions(
 async function handleObservationEventPages(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const pathname = stripPublicLangPrefix(url.pathname);
+  const eventTemplatePreview = handleEventTemplatePreviewPage(request, pathname);
+  if (eventTemplatePreview) return eventTemplatePreview;
   if (pathname === "/community/programs/confirm") {
     return getPublicProgramConfirmationPage(request, url, env);
   }
