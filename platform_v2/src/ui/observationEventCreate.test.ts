@@ -3,6 +3,12 @@ import test from "node:test";
 import type { ObservationEventStrings } from "../i18n/strings.js";
 import { OBSERVATION_EVENT_STYLES } from "./observationEventStyles.js";
 import { eventCreateScript, renderEventCreateBody } from "./observationEventCreate.js";
+import {
+  COMMON_EVENT_TEMPLATE_CONTRACT_VERSION,
+  COMMON_EVENT_TEMPLATE_KEYS,
+  isCommonEventTemplateKey,
+  isCommonEventTemplateConfig,
+} from "../services/commonEventTemplateContract.js";
 
 const strings = {
   listCreateCta: "観察会を作る",
@@ -37,6 +43,28 @@ test("event create form treats fixed place event fields and source modes as firs
   assert.match(script, /place_event/);
   assert.match(script, /source_modes/);
   assert.match(script, /consent_policy_version: "place_event_capsule\/v1"/);
+});
+
+test("common event templates create new event provenance without copying event data", () => {
+  const html = renderEventCreateBody({ isAuthenticated: true, strings });
+  const script = eventCreateScript();
+  const keys = JSON.stringify(COMMON_EVENT_TEMPLATE_KEYS);
+
+  assert.match(html, /data-common-event-template hidden/);
+  assert.ok(script.includes(`const commonTemplateKeys = ${keys};`));
+  assert.match(script, /pageParams\.get\("event_template"\)/);
+  assert.match(script, /日時・場所・参加条件は今回分を入力してください/);
+  assert.match(script, /template_source_session_id: templateFrom \|\| null/);
+  assert.match(script, /event_template: \{ contract_version: "event-template-v1", key: commonTemplateKey \}/);
+  assert.doesNotMatch(script, /s\.config|templateConfig|template.participants|template.consent/);
+  assert.ok(isCommonEventTemplateConfig({ contract_version: COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, key: "stamp-rally" }));
+  for (const key of COMMON_EVENT_TEMPLATE_KEYS) {
+    assert.ok(isCommonEventTemplateConfig({ contract_version: COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, key }));
+  }
+  assert.equal(isCommonEventTemplateConfig({ contract_version: "event-template-v0", key: "stamp-rally" }), false);
+  assert.equal(isCommonEventTemplateConfig({ contract_version: COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, key: "unknown" }), false);
+  for (const key of COMMON_EVENT_TEMPLATE_KEYS) assert.ok(isCommonEventTemplateKey(key));
+  assert.equal(isCommonEventTemplateKey("unknown"), false);
 });
 
 test("event create script hydrates MapLibre with CDN fallback and field_id preselection", () => {
@@ -205,10 +233,12 @@ test("event area map keeps a fixed height after MapLibre CSS loads", () => {
 
 test("self-serve activation keeps the organizer login boundary explicit", () => {
   const html = renderEventCreateBody({ isAuthenticated: false, strings });
+  const templateLogin = renderEventCreateBody({ isAuthenticated: false, strings, commonEventTemplateKey: "mission-quest" });
 
   assert.match(html, /主催者アカウントでログインしてください/);
   assert.match(html, /href="\/auth\?redirect=%2Fcommunity%2Fevents%2Fnew"/);
   assert.doesNotMatch(html, /data-evt-create-form/);
+  assert.match(templateLogin, /href="\/auth\?redirect=%2Fcommunity%2Fevents%2Fnew%3Fevent_template%3Dmission-quest"/);
 });
 
 test("self-serve activation retains one generated invite code across submit retries", () => {
