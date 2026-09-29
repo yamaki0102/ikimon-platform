@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  COMMON_EVENT_TEMPLATE_CONTRACT_VERSION,
+  COMMON_EVENT_TEMPLATE_KEYS,
+} from "../../src/services/commonEventTemplateContract";
 import { EVENT_TEMPLATE_PREVIEW_ROUTES, handleEventTemplatePreviewPage } from "./eventTemplatePages";
 import { worker } from "./index";
 
 test("four event preview routes use the shared template contract and remain unlisted", async () => {
-  const expectedKeys = ["stamp-rally", "mission-quest", "collaborative-observation", "ryuyo"];
+  const expectedKeys = [...COMMON_EVENT_TEMPLATE_KEYS];
   const routes = Object.values(EVENT_TEMPLATE_PREVIEW_ROUTES);
   assert.equal(routes.length, 4);
 
@@ -21,8 +25,9 @@ test("four event preview routes use the shared template contract and remain unli
     const expectedKey = expectedKeys[index];
     assert.ok(expectedKey);
     assert.match(html, /name="robots" content="noindex,nofollow,noarchive"/u);
-    assert.match(html, /data-event-template-contract="event-template-v1"/u);
+    assert.ok(html.includes(`data-event-template-contract="${COMMON_EVENT_TEMPLATE_CONTRACT_VERSION}"`));
     assert.match(html, new RegExp("data-template-key=\"" + expectedKey + "\"", "u"));
+    assert.ok(html.includes(`/community/events/new?event_template=${expectedKey}`), `missing create link for ${expectedKey}`);
     assert.doesNotMatch(html, /<form\b|<input\b|参加者数|参加しました|登録者/u);
     assert.doesNotMatch(html, /site-nav|site-record-link/u);
   }

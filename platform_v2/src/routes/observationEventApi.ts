@@ -35,6 +35,7 @@ import {
   EVENT_MODES,
   type EventMode,
 } from "../services/observationEventModeManager.js";
+import { isCommonEventTemplateConfig } from "../services/commonEventTemplateContract.js";
 import {
   recordMeshVisit,
   summarizeSessionEffort,
@@ -160,6 +161,12 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
     if (!fieldId && (locationLat === null || locationLng === null)) {
       return reply.status(400).send({ error: "field_id or location_lat/location_lng required" });
     }
+    const config = (body.config && typeof body.config === "object")
+      ? (body.config as Record<string, unknown>)
+      : {};
+    if (config.event_template !== undefined && !isCommonEventTemplateConfig(config.event_template)) {
+      return reply.status(400).send({ error: "event_template_contract_invalid" });
+    }
 
     const primaryModeRaw = asString(body.primary_mode);
     const primaryMode: EventMode = isEventMode(primaryModeRaw) ? primaryModeRaw : "discovery";
@@ -189,9 +196,7 @@ export async function registerObservationEventApiRoutes(app: FastifyInstance): P
         startedAt: startedAtRaw,
         endedAt: asString(body.ended_at),
         targetSpecies,
-        config: (body.config && typeof body.config === "object")
-          ? (body.config as Record<string, unknown>)
-          : {},
+        config,
         fieldId,
         templateSourceSessionId: asString(body.template_source_session_id),
       });

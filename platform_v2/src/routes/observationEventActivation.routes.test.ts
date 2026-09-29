@@ -43,6 +43,12 @@ test("activation denies cross-origin and anonymous callers, then requires its ke
     assert.equal(missingTitle.statusCode, 400); assert.deepEqual(missingTitle.json(), { error: "title required" });
     const missingPlace = await app.inject({ method: "POST", url: "/api/v1/observation-events", headers: organizerHeaders, payload: { event_code: "ACT123", started_at: "2026-09-02T01:00:00.000Z", title: "地域の記録会" } });
     assert.equal(missingPlace.statusCode, 400); assert.deepEqual(missingPlace.json(), { error: "field_id or location_lat/location_lng required" });
+    const invalidTemplate = await app.inject({ method: "POST", url: "/api/v1/observation-events", headers: organizerHeaders, payload: {
+      event_code: "ACTTPL", started_at: "2026-09-02T01:00:00.000Z", title: "地域の記録会", field_id: "field-a",
+      config: { event_template: { contract_version: "event-template-v0", key: "stamp-rally" } },
+    } });
+    assert.equal(invalidTemplate.statusCode, 400);
+    assert.deepEqual(invalidTemplate.json(), { error: "event_template_contract_invalid" });
   } finally {
     await app.close();
     if (previous.nodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = previous.nodeEnv;

@@ -62,6 +62,7 @@ import {
   renderEventCreateBody,
   eventCreateScript,
 } from "../ui/observationEventCreate.js";
+import { isCommonEventTemplateKey } from "../services/commonEventTemplateContract.js";
 import { buildStagingFixtureExclusionSql } from "../services/stagingFixtureGuard.js";
 import {
   renderEventEditBody,
@@ -257,12 +258,14 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const auth = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
     const lang = langOf(request);
     const strings = getStrings(lang).observationEvent;
+    const requestedTemplateKey = new URL(request.url, "http://localhost").searchParams.get("event_template");
+    const commonEventTemplateKey = isCommonEventTemplateKey(requestedTemplateKey) ? requestedTemplateKey : null;
     reply.type("text/html; charset=utf-8");
     return pageDocument({
       basePath: "",
         title: `${strings.listCreateCta} — ZUKAN`,
       currentPath: currentPathOf(request),
-      body: renderEventCreateBody({ isAuthenticated: Boolean(auth), strings }),
+      body: renderEventCreateBody({ isAuthenticated: Boolean(auth), strings, commonEventTemplateKey }),
       extraScript: eventCreateScript(),
       lang,
     });

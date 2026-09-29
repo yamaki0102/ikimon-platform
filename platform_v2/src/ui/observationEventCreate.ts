@@ -1,4 +1,10 @@
 import { EVENT_MODES } from "../services/observationEventModeManager.js";
+import {
+  COMMON_EVENT_TEMPLATE_CONTRACT_VERSION,
+  COMMON_EVENT_TEMPLATE_KEYS,
+  COMMON_EVENT_TEMPLATE_LABELS,
+  type CommonEventTemplateKey,
+} from "../services/commonEventTemplateContract.js";
 import type { ObservationEventStrings } from "../i18n/strings.js";
 
 function escapeHtml(str: string): string {
@@ -10,10 +16,14 @@ function escapeHtml(str: string): string {
 export function renderEventCreateBody(args: {
   isAuthenticated: boolean;
   strings: ObservationEventStrings;
+  commonEventTemplateKey?: CommonEventTemplateKey | null;
 }): string {
-  const { isAuthenticated, strings } = args;
+  const { isAuthenticated, strings, commonEventTemplateKey = null } = args;
 
   if (!isAuthenticated) {
+    const createPath = commonEventTemplateKey
+      ? `/community/events/new?event_template=${encodeURIComponent(commonEventTemplateKey)}`
+      : "/community/events/new";
     return `
 <section class="evt-recap-shell">
   <article class="evt-card">
@@ -21,7 +31,7 @@ export function renderEventCreateBody(args: {
     <h1 class="evt-heading">主催者アカウントでログインしてください</h1>
     <p class="evt-lead">観察会を作成するには、主催者としてZUKANにログインする必要があります。</p>
     <div style="display:flex; gap:8px; margin-top:12px;">
-      <a class="evt-btn evt-btn-primary" href="/auth?redirect=${encodeURIComponent("/community/events/new")}">ログイン</a>
+      <a class="evt-btn evt-btn-primary" href="/auth?redirect=${encodeURIComponent(createPath)}">ログイン</a>
       <a class="evt-btn evt-btn-ghost" href="/community/events">一覧に戻る</a>
     </div>
   </article>
@@ -43,6 +53,7 @@ export function renderEventCreateBody(args: {
   </article>
 
   <form class="ik-ui-surface evt-checkin-form" data-evt-create-form>
+    <p class="evt-lead" role="status" aria-live="polite" data-common-event-template hidden></p>
     <section class="evt-solo-preset" data-evt-solo-preset-card>
       <div>
         <span class="evt-eyebrow">明日の一人観察会</span>
@@ -263,6 +274,9 @@ export function renderEventCreateBody(args: {
 }
 
 export function eventCreateScript(): string {
+  const commonTemplateKeysJson = JSON.stringify(COMMON_EVENT_TEMPLATE_KEYS);
+  const commonTemplateLabelsJson = JSON.stringify(COMMON_EVENT_TEMPLATE_LABELS);
+  const commonTemplateVersionJson = JSON.stringify(COMMON_EVENT_TEMPLATE_CONTRACT_VERSION);
   return String.raw`
 (() => {
   const form = document.querySelector("[data-evt-create-form]");
@@ -839,6 +853,15 @@ export function eventCreateScript(): string {
     }
   }
   const pageParams = new URLSearchParams(window.location.search);
+  const commonTemplateKeys = ${commonTemplateKeysJson};
+  const commonTemplateLabels = ${commonTemplateLabelsJson};
+  const rawCommonTemplateKey = pageParams.get("event_template");
+  const commonTemplateKey = commonTemplateKeys.includes(rawCommonTemplateKey) ? rawCommonTemplateKey : null;
+  const commonTemplateNotice = form.querySelector("[data-common-event-template]");
+  if (commonTemplateKey && commonTemplateNotice) {
+    commonTemplateNotice.hidden = false;
+    commonTemplateNotice.textContent = commonTemplateLabels[commonTemplateKey] + "の共通テンプレートです。日時・場所・参加条件は今回分を入力してください。参加者、申込み、写真、同意、権利確認状態は引き継ぎません。";
+  }
   function validDraftPolygon(poly){
     return poly && poly.type === "Polygon" && Array.isArray(poly.coordinates) && Array.isArray(poly.coordinates[0]) && poly.coordinates[0].length >= 4;
   }
@@ -1531,6 +1554,7 @@ export function eventCreateScript(): string {
           public_story_enabled: fd.get("public_story_enabled") === "on",
           ai_recap_enabled: fd.get("ai_recap_enabled") === "on",
         },
+        ...(commonTemplateKey ? { event_template: { contract_version: ${commonTemplateVersionJson}, key: commonTemplateKey } } : {}),
       },
     };
     const r = await fetch("/api/v1/observation-events", {
