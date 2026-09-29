@@ -5,58 +5,50 @@ import test from "node:test";
 
 const migrationsUrl = new URL("../migrations/observations/", import.meta.url);
 const projectionUrl = new URL("0070_ryuyo_field_resolution_projection.sql", migrationsUrl);
-const correctionUrl = new URL("0071_ryuyo_osm_source_correction.sql", migrationsUrl);
+const rollbackUrl = new URL("../rollback/observations/0070_ryuyo_field_resolution_projection.sql", import.meta.url);
+const fieldId = "372eafbd-ea9c-4b2f-ab5f-434b81b928b2";
+const entityKey = "osm:way:530835577";
 
-async function readMigration(url: URL): Promise<string> {
+async function readSql(url: URL): Promise<string> {
   return readFile(url, "utf8");
 }
 
 async function createDatabase(): Promise<DatabaseSync> {
   const db = new DatabaseSync(":memory:");
   db.exec("CREATE TABLE observations (observation_id TEXT PRIMARY KEY)");
-  db.exec(await readMigration(new URL("0014_field_detail_readmodel.sql", migrationsUrl)));
-  db.exec(await readMigration(new URL("0015_field_detail_readmodel_bbox_indexes.sql", migrationsUrl)));
+  db.exec(await readSql(new URL("0014_field_detail_readmodel.sql", migrationsUrl)));
+  db.exec(await readSql(new URL("0015_field_detail_readmodel_bbox_indexes.sql", migrationsUrl)));
   return db;
 }
 
-test("fresh production applies the historical Ryuyo 0070 and then 0071", async () => {
-  const projection = await readMigration(projectionUrl);
-  const correction = await readMigration(correctionUrl);
+test("Ryuyo projection is additive, OSM-attributed and safe to repeat", async () => {
+  const sql = await readSql(projectionUrl);
   const db = await createDatabase();
 
-  db.exec(projection);
-  db.exec(correction);
-
-  const columns = db.prepare("PRAGMA table_info(observations)").all() as Array<{
-    name: string;
-    dflt_value: string | null;
-  }>;
-  assert.equal(
-    columns.find(({ name }) => name === "resolved_field_ids_json")?.dflt_value,
-    "'[]'",
-  );
+  db.exec(sql);
+  db.exec(sql);
 
   const field = db.prepare(
-    "SELECT field_id, source, certification_id, entity_key FROM production_import_field_detail_readmodel",
-  ).get();
-  assert.deepEqual({ ...field }, {
-    field_id: "372eafbd-ea9c-4b2f-ab5f-434b81b928b2",
-    source: "osm_park",
-    certification_id: "osm:way:530835577",
-    entity_key: "osm:way:530835577",
-  });
+    `SELECT field_id, source, certification_id, certification_url, verification_label, entity_key
+       FROM production_import_field_detail_readmodel WHERE field_id = ?`,
+  ).get(fieldId) as Record<string, unknown>;
+  assert.equal(field.source, "osm_park");
+  assert.equal(field.certification_id, null);
+  assert.equal(field.certification_url, null);
+  assert.equal(field.entity_key, entityKey);
+  assert.match(String(field.verification_label), /OpenStreetMap.*ODbL 1\.0/);
 
   const polygon = db.prepare(
-    `SELECT field_id, source, geometry_json, approximate_boundary,
-      boundary_approximation, certification_url, entity_key
-    FROM production_import_area_polygon_readmodel`,
-  ).get() as Record<string, unknown>;
-  assert.equal(polygon.field_id, "372eafbd-ea9c-4b2f-ab5f-434b81b928b2");
+    `SELECT field_id, source, geometry_json, approximate_boundary, boundary_approximation,
+            certification_url, entity_key, verification_label
+       FROM production_import_area_polygon_readmodel WHERE field_id = ?`,
+  ).get(fieldId) as Record<string, unknown>;
   assert.equal(polygon.source, "osm_park");
-  assert.equal(polygon.certification_url, "https://www.openstreetmap.org/way/530835577");
-  assert.equal(polygon.entity_key, "osm:way:530835577");
+  assert.equal(polygon.certification_url, null);
+  assert.equal(polygon.entity_key, entityKey);
   assert.equal(polygon.approximate_boundary, 0);
   assert.equal(polygon.boundary_approximation, "osm_way");
+  assert.match(String(polygon.verification_label), /OpenStreetMap.*ODbL 1\.0/);
   assert.deepEqual(JSON.parse(String(polygon.geometry_json)), {
     type: "Polygon",
     coordinates: [[
@@ -70,48 +62,43 @@ test("fresh production applies the historical Ryuyo 0070 and then 0071", async (
     ]],
   });
 
-  const seedStatements = projection.slice(
-    projection.indexOf("INSERT INTO production_import_field_detail_readmodel"),
-  );
-  db.exec(seedStatements);
-  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_field_detail_readmodel").get()?.count, 1);
-  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_area_polygon_readmodel").get()?.count, 1);
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.count, 1);
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.count, 1);
   db.close();
 });
 
-test("staging applies only 0071 after its previously recorded Ryuyo 0070", async () => {
-  const projection = await readMigration(projectionUrl);
-  const correction = await readMigration(correctionUrl);
+test("Ryuyo projection never replaces pre-existing conflicting rows", async () => {
   const db = await createDatabase();
-
-  // Reproduce staging's already-applied 0070 contents without applying a D1 migration.
-  const historicalStagingProjection = projection.replaceAll(
-    "'osm_park', 'osm_park'",
-    "'user_defined', 'osm_park'",
-  );
-  db.exec(historicalStagingProjection);
   db.prepare(`INSERT INTO production_import_field_detail_readmodel (
     field_id, source, admin_level, name, public_cell, public_lat, public_lng, entity_key
-  ) VALUES (?, 'user_defined', 'osm_park', 'Other', '0,0', 0, 0, ?)`)
-    .run("other-field", "osm:way:other");
+  ) VALUES (?, 'user_defined', 'user_defined', 'Existing field', '0,0', 0, 0, 'existing:field')`)
+    .run(fieldId);
   db.prepare(`INSERT INTO production_import_area_polygon_readmodel (
-    field_id, source, admin_level, name, center_lat, center_lng,
-    bbox_min_lat, bbox_max_lat, bbox_min_lng, bbox_max_lng, geometry_json,
-    approximate_boundary, entity_key
-  ) VALUES (?, 'user_defined', 'osm_park', 'Other', 0, 0, 0, 0, 0, 0, '{}', 1, ?)`)
-    .run("other-field", "osm:way:other");
+    field_id, source, admin_level, name, center_lat, center_lng, bbox_min_lat, bbox_max_lat,
+    bbox_min_lng, bbox_max_lng, geometry_json, entity_key
+  ) VALUES (?, 'user_defined', 'user_defined', 'Existing boundary', 0, 0, 0, 0, 0, 0, '{}', 'existing:boundary')`)
+    .run(fieldId);
 
-  db.exec(correction);
+  db.exec(await readSql(projectionUrl));
 
-  const selectSource = (table: string, fieldId: string): unknown => db
-    .prepare(`SELECT source FROM ${table} WHERE field_id = ?`)
-    .get(fieldId)?.source;
-  for (const table of [
-    "production_import_field_detail_readmodel",
-    "production_import_area_polygon_readmodel",
-  ]) {
-    assert.equal(selectSource(table, "372eafbd-ea9c-4b2f-ab5f-434b81b928b2"), "osm_park");
-    assert.equal(selectSource(table, "other-field"), "user_defined");
-  }
+  assert.equal(db.prepare("SELECT name FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.name, "Existing field");
+  assert.equal(db.prepare("SELECT entity_key FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.entity_key, "existing:boundary");
+  db.close();
+});
+
+test("Ryuyo rollback removes only exact OSM projection rows", async () => {
+  const db = await createDatabase();
+  db.exec(await readSql(projectionUrl));
+
+  db.exec(await readSql(rollbackUrl));
+
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.count, 0);
+  assert.equal(db.prepare("SELECT count(*) AS count FROM production_import_area_polygon_readmodel WHERE field_id = ?").get(fieldId)?.count, 0);
+  db.prepare(`INSERT INTO production_import_field_detail_readmodel (
+    field_id, source, admin_level, name, public_cell, public_lat, public_lng, entity_key
+  ) VALUES (?, 'user_defined', 'user_defined', 'Pre-existing', '0,0', 0, 0, 'existing:field')`)
+    .run(fieldId);
+  db.exec(await readSql(rollbackUrl));
+  assert.equal(db.prepare("SELECT name FROM production_import_field_detail_readmodel WHERE field_id = ?").get(fieldId)?.name, "Pre-existing");
   db.close();
 });
