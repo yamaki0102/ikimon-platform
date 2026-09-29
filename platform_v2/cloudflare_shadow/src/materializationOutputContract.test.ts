@@ -152,6 +152,7 @@ test("staging materializer sends state, prewrite, readback, then PUT and finaliz
     assert.ok(calls.some((call) => call.op === "finalize"));
     assert.ok(calls.every((call) => call.source_sha === sourceSha));
     const finalize = calls.find((call) => call.op === "finalize");
+    assert.ok(finalize);
     assert.deepEqual(finalize.prewrite_receipt, { run_id: "ops-aaaaaaaaaaaaaaaa", receipt_sha256: receiptSha256 });
     assert.deepEqual(finalize.expected_previous_pointer, currentPointer);
   } finally {
