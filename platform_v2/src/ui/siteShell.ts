@@ -1327,7 +1327,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>${escapeHtml(copy.start)}</button>
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>${escapeHtml(copy.capture)}</button>
     </div>
-    <button type="button" class="global-record-gallery-select" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
+    <button type="button" class="global-record-gallery-select is-secondary" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
     <div class="global-record-camera-error" data-global-record-camera-error role="alert" hidden>
       <strong>${escapeHtml(copy.errorTitle)}</strong>
       <p data-global-record-camera-error-body>${escapeHtml(copy.errorBody)}</p>
@@ -6502,6 +6502,11 @@ ${alternateLinks}
     .global-record-camera-action.is-primary {
       background: #064e3b;
       color: #fff;
+    }
+    .global-record-camera-action.is-additional:not(.is-primary) {
+      min-height: 44px;
+      font-size: 14px;
+      font-weight: 700;
     }
     .global-record-camera-action[hidden] {
       display: none;
