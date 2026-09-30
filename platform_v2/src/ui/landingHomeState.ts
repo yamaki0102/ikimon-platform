@@ -416,11 +416,20 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
       list.appendChild(link);
     });
   };
-  status.textContent = copy.loading;
-  fetch(alertsEndpoint, { method: 'GET', headers: { accept: 'application/json' }, credentials: 'same-origin' })
-    .then((response) => response.ok ? response.json() : Promise.reject(new Error('alerts_unavailable')))
-    .then((payload) => { if (!payload || payload.ok !== true || !Array.isArray(payload.alerts)) throw new Error('alerts_unavailable'); render(payload.alerts); })
-    .catch(() => { status.textContent = copy.error; });
+  let requestStarted = false;
+  const loadAlerts = () => {
+    if (requestStarted || document.documentElement.dataset.auth !== 'signed-in') return;
+    requestStarted = true;
+    status.textContent = copy.loading;
+    fetch(alertsEndpoint, { method: 'GET', headers: { accept: 'application/json' }, credentials: 'same-origin' })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('alerts_unavailable')))
+      .then((payload) => { if (!payload || payload.ok !== true || !Array.isArray(payload.alerts)) throw new Error('alerts_unavailable'); render(payload.alerts); })
+      .catch(() => { status.textContent = copy.error; });
+  };
+  window.addEventListener('ikimon:auth-session-ready', (event) => {
+    if (event.detail && event.detail.signedIn === true) loadAlerts();
+  });
+  loadAlerts();
 })();
 </script>`;
 }
