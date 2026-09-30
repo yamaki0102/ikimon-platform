@@ -1,0 +1,119 @@
+name: Public Home UX Readback
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact 40-character source SHA already deployed to the target runtime
+        required: true
+        type: string
+      base_url:
+        description: Read-only target origin
+        required: true
+        default: https://staging.ikimon.life
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-home-ux-readback-${{ inputs.base_url }}-${{ inputs.expected_sha }}
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: Read-only public home UX
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate inputs
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "expected_sha must be an exact lowercase 40-character SHA" >&2; exit 2; }
+          case "$BASE_URL" in
+            https://staging.ikimon.life|https://ikimon.life) ;;
+            *) echo "base_url is not allowlisted" >&2; exit 2 ;;
+          esac
+
+      - name: Checkout exact source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/package-lock.json
+
+      - name: Install platform dependencies
+        working-directory: platform_v2
+        run: npm ci
+
+      - name: Install readback browser
+        working-directory: platform_v2
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify target runtime identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --header 'cache-control: no-store' \
+            "$BASE_URL/api/v1/runtime/version?ux_readback=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --output "$RUNNER_TEMP/runtime-version.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const expected = process.env.EXPECTED_SHA;
+          const value = JSON.parse(readFileSync(process.env.RUNNER_TEMP + '/runtime-version.json', 'utf8'));
+          const advertised = [value.gitSha, value.sourceSha].filter(Boolean).map(String);
+          if (!advertised.length || advertised.some((sha) => sha !== expected)) {
+            throw new Error(`runtime SHA mismatch: expected ${expected}, received ${advertised.join(',') || 'none'}`);
+          }
+          const deployment = String(value.workerVersion || value.version || value.deploymentId || '');
+          if (!deployment) throw new Error('runtime deployment identity is missing');
+          console.log(JSON.stringify({ expectedSha: expected, deploymentIdentity: deployment }));
+          NODE
+
+      - name: Run deployed public home interaction gate
+        working-directory: platform_v2
+        env:
+          PRODUCTION_SMOKE_BASE_URL: ${{ inputs.base_url }}
+        run: npx playwright test -c playwright.production-smoke.config.ts e2e/public-home-readback.production.spec.ts
+
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-home-ux-readback-${{ inputs.expected_sha }}
+          path: |
+            platform_v2/test-results
+            platform_v2/playwright-report/production-smoke
+            ${{ runner.temp }}/runtime-version.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Record completion state
+        if: success()
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          {
+            echo '## Public home UX readback'
+            echo
+            echo "- source SHA: \`$EXPECTED_SHA\`"
+            echo "- target: \`$BASE_URL\`"
+            echo '- mode: read-only GET/HEAD and local UI interactions'
+            echo '- release state evidence: `STAGING_UX_VERIFIED` for staging, `PRODUCTION_UX_VERIFIED` for production'
+          } >> "$GITHUB_STEP_SUMMARY"

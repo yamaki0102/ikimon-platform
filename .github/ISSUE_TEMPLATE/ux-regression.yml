@@ -1,0 +1,129 @@
+name: UX・表示不具合
+about: 公開画面の分かりにくさ、無反応な操作、表示崩れを記録する
+title: "[UX] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        見た目だけでなく「何の機能か分からない」「押しても反応しない」「PCとスマホで優先順位が崩れる」問題も対象です。
+        本番で発見した場合も直接編集せず、修正PR→staging→production→production UX確認で対応します。
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: 発生環境
+      options:
+        - production
+        - staging
+        - local / preview
+        - 不明
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: 発生URL
+      placeholder: https://ikimon.life/ja/
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 利用者への影響
+      options:
+        - P0: 安全・個人情報・データ破損の恐れ
+        - P1: 主要操作ができない、誤操作を招く
+        - P2: 分かりにくい、表示崩れ、回避可能
+        - P3: 軽微な表記・見た目
+    validations:
+      required: true
+
+  - type: textarea
+    id: observation
+    attributes:
+      label: 実際に見えた・起きたこと
+      description: 解釈ではなく、画面上の文字、位置、押した操作、反応を順に記載してください。
+      placeholder: |
+        画面上部に「追加」「あとで」だけが表示される。
+        どちらを押しても変化しない。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する状態
+      placeholder: 初回公開トップにはPWA案内を表示しない。表示する場合は目的説明と動作が揃っている。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1. 未ログインで公開トップを開く
+        2. ページ上部を見る
+        3. ボタンを押す
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: 端末・画面サイズ
+      placeholder: Pixel 10 Pro / 390×844、Windows PC / 1440×900
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: ブラウザ・アプリ
+      placeholder: Android Chrome、ChatGPT内ブラウザ、PC Chrome
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: スクリーンショット・動画
+      description: 個人情報や正確な位置情報が写っていないことを確認してください。
+      placeholder: ここへドラッグ＆ドロップ
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 確認した内容
+      options:
+        - label: ページを再読み込みしても再現する
+        - label: 別の画面幅でも確認した
+        - label: 表示だけでなく実際に操作した
+        - label: 個人情報をIssueへ含めていない
+
+  - type: textarea
+    id: technical
+    attributes:
+      label: 技術的な手掛かり
+      description: 任意。source SHA、runtime SHA、console error、関連PR・Issueなど。
+
+  - type: dropdown
+    id: release_block
+    attributes:
+      label: Release判定
+      options:
+        - 本番UX未確認としてrelease完了を止める
+        - 既存本番は継続し、次回修正releaseで対応
+        - 判断が必要
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        対応完了条件は、コード修正だけではありません。
+        `CODE_VERIFIED` → `STAGING_UX_VERIFIED` → `PRODUCTION_DEPLOYED` → `PRODUCTION_UX_VERIFIED` の順で証拠を残してください。
