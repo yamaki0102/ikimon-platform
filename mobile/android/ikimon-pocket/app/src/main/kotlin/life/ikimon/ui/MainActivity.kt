@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.util.Log
@@ -158,12 +159,14 @@ class MainActivity : ComponentActivity() {
                     _detections.clear()
                     _sessionRecap.value = null
                     _elapsedSeconds.intValue = 0
-                    when (selectedMode) {
+                    val started = when (selectedMode) {
                         ScanMode.POCKET -> startPocketMode()
                         ScanMode.FIELD -> startFieldScan(fieldSessionIntent, fieldTestLevel, movementMode)
                     }
-                    isActive = true
-                    startTimer()
+                    if (started) {
+                        isActive = true
+                        startTimer()
+                    }
                 }
 
                 LaunchedEffect(showResultSheet) {
@@ -373,13 +376,20 @@ class MainActivity : ComponentActivity() {
         ))
     }
 
-    private fun startPocketMode() {
-        if (!hasRequiredPermissions()) { requestPermissions(); return }
+    private fun startPocketMode(): Boolean {
+        if (!hasRequiredPermissions()) {
+            requestPermissions()
+            return false
+        }
         PocketService.start(this)
+        return true
     }
 
-    private fun startFieldScan(intent: FieldSessionIntent, testLevel: FieldTestLevel, movementMode: MovementMode) {
-        if (!hasRequiredPermissions()) { requestPermissions(); return }
+    private fun startFieldScan(intent: FieldSessionIntent, testLevel: FieldTestLevel, movementMode: MovementMode): Boolean {
+        if (!hasRequiredPermissions()) {
+            requestPermissions()
+            return false
+        }
         currentMovementMode = movementMode.key
         foregroundFieldAiActive = true
         FieldScanService.start(
@@ -392,11 +402,21 @@ class MainActivity : ComponentActivity() {
         if (movementMode.key == "vehicle") {
             speakDriveCue("移動中です。画面を見なくても分かるように、景色の変化だけ短く伝えます。")
         }
+        return true
     }
 
     private fun hasRequiredPermissions(): Boolean {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val requiredPermissions = buildList {
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.RECORD_AUDIO)
+            add(Manifest.permission.CAMERA)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        return requiredPermissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     private fun handleAuthIntent(intent: Intent?) {
