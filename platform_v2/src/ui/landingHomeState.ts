@@ -164,6 +164,8 @@ function renderGuestProof(options: LandingHomeStateOptions, publicItems: Landing
 
 function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObservation[]): string {
   const copy = options.copy.home.guest;
+  const placeKicker = options.lang === "ja" ? "場所" : "PLACE";
+  const communityKicker = options.lang === "ja" ? "地域" : "COMMUNITY";
 
   const placeHref = href(options, "/map?tab=places");
   const communityHref = href(options, "/community/events");
@@ -188,9 +190,9 @@ function renderGuest(options: LandingHomeStateOptions, publicItems: LandingObser
       <ul>${categoriesHtml}</ul>
     </section>
     <section class="home-section home-place-section" id="home-places">
-      <div><span class="home-product-kicker">PLACE</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
+      <div><span class="home-product-kicker">${placeKicker}</span><h2>${escapeHtml(copy.placesTitle)}</h2><p>${escapeHtml(copy.placesBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(placeHref)}" data-kpi-event="top_place_tap" data-kpi-action="top_place_section">${escapeHtml(copy.secondaryCta)}</a></div>
     </section>
-    <section class="home-section home-community-section"><span class="home-product-kicker">COMMUNITY</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
+    <section class="home-section home-community-section"><span class="home-product-kicker">${communityKicker}</span><h2>${escapeHtml(copy.communityTitle)}</h2><p>${escapeHtml(copy.communityBody)}</p><a class="home-secondary-button ik-ui-action" href="${escapeHtml(communityHref)}">${escapeHtml(copy.communityCta)}</a></section>
     <section class="home-section home-privacy-section"><span class="home-privacy-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span><div><h2>${escapeHtml(copy.privacyTitle)}</h2><p>${escapeHtml(copy.privacyBody)}</p></div></section>
     <section class="home-section home-final-section"><h2>${escapeHtml(copy.finalTitle)}</h2>${captureButton(copy.finalCta, "home-secondary-button", "top_capture_final")}</section>
     <p class="home-operator-statement">${escapeHtml(options.copy.home.shared.operatorStatement)}</p>
