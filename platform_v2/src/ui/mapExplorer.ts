@@ -14466,7 +14466,7 @@ export const MAP_EXPLORER_STYLES = `
     .me-layer-hint {
       left: 10px;
       right: 10px;
-      bottom: calc(var(--me-mobile-action-space) + 24px);
+      bottom: calc(var(--me-mobile-action-space) + 48px);
       max-width: none;
       flex-wrap: wrap;
       padding: 9px 10px;
