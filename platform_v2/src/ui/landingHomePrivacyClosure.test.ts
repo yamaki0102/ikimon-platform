@@ -90,6 +90,13 @@ test("guest Home exposes regional categories before place and community follow-u
   assert.ok(html.indexOf("data-home-categories") < html.indexOf("home-place-section"));
 });
 
+test("Japanese guest Home localizes the place and community section kickers", () => {
+  const html = render([]);
+  assert.match(html, /home-product-kicker">場所</u);
+  assert.match(html, /home-product-kicker">地域</u);
+  assert.doesNotMatch(html, /home-product-kicker">(?:PLACE|COMMUNITY)</u);
+});
+
 test("guest Home waits for auth hydration before requesting personal alerts", () => {
   const html = render([]);
   assert.match(html, /ikimon:auth-session-ready/);
