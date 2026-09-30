@@ -4,10 +4,10 @@ ZUKAN is a place-centered shared knowledge and participation product across natu
 
 ## Authority and start
 
-- Fresh-read `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`, the current work queue, and the relevant project packet before making current-state or delivery claims.
-- The same cross-project contract governs Goal/DoD, model/provider/cost, Work continuity, concurrency, protected actions and completion evidence; this file remains the ZUKAN product/safety authority. Prefer executable source/contracts/types/schemas/tests for implementation behavior; keep prose only where needed, do not require a Word-style design document, and preserve Japanese product/UI text exactly.
+- Fresh-read `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`, the existing NOCOSIL Work / Current State / Evidence / Resume for mutable continuity, and the relevant project packet before making current-state or delivery claims.
+- The same cross-project contract governs Goal/DoD, model/provider/cost, Work continuity, concurrency, protected actions and completion evidence; this file remains the ZUKAN product/safety authority. Prefer executable source/contracts/types/schemas/tests for implementation behavior; keep prose only where needed, do not require a Word-style design document, and preserve Japanese product/UI text verbatim unless it is part of the requested change; apply explicit translation/copy edits as instructed.
 - Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work first reads `DESIGN.md`, the canonical ZUKAN design rulebook for shared brand, visual, interaction, internationalization and accessibility decisions, then `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md` for existing navigation, screen and state responsibilities; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
-- Product Registry owns meaning, acceptance and static dependencies. The management queue and shared Verified Outcome Status Resolver own current assignment and resolved evidence. A static task is not a live lease or runtime proof.
+- Product Registry owns meaning, acceptance and static dependencies. NOCOSIL Work / Current State / Evidence / Resume owns mutable objective, status/claim, blocker, checkpoint/Evidence, next action and resume. `all-projects-management` is the versioned source for cross-project policy, registered canonical locators and deploy/release routing, and registered projections for their declared domains. Any management queue or shared Verified Outcome Status Resolver is only an explicitly registered projection of active NOCOSIL Work, never a second mutable assignment/evidence authority. A static task is not a live lease or runtime proof.
 - Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed Work identities. Apply the current management start/locality and admission contract for the actual execution node.
 - Owner-authorized reversible source, test, branch, PR and merge work proceeds without repeated approval. Existing protected release, rights, privacy, identity and external-send boundaries remain binding.
 
@@ -69,7 +69,7 @@ Use a short-lived `codex/<work-id>` branch → reviewed/verified PR → authoriz
 
 ## Completion
 
-Report changed behavior, exact source/PR, proportional checks, current runtime read-back, remaining real dependencies and next admitted Work. A passing test, merged PR, HTTP 200 or old LIVE_VERIFIED record does not establish the complete user journey. Preserve existing blocked slices and failure bindings; continue independent adopted source work through the same management queue without renaming or retrying the blocked task.
+Report changed behavior, exact source/PR, proportional checks, current runtime read-back, remaining real dependencies and next admitted Work. A passing test, merged PR, HTTP 200 or old LIVE_VERIFIED record does not establish the complete user journey. Preserve existing blocked slices and failure bindings; continue independent adopted source work through the same NOCOSIL Work authority without renaming or retrying the blocked task.
 
 ## Test data isolation (owner correction, 2026-09-05)
 
