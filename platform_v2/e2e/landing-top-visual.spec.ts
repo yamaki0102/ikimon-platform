@@ -248,6 +248,20 @@ for (const width of widths) {
   });
 }
 
+test("390px category content clears the fixed navigation", async ({ browser }) => {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await page.setContent(pageHtml("ja", false), { waitUntil: "domcontentloaded" });
+  const lastCategory = page.locator(".home-category-section li").last();
+  await lastCategory.evaluate((element) => element.scrollIntoView({ block: "end" }));
+  const bounds = await page.evaluate(() => ({
+    categoryBottom: document.querySelector(".home-category-section li:last-child")?.getBoundingClientRect().bottom ?? 0,
+    navigationTop: document.querySelector(".global-record-launcher")?.getBoundingClientRect().top ?? 0,
+  }));
+  expect(bounds.categoryBottom).toBeLessThanOrEqual(bounds.navigationTop);
+  await capture(page, "guest-ja-390-category-navigation-clearance");
+  await page.close();
+});
+
 for (const width of widths) {
   test(`member ${width}px prioritizes a personal memory, places, and next activity`, async ({ browser }) => {
     const page = await browser.newPage({ viewport: { width, height: width < 700 ? 844 : 900 } });
