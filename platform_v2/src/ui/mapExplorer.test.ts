@@ -1111,6 +1111,13 @@ test("layer tabs expose low-zoom guidance without a floating layer key", () => {
   assert.match(styles, /\.me-layer-hint-jump \{/);
 });
 
+test("mobile layer guidance stays clear of map attribution", () => {
+  assert.match(
+    MAP_EXPLORER_STYLES,
+    /@media \(max-width: 900px\)[\s\S]*?\.me-layer-hint \{[\s\S]*?bottom: calc\(var\(--me-mobile-action-space\) \+ 48px\);/,
+  );
+});
+
 test("mobile map keeps two primary tabs and the existing advanced-layer selector", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026, 2025] });
   const styles = MAP_EXPLORER_STYLES;
