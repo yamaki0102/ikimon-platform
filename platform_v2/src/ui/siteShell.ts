@@ -3271,6 +3271,9 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const accountCopy = ${JSON.stringify(accountCopy)};
   let signedIn = false;
   let latestAlerts = [];
+  const publishAuthSessionReady = (isSignedIn) => {
+    window.dispatchEvent(new CustomEvent('ikimon:auth-session-ready', { detail: { signedIn: isSignedIn } }));
+  };
   const setIconHref = (selector, href, label) => {
     document.querySelectorAll(selector).forEach((link) => {
       link.setAttribute('href', href);
@@ -3525,6 +3528,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
       document.documentElement.dataset.auth = 'guest';
       document.querySelectorAll('[data-home-header]').forEach((header) => { header.dataset.homeAuthState = 'guest'; });
       hydrateBottomNavAuth(false);
+      publishAuthSessionReady(false);
       return;
     }
     signedIn = true;
@@ -3548,6 +3552,7 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     });
     hydrateAlerts();
     hydratePersonalizedMenu();
+    publishAuthSessionReady(true);
   };
   fetch(endpoint, {
     method: 'GET',

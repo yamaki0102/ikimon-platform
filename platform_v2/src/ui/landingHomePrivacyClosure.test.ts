@@ -90,6 +90,14 @@ test("guest Home exposes regional categories before place and community follow-u
   assert.ok(html.indexOf("data-home-categories") < html.indexOf("home-place-section"));
 });
 
+test("guest Home waits for auth hydration before requesting personal alerts", () => {
+  const html = render([]);
+  assert.match(html, /ikimon:auth-session-ready/);
+  assert.match(html, /event\.detail\.signedIn === true/);
+  assert.match(html, /document\.documentElement\.dataset\.auth !== 'signed-in'/);
+  assert.match(html, /fetch\(alertsEndpoint/);
+});
+
 test("a gate-missing proof copy cannot shadow the eligible feed copy of the same record", () => {
   const html = render(
     [proof()],
