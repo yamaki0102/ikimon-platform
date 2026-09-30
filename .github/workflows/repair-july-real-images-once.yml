@@ -1,0 +1,238 @@
+name: Repair July Real Images Once
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: repair-july-real-images-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.head_ref == 'agent/repair-july-real-images-20260713'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TARGET_SHA: 2c4d72224ece8fe653bc1bffc4ce3ffa57b059cb
+      GH_TOKEN: ${{ github.token }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      PRODUCTION_BASE_URL: https://ikimon.life
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: platform_v2/cloudflare_shadow/package-lock.json
+      - name: Install Worker dependencies
+        run: npm --prefix platform_v2/cloudflare_shadow ci
+
+      - name: Wait for exact production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p july-real-image-repair
+          repo="$GITHUB_REPOSITORY"
+          run_id=""
+          for attempt in $(seq 1 100); do
+            gh api --paginate "repos/$repo/actions/workflows/deploy.yml/runs?branch=main&event=push&per_page=100" > july-real-image-repair/deploy-runs.json
+            run_id="$(jq -r --arg sha "$TARGET_SHA" '.workflow_runs[] | select(.head_sha == $sha) | .id' july-real-image-repair/deploy-runs.json | head -1)"
+            if [ -n "$run_id" ]; then
+              gh api "repos/$repo/actions/runs/$run_id" > july-real-image-repair/deploy-run.json
+              status="$(jq -r '.status' july-real-image-repair/deploy-run.json)"
+              conclusion="$(jq -r '.conclusion // empty' july-real-image-repair/deploy-run.json)"
+              echo "deploy attempt=$attempt run=$run_id status=$status conclusion=${conclusion:-pending}"
+              if [ "$status" = "completed" ]; then
+                test "$conclusion" = "success"
+                break
+              fi
+            else
+              echo "deploy attempt=$attempt target run not visible"
+            fi
+            sleep 15
+          done
+          test -n "$run_id"
+          test "$(jq -r '.status' july-real-image-repair/deploy-run.json)" = "completed"
+          test "$(jq -r '.conclusion' july-real-image-repair/deploy-run.json)" = "success"
+          gh api "repos/$repo/actions/runs/$run_id/jobs?filter=latest&per_page=100" > july-real-image-repair/deploy-jobs.json
+          jq -e '.jobs[] | select(.name == "Deploy and Verify Cloudflare Production" and .conclusion == "success")' july-real-image-repair/deploy-jobs.json >/dev/null
+
+          runtime_ok=""
+          for attempt in $(seq 1 60); do
+            status="$(curl -sS -L --connect-timeout 10 --max-time 30 -H 'cache-control: no-store, no-cache' -A 'ikimon-july-image-repair/1.0' -o july-real-image-repair/runtime.json -w '%{http_code}' "${PRODUCTION_BASE_URL%/}/api/v1/runtime/version?repair=$GITHUB_RUN_ID-$attempt")"
+            runtime_sha="$(jq -r '.gitSha // empty' july-real-image-repair/runtime.json 2>/dev/null || true)"
+            echo "runtime attempt=$attempt status=$status sha=${runtime_sha:-missing}"
+            if [ "$status" = "200" ] && [ "$runtime_sha" = "$TARGET_SHA" ]; then runtime_ok=yes; break; fi
+            sleep 10
+          done
+          test "$runtime_ok" = yes
+
+      - name: Select exact owner observations and enqueue regeneration
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-real-image-repair"
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --json \
+            --command "SELECT user_id,display_name,role_name,rank_label,banned FROM auth_users WHERE lower(email)=lower('yamaki0102@gmail.com') LIMIT 1" > "$root/account.private.json"
+          USER_ID="$(node -e "const x=require(process.argv[1]);const r=x[0]?.results?.[0];if(!r)process.exit(2);process.stdout.write(r.user_id)" "$root/account.private.json")"
+
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT DISTINCT o.observation_id,o.observed_at FROM observations o JOIN asset_ledger a ON a.observation_id=o.observation_id WHERE o.owner_user_id='$USER_ID' AND substr(o.observed_at,1,10) IN ('2026-07-07','2026-07-10') AND a.mime LIKE 'image/%' AND (a.public_derivative_metadata_json LIKE '%\"scannedContainer\":\"svg+xml\"%' OR a.public_derivative_metadata_json LIKE '%\"contentType\":\"image/svg%') ORDER BY o.observed_at DESC" > "$root/targets.private.json"
+
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+            --command "SELECT * FROM outbox WHERE topic='media.process' ORDER BY created_at DESC LIMIT 500" > "$root/outbox.private.json"
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const root = process.env.GITHUB_WORKSPACE + '/july-real-image-repair';
+          const targets = JSON.parse(fs.readFileSync(root + '/targets.private.json','utf8'))[0]?.results ?? [];
+          const outbox = JSON.parse(fs.readFileSync(root + '/outbox.private.json','utf8'))[0]?.results ?? [];
+          if (targets.length !== 2) throw new Error(`expected exactly 2 target observations, got ${targets.length}`);
+          const esc = (value) => String(value ?? '').replaceAll("'", "''");
+          const hash = (value) => crypto.createHash('sha256').update(String(value)).digest('hex').slice(0,12);
+          const statements = [];
+          const safeTargets = [];
+          targets.forEach((target, index) => {
+            const observationId = String(target.observation_id);
+            const match = outbox.find((row) => {
+              if (String(row.target_id ?? '') === observationId) return true;
+              try {
+                const payload = JSON.parse(row.payload_json ?? '{}');
+                return String(payload.observationId ?? payload.observation_id ?? payload.targetId ?? '') === observationId;
+              } catch { return false; }
+            });
+            if (!match?.payload_json) throw new Error(`media.process payload not found for ${hash(observationId)}`);
+            const eventId = `repair-real-image-${process.env.GITHUB_RUN_ID}-${index + 1}`;
+            const partitionMonth = String(target.observed_at ?? '').slice(0,7) || '2026-07';
+            statements.push(`INSERT INTO outbox (event_id,topic,target_id,partition_month,payload_json,state,created_at) VALUES ('${esc(eventId)}','media.process','${esc(observationId)}','${esc(partitionMonth)}','${esc(match.payload_json)}','pending',CURRENT_TIMESTAMP);`);
+            safeTargets.push({ observationHash: hash(observationId), observedDate: String(target.observed_at).slice(0,10), clonedPayload: true });
+          });
+          fs.writeFileSync(root + '/enqueue.sql', statements.join('\n') + '\n');
+          fs.writeFileSync(root + '/targets.safe.json', JSON.stringify(safeTargets, null, 2));
+          NODE
+
+          npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --file "$root/enqueue.sql" >/dev/null
+          rm -f "$root/enqueue.sql" "$root/outbox.private.json"
+
+      - name: Wait for four verified WebP derivatives
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-real-image-repair"
+          USER_ID="$(node -e "const x=require(process.argv[1]);process.stdout.write(x[0].results[0].user_id)" "$root/account.private.json")"
+          ready=""
+          for attempt in $(seq 1 50); do
+            npx wrangler d1 execute ikimon_prod_observations_2026_06 --env production --remote --json \
+              --command "SELECT o.observation_id,o.observed_at,a.asset_id,a.public_derivative_key,a.public_derivative_verified_at,a.public_derivative_metadata_json,a.exif_scrub_state,a.public_ready_at FROM observations o JOIN asset_ledger a ON a.observation_id=o.observation_id WHERE o.owner_user_id='$USER_ID' AND substr(o.observed_at,1,10) IN ('2026-07-07','2026-07-10') AND a.mime LIKE 'image/%' ORDER BY o.observed_at DESC,a.asset_id" > "$root/assets.private.json"
+            node <<'NODE' > "$root/readiness.txt"
+          const fs=require('node:fs');
+          const rows=JSON.parse(fs.readFileSync(process.env.GITHUB_WORKSPACE+'/july-real-image-repair/assets.private.json','utf8'))[0]?.results??[];
+          const checks=rows.map(row=>{
+            let metadata={}; try{metadata=JSON.parse(row.public_derivative_metadata_json??'{}')}catch{}
+            return Boolean(row.public_derivative_key && row.public_derivative_verified_at && row.public_ready_at && row.exif_scrub_state==='scrubbed' && metadata.tool==='cloudflare-images-public-derivative-v1' && metadata.contentType==='image/webp' && metadata.scannedContainer==='binary' && metadata.gpsExifPresent===false);
+          });
+          process.stdout.write(JSON.stringify({count:rows.length,ready:checks.filter(Boolean).length,all:rows.length===4&&checks.every(Boolean)}));
+          NODE
+            cat "$root/readiness.txt"
+            if jq -e '.all == true' "$root/readiness.txt" >/dev/null; then ready=yes; break; fi
+            sleep 20
+          done
+          test "$ready" = yes
+
+      - name: Verify derivative HTTP responses and authenticated owner home
+        working-directory: platform_v2/cloudflare_shadow
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/july-real-image-repair"
+          raw_token="repair-$(openssl rand -hex 24)"
+          token_hash="$(printf '%s' "$raw_token" | sha256sum | awk '{print $1}')"
+          expires_at="$(date -u -d '+15 minutes' '+%Y-%m-%dT%H:%M:%S.000Z')"
+          cleanup() {
+            npx wrangler d1 execute ikimon_prod_core --env production --remote --json --command "DELETE FROM auth_sessions WHERE token_hash='$token_hash'" >/dev/null 2>&1 || true
+            rm -f "$root/account.private.json" "$root/targets.private.json" "$root/assets.private.json" "$root/home.private.html"
+          }
+          trap cleanup EXIT
+
+          node <<'NODE'
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const cp=require('node:child_process');
+          const root=process.env.GITHUB_WORKSPACE+'/july-real-image-repair';
+          const rows=JSON.parse(fs.readFileSync(root+'/assets.private.json','utf8'))[0]?.results??[];
+          const hash=v=>crypto.createHash('sha256').update(String(v??'')).digest('hex').slice(0,12);
+          const checks=[];
+          for(const row of rows){
+            const path='/'+String(row.public_derivative_key).replace(/^\/+/, '');
+            let headers=''; let status=0; let bytes=0;
+            try{
+              const headerFile=root+`/image-${checks.length}.headers`;
+              const bodyFile=root+`/image-${checks.length}.body`;
+              status=Number(cp.execFileSync('curl',['-sS','-L','--connect-timeout','10','--max-time','30','-D',headerFile,'-o',bodyFile,'-w','%{http_code}','https://ikimon.life'+path],{encoding:'utf8'}).trim());
+              headers=fs.readFileSync(headerFile,'utf8'); bytes=fs.statSync(bodyFile).size;
+              fs.rmSync(headerFile); fs.rmSync(bodyFile);
+            }catch(error){status=Number(String(error.stdout??'0').trim())||0;}
+            const contentType=(headers.match(/content-type:\s*([^\r\n]+)/i)||[])[1]?.split(';')[0]?.trim().toLowerCase()??'';
+            checks.push({assetHash:hash(row.asset_id),observationHash:hash(row.observation_id),status,contentType,bytes});
+          }
+          if(checks.length!==4 || checks.some(x=>x.status!==200||x.contentType!=='image/webp'||x.bytes<1000)) throw new Error('derivative HTTP verification failed: '+JSON.stringify(checks));
+          fs.writeFileSync(root+'/http.safe.json',JSON.stringify(checks,null,2));
+          NODE
+
+          node <<'NODE' > "$root/session.sql"
+          const fs=require('node:fs');
+          const row=JSON.parse(fs.readFileSync(process.env.GITHUB_WORKSPACE+'/july-real-image-repair/account.private.json','utf8'))[0].results[0];
+          const esc=v=>String(v??'').replaceAll("'","''");
+          console.log(`INSERT INTO auth_sessions (token_hash,user_id,display_name,role_name,rank_label,banned,expires_at,user_agent) VALUES ('${esc(process.env.TOKEN_HASH)}','${esc(row.user_id)}','${esc(row.display_name)}','${esc(row.role_name||'Observer')}','${esc(row.rank_label||'観察者')}',${Number(row.banned||0)},'${esc(process.env.EXPIRES_AT)}','july-real-image-repair-qa');`);
+          NODE
+          TOKEN_HASH="$token_hash" EXPIRES_AT="$expires_at" node <<'NODE' > "$root/session.sql"
+          const fs=require('node:fs');
+          const row=JSON.parse(fs.readFileSync(process.env.GITHUB_WORKSPACE+'/july-real-image-repair/account.private.json','utf8'))[0].results[0];
+          const esc=v=>String(v??'').replaceAll("'","''");
+          console.log(`INSERT INTO auth_sessions (token_hash,user_id,display_name,role_name,rank_label,banned,expires_at,user_agent) VALUES ('${esc(process.env.TOKEN_HASH)}','${esc(row.user_id)}','${esc(row.display_name)}','${esc(row.role_name||'Observer')}','${esc(row.rank_label||'観察者')}',${Number(row.banned||0)},'${esc(process.env.EXPIRES_AT)}','july-real-image-repair-qa');`);
+          NODE
+          npx wrangler d1 execute ikimon_prod_core --env production --remote --file "$root/session.sql" >/dev/null
+          rm -f "$root/session.sql"
+
+          status="$(curl -sS -L --connect-timeout 10 --max-time 45 -H 'cache-control: no-store, no-cache' -H "cookie: ikimon_v2_session=$raw_token" -A 'july-real-image-repair-qa/1.0' -o "$root/home.private.html" -w '%{http_code}' "${PRODUCTION_BASE_URL%/}/ja/?july_image_repair=$GITHUB_RUN_ID")"
+          test "$status" = 200
+
+          node <<'NODE'
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          const root=process.env.GITHUB_WORKSPACE+'/july-real-image-repair';
+          const html=fs.readFileSync(root+'/home.private.html','utf8');
+          const targets=JSON.parse(fs.readFileSync(root+'/targets.private.json','utf8'))[0]?.results??[];
+          const hash=v=>crypto.createHash('sha256').update(String(v??'')).digest('hex').slice(0,12);
+          const results=targets.map(target=>{
+            const id=String(target.observation_id);
+            const escaped=id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+            const match=html.match(new RegExp(`<article[^>]*data-cloudflare-home-record-id="${escaped}"[\\s\\S]*?<\\/article>`));
+            return {observationHash:hash(id),observedDate:String(target.observed_at).slice(0,10),cardFound:Boolean(match),hasImage:Boolean(match&&/<img\b[^>]*src="[^"]+"/.test(match[0]))};
+          });
+          if(results.length!==2||results.some(x=>!x.cardFound||!x.hasImage)) throw new Error('authenticated home verification failed: '+JSON.stringify(results));
+          const http=JSON.parse(fs.readFileSync(root+'/http.safe.json','utf8'));
+          const report={targetSha:process.env.TARGET_SHA,runtimeSha:process.env.TARGET_SHA,targetObservations:results,imageAssets:http,allDerivativesRealWebp:true,authenticatedHomeHasImages:true,productionOriginalsDeleted:false,observationOwnershipChanged:false};
+          fs.writeFileSync(root+'/report.safe.json',JSON.stringify(report,null,2));
+          NODE
+
+      - name: Upload sanitized repair evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: july-real-image-repair
+          path: |
+            july-real-image-repair/report.safe.json
+            july-real-image-repair/targets.safe.json
+            july-real-image-repair/http.safe.json
+            july-real-image-repair/readiness.txt
+          if-no-files-found: warn
+          retention-days: 14
