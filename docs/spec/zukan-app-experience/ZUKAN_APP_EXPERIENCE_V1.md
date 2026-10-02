@@ -562,3 +562,76 @@ This adopted design refines §8 without replacing §16's read-first layout, shar
 - When there is no authorized relevant content, show the honest empty/unavailable state. Do not require NOCOSIL registration or a complete facility catalog before visitors can read, post or participate.
 
 Acceptance: [AJ03/04/21/41–60](https://github.com/yamaki0102/all-projects-management/blob/main/operations/decisions/2026-09-05-participation-acceptance-v1.md) as relevant to the changed surface. Design adoption does not make any new control implemented or runtime-active.
+
+
+## 18. Global Atlas traveler experience — owner direction 2026-10-03
+
+The owner-directed global expansion is specified in
+[`ZUKAN Global Atlas & Traveler Experience v1`](../zukan-global-atlas/ZUKAN_GLOBAL_ATLAS_TRAVEL_V1.md).
+
+This section resolves how the global traveler experience relates to the existing contributor-first App Experience.
+
+### 18.1 Public/traveler job
+
+A visitor must be able to use ZUKAN before sign-in or contribution:
+
+`Discover -> Map/Search -> Detail -> Save/Trip -> nearby/next place`
+
+The public experience prioritizes discovery and practical place understanding. Contribution remains prominent but does not occupy the information architecture merely because it is the current strongest proven capability.
+
+### 18.2 Target traveler shell
+
+Target primary responsibilities for the global traveler projection:
+
+- `Discover`
+- `Map`
+- `Saved / Trips`
+- `Add`
+- account/profile as secondary access
+
+This target supersedes §3 only for the adopted **future global traveler projection after its migration is implemented and verified**. It does not claim that today's runtime navigation has changed.
+
+Existing `記録`, `参加`, owner Review and organizer-compatible routes remain real product responsibilities. During migration they stay reachable from authenticated Home/profile/contextual entry and deep links; they must not be deleted merely to make the traveler shell visually simple.
+
+### 18.3 Map density and selection
+
+- one result state drives map + list;
+- low zoom shows areas/cities/curated anchors, not raw POI icons;
+- mid zoom adds neighborhoods/clusters/lenses;
+- local zoom reveals individual eligible Places/Things/Events;
+- selection opens an accessible detail/list sheet without trapping focus or scrolling;
+- long multilingual names and source/error states remain readable.
+
+### 18.4 Traveler detail
+
+Priority order:
+
+1. local canonical name + selected-language name;
+2. sourced/reviewed one-line identity/context;
+3. save, route/directions handoff, share, add/correct;
+4. operating state/hours where sourced;
+5. admission/reservation/accessibility/language/payment/transport facts where sourced;
+6. `Show locally` card with local name/address/access point;
+7. rights-safe media;
+8. `Then / Now / Changed`;
+9. related records/stories/subjects/events;
+10. nearby/next-stop suggestions;
+11. source, freshness, confidence and correction.
+
+Unknown remains unknown. Translation is a derived rendering/Claim and cannot silently rewrite authoritative names or facts.
+
+### 18.5 UI acceptance expansion
+
+In addition to §16.8, global traveler surfaces verify:
+
+- 320/375/768/1024/1280 and affected transition widths;
+- CJK, long Latin strings and RTL/bidi samples;
+- local-script name always recoverable;
+- GPS denied / unavailable;
+- map list/sheet keyboard and reduced-motion behavior;
+- semantic zoom avoids clutter;
+- source/empty/partial/unavailable states;
+- selected offline content where activated;
+- no traveler-essential action hidden behind hover or account creation.
+
+Until that target shell is implemented and journey-verified, existing current navigation remains the truthful runtime contract.
