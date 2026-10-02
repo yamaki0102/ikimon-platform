@@ -272,3 +272,20 @@ The same foundation should be able to support, without product-forking:
 - professional paid outcome
 
 while preserving provenance, time, rights, Review, correction, PublicationEdition and portability.
+
+
+## Global Atlas / international traveler direction — 2026-10-03
+
+Owner direction adopts the cross-cutting design in
+[`ZUKAN Global Atlas & Traveler Experience v1`](../zukan-global-atlas/ZUKAN_GLOBAL_ATLAS_TRAVEL_V1.md).
+
+This is intentionally **not equivalent to activating all M9 tourism profiles**.
+
+Separate the concerns:
+
+- global Place/Area/Thing discovery, multilingual identity, search/map/detail and sourced traveler facts are Knowledge Core / Place Atlas / public Experience work and may be shaped as Core product-value corrections;
+- saved traveler collections/trips are a bounded Publication/View responsibility until deeper itinerary behavior earns implementation;
+- tourism missions, organizer Programs, visitor participation and campaign operation remain under the existing M9 `tourism_regional_engagement` profile boundary;
+- public API/MCP/SDK projections reuse the same governed read model rather than creating a tourism truth store.
+
+This product direction does not itself reorder the current executable frontier in `delivery.json`. Any implementation activation must bind/reconcile the current NOCOSIL Work/Decision authority and preserve existing claims/dependencies.
