@@ -311,3 +311,26 @@ Canary order:
 Rollback disables the v2 rollout/read path and returns to the v1 adapter. The
 additive schema and source evidence remain; no destructive down migration is
 required.
+
+
+## 9. Global Atlas extension — 2026-10-03
+
+Owner direction expands Universal Place Atlas from a regional place-first implementation into the identity/spatial foundation for the global ZUKAN experience.
+
+Canonical detailed design:
+[`ZUKAN Global Atlas & Traveler Experience v1`](../zukan-global-atlas/ZUKAN_GLOBAL_ATLAS_TRAVEL_V1.md).
+
+This extension preserves this document's canonical Place identity, source-reference, boundary, hierarchy, policy, Record membership and correction semantics. It adds no second Place truth store.
+
+Key clarifications:
+
+- The global source baseline is source- and edition-aware. Overture Maps may supply broad global Places/Base/Buildings/Divisions/Transportation candidates; OpenPOI is a Japan adapter/candidate source rather than a canonical dependency.
+- Stable ZUKAN `place_id` remains independent of Overture GERS, OSM, Wikidata, GeoNames, OpenPOI or official provider IDs. Those identifiers are retained as source references and reconciliation inputs.
+- The global corpus must not be assumed to fit or belong in one D1 database. Large source editions and reconciliation data may live in R2/Basin; D1 remains a bounded low-latency projection where that is the simplest measured fit.
+- Functional taxonomy, UI discovery lenses and practical traveler facets are separate responsibilities. A large source taxonomy must not become a giant user-facing menu.
+- Global names retain local script, language-tagged aliases, derived transliteration/translation state and source provenance.
+- Production autocomplete/bulk discovery must not depend on the public Nominatim service.
+- Source license/attribution/commercial-use/share-alike eligibility remains attached to source facts/media and survives projections.
+- Global read/discovery can advance independently of tourism Program-profile implementation. Program participation, organizer flows and publication rights keep their existing gates.
+
+Adoption of this design is not evidence that global data has been imported, search is production-ready, or any traveler journey is live. Runtime activation must fresh-read current Place Atlas state and reconcile the last known production import boundary rather than infer completion from this source update.
