@@ -1,619 +1,326 @@
 # ZUKAN Global Atlas & Traveler Experience v1
 
-Status: `OWNER-DIRECTED DESIGN / IMPLEMENTATION NOT CLAIMED`
-Date: 2026-10-03
-Product: ZUKAN
-Extends:
-- `docs/spec/zukan-product-architecture/SPEC.md`
-- `docs/spec/universal-place-atlas/SPEC.md`
-- `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md`
-- `docs/spec/zukan-product-architecture/PROFILE_HORIZON.md`
+Revision: **1.1 — reviewed 2026-10-03; stable path retained**
+Status: `OWNER-DIRECTED DESIGN / IMPLEMENTATION AND RUNTIME NOT CLAIMED`
+Scope: global discovery, source integration, place identity, traveler utility and their acceptance.
 
-## 1. Owner outcome
+## 0. Authority and review corrections
 
-ZUKAN evolves from a regional place/record product into a **global living atlas** that a resident or international traveler can use to discover, understand, save, revisit and contribute to real-world places and regional knowledge.
+This is a bounded extension of ZUKAN, not a replacement product constitution or a second global platform design.
 
-The global product must be useful before sign-in and before contribution. It must not become a generic business directory, a Google Maps clone, a social review feed, or a tourism-only fork.
+Read with the existing authorities:
+- [Product Architecture](../zukan-product-architecture/SPEC.md) and [Profile Horizon](../zukan-product-architecture/PROFILE_HORIZON.md).
+- [Global Platform Bundle](../zukan-product-architecture/GLOBAL_PLATFORM_BUNDLE_2026-09-13.md), including its normative cross-product decision and GP01–GP30 acceptance.
+- [Quiet Home / Saved](../zukan-app-experience/QUIET_HOME_SAVED_CONTINUITY_V1.md).
+- [Design rulebook](../../../DESIGN.md), [App Experience](../zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md) and [Universal Place Atlas](../universal-place-atlas/SPEC.md).
+- Current owner-development operating contract; NOCOSIL Work/Decision/authority/claim/Current State/Resume owns execution continuity.
 
-Core proposition:
+**Scoped supersession:** this revision replaces this document's original seven-family MECE claim, mandatory global-first import/Basin sequence, separate traveler shell and late-only Saved/offline delivery. In the three companion amendments introduced by PR #1811, App Experience §18.2–18.5, Universal Place Atlas §9 and Profile Horizon's Global Atlas extension must be interpreted through this revision. In particular, the four-label traveler shell is no longer an adopted navigation migration, and R2/Basin is not a required first-stage stack. Their existing links resolve here; unrelated navigation, runtime, rights and profile contracts remain unchanged.
 
-> Find the world as it is now, understand why it matters, and see how it changes.
+| Review finding | Adopted correction |
+|---|---|
+| New design overlooked newer global and Home/Saved authorities | Reuse peer surfaces, stable context and existing Saved; do not rebuild them |
+| Area/Place/Thing/Record mix referents, geometry and evidence | Separate modeling axes and lifecycle responsibilities; no universal replacement table |
+| Global capability was coupled to global ingestion | Prove a complete local-and-overseas slice before expanding coverage |
+| Infrastructure and six-city canaries preceded user value | Existing storage first; one local and one overseas sample, then targeted expansion |
+| Source presence was too close to travel-fact verification | Field-specific provenance, validity, freshness and unknown/conflict states |
+| Identity continuity could conflate a business with its old premises | Separate organization/branch/site/occupancy, with reversible reconciliation |
+| Broad location suppression conflicted with directions | Preserve existing protection; purpose-bound public entrance data only through an authorized projection |
+| Offline and API distribution lacked concrete rights/cost boundaries | Small explicit offline derivatives; distribution-specific rights and bounded read APIs |
 
-Japanese expression may continue to use the existing brand idea:
+The historical 2026-09-16 Place import blocker and issue closure are leads, not current runtime evidence. Do not reopen old work or assert that the blocker persists without a fresh domain/runtime read.
 
-> まちは、うつろう。だから、うつす。
+## 1. Owner outcome and first value
 
-The global expansion preserves ZUKAN's existing Knowledge Core:
-`Place / Entity / Subject / Time / Record / Claim / Source / Evidence / Rights / Review / Publication`.
+Enable a resident or visitor to **find something worth visiting or understanding, establish what is known, save it, and return to its local knowledge and changes**. Global means reusable across markets, languages and institutions; it does not mean every market or object is activated immediately.
 
-No second canonical place database, tourism-specific auth system, or per-country product fork is introduced.
+Travel is a peer experience, not the parent of nature, citizen records, jobs, learning, offers or participation. Keep the existing brand, logo and approved public message. “Global Living Atlas” is a working description, not an automatic rebrand or a guarantee of live worldwide coverage.
 
-## 2. Product distinction
+The first traveler journey is:
 
-Commodity map/search products answer primarily **where / what is here**.
+`explicit destination / direct link → relevant result → useful detail + local-name card → save → reopen → directions handoff or nearby discovery`
 
-ZUKAN should add:
+A parallel contributor journey remains:
 
-1. **Identity** — one stable ZUKAN identity across source IDs, aliases, languages, moves, renames and source replacement.
-2. **Context** — why the place/object matters, how it relates to its area, people, culture, nature and activities.
-3. **Time** — current state plus opening/closure/rename/rebuild/seasonal and historical change.
-4. **Evidence** — visible source, freshness, confidence and correction path.
-5. **Local knowledge** — rights-safe public Records, stories, sound, photos, documents and observations.
-6. **Traveler utility** — names that can be shown locally, practical access facts, saved trips, routes and offline-safe selected material.
-7. **Participation** — a visitor can add a photo, observation, correction or change record without turning popularity into canonical truth.
+`capture / source / correction → retained Record or proposal → visible review state → eligible place knowledge → return`
 
-Reviews, ratings, follower counts and engagement ranking are not required Core.
+Neither requires NOCOSIL registration. Reading is useful without logging in. Anonymous device saving is a scoped extension requiring its own persistence proof; existing authenticated Saved is reused rather than silently declared anonymous-ready.
 
-## 3. MECE object model
+## 2. Distinctive value and breadth boundary
 
-Do not attempt to make one giant category list carry ontology, navigation and search at the same time.
+Prioritize local explanation, real records and visible change alongside practical utility. Do not claim that other map products lack history or context; demonstrate ZUKAN's added value in a real journey.
 
-### 3.1 Canonical object families
+Each activated pilot area should have eligible examples of a local story or source, a record tied to a place, and a sourced change where one exists. Never fabricate historical photos, dates, cultural claims or before/after events to fill the design. An area with no history still supports discovery and an honest invitation to contribute.
 
-These are the top-level responsibilities used to prevent category drift.
+“A wide-ranging atlas” means lawful public regional knowledge and the existing peer domain profiles. It does not authorize personal dossiers, face recognition, household inventory exposure, sensitive wildlife coordinates, military/security targeting, emergency response or unlicensed brokerage. Unknown new content can remain an attributed Article/Publication until a typed profile has real demand.
 
-| Family | Meaning | Examples | Existing Core mapping |
-|---|---|---|---|
-| **Area** | bounded or named region | country, city, neighborhood, park, protected area, campus, district | Place + boundary + relationships |
-| **Place** | destination, facility, service or venue people can identify/visit/use | restaurant, hotel, school, museum, hospital, shop, station, shrine | Place |
-| **Route** | linear or ordered spatial experience/network segment | trail, road, railway, ferry, walking route, river route | Place/Entity relationships + Publication/Program profile |
-| **Thing** | discrete physical object or asset | statue, bridge, tree, public art, vending machine, manhole, monument | Entity/Subject linked to Place |
-| **Event** | time-bounded happening | festival, market, exhibition, performance, seasonal event | Event + Place |
-| **Subject** | reusable non-spatial identity/theme | species, dish, tradition, craft, organization, brand, creator | Entity / Subject |
-| **Record** | evidence of what was submitted, observed or acquired | photo, video, audio, note, document, observation | Record + Source/Evidence |
+## 3. MECE responsibilities, not a falsely exclusive catalogue
 
-A real-world item may participate in relationships across families, but it has one primary responsibility in a given canonical object identity. For example, a railway station is a Place; the railway line is a Route; a station monument is a Thing; a festival held there is an Event.
+### 3.1 Independent axes
 
-### 3.2 Functional taxonomy is multi-label
+Do not partition reality into seven disjoint classes. A park is both an area and a destination; a monument is both an object and a destination; a photo is evidence, not another kind of destination.
 
-Within Place/Thing/Subject, classification is hierarchical and may be multi-label. Use a source-compatible taxonomy rather than inventing a ZUKAN-only global ontology first.
+| Axis | Responsibility | Existing representation |
+|---|---|---|
+| Referent identity | What real entity, subject, institution, concept or occurrence is meant? | Existing Place / Entity / Subject / Event and domain identities |
+| Spatial representation | Where is it, and how is it approached? | Point/area/line, entrance, boundary, route, hierarchy; multiple representations where justified |
+| Domain meaning | What kind of place, service, activity or claim is it? | Versioned provider taxonomy and existing Domain/Profile contracts |
+| Assertion and time | What is claimed, by whom, for which period? | Claim / ClaimRevision / Review / validity |
+| Evidence | What was observed, submitted or published? | Record + independently governed Source / SourceEdition / Evidence |
+| Presentation and use | Who may see/use which edition, for what purpose? | Publication / representation / placement / rights |
 
-Overture Maps' current Places taxonomy is the initial interoperability baseline. ZUKAN stores:
-- source taxonomy IDs and hierarchy,
-- normalized ZUKAN display facets,
-- alternate classifications,
-- source/version/provenance.
+MECE applies to responsibility and lifecycle, not mutually exclusive discovery labels. Reuse existing schemas; this table is not a request for six new storage engines. Preserve non-spatial online/remote offerings. Events/Offers/Jobs retain their own validity and transaction meanings rather than becoming generic POIs.
 
-Do not overwrite source classifications to force one ZUKAN label.
+### 3.2 Coverage checklist
 
-### 3.3 Traveler facets are orthogonal, not categories
+The following is a deliberately overlapping coverage checklist, not a new ontology or a promise that every source is integrated. Each activated domain needs an explicit source, rights basis, usable fields, update owner and acceptance example in the existing profile/source registry. An uncovered row remains visible as unsupported, not silently discarded or forced into food.
 
-These facts must remain separate from object type:
+| Coverage group | Representative objects | Source route / activation rule |
+|---|---|---|
+| Areas and physical geography | Countries, neighborhoods, islands, rivers, forests, mountains, coastlines | Overture themes / OSM / official geographic datasets, with theme-specific rights |
+| Nature and environmental knowledge | Species, observations, habitats, protected areas, seasonal change | Existing Biodiversity/Environment Pack; GBIF-compatible selected datasets [R7]; never treat occurrence as current guaranteed presence |
+| Buildings and public objects | Buildings, bridges, monuments, public art, trees, utility objects | Spatial datasets + accountable public sources; object identity distinct from tenant/occupant |
+| Culture, history and belief | Museums, archives, heritage, religious sites, traditions, historic records | Public institutions and attributed sources; Europeana metadata/media rights separated [R8] |
+| Food, shopping and local services | Restaurants, markets, shops, workshops, products, professional services | Places sources, Japan OpenPOI adapter [R1], operators; a menu/item/service is not the branch itself |
+| Staying, leisure and sport | Accommodation, campsites, attractions, baths, trails, sport facilities | Places + operators; rates, inventory and booking remain operator facts |
+| Mobility and access | Stations, stops, entrances, roads, cycle routes, ferries, parking | Spatial themes; GTFS is a format, with actual feed rights/coverage checked per publisher [R9] |
+| Everyday and visitor essentials | Toilets, water, lockers, Wi-Fi, charging, ATM, accessibility facilities | OSM/municipal/operator sources; precise location and access conditions reviewed separately |
+| Health, safety and public services | Clinics, pharmacies, public offices, shelters, official notices | Accountable official listings; no inferred treatment, emergency availability or safety guarantee |
+| Learning, work and institutions | Schools, libraries, courses, jobs, organizations, farms, research | Existing peer profiles and accountable publishers; no automatic people directory |
+| Events, offers and participation | Festivals, exhibitions, tours, workshops, volunteering, coupons | Existing Event/Program/Offer profiles; occurrence, availability, expiry and actual action receipts |
+| Local records and creative knowledge | Photos, sounds, documents, stories, crafts, recipes, consented profiles | Existing Record/Source/Publication paths; author and reuse rights retained |
 
-- opening / operating status
-- opening hours and exceptional closures
-- price / admission / reservation
-- accessibility
-- language support
-- payment
-- toilet / Wi-Fi / luggage / parking
-- indoor / outdoor
-- child / pet conditions
-- seasonal suitability
-- crowd or capacity facts only when sourced
-- transport/access
-- photography/publication rules
-- freshness / confidence / source
+Overture taxonomy is an interoperability baseline for its Places scope, not a species/event/job/history ontology. Store raw category + provider/schema version + reviewed crosswalk; use `exact / broader / narrower / related / unmapped` mapping semantics. Preserve unmapped values. A taxonomy change invalidates affected projections, not the original evidence. UI lenses and traveler facets are independent multi-label views.
 
-Unknown remains unknown. AI does not invent practical travel facts.
+## 4. Source integration and rights
 
-### 3.4 Small editorial lenses for UI
+### 4.1 Selective source portfolio
 
-The UI may expose a small human-oriented set independent from canonical taxonomy:
+Start with a bounded Overture regional extract and one source that adds missing local value. Add other themes/providers only for an evidenced coverage or quality gap. Global source releases are references and candidate data, not independently verified place facts. Overture documents duplicate/junk/incomplete records and provider-dependent confidence [R2].
 
-- Eat & Drink
-- Stay
-- See
-- Culture & History
-- Nature
-- Do
-- Shop
-- Move
-- Essentials
-- Local & Unusual
+Use OpenPOI for bounded Japanese lookup/enrichment where useful. Retain `licenses` and `attributions`, including response-level values in minimal suggestions; preserve provenance through normalization [R1]. Saving search results does not establish a bulk-download route, reserved throughput, SLA or authorization to exhaust a shared endpoint. Use supported upstream releases for bulk ingestion. Do not assume OpenPOI provides a stable external ID if the selected response does not.
 
-These are discovery lenses, not canonical object types.
+Overture/OpenPOI/other aggregators may repeat the same upstream evidence. Keep derivation lineage so duplicated feeds are not counted as independent confirmation. Honor rate limits, retry guidance, negative caching and failure isolation; no provider call for each visible map pin or each keystroke.
 
-## 4. Global source strategy
+### 4.2 Per-use eligibility
 
-### 4.1 Source tiers
-
-**Tier 0 — global spatial baseline**
-- Overture Maps Places, Base, Buildings, Divisions and Transportation.
-- Preserve Overture feature IDs / GERS references and release version.
-- Use the Overture changelog for delta reconciliation.
-- OpenStreetMap-derived themes retain ODbL obligations separately from permissive datasets.
-
-**Tier 1 — identity and public knowledge**
-- Wikidata for CC0-linked identifiers and multilingual structured knowledge.
-- GeoNames where useful under its attribution terms.
-- official national/local open data, municipality and facility sources.
-- official websites as source references, not unbounded scraped truth.
-
-**Tier 2 — travel and mobility**
-- GTFS Schedule / Realtime from publishers whose terms permit the intended use.
-- official transit, airport, tourism/DMO and public-service sources.
-- per-feed/provider rights remain explicit.
-
-**Tier 3 — media and editorial knowledge**
-- Wikimedia Commons only with per-file license/attribution preserved.
-- ZUKAN-contributed media and local records under existing rights/review rules.
-- publication-specific sources remain SourceEditions instead of being copied into canonical truth.
-
-**Tier 4 — specialist datasets**
-- specialist biodiversity/environment/cultural datasets only under compatible per-dataset licensing and accountable Domain Pack rules.
-- datasets with noncommercial-only restrictions are excluded from the default commercial global corpus unless separately licensed.
-
-### 4.2 OpenPOI
-
-OpenPOI is a useful **Japan source adapter / bootstrap / fallback candidate source**, not ZUKAN's global canonical dependency.
-
-ZUKAN assigns its own stable `place_id` and retains source references. OpenPOI records may enrich or validate Japanese candidates where its attribution contract is satisfied.
-
-### 4.3 Source separation and licensing
-
-Every imported fact or media object retains at minimum:
-- source/provider
-- upstream record ID
-- source edition/release
-- observed/imported time
-- license
-- attribution requirement
-- redistribution eligibility
-- commercial-use eligibility
-- modification/share-alike implications where applicable
-- confidence/review status
-- revocation/correction locator where available
-
-Do not flatten ODbL, permissive, CC BY/SA, CC0 and noncommercial data into one undifferentiated redistributable database.
-
-## 5. Global identity and time
-
-### 5.1 Stable ZUKAN identity
-
-Keep the accepted Universal Place Atlas rule:
-- ZUKAN internal IDs are stable and source-independent.
-- Overture GERS, OSM, Wikidata, GeoNames, OpenPOI, official IDs and other source IDs are references, not the canonical ID.
-- matching first uses exact known source refs, then names/aliases/locality, hierarchy, geometry and confidence.
-- uncertain merges stay candidates.
-
-### 5.2 Names
-
-For every eligible object:
-- local-script canonical name when known,
-- language-tagged official/common/short/old/alternate names,
-- transliterations as derived aliases,
-- translations as derived Claims when no authoritative localized name exists,
-- pronunciation only when sourced or safely derived and labeled.
-
-Never replace the local canonical name with an English translation.
-
-### 5.3 Change model
-
-A place does not disappear because it closes or changes name.
-
-Represent:
-- opened / closed / temporarily closed
-- renamed
-- moved
-- rebuilt
-- merged / split
-- boundary change
-- operator/brand change where sourced
-- source disagreement
-- seasonal validity
-
-The public detail can show a compact **Then / Now / Changed** timeline backed by source and Record evidence.
-
-## 6. Global data plane on Cloudflare
-
-The global corpus is too large and too heterogeneous to assume one D1 database is the full source store.
-
-Default architecture:
-
-```
-Global/open source releases
-        ↓
-R2 / Basin Catalog (Iceberg)
-        ↓
-normalization + provenance + license eligibility
-        ↓
-identity/conflation + change reconciliation
-        ↓
-regional/hot search projections
-        ↓
-Workers API
-   ├─ search / suggest / nearby
-   ├─ resolve / detail / hierarchy
-   ├─ map tiles/projections
-   ├─ traveler facts
-   ├─ timeline/change
-   └─ MCP / SDK
-```
-
-Responsibilities:
-- **R2/Basin**: global raw/normalized snapshots, source editions, large-scale reconciliation/analytics.
-- **Basin SQL**: large batch QA, joins, change analysis and regional extraction where appropriate.
-- **Workers / Workflows / Queues**: bounded import, reconciliation and projection jobs.
-- **D1**: current low-latency regional/hot read models where it remains the simplest fit; shard/project rather than require one global monolith.
-- **Cache/KV where appropriate**: short-lived search/suggestion/cache artifacts, never canonical truth.
-- **AI Search / semantic retrieval**: optional secondary retrieval over stories/descriptions/sources for natural-language discovery. It must not be the canonical geospatial index or source of practical facts.
-
-The exact physical partitioning is an implementation decision based on measured corpus size, latency and cost; this design does not invent an unverified D1 capacity number.
-
-## 7. Search and ranking
-
-### 7.1 Query path
-
-A global query may combine:
-- exact/localized names
-- aliases and transliterations
-- canonical source refs
-- category/taxonomy
-- geographic intent
-- current viewport or user-approved location
-- traveler facets
-- natural-language semantic intent
-
-Primary ranking inputs:
-1. identity/name match
-2. geographic relevance
-3. query/category intent
-4. source confidence
-5. freshness
-6. distinctiveness / local relevance
-7. practical state such as open-now only when reliably sourced
-8. saved-trip/route context when the user asks for it
-
-Popularity/review volume is not a required ranking primitive.
-
-### 7.2 Search behaviors
-
-Must support:
-- local language and English/other configured languages
-- transliteration and common misspellings
-- aliases / former names
-- parent/child names (mall + store, airport + terminal)
-- "near me", viewport and bounded-area search
-- category/facet filters
-- null/empty/partial/unavailable distinction
-- source-aware correction
-
-Do not depend on the public OpenStreetMap Nominatim service for production autocomplete or bulk discovery.
-
-## 8. Traveler-first information architecture
-
-ZUKAN remains read-first.
-
-### 8.1 Primary navigation
-
-Default mobile IA:
-- **Discover**
-- **Map**
-- **Saved / Trips**
-- **Add**
-- profile/account as secondary access
-
-Desktop can expose the same responsibilities without inventing more primary destinations.
-
-### 8.2 Discover
-
-One primary search box, then context-aware discovery.
-
-Useful modules include:
-- Nearby
-- Only here / Local & unusual
-- Open now
-- Free / low-cost
-- Rainy day / indoor
-- 30 / 60 / 90 minute discovery
-- culture/history/nature/food lenses
-- seasonal changes
-- saved-trip context
-
-Do not create an infinite social feed as the default home.
-
-### 8.3 Map
-
-Map density must be semantic by zoom:
-- world/country: areas, cities and a few high-value anchors
-- city/region: clusters, neighborhoods and editorial lenses
-- local: individual Places/Things/Events
-- selected object: details and relationships
-
-Never render the full global corpus as icons.
-
-Map and list are two views of the same result state. Mobile uses an accessible bottom sheet/list pattern that does not trap scrolling, focus or map interaction.
-
-### 8.4 Detail
-
-Default traveler detail order:
-
-1. local canonical name + selected-language name
-2. one sentence: what it is / why it matters, sourced or editorially reviewed
-3. practical action row: save, directions/route handoff, share, add/correct
-4. open/closed + hours + exceptional state where sourced
-5. admission/reservation/accessibility/language/payment/transport essentials
-6. "Show locally" card: local name, local address, nearest relevant access point
-7. photos/media with visible rights/source as required
-8. **Then / Now / Changed**
-9. stories, public Records, related Subjects/Events
-10. nearby related places / next stop
-11. source, freshness, confidence and correction
-
-Unknown sections are omitted or explicitly unknown; no fake completeness.
-
-### 8.5 Saved / Trips
-
-Initial scope:
-- save Place/Area/Thing/Event
-- collections / trip grouping
-- order places manually
-- shareable selected collection when rights permit
-
-Later, after measured demand:
-- route optimization
-- calendar/time windows
-- reservation imports
-- offline trip pack
-- collaborative planning
-
-A trip planner is a View over canonical objects, not a second place database.
-
-### 8.6 Add / Correct
-
-Traveler contribution is deliberately small:
-- photo/video/audio
-- note/story
-- "this changed"
-- name/category/location/boundary/policy correction proposal
-- source link
-
-Existing rights, Review and privacy boundaries remain authoritative.
-
-## 9. Internationalization contract
-
-Global-ready means model + UI behavior, not merely machine-translating strings.
-
-Required:
-- BCP 47 language tags
-- local script preserved
-- language-aware search aliases
-- transliteration separated from authoritative names
-- RTL/bidi-safe layout from design time
-- locale-aware date/time/time zone
-- locale-aware numbers and units
-- currencies shown with source/date when conversion is provided
-- international phone/address formatting without destroying local display
-- long-name and mixed-script layout acceptance
-- translated factual text retains source and machine/human translation status
-
-Automatic translation is a derived Claim/Publication rendering. It does not rewrite source truth.
-
-## 10. Foreign traveler essentials
-
-For the selected place/area, prioritize practical uncertainty reduction:
-
-- local name that can be shown to a driver/staff member
-- copyable local address
-- nearest station/stop/entrance where sourced
-- hours and holiday exceptions
-- admission/reservation
-- accepted payment only when sourced
-- language/accessibility support only when sourced
-- photography/recording rules where applicable
-- official booking/info link
-- offline-safe saved summary
-- source freshness
-
-Emergency/disaster information may link to official channels and show sourced public state, but ZUKAN does not become an emergency-response service.
-
-## 11. UI/UX system
-
-### 11.1 Avoid category overload
-
-The canonical taxonomy may contain thousands of classes. The traveler never navigates thousands of classes.
-
-Use:
-- 8–10 editorial lenses,
-- progressive filters,
-- search intent,
-- semantic zoom,
-- contextual suggestions,
-- breadcrumbs/parent relationships.
-
-### 11.2 Visual character
-
-The application should feel like a calm, contemporary field guide/atlas:
-- map, local typography and real media are primary;
-- cards are used only when they improve scanning;
-- avoid generic AI gradients, repeated dashboard cards and decorative badges;
-- motion communicates spatial/context transitions, selection, save and timeline change;
-- support `prefers-reduced-motion`.
-
-### 11.3 Responsive acceptance
-
-At minimum inspect:
-- 320
-- 375
-- 768
-- 1024
-- 1280 CSS px
-
-Also inspect transition widths, keyboard/IME state, rotation where composition changes, long translated names, CJK + Latin, and RTL.
-
-Essential information/actions remain usable without hover.
-
-## 12. API / MCP / SDK surface
-
-Public read surface should converge on one contract family:
-
-- `search`
-- `suggest`
-- `nearby`
-- `resolve`
-- `detail`
-- `children / parents / related`
-- `changes / timeline`
-- `sources / freshness`
-- `route/collection projection` where activated
-
-MCP exposes the same bounded read model rather than another truth path.
-
-A browser/mobile search SDK may wrap suggest/search/map selection. It is a client library, not a separate backend.
-
-## 13. Rollout
-
-Do not launch "the whole world" as one unverified migration.
-
-### G0 — contract and source audit
-- preserve existing Universal Place Atlas contracts
-- finalize object families, taxonomy crosswalk, provenance/license eligibility
-- fresh-read current runtime/database before any import
-- identify existing production Place import binding gap
-
-### G1 — global source fabric
-- ingest one current Overture release to R2/Basin as source edition
-- retain GERS/source refs and changelog
-- produce regional extracts without publishing globally
-- prove idempotent update/reconciliation
-
-### G2 — Global Search / Map / Detail
-- search/suggest/nearby/resolve/detail
-- semantic zoom
-- parent/child handling
-- traveler detail card
-- source/freshness states
-
-### G3 — Language & traveler essentials
-- local names + translations + transliteration
-- locale/timezone/units
-- "Show locally"
-- accessibility/practical sourced facts
-
-### G4 — Living Atlas
-- change/timeline
-- public records/stories
-- corrections and change proposals
-- curated local/unique discovery
-
-### G5 — Trips / Offline / API ecosystem
-- saved trips/collections
-- bounded offline packs
-- MCP/API/SDK
-- route/trip enhancements only from observed demand
-
-## 14. Cross-market canary matrix
-
-Canaries are selected to expose different failure modes, not to declare launch priority.
-
-- Hamamatsu: owner/local verification, lower-density regional coverage
-- Tokyo or Kyoto: very high POI density, tourism, rail/transit
-- Seoul: Hangul + English aliases, dense transit
-- Taipei: Traditional Chinese + multilingual tourism
-- Paris or London: dense heritage and multilingual visitors
-- New York: dense mixed commercial/cultural hierarchy
-
-Each canary proves source legality, identity, search, language, hierarchy, map density and detail usefulness before broader rollout.
-
-## 15. Acceptance fixtures
-
-A slice is not accepted until relevant fixtures pass.
-
-### Identity / data
-- same place resolves from local name, English name, alias and transliteration
-- upstream ID replacement does not silently create a duplicate
-- mall + store / airport + terminal preserve parent-child identity
-- closed/renamed/moved place preserves history
-- event expiry does not delete the Place
-- conflicting sources remain visible/reviewable
-- license/attribution survives ingestion and publication
-
-### Search / map
-- low zoom does not render unusable POI clutter
-- high zoom can discover eligible individual objects
-- query empty, zero, partial, stale and unavailable states differ
-- user-denied GPS still leaves useful search/map behavior
-- public Nominatim is not used as production autocomplete
-- sensitive/private precision is suppressed
-
-### International UX
-- local + translated names fit real layouts
-- long German/English strings, Japanese, Korean, Traditional Chinese and RTL samples do not break primary tasks
-- local-script "show locally" remains available
-- locale/timezone formatting is correct for the selected place rather than device locale alone
-- machine-translated text is distinguishable from authoritative names/facts
-
-### Traveler journey
-- anonymous traveler: search → detail → save completes
-- map → detail → nearby next stop completes
-- saved trip remains readable under intended offline boundary
-- user can propose "this changed" without editing canonical truth directly
-- source/freshness can be inspected from practical facts
-
-### UI quality
-- representative 320/375/768/1024/1280 renders
-- no blocked scroll/focus from map sheet or keyboard
-- keyboard navigation and visible focus
-- reduced-motion path
-- no horizontal overflow in long/mixed scripts
-
-## 16. Metrics
-
-Baseline before targets:
-- search → useful detail open
-- alias/transliteration search success
-- search zero/partial/unavailable rate
-- map → detail conversion
-- place save / trip add
-- detail source/freshness inspection where exposed
-- correction/change proposal completion
-- place/area revisit
-- first useful response latency by region
-- source conflict/duplicate rate
-- cost per 1k useful searches / details
-- support minutes for data corrections
-
-No metric justifies unnecessary location tracking or social scoring.
-
-## 17. Non-goals
-
-Not in the first global release:
-- clone Google reviews/ratings
-- scrape proprietary place/review databases
-- continuous precise traveler tracking
-- one global D1 monolith
-- AI-generated unsourced hours/prices/accessibility
-- global route engine from scratch
-- every language manually curated on day one
-- worldwide offline media mirror
-- person/face identification
-- country-specific product forks
-- emergency-response guarantees
-
-## 18. Current execution boundary
-
-This document records the owner-directed product/UX design. It does **not** claim runtime activation.
-
-The existing Universal Place Atlas remains the implementation base. Existing canonical Work/claim/publication boundaries remain in force. Before implementation:
-1. recover/bind the matching NOCOSIL Work instead of creating a second control plane;
-2. fresh-read current Place Atlas runtime and import route;
-3. reconcile the 2026-09-16 production exact-import blocker with current state rather than assuming it persists or is solved;
-4. route implementation through the existing Factory;
-5. verify each rollout layer separately: source → candidate → staging → production → traveler journey.
-
-## 19. Primary external references checked for this design
-
-Checked 2026-10-03:
-- Overture Maps September 2026 release notes: https://docs.overturemaps.org/blog/2026/09/23/release-notes/
-- Overture Places: https://docs.overturemaps.org/guides/places/
-- Overture GERS: https://docs.overturemaps.org/gers/
-- OpenStreetMap copyright: https://www.openstreetmap.org/copyright
-- Nominatim public API policy: https://operations.osmfoundation.org/policies/nominatim/
-- Wikidata licensing: https://www.wikidata.org/wiki/Wikidata:Licensing
-- GeoNames: https://www.geonames.org/export/
-- GTFS: https://gtfs.org/
-- Wikimedia Commons reuse: https://commons.wikimedia.org/wiki/Commons:Reusing_content_outside_Wikimedia
-- GBIF terms: https://www.gbif.org/terms
-- Cloudflare Basin GA: https://developers.cloudflare.com/changelog/post/2026-10-01-basin-ga/
-- Cloudflare AI Search GA: https://developers.cloudflare.com/changelog/post/2026-10-01-ai-search-generally-available/
+Use the existing Source/Edition/Rights/Publication and operation-policy seams. Preserve provider/object/edition, source timestamp, fetched timestamp, license/notice/attribution, derivative lineage and allowed purposes. Missing metadata is unknown, not unrestricted.
+
+Distinguish rights to retain, analyze, translate, display, promote, cache offline, export and redistribute via API/MCP/SDK. Retain machine-readable obligations and readable notices. A public website or API is not blanket permission to copy its photographs or prose.
+
+Separate permissive, ODbL and other source obligations where necessary, but **separate tables/buckets alone do not decide whether a resulting database is derivative**. Assess the actual joining and distribution method against the applicable license before activation; escalate genuinely unresolved legal interpretation, not every routine import. Overture itself flags this issue for joining to OSM [R2].
+
+Commons/heritage media requires per-item rights. Europeana's metadata treatment does not grant media reuse [R8]. GBIF datasets may be CC0, CC BY or CC BY-NC; do not admit noncommercial-only data into the default commercial reuse path without an applicable permission [R7]. Personal, IKIMON, 愛管 and Project non-public sources remain separated.
+
+## 5. Identity, geography and change
+
+### 5.1 Identity lifecycle
+
+Preserve the existing stable ZUKAN ID; retain GERS/OSM/official/Wikidata and other IDs as versioned references, never force a new global ID migration. Names, locality and geometry provide candidate evidence, not automatic proof of sameness. Existence confidence is not identity confidence, visit quality or opening-hours confidence [R2][R3].
+
+A company, brand, branch/business operation, physical site and entrance are different referents. A branch may move while the former site remains. Link time-bounded occupancy and `moved_from / moved_to / replaces` using existing relation/Claim mechanisms; retain the operation ID only where actual continuity is established. Old observations stay tied to their historical place/time. Do not move old photos to the new address.
+
+Same-name nearby branches, two tenants in one building, a mall and a shop, and a river overlapping a park are not duplicates merely because their geometry overlaps. Keep candidate merges, reversible accepted merges/unmerges and redirects. Exact source-reference reuse still checks source edition and known upstream identity transitions.
+
+### 5.2 Geometry and public precision
+
+Keep CRS, positional accuracy, geometry role, source and validity. A centroid is not an entrance, address interpolation is not a surveyed point, and a bounding box is not proof of membership. Support point-only facilities without inventing polygons; preserve holes, overlaps and multiple parents. Test antimeridian, southern/western coordinates and cross-border regions; do not use zero coordinates as missing values.
+
+The legacy Universal Place Atlas public precision contract remains unchanged. A future traveler projection may disclose a sourced public facility/entrance coordinate only after its existing authority, purpose, accuracy and safety policy permits that exact field. It must not derive that permission from a public Record, current GPS, or this design alone. Personal visits, homes, minors, sensitive habitats and restricted sites retain minimization/suppression.
+
+Directions use an eligible entrance/destination or explicitly approximate area. Without a reliable destination, show the official/local-address handoff rather than navigate to a made-up point. Walking time requires an eligible routed path or reviewed route; straight-line distance is labeled as such and never converted into a claimed accessible route.
+
+### 5.3 Time and corrections
+
+Distinguish observed time, source-updated time, fetched time and accepted/reviewed time. Preserve valid-from/to, uncertainty and time-zone context. A new import does not make old information freshly verified. Closure, rename, rebuild and operator change are new assertions, not erasure of prior evidence.
+
+A record missing from one incomplete fetch is not a confirmed closure/deletion. Reconcile complete editions, upstream tombstones and failures. Rights withdrawal may require suppression even where historical retention is allowed. Correct accepted facts without a later raw import overwriting them; retain conflicting sources and the resolver decision.
+
+## 6. Minimal delivery architecture and operating cost
+
+Use existing Workers, D1/R2, shared renderers and approved job/release paths. Do not install a new database, scheduler, geocoder, graph engine, search product or client library merely because the horizon is global.
+
+Initial path:
+
+`bounded source edition → existing validation/rights/identity seam → staged regional projection → search/detail/Saved UI → exact runtime and journey verification`
+
+Store large source files in the existing governed object-storage path only where required. Use the current bounded geographic/name indexes first and inspect query behavior. Neither one global D1 database nor speculative regional sharding is mandatory. Native query plans, real row/index sizes, latency, update volume and cost decide an extension.
+
+Basin/Iceberg, additional search infrastructure and distributed reconciliation are **conditional later options**, not prerequisites. Introduce one only when a measured workload cannot meet the adopted latency/cost/recovery envelope more simply. No new paid resource or billing commitment is authorized here. AI Search is optional for semantic stories, not a substitute for identity, geospatial filtering or deterministic rights.
+
+Import by bounded jobs with checkpoints, idempotent source-edition keys, staged generations and atomic activation. Search/detail/attribution must resolve the same generation. A failed refresh leaves the last eligible generation with an honest stale marker; it never publishes half an import. Rollback changes the active projection, not original records or licenses. Stop/quarantine a source exhibiting schema breakage, unexpected record loss or rights changes; isolate only the affected scope.
+
+Reuse existing cost telemetry: extraction/scan, storage, indexing, translation, images/tiles, refresh, public reads, abuse and correction/support effort. Measure cost per useful completed journey and bounded searches, not just provider unit prices. Define the pilot's actual budget and fallback in the existing Work before paid execution. No LLM on ordinary save, name lookup, map pan or unchanged translation.
+
+## 7. Search and trusted practical facts
+
+### 7.1 Request and ranking
+
+Resolve explicit destination, selected dates and intent before inferred GPS. Preserve source-language and selected-language names/aliases; exact names first, then bounded fuzzy/transliteration and optional semantic retrieval. Keep scripts and original strings; normalization must not merge distinct identities.
+
+Filter rights/safety/market eligibility before public candidate retrieval and ranking. Keep geographic relevance, query match, source quality, freshness and diversity distinct. Do not compare raw confidence scores across providers as calibrated probabilities. Explain a practical recommendation with concrete available evidence; avoid popularity-only or arbitrary novelty ranking. Sponsorship, if later adopted, must be disclosed and must not override factual eligibility.
+
+Map and list share query, selected area, facets, date, sort, locale, result generation and cursor. Reject stale responses using request identity/sequence guards. Keep selection/scroll/context on return. Show `Search this area` after a user pan when appropriate; do not recenter on GPS or refetch without bound. Show capped/partial coverage as such, not as a complete count of the world's facilities.
+
+Public Nominatim is not a production autocomplete or bulk-discovery dependency [R5]. A source failure remains unavailable/partial, not zero matches. Distinguish no query, no matches, no coverage, unsupported filter, stale result, partial provider and failure. Do not relax a user's hard constraint silently.
+
+### 7.2 Field-level truth
+
+For each practical fact, retain value, source edition, observed/source-updated time, valid period, confidence/review and freshness policy. Set refresh and expiry by field/source risk in the existing source policy, not one universal TTL. Missing freshness evidence does not become “verified today.”
+
+`operating_status = open` means continued operation, **not open now** [R3]. Compute `open_now = true / false / unknown` only from eligible hours, facility time zone, exceptions and closure facts. DST, overnight service and holidays require explicit handling. Unknown stays outside a strict open-now filter unless the user deliberately includes unknowns. Cached derived states expire at the next relevant schedule/policy boundary.
+
+Unknown price is not free; saving is not booking; a booking-link click is not confirmation. Accessibility is scoped to entrance/path/interior/toilet and observed conditions, not one inferred boolean. Keep language support, payment, dietary/allergy/religious certification and safety facts sourced and qualified. Translation or a photo alone cannot certify them.
+
+## 8. UI/UX: extend the existing experience
+
+### 8.1 Stable shell and contextual entry
+
+Retain Quiet Home, existing direct peer-surface entry, a stable return to Saved/own records and working participation/capture routes. Do not create a second traveler application or rearrange tabs by inferred nationality/persona. `Discover / Map / Saved / Add` describes responsibilities, not an instruction to replace the existing navigation. Any later shell migration needs its own source/route inventory and equivalent-journey acceptance.
+
+Travel context is explicit and temporary: destination, optional dates and selected constraints. Locale is neither nationality nor a permanent traveler profile. No launch-time GPS request, compulsory AI chat, forced Home redirect or new account wall for public reading.
+
+### 8.2 Discover and map
+
+Reuse Quiet Home's maximum three coherent shelves with three previews each; fewer when useful data is scarce. Keep public discovery and private saved/record history separate. Do not fill ten lenses or nine cards for appearance. Start with a few relevant lenses and reveal further facets on request. Hide unsupported actions, not missing-source explanations.
+
+Semantic zoom favors areas/clusters at broad scale and eligible objects locally. Make density adaptive to viewport/labels rather than one hardcoded zoom threshold worldwide. Low zoom does not prohibit a specifically searched landmark from appearing. Keep a list alternative when WebGL/maps fail.
+
+Mobile detail selection uses the existing sheet/drawer pattern: explicit close, usable peek/expanded states, no stacked modal sheets, focus restoration and no hidden list/map controls. Back restores prior query, viewport and scroll. An on-screen keyboard cannot cover the selected result or primary action. Desktop may show list/map side by side using the same state. Attribution remains visible, including with sheets open.
+
+### 8.3 Detail: essentials first, depth on demand
+
+First screen: selected-language/local-script identity, concise sourced context, key availability uncertainty, one primary action and at most two visible secondary actions under DESIGN.md. Save, directions and “Show locally” are selected by the current task; sharing/correction and less frequent actions remain reachable through an explicit secondary menu. Do not render four equally prominent CTAs.
+
+Then show relevant access/hours/fees, eligible media, a compact sourced “Then / Now / Changed” entry, and related records/experiences. Expand detailed history, sources and ancillary facilities on demand. Essential uncertainty and legally required attribution must not be buried in the expansion. Missing history/media is an honest state, not a reason for fabricated content or a full empty template.
+
+“Show locally” presents original local name/address, sourced entrance/access reference and copy/show controls. It must work without generating a new translation on every open. Do not state that a guessed translation is an official name.
+
+### 8.4 Contribution and moderation
+
+Reuse the existing capture/correction flows and make “this changed” a bounded proposal with source/date where available. Retain drafts and report actual persistence. Filing a proposal does not change canonical facts or establish a verified closure. Use existing Review/withdrawal channels, reversible corrections and source-specific update ownership. Add abuse controls at writes; do not impose heavy review on ordinary safe reads.
+
+## 9. Internationalization, markets and discovery
+
+Reuse Global Platform Bundle's existing locale/URL/publication contract rather than inventing a second route system. Keep source language, UI locale, local name, audience market, source jurisdiction, time zone and currency separate. Explicit locale and destination survive links, login and refresh. Preserve existing supported locales; Japanese/English are the first traveler acceptance focus, not a removal of other languages.
+
+Use native maintained Intl/CLDR-compatible behavior, BCP 47 language tags and IANA time zones. Support RTL/bidi isolation, flexible address/phone/name shapes, long strings and mixed scripts. No mandatory prefecture/postcode or two-decimal currency assumption. Local dates and overnight schedules must not shift with a viewer's device zone.
+
+Translations are edition-bound derivatives with original text, language, glossary/pipeline version and review state. Cache unchanged results. A material source correction invalidates affected translations and practical recommendations; old translations are stale, not silently current. Do not translate all global objects into all languages upfront. A bilingual-name fallback is distinct from a completed published translated page.
+
+Use the Bundle's localized canonical URLs, actual-edition language alternates and search/index policy. Public useful pages should be readable through ordinary direct links without login or map execution. Do not mass-generate thin indexed pages for every imported POI, language or filter. Only activate market-specific transactions and disclosure requirements when the existing responsible operator/policy supports them.
+
+## 10. Saved, low connectivity and directions
+
+Reuse existing typed Saved relationships, desired-state writes, revisions, tombstones and rights revalidation. A collection is a view over references, not a second place store. Private notes and plans are never implicitly public. No automatic NOCOSIL, Organization or employer synchronization.
+
+For an anonymous pilot, implement a separate device-local guest namespace only if needed for the accepted journey. Show “saved on this device” after storage succeeds. Login reconciliation is deliberate, idempotent and does not resurrect removals or attach one guest's data to another account. Browser eviction/storage failure is explicit; device-only saving is not cloud durability.
+
+Small offline utility belongs in the initial complete traveler slice: explicitly retain permitted local-name/address and essential selected-public-summary derivatives with source/freshness/expiry, distinct from the minimal Saved relationship. No blanket copying of media/coordinates. Reopen only what was actually stored; expired facts are not live availability. Respect per-device/account scope, quota and cleanup; acknowledge that an offline device cannot instantly receive a withdrawal, suppress on expiry/reconnection and avoid offline publication of content requiring immediate revocation.
+
+Offline map/route packs are separate later capabilities. Standard OSM tile service prohibits offline prefetch [R6]; select an explicitly eligible provider or authorized self-hosted data only after budget/rights approval. Offline text availability must not be labeled offline navigation. Handoff to an existing routing/booking provider is the default; do not build a global route engine first.
+
+## 11. Performance, accessibility and external-data safety
+
+Reuse DESIGN.md and established Alpine/Tailwind/MapLibre/renderers. No new theme, font, motion package or framework is required. Motion explains selection, spatial context or saved state; honor reduced motion. Real media needs rights and lightweight derivatives, with no automatic background audio/video.
+
+Verify representative 320/375/768/1024/1280 widths and affected transitions, keyboard/IME, text enlargement, list-without-map and actual long/RTL/CJK examples. Retain the project's at-least-44px control target, not a fabricated claim that WCAG mandates 44px for every case. Apply relevant WCAG 2.2 keyboard, focus, reflow, status-message and dragging alternatives [R10]. Screenshots alone are not usability proof.
+
+Choose measured latency/payload/error budgets in the first Work using the current baseline and representative low-connectivity device profile. Preserve usable text before heavyweight map/media loading. Performance telemetry must not create precise movement histories or personal search logs merely to count conversions.
+
+Treat imported names, descriptions, URLs and instructions as untrusted data. Escape/sanitize rendering and restrict server fetches through the existing allowlisted safe-fetch path; no arbitrary intranet/file/redirect fetch. Imported text cannot alter agent instructions or publication authority. Apply existing report/takedown and write-abuse controls, not a new moderation control plane.
+
+## 12. API, MCP and SDK
+
+Reuse the existing public read contract and privacy/versioning seams: search, suggest, nearby, resolve/detail, hierarchy/related and eligible change/source summaries. A typed object includes its identity/type, source/edition, allowed geometry precision, freshness/state and applicable attribution; no private identity, location or source payload is added to simplify clients.
+
+Use bounded pagination, field selection, request-size/time/rate limits, generation-aware cache keys and a published retry/error contract. API-wide provider capacity is not ZUKAN's user quota. Ordinary public browsing can remain anonymous; bulk redistribution and sustained third-party use need their own operational allowance and rights evaluation. Do not promise free unlimited public APIs.
+
+MCP exposes the same eligible read model and bounded tools, not arbitrary SQL, a second truth path or automatic write authority. SDK follows a proven internal client contract and real external-consumer need; neither is a prerequisite for traveler value. Propagate source notices, correction/withdrawal and per-use restrictions through both.
+
+## 13. Outcome-first rollout
+
+G0–G5 remain design labels, not new canonical Work IDs or permission to reorder existing work. The schedule is not “build all infrastructure, then finally show value.”
+
+| Slice | Bounded outcome | Reuse and exit evidence |
+|---|---|---|
+| G0 — reconcile | Find current Place/Saved/locale/API sources, exact active Work and genuine gaps | Read actual runtime where needed; reuse completed assets; no blanket restore from an old issue |
+| G1 — complete first traveler slice | One local area plus one overseas sample: search → useful detail/local card → save/reopen → eligible directions or next place | Bounded source extract; existing storage; Japanese/English + local names; honest missing-data states; selected small offline summary; exact accepted journey |
+| G2 — strengthen search/data | Measured coverage and identity quality across additional domains/density | Add only gap-closing sources; prove refresh/rollback, field freshness, dedupe and map/list consistency |
+| G3 — expand languages/markets | Another supported script/locale and market journey without a product fork | Real locale/rights/source coverage; preserve existing languages; material translation checks |
+| G4 — deepen local knowledge | More sourced local stories/changes, corrections and return journeys | Existing Record/Review/Publication; no fabricated history, private leakage or compulsory contribution |
+| G5 — ecosystem and advanced trips | External consumer, richer collections, routes or full offline packs justified by demand | Same API/rights boundary; actual consumer use and cost evidence before SDK/large offline/optimization |
+
+G1 includes a genuine local-knowledge/record entry where available; the full history engine is not a launch gate. Saved/local-name/offline text are not deferred until a worldwide corpus is finished. Infrastructure scaling can accompany any slice when measured need warrants it; it does not become a competing roadmap.
+
+## 14. Cross-market and domain sampling
+
+Use a locally verifiable area and one selected overseas area with source/rights coverage. Dense-city, another-script, RTL, antimeridian and poor-coverage cases can first be bounded fixtures/read-only samples. Do not make six fully operated cities a prerequisite for the first release. A fixture or sample read is not an overseas market launch.
+
+Sampling must include more than restaurants: a cultural place, nature/area, transport/access point, essential service and an event/record when eligible. Confirm long-tail and rural/low-data behavior rather than reporting only easy branded-city matches. A country can be partially covered and a language partially supported; surface those limits.
+
+## 15. Acceptance cases
+
+These are specification cases, not claimed test results. Bind applicable cases to the current product registry/Work; do not create a second test-state ledger. Runtime-affecting rights, persistence and identity changes need actual behavior/negative tests, while this document revision only requires source review.
+
+| ID | Case | Required result |
+|---|---|---|
+| GA01 | Park as region and destination; monument as object and destination | One referent with appropriate representations; no duplicate just to satisfy categories |
+| GA02 | Same-name branches; mall/tenant; organization/site | Distinct referents; only evidenced reversible merges |
+| GA03 | Business move and old photograph | Time-bound site relation; historical record remains at its original site |
+| GA04 | Upstream ID/schema change, missing/incomplete feed | Reconcile versioned refs; no automatic deletion or half-published generation |
+| GA05 | Overture/OpenPOI repeat one upstream fact | Lineage retained; not two independent confirmations |
+| GA06 | Rights for UI but not export/offline; absent license | Only eligible use; notices preserved; unknown not permissive |
+| GA07 | Operating status open, unknown hours; holiday/DST | Open-now unknown unless supported; schedule semantics correct |
+| GA08 | Stale hours or material source correction | Stale/unknown facts and dependent translations invalidated; import time not verification time |
+| GA09 | Public entrance vs private visit/sensitive habitat | Only authorized public projection; legacy minimization and negative disclosure tests remain |
+| GA10 | Antimeridian, point-only place, polygon hole, uncertain entrance | Valid geometry handling; no fabricated polygon, membership or route |
+| GA11 | Explicit overseas destination with local GPS; GPS refused | Explicit context preserved; text/list journey still works |
+| GA12 | Rapid query/pan/back, slow responses, partial coverage | Latest request wins; map/list generation agrees; context and truthful coverage retained |
+| GA13 | Saved retry/remove/login/account switch | Actual persistence shown; idempotent reconciliation, no resurrection/cross-account leak |
+| GA14 | Offline selected summary, full storage, expiry/withdrawal on reconnect | Only stored eligible material; explicit device/stale state; no claimed offline navigation |
+| GA15 | Long local names, CJK/Latin/RTL, missing translation | Readable local original; no fake published locale; correct bidi and locale/date handling |
+| GA16 | Sheet/keyboard/text zoom/drag alternative/map failure | Close/back/focus/accessibility work; primary task remains reachable |
+| GA17 | Non-food and low-data area, missing media/history | Useful truthful result or coverage state; no invented content or compulsory posting |
+| GA18 | Imported markup/hostile text/unsafe URL; API abuse | Existing sanitization, safe-fetch and bounded tools enforced |
+| GA19 | Existing citizen, Saved, participation and direct peer entry | No forced traveler shell, new login, lost deep link or second Saved store |
+| GA20 | Search/detail/save/handoff completes in representative use | Exact source/runtime and observed outcome recorded; click is not arrival/booking/participation |
+
+Before claiming that foreign visitors want to use it, obtain bounded voluntary usage evidence. Test whether they can find, understand, save/reopen and show a local name without explaining ZUKAN's data model. A small formative sample reveals problems, not market-size or universal usability proof. Use existing permitted channels; this review does not send recruitment messages.
+
+## 16. Measures and stop/expand decisions
+
+Baseline before numerical targets: useful search/detail outcome, failed/unknown coverage, matched aliases by script, duplicate/false-merge rate, stale practical facts, save/reopen success, correction time, representative latency, operating/support cost and voluntary return use. Clicks and dwell time alone are not traveler value. Do not interpret a save as travel intent or record exact movements to measure success.
+
+Expand sources/regions when current slices deliver useful outcomes within the approved envelope. Fix relevance, freshness or comprehension before increasing raw record count. Keep semantic/translation enrichment when its observed benefit exceeds latency/cost/rework. Remove unsupported shelves/actions instead of inventing data or adding AI to hide gaps.
+
+## 17. Non-goals and preserved boundaries
+
+No worldwide full-copy requirement, mandatory Basin/graph/search stack, per-country backend, second tourist auth/Saved service, compulsory chat, default worldwide language generation, automatic private-to-public exchange, person tracking, unsourced safety claims, hidden sponsorship, global route engine or unlimited public API promise.
+
+Preserve free core participation/publication and existing commercial packaging. New spending, rights-sensitive publication, IAM/DNS, protected production changes, external send and destructive operations remain governed by current authority, not this document's ambition.
+
+## 18. Execution continuation
+
+Source baseline for this review is PR #1811 / commit `f98b2258a98f55942e739186fa10793fc98362a7`. This is provenance, not an active runtime or claim. The current global, Quiet Home and Design authorities were re-read for the review; their implementation descriptions likewise do not prove present production state.
+
+Before implementation, Factory resolves the same NOCOSIL Work/intent, or the authorized successor if its earlier outcome is terminal, and the current Place/Saved work already owning any overlap. Do not duplicate or reopen completed Work. Bind revision 1.1, the applicable GA/GP/Quiet Home acceptance, exact mutable scope, source baseline and current protected boundaries. Persist actual acceptance/ownership/next action and Resume through the existing domain writer; no PR/Markdown file substitutes for durable Factory acceptance.
+
+The first implementation outcome is G1's complete bounded traveler journey, not source ingestion alone. Route routine implementation/testing through an authorized replaceable executor and use existing staged publication/rollback. Distinguish design, source-checked, source-published, staging, production and real-user journey evidence. If Work/runtime access is unavailable, report that specific unverified boundary; do not infer non-existence or success from a static document.
+
+## 19. External references and verification scope
+
+Primary documentation consulted on 2026-10-03 for the bounded review. These are documentation checks, not provider runtime tests, legal opinions, measured coverage or a complete census of global datasets. Prefer the actual chosen release/schema/terms at implementation time; a cached guide or a release count is not current imported coverage.
+
+- [R1] OpenPOI reference, preservation/attribution and shared-limit descriptions: https://docs.openpoiapi.com/ (direct open failed; indexed official page retrieved; runtime not exercised).
+- [R2] Overture Places: https://docs.overturemaps.org/guides/places/ (source scope, quality caveats, confidence and selective extraction; release examples may be older).
+- [R3] Overture Place schema: https://docs.overturemaps.org/schema/reference/places/place/ (operating status is not opening hours).
+- [R4] GERS: https://docs.overturemaps.org/gers/ (external identity interoperability; no substitution for ZUKAN authority).
+- [R5] Public Nominatim policy: https://operations.osmfoundation.org/policies/nominatim/
+- [R6] OSM standard tile policy: https://operations.osmfoundation.org/policies/tiles/ (not the license for all OSM-derived tile providers).
+- [R7] GBIF terms: https://www.gbif.org/terms
+- [R8] Europeana rights framework and per-object rights: https://pro.europeana.eu/index.php/page/europeana-licensing-framework and https://pro.europeana.eu/index.php/page/available-rights-statements
+- [R9] GTFS standard: https://gtfs.org/ (does not establish permission for an individual operator feed).
+- [R10] WCAG 2.2: https://www.w3.org/TR/WCAG22/
+
+The original revision's blanket “references checked” wording is superseded by the bounded scope above. Unverified numerical claims about global totals, provider availability, API capacity assigned to ZUKAN or current production completion are not acceptance evidence.
