@@ -608,7 +608,10 @@ function renderAtlasActions(
     ? place.canonicalPlaceId
     : "";
   const placePrefix = atlasSafeHref(options.placeHrefPrefix, "");
-  const placeHref = canonicalPlaceId && placePrefix
+  const provenance = atlasPlainObject(profile.provenance) ?? {};
+  const provenanceSources = Array.isArray(provenance.sources) ? provenance.sources : [];
+  const canonicalRegistryBacked = provenanceSources.includes("canonical_place_registry");
+  const placeHref = canonicalPlaceId && placePrefix && canonicalRegistryBacked
     ? atlasSafeHref(placePrefix + encodeURIComponent(canonicalPlaceId), "")
     : "";
   const primaryAction = recordAllowed
