@@ -463,6 +463,10 @@ test("canonical Place profile exposes a stable localized detail destination with
       canonicalPlaceId: "plc_e3293ec4bb9288a0",
       multilingualNames: { ja: "常磐公園", en: "Tokiwa Park" },
     },
+    provenance: {
+      ...fixture().provenance,
+      sources: ["public_map_snapshot", "canonical_place_registry"],
+    },
   });
   const html = renderMapPlaceAtlasProfile(profile, options);
   assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
@@ -471,7 +475,7 @@ test("canonical Place profile exposes a stable localized detail destination with
   assert.doesNotMatch(html, /exactLat|exactLng|exact_lat|exact_lng/);
 });
 
-test("Place detail action is omitted when canonical identity is absent or prefix is unavailable", () => {
+test("Place detail action is omitted without a registry-backed canonical identity or prefix", () => {
   assert.doesNotMatch(renderMapPlaceAtlasProfile(fixture(), options), /map:place_atlas:open_detail/);
   const profile = fixture({ place: { ...fixture().place, canonicalPlaceId: "plc_e3293ec4bb9288a0" } });
   assert.doesNotMatch(renderMapPlaceAtlasProfile(profile, { ...options, placeHrefPrefix: undefined }), /map:place_atlas:open_detail/);
