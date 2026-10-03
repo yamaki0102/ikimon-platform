@@ -17,7 +17,7 @@ function fixture(): PlaceAtlasProfile {
       canonicalPlaceId: "plc_e3293ec4bb9288a0",
       aliases: ["Tokiwa Park"],
       multilingualNames: { ja: "常磐公園", en: "Tokiwa Park" },
-      verificationStatus: "verified",
+      verificationStatus: "source_verified",
       officialStatus: "official",
     },
     summary: { recordCount: 1, contributorCount: null, firstRecordedAt: "2026-01-01T00:00:00Z", latestRecordedAt: "2026-09-01T00:00:00Z" },
