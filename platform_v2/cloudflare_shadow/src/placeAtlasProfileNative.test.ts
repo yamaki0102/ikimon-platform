@@ -567,7 +567,11 @@ test("verified registry overrides OSM display and policy while retaining both pr
     official_rule_url: "https://junglia.jp/terms/park-termsofuse",
     policy_verification_status: "verified",
   };
-  fixtures.placeAliases = [{ alias: "ジャングリア沖縄", language_code: "ja" }, { alias: "JUNGLIA", language_code: "en" }];
+  fixtures.placeAliases = [
+    { alias: "ジャングリア沖縄", language_code: "ja", confidence: 0.99 },
+    { alias: "JUNGLIA", language_code: "en", confidence: 0.98 },
+    { alias: "Junglia speculative spelling", language_code: "en", confidence: 0.2 },
+  ];
   fixtures.placeSources = [{
     source_type: "facility_official",
     source_id: "junglia:official",
@@ -628,6 +632,7 @@ test("verified registry overrides OSM display and policy while retaining both pr
   assert.equal(profile.place.canonicalPlaceId, "plc_1dac5b52233720ee");
   assert.equal(profile.place.multilingualNames?.ja, "ジャングリア沖縄");
   assert.equal(profile.place.multilingualNames?.en, "JUNGLIA");
+  assert.notEqual(profile.place.multilingualNames?.en, "Junglia speculative spelling");
   assert.equal(profile.place.officialStatus, "official");
   assert.equal(profile.policy?.recordingPolicy, "permission_required");
   assert.equal(profile.policy?.contributionCtaMode, "suppressed");
