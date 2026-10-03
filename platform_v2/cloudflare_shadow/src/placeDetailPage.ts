@@ -129,7 +129,16 @@ export function renderGlobalPlaceDetailPage(input: {
       : renderSavedControl({ kind: "place", objectId: canonicalPlaceId, path, title: local || selected }, lang, input.savedItem ?? null)
     : `<a class="gpd-secondary" href="/auth?redirect=${encodeURIComponent(localizedPath)}">${escapeHtml(copy.saveLogin)}</a>`;
   const externalMap = canExposePlaceLocation ? externalMapHref(profile) : "";
-  const mapProfile = renderMapPlaceAtlasProfile(profile, {
+  const displayProfile: PlaceAtlasProfile = canExposePlaceLocation
+    ? profile
+    : {
+        ...profile,
+        place: {
+          ...profile.place,
+          localityLabel: null,
+        },
+      };
+  const mapProfile = renderMapPlaceAtlasProfile(displayProfile, {
     lang: siteLang,
     recordHref: prefix + "/record",
     recordsHref: prefix + "/records?view=public",
