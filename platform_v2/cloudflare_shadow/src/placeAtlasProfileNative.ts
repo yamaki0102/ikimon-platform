@@ -167,6 +167,7 @@ type RegisteredPlaceProjection = {
   placeId: string;
   canonicalName: string;
   aliases: string[];
+  multilingualNames: Record<string, string>;
   localityLabel: string | null;
   placeKind: PlaceKind;
   verificationStatus: "unverified" | "source_verified" | "administrator_verified";
@@ -1002,12 +1003,12 @@ async function loadRegisteredPlaceByOsmRef(
 
     const [aliasRows, sourceRows, boundaryRow, facilityRows, contentRows] = await Promise.all([
       db.prepare(
-        `SELECT alias
+        `SELECT alias, language_code
            FROM place_aliases
           WHERE place_id = ?
             AND valid_to IS NULL
           ORDER BY confidence DESC, alias`
-      ).bind(row.place_id).all<{ alias: string }>(),
+      ).bind(row.place_id).all<{ alias: string; language_code: string | null }>(),
       db.prepare(
         `SELECT source_type, source_id, source_url, source_confidence,
                 verification_status, last_checked_at
@@ -1131,10 +1132,14 @@ async function loadRegisteredPlaceByOsmRef(
         ] as [number, number, number, number]
       : null;
     const boundaryBbox = storedBbox ?? computedBbox;
+    const multilingualNames = Object.fromEntries(aliasRows.results
+      .filter((item) => typeof item.language_code === "string" && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(item.language_code))
+      .map((item) => [String(item.language_code), item.alias]));
     return {
       placeId: row.place_id,
       canonicalName: row.canonical_name,
       aliases: aliasRows.results.map((item) => item.alias).filter(Boolean).slice(0, 32),
+      multilingualNames,
       localityLabel: row.locality_label,
       placeKind,
       verificationStatus: registeredVerificationStatus(row.verification_status),
@@ -1214,7 +1219,7 @@ function registeredResolvedOsmPlace(
     name: registered.canonicalName,
     type: registered.placeKind,
     aliases: registered.aliases,
-    multilingualNames: {},
+    multilingualNames: registered.multilingualNames,
     policy: registered.policy,
     description: registered.description,
     geometry: registered.boundary.geometry,
