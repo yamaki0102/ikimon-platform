@@ -1132,9 +1132,12 @@ async function loadRegisteredPlaceByOsmRef(
         ] as [number, number, number, number]
       : null;
     const boundaryBbox = storedBbox ?? computedBbox;
-    const multilingualNames = Object.fromEntries(aliasRows.results
-      .filter((item) => typeof item.language_code === "string" && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(item.language_code))
-      .map((item) => [String(item.language_code), item.alias]));
+    const multilingualNames = aliasRows.results.reduce<Record<string, string>>((names, item) => {
+      const language = typeof item.language_code === "string" ? item.language_code : "";
+      if (!/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u.test(language) || Object.hasOwn(names, language)) return names;
+      names[language] = item.alias;
+      return names;
+    }, {});
     return {
       placeId: row.place_id,
       canonicalName: row.canonical_name,
