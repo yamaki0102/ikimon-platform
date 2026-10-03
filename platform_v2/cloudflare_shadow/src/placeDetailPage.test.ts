@@ -56,7 +56,7 @@ test("global Place detail keeps local script visible while rendering selected-la
 test("authenticated Place detail binds the existing Saved control to the stable canonical path", () => {
   const saved: SavedItem = {
     kind: "place", objectId: "plc_e3293ec4bb9288a0", path: "/places/plc_e3293ec4bb9288a0", title: "常磐公園",
-    state: "saved", revision: 3, savedAt: "2026-10-03T00:00:00Z", removedAt: null, updatedAt: "2026-10-03T00:00:00Z",
+    state: "saved", revision: 3, savedAt: "2026-10-03T00:00:00Z", updatedAt: "2026-10-03T00:00:00Z",
   };
   const html = renderGlobalPlaceDetailPage({ profile: fixture(), lang: "ja", savedItem: saved, viewerAuthenticated: true });
   assert.match(html, /data-zukan-save/);
