@@ -79,3 +79,13 @@ test("detail rendering rejects a Place without a stable canonical identity", () 
   (invalid.place as PlaceAtlasProfile["place"] & { canonicalPlaceId?: string }).canonicalPlaceId = "";
   assert.throws(() => renderGlobalPlaceDetailPage({ profile: invalid, lang: "ja" }), /canonical_place_id_required/);
 });
+
+
+test("authenticated detail never turns a Saved read failure into a false unsaved state", () => {
+  const html = renderGlobalPlaceDetailPage({
+    profile: fixture(), lang: "en", viewerAuthenticated: true, savedStateAvailable: false,
+  });
+  assert.match(html, /Saved state unavailable/);
+  assert.doesNotMatch(html, /data-zukan-save/);
+  assert.match(html, /aria-disabled="true"/);
+});
