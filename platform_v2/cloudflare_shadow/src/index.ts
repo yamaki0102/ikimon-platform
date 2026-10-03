@@ -2588,11 +2588,17 @@ async function getGlobalPlaceDetailPage(
 
   const session = await readCompatibleSession(request, env).catch(() => null);
   const authenticated = Boolean(session && !session.banned);
-  const savedItem = authenticated && session
-    ? await getSavedItem(env.CORE_DB, session.userId, "place", canonicalPlaceId).catch(() => null)
-    : null;
+  let savedItem = null;
+  let savedStateAvailable = true;
+  if (authenticated && session) {
+    try {
+      savedItem = await getSavedItem(env.CORE_DB, session.userId, "place", canonicalPlaceId);
+    } catch {
+      savedStateAvailable = false;
+    }
+  }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, viewerAuthenticated: authenticated });
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "global-place-detail",
@@ -2923,7 +2929,7 @@ export const worker = {
 
       const globalPlaceDetailMatch = nativePathname.match(/^\/places\/([^/]+)$/u);
       if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
-        return getGlobalPlaceDetailPage(request, url, env, decodeURIComponent(globalPlaceDetailMatch[1]));
+        return getGlobalPlaceDetailPage(request, url, env, globalPlaceDetailMatch[1]);
       }
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
