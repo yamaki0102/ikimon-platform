@@ -29,28 +29,28 @@ type PlaceProfileWithGlobalNames = PlaceAtlasProfile & {
 const DETAIL_COPY = {
   ja: {
     back: "地図に戻る", showLocally: "現地で見せる", localName: "現地名", localAddress: "場所",
-    openMap: "外部地図で開く", saveLogin: "ログインして保存", sources: "情報の確認",
+    openMap: "外部地図で開く", saveLogin: "ログインして保存", saveUnavailable: "保存状態を確認できません", sources: "情報の確認",
     checked: "出典の最終確認", unknown: "確認時点は不明です", sourceCount: "出典",
     generated: "このページの生成", copy: "コピー", copied: "コピーしました", details: "この場所の図鑑",
     disclaimer: "営業時間・料金・アクセシビリティなど、確認できない情報は不明のまま扱います。",
   },
   en: {
     back: "Back to map", showLocally: "Show locally", localName: "Local name", localAddress: "Place",
-    openMap: "Open external map", saveLogin: "Sign in to save", sources: "Information status",
+    openMap: "Open external map", saveLogin: "Sign in to save", saveUnavailable: "Saved state unavailable", sources: "Information status",
     checked: "Latest source check", unknown: "Check time unknown", sourceCount: "Sources",
     generated: "Page assembled", copy: "Copy", copied: "Copied", details: "Place atlas",
     disclaimer: "Hours, prices and accessibility stay unknown unless a source supports them.",
   },
   es: {
     back: "Volver al mapa", showLocally: "Mostrar localmente", localName: "Nombre local", localAddress: "Lugar",
-    openMap: "Abrir mapa externo", saveLogin: "Inicia sesión para guardar", sources: "Estado de la información",
+    openMap: "Abrir mapa externo", saveLogin: "Inicia sesión para guardar", saveUnavailable: "No se puede comprobar el estado guardado", sources: "Estado de la información",
     checked: "Última comprobación", unknown: "Fecha de comprobación desconocida", sourceCount: "Fuentes",
     generated: "Página generada", copy: "Copiar", copied: "Copiado", details: "Atlas del lugar",
     disclaimer: "Horarios, precios y accesibilidad permanecen desconocidos si no hay una fuente que los confirme.",
   },
   "pt-br": {
     back: "Voltar ao mapa", showLocally: "Mostrar no local", localName: "Nome local", localAddress: "Local",
-    openMap: "Abrir mapa externo", saveLogin: "Entre para salvar", sources: "Estado das informações",
+    openMap: "Abrir mapa externo", saveLogin: "Entre para salvar", saveUnavailable: "Não foi possível verificar o estado salvo", sources: "Estado das informações",
     checked: "Última verificação da fonte", unknown: "Data de verificação desconhecida", sourceCount: "Fontes",
     generated: "Página montada", copy: "Copiar", copied: "Copiado", details: "Atlas do local",
     disclaimer: "Horários, preços e acessibilidade permanecem desconhecidos sem uma fonte que os confirme.",
@@ -101,6 +101,7 @@ export function renderGlobalPlaceDetailPage(input: {
   profile: PlaceAtlasProfile;
   lang: GlobalPlaceDetailLang;
   savedItem?: SavedItem | null;
+  savedStateAvailable?: boolean;
   viewerAuthenticated?: boolean;
 }): string {
   const profile = input.profile as PlaceProfileWithGlobalNames;
@@ -121,7 +122,9 @@ export function renderGlobalPlaceDetailPage(input: {
   const sourceCount = profile.provenance.sourceReferences?.length ?? 0;
   const generated = displayDate(clean(profile.provenance.generatedAt), lang);
   const save = input.viewerAuthenticated
-    ? renderSavedControl({ kind: "place", objectId: canonicalPlaceId, path, title: local || selected }, lang, input.savedItem ?? null)
+    ? input.savedStateAvailable === false
+      ? `<span class="gpd-secondary" role="status" aria-disabled="true">${escapeHtml(copy.saveUnavailable)}</span>`
+      : renderSavedControl({ kind: "place", objectId: canonicalPlaceId, path, title: local || selected }, lang, input.savedItem ?? null)
     : `<a class="gpd-secondary" href="/auth?redirect=${encodeURIComponent(localizedPath)}">${escapeHtml(copy.saveLogin)}</a>`;
   const externalMap = externalMapHref(profile);
   const mapProfile = renderMapPlaceAtlasProfile(profile, {
