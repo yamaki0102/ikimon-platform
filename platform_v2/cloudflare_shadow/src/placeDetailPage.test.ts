@@ -89,3 +89,30 @@ test("authenticated detail never turns a Saved read failure into a false unsaved
   assert.doesNotMatch(html, /data-zukan-save/);
   assert.match(html, /aria-disabled="true"/);
 });
+
+
+test("location-suppressed Place keeps its name but withholds locality and external directions", () => {
+  const profile = fixture();
+  profile.policy = {
+    ...profile.policy!,
+    publicLocationMode: "hidden",
+  };
+  const html = renderGlobalPlaceDetailPage({ profile, lang: "en", viewerAuthenticated: false });
+  assert.match(html, /Tokiwa Park/);
+  assert.match(html, /常磐公園/);
+  assert.doesNotMatch(html, /Open external map/);
+  assert.doesNotMatch(html, /静岡県 静岡市/);
+  assert.doesNotMatch(html, /google\.com\/maps\/search/);
+});
+
+test("coarse public location mode never upgrades itself to a precise map handoff", () => {
+  const profile = fixture();
+  profile.policy = {
+    ...profile.policy!,
+    publicLocationMode: "public_cell",
+  };
+  const html = renderGlobalPlaceDetailPage({ profile, lang: "ja", viewerAuthenticated: false });
+  assert.doesNotMatch(html, /外部地図で開く/);
+  assert.doesNotMatch(html, /静岡県 静岡市/);
+  assert.match(html, /現地名/);
+});
