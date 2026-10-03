@@ -6,6 +6,7 @@ export type MapPlaceAtlasRenderOptions = {
   lang: SiteLang;
   recordHref: string;
   recordsHref: string;
+  placeHrefPrefix?: string;
 };
 
 type AtlasCopy = {
@@ -49,6 +50,7 @@ type AtlasCopy = {
   currentSeason: string;
   nearby: string;
   routeTo: string;
+  openPlace: string;
 };
 
 const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
@@ -83,7 +85,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "この場所の図鑑はこれから",
     emptyBody: "公開できるRecordがまだ十分でないか、安全のため詳細を控えています。",
     unknown: "未確認",
-    timeline: "この場所のうつろい", timelineSingle: "一時期の記録", timelineMultiple: "複数の時期の記録", timelineSampled: "公開記録からの標本表示", timelineRecord: "今を撮る", verified: "確認済み", candidate: "候補", currentSeason: "今見られるもの", nearby: "近くの場所", routeTo: "ルート",
+    timeline: "この場所のうつろい", timelineSingle: "一時期の記録", timelineMultiple: "複数の時期の記録", timelineSampled: "公開記録からの標本表示", timelineRecord: "今を撮る", verified: "確認済み", candidate: "候補", currentSeason: "今見られるもの", nearby: "近くの場所", routeTo: "ルート", openPlace: "場所の詳細",
   },
   en: {
     eyebrow: "A local atlas led by place",
@@ -116,7 +118,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "This place atlas is just beginning",
     emptyBody: "There are not enough publishable records yet, or details are withheld for safety.",
     unknown: "Unknown",
-    timeline: "This place over time", timelineSingle: "Records from one period", timelineMultiple: "Records from multiple periods", timelineSampled: "Sample of public records", timelineRecord: "Capture now", verified: "Verified", candidate: "Candidate", currentSeason: "What you may find now", nearby: "Nearby places", routeTo: "Route",
+    timeline: "This place over time", timelineSingle: "Records from one period", timelineMultiple: "Records from multiple periods", timelineSampled: "Sample of public records", timelineRecord: "Capture now", verified: "Verified", candidate: "Candidate", currentSeason: "What you may find now", nearby: "Nearby places", routeTo: "Route", openPlace: "Place details",
   },
   es: {
     eyebrow: "Atlas local guiado por el lugar",
@@ -149,7 +151,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "Este atlas apenas comienza",
     emptyBody: "Aún no hay suficientes registros publicables o se ocultan detalles por seguridad.",
     unknown: "Sin confirmar",
-    timeline: "Este lugar a través del tiempo", timelineSingle: "Registros de un periodo", timelineMultiple: "Registros de varios periodos", timelineSampled: "Muestra de registros públicos", timelineRecord: "Capturar ahora", verified: "Verificado", candidate: "Candidato", currentSeason: "Lo que se puede ver ahora", nearby: "Lugares cercanos", routeTo: "Ruta",
+    timeline: "Este lugar a través del tiempo", timelineSingle: "Registros de un periodo", timelineMultiple: "Registros de varios periodos", timelineSampled: "Muestra de registros públicos", timelineRecord: "Capturar ahora", verified: "Verificado", candidate: "Candidato", currentSeason: "Lo que se puede ver ahora", nearby: "Lugares cercanos", routeTo: "Ruta", openPlace: "Detalles del lugar",
   },
   "pt-BR": {
     eyebrow: "Atlas local guiado pelo lugar",
@@ -182,7 +184,7 @@ const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
     emptyTitle: "Este atlas está só começando",
     emptyBody: "Ainda não há registros publicáveis suficientes ou os detalhes estão ocultos por segurança.",
     unknown: "Não confirmado",
-    timeline: "Este lugar ao longo do tempo", timelineSingle: "Registros de um período", timelineMultiple: "Registros de vários períodos", timelineSampled: "Amostra de registros públicos", timelineRecord: "Registrar agora", verified: "Verificado", candidate: "Candidato", currentSeason: "O que pode ser visto agora", nearby: "Lugares próximos", routeTo: "Rota",
+    timeline: "Este lugar ao longo do tempo", timelineSingle: "Registros de um período", timelineMultiple: "Registros de vários períodos", timelineSampled: "Amostra de registros públicos", timelineRecord: "Registrar agora", verified: "Verificado", candidate: "Candidato", currentSeason: "O que pode ser visto agora", nearby: "Lugares próximos", routeTo: "Rota", openPlace: "Detalhes do local",
   },
 };
 
@@ -601,12 +603,23 @@ function renderAtlasActions(
       : copy.checkRules;
   const recordHref = atlasSafeHref(options.recordHref, "/record");
   const recordsHref = atlasSafeHref(options.recordsHref, "/records");
+  const place = atlasPlainObject(profile.place) ?? {};
+  const canonicalPlaceId = typeof place.canonicalPlaceId === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(place.canonicalPlaceId)
+    ? place.canonicalPlaceId
+    : "";
+  const placePrefix = atlasSafeHref(options.placeHrefPrefix, "");
+  const placeHref = canonicalPlaceId && placePrefix
+    ? atlasSafeHref(placePrefix + encodeURIComponent(canonicalPlaceId), "")
+    : "";
   const primaryAction = recordAllowed
     ? timelineOwnsPrimaryAction
       ? ""
       : `<a class="me-place-atlas-primary" href="${atlasEscapeHtml(recordHref)}" data-place-primary-action data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:record_here" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordHref)}">${atlasEscapeHtml(copy.timelineRecord)}</a>`
     : `<p class="me-place-atlas-policy-notice">${atlasEscapeHtml(policyMessage)}</p>`;
-  return `<section class="me-place-atlas-actions" aria-label="${atlasEscapeHtml(copy.record)}">${primaryAction}<a class="me-place-atlas-secondary" href="${atlasEscapeHtml(recordsHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:browse_records" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordsHref)}">${atlasEscapeHtml(copy.browseRecords)}</a></section>`;
+  const detailAction = placeHref
+    ? `<a class="me-place-atlas-secondary" href="${atlasEscapeHtml(placeHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:open_detail" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(placeHref)}">${atlasEscapeHtml(copy.openPlace)}</a>`
+    : "";
+  return `<section class="me-place-atlas-actions" aria-label="${atlasEscapeHtml(copy.record)}">${primaryAction}${detailAction}<a class="me-place-atlas-secondary" href="${atlasEscapeHtml(recordsHref)}" data-kpi-event="selected_place_cta_click" data-kpi-action="map:place_atlas:browse_records" data-kpi-funnel="map_selected_place" data-kpi-target="${atlasEscapeHtml(recordsHref)}">${atlasEscapeHtml(copy.browseRecords)}</a></section>`;
 }
 
 function renderAtlasPolicy(
