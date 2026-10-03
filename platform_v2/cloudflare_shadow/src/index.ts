@@ -1,6 +1,7 @@
-import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
+import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
+import { renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
@@ -2532,6 +2533,73 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
   }
 }
 
+
+async function getGlobalPlaceDetailPage(
+  request: Request,
+  url: URL,
+  env: Env,
+  canonicalPlaceId: string,
+): Promise<Response> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(canonicalPlaceId)) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  let result;
+  try {
+    const search = await searchD1PublicPlaces({ db: env.OBS_DB, query: canonicalPlaceId, limit: 2 });
+    result = search.results.find((candidate) => candidate.canonicalPlaceId === canonicalPlaceId) ?? null;
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+  if (!result?.osmSourceId) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const sourceMatch = result.osmSourceId.match(/^(way|relation):(\d+)$/u);
+  if (!sourceMatch?.[1] || !sourceMatch[2]) {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, { "cache-control": "no-store" });
+  }
+
+  let profile;
+  try {
+    profile = await loadCloudflarePlaceAtlasProfile({
+      db: env.OBS_DB,
+      placeRef: {
+        kind: "osm_area",
+        entityKey: `osm:${sourceMatch[1]}:${sourceMatch[2]}`,
+        osmType: sourceMatch[1] as "way" | "relation",
+        osmId: Number(sourceMatch[2]),
+      },
+      fetchFn: fetch,
+    });
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+
+  if (!profile || profile.place.canonicalPlaceId !== canonicalPlaceId || profile.publication.status === "suppressed") {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const authenticated = Boolean(session && !session.banned);
+  const savedItem = authenticated && session
+    ? await getSavedItem(env.CORE_DB, session.userId, "place", canonicalPlaceId).catch(() => null)
+    : null;
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, viewerAuthenticated: authenticated });
+  const response = html(body, 200, {
+    "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+    "x-ikimon-cloudflare-native": "global-place-detail",
+  });
+  return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
+}
+
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
     const response = await (async (): Promise<Response> => {
@@ -2851,6 +2919,11 @@ export const worker = {
 
       if (nativePathname === "/api/v1/me/saved") {
         return handleSavedItemsRequest(request, env.CORE_DB, await readCompatibleSession(request, env));
+      }
+
+      const globalPlaceDetailMatch = nativePathname.match(/^\/places\/([^/]+)$/u);
+      if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
+        return getGlobalPlaceDetailPage(request, url, env, decodeURIComponent(globalPlaceDetailMatch[1]));
       }
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
