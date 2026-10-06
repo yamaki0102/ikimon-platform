@@ -6984,10 +6984,11 @@ class FakeStatement {
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
+      const activeOnly = normalized.includes("WHERE ended_at IS NULL");
       const rows = [...this.db.observationEventSessions.values()]
-        .filter((row) => row.ended_at === null && row.started_at <= new Date().toISOString())
+        .filter((row) => !activeOnly || (row.ended_at === null && row.started_at <= new Date().toISOString()))
         .sort((a, b) => b.started_at.localeCompare(a.started_at))
-        .slice(0, 50);
+        .slice(0, activeOnly ? 50 : 24);
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT team_id, name, color, lead_user_id")) {
@@ -10073,6 +10074,80 @@ test("public observation detail route exposes a safe read page and JSON without 
   const candidateHtml = await candidatePage.text();
   assert.match(candidateHtml, /<span>AI候補<\/span><strong>ツバキ属<\/strong>/);
   assert.match(candidateHtml, /確定名ではなく、人の確認で更新できます/);
+
+  const humanAiReview = {
+    ...obs.observationAiReviewTargets.get("occ:visit-detail-contract:0")!,
+    candidate_scientific_name: "Homo sapiens",
+    candidate_vernacular_name: "人間",
+    candidate_taxon_rank: "species",
+    ai_recommended_taxon_name: "Homo sapiens",
+    ai_recommended_rank: "species",
+    source_payload_json: JSON.stringify({
+      recordClass: "person",
+      topCandidates: [{
+        candidateKey: "primary:person", name: "人間", scientificName: "Homo sapiens",
+        supportingFeatures: ["観客が写っています"],
+      }],
+      summary: {
+        observer_feedback: "地域の行事が記録されています。",
+        subject_explanations: [{
+          subject_id: "primary:person", title: "主対象", next_photo: "頭部および胴体の鮮明な拡大画像",
+        }],
+      },
+    }),
+  };
+  obs.observationAiReviewTargets.set("occ:visit-detail-contract:0", humanAiReview);
+  const humanCandidateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"), env);
+  const humanCandidatePayload = await humanCandidateResponse.json() as any;
+  assert.equal(humanCandidateResponse.status, 200);
+  assert.deepEqual(humanCandidatePayload.observation, {
+    ...candidatePayload.observation,
+    displayName: "名前待ち",
+    aiCandidateLabel: null,
+    aiCandidateRank: null,
+    aiCandidateInsights: [],
+    feedback: "地域の行事が記録されています。",
+    nextPhoto: null,
+  });
+  assert.equal(humanCandidatePayload.observation.isAwaitingId, true);
+  assert.doesNotMatch(JSON.stringify(humanCandidatePayload), /Homo sapiens|頭部および胴体/);
+
+  const namedPersonAiReview = {
+    ...humanAiReview,
+    candidate_scientific_name: null,
+    candidate_vernacular_name: "男性",
+    ai_recommended_taxon_name: "男性",
+    source_payload_json: JSON.stringify({
+      recordClass: "person",
+      candidate: { candidateKey: "primary:person", vernacularName: "男性", scientificName: null },
+      topCandidates: [{ candidateKey: "primary:person", name: "男性", supportingFeatures: ["観客が写っています"] }],
+      summary: {
+        observer_feedback: "地域の行事が記録されています。",
+        subject_explanations: [{ subject_id: "primary:person", title: "主対象", next_photo: "頭部および胴体の鮮明な拡大画像" }],
+      },
+      sourceAssetIds: ["private-person-source-marker"],
+      exactLocation: { latitude: 34.71234, longitude: 137.81234 },
+    }),
+  };
+  obs.observationAiReviewTargets.set("occ:visit-detail-contract:0", namedPersonAiReview);
+  const namedPersonResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"), env);
+  const namedPersonPayload = await namedPersonResponse.json() as any;
+  assert.equal(namedPersonResponse.status, 200);
+  assert.deepEqual(namedPersonPayload.observation, humanCandidatePayload.observation);
+  assert.doesNotMatch(JSON.stringify(namedPersonPayload), /男性|aiPersonPrimaryNames|source_payload|private-person-source-marker|34\.71|137\.81/);
+
+  // A human-supplied label remains a record assertion, independent of AI display filtering.
+  obs.observations.get("visit-detail-contract")!.taxon_label = "人間";
+  obs.readmodel.get("visit-detail-contract")!.taxon_label = "人間";
+  const assertedHumanResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"), env);
+  const assertedHumanPayload = await assertedHumanResponse.json() as any;
+  assert.equal(assertedHumanResponse.status, 200);
+  assert.deepEqual(assertedHumanPayload.observation, {
+    ...humanCandidatePayload.observation,
+    displayName: "人間",
+    isAwaitingId: false,
+  });
+  assert.equal(obs.observationAiReviewTargets.get("occ:visit-detail-contract:0"), namedPersonAiReview);
 
   await post("/api/v1/observations/upsert", env, {
     observationId: "visit-private-detail-contract",
@@ -19372,6 +19447,100 @@ test("observation event analytics stays allowlisted and registration bridge clai
   assert.doesNotMatch(consoleHtml, /Analytics Guest Family|Registered Parent Family|analytics-parent/);
 });
 
+test("public participation list distinguishes empty and failed loads in the requested locale", async (t) => {
+  const { env, obs } = createEnv();
+  const localEnv = { ...env, ENVIRONMENT: "production" };
+  t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
+
+  const cases = [
+    { prefix: "ja", title: "参加", empty: "掲載中の公開企画はまだありません。", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "en", title: "Join", empty: "No public programs are listed yet.", failed: "Couldn’t load programs.", retry: "Reload" },
+    { prefix: "es", title: "Participar", empty: "Todavía no hay actividades públicas publicadas.", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
+    { prefix: "pt-br", title: "Participar", empty: "Ainda não há atividades públicas publicadas.", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
+  ];
+
+  for (const item of cases) {
+    const response = await worker.fetch(new Request(`https://zukan.earth/${item.prefix}/community/events`), localEnv);
+    const html = await response.text();
+    const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/)?.[1] ?? "";
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
+    assert.match(html, new RegExp(`<html lang="${item.prefix}"`));
+    assert.ok(html.includes(`<title>${item.title} — ZUKAN</title>`));
+    assert.ok(main.includes(item.empty));
+    assert.equal((html.match(/<main\b/g) ?? []).length, 1);
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+    assert.ok(main.includes(`href="/${item.prefix}/records?view=public"`));
+    assert.ok(!main.includes(`href="/${item.prefix}/community/events"`), "empty state must not send the reader back to itself");
+    assert.doesNotMatch(main, /data-load-failed|ログインしてください/);
+    if (item.prefix !== "ja") assert.doesNotMatch(main, /観察会|招待された|企画を/);
+  }
+
+  const originalPrepare = obs.prepare.bind(obs);
+  t.mock.method(obs, "prepare", (query: string) => {
+    if (query.includes("FROM observation_event_sessions")) throw new Error("fixture list unavailable");
+    return originalPrepare(query);
+  });
+
+  for (const item of cases) {
+    const response = await worker.fetch(new Request(`https://zukan.earth/${item.prefix}/community/events`), localEnv);
+    const html = await response.text();
+    const notice = html.match(/<div[^>]*data-load-failed[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
+    assert.equal(response.status, 200);
+    assert.ok(notice.includes(item.failed));
+    assert.ok(notice.includes(`href="/${item.prefix}/community/events"`));
+    assert.ok(notice.includes(item.retry));
+    assert.doesNotMatch(html, /data-participation-empty/);
+    assert.ok(!html.includes(item.empty), "a failed list cannot claim there are no public programs");
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+  }
+});
+
+test("public participation list hides private and codeless lifecycle states while keeping public discovery open", async (t) => {
+  const { env, obs } = createEnv();
+  const localEnv = { ...env, ENVIRONMENT: "production" };
+  t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
+  const base: ObservationEventSessionTestRow = {
+    session_id: "public-program", legacy_event_id: null, event_code: "OPEN2026",
+    title: "Open riverside walk", organizer_user_id: "organizer", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2020-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: "{}", field_id: null,
+    template_source_session_id: null, created_at: "2020-01-01T00:00:00.000Z", updated_at: "2020-01-01T00:00:00.000Z",
+  };
+  obs.observationEventSessions.set(base.session_id, base);
+  obs.observationEventSessions.set("public-history", { ...base, session_id: "public-history", title: "Past riverside walk", event_code: "PAST2026", ended_at: "2020-01-01T01:00:00.000Z" });
+
+  const privateFlags = [
+    {}, { public_listed: false }, { publicListVisible: false }, { public_list_visibility: "hidden" }, { qa_fixture: true },
+  ];
+  for (const [flagIndex, flags] of privateFlags.entries()) {
+    for (const state of ["live", "upcoming", "ended", "cancelled"]) {
+      const id = `private-${flagIndex}-${state}`;
+      obs.observationEventSessions.set(id, {
+        ...base, session_id: id, title: `Hidden gathering ${flagIndex} ${state}`,
+        event_code: flagIndex === 0 ? null : `HIDDEN${flagIndex}${state}`,
+        started_at: state === "upcoming" ? "2099-01-01T00:00:00.000Z" : base.started_at,
+        ended_at: state === "ended" ? "2020-01-01T01:00:00.000Z" : null,
+        target_species_json: '["Private target"]',
+        config_json: JSON.stringify({ ...flags, ...(state === "cancelled" ? { status: "cancelled" } : {}) }),
+      });
+    }
+  }
+
+  const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), localEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /Open riverside walk/);
+  assert.match(html, /Past riverside walk/);
+  assert.match(html, /data-participation-kind="actionable"/);
+  assert.match(html, /data-participation-kind="ended"/);
+  assert.match(html, /href="\/en\/community\/events\/OPEN2026\/join"/);
+  assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
+  assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
+});
+
 test("production observation event APIs run location and rally routes on D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
@@ -19425,7 +19594,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventListPage.status, 200);
     assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(eventListPageText, /D1観察会/);
-    assert.match(eventListPageText, /<title>観察会 — ZUKAN<\/title>/);
+    assert.match(eventListPageText, /<title>参加 — ZUKAN<\/title>/);
     assert.doesNotMatch(eventListPageText, /<title>[^<]*ikimon\.life/u);
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);

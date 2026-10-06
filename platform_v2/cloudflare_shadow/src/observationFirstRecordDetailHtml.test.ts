@@ -3,6 +3,7 @@ import test from "node:test";
 import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import type { OwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { publicObservationAiFeedback } from "./publicObservationAiPresentation";
 
 const detail: ObservationFirstRecordDetail = {
   schema: "ikimon.observation-first-record-detail/v1",
@@ -676,4 +677,141 @@ test("Japanese record detail suppresses English-only AI prose from reassessment"
   assert.match(rendered, /花の中心が赤紫色/);
   assert.match(rendered, /根系がわかる角度/);
   assert.match(rendered, /根系の詳細は確認できません/);
+});
+
+const humanAiCard: ObservationFirstRecordDetail["observations"][number] = {
+  ...detail.observations[0]!,
+  observationId: "person-ai",
+  subjectLabel: "写っているもの",
+  assertionStatus: "provisional",
+  acceptedIdentification: null,
+  communityIdentifications: [],
+  aiSuggestions: [{
+    suggestionId: "person-suggestion", proposedName: "人間", proposedScientificName: "Homo sapiens", proposedRank: "species",
+    visualEvidence: ["観客が写っています"], shootingAdvice: ["人物の顔を近くから撮る"], provisional: true,
+  }],
+  provenance: { owner: false, ai: true, community: false, curator: false, imported: false },
+};
+
+test("person-only AI detail keeps the record without taxon comparisons or body close-up guidance", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observations: [humanAiCard] }, {
+    lang: "ja", title: "競技場の記録", observedLabel: "2026年10月3日", note: "地域の行事を見学したときの記録。",
+    media: [{ mediaId: "asset-public", mediaKind: "photo", url: "/derived/public-scene.webp" }], actionNonce: "person-scene",
+    aiCandidateInsights: [{ name: "人間", scientificName: "Homo sapiens", supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] }],
+    aiFeedback: "地域の行事が記録されています。", aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
+  });
+  for (const text of ["人間かもしれません", "Homo sapiens", "人物の顔を近くから撮る", "頭部および胴体の鮮明な拡大画像"]) {
+    assert.equal(rendered.includes(text), false, text);
+  }
+  assert.match(rendered, /地域の行事を見学したときの記録/);
+  assert.match(rendered, /\/derived\/public-scene\.webp/);
+  assert.match(rendered, /地域の行事が記録されています/);
+  assert.equal(rendered.includes('class="of-summary"'), false);
+  assert.equal(rendered.includes("生きものは見つかりませんでした"), false);
+});
+
+test("person primary context suppresses novel AI names and learning while preserving the original record", () => {
+  const personCard = {
+    ...humanAiCard,
+    subjectLabel: "男性",
+    aiSuggestions: [{ ...humanAiCard.aiSuggestions[0]!, proposedName: "男性", proposedScientificName: null }],
+  };
+  for (const owner of [false, true]) {
+    const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner, observations: [personCard] }, {
+      lang: "ja", title: "男性", titleIsFallback: true, observedLabel: "2026年10月3日",
+      note: "男性のいる地域の行事を記録しました。", actionNonce: "novel-person",
+      media: [{ mediaId: "asset-public", mediaKind: "photo", url: "/derived/public-scene.webp" }],
+      aiPersonPrimaryNames: ["男性"],
+      aiCandidateInsights: [{ name: "男性", scientificName: null, supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] }],
+      aiFeedback: "地域の行事が記録されています。", aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
+    });
+    assert.match(rendered, /<h1>自然の記録<\/h1>/);
+    assert.match(rendered, /男性のいる地域の行事を記録しました/);
+    assert.match(rendered, /\/derived\/public-scene\.webp/);
+    assert.match(rendered, /地域の行事が記録されています/);
+    assert.doesNotMatch(rendered, /男性かもしれません|>男性<|観客が写っています|人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
+    assert.doesNotMatch(rendered, /class="of-summary"|生きものは見つかりませんでした/);
+  }
+});
+
+test("person primary context retains coexisting bird and plant suggestions and accepted user names", () => {
+  const subjects = [
+    { name: "スズメ", scientificName: "Passer montanus", evidence: "頬の黒い斑点が見えます", advice: "翼とくちばしを横から撮る。" },
+    { name: "ヒトリシズカ", scientificName: "Chloranthus japonicus", evidence: "白い花が見えます", advice: "葉の裏側と茎の付け根を撮る。" },
+  ];
+  for (const subject of subjects) {
+    const personSuggestion = { ...humanAiCard.aiSuggestions[0]!, proposedName: "男性", proposedScientificName: null };
+    const organismSuggestion = { ...personSuggestion, suggestionId: "coexisting", proposedName: subject.name, proposedScientificName: subject.scientificName, visualEvidence: [subject.evidence], shootingAdvice: [subject.advice] };
+    const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observations: [{ ...humanAiCard, aiSuggestions: [personSuggestion, organismSuggestion] }] }, {
+      lang: "ja", title: "行事の記録", observedLabel: "2026年10月3日", note: null, media: [], actionNonce: "person-and-organism",
+      aiPersonPrimaryNames: ["男性"],
+      aiCandidateInsights: [
+        { name: "男性", scientificName: null, supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] },
+        { name: subject.name, scientificName: subject.scientificName, supportingFeatures: [subject.evidence], missingFeatures: [], contradictions: [] },
+      ],
+      aiNextPhoto: subject.advice,
+    });
+    for (const text of [subject.name, subject.evidence, subject.advice]) assert.ok(rendered.includes(text), text);
+    assert.doesNotMatch(rendered, /男性かもしれません|>男性<|観客が写っています|人物の顔を近くから撮る/);
+  }
+  const acceptedCard = { ...humanAiCard, assertionStatus: "human_asserted", subjectLabel: "男性", acceptedIdentification: {
+    claimId: "accepted-person", actorType: "owner" as const, actorId: "owner", proposalActorType: "owner" as const,
+    proposedName: "男性", proposedScientificName: null, proposedRank: null, humanDecision: true as const,
+  } };
+  const acceptedHtml = renderObservationFirstRecordDetailHtml({ ...detail, observations: [acceptedCard] }, {
+    lang: "ja", title: "男性", observedLabel: "2026年10月3日", note: "利用者が残した人物の記録。", media: [], actionNonce: "accepted-novel-person",
+    aiPersonPrimaryNames: ["男性"], aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
+  });
+  assert.match(acceptedHtml, /<h1>男性<\/h1>/);
+  assert.match(acceptedHtml, /<strong>男性<\/strong>/);
+  assert.match(acceptedHtml, /利用者が残した人物の記録/);
+  assert.doesNotMatch(acceptedHtml, /人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
+});
+
+test("mixed AI detail retains bird evidence and mapped guidance while excluding the human alternative", () => {
+  const birdSuggestion = { ...humanAiCard.aiSuggestions[0]!, suggestionId: "bird-suggestion", proposedName: "スズメ", proposedScientificName: "Passer montanus", visualEvidence: ["頬の黒い斑点が見えます"], shootingAdvice: ["翼とくちばしを横から撮る"] };
+  const nextPhoto = publicObservationAiFeedback(JSON.stringify({
+    recordClass: "mixed",
+    topCandidates: [
+      { candidateKey: "primary:person", name: "人間", scientificName: "Homo sapiens" },
+      { candidateKey: "census:bird", name: "スズメ", scientificName: "Passer montanus" },
+    ],
+    summary: { subject_explanations: [
+      { subject_id: "primary:person", title: "主対象", next_photo: "頭部および胴体の鮮明な拡大画像" },
+      { subject_id: "census:bird", title: "鳥", next_photo: "翼を開いたところが撮れると比べやすくなります。" },
+    ] },
+  })).nextPhoto;
+  const rendered = renderObservationFirstRecordDetailHtml({
+    ...detail, owner: false, observations: [{ ...humanAiCard, aiSuggestions: [...humanAiCard.aiSuggestions, birdSuggestion] }],
+  }, {
+    lang: "ja", title: "地域の記録", observedLabel: "2026年10月3日", note: null, media: [], actionNonce: "mixed-scene", aiNextPhoto: nextPhoto,
+    aiCandidateInsights: [
+      { name: "人間", scientificName: "Homo sapiens", supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] },
+      { name: "スズメ", scientificName: "Passer montanus", supportingFeatures: ["頬に斑点が見えます"], missingFeatures: [], contradictions: [] },
+    ],
+  });
+  for (const text of ["人間かもしれません", "Homo sapiens", "人物の顔を近くから撮る", "頭部および胴体の鮮明な拡大画像"]) {
+    assert.equal(rendered.includes(text), false, text);
+  }
+  assert.match(rendered, /スズメかもしれません/);
+  assert.match(rendered, /頬の黒い斑点が見えます/);
+  assert.match(rendered, /翼とくちばしを横から撮る/);
+  assert.match(rendered, /翼を開いたところが撮れると比べやすくなります/);
+});
+
+test("human accepted claims and original notes remain visible when human AI advice is omitted", () => {
+  const accepted = { ...humanAiCard, assertionStatus: "human_asserted", acceptedIdentification: {
+    claimId: "owner-person-label", actorType: "owner" as const, actorId: "owner", proposalActorType: "owner" as const,
+    proposedName: "人間", proposedScientificName: "Homo sapiens", proposedRank: "species", humanDecision: true as const,
+  } };
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, observations: [accepted] }, {
+    lang: "ja", title: "行事の記録", observedLabel: "2026年10月3日", note: "人物が写っています。", media: [], actionNonce: "accepted-person",
+    aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
+  });
+  assert.match(rendered, /<strong>人間<\/strong>/);
+  assert.match(rendered, /人物が写っています/);
+  assert.equal(rendered.includes("人間かもしれません"), false);
+  assert.equal(rendered.includes("人物の顔を近くから撮る"), false);
+  assert.equal(rendered.includes("頭部および胴体の鮮明な拡大画像"), false);
+  assert.equal(accepted.acceptedIdentification.claimId, "owner-person-label");
 });

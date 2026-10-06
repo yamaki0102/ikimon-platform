@@ -86,6 +86,8 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
   assert.match(patched, /class="global-record-camera-action is-primary" data-global-record-os-camera>標準カメラで撮る<\/button>/);
   assert.match(patched, /class="global-record-gallery-select is-secondary" data-global-record-gallery-select/);
+  assert.match(patched, /data-global-record-camera-error[^>]*>[\s\S]*data-global-record-os-camera data-global-record-os-camera-fallback>標準カメラで撮る<\/button>/);
+  assert.match(patched, /const REQUIRE_CLOSEUP_FOCUS = true;/);
   assert.doesNotMatch(patched, /class="global-record-camera-action is-primary" data-global-record-camera-start/);
   assert.match(patched, /kind !== 'photo'\) void startCamera\(\)/);
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
@@ -95,6 +97,28 @@ test("patch anchors stay compatible with the real site shell output", () => {
   assert.match(patched, /button\.hidden = kind !== 'photo'/);
   assert.match(patched, /macroButton\.classList\.remove\('is-primary'\)/);
   assert.match(patched, /nativeButton\.classList\.add\('is-primary'\)/);
+});
+
+test("error fallback reuses the native photo input and listener across repeated materialization", () => {
+  for (const [lang, label] of [
+    ["ja", "標準カメラで撮る"], ["en", "Take with device camera"],
+    ["es", "Tomar con la cámara del dispositivo"], ["pt-BR", "Tirar com a câmera do aparelho"],
+  ] as const) {
+    const original = renderSiteDocument({ basePath: "", title: "Fallback", body: "<p>fixture</p>", lang });
+    const once = patchGlobalRecordSourceChoiceHtml(original);
+    assert.equal(patchGlobalRecordSourceChoiceHtml(once), once);
+    assert.equal((once.match(/<input[^>]*data-global-record-input="photo"/g) ?? []).length, 1);
+    assert.equal((once.match(/data-global-record-os-camera-fallback/g) ?? []).length, 1);
+    assert.equal((once.match(/<button[^>]*data-global-record-os-camera(?:\s|>)/g) ?? []).length, 2);
+    assert.equal((once.match(/querySelectorAll\('\[data-global-record-os-camera\]'\)\.forEach\(\(button\) => \{\s+button\.addEventListener\('click'/g) ?? []).length, 1);
+    assert.ok(once.includes(`data-global-record-os-camera-fallback>${label}</button>`));
+
+    const withoutFallback = once.replace(/\s*<button[^>]*data-global-record-os-camera-fallback[^>]*>[^<]*<\/button>/, "");
+    const upgraded = patchGlobalRecordSourceChoiceHtml(withoutFallback);
+    assert.equal((upgraded.match(/data-global-record-os-camera-fallback/g) ?? []).length, 1);
+    assert.equal((upgraded.match(/<input[^>]*data-global-record-input="photo"/g) ?? []).length, 1);
+    assert.equal((upgraded.match(/<button[^>]*data-global-record-os-camera(?:\s|>)/g) ?? []).length, 2);
+  }
 });
 
 test("gallery selections do not infer capture time or current location", () => {

@@ -3,9 +3,12 @@ import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountN
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
+import type { ObservationEventSessionRow } from "../../src/services/observationEventModeManager";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { handleEventTemplatePreviewPage } from "./eventTemplatePages";
 import { FRONTEND_FOUNDATION_CSS } from "../../src/ui/frontendFoundation";
+import { getObservationEventStrings } from "../../src/i18n/observationEventStrings";
+import { OBSERVATION_EVENT_LIST_STYLES, renderEventListBody } from "../../src/ui/observationEventList";
 import * as bcrypt from "bcryptjs";
 import {
   renderCloudflareRecordRecoveryGuestHtml,
@@ -85,7 +88,12 @@ import { decodePublicProgramHandoffPayload, receivePublicProgram } from "./publi
 import { renderPublicProgramConfirmationBody } from "./publicProgramConfirmation";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
-import { publicObservationAiCandidateInsights, publicObservationAiFeedback } from "./publicObservationAiPresentation";
+import {
+  isPublicObservationAiSubjectEligible,
+  publicObservationAiCandidateInsights,
+  publicObservationAiFeedback,
+  publicObservationAiPersonPrimaryNames,
+} from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
@@ -4275,20 +4283,34 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
 
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
-  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
-  const rows = await env.OBS_DB.prepare(
-    `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
-            plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
-            started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
-            created_at, updated_at
-       FROM observation_event_sessions
-      ORDER BY started_at DESC
-      LIMIT 24`
-  ).all<ObservationEventSessionD1Row>();
+  const publicLang = publicLangFromPath(new URL(request.url).pathname) ?? "ja";
+  const lang = publicLang === "pt-br" ? "pt-BR" : publicLang;
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
+  let loadFailed = false;
+  let rows: { results: ObservationEventSessionD1Row[] };
+  try {
+    rows = await env.OBS_DB.prepare(
+      `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+              plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+              started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+              created_at, updated_at
+         FROM observation_event_sessions
+        ORDER BY started_at DESC
+        LIMIT 24`
+    ).all<ObservationEventSessionD1Row>();
+  } catch {
+    loadFailed = true;
+    rows = { results: [] };
+  }
   const sessions = rows.results
     .map(mapObservationEventSession)
     .filter((session) => auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session));
-  return pageHtml("観察会", renderObservationEventListPage(sessions, auth), "event-page-list");
+  const strings = getObservationEventStrings(lang);
+  return pageHtml(
+    strings.listHeroHeading,
+    renderEventListBody(sessions, strings, lang, { loadFailed, retryHref: "/community/events" }),
+    "event-page-list",
+  );
 }
 
 function isObservationEventQaFixture(
@@ -4565,6 +4587,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     ${FRONTEND_FOUNDATION_CSS}
     :root{--evt-motion-fast:var(--ik-motion-fast);--evt-motion:var(--ik-motion-normal);--evt-motion-slow:var(--ik-motion-slow)}
     ${APP_EXPERIENCE_STYLES}
+    ${OBSERVATION_EVENT_LIST_STYLES}
     body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#143f2e}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#143f2e}
   </style>
 </head>
@@ -4821,14 +4844,6 @@ export function renderObservationEventCreatePage(
   loadLeaflet();
 })();
 </script>`;
-}
-
-function renderObservationEventListPage(sessions: Array<NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>>, auth: SessionSnapshot | null): string {
-  const items = sessions.map((session) => {
-    const accessLabel = session.plan === "public" ? "公開" : "参加者限定";
-    return `<article class="card"><h2>${escapeHtml(session.title)}</h2><p class="muted">${escapeHtml(session.startedAt)} / ${accessLabel}</p><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/live">観察画面</a><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">振り返り</a>${session.eventCode ? `<a class="btn secondary" href="/community/events/${encodeURIComponent(session.eventCode)}/join">参加する</a>` : ""}</div></article>`;
-  }).join("");
-  return `<section><h1>観察会</h1><p class="muted">${auth ? `${escapeHtml(auth.displayName)}の観察会` : "招待された観察会を表示しています"}</p><div class="grid">${items || observationEventEmptyState("観察会はまだありません", "招待された観察会がここに表示されます。")}</div></section>`;
 }
 
 function renderObservationEventJoinPage(
@@ -7468,7 +7483,7 @@ function mapObservationRallySubmission(row: ObservationRallySubmissionD1Row) {
   };
 }
 
-function mapObservationEventSession(row: ObservationEventSessionD1Row) {
+function mapObservationEventSession(row: ObservationEventSessionD1Row): ObservationEventSessionRow {
   const activeModes = jsonArray(row.active_modes_json).filter(isObservationEventMode);
   return {
     sessionId: row.session_id,
@@ -27993,6 +28008,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         detectionState,
         media,
         aiCandidateInsights: detail.aiCandidateInsights,
+        aiPersonPrimaryNames: detail.aiPersonPrimaryNames,
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
         related: detail.relatedObservations.map((item) => ({
@@ -28330,7 +28346,11 @@ async function getOwnerObservationProcessingStatusJson(rawId: string, request: R
 }
 
 async function buildPublicObservationDetail(rawId: string, env: Env) {
-  return buildObservationDetail(rawId, env, null);
+  const detail = await buildObservationDetail(rawId, env, null);
+  if (!detail) return null;
+  // Primary person identities guide server rendering only, never the public API.
+  const { aiPersonPrimaryNames: _aiPersonPrimaryNames, ...publicDetail } = detail;
+  return publicDetail;
 }
 
 async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null) {
@@ -28449,8 +28469,12 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
+  const aiPersonPrimaryNames = publicObservationAiPersonPrimaryNames(row.ai_source_payload_json);
+  const isEligibleAiCandidate = isPublicObservationAiSubjectEligible(row.ai_candidate_label, aiPersonPrimaryNames);
+  const aiCandidateLabel = isEligibleAiCandidate ? row.ai_candidate_label : null;
+  const aiCandidateRank = isEligibleAiCandidate ? row.ai_candidate_rank : null;
   const displayName = isAwaitingId
-    ? row.ai_candidate_label ?? "名前待ち"
+    ? aiCandidateLabel ?? "名前待ち"
     : row.taxon_label!.trim();
 
   return {
@@ -28460,8 +28484,9 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
     displayName,
     isAwaitingId,
-    aiCandidateLabel: row.ai_candidate_label,
-    aiCandidateRank: row.ai_candidate_rank,
+    aiPersonPrimaryNames,
+    aiCandidateLabel,
+    aiCandidateRank,
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
     ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
