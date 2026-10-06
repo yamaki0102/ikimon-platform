@@ -30,20 +30,6 @@ function localeForLang(lang: SiteLang): string {
   }
 }
 
-function formatStartedAt(iso: string, lang: SiteLang): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  // M6 sessions carry no per-Program IANA zone; the product is regional Japan,
-  // so pin the display zone instead of leaning on the server's implicit zone.
-  return d.toLocaleString(localeForLang(lang), {
-    timeZone: "Asia/Tokyo",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function formatWindow(startedAt: string, endedAt: string | null, lang: SiteLang): string {
   const start = new Date(startedAt);
   if (isNaN(start.getTime())) return "";
@@ -147,7 +133,7 @@ function resolvePlaceLabel(
 ): string | null {
   void _session;
   if (fieldName && fieldName.trim()) return fieldName.trim();
-  return readTextFromSources(sources, ["placeName", "locationName", "meetingPoint", "meetingPointLabel", "venueName", "venue", "siteName"]);
+  return readTextFromSources(sources, ["placeLabel", "placeName", "locationName", "meetingPoint", "meetingPointLabel", "venueName", "venue", "siteName"]);
 }
 
 function resolveOrganizerLabel(sources: Array<Record<string, unknown>>): string | null {
@@ -482,6 +468,29 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   font-size: 18px;
   line-height: 1.45;
 }
+.zukan-participation-purpose {
+  margin: 6px 0 10px;
+  color: #36463d;
+  line-height: 1.65;
+}
+.zukan-participation-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 10px 0 0;
+}
+.zukan-participation-facts div { min-width: 0; }
+.zukan-participation-facts dt {
+  color: #6b766f;
+  font-size: 12px;
+  font-weight: 700;
+}
+.zukan-participation-facts dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.5;
+}
 .zukan-participation-meta {
   margin: 5px 0 0;
   color: #55615a;
@@ -812,7 +821,7 @@ export function renderEventListBody(
 
   const renderRow = (s: ObservationEventSessionRow, kind: ParticipationKind): string => {
     const title = s.title || d.untitled;
-    const when = formatStartedAt(s.startedAt, lang) || d.dateTbd;
+    const when = formatWindow(s.startedAt, s.endedAt, lang) || d.dateTbd;
     const badge = kind === "actionable"
       ? d.badgeActionable
       : kind === "upcoming"
@@ -822,6 +831,23 @@ export function renderEventListBody(
           : strings.badgeEnded;
     const targets = (s.targetSpecies ?? []).slice(0, 4).map(escapeHtml).join("、");
     const termsSummary = summarizeParticipationTerms(s.config, termsLabels);
+    const sources = collectDetailConfigSources(s.config);
+    const purpose = resolveSummaryText(sources, ["summary", "description", "overview", "lead", "purpose"]);
+    const place = resolvePlaceLabel(s, sources);
+    const cost = resolveCostLabel(sources);
+    const externalSignup = readObservationEventExternalSignup(s);
+    const nativeCheckin = shouldRenderObservationEventCheckin(s, externalSignup);
+    const entry = externalSignup
+      ? externalSignup.providerLabel
+      : nativeCheckin ? d.detailNativeEntryLabel : d.detailUnknownValue;
+    const facts = ([
+      [d.detailWhenLabel, when],
+      [d.detailWhereLabel, place ?? d.detailUnknownValue],
+      [d.detailCostLabel, cost ?? d.detailUnknownValue],
+      [d.detailMethodLabel, entry],
+    ] satisfies Array<[string, string]>)
+      .map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`)
+      .join("");
 
     let action = "";
     if ((kind === "actionable" || kind === "upcoming") && s.eventCode) {
@@ -841,6 +867,8 @@ export function renderEventListBody(
         </div>
         <div>
           <h3>${escapeHtml(title)}</h3>
+          ${purpose ? `<p class="zukan-participation-purpose">${escapeHtml(purpose)}</p>` : ""}
+          <dl class="zukan-participation-facts">${facts}</dl>
           ${targets ? `<p class="zukan-participation-meta">${escapeHtml(strings.liveTargetLabel)}：${targets}</p>` : ""}
           ${termsSummary ? `<p class="zukan-participation-meta">${escapeHtml(termsSummary)}</p>` : ""}
         </div>
@@ -902,7 +930,7 @@ export function renderEventListBody(
     : "";
 
   return `
-<main class="zukan-participation-shell">
+<div class="zukan-participation-shell">
   <header class="zukan-participation-header">
     <p class="zukan-participation-eyebrow">${escapeHtml(strings.listEyebrow)}</p>
     <h1>${escapeHtml(strings.listHeroHeading)}</h1>
@@ -916,6 +944,6 @@ ${discoveryBody}
     <p>${escapeHtml(strings.listOrganizerLead)}</p>
     <a class="zukan-participation-secondary-action" href="${escapeHtml(appendLangToHref("/community/events/new", lang))}">${escapeHtml(strings.listCreateCta)}</a>
   </aside>
-</main>
+</div>
 `;
 }
