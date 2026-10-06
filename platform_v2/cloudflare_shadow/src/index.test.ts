@@ -19607,6 +19607,84 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
 });
 
+test("unpublished organizer templates stay private throughout their lifecycle until explicit publication", async (t) => {
+  const { env } = createEnv();
+  const obs = new RallySqliteD1();
+  Object.assign(env, { OBS_DB: obs });
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0020_observation_event_rally.sql", "0065_observation_rally_submission_idempotency.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  t.mock.method(globalThis, "fetch", async () => assert.fail("private template discovery must not call a provider or origin"));
+  const origin = "https://zukan.earth";
+  const issue = async (userId: string) => {
+    const response = await worker.fetch(new Request(`${origin}/api/v1/auth/session/issue`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, displayName: userId, ttlHours: 1 })
+    }), env);
+    assert.equal(response.status, 200);
+    return response.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issue("planning-organizer");
+  const otherCookie = await issue("another-organizer");
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const request = (path: string, method = "GET", cookie = "", body?: unknown) => worker.fetch(new Request(origin + path, {
+    method, headers: { cookie, origin, "content-type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) })
+  }), productionEnv);
+  const rows: ObservationEventSessionTestRow[] = [];
+  for (const plan of ["community", "public"]) {
+    const response = await request("/api/v1/observation-events", "POST", ownerCookie, {
+      title: `Secluded park gathering ${plan}`, event_code: `PARKGROUP${rows.length + 1}`,
+      plan, field_id: RYUYO_FIELD_ID, started_at: "2020-01-01T00:00:00.000Z",
+      config: { public_list_visibility: "private-until-explicit", event_template: { contract_version: "event-template-v1", key: "ryuyo" } }
+    });
+    assert.equal(response.status, 201);
+    const session = await response.json() as { sessionId: string };
+    const row = obs.observationEventSessions.get(session.sessionId)!;
+    assert.ok(row.event_code, "the normal activation already issued an invitation code");
+    assert.equal(obs.sqlite.prepare("SELECT status FROM observation_rally_courses WHERE session_id = ?").get(session.sessionId)!.status, "draft");
+    rows.push(row);
+  }
+
+  for (const state of ["live", "upcoming", "ended", "cancelled"]) {
+    for (const row of rows) {
+      row.started_at = state === "upcoming" ? "2099-01-01T00:00:00.000Z" : "2020-01-01T00:00:00.000Z";
+      row.ended_at = state === "ended" ? "2020-01-01T01:00:00.000Z" : null;
+      row.config_json = JSON.stringify({
+        public_list_visibility: "private-until-explicit", event_template: { contract_version: "event-template-v1", key: "ryuyo" },
+        ...(state === "cancelled" ? { status: "cancelled" } : {})
+      });
+    }
+    for (const cookie of ["", otherCookie]) {
+      const response = await request("/en/community/events", "GET", cookie);
+      const html = await response.text();
+      assert.equal(response.status, 200);
+      for (const row of rows) {
+        assert.ok(!html.includes(row.title), `${state}: a private template title escaped to another reader`);
+        assert.ok(!html.includes(row.event_code!), `${state}: a private invitation code escaped to another reader`);
+        assert.ok(!html.includes(row.session_id), `${state}: a private recap identifier escaped to another reader`);
+      }
+    }
+    const ownerHtml = await (await request("/en/community/events", "GET", ownerCookie)).text();
+    for (const row of rows) assert.ok(ownerHtml.includes(row.title), "the organizer retains access to their own preparation");
+  }
+
+  for (const row of rows) {
+    row.ended_at = null;
+    const response = await request(`/api/v1/observation-events/${row.session_id}`, "PATCH", ownerCookie, {
+      started_at: "2020-01-01T00:00:00.000Z",
+      config: { public_listed: true, public_list_visibility: "public", event_template: { contract_version: "event-template-v1", key: "ryuyo" } }
+    });
+    assert.equal(response.status, 200);
+  }
+  const publishedHtml = await (await request("/en/community/events")).text();
+  for (const row of rows) {
+    assert.ok(publishedHtml.includes(row.title), "explicitly published programs remain discoverable");
+    assert.ok(publishedHtml.includes(`/community/events/${row.event_code}/join`));
+  }
+});
+
 test("production observation event APIs run location and rally routes on D1 without origin fallback", async () => {
   const { env, obs } = createEnv();
   const productionEnv = {
