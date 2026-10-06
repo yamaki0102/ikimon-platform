@@ -744,9 +744,12 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
 
   const currentLanguage = supportedLanguages.find((language) => language.code === lang);
   const currentShortLabel = currentLanguage?.shortLabel ?? lang.toUpperCase();
+  const desktop = className === "lang-switch-desktop";
+  const rootTag = desktop ? "details" : "div";
+  const labelTag = desktop ? "summary" : "span";
 
-  return `<div class="${classes.join(" ")}" aria-label="${escapeHtml(switchCopy[lang])}">
-    <span class="lang-switch-label">${desktopSideNavIcon("language")}<span class="lang-switch-current">${escapeHtml(currentShortLabel)}</span></span>
+  return `<${rootTag} class="${classes.join(" ")}"${desktop ? " data-language-disclosure" : ` role="group" aria-label="${escapeHtml(switchCopy[lang])}"`}>
+    <${labelTag} class="lang-switch-label"${desktop ? ` aria-label="${escapeHtml(`${switchCopy[lang]}: ${currentLanguage?.label ?? currentShortLabel}`)}"` : ""}>${desktopSideNavIcon("language")}<span class="lang-switch-current">${escapeHtml(currentShortLabel)}</span></${labelTag}>
     <div class="lang-switch-options">${supportedLanguages
     .map((language) => {
       const activeClass = language.code === lang ? " is-active" : "";
@@ -755,7 +758,29 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
       return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(targetPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}" title="${escapeHtml(language.label)}"${current}><span class="lang-switch-code">${escapeHtml(language.shortLabel)}</span><span class="lang-switch-name">${escapeHtml(language.label)}</span></a>`;
     })
     .join("")}</div>
-  </div>`;
+  </${rootTag}>`;
+}
+
+function languageDisclosureScript(): string {
+  return `<script>
+(function () {
+  const disclosures = document.querySelectorAll('[data-language-disclosure]');
+  disclosures.forEach((disclosure) => {
+    disclosure.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || !disclosure.open) return;
+      event.preventDefault();
+      disclosure.open = false;
+      const summary = disclosure.querySelector('summary');
+      if (summary) summary.focus();
+    });
+  });
+  document.addEventListener('click', (event) => {
+    disclosures.forEach((disclosure) => {
+      if (disclosure.open && !disclosure.contains(event.target)) disclosure.open = false;
+    });
+  });
+})();
+</script>`;
 }
 
 function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPath: string, authState?: "guest" | "member"): string {
@@ -1117,6 +1142,7 @@ type GlobalRecordEntryCopy = {
   trayHelp: string;
   actionLabel: string;
   start: string;
+  starting: string;
   capture: string;
   trimTitle: string;
   trimStart: string;
@@ -1124,6 +1150,7 @@ type GlobalRecordEntryCopy = {
   errorTitle: string;
   errorBody: string;
   permissionBody: string;
+  startErrors: Record<"no_device" | "device_busy" | "constraints_unsupported" | "focus_unsupported" | "timeout", string>;
   retry: string;
   cancel: string;
 };
@@ -1144,7 +1171,15 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trayHelp: "最大6枚まで同じ記録にまとめます",
       actionLabel: "撮影操作",
       start: "カメラを起動",
+      starting: "起動中...",
       capture: "撮影する",
+      startErrors: {
+        no_device: "利用できるカメラが見つかりません。写真を選んで記録を続けられます。",
+        device_busy: "カメラをほかのアプリが使用している可能性があります。閉じて再試行するか、写真を選んでください。",
+        constraints_unsupported: "このブラウザーではカメラの設定を使えません。再試行するか、写真を選んでください。",
+        focus_unsupported: "このブラウザーでは接写用のピント調整を使えません。標準カメラか写真の選択で続けられます。",
+        timeout: "カメラの起動を確認できませんでした。再試行するか、写真を選んでください。",
+      },
       trimTitle: "記録に残す最大60秒を選ぶ",
       trimStart: "開始",
       trimEnd: "終了",
@@ -1162,7 +1197,15 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trayHelp: "Keep up to 6 photos in the same record",
       actionLabel: "Capture actions",
       start: "Start camera",
+      starting: "Starting...",
       capture: "Capture",
+      startErrors: {
+        no_device: "No camera was found. Choose a photo to continue your record.",
+        device_busy: "Another app may be using the camera. Close it and retry, or choose a photo.",
+        constraints_unsupported: "This browser cannot use the requested camera settings. Retry or choose a photo.",
+        focus_unsupported: "This browser cannot adjust close-up focus. Use the device camera or choose a photo.",
+        timeout: "The camera did not start in time. Retry or choose a photo.",
+      },
       trimTitle: "Choose up to 60 seconds",
       trimStart: "Start",
       trimEnd: "End",
@@ -1180,7 +1223,15 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trayHelp: "Agrupa hasta 6 fotos en el mismo registro",
       actionLabel: "Acciones de captura",
       start: "Iniciar camara",
+      starting: "Iniciando...",
       capture: "Capturar",
+      startErrors: {
+        no_device: "No se encontró ninguna cámara. Elige una foto para continuar el registro.",
+        device_busy: "Otra aplicación puede estar usando la cámara. Ciérrala y reintenta, o elige una foto.",
+        constraints_unsupported: "Este navegador no puede usar la configuración solicitada de la cámara. Reintenta o elige una foto.",
+        focus_unsupported: "Este navegador no permite ajustar el enfoque de cerca. Usa la cámara del dispositivo o elige una foto.",
+        timeout: "La cámara no se inició a tiempo. Reintenta o elige una foto.",
+      },
       trimTitle: "Elige hasta 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fin",
@@ -1198,7 +1249,15 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trayHelp: "Agrupe ate 6 fotos no mesmo registro",
       actionLabel: "Acoes de captura",
       start: "Iniciar camera",
+      starting: "Iniciando...",
       capture: "Capturar",
+      startErrors: {
+        no_device: "Nenhuma câmera foi encontrada. Escolha uma foto para continuar o registro.",
+        device_busy: "Outro aplicativo pode estar usando a câmera. Feche-o e tente novamente, ou escolha uma foto.",
+        constraints_unsupported: "Este navegador não pode usar as configurações solicitadas da câmera. Tente novamente ou escolha uma foto.",
+        focus_unsupported: "Este navegador não permite ajustar o foco de perto. Use a câmera do aparelho ou escolha uma foto.",
+        timeout: "A câmera não iniciou a tempo. Tente novamente ou escolha uma foto.",
+      },
       trimTitle: "Escolha ate 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fim",
@@ -1368,6 +1427,59 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
 (function () {
   const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
   const CAMERA_COPY = ${JSON.stringify(cameraCopy)};
+  const CAMERA_START_TIMEOUT_MS = 10000;
+  const REQUIRE_CLOSEUP_FOCUS = false;
+  const requestCameraStream = async (mediaDevices, constraints, options = {}) => {
+    const makeError = (reason, cause) => {
+      const error = new Error(reason, { cause });
+      error.name = 'CameraStartError';
+      error.reason = reason;
+      return error;
+    };
+    let timeout;
+    let timedOut = false;
+    let stream = null;
+    try {
+      const mediaRequest = mediaDevices.getUserMedia(constraints).then((result) => {
+        if (timedOut) result.getTracks().forEach((track) => track.stop());
+        return result;
+      });
+      stream = await Promise.race([
+        mediaRequest,
+        new Promise((_resolve, reject) => {
+          timeout = setTimeout(() => {
+            timedOut = true;
+            reject(makeError('timeout'));
+          }, options.timeoutMs ?? CAMERA_START_TIMEOUT_MS);
+        }),
+      ]);
+      if (options.requireFocusMode) {
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
+        const modes = capabilities && capabilities.focusMode;
+        if (!Array.isArray(modes) || !modes.some((mode) => ['continuous', 'single-shot', 'manual'].includes(mode))) {
+          throw makeError('focus_unsupported');
+        }
+      }
+      return stream;
+    } catch (error) {
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      if (error && error.name === 'CameraStartError') throw error;
+      const name = String(error && error.name || '');
+      const reason = name === 'NotFoundError' || name === 'DevicesNotFoundError'
+        ? 'no_device'
+        : name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError'
+          ? 'permission_denied'
+          : name === 'NotReadableError' || name === 'TrackStartError'
+            ? 'device_busy'
+            : name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError'
+              ? 'constraints_unsupported'
+              : 'unavailable';
+      throw makeError(reason, error);
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
+    }
+  };
   const RECORD_TARGETS = ${JSON.stringify(recordTargets)};
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
@@ -2600,7 +2712,16 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   };
   const clickFallbackInput = (kind) => {
     const input = document.querySelector('[data-global-record-input="' + kind + '"]');
-    if (input && typeof input.click === 'function') input.click();
+    if (input && typeof input.click === 'function') {
+      const shouldStopCamera = cameraStartInFlight || Boolean(activeStream);
+      cameraRequestId += 1;
+      cameraStartInFlight = false;
+      if (shouldStopCamera) {
+        stopActiveStream();
+        if (startButton) startButton.textContent = (labels[activeKind] || labels.photo).start;
+      }
+      input.click();
+    }
   };
   const closeSheet = () => {
     cameraRequestId += 1;
@@ -2678,13 +2799,13 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     cameraStartInFlight = true;
     if (startButton) {
       startButton.disabled = true;
-      startButton.textContent = '起動中...';
+      startButton.textContent = CAMERA_COPY.starting;
     }
     try {
       stopActiveStream();
       if (startButton) {
         startButton.disabled = true;
-        startButton.textContent = '起動中...';
+        startButton.textContent = CAMERA_COPY.starting;
       }
       if (cameraVideo) cameraVideo.hidden = false;
       if (cameraImage) cameraImage.hidden = true;
@@ -2692,22 +2813,24 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         video: cameraVideoConstraints(),
         audio: activeKind === 'video',
       };
-      activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+      const stream = await requestCameraStream(navigator.mediaDevices, constraints, {
+        requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS,
+      });
       if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) {
-        activeStream.getTracks().forEach((track) => track.stop());
-        activeStream = null;
-        setCameraLiveLayout(false);
-        resetCameraZoomUi();
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
+      activeStream = stream;
       if (cameraVideo) {
         cameraVideo.srcObject = activeStream;
         cameraVideo.muted = true;
         cameraVideo.playsInline = true;
         await cameraVideo.play().catch(() => undefined);
       }
+      if (requestId !== cameraRequestId || activeStream !== stream) return;
       setCameraLiveLayout(true);
-      await setupCameraZoom(activeStream);
+      await setupCameraZoom(stream);
+      if (requestId !== cameraRequestId || activeStream !== stream) return;
       if (empty) empty.hidden = true;
       if (captureButton) {
         captureButton.hidden = false;
@@ -2728,15 +2851,19 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       });
       sendGlobalRecordEvent('camera_open_success', 'camera_open_success', { kind: activeKind });
     } catch (error) {
+      if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) return;
       setCameraLiveLayout(false);
       resetCameraZoomUi();
-      const errorName = String(error && error.name || '');
-      const permissionDenied = errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError' || errorName === 'SecurityError';
+      const reason = String(error && error.reason || 'unavailable');
+      const permissionDenied = reason === 'permission_denied';
       showCameraError(permissionDenied);
+      if (cameraErrorBody) cameraErrorBody.textContent = permissionDenied
+        ? CAMERA_COPY.permissionBody
+        : CAMERA_COPY.startErrors[reason] || CAMERA_COPY.errorBody;
       sendGlobalRecordEvent(permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', {
-        reason: permissionDenied ? 'permission_denied' : 'get_user_media_failed',
+        reason,
       });
-      sendGlobalRecordErrorKpi('camera_start_failed', permissionDenied ? 'permission_denied' : 'get_user_media_failed', {
+      sendGlobalRecordErrorKpi('camera_start_failed', reason, {
         durationMs: durationSince(cameraStartedAt),
       });
     } finally {
@@ -3231,7 +3358,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     });
   }
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'hidden' || !activeStream) return;
+    if (document.visibilityState !== 'hidden' || (!activeStream && !cameraStartInFlight)) return;
+    cameraRequestId += 1;
+    cameraStartInFlight = false;
     stopActiveStream();
     if (startButton) {
       startButton.hidden = false;
@@ -3241,7 +3370,11 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (captureButton) captureButton.hidden = true;
     setFooterActionMode('start');
   });
-  window.addEventListener('pagehide', stopActiveStream);
+  window.addEventListener('pagehide', () => {
+    cameraRequestId += 1;
+    cameraStartInFlight = false;
+    stopActiveStream();
+  });
 })();
 </script>`;
 }
@@ -4683,19 +4816,6 @@ ${alternateLinks}
       border: 1px solid rgba(148,163,184,.24);
       box-shadow: 0 8px 20px rgba(15,23,42,.05);
     }
-    .lang-switch::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 100%;
-      height: 10px;
-      display: none;
-    }
-    .lang-switch:hover::after,
-    .lang-switch:focus-within::after {
-      display: block;
-    }
     .lang-switch-label,
     .lang-switch-options {
       display: inline-flex;
@@ -4703,13 +4823,21 @@ ${alternateLinks}
       gap: 5px;
     }
     .lang-switch-label {
-      min-height: 40px;
+      min-width: 44px;
+      min-height: 44px;
       padding: 0 11px;
       color: #334155;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 850;
       line-height: 1;
       white-space: nowrap;
+    }
+    summary.lang-switch-label {
+      cursor: pointer;
+      list-style: none;
+    }
+    summary.lang-switch-label::-webkit-details-marker {
+      display: none;
     }
     .lang-switch-current {
       min-width: 18px;
@@ -4733,8 +4861,7 @@ ${alternateLinks}
       background: rgba(255,255,255,.96);
       box-shadow: 0 18px 38px rgba(15,23,42,.14);
     }
-    .lang-switch:hover .lang-switch-options,
-    .lang-switch:focus-within .lang-switch-options {
+    .lang-switch[open] .lang-switch-options {
       display: inline-flex;
     }
     .lang-switch-link {
@@ -4742,12 +4869,12 @@ ${alternateLinks}
       align-items: center;
       justify-content: center;
       gap: 6px;
-      min-width: 36px;
-      min-height: 40px;
+      min-width: 44px;
+      min-height: 44px;
       padding: 0 9px;
       border-radius: 999px;
       color: #475569;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 800;
       letter-spacing: .04em;
     }
@@ -5268,6 +5395,7 @@ ${alternateLinks}
     select:focus-visible,
     .btn:focus-visible,
     .site-nav-link:focus-visible,
+    .lang-switch-label:focus-visible,
     .lang-switch-link:focus-visible {
       outline: 2px solid var(--zukan-focus-outline);
       outline-offset: 2px;
@@ -7032,7 +7160,7 @@ ${alternateLinks}
         display: none;
       }
       .lang-switch-desktop .lang-switch-link {
-        min-width: 34px;
+        min-width: 44px;
         padding: 0 8px;
       }
       .shell.shell-layout-home,
@@ -7391,6 +7519,7 @@ ${alternateLinks}
   ${appRuntimeScript}
   ${authNavHydrationScript(options.basePath, lang)}
   ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang) : ""}
+  ${languageDisclosureScript()}
   ${uiKpiScript}
   ${options.publicContextHtml ? PUBLIC_CONTEXT_SCRIPT : ""}
 </body>

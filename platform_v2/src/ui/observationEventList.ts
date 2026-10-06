@@ -770,6 +770,9 @@ function groupSessions(sessions: ObservationEventSessionRow[], nowMs: number): G
   const history: HistoryEntry[] = [];
 
   for (const s of sessions) {
+    // A missing public participation code stays private after ending or
+    // cancellation too; history must not expose its title, terms or recap URL.
+    if (!s.eventCode?.trim()) continue;
     const cancelled = isCancelledSession(s);
     const endedMs = s.endedAt ? Date.parse(s.endedAt) : NaN;
     const hasEnded = Number.isFinite(endedMs) ? endedMs <= nowMs : s.endedAt !== null;
@@ -777,9 +780,6 @@ function groupSessions(sessions: ObservationEventSessionRow[], nowMs: number): G
       history.push({ row: s, cancelled });
       continue;
     }
-    // Still open. A session without a public participation code is private and is
-    // never advertised as joinable discovery.
-    if (!s.eventCode) continue;
     if (startMs(s) > nowMs) upcoming.push(s);
     else actionable.push(s);
   }
@@ -902,7 +902,7 @@ export function renderEventListBody(
     : "";
 
   return `
-<main class="zukan-participation-shell">
+<div class="zukan-participation-shell">
   <header class="zukan-participation-header">
     <p class="zukan-participation-eyebrow">${escapeHtml(strings.listEyebrow)}</p>
     <h1>${escapeHtml(strings.listHeroHeading)}</h1>
@@ -916,6 +916,6 @@ ${discoveryBody}
     <p>${escapeHtml(strings.listOrganizerLead)}</p>
     <a class="zukan-participation-secondary-action" href="${escapeHtml(appendLangToHref("/community/events/new", lang))}">${escapeHtml(strings.listCreateCta)}</a>
   </aside>
-</main>
+</div>
 `;
 }

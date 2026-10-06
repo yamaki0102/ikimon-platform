@@ -237,6 +237,39 @@ test("sessions without a public event code are not advertised as joinable", () =
   assert.match(html, /みんなの記録を見る/);
 });
 
+test("codeless sessions stay out of every public participation group", () => {
+  for (const eventCode of [null, "", "   "]) {
+    for (const state of ["live", "upcoming", "ended", "cancelled"]) {
+      const privateSession: ObservationEventSessionRow = {
+        ...session,
+        sessionId: "private-history-id",
+        eventCode,
+        title: "Private family gathering",
+        startedAt: state === "upcoming" ? "2099-01-01T00:00:00.000Z" : "2020-01-01T00:00:00.000Z",
+        endedAt: state === "ended" ? "2020-01-01T01:00:00.000Z" : null,
+        targetSpecies: ["Private observation target"],
+        config: state === "cancelled" ? { status: "cancelled" } : {},
+      };
+      const html = renderEventListBody([privateSession], getObservationEventStrings("en"), "en");
+
+      assert.doesNotMatch(html, /Private family gathering|Private observation target|private-history-id/, `${state} / ${eventCode}`);
+      assert.doesNotMatch(html, /data-participation-result|zukan-participation-history/);
+      assert.match(html, /No public programs are listed yet/);
+    }
+  }
+});
+
+test("participation body owns one heading and leaves the main landmark to its page", () => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const html = renderEventListBody([], getObservationEventStrings(lang), lang);
+    const prefix = lang === "pt-BR" ? "pt-br" : lang;
+    assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+    assert.doesNotMatch(html, /<\/?main\b/);
+    assert.match(html, new RegExp(`href="/${prefix}/records\\?view=public"`));
+    assert.doesNotMatch(html, new RegExp(`href="/${prefix}/community/events"`));
+  }
+});
+
 test("zero results and load failure are distinct states", () => {
   const zero = renderEventListBody([], getObservationEventStrings("ja"), "ja");
   assert.match(zero, /いま参加できる企画はありません/);

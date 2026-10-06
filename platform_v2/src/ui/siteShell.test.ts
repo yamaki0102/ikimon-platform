@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
 import { renderPublicContextActions } from "./collaborationContext.js";
+import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
 
 test("site shell renders the optional public-context handoff slot with its scoped behavior", () => {
   const html = renderSiteDocument({
@@ -262,14 +264,68 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   assert.match(html, /class="lang-switch-label"/);
   assert.match(html, /class="lang-switch-current">EN<\/span>/);
   assert.match(html, /<span class="lang-switch-name">English<\/span>/);
-  assert.match(html, /\.lang-switch::after/);
-  assert.match(html, /\.lang-switch:hover::after,\s*\.lang-switch:focus-within::after/);
+  assert.match(html, /<details class="lang-switch lang-switch-desktop" data-language-disclosure>/);
+  assert.match(html, /<summary class="lang-switch-label" aria-label="Language: English">/);
+  assert.match(html, /\.lang-switch\[open\] \.lang-switch-options/);
+  assert.doesNotMatch(html, /\.lang-switch:hover|\.lang-switch:focus-within/);
   assert.match(html, /aria-current="true"/);
   assert.match(head, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(head, /<meta name="robots" content="noindex,follow" \/>/);
   assert.match(head, /hreflang="ja"/);
   assert.match(head, /hreflang="x-default"/);
   assert.doesNotMatch(head, /hreflang="en"/);
+});
+
+test("language disclosure preserves localized deep links and always-visible mobile choices", () => {
+  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "es", currentPath: "/es/learn/field-loop?tab=places&q=renri#nearby" });
+  const desktop = html.match(/<details class="lang-switch lang-switch-desktop"[\s\S]*?<\/details>/)?.[0];
+  const mobile = html.match(/<div class="lang-switch lang-switch-mobile"[\s\S]*?<\/div>\s*<\/div>/)?.[0];
+  assert.ok(desktop);
+  assert.ok(mobile);
+  for (const locale of ["ja", "en", "es", "pt-br"]) {
+    assert.match(desktop, new RegExp(`href="/${locale}/learn/field-loop\\?tab=places&amp;q=renri#nearby"`));
+    assert.match(mobile, new RegExp(`href="/${locale}/learn/field-loop\\?tab=places&amp;q=renri#nearby"`));
+  }
+  assert.match(desktop, /<summary[^>]*aria-label="Idioma: Español"/);
+  assert.match(desktop, /lang="es"[^>]*aria-current="true"/);
+  assert.doesNotMatch(desktop, /aria-expanded=/, "native details owns its expanded state");
+  assert.doesNotMatch(mobile, /<summary|data-language-disclosure/);
+  assert.match(html, /\.lang-switch-label \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
+  assert.match(html, /\.lang-switch-link \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
+  assert.match(html, /\.lang-switch-label:focus-visible/);
+});
+
+test("language disclosure closes with Escape and restores the trigger focus", () => {
+  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
+  const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
+    .find((match) => match[1].includes("const disclosures = document.querySelectorAll('[data-language-disclosure]')"))?.[1];
+  assert.ok(script);
+  let keydown: (event: { key: string; preventDefault(): void }) => void = () => assert.fail("missing listener");
+  let click: (event: { target: unknown }) => void = () => assert.fail("missing listener");
+  let focused = false;
+  let prevented = false;
+  const inside = {};
+  const disclosure = {
+    open: true,
+    addEventListener: (_type: string, handler: typeof keydown) => { keydown = handler; },
+    querySelector: () => ({ focus: () => { focused = true; } }),
+    contains: (target: unknown) => target === inside,
+  };
+  runInNewContext(script, { document: {
+    querySelectorAll: () => [disclosure],
+    addEventListener: (_type: string, handler: typeof click) => { click = handler; },
+  } });
+  keydown({ key: "Tab", preventDefault: () => { prevented = true; } });
+  assert.equal(disclosure.open, true);
+  keydown({ key: "Escape", preventDefault: () => { prevented = true; } });
+  assert.equal(disclosure.open, false);
+  assert.equal(focused, true);
+  assert.equal(prevented, true);
+  disclosure.open = true;
+  click({ target: inside });
+  assert.equal(disclosure.open, true);
+  click({ target: {} });
+  assert.equal(disclosure.open, false);
 });
 
 test("site shell normalizes service name in visible page titles", () => {
@@ -857,4 +913,350 @@ test("global record draft handoff includes a recovery source", () => {
   assert.match(html, /url\.searchParams\.set\('draft_token', String\(continuationToken\)\)/);
   assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'location_denied'\)/);
   assert.match(html, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function cameraTestStream(capabilities: Record<string, unknown> = { focusMode: ["continuous"] }) {
+  const track = {
+    stops: 0,
+    stop() { this.stops += 1; },
+    getCapabilities: () => capabilities,
+    getSettings: () => ({}),
+  };
+  return { track, getTracks: () => [track], getVideoTracks: () => [track] };
+}
+
+class CameraTestNode {
+  hidden = false;
+  disabled = false;
+  textContent = "";
+  value = "";
+  files: File[] = [];
+  srcObject: unknown = null;
+  clicks = 0;
+  lang = "ja";
+  attributes = new Map<string, string>();
+  listeners = new Map<string, Array<(event: { preventDefault(): void; target: CameraTestNode }) => unknown>>();
+  classes = new Set<string>();
+  classList = { add: (name: string) => this.classes.add(name), remove: (name: string) => this.classes.delete(name) };
+  style = { setProperty() {}, removeProperty() {} };
+  play = async () => {};
+  pause() {}
+  load() {}
+  setAttribute(name: string, value: string) { this.attributes.set(name, value); }
+  getAttribute(name: string) { return this.attributes.get(name) ?? null; }
+  removeAttribute(name: string) { this.attributes.delete(name); }
+  addEventListener(name: string, handler: (event: { preventDefault(): void; target: CameraTestNode }) => unknown) {
+    const handlers = this.listeners.get(name) ?? [];
+    handlers.push(handler);
+    this.listeners.set(name, handlers);
+  }
+  dispatch(name: string) {
+    for (const handler of this.listeners.get(name) ?? []) handler({ preventDefault() {}, target: this });
+  }
+  click() {
+    if (this.disabled) return;
+    this.clicks += 1;
+    this.dispatch("click");
+  }
+}
+
+// Execute the emitted production script through its DOM listeners. No camera,
+// network, browser permission, upload, or wall-clock timer is used by this fixture.
+function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice = true) {
+  const rendered = renderSiteDocument({ basePath: "", title: "Camera", body: "<p>Camera</p>", lang, currentPath: `/${lang}/learn/field-loop` });
+  const html = sourceChoice ? patchGlobalRecordSourceChoiceHtml(patchGlobalRecordSourceChoiceHtml(rendered)) : rendered;
+  const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
+    .map((match) => match[1]).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
+  assert.ok(script);
+  const elements = new Map<string, CameraTestNode>();
+  const makeNode = (selector: string, attribute?: string, value = "") => {
+    const node = new CameraTestNode();
+    if (attribute) node.setAttribute(attribute, value);
+    elements.set(selector, node);
+    return node;
+  };
+  const cameraNode = (suffix: string) => makeNode(`[data-global-record-camera-${suffix}]`);
+  const sheet = cameraNode("sheet");
+  const video = cameraNode("video");
+  const start = cameraNode("start");
+  const capture = cameraNode("capture");
+  const error = cameraNode("error");
+  const errorBody = cameraNode("error-body");
+  const retry = cameraNode("retry");
+  const close = cameraNode("cancel");
+  for (const suffix of ["title", "help", "status", "empty"]) cameraNode(suffix);
+  sheet.hidden = error.hidden = capture.hidden = true;
+  const triggers = Object.fromEntries(["photo", "video"].map((kind) => [kind, makeNode(`[data-global-record-trigger="${kind}"]`, "data-global-record-trigger", kind)]));
+  const gallery = makeNode("[data-global-record-gallery-select]");
+  const galleryInput = makeNode('[data-global-record-input="gallery"]', "data-global-record-input", "gallery");
+  const photoInput = sourceChoice ? makeNode('[data-global-record-input="photo"]', "data-global-record-input", "photo") : null;
+  const native = sourceChoice ? makeNode("[data-global-record-os-camera]") : null;
+  const nativeFallback = sourceChoice ? makeNode("[data-global-record-os-camera-fallback]") : null;
+  const nodeLists: Record<string, CameraTestNode[]> = {
+    "[data-global-record-trigger]": Object.values(triggers),
+    "[data-global-record-camera-close]": [],
+    "[data-global-record-gallery-select]": [gallery],
+    "[data-global-record-input]": photoInput ? [galleryInput, photoInput] : [galleryInput],
+    "[data-global-record-os-camera]": native && nativeFallback ? [native, nativeFallback] : [],
+  };
+  const documentElement = new CameraTestNode();
+  documentElement.lang = lang;
+  const documentEvents = new CameraTestNode();
+  const windowEvents = new CameraTestNode();
+  const document = {
+    documentElement,
+    visibilityState: "visible",
+    querySelector: (selector: string) => elements.get(selector) ?? null,
+    querySelectorAll: (selector: string) => nodeLists[selector] ?? [],
+    addEventListener: documentEvents.addEventListener.bind(documentEvents),
+  };
+  const requests: Array<ReturnType<typeof deferred<ReturnType<typeof cameraTestStream>>> & { constraints: { audio: boolean } }> = [];
+  const timers = new Map<number, { run: () => void; delay: number }>();
+  let timerId = 0;
+  const events: Array<{ eventName: string; actionKey: string; metadata: Record<string, unknown> }> = [];
+  const location = { pathname: `/${lang}/learn/field-loop`, search: "", origin: "https://camera-fixture.invalid" };
+  runInNewContext(script, {
+    document,
+    window: { isSecureContext: true, location, innerWidth: 390, innerHeight: 844, addEventListener: windowEvents.addEventListener.bind(windowEvents) },
+    location,
+    navigator: { mediaDevices: { getUserMedia(constraints: { audio: boolean }) {
+      const request = { ...deferred<ReturnType<typeof cameraTestStream>>(), constraints };
+      requests.push(request);
+      return request.promise;
+    } } },
+    File,
+    URL,
+    setTimeout(run: () => void, delay: number) { timers.set(++timerId, { run, delay }); return timerId; },
+    clearTimeout(id: number) { timers.delete(id); },
+    fetch: async (url: string, options: { body: string }) => {
+      assert.equal(url, "/api/v1/ui-kpi/events", "camera-only fixture must not perform another request");
+      events.push(JSON.parse(options.body));
+      return { ok: true };
+    },
+  });
+  return {
+    sheet, video, start, capture, error, errorBody, retry, close, gallery, galleryInput, photoInput, native, nativeFallback,
+    triggers, requests, timers, events,
+    startPhoto() { triggers.photo.click(); if (sourceChoice) start.click(); },
+    timeout() {
+      const pending = [...timers].filter(([, timer]) => timer.delay === 10000);
+      assert.equal(pending.length, 1);
+      const [id, timer] = pending[0];
+      timers.delete(id);
+      timer.run();
+    },
+    hide() { document.visibilityState = "hidden"; documentEvents.dispatch("visibilitychange"); },
+    show() { document.visibilityState = "visible"; documentEvents.dispatch("visibilitychange"); },
+    pagehide() { windowEvents.dispatch("pagehide"); },
+  };
+}
+
+const flushCameraTasks = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("camera timeout leaves recovery available and stops its late stream after retry succeeds", async () => {
+  const runtime = cameraRuntime();
+  runtime.startPhoto();
+  assert.equal(runtime.requests.length, 1);
+  assert.equal(runtime.start.disabled, true);
+  runtime.timeout();
+  await flushCameraTasks();
+  assert.equal(runtime.error.hidden, false);
+  assert.match(runtime.errorBody.textContent, /camera did not start in time/i);
+  assert.equal(runtime.start.disabled, false);
+  assert.equal(runtime.nativeFallback?.hidden, false);
+  runtime.retry.click();
+  const current = cameraTestStream();
+  runtime.requests[1].resolve(current);
+  await flushCameraTasks();
+  const late = cameraTestStream();
+  runtime.requests[0].resolve(late);
+  await flushCameraTasks();
+  assert.equal(late.track.stops, 1);
+  assert.equal(current.track.stops, 0);
+  assert.equal(runtime.video.srcObject, current);
+  assert.equal(runtime.error.hidden, true);
+  assert.equal(runtime.capture.hidden, false);
+  assert.equal(runtime.timers.size, 0);
+});
+
+for (const oldFailureOrder of ["before current success", "after current success"] as const) {
+  test(`a stale camera rejection ${oldFailureOrder} cannot change the new attempt`, async () => {
+    const runtime = cameraRuntime();
+    runtime.startPhoto();
+    runtime.close.click();
+    runtime.startPhoto();
+    const current = cameraTestStream();
+    const rejectOld = async () => {
+      runtime.requests[0].reject({ name: "NotAllowedError" });
+      await flushCameraTasks();
+      assert.equal(runtime.error.hidden, true);
+      assert.equal(runtime.events.filter((event) => event.eventName === "camera_permission_denied").length, 0);
+    };
+    if (oldFailureOrder === "before current success") {
+      await rejectOld();
+      assert.equal(runtime.start.disabled, true, "old finally must not unlock the pending attempt");
+      runtime.start.click();
+      assert.equal(runtime.requests.length, 2, "a pending attempt remains single-flight");
+    }
+    runtime.requests[1].resolve(current);
+    await flushCameraTasks();
+    if (oldFailureOrder === "after current success") await rejectOld();
+    assert.equal(runtime.video.srcObject, current);
+    assert.equal(current.track.stops, 0);
+    assert.equal(runtime.sheet.getAttribute("data-camera-active"), "true");
+    assert.equal(runtime.capture.hidden, false);
+  });
+}
+
+test("switching camera mode stops only the old late stream and keeps the video stream", async () => {
+  const runtime = cameraRuntime();
+  runtime.startPhoto();
+  runtime.triggers.video.click();
+  assert.equal(runtime.requests[0].constraints.audio, false);
+  assert.equal(runtime.requests[1].constraints.audio, true);
+  const current = cameraTestStream({});
+  runtime.requests[1].resolve(current);
+  await flushCameraTasks();
+  const old = cameraTestStream();
+  runtime.requests[0].resolve(old);
+  await flushCameraTasks();
+  assert.equal(old.track.stops, 1);
+  assert.equal(current.track.stops, 0);
+  assert.equal(runtime.video.srcObject, current);
+  assert.equal(runtime.sheet.getAttribute("data-active-kind"), "video");
+  assert.equal(runtime.nativeFallback?.hidden, true);
+  assert.equal(runtime.capture.hidden, false);
+});
+
+for (const exit of ["close", "hide", "pagehide", "gallery", "native"] as const) {
+  test(`leaving a pending camera through ${exit} releases late media without reopening it`, async () => {
+    const runtime = cameraRuntime();
+    runtime.startPhoto();
+    if (exit === "close") runtime.close.click();
+    else if (exit === "hide") runtime.hide();
+    else if (exit === "pagehide") runtime.pagehide();
+    else if (exit === "gallery") runtime.gallery.click();
+    else runtime.native?.click();
+    const late = cameraTestStream();
+    runtime.requests[0].resolve(late);
+    await flushCameraTasks();
+    assert.equal(late.track.stops, 1);
+    assert.equal(runtime.video.srcObject, null);
+    assert.equal(runtime.sheet.getAttribute("data-camera-active"), null);
+    assert.equal(runtime.capture.hidden, true);
+    assert.equal(runtime.error.hidden, true);
+    assert.equal(runtime.events.filter((event) => event.eventName === "camera_open_success").length, 0);
+    if (exit === "close") assert.equal(runtime.sheet.hidden, true);
+    if (exit === "gallery") assert.equal(runtime.galleryInput.clicks, 1);
+    if (exit === "native") assert.equal(runtime.photoInput?.clicks, 1);
+    if (exit === "native" || exit === "gallery") assert.equal(runtime.start.textContent, "Macro camera");
+  });
+}
+
+test("a delayed video play completion cannot restore a closed camera or hide a newer attempt", async () => {
+  const runtime = cameraRuntime();
+  const playing = deferred<void>();
+  runtime.video.play = () => playing.promise;
+  runtime.startPhoto();
+  const old = cameraTestStream();
+  runtime.requests[0].resolve(old);
+  await flushCameraTasks();
+  runtime.close.click();
+  runtime.startPhoto();
+  playing.resolve();
+  await flushCameraTasks();
+  assert.equal(old.track.stops, 1);
+  assert.equal(runtime.start.disabled, true);
+  assert.equal(runtime.capture.hidden, true);
+  assert.equal(runtime.video.srcObject, null);
+  assert.equal(runtime.events.filter((event) => event.eventName === "camera_open_success").length, 0);
+  runtime.video.play = async () => {};
+  const current = cameraTestStream();
+  runtime.requests[1].resolve(current);
+  await flushCameraTasks();
+  assert.equal(runtime.video.srcObject, current);
+  assert.equal(runtime.capture.hidden, false);
+});
+
+test("unsupported macro focus releases the stream and the error button reuses one native input listener", async () => {
+  for (const capabilities of [{}, { focusMode: ["none"] }]) {
+    const runtime = cameraRuntime();
+    runtime.startPhoto();
+    const stream = cameraTestStream(capabilities);
+    runtime.requests[0].resolve(stream);
+    await flushCameraTasks();
+    assert.equal(stream.track.stops, 1);
+    assert.equal(runtime.error.hidden, false);
+    assert.match(runtime.errorBody.textContent, /focus/i);
+    assert.equal(runtime.video.srcObject, null);
+    assert.equal(runtime.nativeFallback?.listeners.get("click")?.length, 1);
+    runtime.nativeFallback?.click();
+    assert.equal(runtime.photoInput?.clicks, 1);
+    assert.equal(runtime.requests.length, 1, "device camera reuses the file input instead of getUserMedia");
+    assert.equal(runtime.events.filter((event) => event.eventName === "native_camera_tap").length, 1);
+  }
+  const regularCamera = cameraRuntime("en", false);
+  regularCamera.startPhoto();
+  const stream = cameraTestStream({});
+  regularCamera.requests[0].resolve(stream);
+  await flushCameraTasks();
+  assert.equal(regularCamera.video.srcObject, stream, "unpatched regular camera does not require macro capability");
+  assert.equal(regularCamera.error.hidden, true);
+});
+
+test("returning from the native camera keeps its photo ready to submit across a visibility change", async () => {
+  const runtime = cameraRuntime();
+  runtime.triggers.photo.click();
+  runtime.native?.click();
+  assert.ok(runtime.photoInput);
+  runtime.photoInput.files = [new File(["fixture"], "native-photo.jpg", { type: "image/jpeg" })];
+  runtime.photoInput.dispatch("change");
+  await flushCameraTasks();
+  assert.equal(runtime.capture.hidden, false);
+  assert.equal(runtime.sheet.getAttribute("data-photo-draft"), "true");
+  const action = runtime.capture.textContent;
+  runtime.native?.click();
+  runtime.hide();
+  runtime.show();
+  assert.equal(runtime.capture.hidden, false, "canceling another native photo and hiding the page must retain the completed review");
+  assert.equal(runtime.capture.textContent, action);
+  assert.equal(runtime.requests.length, 0);
+  runtime.close.click();
+});
+
+test("camera startup failures expose localized recovery text and a stable reason in all supported languages", async () => {
+  const firstWords = { ja: /カメラ|このブラウザー/, en: /camera|browser/i, es: /cámara|navegador/i, "pt-BR": /câmera|navegador/i };
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    for (const [name, reason] of [
+      ["NotFoundError", "no_device"],
+      ["NotReadableError", "device_busy"],
+      ["OverconstrainedError", "constraints_unsupported"],
+      ["NotAllowedError", "permission_denied"],
+      ["timeout", "timeout"],
+      ["focus_unsupported", "focus_unsupported"],
+    ]) {
+      const runtime = cameraRuntime(lang);
+      runtime.startPhoto();
+      if (name === "timeout") runtime.timeout();
+      else if (name === "focus_unsupported") runtime.requests[0].resolve(cameraTestStream({}));
+      else runtime.requests[0].reject({ name });
+      await flushCameraTasks();
+      assert.equal(runtime.error.hidden, false, `${lang}: ${name}`);
+      assert.match(runtime.errorBody.textContent, firstWords[lang]);
+      if (lang !== "ja") assert.doesNotMatch(runtime.errorBody.textContent, /[\u3040-\u30ff\u3400-\u9fff]/);
+      assert.equal(runtime.events.find((event) => event.actionKey === "camera_start_failed")?.metadata.error, reason);
+      assert.equal(runtime.start.disabled, false);
+      assert.equal(runtime.timers.size, 0);
+    }
+  }
 });
