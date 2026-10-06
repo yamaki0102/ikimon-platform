@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { deflateSync } from "node:zlib";
 import * as bcrypt from "bcryptjs";
 import {
@@ -2453,7 +2455,7 @@ class FakeStatement {
 
     if (normalized.startsWith("UPDATE observation_event_sessions SET ended_at")) {
       const row = requireRow(this.db.observationEventSessions, string(v[0]));
-      row.ended_at = row.ended_at ?? new Date().toISOString();
+      if (row.ended_at === null || Date.parse(row.ended_at) > Date.now()) row.ended_at = new Date().toISOString();
       row.updated_at = new Date().toISOString();
       return {};
     }
@@ -2730,8 +2732,19 @@ class FakeStatement {
       return {};
     }
 
+    if (normalized.startsWith("UPDATE observation_rally_missions SET title")) {
+      const row = this.db.observationRallyMissions.get(string(v[3]));
+      if (!row || row.course_id !== string(v[4]) || row.status !== "draft") return { meta: { changes: 0 } };
+      row.title = string(v[0]);
+      row.target = string(v[1]);
+      row.goal_count = number(v[2]);
+      row.updated_at = new Date().toISOString();
+      return { meta: { changes: 1 } };
+    }
+
     if (normalized.startsWith("UPDATE observation_rally_missions SET status")) {
       const row = requireRow(this.db.observationRallyMissions, string(v[3]));
+      if (v[4] !== undefined && row.course_id !== string(v[4])) return { meta: { changes: 0 } };
       row.status = string(v[0]);
       row.goal_count = number(v[1]);
       row.ends_at = nullableString(v[2]);
@@ -2772,6 +2785,10 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("INSERT INTO observation_rally_submissions")) {
+      if (this.db.observationRallySubmissions.has(string(v[0])) || (v[9] && [...this.db.observationRallySubmissions.values()].some((row) =>
+        row.mission_id === string(v[3]) && row.source_type === string(v[8]) && row.source_ref === string(v[9]) &&
+        (row.user_id ?? "") === (v[5] ?? "") && (row.guest_token ?? "") === (v[6] ?? "")
+      ))) return { meta: { changes: 0 } };
       this.db.observationRallySubmissions.set(string(v[0]), {
         submission_id: string(v[0]),
         session_id: string(v[1]),
@@ -2792,14 +2809,45 @@ class FakeStatement {
         reviewed_at: null,
         created_at: new Date().toISOString()
       });
-      return {};
+      return { meta: { changes: 1 } };
     }
 
     if (normalized.startsWith("UPDATE observation_rally_submissions SET review_status")) {
       const row = requireRow(this.db.observationRallySubmissions, string(v[2]));
+      if (row.session_id !== string(v[3])) return { meta: { changes: 0 } };
       row.review_status = string(v[0]);
       row.reviewed_by = nullableString(v[1]);
       row.reviewed_at = new Date().toISOString();
+      return {};
+    }
+
+    if (normalized === "DELETE FROM observation_rally_progress WHERE mission_id = ?") {
+      for (const [id, row] of this.db.observationRallyProgress) if (row.mission_id === string(v[0])) this.db.observationRallyProgress.delete(id);
+      return {};
+    }
+
+    if (normalized.startsWith("INSERT INTO observation_rally_progress") && normalized.includes("FROM observation_rally_missions mission")) {
+      const mission = this.db.observationRallyMissions.get(string(v[0]));
+      if (!mission || mission.goal_count <= 0) return {};
+      const course = this.db.observationRallyCourses.get(mission.course_id);
+      const groups = new Map<string, ObservationRallyProgressTestRow>();
+      for (const row of this.db.observationRallySubmissions.values()) {
+        if (row.mission_id !== mission.mission_id || row.course_id !== mission.course_id || row.session_id !== course?.session_id) continue;
+        const teamId = mission.scope === "team" ? row.team_id : null;
+        const participantKey = mission.scope === "participant" ? row.user_id ? `user:${row.user_id}` : row.guest_token ? `guest:${row.guest_token}` : null : null;
+        const stationId = mission.scope === "station" ? row.station_id ?? mission.station_id : null;
+        const key = JSON.stringify([teamId, participantKey, stationId]);
+        const progress = groups.get(key) ?? {
+          progress_id: crypto.randomUUID(), course_id: mission.course_id, mission_id: mission.mission_id,
+          progress_scope: mission.scope, team_id: teamId, participant_key: participantKey, station_id: stationId,
+          actual_count: 0, goal_count: mission.goal_count, percent: 0, status: "active", updated_at: new Date().toISOString()
+        };
+        if (["auto_accepted", "accepted"].includes(row.review_status)) progress.actual_count += row.count_value;
+        progress.percent = Math.round(10000 * progress.actual_count / progress.goal_count) / 100;
+        progress.status = progress.actual_count > progress.goal_count ? "exceeded" : progress.actual_count >= progress.goal_count ? "reached" : "active";
+        groups.set(key, progress);
+      }
+      for (const progress of groups.values()) this.db.observationRallyProgress.set(progress.progress_id, progress);
       return {};
     }
 
@@ -5941,13 +5989,14 @@ class FakeStatement {
       return ({ recent } as T);
     }
 
-    if (normalized.startsWith("SELECT quest_id, session_id, team_id, status, payload_json FROM observation_event_quests")) {
+    if (normalized.startsWith("SELECT quest_id, session_id, team_id, participant_id, status, payload_json FROM observation_event_quests")) {
       const row = this.db.observationEventQuests.get(string(v[0]));
       if (!row || row.session_id !== string(v[1])) return null;
       return ({
         quest_id: row.quest_id,
         session_id: row.session_id,
         team_id: row.team_id,
+        participant_id: row.participant_id,
         status: row.status,
         payload_json: row.payload_json
       } as T);
@@ -6983,10 +7032,26 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT submission_id, mission_id, count_value, review_status, created_at FROM observation_rally_submissions")) {
+      const ownOnly = normalized.includes("AND ((? IS NOT NULL AND user_id = ?)");
+      const order = normalized.includes("ORDER BY created_at DESC") ? -1 : 1;
+      const rows = [...this.db.observationRallySubmissions.values()]
+        .filter((row) => row.session_id === string(v[0]) && row.course_id === string(v[1]) && row.source_type === "manual_rally" && row.review_status === "pending")
+        .filter((row) => !ownOnly || (v[2] !== null && row.user_id === string(v[3])) || (v[4] !== null && row.user_id === null && row.guest_token === string(v[5])))
+        .sort((a, b) => order * (a.created_at.localeCompare(b.created_at) || a.submission_id.localeCompare(b.submission_id)))
+        .slice(0, 101)
+        .map((row) => ({ submission_id: row.submission_id, mission_id: row.mission_id, count_value: row.count_value, review_status: row.review_status, created_at: row.created_at }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
-      const activeOnly = normalized.includes("WHERE ended_at IS NULL");
+      const scheduledOnly = normalized.includes("AND julianday(started_at) <= julianday('now')");
+      const activeOnly = scheduledOnly || normalized.includes("WHERE ended_at IS NULL");
       const rows = [...this.db.observationEventSessions.values()]
-        .filter((row) => !activeOnly || (row.ended_at === null && row.started_at <= new Date().toISOString()))
+        .filter((row) => !activeOnly || (
+          (row.ended_at === null || (scheduledOnly && Date.parse(row.ended_at) > Date.now()))
+          && Date.parse(row.started_at) <= Date.now()
+          && (!scheduledOnly || !JSON.parse(row.config_json).program_receiver_private)
+        ))
         .sort((a, b) => b.started_at.localeCompare(a.started_at))
         .slice(0, activeOnly ? 50 : 24);
       return { results: rows as T[] };
@@ -18654,7 +18719,6 @@ test("observation event public flow reuses the QR for participant-only recap, br
   assert.match(organizerEventListHtml, /PR973 prod rally/);
   assert.match(organizerEventListHtml, /夏の自然観察/);
 
-  const recordPath = `/record?event=active-family-event&eventSessionId=${activeEvent.sessionId}&rally=1&activityIntent=share&start=photo`;
   const guestRally = await worker.fetch(new Request(`https://ikimon.life/events/${activeEvent.sessionId}/rally`), env);
   const guestRallyHtml = await guestRally.text();
   assert.equal(guestRally.status, 403);
@@ -18666,7 +18730,9 @@ test("observation event public flow reuses the QR for participant-only recap, br
   }), env);
   const authenticatedRallyHtml = await authenticatedRally.text();
   assert.equal(authenticatedRally.status, 200);
-  assert.ok(authenticatedRallyHtml.includes(`href="${recordPath.replace(/&/g, "&amp;")}" data-rally-action="record"`));
+  assert.match(authenticatedRallyHtml, /data-rally-action="record"/u);
+  assert.match(authenticatedRallyHtml, /data-event-code="active-family-event"/u);
+  assert.ok(authenticatedRallyHtml.includes(`data-session-id="${activeEvent.sessionId}"`));
   assert.doesNotMatch(authenticatedRallyHtml, /register\?redirect|guest_token|guestToken|13:40/);
 
   const participant = (overrides: Partial<ObservationEventParticipantTestRow>): ObservationEventParticipantTestRow => ({
@@ -19677,6 +19743,12 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(nonOrganizerRun.status, 403);
     assert.equal(obs.observationEventQuests.size, 1);
 
+    const questSession = obs.observationEventSessions.get(created.sessionId)!;
+    const originalQuestStart = questSession.started_at;
+    const originalQuestEnd = questSession.ended_at;
+    const originalQuestConfig = questSession.config_json;
+    const futureQuestEnd = new Date(Date.now() + 3_600_000).toISOString();
+    questSession.ended_at = futureQuestEnd;
     const manualQuestRun = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/quests/run`, {
       method: "POST",
       headers: { "content-type": "application/json", cookie },
@@ -19686,14 +19758,43 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(manualQuestRun.status, 200, JSON.stringify(manualQuestRunPayload));
     assert.equal(manualQuestRunPayload.modelUsed, "cloudflare-d1-static-quest");
     assert.equal(manualQuestRunPayload.trigger, "manual");
-    assert.equal(manualQuestRunPayload.quests > 0, true);
+    assert.equal(manualQuestRunPayload.quests > 0, true, "a future scheduled end does not close quest generation");
     assert.equal(obs.observationEventQuests.size > 1, true);
+
+    const rerunQuest = () => worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/quests/run`, {
+      method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({ trigger: "manual" })
+    }), productionEnv);
+    questSession.started_at = new Date(Date.now() + 1_800_000).toISOString();
+    const preparedQuest = await rerunQuest();
+    assert.equal(preparedQuest.status, 200);
+    assert.ok((await preparedQuest.json() as { quests: number }).quests > 0, "organizers may prepare quests before the event starts");
+    questSession.started_at = originalQuestStart;
+    for (const closedState of [
+      { endedAt: new Date(Date.now() - 1).toISOString(), config: {} },
+      { endedAt: futureQuestEnd, config: { cancelled: true } },
+      { endedAt: null, config: { status: "cancelled" } },
+      { endedAt: futureQuestEnd, config: { state: "cancelled" } }
+    ]) {
+      questSession.ended_at = closedState.endedAt;
+      questSession.config_json = JSON.stringify(closedState.config);
+      const questCount: number = obs.observationEventQuests.size;
+      const liveCount = obs.observationEventLiveEvents.length;
+      const outboundCount = seen.length;
+      const closedQuest = await rerunQuest();
+      assert.equal(closedQuest.status, 200);
+      assert.deepEqual(await closedQuest.json(), { quests: 0, modelUsed: null, trigger: "manual" });
+      assert.equal(obs.observationEventQuests.size, questCount, "closed events do not create quests");
+      assert.equal(obs.observationEventLiveEvents.length, liveCount, "closed events do not announce fabricated activity");
+      assert.equal(seen.length, outboundCount, "closed events do not invoke outbound AI or origin services");
+    }
+    questSession.ended_at = futureQuestEnd;
+    questSession.config_json = originalQuestConfig;
 
     const questId = [...obs.observationEventQuests.keys()][0] ?? "";
     for (const decision of ["accepted", "declined", "completed"]) {
       const decisionResponse = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/quests/${questId}`, {
         method: "PATCH",
-        headers: { "content-type": "application/json", cookie },
+        headers: { "content-type": "application/json", cookie, origin: "https://ikimon.life" },
         body: JSON.stringify({ decision })
       }), productionEnv);
       const decisionPayload = await decisionResponse.json() as any;
@@ -19738,15 +19839,28 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(organizerConsolePage.headers.get("x-ikimon-cloudflare-native"), "event-page-console");
     assert.match(organizerConsolePageText, /person-hours/);
 
+    const excludedScheduledSessions: ObservationEventSessionTestRow[] = [
+      { ...questSession, session_id: "scheduled-quest-ended", ended_at: new Date(Date.now() - 1).toISOString() },
+      { ...questSession, session_id: "scheduled-quest-upcoming", started_at: new Date(Date.now() + 1_800_000).toISOString() },
+      { ...questSession, session_id: "scheduled-quest-cancelled", config_json: JSON.stringify({ cancelled: true }) },
+      { ...questSession, session_id: "scheduled-quest-private", config_json: JSON.stringify({ program_receiver_private: true }) }
+    ];
+    for (const excluded of excludedScheduledSessions) obs.observationEventSessions.set(excluded.session_id, excluded);
     const beforeScheduledQuests = obs.observationEventQuests.size;
     const waitUntil: Promise<unknown>[] = [];
     await worker.scheduled?.({ cron: "*/5 * * * *" }, productionEnv, { waitUntil: (promise) => waitUntil.push(promise) });
     await Promise.all(waitUntil);
-    assert.equal(obs.observationEventQuests.size > beforeScheduledQuests, true);
+    assert.equal(obs.observationEventQuests.size > beforeScheduledQuests, true, "scheduled quests include a started event with a future end time");
     assert.equal([...obs.observationEventQuests.values()].some((row) => {
       const payload = JSON.parse(row.payload_json) as Record<string, unknown>;
       return payload.trigger === "interval" && payload.generated_by === "cloudflare-d1-static-quest";
     }), true);
+    for (const excluded of excludedScheduledSessions) {
+      assert.equal([...obs.observationEventQuests.values()].some((row) => row.session_id === excluded.session_id), false, excluded.session_id);
+      assert.equal(obs.observationEventLiveEvents.some((row) => row.session_id === excluded.session_id), false, excluded.session_id);
+      obs.observationEventSessions.delete(excluded.session_id);
+    }
+    questSession.ended_at = originalQuestEnd;
 
     const anonymousRecent = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${created.sessionId}/recent`), productionEnv);
     assert.equal(anonymousRecent.status, 403);
@@ -26970,6 +27084,7 @@ test("allowlisted observation event applications persist as registered without c
   const revisitHtml = await revisit.text();
   assert.equal(revisit.status, 200);
   assert.match(revisitHtml, /申込みを受け付けました/u);
+  assert.match(revisitHtml, /data-event-application-continue href="\/community\/events\/application-event\/join"/u);
   assert.doesNotMatch(revisitHtml, /data-event-application-form/u);
   assert.doesNotMatch(revisitHtml, /星を見るグループ/u);
 
@@ -27259,8 +27374,39 @@ test("event guest photos and videos stay private through receipt, rights review,
   const productionMediaDefaultOff = await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), { ...env, ENVIRONMENT: "production", OBSERVATION_EVENT_GUEST_MEDIA_CODES: "other-event" });
   assert.equal(productionMediaDefaultOff.status, 404);
   const productionMediaAllowlisted = await worker.fetch(new Request(url, { headers: { cookie: parentCookie } }), { ...env, ENVIRONMENT: "production", OBSERVATION_EVENT_GUEST_MEDIA_CODES: "guest-media-qa" });
-  assert.equal(productionMediaAllowlisted.status, 200);
-  assert.equal((await productionMediaAllowlisted.json() as any).results.publicProjection, false);
+  assert.equal(productionMediaAllowlisted.status, 404, "a production allowlist must not turn a QA fixture into participant intake");
+
+  const savedBeforeEnd = await worker.fetch(new Request(url, {
+    method: "POST", headers: { cookie: parentCookie, origin: "https://ikimon.life", "idempotency-key": "media-after-end-lifecycle-01" }, body: makeForm(true, true)
+  }), env);
+  assert.equal(savedBeforeEnd.status, 201);
+  const afterEndReceipt = (await savedBeforeEnd.json() as any).receipt;
+  obs.observationEventSessions.get(sessionId)!.ended_at = new Date(Date.now() - 1000).toISOString();
+  const parentParticipant = [...obs.observationEventParticipants.values()].find((row) => row.user_id === "guest-media-parent")!;
+  assert.ok(parentParticipant);
+  parentParticipant.status = "left";
+  const closedUpload = await worker.fetch(new Request(url, {
+    method: "POST", headers: { cookie: parentCookie, origin: "https://ikimon.life", "idempotency-key": "media-after-end-lifecycle-02" }, body: makeForm(true, true)
+  }), env);
+  assert.equal(closedUpload.status, 409);
+  assert.equal((await closedUpload.json() as any).error, "event_media_intake_closed");
+  const afterEndGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`, { headers: { cookie: parentCookie } }), env);
+  assert.equal(afterEndGallery.status, 200, "the former participant retains their private gallery");
+  const afterEndPhoto = await worker.fetch(new Request(`https://ikimon.life${afterEndReceipt.privateContentHref}`, { headers: { cookie: parentCookie } }), env);
+  assert.equal(afterEndPhoto.status, 200);
+  assert.equal(afterEndPhoto.headers.get("cache-control"), "private, no-store");
+  const afterEndReview = await worker.fetch(new Request(`${url}/${afterEndReceipt.receiptId}/review`, {
+    method: "PATCH", headers: { cookie: organizerCookie, origin: "https://ikimon.life", "content-type": "application/json" }, body: JSON.stringify({ decision: "approved", note: "人物と個人情報が含まれないことを確認" })
+  }), env);
+  assert.equal(afterEndReview.status, 200);
+  assert.equal((await afterEndReview.json() as any).publicProjection, false);
+  const afterEndOther = await worker.fetch(new Request(`https://ikimon.life${afterEndReceipt.privateContentHref}`, { headers: { cookie: otherGuestCookie } }), env);
+  assert.equal(afterEndOther.status, 404);
+  const afterEndWithdraw = await worker.fetch(new Request(`${url}/${afterEndReceipt.receiptId}/withdraw`, {
+    method: "POST", headers: { cookie: parentCookie, origin: "https://ikimon.life", "content-type": "application/json" }, body: "{}"
+  }), env);
+  assert.equal(afterEndWithdraw.status, 200);
+  assert.equal((await afterEndWithdraw.json() as any).rightsReviewStatus, "withdrawn");
 
   const migration = await readFile(new URL("../migrations/observations/0071_observation_event_guest_media.sql", import.meta.url), "utf8");
   assert.match(migration, /visibility TEXT NOT NULL DEFAULT 'private' CHECK \(visibility = 'private'\)/);
@@ -27270,4 +27416,538 @@ test("event guest photos and videos stay private through receipt, rights review,
   assert.match(migration, /'video\/mp4', 'video\/webm'/);
   assert.match(migration, /UNIQUE \(session_id, participant_id, idempotency_key\)/);
   assert.doesNotMatch(migration, /owner_user_id|public_derivative|public_ready/i);
+});
+
+// Run the actual Worker rally SQL against the existing SQLite schema. Other
+// product tables keep the established in-memory fixture; no provider is used.
+class RallySqliteD1 extends FakeD1 {
+  readonly sqlite = new DatabaseSync(":memory:");
+  private batchTail = Promise.resolve();
+  override prepare(query: string): FakeStatement {
+    if (!/\bobservation_rally_(?:courses|stations|missions|submissions|progress|revisions)\b/u.test(query)) return super.prepare(query);
+    let values: D1Value[] = [];
+    const sqlite = this.sqlite;
+    const statement = {
+      bind(...input: D1Value[]) { values = input; return statement; },
+      async first() { return sqlite.prepare(query).get(...values) ?? null; },
+      async all() { return { results: sqlite.prepare(query).all(...values) }; },
+      async run() { return { meta: { changes: Number(sqlite.prepare(query).run(...values).changes) } }; }
+    };
+    return statement as unknown as FakeStatement;
+  }
+  override async batch(statements: FakeStatement[]): Promise<unknown[]> {
+    const run = this.batchTail.then(async () => {
+      this.sqlite.exec("BEGIN IMMEDIATE");
+      try {
+        const result = await super.batch(statements);
+        this.sqlite.exec("COMMIT");
+        return result;
+      } catch (error) { this.sqlite.exec("ROLLBACK"); throw error; }
+    });
+    this.batchTail = run.then(() => undefined, () => undefined);
+    return run;
+  }
+}
+
+test("rally submissions use event-scoped receipts and atomic SQLite progress through retries and review", async () => {
+  const { env } = createEnv();
+  const obs = new RallySqliteD1();
+  Object.assign(env, { OBS_DB: obs });
+  for (const migration of ["0020_observation_event_rally.sql", "0065_observation_rally_submission_idempotency.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  const origin = "https://ikimon.life";
+  const request = async (path: string, method: string, cookie = "", body?: unknown) => {
+    const response = await worker.fetch(new Request(origin + path, {
+      method, headers: { cookie, origin, "content-type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const owner = await request("/api/v1/auth/session/issue", "POST", "", { userId: "rally-integrity-owner", displayName: "主催者", ttlHours: 1 });
+  const ownerCookie = owner.response.headers.get("set-cookie") ?? "";
+  const createEvent = async (code: string) => {
+    const created = await request("/api/v1/observation-events", "POST", ownerCookie, {
+      title: "参加の流れ", event_code: code, plan: "public", field_id: RYUYO_FIELD_ID,
+      started_at: new Date(Date.now() - 60_000).toISOString(), ended_at: new Date(Date.now() + 3_600_000).toISOString(),
+      config: { qa_fixture: true, guest_media_enabled: true }
+    });
+    assert.equal(created.response.status, 201, JSON.stringify(created.data));
+    const id = created.data.sessionId as string;
+    const course = await request(`/api/v1/observation-events/${id}/rally/course`, "POST", ownerCookie, { title: "参加ラリー", status: "live" });
+    assert.equal(course.response.status, 200);
+    return id;
+  };
+  const eventA = await createEvent("rally-integrity-a");
+  const eventB = await createEvent("rally-integrity-b");
+  const api = (eventId: string) => `/api/v1/observation-events/${eventId}`;
+  const createMission = async (eventId: string, extra: Record<string, unknown> = {}) => {
+    const result = await request(`${api(eventId)}/rally/missions`, "POST", ownerCookie, {
+      title: "見つけたことを一つ残す", target: "気づき", goal_count: 2, scope: "participant", verification_policy: "ai_assisted", status: "published", ...extra
+    });
+    assert.equal(result.response.status, 201, JSON.stringify(result.data));
+    return result.data.mission.missionId as string;
+  };
+  const missionA = await createMission(eventA);
+  const missionB = await createMission(eventB);
+  const draftMission = await createMission(eventA, { title: "未公開の運営下書き", status: "draft" });
+  const join = await worker.fetch(new Request(origin + "/community/events/rally-integrity-a/apply"), env);
+  assert.equal(join.status, 200, "one staging QA fixture supports application and guest media together");
+  const guestCookie = (join.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  const application = await request(`${api(eventA)}/application`, "POST", guestCookie, { display_name: "家族のグループ" });
+  assert.equal(application.response.status, 201);
+  assert.equal(application.data.confirmed, false);
+  const submittedBody = { mission_id: missionA, count_value: 1, request_id: "rally-action-first-0001" };
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, submittedBody)).response.status, 403, "application does not grant check-in participation");
+  assert.equal((await request(`${api(eventA)}/checkin`, "POST", guestCookie, { display_name: "家族のグループ", share_location: false })).response.status, 200);
+  const submissions = () => request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, submittedBody);
+  const concurrent = await Promise.all([submissions(), submissions()]);
+  assert.deepEqual(concurrent.map((item) => item.response.status).sort(), [200, 201]);
+  const receiptId = concurrent[0]!.data.submission.submissionId;
+  assert.equal(concurrent[1]!.data.submission.submissionId, receiptId);
+  assert.equal(concurrent[0]!.data.submission.reviewStatus, "pending", "AI-assisted submissions require review");
+  assert.equal("_rally_request" in concurrent[0]!.data.submission.payload, false);
+  const currentGuestDigest = [...obs.observationEventParticipants.values()].find((row) => row.guest_token)?.guest_token!;
+  for (const result of concurrent) {
+    assert.equal("guestToken" in result.data.submission, false, "neither creation nor replay returns a guest credential digest");
+    assert.equal(JSON.stringify(result.data.submission).includes(currentGuestDigest), false);
+  }
+  const organizerQueue = await request(`${api(eventA)}/rally`, "GET", ownerCookie);
+  assert.equal(organizerQueue.data.rally.reviewQueue.length, 1);
+  assert.equal(organizerQueue.data.rally.reviewQueue[0].submissionId, receiptId);
+  assert.deepEqual(Object.keys(organizerQueue.data.rally.reviewQueue[0]).sort(), ["countValue", "createdAt", "missionId", "reviewStatus", "submissionId"]);
+  assert.equal(organizerQueue.data.rally.reviewQueueHasMore, false);
+  assert.doesNotMatch(JSON.stringify(organizerQueue.data.rally.reviewQueue), /guest:|user:|_rally_request|payload|public_lat|public_lng/u);
+  const participantQueue = await request(`${api(eventA)}/rally`, "GET", guestCookie);
+  assert.equal("reviewQueue" in participantQueue.data.rally, false);
+  assert.equal("reviewQueueHasMore" in participantQueue.data.rally, false);
+  assert.equal(participantQueue.data.rally.pendingSubmissions.length, 1, "a confirmed pending receipt survives the next snapshot");
+  assert.equal(participantQueue.data.rally.pendingSubmissions[0].submissionId, receiptId);
+  assert.deepEqual(Object.keys(participantQueue.data.rally.pendingSubmissions[0]).sort(), ["countValue", "createdAt", "missionId", "reviewStatus", "submissionId"]);
+  assert.equal(participantQueue.data.rally.pendingSubmissionsHasMore, false);
+  assert.equal(JSON.stringify(participantQueue.data.rally.pendingSubmissions).includes(currentGuestDigest), false);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS total FROM observation_rally_submissions").get()!.total, 1);
+  const actual = (missionId: string) => Number(obs.sqlite.prepare("SELECT COALESCE(SUM(actual_count), 0) AS actual FROM observation_rally_progress WHERE mission_id = ?").get(missionId)!.actual);
+  assert.equal(actual(missionA), 0);
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, count_value: 2 })).response.status, 409);
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, source_type: "observation_auto_match" })).response.status, 400);
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, mission_id: missionB })).response.status, 404);
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, mission_id: draftMission })).response.status, 409);
+  const missionCrossEvent = await request(`${api(eventB)}/rally/missions/${missionA}`, "PATCH", ownerCookie, { action: "close" });
+  assert.equal(missionCrossEvent.response.status, 404);
+  assert.equal(obs.sqlite.prepare("SELECT status FROM observation_rally_missions WHERE mission_id = ?").get(missionA)!.status, "published");
+  const reviewCrossEvent = await request(`${api(eventB)}/rally/submissions/${receiptId}/review`, "PATCH", ownerCookie, { review_status: "accepted" });
+  assert.equal(reviewCrossEvent.response.status, 404);
+  assert.equal(JSON.stringify(reviewCrossEvent.data).includes(receiptId), false);
+  const review = (id: string, status: string) => request(`${api(eventA)}/rally/submissions/${id}/review`, "PATCH", ownerCookie, { review_status: status });
+  assert.equal((await review(receiptId, "anything")).response.status, 400);
+  const accepted = await review(receiptId, "accepted");
+  assert.equal(accepted.response.status, 200);
+  assert.equal("guestToken" in accepted.data.submission, false, "organizer review does not expose another participant's credential digest");
+  assert.equal(JSON.stringify(accepted.data.submission).includes(currentGuestDigest), false);
+  assert.equal(actual(missionA), 1);
+  assert.equal((await request(`${api(eventA)}/rally`, "GET", ownerCookie)).data.rally.reviewQueue.length, 0);
+  assert.deepEqual((await request(`${api(eventA)}/rally`, "GET", guestCookie)).data.rally.pendingSubmissions, []);
+  assert.equal((await review(receiptId, "accepted")).response.status, 200);
+  assert.equal(actual(missionA), 1, "review retries cannot add points");
+  assert.equal((await review(receiptId, "rejected")).response.status, 200);
+  assert.equal(actual(missionA), 0, "rejected evidence no longer counts");
+  assert.equal((await review(receiptId, "accepted")).response.status, 200);
+
+  const eventMission = await createMission(eventA, { scope: "event", verification_policy: "auto" });
+  const eventSubmissions = await Promise.all(["rally-action-shared-01", "rally-action-shared-02"].map((request_id) => request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { mission_id: eventMission, request_id })));
+  assert.deepEqual(eventSubmissions.map((item) => item.response.status), [201, 201]);
+  assert.equal(actual(eventMission), 2, "concurrent distinct actions are both counted");
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS total FROM observation_rally_progress WHERE mission_id = ?").get(eventMission)!.total, 1, "nullable scopes do not create duplicate projection rows");
+
+  const otherJoin = await worker.fetch(new Request(origin + "/community/events/rally-integrity-a/join"), env);
+  const otherCookie = (otherJoin.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.equal((await request(`${api(eventA)}/checkin`, "POST", otherCookie, { display_name: "別のグループ", share_location: false })).response.status, 200);
+  const otherSubmission = await request(`${api(eventA)}/rally/submissions`, "POST", otherCookie, submittedBody);
+  assert.equal(otherSubmission.response.status, 201);
+  assert.notEqual(otherSubmission.data.submission.submissionId, receiptId, "request IDs are scoped to the actual participant");
+  assert.deepEqual((await request(`${api(eventA)}/rally`, "GET", guestCookie)).data.rally.pendingSubmissions, [], "another participant's pending receipt is not exposed");
+  const member = await request("/api/v1/auth/session/issue", "POST", "", { userId: "rally-integrity-member", displayName: "参加者", ttlHours: 1 });
+  const memberCookie = member.response.headers.get("set-cookie") ?? "";
+  assert.equal((await request(`${api(eventA)}/checkin`, "POST", memberCookie, { display_name: "ログインした参加者", share_location: false })).response.status, 200);
+  const memberSubmission = await request(`${api(eventA)}/rally/submissions`, "POST", memberCookie, { ...submittedBody, request_id: "rally-member-pending-01" });
+  assert.equal(memberSubmission.response.status, 201);
+  const mixedCredentials = await request(`${api(eventA)}/rally`, "GET", `${memberCookie}; ${otherCookie}`);
+  assert.deepEqual(mixedCredentials.data.rally.pendingSubmissions.map((receipt: any) => receipt.submissionId), [memberSubmission.data.submission.submissionId], "the selected member participant does not inherit a separate guest participant's receipts");
+  const otherPending = await request(`${api(eventA)}/rally`, "GET", otherCookie);
+  assert.deepEqual(otherPending.data.rally.pendingSubmissions.map((receipt: any) => receipt.submissionId), [otherSubmission.data.submission.submissionId]);
+  await review(otherSubmission.data.submission.submissionId, "accepted");
+  const snapshot = await request(`${api(eventA)}/rally`, "GET", guestCookie);
+  assert.equal(snapshot.data.rally.readOnly, false);
+  assert.equal(snapshot.data.rally.missions.some((mission: any) => mission.missionId === draftMission), false);
+  assert.equal(snapshot.data.rally.progress.filter((entry: any) => entry.missionId === missionA).length, 1);
+  assert.equal(snapshot.data.rally.progress.find((entry: any) => entry.missionId === missionA).actualCount, 1);
+  assert.doesNotMatch(JSON.stringify(snapshot.data), /guest:|user:|未公開の運営下書き|_rally_request/u);
+  const rallyPage = await worker.fetch(new Request(`${origin}/events/${eventA}/rally`, { headers: { cookie: guestCookie } }), env);
+  const rallyHtml = await rallyPage.text();
+  assert.equal(rallyPage.status, 200);
+  assert.equal((rallyHtml.match(/<h1\b/gu) ?? []).length, 1);
+  assert.match(rallyHtml, /data-rally-root/u);
+  assert.match(rallyHtml, /data-rally-missions/u);
+  assert.match(rallyHtml, /data-record-href="#event-private-media"/u);
+  assert.match(rallyHtml, /id="event-private-media"/u);
+  assert.match(rallyHtml, /request_id/u);
+  assert.doesNotMatch(rallyHtml, /href="\/api\/v1\/observation-events\/[^"]+\/rally"/u);
+  const eventRow = obs.observationEventSessions.get(eventA)!;
+  const originalConfig = eventRow.config_json;
+  eventRow.config_json = JSON.stringify({ ...JSON.parse(originalConfig), cancelled: true });
+  assert.equal((await request(`${api(eventA)}/rally`, "GET", guestCookie)).data.rally.readOnly, true);
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, request_id: "rally-action-cancelled" })).response.status, 409);
+  eventRow.config_json = originalConfig;
+  const originalStart = eventRow.started_at;
+  eventRow.started_at = new Date(Date.now() + 60_000).toISOString();
+  assert.equal((await request(`${api(eventA)}/rally`, "GET", guestCookie)).data.rally.readOnly, true);
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, request_id: "rally-action-not-started" })).response.status, 409);
+  eventRow.started_at = originalStart;
+
+  assert.equal((await request(`${api(eventA)}/end`, "POST", ownerCookie, {})).response.status, 200);
+  assert.ok(Date.parse(obs.observationEventSessions.get(eventA)!.ended_at!) <= Date.now());
+  assert.equal((await request(`${api(eventA)}/rally`, "GET", guestCookie)).data.rally.readOnly, true);
+  const closedPending = await request(`${api(eventA)}/rally`, "GET", memberCookie);
+  assert.equal(closedPending.data.rally.readOnly, true);
+  assert.deepEqual(closedPending.data.rally.pendingSubmissions.map((receipt: any) => receipt.submissionId), [memberSubmission.data.submission.submissionId], "ending the event does not hide its own pending receipt");
+  assert.equal((await request(`${api(eventA)}/rally/submissions`, "POST", guestCookie, { ...submittedBody, request_id: "rally-action-after-end" })).response.status, 409);
+  const lateReplay = await submissions();
+  assert.equal(lateReplay.response.status, 200, "a saved receipt can be recovered after an end-time lost acknowledgment");
+  assert.equal(lateReplay.data.replayed, true);
+  assert.equal(actual(missionA), 2);
+  assert.equal((await request(`${api(eventA)}/location`, "POST", guestCookie, { lat: 34.7, lng: 137.8 })).response.status, 403);
+  assert.equal((await review(memberSubmission.data.submission.submissionId, "accepted")).response.status, 200, "organizers can review saved receipts after the event ends");
+  assert.equal(actual(missionA), 3);
+  assert.deepEqual((await request(`${api(eventA)}/rally`, "GET", memberCookie)).data.rally.pendingSubmissions, []);
+  const prepare = obs.prepare.bind(obs);
+  obs.prepare = (sql: string) => {
+    if (sql.includes("FROM observation_rally_courses")) throw new Error("rally fixture read unavailable");
+    return prepare(sql);
+  };
+  const unavailablePage = await worker.fetch(new Request(`${origin}/events/${eventA}/rally`, { headers: { cookie: guestCookie } }), env);
+  assert.equal(unavailablePage.status, 503);
+  assert.match(await unavailablePage.text(), /進み具合を読み込めませんでした/u);
+  obs.prepare = prepare;
+  obs.sqlite.close();
+});
+
+test("common event templates prepare atomic session-bound drafts and preserve organizer changes on retry", async (t) => {
+  const { env } = createEnv();
+  const obs = new RallySqliteD1();
+  Object.assign(env, { OBS_DB: obs });
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0020_observation_event_rally.sql", "0065_observation_rally_submission_idempotency.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  t.mock.method(globalThis, "fetch", async () => assert.fail("template preparation must not call a provider or origin"));
+  const origin = "https://ikimon.life";
+  const request = async (path: string, method: string, cookie = "", body?: unknown, source = origin) => {
+    const response = await worker.fetch(new Request(origin + path, {
+      method, headers: { cookie, origin: source, "content-type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const issued = await request("/api/v1/auth/session/issue", "POST", "", { userId: "template-draft-owner", displayName: "主催者", ttlHours: 1 });
+  const cookie = issued.response.headers.get("set-cookie") ?? "";
+  const bodyFor = (code: string, key?: string) => ({
+    title: "主催者が準備する観察会", event_code: code, field_id: RYUYO_FIELD_ID,
+    started_at: new Date(Date.now() - 60_000).toISOString(), ended_at: new Date(Date.now() + 3_600_000).toISOString(),
+    config: { public_list_visibility: "private-until-explicit", ...(key ? { event_template: { contract_version: "event-template-v1", key } } : {}) }
+  });
+  const create = (body: ReturnType<typeof bodyFor>) => request("/api/v1/observation-events", "POST", cookie, body);
+  const courseFor = (id: string) => obs.sqlite.prepare("SELECT * FROM observation_rally_courses WHERE session_id = ?").get(id)!;
+  const missionsFor = (id: string) => obs.sqlite.prepare("SELECT * FROM observation_rally_missions WHERE course_id = ? ORDER BY sort_order").all(courseFor(id).course_id!);
+  const api = (id: string) => `/api/v1/observation-events/${id}/rally`;
+
+  const body = bodyFor("template-atomic-ryuyo", "ryuyo");
+  const concurrent = await Promise.all([create(body), create(body)]);
+  assert.deepEqual(concurrent.map((result) => result.response.status), [201, 201]);
+  const eventId = concurrent[0]!.data.sessionId as string;
+  assert.equal(concurrent[1]!.data.sessionId, eventId);
+  assert.equal(obs.observationEventSessions.size, 1);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_rally_courses").get()!.count, 1);
+  const initialCourse = courseFor(eventId);
+  const initialMissions = missionsFor(eventId);
+  assert.equal(initialCourse.status, "draft");
+  assert.equal(initialMissions.length, 9);
+  assert.equal(new Set(initialMissions.map((mission) => mission.mission_id)).size, 9);
+  assert.equal(initialMissions.every((mission) => mission.status === "draft" && mission.verification_policy === "organizer_review" && mission.station_id === null && mission.starts_at === null && mission.ends_at === null), true);
+  assert.equal(initialMissions.filter((mission) => mission.scope === "participant").length, 6);
+  assert.equal(initialMissions.filter((mission) => mission.scope === "event").length, 3);
+  assert.equal(obs.observationEventParticipants.size, 0);
+  assert.equal(obs.observationEventLiveEvents.length, 0);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_rally_stations").get()!.count, 0);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_rally_submissions").get()!.count, 0);
+  const eventRow = obs.observationEventSessions.get(eventId)!;
+  const originalStart = eventRow.started_at;
+  eventRow.started_at = new Date(Date.now() + 1_800_000).toISOString();
+  const upcomingConsole = await worker.fetch(new Request(`${origin}/events/${eventId}/console`, { headers: { cookie } }), env);
+  const upcomingConsoleHtml = await upcomingConsole.text();
+  assert.equal(upcomingConsole.status, 200);
+  assert.equal((upcomingConsoleHtml.match(/<h1\b/gu) ?? []).length, 1);
+  assert.match(upcomingConsoleHtml, /data-event-template-organizer/u);
+  assert.match(upcomingConsoleHtml, /data-session-closed="false"/u, "upcoming events retain preparation controls");
+  assert.match(upcomingConsoleHtml, /data-template-key="ryuyo"/u);
+  assert.match(upcomingConsoleHtml, /<script[^>]+nonce="[^"]+"[^>]*>\(\(\) => \{/u, "the active Worker applies its script nonce to the shared organizer section");
+  eventRow.started_at = originalStart;
+
+  for (const key of ["stamp-rally", "mission-quest", "collaborative-observation"]) {
+    const result = await create(bodyFor(`template-${key}`, key));
+    assert.equal(result.response.status, 201);
+    assert.equal(missionsFor(result.data.sessionId).length, 3);
+    assert.equal(missionsFor(result.data.sessionId).some((mission) => initialMissions.some((initial) => initial.mission_id === mission.mission_id)), false);
+  }
+
+  const rollbackBody = bodyFor("template-atomic-recovery", "ryuyo");
+  obs.sqlite.exec("CREATE TEMP TRIGGER fail_template_draft BEFORE INSERT ON observation_rally_missions WHEN NEW.sort_order = 3 BEGIN SELECT RAISE(ABORT, 'injected draft failure'); END");
+  const failed = await create(rollbackBody);
+  assert.equal(failed.response.status, 503);
+  assert.equal(failed.data.error, "event_template_setup_unavailable");
+  const failedEvent = [...obs.observationEventSessions.values()].find((row) => row.event_code === rollbackBody.event_code)!;
+  assert.ok(failedEvent, "the activation code remains bound to one recoverable event");
+  assert.equal(courseFor(failedEvent.session_id), undefined);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_rally_missions").get()!.count, 18, "the whole new draft batch rolls back");
+  obs.sqlite.exec("DROP TRIGGER fail_template_draft");
+  const recovered = await create(rollbackBody);
+  assert.equal(recovered.response.status, 201);
+  assert.equal(recovered.data.sessionId, failedEvent.session_id);
+  assert.equal(missionsFor(failedEvent.session_id).length, 9);
+
+  const join = await worker.fetch(new Request(origin + "/community/events/template-atomic-ryuyo/join"), env);
+  const guestCookie = (join.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.equal((await request(`/api/v1/observation-events/${eventId}/checkin`, "POST", guestCookie, { display_name: "参加グループ", share_location: false })).response.status, 200);
+  const participantDraft = await request(api(eventId), "GET", guestCookie);
+  assert.deepEqual(participantDraft.data.rally.missions, []);
+  assert.equal(participantDraft.data.rally.readOnly, true);
+  assert.equal("reviewQueue" in participantDraft.data.rally, false);
+  const firstMissionId = String(initialMissions[0]!.mission_id);
+  const edit = { action: "edit", title: "集合場所の足元を見る", target: "集合場所で形の違いをひとつ確かめる", goal_count: 2 };
+  assert.equal((await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", guestCookie, edit)).response.status, 401);
+  assert.equal((await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", cookie, edit, "https://other.test")).response.status, 403);
+  assert.equal((await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", cookie, { ...edit, title: "" })).response.status, 400);
+  const edited = await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", cookie, edit);
+  assert.equal(edited.response.status, 200);
+  assert.equal(edited.data.mission.title, edit.title);
+  assert.equal(edited.data.mission.status, "draft");
+  const revisionCount = obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_rally_revisions").get()!.count;
+  assert.equal((await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", cookie, edit)).response.status, 200);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_rally_revisions").get()!.count, revisionCount);
+  const replayed = await create(body);
+  assert.equal(replayed.response.status, 201);
+  assert.equal(missionsFor(eventId)[0]!.title, edit.title, "activation retries preserve organizer edits");
+  assert.equal(missionsFor(eventId)[0]!.goal_count, 2);
+  assert.equal((await request(`${api(eventId)}/course`, "POST", cookie, { status: "preflight" })).response.status, 200);
+  assert.equal(courseFor(eventId).title, initialCourse.title);
+  assert.equal(courseFor(eventId).config_json, initialCourse.config_json, "status-only updates retain preset provenance");
+  assert.equal((await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", cookie, { action: "publish" })).response.status, 200);
+  assert.equal((await request(`${api(eventId)}/missions/${firstMissionId}`, "PATCH", cookie, edit)).response.status, 409, "published instructions cannot be changed through draft editing");
+  assert.equal((await request(`${api(eventId)}/course`, "POST", cookie, { status: "live" })).response.status, 200);
+  const liveReplay = await request(`${api(eventId)}/course`, "POST", cookie, { action: "prepare_template" });
+  assert.equal(liveReplay.response.status, 200);
+  assert.equal(liveReplay.data.course.status, "live");
+  assert.equal(missionsFor(eventId)[0]!.status, "published");
+  assert.equal(missionsFor(eventId)[0]!.title, edit.title);
+  const originalEnd = eventRow.ended_at;
+  eventRow.ended_at = new Date(Date.now() - 1000).toISOString();
+  const endedConsole = await worker.fetch(new Request(`${origin}/events/${eventId}/console`, { headers: { cookie } }), env);
+  const endedConsoleHtml = await endedConsole.text();
+  assert.equal(endedConsole.status, 200);
+  assert.match(endedConsoleHtml, /data-session-closed="true"/u);
+  assert.match(endedConsoleHtml, /data-organizer-reviews/u, "the ended organizer console keeps receipt review available");
+  eventRow.ended_at = originalEnd;
+
+  const legacy = await create(bodyFor("template-legacy-empty"));
+  const legacyId = legacy.data.sessionId as string;
+  assert.equal(courseFor(legacyId), undefined);
+  assert.equal((await request(`/api/v1/observation-events/${legacyId}`, "PATCH", cookie, { config: body.config })).response.status, 200);
+  assert.equal((await request(`${api(legacyId)}/course`, "POST", "", { action: "prepare_template" })).response.status, 401);
+  assert.equal(courseFor(legacyId), undefined);
+  const legacyPrepared = await request(`${api(legacyId)}/course`, "POST", cookie, { action: "prepare_template" });
+  assert.equal(legacyPrepared.response.status, 200);
+  assert.equal(legacyPrepared.data.course.status, "draft");
+  assert.equal(missionsFor(legacyId).length, 9);
+
+  const manual = await create(bodyFor("template-existing-manual"));
+  const manualId = manual.data.sessionId as string;
+  assert.equal((await request(`${api(manualId)}/course`, "POST", cookie, { title: "主催者独自のコース", status: "preflight", config: { owner_note: "保持する設定" } })).response.status, 200);
+  const manualCourse = courseFor(manualId);
+  assert.equal((await request(`/api/v1/observation-events/${manualId}`, "PATCH", cookie, { config: body.config })).response.status, 200);
+  assert.equal((await request(`${api(manualId)}/course`, "POST", cookie, { action: "prepare_template" })).response.status, 200);
+  assert.deepEqual(courseFor(manualId), manualCourse, "a pre-existing course is never replaced or reset by a template");
+  assert.equal(missionsFor(manualId).length, 0, "templates do not silently append missions to an existing course");
+
+  const raceBody = bodyFor("template-concurrent-manual", "ryuyo");
+  const runBatch = obs.batch.bind(obs);
+  obs.batch = async (statements) => {
+    const racedEvent = [...obs.observationEventSessions.values()].find((row) => row.event_code === raceBody.event_code)!;
+    obs.sqlite.prepare("INSERT INTO observation_rally_courses (course_id, session_id, title, status, config_json) VALUES (?, ?, ?, ?, ?)")
+      .run("manual-course-won-race", racedEvent.session_id, "同時に作られた手動コース", "preflight", '{"owner_note":"preserve"}');
+    obs.batch = runBatch;
+    return runBatch(statements);
+  };
+  const raced = await create(raceBody);
+  obs.batch = runBatch;
+  assert.equal(raced.response.status, 201);
+  assert.equal(courseFor(raced.data.sessionId).course_id, "manual-course-won-race");
+  assert.equal(courseFor(raced.data.sessionId).config_json, '{"owner_note":"preserve"}');
+  assert.equal(missionsFor(raced.data.sessionId).length, 0, "the transactional course guard preserves a manual course committed after the initial read");
+});
+
+test("quest decisions require the current event participant and the addressed team or individual", async () => {
+  const { env, obs } = createEnv();
+  const origin = "https://ikimon.life";
+  const send = (path: string, method: string, cookie: string, body: unknown, source = origin) => worker.fetch(new Request(origin + path, {
+    method, headers: { cookie, origin: source, "content-type": "application/json" }, body: JSON.stringify(body)
+  }), env);
+  const issue = await send("/api/v1/auth/session/issue", "POST", "", { userId: "quest-scope-owner", displayName: "主催者", ttlHours: 1 });
+  const ownerCookie = issue.headers.get("set-cookie") ?? "";
+  const created = await send("/api/v1/observation-events", "POST", ownerCookie, {
+    title: "チームの活動", event_code: "quest-scope", field_id: RYUYO_FIELD_ID, started_at: new Date(Date.now() - 60_000).toISOString()
+  });
+  assert.equal(created.status, 201);
+  const sessionId = (await created.json() as any).sessionId;
+  const base = `/api/v1/observation-events/${sessionId}`;
+  const team = await send(`${base}/teams`, "POST", ownerCookie, { name: "水辺" });
+  const teamId = (await team.json() as any).team.team_id;
+  const join = await worker.fetch(new Request(origin + "/community/events/quest-scope/join"), env);
+  const guestCookie = (join.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.equal((await send(`${base}/checkin`, "POST", guestCookie, { display_name: "見つけるグループ", team_id: "different-event-team", share_location: false })).status, 400);
+  assert.equal(obs.observationEventParticipants.size, 0);
+  const checkin = await send(`${base}/checkin`, "POST", guestCookie, { display_name: "見つけるグループ", team_id: teamId, share_location: false });
+  assert.equal(checkin.status, 200);
+  const participantId = (await checkin.json() as { participant_id: string }).participant_id;
+  const otherJoin = await worker.fetch(new Request(origin + "/community/events/quest-scope/join"), env);
+  const otherCookie = (otherJoin.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  const otherCheckin = await send(`${base}/checkin`, "POST", otherCookie, { display_name: "同じ班の別のグループ", team_id: teamId, share_location: false });
+  assert.equal(otherCheckin.status, 200);
+  const otherParticipantId = (await otherCheckin.json() as { participant_id: string }).participant_id;
+  const now = new Date().toISOString();
+  const assignments: Array<[string, string | null, string | null]> = [
+    ["team-quest", teamId, null], ["other-team-quest", "different-team", null], ["event-quest", null, null],
+    ["individual-quest", teamId, participantId], ["individual-without-team-quest", null, participantId],
+    ["other-individual-quest", teamId, otherParticipantId]
+  ];
+  for (const [questId, addressedTeam, addressedParticipant] of assignments) {
+    obs.observationEventQuests.set(questId, { quest_id: questId, session_id: sessionId, team_id: addressedTeam, participant_id: addressedParticipant, status: "offered", payload_json: JSON.stringify({ headline: "その場所を見直す", private_note: "運営メモ" }), created_at: now, updated_at: now });
+  }
+  assert.equal((await send(`${base}/quests/team-quest`, "PATCH", "", { decision: "accepted" })).status, 403);
+  assert.equal((await send(`${base}/quests/other-team-quest`, "PATCH", guestCookie, { decision: "accepted" })).status, 404);
+  assert.equal(obs.observationEventQuests.get("other-team-quest")!.status, "offered");
+  const beforeDenied = obs.observationEventLiveEvents.length;
+  for (const questId of ["individual-quest", "individual-without-team-quest"]) {
+    const denied = await send(`${base}/quests/${questId}`, "PATCH", otherCookie, { decision: "accepted" });
+    assert.equal(denied.status, 404, "same-team membership does not grant another participant's assignment");
+    assert.doesNotMatch(await denied.text(), /その場所を見直す|運営メモ/u);
+    assert.equal(obs.observationEventQuests.get(questId)!.status, "offered");
+  }
+  assert.equal((await send(`${base}/quests/other-individual-quest`, "PATCH", guestCookie, { decision: "accepted" })).status, 404);
+  assert.equal(obs.observationEventLiveEvents.length, beforeDenied);
+  assert.equal((await send(`${base}/quests/individual-quest`, "PATCH", guestCookie, { decision: "accepted" })).status, 200);
+  assert.equal(obs.observationEventLiveEvents.at(-1)!.scope, "organizer", "an individual assignment's headline is not broadcast to its team or the event");
+  assert.equal((await send(`${base}/quests/individual-without-team-quest`, "PATCH", guestCookie, { decision: "completed" })).status, 200);
+  assert.equal(obs.observationEventLiveEvents.at(-1)!.scope, "organizer");
+  assert.equal((await send(`${base}/quests/team-quest`, "PATCH", guestCookie, { decision: "accepted" }, "https://other.test")).status, 403);
+  assert.equal((await send(`${base}/quests/team-quest`, "PATCH", guestCookie, { decision: "accepted" })).status, 200);
+  const liveCount = obs.observationEventLiveEvents.length;
+  assert.equal((await send(`${base}/quests/team-quest`, "PATCH", guestCookie, { decision: "accepted" })).status, 200);
+  assert.equal(obs.observationEventLiveEvents.length, liveCount);
+  assert.equal((await send(`${base}/quests/event-quest`, "PATCH", guestCookie, { decision: "completed" })).status, 200);
+  const participant = obs.observationEventParticipants.get(participantId)!;
+  participant.status = "left";
+  assert.equal((await send(`${base}/quests/team-quest`, "PATCH", guestCookie, { decision: "completed" })).status, 403);
+  assert.equal((await send(`${base}/quests/other-team-quest`, "PATCH", ownerCookie, { decision: "completed" })).status, 200);
+  assert.equal((await send(`${base}/quests/other-individual-quest`, "PATCH", ownerCookie, { decision: "completed" })).status, 200);
+  assert.equal(obs.observationEventLiveEvents.at(-1)!.scope, "organizer");
+});
+
+test("event template creation preserves the selected template and field through login and activation retries", async () => {
+  const { env, obs } = createEnv();
+  const path = `/en/community/events/new?event_template=ryuyo&field_id=${RYUYO_FIELD_ID}&redirect=https://other.test`;
+  const entry = await worker.fetch(new Request("https://ikimon.life" + path), env);
+  assert.equal(entry.status, 200);
+  const entryHtml = await entry.text();
+  const loginHref = /href="([^"]*\/login\?redirect=[^"]+)"/u.exec(entryHtml)?.[1] ?? "";
+  const returnPath = new URL(loginHref.replace(/&amp;/gu, "&"), "https://ikimon.life").searchParams.get("redirect");
+  assert.equal(returnPath, `/en/community/events/new?event_template=ryuyo&field_id=${RYUYO_FIELD_ID}`);
+  assert.doesNotMatch(loginHref, /other\.test/u);
+  const issue = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: "template-owner", displayName: "主催者", ttlHours: 1 })
+  }), env);
+  const cookie = issue.headers.get("set-cookie") ?? "";
+  const response = await worker.fetch(new Request("https://ikimon.life" + returnPath, { headers: { cookie } }), env);
+  const page = await response.text();
+  assert.match(page, /data-common-event-template="ryuyo"/u);
+  assert.match(page, new RegExp(`name="field_id" value="${RYUYO_FIELD_ID}"`, "u"));
+  assert.doesNotMatch(page, /開催日が決定|参加費は無料|主催者承認済み/u);
+
+  class Input { constructor(public value: string) {} }
+  class Button { disabled = false; }
+  class Anchor { href = ""; hidden = true; }
+  const code = new Input("");
+  const button = new Button();
+  const next = new Anchor();
+  const organizer = new Anchor();
+  const status = { textContent: "" };
+  let submit: ((event: { preventDefault(): void }) => Promise<void>) | undefined;
+  const values = new Map<string, string>([
+    ["title", "来月の観察会"], ["started_at", "2026-11-12T10:00"], ["ended_at", "2026-11-12T12:00"],
+    ["field_id", RYUYO_FIELD_ID], ["primary_mode", "discovery"], ["target_species", ""], ["plan", "public"]
+  ]);
+  class Form {
+    elements = { namedItem: (name: string) => name === "event_code" ? code : null };
+    querySelector() { return button; }
+    addEventListener(_type: string, listener: typeof submit) { submit = listener; }
+  }
+  const form = new Form();
+  class FormValues {
+    private readonly data = new Map([...values, ["event_code", code.value]]);
+    get(name: string) { return this.data.get(name) ?? null; }
+    set(name: string, value: string) { this.data.set(name, value); }
+  }
+  const writes: any[] = [];
+  const createScript = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gu)]
+    .map((match) => match[1]!).find((script) => script.includes('const form = document.querySelector("[data-observation-event-create-form]")'));
+  assert.ok(createScript);
+  runInNewContext(createScript, {
+    document: { querySelector: (selector: string) => selector === "[data-observation-event-create-form]" ? form : selector === "[data-observation-event-create-status]" ? status : selector === "[data-observation-event-organizer-link]" ? organizer : next },
+    HTMLFormElement: Form, HTMLInputElement: Input, HTMLButtonElement: Button, HTMLAnchorElement: Anchor,
+    FormData: FormValues, crypto, Uint8Array, Date, Array, String, Number, JSON, Error, encodeURIComponent,
+    fetch: async (_url: string, input: { body: string }) => {
+      const body = JSON.parse(input.body);
+      writes.push(body);
+      return Response.json(writes.length === 1 ? { error: "temporary_failure" } : { sessionId: "new-event", eventCode: body.event_code }, { status: writes.length === 1 ? 503 : 201 });
+    }
+  });
+  await submit!({ preventDefault() {} });
+  assert.equal(button.disabled, false);
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 2);
+  assert.match(writes[0].event_code, /^[A-Z2-9]{8}$/u);
+  assert.equal(writes[0].event_code, writes[1].event_code, "the generated activation code survives a failed response");
+  assert.deepEqual(writes[0].config.event_template, { contract_version: "event-template-v1", key: "ryuyo" });
+  assert.equal(writes[0].field_id, RYUYO_FIELD_ID);
+  assert.equal(writes[0].started_at, new Date("2026-11-12T10:00").toISOString());
+  assert.equal(next.hidden, false);
+  assert.equal(next.href, `/community/events/${writes[0].event_code}/join`);
+  assert.equal(organizer.hidden, false);
+  assert.equal(organizer.href, "/events/new-event/console");
+
+  const activate = (config: unknown) => worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
+    method: "POST", headers: { cookie, "content-type": "application/json", origin: "https://ikimon.life" }, body: JSON.stringify({ ...writes[0], config })
+  }), env);
+  assert.equal((await activate({ event_template: { contract_version: "event-template-v0", key: "ryuyo" } })).status, 400);
+  assert.equal(obs.observationEventSessions.size, 0);
+  const activated = await activate(writes[0].config);
+  assert.equal(activated.status, 201);
+  const activatedSession = await activated.json() as any;
+  assert.deepEqual(activatedSession.config.event_template, { contract_version: "event-template-v1", key: "ryuyo" });
+  assert.equal((await activate(writes[0].config)).status, 201);
+  assert.equal(obs.observationEventSessions.size, 1);
+  const invalidUpdate = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${activatedSession.sessionId}`, {
+    method: "PATCH", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ config: { event_template: { contract_version: "event-template-v1", key: "invented-template" } } })
+  }), env);
+  assert.equal(invalidUpdate.status, 400);
+  assert.equal(JSON.parse(obs.observationEventSessions.get(activatedSession.sessionId)!.config_json).event_template.key, "ryuyo");
 });

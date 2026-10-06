@@ -421,7 +421,7 @@ export const OBSERVATION_EVENT_STYLES = `
 
 /* === 観察ラリー（参加者） === */
 .evt-rally-shell {
-  padding-bottom: 116px;
+  padding-bottom: 24px;
 }
 .evt-rally-hero {
   display: grid;
@@ -447,7 +447,7 @@ export const OBSERVATION_EVENT_STYLES = `
   border: 1px solid rgba(255,255,255,.18);
   background: rgba(255,255,255,.12);
   color: rgba(236,253,245,.92);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
 }
 .evt-rally-consent strong {
@@ -459,9 +459,15 @@ export const OBSERVATION_EVENT_STYLES = `
   gap: 6px;
   align-items: baseline;
 }
+body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+}
 .evt-rally-action-dock {
-  position: sticky;
-  bottom: 0;
+  position: relative;
   z-index: 20;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -487,7 +493,7 @@ export const OBSERVATION_EVENT_STYLES = `
   border-radius: 16px;
   background: #ffffff;
   color: var(--evt-ink);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 850;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -496,11 +502,11 @@ export const OBSERVATION_EVENT_STYLES = `
   grid-column: 1 / -1;
   min-height: 56px;
   flex-direction: row;
-  background: linear-gradient(135deg, #10b981, #0ea5e9);
+  background: var(--zukan-action-primary, #064e3b);
   color: #ffffff;
   border-color: transparent;
   box-shadow: 0 12px 28px var(--evt-glow-effort);
-  font-size: 15px;
+  font-size: 16px;
 }
 .evt-rally-action-icon {
   font-size: 21px;
