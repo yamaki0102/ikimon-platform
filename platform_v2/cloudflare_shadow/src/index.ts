@@ -4341,7 +4341,9 @@ function isObservationEventQaFixture(
   if (hiddenFlag || config.public_listed === false || config.publicListVisible === false) return true;
 
   const visibility = normalizeOptionalText(config.public_list_visibility ?? config.publicListVisibility);
-  if (visibility && /^(?:hidden|internal|qa|fixture|test)$/iu.test(visibility)) return true;
+  // Draft templates already have invitation codes; a lifecycle transition does
+  // not publish their titles or participation links.
+  if (visibility && /^(?:private-until-explicit|hidden|internal|qa|fixture|test)$/iu.test(visibility)) return true;
   const sourceMarkers = [config.source, config.fixture_prefix, config.fixturePrefix]
     .filter((value): value is string => typeof value === "string")
     .join(" ");
