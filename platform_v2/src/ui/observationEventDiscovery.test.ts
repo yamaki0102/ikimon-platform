@@ -22,7 +22,9 @@ class Element {
   selectors = new Map<string, Element>();
   childNodes: Element[] = [];
   parent: Element | null = null;
-  value = "";
+  private inputValue = "";
+  get value(): string { return this.inputValue; }
+  set value(value: string) { this.inputValue = value; if (this.type === "file" && value === "") this.files = []; }
   name = "";
   type = "";
   className = "";
@@ -55,6 +57,7 @@ class Element {
   async dispatch(name: string, extra: Data = {}) { for (const listener of this.listeners.get(name) ?? []) await listener({ currentTarget: this, target: this, preventDefault() {}, ...extra }); }
   querySelector(selector: string): Element | null { return this.selectors.get(selector) ?? this.querySelectorAll(selector)[0] ?? null; }
   querySelectorAll(selector: string): Element[] {
+    if (selector === "fieldset") return this.walk().filter(child => child.tag === "fieldset");
     if (selector === "button") return this.walk().filter(child => child.tag === "button");
     if (selector === 'button[type=submit]') return this.walk().filter(child => child.tag === "button" && child.type === "submit");
     if (selector === "[data-discovery-review-filter]") return this.walk().filter(child => Boolean(child.dataset.discoveryReviewFilter));
@@ -75,7 +78,7 @@ function control(form: Element, name: string, type = "text") {
   child.name = name; child.type = type; form.append(child); return child;
 }
 
-function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (call: Call) => Promise<any>; minor?: boolean } = {}) {
+function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (call: Call) => Promise<any>; minor?: boolean; href?: string; displayName?: string } = {}) {
   const root = new Element("section");
   root.dataset = { eventDiscovery: kind, sessionId: "event-fixture", isMinor: String(options.minor === true) };
   const storage = options.storage ?? new Map<string, string>();
@@ -83,9 +86,18 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
   const nodes = new Map<string, Element>();
   const add = (selector: string, tag = "div", parent = root) => { const child = new Element(tag); parent.append(child); root.selectors.set(selector, child); nodes.set(selector, child); return child; };
   add("[data-discovery-status]", "p");
+  if (kind === "campaign") {
+    add("[data-discovery-occurrence-select]", "select"); add("[data-discovery-occurrence-summary]"); add("[data-discovery-campaign-refresh]", "button");
+    const form = add("[data-discovery-application-form]", "form"); form.hidden = true; control(form, "display_name");
+    const button = new Element("button"); button.type = "submit"; form.append(button);
+    add("[data-discovery-application-status]", "p"); add("[data-discovery-photo-link]", "a").hidden = true; add("[data-discovery-day-state]", "p");
+    add("[data-discovery-journals]"); add("[data-discovery-counts]", "p"); add("[data-discovery-gallery-status]", "p");
+    add("[data-discovery-gallery-refresh]", "button"); add("[data-discovery-gallery-more]", "button");
+    const codeForm=add("[data-discovery-code-form]", "form"); control(codeForm,"event_code");
+  }
   if (kind === "join") {
     const form = add("[data-discovery-join-form]", "form");
-    control(form, "display_name"); control(form, "is_minor", "checkbox");
+    control(form, "display_name").value = options.displayName ?? ""; control(form, "is_minor", "checkbox");
     add("[data-discovery-join-submit]", "button", form);
   }
   if (kind === "capture") {
@@ -94,6 +106,7 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
     const form = add("[data-discovery-media-form]", "form");
     const fields = add("[data-discovery-capture-fields]", "fieldset", form); fields.disabled = true;
     control(fields, "media", "file").required = true;
+    control(fields, "camera_media", "file"); add("[data-discovery-capture-heading]", "h2");
     control(fields, "caption", "textarea"); control(fields, "spot_label");
     for (const name of ["private_storage_consent", "creator_rights_attestation", "gallery_consent", "guardian_gallery_consent"]) control(fields, name, "checkbox").required = name === "private_storage_consent" || name === "creator_rights_attestation";
     const guardian = new Element(); form.selectors.set("[data-discovery-guardian-row]", guardian);
@@ -104,6 +117,9 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
   }
   if (kind === "gallery") { add("[data-discovery-journals]"); add("[data-discovery-counts]", "p"); }
   if (kind === "organizer") {
+    const settings=add("[data-discovery-campaign-settings]","form");const fields=new Element("fieldset");fields.disabled=true;settings.append(fields);
+    control(fields,"listed","checkbox");control(fields,"applications_open","checkbox");const save=new Element("button");save.type="submit";fields.append(save);
+    add("[data-discovery-settings-status]","p");add("[data-discovery-participant-counts]","p");add("[data-discovery-listing-permission]","p");add("[data-discovery-campaign-link]","a");
     add("[data-discovery-review-list]"); add("[data-discovery-review-count]", "p");
     for (const filter of ["pending", "reviewed", "all"]) { const button = new Element("button"); button.dataset.discoveryReviewFilter = filter; root.append(button); }
     const form = add("[data-discovery-paper-form]", "form"); control(form, "nickname");
@@ -116,11 +132,11 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
   let uuid = 0;
   const context = {
     document: { querySelectorAll: () => [root], createElement: (tag: string) => new Element(tag) },
-    window: { location: { assign: (url: string) => navigations.push(url) }, confirm: () => true, addEventListener() {}, print() {} },
+    window: { location: { href: options.href ?? "https://fixture.test/events/ryuyo", assign: (url: string) => navigations.push(url) }, confirm: () => true, addEventListener() {}, print() {} },
     sessionStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) },
     crypto: { randomUUID: () => "test-key-" + ++uuid },
     AbortController, setTimeout: () => 1, clearTimeout() {},
-    FormData: FormDataFixture, URL: { createObjectURL: () => "blob:local", revokeObjectURL() {} },
+    FormData: FormDataFixture, URL: class extends URL { static createObjectURL() { return "blob:local"; } static revokeObjectURL() {} },
     fetch: async (url: string, request: Data) => {
       const call = { url, method: request.method ?? "GET", options: request, body: typeof request.body === "string" ? JSON.parse(request.body) : request.body };
       calls.push(call);
@@ -168,6 +184,20 @@ test("unnamed login-free checkin sends an empty nickname, no account fallback, a
   assert.deepEqual(app.calls[0]!.body, { display_name: "", team_id: null, is_minor: false, share_location: false, guardian_location_consent: false });
   assert.equal(app.calls[0]!.options.credentials, "same-origin");
   assert.deepEqual(app.navigations, ["/events/event-fixture/rally"]);
+});
+
+test("day-of join preserves the escaped application nickname and lets an explicit local draft replace or clear it", async () => {
+  const html = renderObservationEventDiscoveryJoin({ sessionId: "event-fixture", eventCode: "CODE", title: "竜洋", displayName: '<虫 & ゆう>"' });
+  assert.match(html, /name="display_name" value="&lt;虫 &amp; ゆう&gt;&quot;"/);
+  for (const draftName of [undefined, "別の呼び名", ""]) {
+    const storage = new Map<string, string>();
+    if (draftName !== undefined) storage.set("zukan:event-discovery:join:event-fixture", JSON.stringify({ name: draftName }));
+    const app = setup("join", { displayName: "申し込みの呼び名", storage, fetch: async () => ({ participant_id: "participant-fixture" }) });
+    const expected = draftName ?? "申し込みの呼び名";
+    assert.equal(formField(app.node("[data-discovery-join-form]"), "display_name").value, expected);
+    await app.node("[data-discovery-join-form]").dispatch("submit");
+    assert.equal(app.calls[0]!.body.display_name, expected);
+  }
 });
 
 test("gallery appends 100 participant journals without splitting their three photos and only uses gated content paths", async () => {
@@ -272,4 +302,82 @@ test("paper entries preserve their recovery draft and require guardian consent o
   formField(form,"guardian_gallery_consent").checked=true;await form.dispatch("submit");
   const sent=app.calls.find(call=>call.method==="POST")!;assert.equal(sent.body.nickname,"");assert.equal(sent.body.notes.length,1);
   const reopened=setup("organizer",{storage});await flush();const restored=reopened.node("[data-discovery-paper-form]");assert.equal(formField(restored,"caption_1").value,"紙で見つけた葉っぱ");assert.equal(formField(restored,"guardian_gallery_consent").checked,true);
+});
+
+const listedOccurrence=(id="event-fixture",overrides:Data={})=>({sessionId:id,eventCode:id==="event-fixture"?"RYUYO1":id.toUpperCase(),title:"こんちゅうクンとめぐる、竜洋のとっておき。",startedAt:"2026-11-01T01:00:00Z",endedAt:"2026-11-01T03:00:00Z",canApply:true,canCheckIn:false,canSubmit:false,canViewGallery:true,...overrides});
+const journalsFor=(id:string,caption:string)=>({journals:[{journalId:"journal-"+id,displayName:null,entries:[{id:"photo-"+id,kind:"photo",caption,contentHref:"/api/v1/observation-events/"+id+"/discoveries/photo-"+id+"/content"}]}],counts:{journals:1,entries:1},nextCursor:null});
+
+test("participant surfaces explain each step without paper hyperlinks and keep separate native album and camera inputs",()=>{
+  const event={...listedOccurrence(),canJoin:true,canSubmit:true};
+  for(const html of [renderObservationEventDiscoveryCampaign(),renderObservationEventDiscoveryJoin(event),renderObservationEventDiscoveryCapture(event)])assert.doesNotMatch(html,/href="[^"]*\/print/);
+  const html=renderObservationEventDiscoveryCapture(event);
+  assert.doesNotMatch(html.match(/<input[^>]+name="media"[^>]+>/)?.[0]||"",/capture=/);
+  assert.match(html.match(/<input[^>]+name="camera_media"[^>]+>/)?.[0]||"",/capture="environment"/);
+  assert.match(html,/写真へのコメント/);assert.match(html,/選ぶだけでは保存・掲載されません/);
+  assert.match(renderObservationEventDiscoveryCampaign(),/参加を申し込む/);assert.match(renderObservationEventDiscoveryCampaign(),/申し込みに参加コードは必要ありません/);
+  assert.match(renderObservationEventDiscoveryOrganizer({sessionId:"event-fixture"}),/紙のシートを開く/);
+});
+
+test("LP bootstraps a real listed occurrence then stores a blank optional signup without day-of checkin",async()=>{
+  const event=listedOccurrence();
+  const app=setup("campaign",{fetch:async call=>call.url.includes("campaigns/ryuyo")?{events:[event],selectedEvent:null}:call.url.includes("/discoveries")?journalsFor(event.sessionId,"小さな発見"):call.method==="POST"?{confirmed:false,created:true,participant:{status:"registered"}}:{event,confirmed:false,participant:null}});
+  await flush();assert.equal(app.node("[data-discovery-application-form]").hidden,false);assert.equal(app.node("[data-discovery-photo-link]").hidden,true);
+  await app.node("[data-discovery-application-form]").dispatch("submit");
+  const post=app.calls.find(call=>call.method==="POST")!;assert.equal(post.url,base+"/application");assert.deepEqual(post.body,{display_name:""});assert.equal(post.options.credentials,"same-origin");
+  assert.equal(app.calls.some(call=>call.url.endsWith("/checkin")),false);assert.equal(app.node("[data-discovery-application-form]").hidden,true);assert.match(app.node("[data-discovery-application-status]").textContent,/申し込みを受け付けています/);
+  assert.match(app.node("[data-discovery-journals]").textContent,/小さな発見/);
+});
+
+test("LP no-dates state is distinct from a failed listing and makes no application request",async()=>{
+  const empty=setup("campaign",{fetch:async()=>({events:[],selectedEvent:null})});await flush();
+  assert.equal(empty.calls.length,1);assert.equal(empty.node("[data-discovery-application-form]").hidden,true);assert.match(empty.node("[data-discovery-occurrence-summary]").textContent,/次の開催日/);
+  const failed=setup("campaign",{fetch:async()=>new Error("Failed to fetch")});await flush();assert.match(failed.node("[data-discovery-status]").textContent,/通信できませんでした/);assert.match(failed.node("[data-discovery-occurrence-summary]").textContent,/読み込みを完了できませんでした/);
+});
+
+test("an explicit occurrence link loads that real occurrence even when absent from the public dates",async()=>{
+  const event=listedOccurrence("private-event");const app=setup("campaign",{href:"https://fixture.test/events/ryuyo?event=PRIVATE",fetch:async call=>call.url.includes("campaigns/ryuyo")?{events:[],selectedEvent:event}:call.url.includes("/discoveries")?journalsFor(event.sessionId,"案内された回"):{event,confirmed:false,participant:null}});await flush();
+  assert.equal(app.calls[0]!.url,"/api/v1/observation-events/campaigns/ryuyo?event=PRIVATE");assert.equal(app.node("[data-discovery-occurrence-select]").value,"private-event");assert.match(app.node("[data-discovery-journals]").textContent,/案内された回/);
+});
+
+test("late application and gallery responses for A cannot replace selected closed event B",async()=>{
+  const a=listedOccurrence("event-a"),b=listedOccurrence("event-b",{canApply:false,canCheckIn:false,canSubmit:false});let resolveApplication!:(value:Data)=>void,resolveGallery!:(value:Data)=>void;
+  const app=setup("campaign",{fetch:async call=>{
+    if(call.url.includes("campaigns/ryuyo"))return {events:[a,b],selectedEvent:null};
+    if(call.url.includes("event-a/application"))return new Promise(resolve=>{resolveApplication=resolve;});
+    if(call.url.includes("event-a/discoveries"))return new Promise(resolve=>{resolveGallery=resolve;});
+    return call.url.includes("/discoveries")?journalsFor("event-b","Bの発見"):{event:b,confirmed:false,participant:{status:"registered",displayName:"Bの呼び名"}};
+  }});await flush();const select=app.node("[data-discovery-occurrence-select]");select.value="event-a";await select.dispatch("change");await flush();select.value="event-b";await select.dispatch("change");await flush();
+  resolveApplication({event:a,confirmed:false,participant:null});resolveGallery(journalsFor("event-a","Aの遅れた発見"));await flush();
+  assert.equal(select.value,"event-b");assert.equal(app.node("[data-discovery-application-form]").hidden,true);assert.match(app.node("[data-discovery-application-status]").textContent,/申し込みを受け付けています/);assert.match(app.node("[data-discovery-journals]").textContent,/Bの発見/);assert.doesNotMatch(app.node("[data-discovery-journals]").textContent,/Aの遅れた/);
+  await app.node("[data-discovery-application-form]").dispatch("submit");assert.equal(app.calls.some(call=>call.method==="POST"),false);
+});
+
+test("camera selection validates with an empty album and cancel preserves the chosen photo",async()=>{
+  const app=setup("capture",{fetch:async call=>call.method==="POST"?{receipt:receipt(1)}:{receipts:[]}});await flush();const form=app.node("[data-discovery-media-form]");const album=formField(form,"media"),camera=formField(form,"camera_media");
+  formField(form,"private_storage_consent").checked=true;formField(form,"creator_rights_attestation").checked=true;formField(form,"caption").value="カメラからのコメント";
+  camera.files=[mediaFile];await camera.dispatch("change");assert.equal(album.files.length,0);assert.equal(album.required,false);assert.equal(form.reportValidity(),true);assert.match(app.node("[data-discovery-photo-preview]").textContent,/この写真を保存/);
+  camera.files=[];await camera.dispatch("change");await form.dispatch("submit");const post=app.calls.find(call=>call.method==="POST")!;assert.equal(post.body.get("media"),mediaFile);assert.equal(post.body.get("caption"),"カメラからのコメント");
+});
+
+test("album selection replaces camera selection through the same single-photo upload",async()=>{
+  const app=setup("capture",{fetch:async call=>call.method==="POST"?{receipt:receipt(1)}:{receipts:[]}});await flush();const form=app.node("[data-discovery-media-form]");const album=formField(form,"media"),camera=formField(form,"camera_media");preparePhoto(form);
+  camera.files=[{...mediaFile,name:"camera.webp"}];await camera.dispatch("change");album.files=[mediaFile];await album.dispatch("change");assert.equal(camera.files.length,0);await form.dispatch("submit");const posts=app.calls.filter(call=>call.method==="POST");assert.equal(posts.length,1);assert.equal(posts[0]!.body.get("media"),mediaFile);
+});
+
+test("organizer settings withdraw a stale unauthorized listing and show private signup counts",async()=>{
+  let campaign={listed:true,applicationsOpen:false};const settings=()=>({campaign,canManageListing:false,canManageApplications:true,campaignHref:"/events/ryuyo?event=RYUYO1",participantCounts:{registered:7,checkedIn:3}});
+  const app=setup("organizer",{fetch:async call=>{if(!call.url.endsWith("/discovery-campaign"))return{receipts:[],nextCursor:null};if(call.method==="PATCH")campaign=call.body;return settings();}});await flush();
+  const form=app.node("[data-discovery-campaign-settings]");assert.equal(formField(form,"listed").disabled,true);assert.match(app.node("[data-discovery-participant-counts]").textContent,/申し込み受付 7人.*当日参加 3人/);formField(form,"applications_open").checked=true;formField(form,"listed").checked=false;await form.dispatch("submit");
+  const patch=app.calls.find(call=>call.method==="PATCH")!;assert.deepEqual(patch.body,{listed:false,applicationsOpen:true});assert.match(app.node("[data-discovery-settings-status]").textContent,/保存しました/);
+});
+
+test("a pending campaign reload cannot submit its previous occurrence and preserves that occurrence draft",async()=>{
+  const a=listedOccurrence("event-a"),b=listedOccurrence("event-b");let listingCalls=0,resolveReload!:(value:Data)=>void;
+  const app=setup("campaign",{fetch:async call=>{
+    if(call.url.includes("campaigns/ryuyo")){listingCalls++;return listingCalls===1?{events:[a],selectedEvent:null}:new Promise(resolve=>{resolveReload=resolve;});}
+    const event=call.url.includes("event-b")?b:a;return call.url.includes("/discoveries")?journalsFor(event.sessionId,"発見"):{event,confirmed:false,participant:null};
+  }});await flush();const form=app.node("[data-discovery-application-form]");formField(form,"display_name").value="あお";assert.equal(form.hidden,false);
+  await app.node("[data-discovery-campaign-refresh]").dispatch("click");await flush();await form.dispatch("submit");
+  assert.equal(form.hidden,true);assert.equal(form.querySelector('button[type=submit]')!.disabled,true);assert.equal(app.calls.some(call=>call.method==="POST"),false);assert.equal(JSON.parse(app.storage.get("zukan:event-discovery:application:event-a")!).name,"あお");
+  resolveReload({events:[b],selectedEvent:null});await flush();assert.equal(app.node("[data-discovery-occurrence-select]").value,"event-b");assert.equal(formField(form,"display_name").value,"");assert.equal(form.hidden,false);
 });
