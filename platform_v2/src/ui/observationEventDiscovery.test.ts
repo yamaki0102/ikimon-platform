@@ -33,6 +33,9 @@ class Element {
   focused = false;
   files: Data[] = [];
   src = "";
+  href = "";
+  target = "";
+  rel = "";
   minLength = 0;
   maxLength = Number.MAX_SAFE_INTEGER;
   private text = "";
@@ -245,10 +248,12 @@ test("a nickname change that invalidates approval returns to the pending review 
 });
 
 test("organizer can load beyond 90 entries, explicitly approve, then edit or stop a published selection", async () => {
-  const rows=Array.from({length:100},(_,index)=>receipt(index,{galleryConsent:true,galleryStatus:"pending_review"}));
+  const rows=Array.from({length:100},(_,index)=>receipt(index,{galleryConsent:true,galleryStatus:"pending_review",privateContentHref:`${base}/guest-media/receipt-${index}/content`}));
   const app=setup("organizer",{fetch:async call=>{if(call.method==="GET"){const cursor=Number(new URL(call.url,"https://fixture.test").searchParams.get("cursor")||0);return{receipts:rows.slice(cursor,cursor+90),nextCursor:cursor===0?"90":null};}const id=call.url.split("/").at(-2)!;const row=rows.find(item=>item.receiptId===id)!;Object.assign(row,{rightsReviewStatus:call.body.decision,galleryStatus:call.body.decision==="approved"?"published":"private",selectionLabel:call.body.selectionLabel,selectionComment:call.body.selectionComment});return{receipt:row};}});
   await flush();await app.node("[data-discovery-more]").dispatch("click");await flush();
   const list=app.node("[data-discovery-review-list]");assert.equal(list.childNodes.length,100);
+  const fullPhoto=list.childNodes[0]!.walk().find(item=>item.tag==="a"&&item.href===`${base}/guest-media/receipt-0/content`)!;
+  assert.equal(fullPhoto.target,"_blank");assert.equal(fullPhoto.rel,"noopener noreferrer");assert.match(fullPhoto.textContent,/写真を大きく開く/);assert.equal(fullPhoto.walk().some(item=>item.tag==="img"),true);
   const form=list.childNodes[0]!.childNodes[1]!;const approve=form.querySelectorAll("button").find(button=>button.value==="approved")!;
   assert.equal(approve.textContent,"確認して掲載する");
   await form.dispatch("submit",{submitter:approve});assert.equal(app.calls.filter(call=>call.method==="PATCH").length,0);
