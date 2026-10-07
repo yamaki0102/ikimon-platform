@@ -380,7 +380,7 @@ export function observationEventDiscoveryScript(): string {
         info.append(node('h3',receipt.kind==='paper'?'紙で残した発見':'写真で残した発見'));
         info.append(node('p',receipt.displayName?receipt.displayName+'のノート':'呼び名なしのノート','ed-help'));
         const href=permittedMediaHref(receipt.privateContentHref,true);
-        if(href){const img=node('img');img.src=href;img.alt='主催者が内容を確認するための写真';img.loading='lazy';info.append(img);}
+        if(href){const img=node('img');img.src=href;img.alt='主催者が内容を確認するための写真';img.loading='lazy';const full=node('a');full.href=href;full.target='_blank';full.rel='noopener noreferrer';full.append(img,node('span','写真を大きく開く（別タブ）','ed-text-link'));info.append(full);}
         if(receipt.spotLabel)info.append(node('p',receipt.spotLabel));if(receipt.caption)info.append(node('p',receipt.caption));
         info.append(node('p',receipt.rightsReviewStatus==='rejected'?'掲載対象外':labels[receipt.galleryStatus]||'状態を確認中','ed-help'));
         const canPublish=receipt.galleryConsent===true&&(!receipt.isMinor||receipt.guardianGalleryConsent===true);
