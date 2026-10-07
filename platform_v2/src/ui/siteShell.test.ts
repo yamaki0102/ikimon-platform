@@ -298,7 +298,7 @@ test("language disclosure preserves localized deep links and always-visible mobi
 test("language disclosure closes with Escape and restores the trigger focus", () => {
   const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
-    .find((match) => match[1].includes("const disclosures = document.querySelectorAll('[data-language-disclosure]')"))?.[1];
+    .find((match) => match[1]!.includes("const disclosures = document.querySelectorAll('[data-language-disclosure]')"))?.[1];
   assert.ok(script);
   let keydown: (event: { key: string; preventDefault(): void }) => void = () => assert.fail("missing listener");
   let click: (event: { target: unknown }) => void = () => assert.fail("missing listener");
@@ -976,7 +976,7 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
   const rendered = renderSiteDocument({ basePath: "", title: "Camera", body: "<p>Camera</p>", lang, currentPath: `/${lang}/learn/field-loop` });
   const html = sourceChoice ? patchGlobalRecordSourceChoiceHtml(patchGlobalRecordSourceChoiceHtml(rendered)) : rendered;
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
-    .map((match) => match[1]).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
+    .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
   assert.ok(script);
   const elements = new Map<string, CameraTestNode>();
   const makeNode = (selector: string, attribute?: string, value = "") => {
@@ -1047,11 +1047,11 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
   return {
     sheet, video, start, capture, error, errorBody, retry, close, gallery, galleryInput, photoInput, native, nativeFallback,
     triggers, requests, timers, events,
-    startPhoto() { triggers.photo.click(); if (sourceChoice) start.click(); },
+    startPhoto() { triggers.photo!.click(); if (sourceChoice) start.click(); },
     timeout() {
       const pending = [...timers].filter(([, timer]) => timer.delay === 10000);
       assert.equal(pending.length, 1);
-      const [id, timer] = pending[0];
+      const [id, timer] = pending[0]!;
       timers.delete(id);
       timer.run();
     },
@@ -1076,10 +1076,10 @@ test("camera timeout leaves recovery available and stops its late stream after r
   assert.equal(runtime.nativeFallback?.hidden, false);
   runtime.retry.click();
   const current = cameraTestStream();
-  runtime.requests[1].resolve(current);
+  runtime.requests[1]!.resolve(current);
   await flushCameraTasks();
   const late = cameraTestStream();
-  runtime.requests[0].resolve(late);
+  runtime.requests[0]!.resolve(late);
   await flushCameraTasks();
   assert.equal(late.track.stops, 1);
   assert.equal(current.track.stops, 0);
@@ -1097,7 +1097,7 @@ for (const oldFailureOrder of ["before current success", "after current success"
     runtime.startPhoto();
     const current = cameraTestStream();
     const rejectOld = async () => {
-      runtime.requests[0].reject({ name: "NotAllowedError" });
+      runtime.requests[0]!.reject({ name: "NotAllowedError" });
       await flushCameraTasks();
       assert.equal(runtime.error.hidden, true);
       assert.equal(runtime.events.filter((event) => event.eventName === "camera_permission_denied").length, 0);
@@ -1108,7 +1108,7 @@ for (const oldFailureOrder of ["before current success", "after current success"
       runtime.start.click();
       assert.equal(runtime.requests.length, 2, "a pending attempt remains single-flight");
     }
-    runtime.requests[1].resolve(current);
+    runtime.requests[1]!.resolve(current);
     await flushCameraTasks();
     if (oldFailureOrder === "after current success") await rejectOld();
     assert.equal(runtime.video.srcObject, current);
@@ -1121,14 +1121,14 @@ for (const oldFailureOrder of ["before current success", "after current success"
 test("switching camera mode stops only the old late stream and keeps the video stream", async () => {
   const runtime = cameraRuntime();
   runtime.startPhoto();
-  runtime.triggers.video.click();
-  assert.equal(runtime.requests[0].constraints.audio, false);
-  assert.equal(runtime.requests[1].constraints.audio, true);
+  runtime.triggers.video!.click();
+  assert.equal(runtime.requests[0]!.constraints.audio, false);
+  assert.equal(runtime.requests[1]!.constraints.audio, true);
   const current = cameraTestStream({});
-  runtime.requests[1].resolve(current);
+  runtime.requests[1]!.resolve(current);
   await flushCameraTasks();
   const old = cameraTestStream();
-  runtime.requests[0].resolve(old);
+  runtime.requests[0]!.resolve(old);
   await flushCameraTasks();
   assert.equal(old.track.stops, 1);
   assert.equal(current.track.stops, 0);
@@ -1148,7 +1148,7 @@ for (const exit of ["close", "hide", "pagehide", "gallery", "native"] as const) 
     else if (exit === "gallery") runtime.gallery.click();
     else runtime.native?.click();
     const late = cameraTestStream();
-    runtime.requests[0].resolve(late);
+    runtime.requests[0]!.resolve(late);
     await flushCameraTasks();
     assert.equal(late.track.stops, 1);
     assert.equal(runtime.video.srcObject, null);
@@ -1169,7 +1169,7 @@ test("a delayed video play completion cannot restore a closed camera or hide a n
   runtime.video.play = () => playing.promise;
   runtime.startPhoto();
   const old = cameraTestStream();
-  runtime.requests[0].resolve(old);
+  runtime.requests[0]!.resolve(old);
   await flushCameraTasks();
   runtime.close.click();
   runtime.startPhoto();
@@ -1182,7 +1182,7 @@ test("a delayed video play completion cannot restore a closed camera or hide a n
   assert.equal(runtime.events.filter((event) => event.eventName === "camera_open_success").length, 0);
   runtime.video.play = async () => {};
   const current = cameraTestStream();
-  runtime.requests[1].resolve(current);
+  runtime.requests[1]!.resolve(current);
   await flushCameraTasks();
   assert.equal(runtime.video.srcObject, current);
   assert.equal(runtime.capture.hidden, false);
@@ -1193,7 +1193,7 @@ test("unsupported macro focus releases the stream and the error button reuses on
     const runtime = cameraRuntime();
     runtime.startPhoto();
     const stream = cameraTestStream(capabilities);
-    runtime.requests[0].resolve(stream);
+    runtime.requests[0]!.resolve(stream);
     await flushCameraTasks();
     assert.equal(stream.track.stops, 1);
     assert.equal(runtime.error.hidden, false);
@@ -1208,7 +1208,7 @@ test("unsupported macro focus releases the stream and the error button reuses on
   const regularCamera = cameraRuntime("en", false);
   regularCamera.startPhoto();
   const stream = cameraTestStream({});
-  regularCamera.requests[0].resolve(stream);
+  regularCamera.requests[0]!.resolve(stream);
   await flushCameraTasks();
   assert.equal(regularCamera.video.srcObject, stream, "unpatched regular camera does not require macro capability");
   assert.equal(regularCamera.error.hidden, true);
@@ -1216,7 +1216,7 @@ test("unsupported macro focus releases the stream and the error button reuses on
 
 test("returning from the native camera keeps its photo ready to submit across a visibility change", async () => {
   const runtime = cameraRuntime();
-  runtime.triggers.photo.click();
+  runtime.triggers.photo!.click();
   runtime.native?.click();
   assert.ok(runtime.photoInput);
   runtime.photoInput.files = [new File(["fixture"], "native-photo.jpg", { type: "image/jpeg" })];
@@ -1248,8 +1248,8 @@ test("camera startup failures expose localized recovery text and a stable reason
       const runtime = cameraRuntime(lang);
       runtime.startPhoto();
       if (name === "timeout") runtime.timeout();
-      else if (name === "focus_unsupported") runtime.requests[0].resolve(cameraTestStream({}));
-      else runtime.requests[0].reject({ name });
+      else if (name === "focus_unsupported") runtime.requests[0]!.resolve(cameraTestStream({}));
+      else runtime.requests[0]!.reject({ name });
       await flushCameraTasks();
       assert.equal(runtime.error.hidden, false, `${lang}: ${name}`);
       assert.match(runtime.errorBody.textContent, firstWords[lang]);
@@ -1260,3 +1260,4 @@ test("camera startup failures expose localized recovery text and a stable reason
     }
   }
 });
+

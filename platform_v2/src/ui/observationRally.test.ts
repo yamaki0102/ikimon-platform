@@ -257,7 +257,7 @@ test("rally runtime prevents concurrent clicks and gives each acknowledged new d
   await settleRally();
   const posts = () => runtime.calls.filter((call) => call.body?.request_id);
   assert.equal(posts().length, 1);
-  assert.match(posts()[0].body!.request_id, /^[A-Za-z0-9_-]{16,128}$/);
+  assert.match(posts()[0]!.body!.request_id, /^[A-Za-z0-9_-]{16,128}$/);
   assert.match(runtime.missionHtml(), /disabled[^>]*>送信を確認中/);
   acknowledge(rallyReply({ submission: { reviewStatus: "auto_accepted" }, replayed: false }, 201));
   await settleRally();
@@ -265,7 +265,7 @@ test("rally runtime prevents concurrent clicks and gives each acknowledged new d
   runtime.submit();
   await settleRally();
   assert.equal(posts().length, 2);
-  assert.notEqual(posts()[0].body!.request_id, posts()[1].body!.request_id);
+  assert.notEqual(posts()[0]!.body!.request_id, posts()[1]!.body!.request_id);
 });
 
 test("rally runtime preserves an uncertain request across reload and acknowledges a replay without another increment", async () => {
@@ -402,7 +402,7 @@ test("rally runtime stops location on denial, hidden pages and read-only snapsho
   await latePosition({ coords: { latitude: 34, longitude: 137 } });
   assert.equal(runtime.calls.filter((call) => call.url.endsWith("/location")).length, 0);
   assert.deepEqual(runtime.geo.cleared, [1, 2]);
-  assert.ok(runtime.liveSources[0].closed);
+  assert.ok(runtime.liveSources[0]!.closed);
   runtime.show();
   await settleRally();
   assert.equal(runtime.geo.count, 2);
@@ -431,5 +431,6 @@ test("rally runtime keeps ended results visible and binds its listeners only onc
   await settleRally();
   assert.equal(runtime.calls.length, count);
   runtime.pagehide();
-  assert.ok(runtime.liveSources[0].closed);
+  assert.ok(runtime.liveSources[0]!.closed);
 });
+
