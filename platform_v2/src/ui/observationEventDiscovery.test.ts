@@ -158,7 +158,9 @@ const receipt = (index: number, overrides: Data = {}) => ({ receiptId: `receipt-
 function preparePhoto(form: Element) { formField(form,"media").files = [mediaFile]; formField(form,"private_storage_consent").checked = true; formField(form,"creator_rights_attestation").checked = true; }
 
 test("campaign has three original illustrations, real organizer route, optional name and no fictitious event facts", () => {
-  const html = renderObservationEventDiscoveryCampaign();
+  // The isolated staging preview is inert template content until its exact
+  // hostname and event code match. Production's active campaign stays native.
+  const html = renderObservationEventDiscoveryCampaign().replace(/<template data-discovery-preview-template[\s\S]*?<\/template>/u, "");
   assert.equal((html.match(/<img /g) ?? []).length, 3);
   assert.match(html, /event_template=ryuyo&amp;field_id=372eafbd/);
   assert.match(html, /写真は１枚から/);
@@ -175,6 +177,21 @@ test("campaign has three original illustrations, real organizer route, optional 
   assert.match(renderObservationEventDiscoveryJoin({ ...input, canJoin: false, canViewGallery: true }), /みんなの発見を見る/);
   assert.match(renderObservationEventDiscoveryOrganizer({ sessionId: "fixture", sessionClosed: true }), /data-discovery-paper-form/);
   assert.doesNotThrow(() => new Function(observationEventDiscoveryScript()));
+});
+
+test("the isolated preview marks its single tentative day and uses the published Google handoff", () => {
+  const output = renderObservationEventDiscoveryCampaign();
+  const preview = output.match(/<template data-discovery-preview-template[\s\S]*?<\/template>/u)?.[0] ?? "";
+  assert.match(preview, /仮日程・テスト公開/);
+  assert.match(preview, /開催は未決定/);
+  assert.match(preview, /datetime="2026-10-24"/);
+  assert.match(preview, /10:00〜12:00/);
+  assert.equal((preview.match(/data-discovery-google-form/g) ?? []).length, 2);
+  assert.match(preview, /href="https:\/\/docs\.google\.com\/forms\/d\/e\/1FAIpQLS/);
+  assert.doesNotMatch(preview, /data-discovery-occurrence-select|data-discovery-application-form|\/print|download=/);
+  assert.match(preview, /紙のシートは、当日会場で配布/);
+  assert.match(preview, /写真を選んだだけでは送信されません/);
+  assert.match(preview, /共有を選んだものだけ主催者の確認後/);
 });
 
 test("unnamed login-free checkin sends an empty nickname, no account fallback, and no location consent", async () => {
