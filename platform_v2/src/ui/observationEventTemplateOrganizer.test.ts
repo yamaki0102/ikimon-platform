@@ -87,6 +87,7 @@ function initialRally() {
 
 function organizerRuntime(options: {
   sessionId?: string;
+  discoveryJournalEnabled?: boolean;
   rally?: ReturnType<typeof initialRally>;
   mutation?: (call: FetchCall, apply: () => Reply) => Promise<Reply>;
 } = {}) {
@@ -105,7 +106,7 @@ function organizerRuntime(options: {
     querySelectorAll: (selector: string) => TestElement[];
     contains: (target: TestElement) => boolean;
   };
-  root.dataset = { sessionId, sessionClosed: "false", templateKey: "ryuyo" };
+  root.dataset = { sessionId, sessionClosed: "false", templateKey: "ryuyo", discoveryJournalEnabled: String(options.discoveryJournalEnabled === true) };
   root.querySelector = (selector) => nodes.get(selector) ?? null;
   root.querySelectorAll = () => [];
   root.contains = () => true;
@@ -454,4 +455,24 @@ test("stale unsaved draft input does not prevent an explicitly paused mission fr
   assert.equal(mission.title, "観察下書き 1");
   assert.equal(mission.target, "確認する内容 1");
   assert.equal(mission.goalCount, 1);
+});
+
+test("discovery event can start natively with optional missions still in draft", async () => {
+  const runtime = organizerRuntime({ discoveryJournalEnabled: true });
+  await settle();
+  assert.ok(runtime.state.missions.every(mission => mission.status === "draft"));
+  assert.match(runtime.courseHtml(), /発見ノートの受付を開始/);
+  runtime.click("start");
+  await settle();
+  assert.equal(runtime.state.course?.status, "live");
+  assert.deepEqual(runtime.writes().map(call => call.body), [{ status: "live" }]);
+  assert.ok(runtime.state.missions.every(mission => mission.status === "draft"));
+});
+
+test("discovery controls appear only for explicitly enabled journal events", () => {
+  const ordinary = renderObservationEventTemplateOrganizer({ sessionId: "ordinary", templateKey: "ryuyo" });
+  assert.doesNotMatch(ordinary, /data-event-discovery="organizer"/);
+  const discovery = renderObservationEventTemplateOrganizer({ sessionId: "discovery", templateKey: "ryuyo", discoveryJournalEnabled: true });
+  assert.match(discovery, /data-event-discovery="organizer"/);
+  assert.match(discovery, /追加の観察ミッションを使う（任意）/);
 });

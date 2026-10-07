@@ -131,8 +131,8 @@ export const COMMON_EVENT_TEMPLATE_PRESETS: readonly CommonEventTemplatePreset[]
   { key: "mission-quest", title: MISSION_QUEST.title, description: MISSION_QUEST.description, activities: [MISSION_QUEST] },
   { key: "collaborative-observation", title: COLLABORATIVE_OBSERVATION.title, description: COLLABORATIVE_OBSERVATION.description, activities: [COLLABORATIVE_OBSERVATION] },
   {
-    key: "ryuyo", title: "竜洋昆虫自然観察公園での自然観察イベント",
-    description: "足元の形、葉の色、小さな動き。見つけたことを持ち寄る、一日の企画を体験できます。",
+    key: "ryuyo", title: "こんちゅうクンとめぐる、竜洋のとっておき。",
+    description: "気に入った場所や小さな発見を、写真で３枚まで。あだ名もひと言も任意、紙でも残せる発見ノートの企画です。",
     activities: [STAMP_RALLY, MISSION_QUEST, COLLABORATIVE_OBSERVATION],
   },
 ]);

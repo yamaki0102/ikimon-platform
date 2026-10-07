@@ -12,6 +12,17 @@ import { OBSERVATION_EVENT_LIST_STYLES, renderEventListBody } from "../../src/ui
 import { OBSERVATION_EVENT_STYLES } from "../../src/ui/observationEventStyles";
 import { renderObservationRallyBody, observationRallyScript } from "../../src/ui/observationRally";
 import { renderObservationEventTemplateOrganizer } from "../../src/ui/observationEventTemplateOrganizer";
+import {
+  RYUYO_DISCOVERY_TITLE,
+  renderObservationEventDiscoveryCampaign, renderObservationEventDiscoveryJoin,
+  renderObservationEventDiscoveryCapture, renderObservationEventDiscoveryGallery,
+  renderObservationEventDiscoveryPrint,
+} from "../../src/ui/observationEventDiscovery";
+import {
+  DiscoveryError, EventDiscoveryStore, isDiscoveryJournalConfig, isEventDiscoveryProfile,
+  discoveryHash, discoveryNickname, discoveryReceipt, parseDiscoveryCaptureInput,
+  parseDiscoveryPaperInput, parseDiscoveryReviewInput, type DiscoveryCaptureInput,
+} from "./eventDiscovery";
 import { COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, COMMON_EVENT_TEMPLATE_LABELS, isCommonEventTemplateConfig, isCommonEventTemplateKey, type CommonEventTemplateKey } from "../../src/services/commonEventTemplateContract";
 import { buildCommonEventTemplateDraft } from "../../src/services/commonEventTemplatePresets";
 import * as bcrypt from "bcryptjs";
@@ -3428,6 +3439,9 @@ export const worker = {
 
       return json({ error: "not_found" }, 404);
     } catch (error) {
+      if (error instanceof DiscoveryError) {
+        return json({ error: error.message }, error.status, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" });
+      }
       if (error instanceof HttpError) {
         return json({ error: error.message }, error.status);
       }
@@ -3725,6 +3739,16 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
     if (submissionId && action === "review" && request.method === "PATCH") return reviewObservationEventGuestMedia(request, env, sessionId, submissionId);
     if (submissionId && action === "withdraw" && request.method === "POST") return withdrawObservationEventGuestMedia(request, env, sessionId, submissionId);
     return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const discoveriesMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/discoveries(?:\/([^/]+)\/(content))?$/);
+  if (discoveriesMatch?.[1]) {
+    if (request.method !== "GET") return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+    return getObservationEventDiscoveries(request, env, decodeURIComponent(discoveriesMatch[1]), discoveriesMatch[2] ? decodeURIComponent(discoveriesMatch[2]) : null);
+  }
+  const discoveryPaperMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/discovery-paper(?:\/([^/]+)\/(review|withdraw))?$/);
+  if (discoveryPaperMatch?.[1]) {
+    return handleObservationEventDiscoveryPaper(request, env, decodeURIComponent(discoveryPaperMatch[1]),
+      discoveryPaperMatch[2] ? decodeURIComponent(discoveryPaperMatch[2]) : null, discoveryPaperMatch[3] ?? "");
   }
   const privateSessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)/);
   if (privateSessionMatch?.[1] && !["by-code", "area-suggestions"].includes(privateSessionMatch[1])) {
@@ -4229,6 +4253,12 @@ function renderSyntheticRenriRallyInteractions(
 async function handleObservationEventPages(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const pathname = stripPublicLangPrefix(url.pathname);
+  if (pathname === "/events/ryuyo" || pathname === "/events/ryuyo/print") {
+    const response = observationEventPageHtml("竜洋で見つける、わたしの3枚", pathname.endsWith("/print")
+      ? renderObservationEventDiscoveryPrint() : renderObservationEventDiscoveryCampaign(), "event-discovery-campaign");
+    response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+    return response;
+  }
   const eventTemplatePreview = handleEventTemplatePreviewPage(request, pathname);
   if (eventTemplatePreview) return eventTemplatePreview;
   if (pathname === "/community/programs/confirm") {
@@ -4264,7 +4294,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   if (joinMatch?.[1]) {
     return getObservationEventJoinPage(request, env, decodeURIComponent(joinMatch[1]));
   }
-  const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|gallery|console|recap|report)$/);
+  const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|gallery|console|recap|report|discoveries|print)$/);
   if (!eventPageMatch?.[1] || !eventPageMatch[2]) return null;
   return getObservationEventSessionPage(request, url, env, decodeURIComponent(eventPageMatch[1]), eventPageMatch[2]);
 }
@@ -4363,6 +4393,27 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   if (!session) {
     return pageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
+  }
+  if (isEventDiscoveryProfile(session.config)) {
+    if (!observationEventGuestMediaEnabled(env, session)) return pageHtml("企画が見つかりません", observationEventEmptyState("参加コードを確認してください", "主催者から案内された参加コードを確認してください。"), "event-discovery-unavailable", 404);
+    const course = await getObservationRallyCourseBySession(env, session.sessionId);
+    const canJoin = !auth?.banned && course?.status === "live" && isObservationEventActivityOpen(session);
+    const teams = await listObservationEventTeams(env, session.sessionId).catch(() => []);
+    const response = pageHtml(session.title + " に参加", renderObservationEventDiscoveryJoin({
+      sessionId: session.sessionId, title: session.title, eventCode: session.eventCode ?? eventCode,
+      startedAt: session.startedAt, endedAt: session.endedAt, isAuthenticated: Boolean(auth && !auth.banned), canJoin,
+      canViewGallery: Boolean(course && course.status !== "draft" && session.config.cancelled !== true && session.config.status !== "cancelled" && session.config.state !== "cancelled"),
+      teams: teams.map((team) => ({ teamId: team.team_id, name: team.name })),
+      stateMessage: auth?.banned ? "このアカウントでは参加できません。" : !isObservationEventCheckinOpen(session)
+        ? "今回の受付は終了しました。みんなの発見は引き続きご覧いただけます。" : course?.status !== "live" || !isObservationEventActivityOpen(session)
+          ? "主催者が受付を準備しています。開始の案内をお待ちください。" : undefined,
+    }), "event-discovery-join");
+    response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+    if (!auth && canJoin) {
+      const credential = await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId) ?? randomToken();
+      response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, credential));
+    }
+    return response;
   }
   if (!isObservationEventCheckinOpen(session)) {
     return redirect303(`/events/${encodeURIComponent(session.sessionId)}/recap`, {
@@ -4497,6 +4548,24 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     return pageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
   }
   let canManage = Boolean(auth?.userId && !auth.banned && auth.userId === session.organizerUserId);
+  if (page === "discoveries" || page === "print" || (page === "recap" && isEventDiscoveryProfile(session.config))) {
+    if (!isEventDiscoveryProfile(session.config) || !observationEventGuestMediaEnabled(env, session)) {
+      return pageHtml("ページが見つかりません", observationEventEmptyState("ページが見つかりません", "主催者から案内されたリンクを確認してください。"), "event-discovery-unavailable", 404);
+    }
+    const course = await getObservationRallyCourseBySession(env, sessionId);
+    if (!canManage && (!course || course.status === "draft" || session.config.cancelled === true || session.config.status === "cancelled" || session.config.state === "cancelled")) {
+      return pageHtml("公開の準備中です", observationEventEmptyState("公開の準備中です", "主催者からの案内をお待ちください。"), "event-discovery-unavailable", 404);
+    }
+    if (page === "recap") return redirect303(`/events/${encodeURIComponent(sessionId)}/discoveries`, {
+      "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive", "x-ikimon-cloudflare-native": "event-discovery-recap-redirect",
+    });
+    const body = page === "print"
+      ? renderObservationEventDiscoveryPrint({ title: session.title, eventCode: session.eventCode ?? undefined, sessionId })
+      : renderObservationEventDiscoveryGallery({ sessionId, title: session.title, eventCode: session.eventCode ?? "", canManage });
+    const response = pageHtml(session.title, body, "event-discovery-" + page);
+    response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+    return response;
+  }
   let liveViewer: Awaited<ReturnType<typeof observationEventParticipantContext>> | null = null;
   if (page === "live" || page === "rally" || page === "gallery") {
     liveViewer = await observationEventParticipantContext(request, env, session);
@@ -4512,6 +4581,18 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   }
   if ((page === "edit" || page === "console") && !canManage) {
     return pageHtml("権限がありません", observationEventEmptyState("主催者のみアクセスできます", "主催者アカウントでログインしてください。"), "event-page-forbidden", 403);
+  }
+  if (page === "rally" && isEventDiscoveryProfile(session.config)) {
+    if (auth?.banned || !observationEventGuestMediaEnabled(env, session)) return pageHtml("参加できません", observationEventEmptyState("参加できません", "主催者にお問い合わせください。"), "event-discovery-denied", 403);
+    const [course, actor] = await Promise.all([getObservationRallyCourseBySession(env, sessionId), observationEventGuestMediaActor(request, env, sessionId)]);
+    const canSubmit = Boolean(actor.participant?.status === "checked_in") && course?.status === "live" && isObservationEventActivityOpen(session);
+    const response = pageHtml(session.title, renderObservationEventDiscoveryCapture({
+      sessionId, title: session.title, eventCode: session.eventCode ?? "", canSubmit, canManage,
+      isMinor: actor.participant?.is_minor === 1, displayName: actor.participant?.display_name?.trim() || null,
+      stateMessage: canSubmit ? undefined : !isObservationEventCheckinOpen(session) ? "受付は終了しました。保存した3枚は引き続き確認できます。" : "いまは写真の受付を停止しています。保存した写真は確認できます。",
+    }), "event-discovery-capture");
+    response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+    return response;
   }
   if (page === "recap") {
     return getObservationEventRecapPage(request, url, env, session);
@@ -4649,10 +4730,11 @@ export function renderObservationEventCreatePage(
   const eventTemplate = context.templateKey
     ? { contract_version: COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, key: context.templateKey }
     : isCommonEventTemplateConfig(template?.config.event_template) ? template.config.event_template : null;
+  const discoveryJournalEnabled = eventTemplate?.key === "ryuyo" || isEventDiscoveryProfile(template?.config ?? {});
   const eventTemplateJson = JSON.stringify(eventTemplate).replace(/</g, "\\u003c");
   const initialFieldIdJson = JSON.stringify(initialFieldId).replace(/</g, "\\u003c");
   const templateSourceSessionIdJson = JSON.stringify(template?.sessionId ?? null).replace(/</g, "\\u003c");
-  const templateTitle = template?.title ? `${template.title}（再開催）` : "";
+  const templateTitle = template?.title ? `${template.title}（再開催）` : discoveryJournalEnabled ? RYUYO_DISCOVERY_TITLE : "";
   const templateTargetSpecies = template?.targetSpecies?.join(", ") ?? "";
   const templateMode = template?.primaryMode ?? "discovery";
   const templateFieldId = template?.fieldId ?? initialFieldId;
@@ -4672,7 +4754,7 @@ export function renderObservationEventCreatePage(
     <label>参加コード<input name="event_code" maxlength="8" pattern="[A-Z0-9]*" placeholder="空欄なら自動生成"></label>
     <label>観察モード<select name="primary_mode"><option value="discovery"${templateMode === "discovery" ? " selected" : ""}>見つける</option><option value="effort_maximize"${templateMode === "effort_maximize" ? " selected" : ""}>数える</option><option value="bingo"${templateMode === "bingo" ? " selected" : ""}>ビンゴ</option><option value="absence_confirm"${templateMode === "absence_confirm" ? " selected" : ""}>いないを確かめる</option><option value="ai_quest"${templateMode === "ai_quest" ? " selected" : ""}>AIクエスト</option></select></label>
     <label>観察したいもの<input name="target_species" value="${escapeHtml(templateTargetSpecies)}" maxlength="240" placeholder="例: ヤマセミ, エナガ"></label>
-    <label style="display:flex;gap:8px;align-items:center;"><input name="plan" type="checkbox" value="public"> 公開用の観察会として扱う</label>
+    ${discoveryJournalEnabled ? `<input name="plan" type="hidden" value="public"><p class="muted">参加コードを知っている人が参加できます。イベント一覧には掲載されません。写真や紙の発見は、本人の同意と主催者の確認後に、この会のアルバムにまとまります。</p>` : `<label style="display:flex;gap:8px;align-items:center;"><input name="plan" type="checkbox" value="public"> 公開用の観察会として扱う</label>`}
     <button class="btn" type="submit">観察会を作る</button>
     <p class="muted" data-observation-event-create-status role="status" aria-live="polite"></p>
     <a class="btn" data-observation-event-organizer-link hidden href="/community/events" style="min-height:44px;">主催者ページを開く</a>
@@ -4687,6 +4769,7 @@ export function renderObservationEventCreatePage(
   const organizerLink = document.querySelector("[data-observation-event-organizer-link]");
   const templateSourceSessionId = ${templateSourceSessionIdJson};
   const eventTemplate = ${eventTemplateJson};
+  const discoveryJournalEnabled = ${JSON.stringify(discoveryJournalEnabled)};
   if (!(form instanceof HTMLFormElement)) return;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4720,9 +4803,9 @@ export function renderObservationEventCreatePage(
       primary_mode: String(data.get("primary_mode") || "discovery"),
       active_modes: [String(data.get("primary_mode") || "discovery"), "rally"],
       target_species: targetSpecies,
-      plan: data.get("plan") === "public" ? "public" : "community",
+      plan: discoveryJournalEnabled || data.get("plan") === "public" ? "public" : "community",
       template_source_session_id: templateSourceSessionId,
-      config: { collaboration_surface: "observation-event", public_list_visibility: "private-until-explicit", rehost_mode: templateSourceSessionId ? "configuration-only" : null, ...(eventTemplate ? { event_template: eventTemplate } : {}) }
+      config: { collaboration_surface: "observation-event", public_list_visibility: discoveryJournalEnabled ? "hidden" : "private-until-explicit", rehost_mode: templateSourceSessionId ? "configuration-only" : null, ...(eventTemplate ? { event_template: eventTemplate } : {}), ...(discoveryJournalEnabled ? { guest_media_enabled: true, public_listed: false, discovery_journal: { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" } } : {}) }
     };
     try {
       const response = await fetch("/api/v1/observation-events", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
@@ -4739,7 +4822,8 @@ export function renderObservationEventCreatePage(
         organizerLink.href = "/events/" + encodeURIComponent(sessionId) + "/console";
         organizerLink.hidden = false;
       }
-      if (status) status.textContent = eventTemplate
+      if (status) status.textContent = discoveryJournalEnabled ? "開催ページを作成しました。主催者ページで受付を開始すると、参加コードから写真を残せます。"
+        : eventTemplate
         ? "観察会を作成しました。主催者ページでミッションと受付の状態を確認できます。"
         : "観察会を作成しました。参加コードでメンバーを招待できます。";
     } catch (error) {
@@ -5238,6 +5322,7 @@ function renderObservationEventConsolePage(
 ): string {
   const organizerPanel = renderObservationEventTemplateOrganizer({
     sessionId: session.sessionId,
+    discoveryJournalEnabled: isEventDiscoveryProfile(session.config),
     sessionClosed: !isObservationEventCheckinOpen(session),
     templateKey: isCommonEventTemplateConfig(session.config.event_template) ? session.config.event_template.key : null
   });
@@ -5585,6 +5670,13 @@ async function createObservationEventSession(request: Request, env: Env): Promis
   const body = await readJson<Record<string, unknown>>(request);
   const config = asPlainObject(body.config) ?? {};
   if (config.event_template !== undefined && !isCommonEventTemplateConfig(config.event_template)) return json({ error: "event_template_contract_invalid" }, 400, { "cache-control": "no-store" });
+  if (config.discovery_journal !== undefined && (!isDiscoveryJournalConfig(config.discovery_journal) || config.guest_media_enabled !== true || body.plan !== "public")) {
+    return json({ error: "discovery_journal_contract_invalid" }, 400, { "cache-control": "no-store" });
+  }
+  if (isEventDiscoveryProfile(config)) {
+    config.public_list_visibility = "hidden";
+    config.public_listed = false;
+  }
   const eventCode = normalizeOptionalText(body.event_code);
   if (!eventCode) {
     return json({ error: "event_code activation key required" }, 400, { "cache-control": "no-store" });
@@ -5676,6 +5768,13 @@ async function updateObservationEventSession(request: Request, env: Env, session
   const current = auth.session;
   const nextConfig = asPlainObject(body.config) ?? current.config;
   if (nextConfig.event_template !== undefined && !isCommonEventTemplateConfig(nextConfig.event_template)) return json({ error: "event_template_contract_invalid" }, 400, { "cache-control": "no-store" });
+  if (nextConfig.discovery_journal !== undefined && (!isDiscoveryJournalConfig(nextConfig.discovery_journal) || nextConfig.guest_media_enabled !== true || (body.plan ?? current.plan) !== "public")) {
+    return json({ error: "discovery_journal_contract_invalid" }, 400, { "cache-control": "no-store" });
+  }
+  if (isEventDiscoveryProfile(nextConfig)) {
+    nextConfig.public_list_visibility = "hidden";
+    nextConfig.public_listed = false;
+  }
   if (typeof body.event_code === "string") {
     const requestedEventCode = body.event_code.trim();
     if (!requestedEventCode) {
@@ -5772,9 +5871,14 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
   if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session) return json({ error: "session not found" }, 404, { "cache-control": "no-store" });
+  const discoveryProfile = isEventDiscoveryProfile(session.config);
+  if (discoveryProfile && (!observationEventGuestMediaEnabled(env, session) || (await getObservationRallyCourseBySession(env, sessionId))?.status !== "live")) {
+    return json({ error: "event_checkin_not_started" }, 409, { "cache-control": "no-store" });
+  }
   if (!isObservationEventCheckinOpen(session)) {
     return json({ error: "event_checkin_closed" }, 409, { "cache-control": "no-store" });
   }
+  if (discoveryProfile && !isObservationEventActivityOpen(session)) return json({ error: "event_checkin_not_started" }, 409, { "cache-control": "no-store" });
   const auth = await readCompatibleSession(request, env);
   if (auth?.banned) return json({ error: "event_checkin_unavailable" }, 403, { "cache-control": "no-store" });
   const metricContext = serverObservationEventFunnelContext(request, "join", Boolean(auth));
@@ -5794,7 +5898,7 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     return json({ error: "event_team_not_found" }, 400, { "cache-control": "no-store" });
   }
   const isMinor = body.is_minor === true;
-  const shareLocation = body.share_location === true;
+  const shareLocation = !discoveryProfile && body.share_location === true;
   const guardianConsent = body.guardian_location_consent === true;
   if (isMinor && shareLocation && !guardianConsent) {
     await recordObservationEventServerFunnelMetric(env, sessionId, {
@@ -5809,11 +5913,12 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
   }
   const guestCredential = auth ? null : browserGuestCredential;
   const guestToken = auth ? null : browserGuestToken;
+  const displayName = discoveryProfile ? discoveryNickname(body.display_name) ?? "" : normalizeOptionalText(body.display_name) ?? "";
   const participant = await upsertObservationEventParticipant(env, {
     sessionId,
     userId: auth?.userId ?? null,
     guestToken,
-    displayName: normalizeOptionalText(body.display_name) ?? "",
+    displayName,
     teamId,
     isMinor,
     shareLocation,
@@ -6845,6 +6950,58 @@ async function autoMatchObservationToActiveRalliesNative(
   return { matchedCandidates, createdSubmissions };
 }
 
+async function getObservationEventDiscoveries(request: Request, env: Env, sessionId: string, entryId: string | null): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  const headers = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" };
+  if (!session || !isEventDiscoveryProfile(session.config) || !observationEventGuestMediaEnabled(env, session)
+    || session.config.cancelled === true || session.config.status === "cancelled" || session.config.state === "cancelled") {
+    return json({ error: "not_found" }, 404, headers);
+  }
+  const course = await getObservationRallyCourseBySession(env, sessionId);
+  if (!course || course.status === "draft") return json({ error: "not_found" }, 404, headers);
+  const store = new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET);
+  if (entryId) {
+    const body = await store.content(sessionId, entryId);
+    return new Response(body, { headers: {
+      ...headers, "content-type": "image/webp", "content-length": String(body.byteLength),
+      "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; sandbox",
+    } });
+  }
+  const url = new URL(request.url);
+  return json(await store.gallery(sessionId, url.searchParams.get("cursor"),
+    url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined), 200, headers);
+}
+
+async function handleObservationEventDiscoveryPaper(request: Request, env: Env, sessionId: string, entryId: string | null, action: string): Promise<Response> {
+  const headers = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" };
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const organizer = await requireObservationEventOrganizer(request, env, sessionId);
+  if (organizer instanceof Response) return organizer;
+  const session = organizer.session;
+  if (!isEventDiscoveryProfile(session.config) || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, headers);
+  const store = new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET);
+  if (!entryId && request.method === "POST") {
+    const course = await getObservationRallyCourseBySession(env, sessionId);
+    // Staff can transcribe the paper sheets after the event ends as well.
+    if (!course || course.status === "draft" || session.config.cancelled === true || session.config.status === "cancelled" || session.config.state === "cancelled") return json({ error: "paper_intake_not_started" }, 409, headers);
+    const body = await readJson<Record<string, unknown>>(request);
+    const result = await store.createPaper(sessionId, organizer.auth.userId, parseDiscoveryPaperInput(body));
+    return json(result, result.replay ? 200 : 201, headers);
+  }
+  const entry = entryId ? await store.get(sessionId, entryId) : null;
+  if (!entry || entry.entry_kind !== "paper") return json({ error: "paper_entry_not_found" }, 404, headers);
+  if (action === "review" && request.method === "PATCH") {
+    return json(await store.review(sessionId, entry.entry_id, organizer.auth.userId,
+      parseDiscoveryReviewInput(await readJson<Record<string, unknown>>(request))), 200, headers);
+  }
+  if (action === "withdraw" && request.method === "POST") {
+    await store.withdraw(sessionId, entry.entry_id);
+    return json({ receiptId: entry.entry_id, rightsReviewStatus: "withdrawn", galleryStatus: "withdrawn" }, 200, headers);
+  }
+  return json({ error: "not_found" }, 404, headers);
+}
+
 interface ObservationEventGuestMediaRow {
   submission_id: string; session_id: string; participant_id: string; actor_user_id: string | null;
   asset_key: string; request_sha256: string; media_sha256: string; mime: string; bytes: number;
@@ -6858,6 +7015,17 @@ interface ObservationEventGuestMediaRow {
 function observationEventGuestMediaEnabled(env: Env, session: ObservationEventTemplate): boolean {
   const eventCode = normalizeOptionalText(session.eventCode)?.toLowerCase();
   if (!eventCode || session.plan !== "public" || session.config.guest_media_enabled !== true || isPrivateReceivedProgram(session)) return false;
+  if (isEventDiscoveryProfile(session.config)) {
+    // An organizer's explicit, typed unlisted profile is self-service. The
+    // unrelated legacy allowlist remains unchanged. Hidden invitation pages
+    // are not synthetic fixtures; actual fixture markers still fail closed.
+    const fixtureConfig = { ...session.config };
+    delete fixtureConfig.public_list_visibility;
+    delete fixtureConfig.publicListVisibility;
+    delete fixtureConfig.public_listed;
+    delete fixtureConfig.publicListVisible;
+    return env.ENVIRONMENT !== "production" || !isObservationEventQaFixture({ ...session, config: fixtureConfig });
+  }
   if (env.ENVIRONMENT !== "production") return session.config.qa_fixture === true;
   if (isObservationEventQaFixture(session)) return false;
   const enabledCodes = new Set((env.OBSERVATION_EVENT_GUEST_MEDIA_CODES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
@@ -6884,8 +7052,11 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   if (sameOriginError) return sameOriginError;
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const discoveryProfile = isEventDiscoveryProfile(session.config);
+  if (discoveryProfile && (await getObservationRallyCourseBySession(env, sessionId))?.status !== "live") return json({ error: "event_media_intake_not_started" }, 409, { "cache-control": "no-store" });
   if (!isObservationEventActivityOpen(session)) return json({ error: "event_media_intake_closed" }, 409, { "cache-control": "no-store" });
   const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  if (actor.auth?.banned) return json({ error: "event_media_unavailable" }, 403, { "cache-control": "no-store" });
   if (!actor.participant || actor.participant.status !== "checked_in") return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
   if (Number(request.headers.get("content-length") ?? 0) > 13_107_200) return json({ error: "media_too_large" }, 413, { "cache-control": "no-store" });
   let form: FormData;
@@ -6896,6 +7067,7 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   const isImage = new Set(["image/jpeg", "image/png", "image/webp"]).has(mime);
   const isVideo = new Set(["video/mp4", "video/webm"]).has(mime);
   if (!isImage && !isVideo) return json({ error: "unsupported_media_type" }, 415, { "cache-control": "no-store" });
+  if (discoveryProfile && !isImage) return json({ error: "discovery_photo_required" }, 415, { "cache-control": "no-store" });
   if (isImage && !env.IMAGES) return json({ error: "private_image_scrubber_unavailable" }, 503, { "cache-control": "no-store" });
   if (form.get("private_storage_consent") !== "yes" || form.get("creator_rights_attestation") !== "yes") return json({ error: "private_storage_and_creator_rights_confirmation_required" }, 400, { "cache-control": "no-store" });
   const idempotencyKey = normalizeOptionalText(request.headers.get("idempotency-key") ?? form.get("idempotency_key"));
@@ -6911,7 +7083,9 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
           ? bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70
           : bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
   if (!signatureValid) return json({ error: "media_content_mismatch" }, 415, { "cache-control": "no-store" });
-  const requestSha256 = await sha256Hex(bytes.buffer);
+  const capture = discoveryProfile ? parseDiscoveryCaptureInput(form, actor.participant.is_minor === 1) : null;
+  const sourceSha256 = await sha256Hex(bytes.buffer);
+  const requestSha256 = capture ? await discoveryHash(JSON.stringify([sourceSha256, capture])) : sourceSha256;
   const idempotencyDigest = await sha256Hex(textToArrayBuffer(`${sessionId}\0${actor.participant.participant_id}\0${idempotencyKey}`));
   const submissionId = `egm_${idempotencyDigest.slice(0, 40)}`;
   const assetKey = `private/event-guest-media/${encodeURIComponent(sessionId)}/${submissionId}/original`;
@@ -6924,7 +7098,7 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   let row = await findByKey();
   if (row && row.request_sha256 !== requestSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
-  if (row?.media_state === "saved") return json({ receipt: observationEventGuestMediaReceipt(row) }, 200, { "cache-control": "no-store" });
+  if (row?.media_state === "saved") return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, 200, { "cache-control": "no-store" });
   let transformed: ArrayBuffer;
   if (isImage) {
     try {
@@ -6946,12 +7120,19 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   const mediaSha256 = isImage ? await sha256Hex(transformed) : requestSha256;
   if (row && row.media_sha256 !== mediaSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
   if (!row) {
-    await env.OBS_DB.prepare(
-      `INSERT OR IGNORE INTO observation_event_guest_media (
-         submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
-         mime, bytes, idempotency_key, private_storage_consent_at, creator_rights_attested_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-    ).bind(submissionId, sessionId, actor.participant.participant_id, actor.auth?.userId ?? null, assetKey, requestSha256, mediaSha256, storageMime, transformed.byteLength, idempotencyKey).run();
+    if (capture) {
+      await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).reservePhoto({
+        sessionId, participantId: actor.participant.participant_id, actorUserId: actor.auth?.userId ?? null,
+        submissionId, assetKey, requestSha256, mediaSha256, bytes: transformed.byteLength, idempotencyKey, capture,
+      });
+    } else {
+      await env.OBS_DB.prepare(
+        `INSERT OR IGNORE INTO observation_event_guest_media (
+           submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
+           mime, bytes, idempotency_key, private_storage_consent_at, creator_rights_attested_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      ).bind(submissionId, sessionId, actor.participant.participant_id, actor.auth?.userId ?? null, assetKey, requestSha256, mediaSha256, storageMime, transformed.byteLength, idempotencyKey).run();
+    }
     row = await findByKey();
   }
   if (!row || row.request_sha256 !== requestSha256 || row.media_sha256 !== mediaSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
@@ -6986,15 +7167,31 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   ).bind(row.submission_id).first<ObservationEventGuestMediaRow>();
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
   if (!row || row.media_state !== "saved") return json({ error: "private_media_save_failed" }, 503, { "cache-control": "no-store" });
-  return json({ receipt: observationEventGuestMediaReceipt(row) }, replay ? 200 : 201, { "cache-control": "no-store" });
+  return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, replay ? 200 : 201, { "cache-control": "no-store" });
+}
+
+async function observationEventGuestMediaProfileReceipt(row: ObservationEventGuestMediaRow, env: Env, discoveryProfile: boolean) {
+  if (!discoveryProfile) return observationEventGuestMediaReceipt(row);
+  const entry = await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).get(row.session_id, row.submission_id);
+  if (!entry) throw new DiscoveryError(409, "discovery_receipt_unavailable");
+  return discoveryReceipt(entry, true);
 }
 
 async function getObservationEventGuestMedia(request: Request, env: Env, sessionId: string): Promise<Response> {
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  if (actor.auth?.banned) return json({ error: "event_media_unavailable" }, 403, { "cache-control": "no-store" });
   const isOrganizer = actor.auth?.userId === session.organizerUserId;
   if (!isOrganizer && (!actor.participant || !isObservationEventParticipatingGroup(actor.participant))) return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
+  if (isEventDiscoveryProfile(session.config)) {
+    const url = new URL(request.url);
+    const data = await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).privateReceipts(
+      sessionId, isOrganizer ? null : actor.participant!.participant_id, url.searchParams.get("cursor"),
+      url.searchParams.has("limit") ? Number(url.searchParams.get("limit")) : undefined,
+    );
+    return json(data, 200, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" });
+  }
   const rows = await env.OBS_DB.prepare(
     `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
             mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
@@ -7015,6 +7212,7 @@ async function getObservationEventGuestMediaContent(request: Request, env: Env, 
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   const actor = await observationEventGuestMediaActor(request, env, sessionId);
+  if (actor.auth?.banned) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   const row = await env.OBS_DB.prepare(
     `SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256,
             mime, bytes, media_state, idempotency_key, rights_review_status, rights_reviewed_by,
@@ -7023,7 +7221,8 @@ async function getObservationEventGuestMediaContent(request: Request, env: Env, 
   ).bind(sessionId, submissionId).first<ObservationEventGuestMediaRow>();
   if (!row || row.media_state !== "saved" || row.rights_review_status === "withdrawn") return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   const participantOwns = actor.participant?.participant_id === row.participant_id && isObservationEventParticipatingGroup(actor.participant);
-  const organizerCanReview = actor.auth?.userId === session.organizerUserId && row.rights_review_status === "pending";
+  const organizerCanReview = !actor.auth?.banned && actor.auth?.userId === session.organizerUserId
+    && (row.rights_review_status === "pending" || isEventDiscoveryProfile(session.config));
   if (!participantOwns && !organizerCanReview) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   const object = await env.ASSET_BUCKET.get(row.asset_key);
   if (!object) return json({ error: "private_media_unavailable" }, 404, { "cache-control": "no-store" });
@@ -7038,6 +7237,10 @@ async function reviewObservationEventGuestMedia(request: Request, env: Env, sess
   const session = await getObservationEventSessionById(env, sessionId);
   if (!session || !observationEventGuestMediaEnabled(env, session)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
+  if (isEventDiscoveryProfile(session.config)) {
+    const result = await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).review(sessionId, submissionId, auth.auth.userId, parseDiscoveryReviewInput(body));
+    return json(result, 200, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" });
+  }
   const decision = normalizeOptionalText(body.decision);
   const note = normalizeOptionalText(body.note) ?? "";
   if (!(decision === "approved" || decision === "rejected") || note.length < 8 || note.length > 500) return json({ error: "decision_and_review_note_required" }, 400, { "cache-control": "no-store" });
@@ -7066,6 +7269,9 @@ async function withdrawObservationEventGuestMedia(request: Request, env: Env, se
       WHERE session_id = ? AND submission_id = ? AND participant_id = ?`
   ).bind(sessionId, submissionId, actor.participant.participant_id).run() as { meta?: { changes?: number } };
   if (Number(fenced.meta?.changes ?? 0) !== 1) return json({ error: "receipt_claim_changed" }, 409, { "cache-control": "no-store" });
+  if (isEventDiscoveryProfile(session.config)) {
+    await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).withdraw(sessionId, submissionId);
+  }
   const cleanup = await reconcileObservationEventGuestMediaDelete(env, submissionId);
   if (cleanup.error) return json({ error: cleanup.error }, 503, { "cache-control": "no-store" });
   if (!cleanup.complete) return json({ error: "withdrawal_cleanup_pending" }, 409, { "cache-control": "no-store" });
@@ -7819,7 +8025,10 @@ function mapObservationEventSession(row: ObservationEventSessionD1Row): Observat
     locationLng: row.location_lng,
     locationRadiusM: row.location_radius_m,
     startedAt: row.started_at,
-    endedAt: row.ended_at,
+    // Native /end writes SQLite CURRENT_TIMESTAMP in UTC. Preserve that zone
+    // when the value reaches a browser or a runtime with a different local TZ.
+    endedAt: row.ended_at && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/u.test(row.ended_at)
+      ? row.ended_at.replace(" ", "T") + "Z" : row.ended_at,
     targetSpecies: jsonArray(row.target_species_json).filter((value): value is string => typeof value === "string"),
     config: jsonObject(row.config_json),
     fieldId: row.field_id,
@@ -8266,6 +8475,7 @@ async function claimObservationEventGuestParticipant(
     findObservationEventParticipant(env, sessionId, userId, null)
   ]);
   if (!guestParticipant || (guestParticipant.user_id && guestParticipant.user_id !== userId)) return;
+  let discoveryClaim = false;
   const statements = [
     env.OBS_DB.prepare(
       `UPDATE observation_event_live_events
@@ -8314,7 +8524,13 @@ async function claimObservationEventGuestParticipant(
   ];
 
   if (userParticipant && userParticipant.participant_id !== guestParticipant.participant_id) {
-    try {
+    const eventSession = await getObservationEventSessionById(env, sessionId);
+    discoveryClaim = Boolean(eventSession && isEventDiscoveryProfile(eventSession.config));
+    if (discoveryClaim) {
+      statements.push(...await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).participantClaimStatements(
+        sessionId, guestParticipant.participant_id, userParticipant.participant_id, userId,
+      ));
+    } else try {
       await env.OBS_DB.prepare(
         `UPDATE observation_event_guest_media AS guest
             SET participant_id = ?, actor_user_id = ?,
@@ -8363,6 +8579,10 @@ async function claimObservationEventGuestParticipant(
   try {
     await env.OBS_DB.batch(statements);
   } catch (error) {
+    // The source/sidecar reassignments share this transaction. If a concurrent
+    // upload filled the last slot, their conditional merge leaves the guest
+    // sidecar attached; its FK fences participant deletion and rolls back.
+    if (discoveryClaim && /foreign key constraint/iu.test(String(error))) throw new DiscoveryError(409, "discovery_claim_photo_limit");
     if (!isD1UniqueConstraintError(error) || retriedAfterConflict) throw error;
     await claimObservationEventGuestParticipant(env, sessionId, userId, guestToken, true);
   }
@@ -25073,6 +25293,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (/^\/assets\/brand\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/img\/invasive\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/img\/landing\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
+  if (/^\/assets\/event-discovery\/ryuyo-(?:hero|discovery|memories)\.webp$/.test(pathname)) return true;
   return false;
 }
 

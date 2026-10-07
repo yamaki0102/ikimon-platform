@@ -1,0 +1,62 @@
+{
+  "generator": "Built-in image_gen.imagegen",
+  "purpose": "Original conceptual illustration assets for the ZUKAN Ryuyo nature event production page",
+  "visualQA": "All three assets inspected visually. Coherent forest green, ivory, yellow and subtle orange gouache/printed-paper palette. No text, numbers, logos or watermarks. Anonymous small back-view visitors only in hero. Memory illustration has exactly three blank photo frames. No recognizable person likeness or official mascot.",
+  "usageNote": "Conceptual illustrations; do not represent these as photographs, an accurate geographical map, official park illustrations, or portraits of the event host.",
+  "assets": [
+    {
+      "id": "ryuyo-hero",
+      "file": "ryuyo-hero.png",
+      "width": 1672,
+      "height": 941,
+      "bytes": 3399520,
+      "sha256": "c9a4a16c12702f598142188abb6b54c4e52800d7f1ed358d262af2e87aff7d20",
+      "alt": "木漏れ日の小道と池を、親子が巡る自然観察のイラスト",
+      "prompt": "Use case: illustration-story. Original commissioned editorial gouache illustration for a Japanese family nature-observation event website. Sophisticated, warm, airy, poetic, friendly to both adults and children. Matte cut-paper-inspired shapes with hand-painted gouache irregularities, very subtle risograph print grain and cream paper fibers. Palette: warm ivory #F7F3E8, deep forest green #163F32, muted jade #7EAA87, pale sage #D5E1C5, sunshine yellow #F5CD55, tiny burnt-orange #DA793F accents. Restrained flat perspective with layered depth, elegant negative space, confident compositions. Nature should look inviting and full of small discoveries. No lettering, no text, no numbers, no watermarks, no logos, no frames around the entire artwork, no glossy 3D, no generic vector clipart, no kawaii faces on objects, no portrait or recognizable real person, no official mascot. This is a conceptual artwork, not a factual geographical map.\nAsset type: wide website hero, landscape aspect ratio 16:9. Main scene: a picturesque Japanese lowland insect-observation park, a sandy winding woodland path leading into a sunlit grove, lush deciduous trees with broad green leaves, small still pond and reeds to one side, open warm-ivory sky between tree canopies. A brilliant yellow butterfly flying near the foreground, a small beetle resting on a foreground leaf. Just two tiny visitors seen from behind, an adult and child in simple outdoor clothes looking together at a leaf along the path, anonymous and very small in the landscape, no face details. No mountain drama or landmark architecture. Compose as an expansive beautifully illustrated landscape, with the winding trail inviting the viewer into the scene. Keep the central band readable and not cluttered; use rich darker green foreground leaves to frame a bright airy center. The scene should feel like a discovery waiting a few steps away. All people fully clothed. No text.",
+      "productionDerivative": {
+        "file": "ryuyo-hero.webp",
+        "width": 1600,
+        "height": 900,
+        "bytes": 411318,
+        "sha256": "b5f06f7c1ae784d78942b6c638eadeaded8d9c5d63e5dc4669cb504114e9f724",
+        "packaging": "Sharp resize and WebP encoding; no creative alteration"
+      }
+    },
+    {
+      "id": "ryuyo-discovery",
+      "file": "ryuyo-discovery.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2672743,
+      "sha256": "bd9217741eea6a86357c39c9a3337401ea40207636555f292e14d863839d13bb",
+      "alt": "葉の上のテントウムシと黄色いチョウ、虫眼鏡のイラスト",
+      "prompt": "Use case: illustration-story. Original commissioned editorial gouache illustration for a Japanese family nature-observation event website. Sophisticated, warm, airy, poetic, friendly to both adults and children. Matte cut-paper-inspired shapes with hand-painted gouache irregularities, very subtle risograph print grain and cream paper fibers. Palette: warm ivory #F7F3E8, deep forest green #163F32, muted jade #7EAA87, pale sage #D5E1C5, sunshine yellow #F5CD55, tiny burnt-orange #DA793F accents. Restrained flat perspective with layered depth, elegant negative space, confident compositions. Nature should look inviting and full of small discoveries. No lettering, no text, no numbers, no watermarks, no logos, no frames around the entire artwork, no glossy 3D, no generic vector clipart, no kawaii faces on objects, no portrait or recognizable real person, no official mascot. This is a conceptual artwork, not a factual geographical map.\nAsset type: square supporting illustration. Main scene: intimate close-up of a graceful leafy branch in a garden, with a bright red ladybird standing naturally on one leaf and a little yellow butterfly hovering nearby. A small classic handheld magnifying glass, forest green handle and thin brass rim, partly overlaps a leaf so its translucent lens beautifully enlarges the vein pattern, held by no visible person. Compose the leaf, butterfly and magnifier as an elegant loose still life over a warm ivory background, with muted jade foliage gathered toward the lower corners and large pockets of light. Insects softly stylized yet believable, no human faces. Convey the delight of noticing a tiny detail. No text, no diagram, no labels.",
+      "productionDerivative": {
+        "file": "ryuyo-discovery.webp",
+        "width": 800,
+        "height": 800,
+        "bytes": 111504,
+        "sha256": "7b84615c811fa1dcbe0a8f4b89c6fdfa805672f35a8cc729026a11dcbefd570a",
+        "packaging": "Sharp resize and WebP encoding; no creative alteration"
+      }
+    },
+    {
+      "id": "ryuyo-memories",
+      "file": "ryuyo-memories.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2588248,
+      "sha256": "44cf4dba7839064c2d734ec78bea57e3613902df8d2b7e7168c7bd7c11979af1",
+      "alt": "3枚の写真枠を並べた観察ノートと鉛筆のイラスト",
+      "prompt": "Use case: illustration-story. Original commissioned editorial gouache illustration for a Japanese family nature-observation event website. Sophisticated, warm, airy, poetic, friendly to both adults and children. Matte cut-paper-inspired shapes with hand-painted gouache irregularities, very subtle risograph print grain and cream paper fibers. Palette: warm ivory #F7F3E8, deep forest green #163F32, muted jade #7EAA87, pale sage #D5E1C5, sunshine yellow #F5CD55, tiny burnt-orange #DA793F accents. Restrained flat perspective with layered depth, elegant negative space, confident compositions. Nature should look inviting and full of small discoveries. No lettering, no text, no numbers, no watermarks, no logos, no frames around the entire artwork, no glossy 3D, no generic vector clipart, no kawaii faces on objects, no portrait or recognizable real person, no official mascot. This is a conceptual artwork, not a factual geographical map.\nAsset type: square supporting illustration for recording three discoveries by photo or paper. Main scene: an open cream field notebook viewed from a gentle top-down angle, with exactly three blank small photo-paper frames laid across the open pages (blank warm cream interiors, not photographs or pictures), one forest-green pencil resting diagonally beside it, one pressed green leaf and a tiny delicately drawn beetle near the notebook on the table. Soft burnt-orange and sunshine-yellow accents on the notebook binding and photo-paper tabs. Inviting ivory paper background with sparse surrounding foliage. Elegant asymmetric airy still-life composition, small soft shadows, tactile deckled paper. The frames must remain completely blank; notebook pages completely blank. No writing, no numbers, no arrows, no camera screen, no phone, no extra blank photo frames. Evoke keeping only three cherished discoveries, by photo or hand drawing.",
+      "productionDerivative": {
+        "file": "ryuyo-memories.webp",
+        "width": 800,
+        "height": 800,
+        "bytes": 92844,
+        "sha256": "160f8d5b3419ea696506923665ce6ae3b21adcd6d0b0d801259f947f6fb70d1f",
+        "packaging": "Sharp resize and WebP encoding; no creative alteration"
+      }
+    }
+  ]
+}

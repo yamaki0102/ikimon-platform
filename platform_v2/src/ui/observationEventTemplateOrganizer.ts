@@ -3,6 +3,7 @@ import {
   isCommonEventTemplateKey,
   type CommonEventTemplateKey,
 } from "../services/commonEventTemplateContract.js";
+import { renderObservationEventDiscoveryOrganizer } from "./observationEventDiscovery.js";
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -14,19 +15,22 @@ export function renderObservationEventTemplateOrganizer(input: {
   sessionId: string;
   sessionClosed?: boolean;
   templateKey?: CommonEventTemplateKey | null;
+  discoveryJournalEnabled?: boolean;
 }): string {
   const templateKey = isCommonEventTemplateKey(input.templateKey) ? input.templateKey : "";
   return `<style>${ORGANIZER_STYLES}</style>
-<section class="evt-template-organizer" data-event-template-organizer data-session-id="${escapeHtml(input.sessionId)}" data-session-closed="${input.sessionClosed === true}" data-template-key="${templateKey}" aria-label="企画の準備と進行">
+<section class="evt-template-organizer" data-event-template-organizer data-session-id="${escapeHtml(input.sessionId)}" data-session-closed="${input.sessionClosed === true}" data-template-key="${templateKey}" data-discovery-journal-enabled="${input.discoveryJournalEnabled === true}" aria-label="企画の準備と進行">
   <header class="eto-heading"><div><p class="eto-eyebrow">主催者の操作</p><h2>企画の準備と進行</h2></div><button type="button" class="eto-button" data-organizer-refresh data-organizer-action="refresh">再読み込み</button></header>
   ${templateKey ? `<p class="eto-template">選択した企画：${escapeHtml(COMMON_EVENT_TEMPLATE_LABELS[templateKey])}</p>` : ""}
-  <p>ミッションの内容を確認して参加者に公開し、ミッションの受付を開始します。公開前のミッションは下書きとして保存されます。</p>
+  <p>${input.discoveryJournalEnabled ? "開催日時と案内を確認したら、発見ノートの受付を開始できます。写真と紙の記録は、下の確認画面から掲載・紹介できます。" : "ミッションの内容を確認して参加者に公開し、ミッションの受付を開始します。公開前のミッションは下書きとして保存されます。"}</p>
   <p class="eto-status" data-organizer-status role="status" aria-live="polite" tabindex="-1">企画の状態を読み込んでいます。</p>
   <div data-organizer-course></div>
+  ${input.discoveryJournalEnabled ? '<details class="eto-optional-activities"><summary>追加の観察ミッションを使う（任意）</summary>' : ""}
   <section class="eto-section" aria-label="ミッションの準備"><h3>ミッション</h3><div data-organizer-missions><p>読み込み中です。</p></div></section>
   <section class="eto-section" aria-label="参加者から届いた記録の確認"><h3>受付番号で記録を確認</h3><p>参加者の画面にある受付番号と、内容・件数を照合してください。「内容を確認して承認」は、このミッションへの記録を集計に反映する操作です。写真の公開や利用許可は別に確認します。</p><div data-organizer-reviews><p>確認待ちの記録を読み込んでいます。</p></div></section>
+  ${input.discoveryJournalEnabled ? "</details>" : ""}
   <noscript><p>準備・進行の操作には JavaScript が必要です。ブラウザーの設定を確認して再読み込みしてください。</p></noscript>
-</section><script>${observationEventTemplateOrganizerScript()}</script>`;
+</section><script>${observationEventTemplateOrganizerScript()}</script>${input.discoveryJournalEnabled ? renderObservationEventDiscoveryOrganizer({ sessionId: input.sessionId, sessionClosed: input.sessionClosed }) : ""}`;
 }
 
 const ORGANIZER_STYLES = `
@@ -61,6 +65,7 @@ export function observationEventTemplateOrganizerScript(): string {
   const base = '/api/v1/observation-events/' + encodeURIComponent(root.dataset.sessionId) + '/rally';
   const sessionClosed = root.dataset.sessionClosed === 'true';
   const templateSelected = Boolean(root.dataset.templateKey);
+  const discoveryJournalEnabled = root.dataset.discoveryJournalEnabled === 'true';
   const courseLabels = {draft:'下書き', preflight:'開始前・一時停止', live:'開始済み', closed:'終了'};
   const missionLabels = {draft:'下書き', published:'参加者に公開済み', paused:'一時停止', replaced:'差し替え済み', closed:'終了'};
   const edits = new Map();
@@ -95,7 +100,9 @@ export function observationEventTemplateOrganizerScript(): string {
       courseNode.innerHTML = '<div class="eto-course"><h3>企画のミッションはまだありません</h3><p>' + (templateSelected ? '選択した企画から、確認・編集できる下書きを準備します。' : 'このイベントには、共通企画のテンプレートが設定されていません。') + '</p>' + (templateSelected ? button('prepare','企画の下書きを準備','',locked || closed,true) : '') + (closed ? '<p>終了したイベントのため、新しい下書きは準備できません。</p>' : '') + '</div>';
     } else {
       const hasPublished = snapshot.missions.some(m => m.status === 'published');
-      courseNode.innerHTML = '<div class="eto-course"><div class="eto-row-heading"><h3>' + escape(course.title) + '</h3><span class="eto-label">' + courseLabels[course.status] + '</span></div><p>' + (closed ? 'この企画は終了しています。届いている記録は引き続き確認できます。' : '公開したミッションの受付を開始・停止できます。受付には、イベントに設定した開催日時の条件も適用されます。') + '</p>' + (!closed ? '<div class="eto-actions">' + (course.status === 'live' ? button('pause-course','ミッションの受付を停止','',locked) : button('start','ミッションの受付を開始','',locked || !hasPublished,true)) + '</div>' + (!hasPublished ? '<p class="eto-help">まずミッションの内容を確認し、ひとつ以上を参加者に公開してください。</p>' : '') : '') + '</div>';
+      const canStart = hasPublished || discoveryJournalEnabled;
+      const subject = discoveryJournalEnabled ? '発見ノート' : 'ミッション';
+      courseNode.innerHTML = '<div class="eto-course"><div class="eto-row-heading"><h3>' + escape(course.title) + '</h3><span class="eto-label">' + courseLabels[course.status] + '</span></div><p>' + (closed ? 'この企画は終了しています。届いている記録は引き続き確認できます。' : (discoveryJournalEnabled ? '写真の受付を開始・停止できます。' : '公開したミッションの受付を開始・停止できます。') + '受付には、イベントに設定した開催日時の条件も適用されます。') + '</p>' + (!closed ? '<div class="eto-actions">' + (course.status === 'live' ? button('pause-course',subject+'の受付を停止','',locked) : button('start',subject+'の受付を開始','',locked || !canStart,true)) + '</div>' + (!canStart ? '<p class="eto-help">まずミッションの内容を確認し、ひとつ以上を参加者に公開してください。</p>' : '') : '') + '</div>';
     }
     missionsNode.innerHTML = snapshot.missions.length ? snapshot.missions.map((mission, index) => {
       const id = escape(mission.missionId);
@@ -204,10 +211,10 @@ export function observationEventTemplateOrganizerScript(): string {
         return true;
       },next => next.course && next.course.courseId === preparedId && next.course.status === 'draft' && next.missions.length > 0,'企画の下書きを準備しました。各ミッションの内容を確認してください。');
     } else if (action === 'start' || action === 'pause-course') {
-      if (!snapshot.course || (action === 'start' && !snapshot.missions.some(m => m.status === 'published'))) return;
+      if (!snapshot.course || (action === 'start' && !discoveryJournalEnabled && !snapshot.missions.some(m => m.status === 'published'))) return;
       const status = action === 'start' ? 'live' : 'preflight';
       const courseId = snapshot.course.courseId;
-      await mutate('/course','POST',{status},data => data && data.course && data.course.courseId === courseId && data.course.status === status,next => next.course && next.course.courseId === courseId && next.course.status === status,status === 'live' ? 'ミッションの受付を開始しました。設定済みの開催日時の条件も適用されます。' : 'ミッションの受付を停止しました。新しいミッションの提出を止めています。');
+      await mutate('/course','POST',{status},data => data && data.course && data.course.courseId === courseId && data.course.status === status,next => next.course && next.course.courseId === courseId && next.course.status === status,status === 'live' ? (discoveryJournalEnabled ? '発見ノートの受付を開始しました。' : 'ミッションの受付を開始しました。')+'設定済みの開催日時の条件も適用されます。' : (discoveryJournalEnabled ? '発見ノートの受付を停止しました。新しい写真の提出を止めています。' : 'ミッションの受付を停止しました。新しいミッションの提出を止めています。'));
     } else if (action === 'publish' || action === 'pause') {
       const mission = snapshot.missions.find(m => m.missionId === id);
       if (!mission || (action === 'publish' ? !['draft','paused'].includes(mission.status) : mission.status !== 'published')) return;
