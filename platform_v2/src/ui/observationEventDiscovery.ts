@@ -6,7 +6,7 @@ export const EVENT_DISCOVERY_VERSION = "event-discovery-v1" as const;
 export const RYUYO_DISCOVERY_TITLE = "こんちゅうクンとめぐる、竜洋のとっておき。";
 const RYUYO_FIELD_ID = "372eafbd-ea9c-4b2f-ab5f-434b81b928b2";
 const ASSET_ROOT = "/assets/event-discovery/";
-/** This external application handoff is only used by the isolated RYUPREV1 staging LP. */
+/** This external application handoff is used by the explicitly marked tentative Ryuyo LP. */
 export const RYUYO_PREVIEW_GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdzTD9OYUKNRiqoMX0bSRHg8sAhzbvJ2q_sjnDGnYdnG_qmUQ/viewform?usp=publish-editor";
 const RYUYO_PREVIEW_EVENT_CODE = "RYUPREV1";
 
@@ -321,9 +321,12 @@ export function observationEventDiscoveryScript(): string {
       refresh.addEventListener('click',()=>void load(false));more.addEventListener('click',()=>void load(true));
       return {show(eventBase,emptyText='開催回を選ぶと、その回の発見がここに並びます。'){generation++;currentBase=eventBase;busy=false;nextCursor=null;known.clear();list.replaceChildren();more.hidden=true;refresh.disabled=!eventBase;counts.textContent=eventBase?'掲載されたノートを読み込んでいます。':emptyText;tell('',false,target);if(eventBase)void load(false);}};
     }
-    // The preview is inert outside the exact authorized staging/event target.
+    // The owner-approved public LP keeps tentative dates separate from live event intake.
     const previewTemplate=query('[data-discovery-preview-template]');
-    if(kind==='campaign'&&previewTemplate&&window.location.hostname==='ikimon-life-cloudflare-staging.yamaki0102.workers.dev'&&new URL(window.location.href).searchParams.get('event')==='RYUPREV1'){
+    const lpUrl=new URL(window.location.href);
+    const publicPreview=lpUrl.hostname==='zukan.earth'&&(!lpUrl.searchParams.has('event')||lpUrl.searchParams.get('event')==='RYUPREV1');
+    const stagingPreview=lpUrl.hostname==='ikimon-life-cloudflare-staging.yamaki0102.workers.dev'&&lpUrl.searchParams.get('event')==='RYUPREV1';
+    if(kind==='campaign'&&previewTemplate&&(publicPreview||stagingPreview)){
       root.replaceChildren(previewTemplate.content.cloneNode(true));root.dataset.discoveryPreview='true';root.dataset.eventCode='RYUPREV1';
       const previewStatus=query('[data-discovery-status]'),photoLink=query('[data-discovery-photo-link]'),dayState=query('[data-discovery-day-state]');
       const gallery=galleryController({list:query('[data-discovery-journals]'),counts:query('[data-discovery-counts]'),refresh:query('[data-discovery-gallery-refresh]'),more:query('[data-discovery-gallery-more]'),target:query('[data-discovery-gallery-status]')});
@@ -336,8 +339,11 @@ export function observationEventDiscoveryScript(): string {
       };
       async function loadPreview(){
         try{
-          const data=await request('/api/v1/observation-events/campaigns/ryuyo?event=RYUPREV1');
-          if(!validEvent(data.selectedEvent))throw new Error('テストイベントを確認できませんでした。');
+          const data=await request(publicPreview?'/api/v1/observation-events/campaigns/ryuyo':'/api/v1/observation-events/campaigns/ryuyo?event=RYUPREV1');
+          if(!validEvent(data.selectedEvent)){
+            if(publicPreview){photoLink.hidden=true;dayState.textContent='当日の写真投稿は、会場でご案内します。';gallery.show(null,'公開された発見は、ここに並びます。');return;}
+            throw new Error('テストイベントを確認できませんでした。');
+          }
           const event=data.selectedEvent;root.dataset.sessionId=event.sessionId;paintPhotoLink(event,null);
           gallery.show(event.canViewGallery?'/api/v1/observation-events/'+encodeURIComponent(event.sessionId):null,'みんなの発見は、公開の準備ができるとここに並びます。');
           try{const state=await request('/api/v1/observation-events/'+encodeURIComponent(event.sessionId)+'/application');if(!validEvent(state.event)||state.event.sessionId!==event.sessionId||state.confirmed!==false)throw new Error('この端末の参加状態を確認できませんでした。');paintPhotoLink(state.event,state.participant);}catch(error){tell(error.message||'この端末の参加状態を確認できませんでした。',true,previewStatus);}
