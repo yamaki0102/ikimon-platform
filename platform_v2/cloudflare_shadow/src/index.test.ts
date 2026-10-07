@@ -5351,6 +5351,10 @@ class FakeStatement {
       } as T);
     }
 
+    if (normalized.startsWith("SELECT role_name, banned FROM auth_users WHERE user_id = ?")) {
+      const row = [...this.db.authUsers.values()].find((candidate) => candidate.user_id === string(v[0]));
+      return (row ? { role_name: row.role_name, banned: row.banned } : null) as T | null;
+    }
     if (normalized.startsWith("SELECT user_id, email, password_hash, display_name, role_name, rank_label, banned FROM auth_users")) {
       if (normalized.includes("WHERE user_id = ?")) {
         return ([...this.db.authUsers.values()].find((candidate) => candidate.user_id === string(v[0])) as T | undefined) ?? null;
@@ -5855,7 +5859,7 @@ class FakeStatement {
         .filter((candidate) =>
           candidate.user_id === userId &&
           candidate.field_id === fieldId &&
-          (!candidate.expires_at || candidate.expires_at > new Date().toISOString())
+          (!candidate.expires_at || Date.parse(candidate.expires_at) > Date.now())
         )
         .sort((a, b) => rank(a.role) - rank(b.role))[0];
       return row ? ({ role: row.role } as T) : null;
@@ -6473,6 +6477,9 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+    if (normalized.startsWith("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")) {
+      return { results: [...this.db.oauthAccounts.values()].filter((row) => row.user_id === string(v[0])).map((row) => ({ role_name: row.role_name, banned: row.banned })) as T[] };
+    }
     if (normalized.startsWith("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256")) {
       const sessionId = string(v[0]);
       const rows = [...this.db.observationEventGuestMedia.values()].filter((row) => row.session_id === sessionId
@@ -27533,7 +27540,7 @@ class DiscoveryRouteSqliteD1 extends FakeD1 {
   readonly sqlite = new DatabaseSync(":memory:");
   private batchTail = Promise.resolve();
   override prepare(query: string): FakeStatement {
-    if (!/\bobservation_(?:event|rally)_\w+/u.test(query)) return super.prepare(query);
+    if (!/\b(?:observation_(?:event|rally)_\w+|field_managers)\b/u.test(query)) return super.prepare(query);
     let values: D1Value[] = [];
     const sqlite = this.sqlite;
     const statement = {
@@ -27557,6 +27564,222 @@ class DiscoveryRouteSqliteD1 extends FakeD1 {
     return run;
   }
 }
+
+test("Ryuyo campaign applications use one optional-name participant from preregistration through check-in", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  Object.assign(env, { OBS_DB: obs });
+  const origin = "https://ikimon.life";
+  const send = async (path: string, method = "GET", cookie = "", body?: unknown) => {
+    const response = await worker.fetch(new Request(origin + path, { method, headers: { cookie, origin, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const issue = await send("/api/v1/auth/session/issue", "POST", "", { userId: "campaign-organizer", displayName: "非公開の本名", ttlHours: 1 });
+  const ownerCookie = issue.response.headers.get("set-cookie") ?? "";
+  const signedIssue = await send("/api/v1/auth/session/issue", "POST", "", { userId: "campaign-member", displayName: "アカウントの本名 PRIVATE", ttlHours: 1 });
+  const signedCookie = signedIssue.response.headers.get("set-cookie") ?? "";
+  Object.assign(env, { ENVIRONMENT: "production" });
+  const profile = { guest_media_enabled: true, discovery_journal: { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" }, event_template: { contract_version: "event-template-v1", key: "ryuyo" } };
+  const body = { title: "竜洋の開催回", event_code: "RYUYOREG1", plan: "public", field_id: RYUYO_FIELD_ID, started_at: new Date(Date.now() + 3_600_000).toISOString(), ended_at: new Date(Date.now() + 7_200_000).toISOString(), config: profile };
+  const apiRoot = "/api/v1/observation-events";
+  const forged = await send(apiRoot, "POST", ownerCookie, { ...body, config: { ...profile, discovery_campaign: { version: "ryuyo-campaign-v1", listed: true, applications_open: true } } });
+  assert.equal(forged.response.status, 400);
+  const created = await send(apiRoot, "POST", ownerCookie, body);
+  assert.equal(created.response.status, 201, JSON.stringify(created.data));
+  const api = `${apiRoot}/${created.data.sessionId}`;
+  const campaignPath = `${apiRoot}/campaigns/ryuyo`;
+  assert.deepEqual((await send(campaignPath)).data, { events: [], selectedEvent: null });
+  assert.equal((await send(campaignPath + "?event=RYUYOREG1")).response.status, 404, "a draft invite is not published by the LP");
+  const count = () => obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_event_participants WHERE session_id = ? AND role = 'participant'").get(created.data.sessionId)!.n;
+  assert.equal(count(), 0);
+  const capabilities = await send(api + "/discovery-campaign", "GET", ownerCookie);
+  assert.equal(capabilities.data.canManageListing, false);
+  assert.deepEqual(capabilities.data.participantCounts, { registered: 0, checkedIn: 0 });
+  assert.equal((await send(api + "/discovery-campaign", "GET", signedCookie)).response.status, 403);
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", ownerCookie, { listed: true, applicationsOpen: true })).response.status, 403);
+  const opened = await send(api + "/discovery-campaign", "PATCH", ownerCookie, { listed: false, applicationsOpen: true });
+  assert.equal(opened.response.status, 200, JSON.stringify(opened.data));
+  assert.equal(opened.data.campaignHref, "/events/ryuyo?event=RYUYOREG1");
+  assert.deepEqual((await send(campaignPath)).data.events, [], "unlisted applications do not enter the official date selector");
+  const selected = await send(campaignPath + "?event=RYUYOREG1");
+  assert.equal(selected.response.status, 200);
+  assert.equal(selected.data.selectedEvent.canApply, true);
+  assert.equal(selected.data.selectedEvent.canCheckIn, false);
+  assert.equal(selected.data.selectedEvent.canViewGallery, false);
+  assert.doesNotMatch(JSON.stringify(selected.data), /organizerUserId|user_id|locationLat|非公開の本名|config|participant_id/u);
+  assert.equal((await send(campaignPath + "?event=missing")).response.status, 404);
+  assert.equal((await send(api + "/application", "POST", "", { display_name: "" })).response.status, 428);
+  const bootstrap = await send(api + "/application");
+  const guestCookie = (bootstrap.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
+  assert.equal(bootstrap.data.participant, null);
+  assert.equal(count(), 0, "bootstrap only establishes native browser custody");
+  assert.match(bootstrap.response.headers.get("cache-control") ?? "", /no-store/u);
+  for (const display_name of [42, "bad\nname", "a".repeat(33)]) {
+    assert.equal((await send(api + "/application", "POST", guestCookie, { display_name })).response.status, 400);
+  }
+  const concurrent = await Promise.all(Array.from({ length: 4 }, () => send(api + "/application", "POST", guestCookie, { display_name: " " })));
+  assert.equal(concurrent.filter((result) => result.response.status === 201).length, 1);
+  assert.equal(concurrent.filter((result) => result.response.status === 200).length, 3);
+  assert.equal(count(), 1);
+  const registered = obs.sqlite.prepare("SELECT * FROM observation_event_participants WHERE role = 'participant'").get()!;
+  assert.equal(registered.status, "registered");
+  assert.equal(registered.display_name, "");
+  assert.equal(registered.checked_in_at, null);
+  assert.equal(registered.share_location, 0);
+  const own = await send(api + "/application", "GET", guestCookie);
+  assert.deepEqual(own.data.participant, { status: "registered", displayName: null });
+  assert.equal(own.data.confirmed, false);
+  assert.doesNotMatch(JSON.stringify(own.data), /guest_token|participant_id|tokenHash|userId/u);
+  assert.equal((await send(api + "/application", "POST", guestCookie, { display_name: "別の呼び名" })).response.status, 200);
+  assert.equal((await send(api + "/application", "GET", guestCookie)).data.participant.displayName, null, "retry does not silently rename an existing journal");
+  assert.deepEqual((await send(api + "/discovery-campaign", "GET", ownerCookie)).data.participantCounts, { registered: 1, checkedIn: 0 });
+  assert.equal((await send(api + "/checkin", "POST", guestCookie, { display_name: "" })).response.status, 409, "registration is not check-in");
+  const otherBootstrap = await send(api + "/application");
+  assert.equal(otherBootstrap.data.participant, null);
+  const otherCookie = (otherBootstrap.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.notEqual(otherCookie, guestCookie);
+  const separate = await send(apiRoot, "POST", ownerCookie, { ...body, event_code: "RYUYOREG2" });
+  const separateApi = `${apiRoot}/${separate.data.sessionId}`;
+  await send(separateApi + "/discovery-campaign", "PATCH", ownerCookie, { listed: false, applicationsOpen: true });
+  const separateBootstrap = await send(separateApi + "/application", "GET", guestCookie);
+  assert.equal(separateBootstrap.data.participant, null, "a different occurrence never borrows another guest identity");
+  assert.notEqual((separateBootstrap.response.headers.get("set-cookie") ?? "").split(";", 1)[0], guestCookie);
+  assert.equal(count(), 1);
+  const namedCookie = (separateBootstrap.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.equal((await send(separateApi + "/application", "POST", namedCookie, { display_name: '<虫 & ゆう>' })).response.status, 201);
+  await send(separateApi, "PATCH", ownerCookie, { started_at: new Date(Date.now() - 60_000).toISOString() });
+  await send(separateApi + "/rally/course", "POST", ownerCookie, { status: "live" });
+  const namedJoin = await send("/community/events/RYUYOREG2/join", "GET", namedCookie);
+  assert.equal(namedJoin.response.headers.get("cache-control"), "private, no-store");
+  assert.match(await namedJoin.response.text(), /name="display_name"[^>]*value="&lt;虫 &amp; ゆう&gt;"/u, "the explicit preregistration nickname is preserved and HTML-escaped on day-of join");
+  const isolatedJoin = await send("/community/events/RYUYOREG2/join", "GET", guestCookie);
+  assert.doesNotMatch(await isolatedJoin.response.text(), /&lt;虫 &amp; ゆう&gt;/u, "another occurrence's cookie does not reveal the saved nickname");
+  assert.equal((await send(api + "/application", "POST", signedCookie, { display_name: "" })).response.status, 201);
+  assert.equal((await send(api + "/application", "GET", signedCookie)).data.participant.displayName, null, "an account's profile name is not substituted");
+  assert.equal((await send(api + "/application", "POST", ownerCookie, { display_name: "" })).response.status, 403, "an organizer cannot register as their own participant");
+  const forgedPatch = await send(api, "PATCH", ownerCookie, { config: { ...profile, discovery_campaign: { version: "ryuyo-campaign-v1", listed: true, applications_open: true } } });
+  assert.equal(forgedPatch.response.status, 400);
+  assert.equal((await send(api, "PATCH", ownerCookie, { config: profile, started_at: new Date(Date.now() - 60_000).toISOString() })).response.status, 200);
+  assert.equal((await send(api + "/discovery-campaign", "GET", ownerCookie)).data.campaign.applicationsOpen, true, "generic settings preserve the dedicated publication sibling atomically");
+  assert.equal((await send(api + "/rally/course", "POST", ownerCookie, { status: "live" })).response.status, 200);
+  const checked = await send(api + "/checkin", "POST", guestCookie, { display_name: "", share_location: false });
+  assert.equal(checked.response.status, 200, JSON.stringify(checked.data));
+  assert.equal(checked.data.participant_id, registered.participant_id);
+  assert.equal(count(), 2, "registered identities are reused at attendance");
+  assert.deepEqual((await send(api + "/discovery-campaign", "GET", ownerCookie)).data.participantCounts, { registered: 1, checkedIn: 1 });
+  const attending = await send(api + "/application", "GET", guestCookie);
+  assert.equal(attending.data.participant.status, "checked_in");
+  assert.equal(attending.data.event.canSubmit, true);
+  assert.equal(attending.data.event.canViewGallery, true);
+  const mixedCredentials = await send(api + "/application", "GET", `${signedCookie}; ${guestCookie}`);
+  assert.equal(mixedCredentials.data.participant.status, "registered", "the signed-in participant takes precedence over a separate guest on the same browser");
+  assert.equal(mixedCredentials.data.event.canSubmit, false);
+  assert.equal((await send(api + "/discoveries")).data.journals.length, 0, "registration never auto-publishes participant identities");
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET ended_at = ? WHERE session_id = ?").run(new Date(Date.now() - 1_000).toISOString(), created.data.sessionId);
+  assert.equal((await send(api + "/application", "POST", otherCookie, { display_name: "" })).response.status, 404);
+  const ended = await send(api + "/application", "GET", guestCookie);
+  assert.equal(ended.response.status, 200);
+  assert.equal(ended.data.event.canApply, false);
+  assert.equal(ended.data.event.canCheckIn, false);
+  assert.equal(ended.data.event.canViewGallery, true);
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", ownerCookie, { listed: false, applicationsOpen: true })).response.status, 409);
+});
+
+test("Ryuyo campaign listing requires current field or strict native administrator authority at write and read", async (t) => {
+  const { env, core } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql"]) obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  Object.assign(env, { OBS_DB: obs });
+  const origin = "https://ikimon.life";
+  const send = async (path: string, method = "GET", cookie = "", body?: unknown, requestOrigin = origin) => {
+    const response = await worker.fetch(new Request(origin + path, { method, headers: { cookie, origin: requestOrigin, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const owner = "campaign-listing-owner";
+  const issue = await send("/api/v1/auth/session/issue", "POST", "", { userId: owner, roleName: "Administrator", rankLabel: "Observer", ttlHours: 1 });
+  const cookie = issue.response.headers.get("set-cookie") ?? "";
+  const analystIssue = await send("/api/v1/auth/session/issue", "POST", "", { userId: owner, roleName: "analyst", rankLabel: "管理者", ttlHours: 1 });
+  const analystCookie = analystIssue.response.headers.get("set-cookie") ?? "";
+  Object.assign(env, { ENVIRONMENT: "production" });
+  const apiRoot = "/api/v1/observation-events";
+  const profile = { guest_media_enabled: true, discovery_journal: { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" }, event_template: { contract_version: "event-template-v1", key: "ryuyo" } };
+  const create = (code: string, fieldId = RYUYO_FIELD_ID) => send(apiRoot, "POST", cookie, { title: "竜洋の開催案内", event_code: code, plan: "public", field_id: fieldId, started_at: new Date(Date.now() + 3_600_000).toISOString(), ended_at: new Date(Date.now() + 7_200_000).toISOString(), config: profile });
+  const first = await create("RYUYOLIST1");
+  assert.equal(first.response.status, 201);
+  const api = `${apiRoot}/${first.data.sessionId}`;
+  const listing = { listed: true, applicationsOpen: true };
+  const list = () => send(`${apiRoot}/campaigns/ryuyo`);
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", cookie, listing)).response.status, 403, "a sealed role alone cannot replace current native authority");
+  const nativeUser = { user_id: owner, email: "campaign-owner@example.test", password_hash: null, display_name: "非公開名", role_name: "administrator", rank_label: null, banned: 0, last_login_at: null };
+  core.authUsers.set(nativeUser.email, nativeUser);
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", analystCookie, listing)).response.status, 403, "rankLabel and analyst do not grant official LP publication");
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", cookie, listing, "https://other.test")).response.status, 403);
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", cookie, { ...listing, publication: "home" })).response.status, 400);
+  const published = await send(api + "/discovery-campaign", "PATCH", cookie, listing);
+  assert.equal(published.response.status, 200, JSON.stringify(published.data));
+  assert.equal(published.data.canManageListing, true);
+  assert.deepEqual((await list()).data.events.map((event: any) => event.eventCode), ["RYUYOLIST1"]);
+  const config = JSON.parse(obs.sqlite.prepare("SELECT config_json FROM observation_event_sessions WHERE session_id = ?").get(first.data.sessionId)!.config_json as string);
+  assert.equal(config.public_list_visibility, "hidden");
+  assert.equal(config.public_listed, false);
+  assert.doesNotMatch(await (await send("/community/events")).response.text(), /RYUYOLIST1/u);
+  assert.doesNotMatch(JSON.stringify((await list()).data), /非公開名|campaign-listing-owner|participantCounts|role_name|rank_label|locationLat|organizerUserId/u);
+  nativeUser.role_name = "analyst";
+  assert.deepEqual((await list()).data.events, [], "public reads react to role removal without a config edit");
+  const grant = (role: "owner" | "steward" | "viewer_exact", expiresAt: string | null = null, fieldId = RYUYO_FIELD_ID) => {
+    obs.sqlite.exec("DELETE FROM field_managers");
+    obs.sqlite.prepare("INSERT INTO field_managers(manager_id, field_id, user_id, role, granted_by, expires_at) VALUES (?, ?, ?, ?, ?, ?)").run("local-manager", fieldId, owner, role, "local-admin", expiresAt);
+  };
+  grant("viewer_exact");
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", cookie, listing)).response.status, 403);
+  assert.deepEqual((await list()).data.events, []);
+  grant("steward", new Date(Date.now() - 60_000).toISOString());
+  assert.deepEqual((await list()).data.events, [], "same-day expired ISO T timestamps fail closed in real SQLite");
+  grant("steward", new Date(Date.now() - 60_000).toISOString().replace("T", " ").slice(0, 19));
+  assert.deepEqual((await list()).data.events, [], "expired SQLite-format timestamps fail closed too");
+  grant("steward", "not-a-date");
+  assert.deepEqual((await list()).data.events, [], "unparseable grant expiry is not authority");
+  grant("owner", null, "another-field");
+  assert.deepEqual((await list()).data.events, []);
+  grant("owner");
+  assert.equal((await list()).data.events.length, 1, "a grant without expiry remains valid");
+  grant("steward", new Date(Date.now() + 3_600_000).toISOString());
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", analystCookie, listing)).response.status, 200, "a real current field grant is independent of account rank");
+  assert.equal((await list()).data.events.length, 1);
+  nativeUser.banned = 1;
+  assert.deepEqual((await list()).data.events, [], "current account ban overrides a still-present field grant");
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", cookie, listing)).response.status, 403);
+  core.oauthAccounts.set("google:campaign-owner", { user_id: owner, provider: "google", provider_user_id: "campaign-owner", provider_email: null, display_name: "非公開OAuth名", role_name: "admin", rank_label: null, banned: 0, profile_json: "{}", linked_at: new Date().toISOString() });
+  obs.sqlite.exec("DELETE FROM field_managers");
+  assert.deepEqual((await list()).data.events, [], "OAuth must not escape a canonical account ban");
+  nativeUser.banned = 0;
+  nativeUser.role_name = "Observer";
+  assert.deepEqual((await list()).data.events, [], "OAuth must not escape a canonical role removal");
+  core.authUsers.clear();
+  assert.equal((await list()).data.events.length, 1, "native OAuth may supply a role only when the canonical account row is absent");
+  const second = await create("RYUYOLIST2");
+  assert.equal((await send(`${apiRoot}/${second.data.sessionId}/discovery-campaign`, "PATCH", cookie, listing)).response.status, 200);
+  assert.equal((await list()).data.events.length, 2, "multiple dates are explicit choices, not a silent latest-event binding");
+  const wrongField = await create("RYUYOWRONG", "another-field");
+  assert.equal((await send(`${apiRoot}/${wrongField.data.sessionId}/discovery-campaign`, "PATCH", cookie, listing)).response.status, 404);
+  assert.equal((await send(`${apiRoot}/campaigns/ryuyo?event=RYUYOWRONG`)).response.status, 404);
+  assert.equal((await send(api + "/discovery-campaign", "PATCH", cookie, { listed: false, applicationsOpen: false })).response.status, 200);
+  assert.deepEqual((await list()).data.events.map((event: any) => event.eventCode), ["RYUYOLIST2"], "withdrawing the listing removes it immediately");
+  assert.equal((await send(`${apiRoot}/campaigns/ryuyo?event=RYUYOLIST1`)).response.status, 404, "closed draft application link is not public");
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET ended_at = ? WHERE session_id = ?").run(new Date(Date.now() - 1_000).toISOString(), second.data.sessionId);
+  const ended = (await list()).data.events[0];
+  assert.equal(ended.canApply, false);
+  assert.equal(ended.canCheckIn, false);
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET config_json = json_set(config_json, '$.cancelled', json('true')) WHERE session_id = ?").run(second.data.sessionId);
+  assert.deepEqual((await list()).data.events, [], "cancelled occurrences are never promoted");
+  assert.equal((await send(`${apiRoot}/campaigns/ryuyo?event=RYUYOLIST2`)).response.status, 404);
+});
 
 test("discovery native routes preserve draft, production self-service, private review, three-photo journals and withdrawal", async (t) => {
   const { env } = createEnv();

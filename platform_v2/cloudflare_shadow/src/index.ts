@@ -3716,7 +3716,17 @@ async function handleObservationEventApi(request: Request, url: URL, env: Env): 
   if (request.method === "POST" && pathname === "/api/v1/observation-events") {
     return createObservationEventSession(request, env);
   }
+  if (request.method === "GET" && pathname === "/api/v1/observation-events/campaigns/ryuyo") {
+    return getRyuyoDiscoveryCampaign(request, url, env);
+  }
+  const discoveryCampaignMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/discovery-campaign$/);
+  if (discoveryCampaignMatch?.[1] && (request.method === "GET" || request.method === "PATCH")) {
+    return manageObservationEventDiscoveryCampaign(request, env, decodeURIComponent(discoveryCampaignMatch[1]));
+  }
   const applicationMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/application$/);
+  if (request.method === "GET" && applicationMatch?.[1]) {
+    return getObservationEventApplicationStatus(request, env, decodeURIComponent(applicationMatch[1]));
+  }
   if (request.method === "POST" && applicationMatch?.[1]) {
     return applyToObservationEvent(request, env, decodeURIComponent(applicationMatch[1]));
   }
@@ -4399,15 +4409,18 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
     const course = await getObservationRallyCourseBySession(env, session.sessionId);
     const canJoin = !auth?.banned && course?.status === "live" && isObservationEventActivityOpen(session);
     const teams = await listObservationEventTeams(env, session.sessionId).catch(() => []);
+    const ownApplication = !auth?.banned ? await ownObservationEventApplication(request, env, session, auth) : null;
     const response = pageHtml(session.title + " に参加", renderObservationEventDiscoveryJoin({
       sessionId: session.sessionId, title: session.title, eventCode: session.eventCode ?? eventCode,
       startedAt: session.startedAt, endedAt: session.endedAt, isAuthenticated: Boolean(auth && !auth.banned), canJoin,
+      displayName: ownApplication?.participant?.role === "participant" ? ownApplication.participant.display_name : null,
       canViewGallery: Boolean(course && course.status !== "draft" && session.config.cancelled !== true && session.config.status !== "cancelled" && session.config.state !== "cancelled"),
       teams: teams.map((team) => ({ teamId: team.team_id, name: team.name })),
       stateMessage: auth?.banned ? "このアカウントでは参加できません。" : !isObservationEventCheckinOpen(session)
         ? "今回の受付は終了しました。みんなの発見は引き続きご覧いただけます。" : course?.status !== "live" || !isObservationEventActivityOpen(session)
           ? "主催者が受付を準備しています。開始の案内をお待ちください。" : undefined,
     }), "event-discovery-join");
+    response.headers.set("cache-control", "private, no-store");
     response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
     if (!auth && canJoin) {
       const credential = await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId) ?? randomToken();
@@ -4462,9 +4475,182 @@ function isObservationEventActivityOpen(session: ObservationEventTemplate, nowMs
   return Number.isFinite(startedAtMs) && startedAtMs <= nowMs && isObservationEventCheckinOpen(session, nowMs);
 }
 
+const DISCOVERY_CAMPAIGN_VERSION = "ryuyo-campaign-v1";
+type DiscoveryCampaignConfig = { version: typeof DISCOVERY_CAMPAIGN_VERSION; listed: boolean; applications_open: boolean };
+
+function discoveryCampaignConfig(config: Record<string, unknown>): DiscoveryCampaignConfig | null {
+  const value = asPlainObject(config.discovery_campaign);
+  return value?.version === DISCOVERY_CAMPAIGN_VERSION && typeof value.listed === "boolean" && typeof value.applications_open === "boolean"
+    && Object.keys(value).every((key) => ["version", "listed", "applications_open"].includes(key))
+    ? { version: DISCOVERY_CAMPAIGN_VERSION, listed: value.listed, applications_open: value.applications_open } : null;
+}
+
+function isRyuyoDiscoveryEvent(env: Env, session: ObservationEventTemplate): boolean {
+  return session.fieldId === RYUYO_FIELD_ID && isEventDiscoveryProfile(session.config) && observationEventGuestMediaEnabled(env, session);
+}
+
+function isObservationEventCancelled(session: ObservationEventTemplate): boolean {
+  return session.config.cancelled === true || session.config.status === "cancelled" || session.config.state === "cancelled";
+}
+
+function isStrictDiscoveryCampaignAdministrator(roleName: unknown): boolean {
+  return typeof roleName === "string" && /^(?:admin|administrator)$/.test(roleName.trim().toLowerCase());
+}
+
+/** Current native identities and field grants, never a persisted role assertion in event config. */
+async function discoveryCampaignAuthority(env: Env, userId: string): Promise<{ banned: boolean; fieldManager: boolean; administrator: boolean }> {
+  const user = await env.CORE_DB.prepare("SELECT role_name, banned FROM auth_users WHERE user_id = ? LIMIT 1")
+    .bind(userId).first<{ role_name: string | null; banned: number }>();
+  // A canonical account row always wins, including a ban or a removed role.
+  // Multiple OAuth identities must agree before they can supply admin authority.
+  const identities = user ? [user] : (await env.CORE_DB.prepare("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")
+    .bind(userId).all<{ role_name: string | null; banned: number }>()).results;
+  if (identities.some((identity) => Boolean(identity.banned))) return { banned: true, fieldManager: false, administrator: false };
+  const fieldRole = await getFieldManagerRoleFromD1(userId, RYUYO_FIELD_ID, env);
+  return {
+    banned: false, fieldManager: fieldRole === "owner" || fieldRole === "steward",
+    administrator: identities.length > 0 && identities.every((identity) => isStrictDiscoveryCampaignAdministrator(identity.role_name)),
+  };
+}
+
+function discoveryCampaignHref(session: ObservationEventTemplate): string {
+  return "/events/ryuyo?event=" + encodeURIComponent(session.eventCode ?? "");
+}
+
+async function discoveryCampaignEventContext(env: Env, session: ObservationEventTemplate, auth: SessionSnapshot | null = null, participant: ObservationEventParticipantD1Row | null = null) {
+  const course = await getObservationRallyCourseBySession(env, session.sessionId);
+  const cancelled = isObservationEventCancelled(session);
+  const organizer = auth?.userId === session.organizerUserId;
+  const canCheckIn = !auth?.banned && !organizer && course?.status === "live" && isObservationEventActivityOpen(session);
+  const canApply = !auth?.banned && !organizer && observationEventApplicationEnabled(env, session);
+  const canViewGallery = Boolean(course && course.status !== "draft" && !cancelled);
+  return {
+    sessionId: session.sessionId, eventCode: session.eventCode ?? "", title: session.title,
+    startedAt: session.startedAt, endedAt: session.endedAt, canApply, canCheckIn,
+    canSubmit: canCheckIn && participant?.status === "checked_in", canViewGallery,
+    stateMessage: cancelled ? "この開催回の受付は取りやめになりました。" : !isObservationEventCheckinOpen(session)
+      ? "この開催回の受付は終了しました。確認が済んだみんなの発見をご覧いただけます。"
+      : canCheckIn ? "当日の参加を始められます。" : canApply ? "参加申込みを受け付けています。当日の参加開始は主催者の案内をお待ちください。"
+        : "参加申込みの受付は現在開いていません。主催者の案内をご確認ください。",
+  };
+}
+
+async function ownObservationEventApplication(request: Request, env: Env, session: ObservationEventTemplate, auth: SessionSnapshot | null) {
+  const credential = await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId);
+  const guestToken = credential ? await observationEventGuestCredentialDigest(credential) : null;
+  const userParticipant = auth ? await findObservationEventParticipant(env, session.sessionId, auth.userId, null) : null;
+  return { credential, participant: userParticipant ?? await findObservationEventParticipant(env, session.sessionId, null, guestToken) };
+}
+
+async function discoveryCampaignSelectionAllowed(request: Request, env: Env, session: ObservationEventTemplate, auth: SessionSnapshot | null): Promise<boolean> {
+  if (!isRyuyoDiscoveryEvent(env, session) || isObservationEventCancelled(session)) return false;
+  if (auth && !auth.banned && auth.userId === session.organizerUserId) return true;
+  if (observationEventApplicationEnabled(env, session)) return true;
+  const course = await getObservationRallyCourseBySession(env, session.sessionId);
+  if (course && course.status !== "draft") return true;
+  if (!auth?.banned && (await ownObservationEventApplication(request, env, session, auth)).participant?.role === "participant") return true;
+  if (discoveryCampaignConfig(session.config)?.listed) {
+    const authority = await discoveryCampaignAuthority(env, session.organizerUserId);
+    return !authority.banned && (authority.fieldManager || authority.administrator);
+  }
+  return false;
+}
+
+async function getRyuyoDiscoveryCampaign(request: Request, url: URL, env: Env): Promise<Response> {
+  const headers = { "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive" };
+  const requestedCode = url.searchParams.get("event");
+  const auth = requestedCode ? await readCompatibleSession(request, env) : null;
+  let selectedEvent = null;
+  if (requestedCode !== null) {
+    const session = requestedCode.length <= 128 && requestedCode.trim() ? await getObservationEventSessionByEventCode(env, requestedCode.trim()) : null;
+    if (!session || !await discoveryCampaignSelectionAllowed(request, env, session, auth)) {
+      return json({ error: "discovery_campaign_event_unavailable" }, 404, headers);
+    }
+    selectedEvent = await discoveryCampaignEventContext(env, session, auth);
+  }
+  // Dedicated campaign admission is independent of global public-list flags.
+  // Those remain hidden for this unlisted, same-event journal profile.
+  const rows = await env.OBS_DB.prepare(
+    `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+            plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+            started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+            created_at, updated_at
+       FROM observation_event_sessions
+      WHERE field_id = ? AND plan = 'public' AND json_valid(config_json)
+        AND json_extract(config_json, '$.discovery_campaign.listed') = 1
+      ORDER BY CASE WHEN ended_at IS NULL OR ended_at > ? THEN 0 ELSE 1 END, started_at ASC, session_id ASC
+      LIMIT 100`
+  ).bind(RYUYO_FIELD_ID, new Date().toISOString()).all<ObservationEventSessionD1Row>();
+  const authorityByOrganizer = new Map<string, ReturnType<typeof discoveryCampaignAuthority>>();
+  const events = [];
+  for (const row of rows.results) {
+    const session = mapObservationEventSession(row);
+    const fixtureConfig = { ...session.config };
+    for (const key of ["public_list_visibility", "publicListVisibility", "public_listed", "publicListVisible"]) delete fixtureConfig[key];
+    if (!isRyuyoDiscoveryEvent(env, session) || !discoveryCampaignConfig(session.config)?.listed || isObservationEventCancelled(session)
+      || isObservationEventQaFixture({ ...session, config: fixtureConfig })) continue;
+    let pendingAuthority = authorityByOrganizer.get(session.organizerUserId);
+    if (!pendingAuthority) {
+      pendingAuthority = discoveryCampaignAuthority(env, session.organizerUserId);
+      authorityByOrganizer.set(session.organizerUserId, pendingAuthority);
+    }
+    const authority = await pendingAuthority;
+    if (authority.banned || (!authority.fieldManager && !authority.administrator)) continue;
+    events.push(await discoveryCampaignEventContext(env, session));
+  }
+  return json({ events, selectedEvent }, 200, headers);
+}
+
+async function manageObservationEventDiscoveryCampaign(request: Request, env: Env, sessionId: string): Promise<Response> {
+  if (request.method === "PATCH") {
+    const sameOriginError = assertSameOriginRequest(request, true);
+    if (sameOriginError) return sameOriginError;
+  }
+  const organizer = await requireObservationEventOrganizer(request, env, sessionId);
+  if (organizer instanceof Response) return organizer;
+  const { auth, session } = organizer;
+  const headers = { "cache-control": "private, no-store" };
+  if (!isRyuyoDiscoveryEvent(env, session)) return json({ error: "discovery_campaign_event_unavailable" }, 404, headers);
+  const authority = await discoveryCampaignAuthority(env, auth.userId);
+  if (authority.banned) return json({ error: "discovery_campaign_listing_forbidden" }, 403, headers);
+  const canManageListing = authority.fieldManager || (authority.administrator && isStrictDiscoveryCampaignAdministrator(auth.roleName) && isMunicipalWalkMapAdminRole(auth));
+  let campaign = discoveryCampaignConfig(session.config) ?? { version: DISCOVERY_CAMPAIGN_VERSION, listed: false, applications_open: false };
+  if (request.method === "PATCH") {
+    const body = await readJson<Record<string, unknown>>(request);
+    if (typeof body.listed !== "boolean" || typeof body.applicationsOpen !== "boolean" || Object.keys(body).some((key) => !["listed", "applicationsOpen"].includes(key))) {
+      return json({ error: "discovery_campaign_invalid" }, 400, headers);
+    }
+    if (body.listed && !canManageListing) return json({ error: "discovery_campaign_listing_forbidden" }, 403, headers);
+    if ((body.applicationsOpen && !isObservationEventCheckinOpen(session)) || (body.listed && isObservationEventCancelled(session))) return json({ error: "discovery_campaign_closed" }, 409, headers);
+    campaign = { version: DISCOVERY_CAMPAIGN_VERSION, listed: body.listed, applications_open: body.applicationsOpen };
+    await env.OBS_DB.prepare("UPDATE observation_event_sessions SET config_json = json_set(config_json, '$.discovery_campaign', json(?)), updated_at = CURRENT_TIMESTAMP WHERE session_id = ?")
+      .bind(JSON.stringify(campaign), sessionId).run();
+  }
+  const counts = await env.OBS_DB.prepare(
+    `SELECT COALESCE(SUM(CASE WHEN status = 'registered' THEN 1 ELSE 0 END), 0) AS registered,
+            COALESCE(SUM(CASE WHEN status IN ('checked_in', 'offline', 'left') THEN 1 ELSE 0 END), 0) AS checkedIn
+       FROM observation_event_participants WHERE session_id = ? AND role = 'participant'`
+  ).bind(sessionId).first<{ registered: number; checkedIn: number }>();
+  return json({ campaign: { listed: campaign.listed, applicationsOpen: campaign.applications_open }, canManageListing, canManageApplications: true, campaignHref: discoveryCampaignHref(session), participantCounts: counts ?? { registered: 0, checkedIn: 0 } }, 200, headers);
+}
+
+async function getObservationEventApplicationStatus(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  const auth = await readCompatibleSession(request, env);
+  const headers = { "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive" };
+  if (auth?.banned) return json({ error: "event_application_unavailable" }, 403, headers);
+  if (!session || !await discoveryCampaignSelectionAllowed(request, env, session, auth)) return json({ error: "event_application_unavailable" }, 404, headers);
+  const { credential, participant } = await ownObservationEventApplication(request, env, session, auth);
+  const event = await discoveryCampaignEventContext(env, session, auth, participant);
+  const response = json({ event, participant: participant?.role === "participant" ? { status: participant.status, displayName: participant.display_name?.trim() || null } : null, confirmed: false }, 200, headers);
+  if (!auth && (credential || event.canApply || event.canCheckIn)) response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, credential ?? randomToken()));
+  return response;
+}
+
 function observationEventApplicationEnabled(env: Env, session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): boolean {
   const eventCode = normalizeOptionalText(session.eventCode)?.toLowerCase();
   if (!eventCode || session.plan !== "public" || !isObservationEventCheckinOpen(session) || isPrivateReceivedProgram(session)) return false;
+  if (isRyuyoDiscoveryEvent(env, session)) return discoveryCampaignConfig(session.config)?.applications_open === true;
   if (isObservationEventQaFixture(session)) return env.ENVIRONMENT !== "production" && session.config.qa_fixture === true;
   const enabledCodes = new Set((env.OBSERVATION_EVENT_APPLICATION_CODES ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
   return enabledCodes.has(eventCode);
@@ -4482,6 +4668,7 @@ async function getObservationEventApplicationPage(request: Request, env: Env, ev
   if (!session || !observationEventApplicationEnabled(env, session)) {
     return pageHtml("申込みを受け付けていません", observationEventEmptyState("申込み受付はありません", "このイベントでは現在、オンライン申込みを受け付けていません。"), "event-application-unavailable", 404);
   }
+  if (isRyuyoDiscoveryEvent(env, session)) return redirect303(discoveryCampaignHref(session) + "#discovery-signup", { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" });
   const userId = auth?.userId ?? null;
   const existingGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), session.sessionId);
   const activeGuestCredential = existingGuestCredential ?? (userId ? null : randomToken());
@@ -4501,7 +4688,7 @@ async function applyToObservationEvent(request: Request, env: Env, sessionId: st
     return json({ error: "event_application_unavailable" }, 404, { "cache-control": "no-store" });
   }
   const auth = await readCompatibleSession(request, env);
-  if (auth?.banned) return json({ error: "event_application_unavailable" }, 403, { "cache-control": "no-store" });
+  if (auth?.banned || auth?.userId === session.organizerUserId) return json({ error: "event_application_unavailable" }, 403, { "cache-control": "no-store" });
   const userId = auth?.userId ?? null;
   const browserGuestCredential = await readObservationEventGuestCredential(request.headers.get("cookie"), sessionId);
   if (userId && browserGuestCredential) {
@@ -4510,8 +4697,11 @@ async function applyToObservationEvent(request: Request, env: Env, sessionId: st
   const guestCredential = userId ? null : browserGuestCredential;
   if (!userId && !guestCredential) return json({ error: "event_guest_cookie_required" }, 428, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
-  const displayName = normalizeOptionalText(body.display_name);
-  if (!displayName || displayName.length > 32 || /[\u0000-\u001f\u007f]/u.test(displayName)) {
+  const optionalNickname = isEventDiscoveryProfile(session.config);
+  let displayName: string | null;
+  try { displayName = optionalNickname ? discoveryNickname(body.display_name) ?? "" : normalizeOptionalText(body.display_name); }
+  catch { return json({ error: "event_application_name_invalid" }, 400, { "cache-control": "no-store" }); }
+  if ((!optionalNickname && !displayName) || displayName === null || Array.from(displayName).length > 32 || /[\u0000-\u001f\u007f]/u.test(displayName)) {
     return json({ error: "event_application_name_invalid" }, 400, { "cache-control": "no-store" });
   }
   const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
@@ -5669,6 +5859,7 @@ async function createObservationEventSession(request: Request, env: Env): Promis
   if (session.banned) return json({ error: "event_creation_unavailable" }, 403, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
   const config = asPlainObject(body.config) ?? {};
+  if (Object.hasOwn(config, "discovery_campaign")) return json({ error: "discovery_campaign_settings_endpoint_required" }, 400, { "cache-control": "no-store" });
   if (config.event_template !== undefined && !isCommonEventTemplateConfig(config.event_template)) return json({ error: "event_template_contract_invalid" }, 400, { "cache-control": "no-store" });
   if (config.discovery_journal !== undefined && (!isDiscoveryJournalConfig(config.discovery_journal) || config.guest_media_enabled !== true || body.plan !== "public")) {
     return json({ error: "discovery_journal_contract_invalid" }, 400, { "cache-control": "no-store" });
@@ -5767,6 +5958,10 @@ async function updateObservationEventSession(request: Request, env: Env, session
   const body = await readJson<Record<string, unknown>>(request);
   const current = auth.session;
   const nextConfig = asPlainObject(body.config) ?? current.config;
+  if (Object.hasOwn(nextConfig, "discovery_campaign") && (!discoveryCampaignConfig(nextConfig)
+    || JSON.stringify(discoveryCampaignConfig(nextConfig)) !== JSON.stringify(discoveryCampaignConfig(current.config)))) {
+    return json({ error: "discovery_campaign_settings_endpoint_required" }, 400, { "cache-control": "no-store" });
+  }
   if (nextConfig.event_template !== undefined && !isCommonEventTemplateConfig(nextConfig.event_template)) return json({ error: "event_template_contract_invalid" }, 400, { "cache-control": "no-store" });
   if (nextConfig.discovery_journal !== undefined && (!isDiscoveryJournalConfig(nextConfig.discovery_journal) || nextConfig.guest_media_enabled !== true || (body.plan ?? current.plan) !== "public")) {
     return json({ error: "discovery_journal_contract_invalid" }, 400, { "cache-control": "no-store" });
@@ -5803,7 +5998,9 @@ async function updateObservationEventSession(request: Request, env: Env, session
     `UPDATE observation_event_sessions
         SET title = ?, primary_mode = ?, active_modes_json = ?,
             location_lat = ?, location_lng = ?, location_radius_m = ?, started_at = ?,
-            target_species_json = ?, plan = ?, config_json = ?, field_id = ?, updated_at = CURRENT_TIMESTAMP
+            target_species_json = ?, plan = ?,
+            config_json = json_patch(?, json_object('discovery_campaign', json_extract(config_json, '$.discovery_campaign'))),
+            field_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE session_id = ?`
   ).bind(
     typeof body.title === "string" ? body.title : current.title,
@@ -24000,7 +24197,7 @@ async function getFieldManagerRoleFromD1(userId: string | null | undefined, fiel
   const row = await env.OBS_DB.prepare(
     `SELECT role FROM field_managers
       WHERE user_id = ? AND field_id = ?
-        AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        AND (expires_at IS NULL OR datetime(expires_at) > CURRENT_TIMESTAMP)
       ORDER BY CASE role
         WHEN 'owner' THEN 0
         WHEN 'steward' THEN 1
