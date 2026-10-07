@@ -137,7 +137,7 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
     sessionStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) },
     crypto: { randomUUID: () => "test-key-" + ++uuid },
     AbortController, setTimeout: () => 1, clearTimeout() {},
-    FormData: FormDataFixture, URL: class extends URL { static createObjectURL() { return "blob:local"; } static revokeObjectURL() {} },
+    FormData: FormDataFixture, URL: class extends URL { static override createObjectURL() { return "blob:local"; } static override revokeObjectURL() {} },
     fetch: async (url: string, request: Data) => {
       const call = { url, method: request.method ?? "GET", options: request, body: typeof request.body === "string" ? JSON.parse(request.body) : request.body };
       calls.push(call);
