@@ -27527,6 +27527,233 @@ class RallySqliteD1 extends FakeD1 {
   }
 }
 
+// Route-level discovery tests execute the existing event/guest-media schemas
+// and migration 0074 in SQLite. Only unrelated product services use FakeD1.
+class DiscoveryRouteSqliteD1 extends FakeD1 {
+  readonly sqlite = new DatabaseSync(":memory:");
+  private batchTail = Promise.resolve();
+  override prepare(query: string): FakeStatement {
+    if (!/\bobservation_(?:event|rally)_\w+/u.test(query)) return super.prepare(query);
+    let values: D1Value[] = [];
+    const sqlite = this.sqlite;
+    const statement = {
+      bind(...input: D1Value[]) { values = input; return statement; },
+      async first() { return sqlite.prepare(query).get(...values) ?? null; },
+      async all() { return { results: sqlite.prepare(query).all(...values) }; },
+      async run() { return { meta: { changes: Number(sqlite.prepare(query).run(...values).changes) } }; },
+    };
+    return statement as unknown as FakeStatement;
+  }
+  override async batch(statements: FakeStatement[]): Promise<unknown[]> {
+    const run = this.batchTail.then(async () => {
+      this.sqlite.exec("BEGIN IMMEDIATE");
+      try {
+        const result = await super.batch(statements);
+        this.sqlite.exec("COMMIT");
+        return result;
+      } catch (error) { this.sqlite.exec("ROLLBACK"); throw error; }
+    });
+    this.batchTail = run.then(() => undefined, () => undefined);
+    return run;
+  }
+}
+
+test("discovery native routes preserve draft, production self-service, private review, three-photo journals and withdrawal", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  obs.sqlite.exec("PRAGMA foreign_keys = ON");
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0029_observation_event_recap_capsule_report.sql", "0065_observation_rally_submission_idempotency.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  Object.assign(env, { OBS_DB: obs });
+  const origin = "https://ikimon.life";
+  const send = async (path: string, method = "GET", cookie = "", body?: unknown) => {
+    const response = await worker.fetch(new Request(origin + path, {
+      method, headers: { cookie, origin, "content-type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const issue = await send("/api/v1/auth/session/issue", "POST", "", { userId: "discovery-organizer-local", displayName: "本人のアカウント名 PRIVATE NAME", ttlHours: 1 });
+  assert.equal(issue.response.status, 200);
+  const ownerCookie = issue.response.headers.get("set-cookie") ?? "";
+  // This is an isolated in-memory test of the production gate, never a request
+  // against the production service and never a production participant fixture.
+  Object.assign(env, { ENVIRONMENT: "production" });
+  const profile = { guest_media_enabled: true, discovery_journal: { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" } };
+  const eventBody = {
+    title: "竜洋の発見さんぽ", event_code: "RYUYO8AA", plan: "public", field_id: RYUYO_FIELD_ID,
+    started_at: new Date(Date.now() - 60_000).toISOString(), ended_at: new Date(Date.now() + 3_600_000).toISOString(),
+    config: { ...profile, event_template: { contract_version: "event-template-v1", key: "ryuyo" }, public_list_visibility: "public", public_listed: true },
+  };
+  const created = await send("/api/v1/observation-events", "POST", ownerCookie, eventBody);
+  assert.equal(created.response.status, 201, JSON.stringify(created.data));
+  const sessionId = created.data.sessionId as string;
+  const api = `/api/v1/observation-events/${sessionId}`;
+  assert.equal(created.data.config.public_list_visibility, "hidden");
+  assert.equal(created.data.config.public_listed, false);
+  assert.equal(obs.sqlite.prepare("SELECT status FROM observation_rally_courses WHERE session_id = ?").get(sessionId)!.status, "draft");
+  assert.equal((await send("/api/v1/observation-events", "POST", ownerCookie, eventBody)).response.status, 201, "same activation retry remains one draft");
+  const invalid = await send("/api/v1/observation-events", "POST", ownerCookie, { ...eventBody, event_code: "RYUYO8AB", config: { ...profile, discovery_journal: { ...profile.discovery_journal, max_photos: 4 } } });
+  assert.equal(invalid.response.status, 400);
+  const draftJoin = await send("/community/events/RYUYO8AA/join");
+  assert.equal(draftJoin.response.status, 200);
+  assert.equal(draftJoin.response.headers.has("set-cookie"), false, "a draft invitation cannot start an anonymous session");
+  assert.equal(/<form\b[^>]*data-discovery-join-form/u.test(await draftJoin.response.text()), false, "draft join has no active form");
+  assert.equal((await send(`${api}/checkin`, "POST", ownerCookie, { display_name: "" })).response.status, 409);
+  assert.equal((await send(`${api}/discoveries`)).response.status, 404);
+  assert.equal((await send(`/events/${sessionId}/recap`)).response.status, 404);
+  assert.equal((await send(`${api}/discovery-paper`, "POST", ownerCookie, { nickname: "", notes: [{ caption: "紙のメモ" }], idempotencyKey: "discovery-paper-draft" })).response.status, 409);
+  const publicList = await send("/community/events");
+  assert.doesNotMatch(await publicList.response.text(), /RYUYO8AA|竜洋の発見さんぽ/u);
+  for (const path of ["/events/ryuyo", "/events/ryuyo/print"]) {
+    const page = await send(path);
+    assert.equal(page.response.status, 200);
+    assert.match(page.response.headers.get("x-robots-tag") ?? "", /noindex/u);
+    assert.equal(page.response.headers.get("cache-control"), "no-store");
+    cspNonceFrom(page.response);
+  }
+  const start = await send(`${api}/rally/course`, "POST", ownerCookie, { status: "live" });
+  assert.equal(start.response.status, 200, JSON.stringify(start.data));
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_rally_missions WHERE status = 'published'").get()!.n, 0, "the journal can run without requiring a separate rally mission publication");
+  const join = await send("/community/events/RYUYO8AA/join");
+  const guestCookie = (join.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 200);
+  const guest = obs.sqlite.prepare("SELECT * FROM observation_event_participants WHERE session_id = ? AND guest_token IS NOT NULL").get(sessionId)!;
+  assert.equal(guest.display_name, "");
+  assert.equal(guest.share_location, 0, "discovery photos do not collect participant tracking locations");
+  const capture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
+  assert.equal(capture.response.status, 200);
+  assert.equal(/<form\b[^>]*data-discovery-media-form/u.test(await capture.response.text()), true, "checked-in participants receive the capture form");
+  const upload = async (key: string, cookie = guestCookie, extras: Record<string, string> = {}, targetApi = api) => {
+    const form = new FormData();
+    form.set("media", new File([new Uint8Array([0xff, 0xd8, 0xff, 0x00])], "discovery.jpg", { type: "image/jpeg" }));
+    for (const [field, value] of Object.entries({ private_storage_consent: "yes", creator_rights_attestation: "yes", gallery_consent: "yes", caption: "<img src=x onerror=alert(1)> 小さな発見", spot_label: "木陰", ...extras })) form.set(field, value);
+    const response = await worker.fetch(new Request(origin + targetApi + "/guest-media", { method: "POST", headers: { cookie, origin, "idempotency-key": key }, body: form }), env);
+    return { response, data: await response.clone().json() as any };
+  };
+  const concurrent = await Promise.all(Array.from({ length: 4 }, (_, i) => upload(`discovery-native-photo-${i}`)));
+  assert.deepEqual(concurrent.map((entry) => entry.response.status).sort(), [201, 201, 201, 409]);
+  assert.equal(concurrent.find((entry) => entry.response.status === 409)!.data.error, "three_photo_limit");
+  const savedIndex = concurrent.findIndex((entry) => entry.response.status === 201);
+  const saved = concurrent[savedIndex]!.data.receipt;
+  const replay = await upload(`discovery-native-photo-${savedIndex}`);
+  assert.equal(replay.response.status, 200);
+  assert.equal(replay.data.receipt.receiptId, saved.receiptId);
+  assert.equal((await upload(`discovery-native-photo-${savedIndex}`, guestCookie, { caption: "変わったコメント" })).response.status, 409);
+  const receipts = await send(`${api}/guest-media`, "GET", guestCookie);
+  assert.equal(receipts.data.receipts.length, 3);
+  assert.equal(receipts.data.receipts.every((entry: any) => entry.displayName === null && entry.galleryStatus === "pending_review" && entry.privacyStatus === "pending"), true);
+  assert.equal(receipts.data.receipts.every((entry: any) => typeof entry.idempotencyKey === "string"), true);
+  assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 0, "metadata-clean photos still await genuine visual/rights review");
+  assert.equal((await send(`${api}/discoveries/${saved.receiptId}/content`)).response.status, 404);
+  const review = (id: string, cookie = ownerCookie, body: unknown = { decision: "approved", note: "本人の意向と写真・文字の写り込みを確認済み", rightsConfirmed: true, privacyConfirmed: true }) => send(`${api}/guest-media/${id}/review`, "PATCH", cookie, body);
+  assert.equal((await review(saved.receiptId, guestCookie)).response.status, 401);
+  assert.equal((await review(saved.receiptId, ownerCookie, { decision: "approved", note: "権利だけを確認したため保留" })).response.status, 400);
+  for (const row of receipts.data.receipts) assert.equal((await review(row.receiptId)).response.status, 200);
+  const gallery = await send(`${api}/discoveries`);
+  assert.equal(gallery.response.status, 200);
+  assert.equal(gallery.data.journals.length, 1);
+  assert.equal(gallery.data.journals[0].entries.length, 3);
+  assert.equal(gallery.data.journals[0].displayName, null);
+  assert.equal(gallery.data.journals[0].entries[0].caption, "<img src=x onerror=alert(1)> 小さな発見");
+  assert.doesNotMatch(JSON.stringify(gallery.data), /participant_id|user_id|guest_token|idempotencyKey|privateContentHref|PRIVATE NAME/u);
+  assert.equal(JSON.stringify(gallery.data).includes(String(guest.participant_id)), false);
+  assert.equal(JSON.stringify(gallery.data).includes(String(guest.guest_token)), false);
+  const publishedHref = gallery.data.journals[0].entries.find((entry: any) => entry.id === saved.receiptId).contentHref;
+  assert.equal((await send(publishedHref)).response.status, 200);
+  assert.equal((await send(saved.privateContentHref, "GET", ownerCookie)).response.status, 200, "an organizer can inspect full approved content again for a later selection");
+  const selection = await review(saved.receiptId, ownerCookie, { decision: "approved", note: "内容を再確認してあたたかな講評を記録", rightsConfirmed: true, privacyConfirmed: true, selectionLabel: "小さな発見賞", selectionComment: "足もとへの目線がすてきです" });
+  assert.equal(selection.response.status, 200);
+  const organizerReceipts = await send(`${api}/guest-media`, "GET", ownerCookie);
+  assert.equal(organizerReceipts.data.reviewQueue.length, 3);
+  assert.equal(organizerReceipts.data.reviewQueue.find((entry: any) => entry.receiptId === saved.receiptId).rightsReviewNote, "内容を再確認してあたたかな講評を記録");
+  assert.equal(organizerReceipts.data.receipts.some((entry: any) => "idempotencyKey" in entry), false);
+  const otherJoin = await send("/community/events/RYUYO8AA/join");
+  const otherCookie = (otherJoin.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
+  assert.equal((await send(`${api}/checkin`, "POST", otherCookie, { display_name: "むしずき", is_minor: true })).response.status, 200);
+  assert.equal((await send(saved.privateContentHref, "GET", otherCookie)).response.status, 404);
+  assert.equal((await send(`${api}/guest-media/${saved.receiptId}/withdraw`, "POST", otherCookie, {})).response.status, 404);
+  assert.equal((await upload("discovery-native-minor01", otherCookie)).response.status, 400);
+  const minorSaved = await upload("discovery-native-minor01", otherCookie, { guardian_gallery_consent: "yes" });
+  assert.equal(minorSaved.response.status, 201);
+  assert.equal((await review(minorSaved.data.receipt.receiptId)).response.status, 200);
+  assert.equal((await send(`${api}/discoveries`)).data.counts.journals, 2);
+  const otherEvent = await send("/api/v1/observation-events", "POST", ownerCookie, {
+    ...eventBody, event_code: "RYUYO8AC", started_at: new Date(Date.now() + 3_600_000).toISOString(), ended_at: new Date(Date.now() + 7_200_000).toISOString(),
+  });
+  assert.equal(otherEvent.response.status, 201);
+  const otherApi = `/api/v1/observation-events/${otherEvent.data.sessionId}`;
+  await send(`${otherApi}/rally/course`, "POST", ownerCookie, { status: "live" });
+  const futureJoin = await send("/community/events/RYUYO8AC/join");
+  assert.equal(futureJoin.response.headers.has("set-cookie"), false, "scheduled start still gates an already-live course");
+  assert.equal((await send(`${otherApi}/checkin`, "POST", ownerCookie, { display_name: "" })).data.error, "event_checkin_not_started");
+  assert.equal((await send(otherApi, "PATCH", ownerCookie, { started_at: eventBody.started_at })).response.status, 200);
+  assert.equal((await send(`${otherApi}/discoveries/${saved.receiptId}/content`)).response.status, 404);
+  assert.equal((await send(`${otherApi}/guest-media/${saved.receiptId}/review`, "PATCH", ownerCookie, { decision: "approved", note: "別の会からは確認できません", rightsConfirmed: true, privacyConfirmed: true })).response.status, 404);
+  assert.equal((await send(`${otherApi}/checkin`, "POST", ownerCookie, { display_name: "" })).response.status, 200);
+  const accountPhoto = await upload("discovery-account-blank", ownerCookie, {}, otherApi);
+  assert.equal(accountPhoto.response.status, 201);
+  const approveInOtherEvent = (id: string) => send(`${otherApi}/guest-media/${id}/review`, "PATCH", ownerCookie, { decision: "approved", note: "呼び名と写真・コメントの内容を目視確認", rightsConfirmed: true, privacyConfirmed: true });
+  assert.equal((await approveInOtherEvent(accountPhoto.data.receipt.receiptId)).response.status, 200);
+  const accountGallery = (await send(`${otherApi}/discoveries`)).data;
+  assert.equal(accountGallery.journals[0].displayName, null, "authenticated profile names are never an optional-nickname fallback");
+  assert.doesNotMatch(JSON.stringify(accountGallery), /PRIVATE NAME|本人のアカウント名|discovery-organizer-local/u);
+  const privatePhoto = await upload("discovery-account-private", ownerCookie, { gallery_consent: "no" }, otherApi);
+  assert.equal(privatePhoto.response.status, 201);
+  assert.equal((await approveInOtherEvent(privatePhoto.data.receipt.receiptId)).data.galleryStatus, "private");
+  assert.equal((await send(`${otherApi}/discoveries`)).data.counts.entries, 1, "organizer review cannot substitute for participant display consent");
+  assert.equal((await send(`${otherApi}/discoveries/${privatePhoto.data.receipt.receiptId}/content`)).response.status, 404);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "変更したあだ名" })).response.status, 200);
+  assert.equal((await send(publishedHref)).response.status, 404, "renaming a participant cannot publish new unreviewed text under an old approval");
+  assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 1);
+  for (const row of receipts.data.receipts) await review(row.receiptId);
+  assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 4);
+  assert.equal((await send(`${api}/guest-media/${saved.receiptId}/withdraw`, "POST", guestCookie, {})).response.status, 200);
+  assert.equal((await send(publishedHref)).response.status, 404);
+  assert.equal((await send(saved.privateContentHref, "GET", guestCookie)).response.status, 404);
+  assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 3);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_event_guest_media WHERE submission_id = ?").get(saved.receiptId)!.n, 1, "withdrawal preserves the source receipt");
+  assert.equal((await upload("discovery-native-replacement")).response.status, 201, "withdrawal frees exactly one photo slot");
+  const end = await send(`${api}/end`, "POST", ownerCookie, {});
+  assert.equal(end.response.status, 200);
+  assert.ok(Date.parse(end.data.session.endedAt) <= Date.now(), JSON.stringify({ endedAt: end.data.session.endedAt, now: new Date().toISOString() }));
+  assert.equal((await upload("discovery-native-afterend")).response.status, 409);
+  const closedJoin = await send("/community/events/RYUYO8AA/join");
+  assert.equal(/<form\b[^>]*data-discovery-join-form/u.test(await closedJoin.response.clone().text()), false, "ended join has no active form");
+  assert.match(await closedJoin.response.text(), new RegExp(`/events/${sessionId}/discoveries`, "u"));
+  const recap = await send(`/events/${sessionId}/recap`);
+  assert.equal(recap.response.status, 303);
+  assert.equal(recap.response.headers.get("location"), `/events/${sessionId}/discoveries`);
+  const paperInput = { nickname: "", notes: [{ caption: "紙で残した、池の発見" }, { spotLabel: "木のそば", caption: "小さな虫がいた" }], isMinor: false, galleryConsent: true, idempotencyKey: "discovery-paper-afterend" };
+  assert.equal((await send(`${api}/discovery-paper`, "POST", guestCookie, paperInput)).response.status, 401);
+  const paper = await send(`${api}/discovery-paper`, "POST", ownerCookie, paperInput);
+  assert.equal(paper.response.status, 201, JSON.stringify(paper.data));
+  assert.equal(paper.data.entries.length, 2);
+  assert.equal((await send(`${api}/discovery-paper`, "POST", ownerCookie, paperInput)).response.status, 200);
+  for (const entry of paper.data.entries) {
+    const approved = await send(`${api}/discovery-paper/${entry.receiptId}/review`, "PATCH", ownerCookie, { decision: "approved", note: "紙の本人同意と文字の内容を確認しました", rightsConfirmed: true, privacyConfirmed: true });
+    assert.equal(approved.response.status, 200);
+  }
+  const paperJournal = (await send(`${api}/discoveries`)).data.journals.find((journal: any) => journal.journalId === paper.data.journalId);
+  assert.equal(paperJournal.displayName, null);
+  assert.equal(paperJournal.entries.length, 2);
+  assert.equal(paperJournal.entries.every((entry: any) => entry.kind === "paper" && !("contentHref" in entry)), true);
+  assert.equal((await send(`${api}/discovery-paper/${paper.data.entries[0].receiptId}/withdraw`, "POST", ownerCookie, {})).response.status, 200);
+  assert.equal((await send(`${api}/discoveries`)).data.journals.find((journal: any) => journal.journalId === paper.data.journalId).entries.length, 1);
+  assert.equal((await send(api, "PATCH", ownerCookie, { config: { ...eventBody.config, cancelled: true } })).response.status, 200);
+  assert.equal((await send(`${api}/discovery-paper`, "POST", ownerCookie, { ...paperInput, idempotencyKey: "paper-cancelled-intake" })).response.status, 409);
+  assert.equal((await send(`${api}/discoveries`)).response.status, 404);
+  const legacyEvent = await send("/api/v1/observation-events", "POST", ownerCookie, { ...eventBody, event_code: "RYUYO8AD", config: { guest_media_enabled: true } });
+  assert.equal(legacyEvent.response.status, 201);
+  assert.equal((await send(`/api/v1/observation-events/${legacyEvent.data.sessionId}/guest-media`, "GET", ownerCookie)).response.status, 404, "unrelated legacy guest media remains behind its original allowlist");
+  const qaEvent = await send("/api/v1/observation-events", "POST", ownerCookie, { ...eventBody, event_code: "RYUYO8AE", config: { ...eventBody.config, qa_fixture: true } });
+  assert.equal(qaEvent.response.status, 201);
+  assert.equal((await send("/community/events/RYUYO8AE/join")).response.status, 404, "the typed profile does not bypass the production synthetic-fixture exclusion");
+});
+
 test("rally submissions use event-scoped receipts and atomic SQLite progress through retries and review", async () => {
   const { env } = createEnv();
   const obs = new RallySqliteD1();
@@ -28005,6 +28232,11 @@ test("event template creation preserves the selected template and field through 
   assert.match(writes[0].event_code, /^[A-Z2-9]{8}$/u);
   assert.equal(writes[0].event_code, writes[1].event_code, "the generated activation code survives a failed response");
   assert.deepEqual(writes[0].config.event_template, { contract_version: "event-template-v1", key: "ryuyo" });
+  assert.deepEqual(writes[0].config.discovery_journal, { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" });
+  assert.equal(writes[0].config.guest_media_enabled, true);
+  assert.equal(writes[0].config.public_list_visibility, "hidden");
+  assert.equal(writes[0].config.public_listed, false);
+  assert.equal(writes[0].plan, "public");
   assert.equal(writes[0].field_id, RYUYO_FIELD_ID);
   assert.equal(writes[0].started_at, new Date("2026-11-12T10:00").toISOString());
   assert.equal(next.hidden, false);

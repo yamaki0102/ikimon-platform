@@ -207,6 +207,9 @@ const staticAssetPaths = [
   "/assets/brand/zukan-symbol.svg",
   "/assets/brand/zukan-wordmark.svg",
   "/assets/brand/zukan-ogp-default.png",
+  "/assets/event-discovery/ryuyo-hero.webp",
+  "/assets/event-discovery/ryuyo-discovery.webp",
+  "/assets/event-discovery/ryuyo-memories.webp",
   "/assets/img/landing/home-community-hero.webp",
   "/assets/img/landing/home-school-learning.webp",
   "/assets/img/landing/home-community-event.webp",
@@ -372,6 +375,14 @@ async function renderLlmsFull(app) {
 
 async function renderStaticAsset(app, pathname) {
   if (pathname === "/llms-full.txt") return renderLlmsFull(app);
+  if ([
+    "/assets/event-discovery/ryuyo-hero.webp",
+    "/assets/event-discovery/ryuyo-discovery.webp",
+    "/assets/event-discovery/ryuyo-memories.webp"
+  ].includes(pathname)) {
+    const rawPayload = await readFile(join(repoRoot, "platform_v2", "public", pathname.slice(1)));
+    return { statusCode: 200, headers: { "content-type": "image/webp" }, rawPayload };
+  }
   return app.inject({
     method: "GET",
     url: pathname,
