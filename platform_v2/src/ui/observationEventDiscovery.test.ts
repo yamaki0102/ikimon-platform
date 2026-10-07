@@ -78,7 +78,7 @@ function control(form: Element, name: string, type = "text") {
   child.name = name; child.type = type; form.append(child); return child;
 }
 
-function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (call: Call) => Promise<any>; minor?: boolean; href?: string; displayName?: string } = {}) {
+function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (call: Call) => Promise<any>; minor?: boolean; href?: string; displayName?: string; preview?: boolean } = {}) {
   const root = new Element("section");
   root.dataset = { eventDiscovery: kind, sessionId: "event-fixture", isMinor: String(options.minor === true) };
   const storage = options.storage ?? new Map<string, string>();
@@ -129,10 +129,11 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
     const status = new Element("p"); form.append(status); form.selectors.set("[data-discovery-paper-status]", status);
     const button = new Element("button"); button.type = "submit"; form.append(button);
   }
+  if (options.preview) { const template = new Element("template"); (template as any).content = { cloneNode: () => { const content = new Element("fragment"); for (const [selector, el] of nodes) if (!/occurrence|application-form|code-form/.test(selector)) content.append(el); return content; } }; root.selectors.set("[data-discovery-preview-template]", template); }
   let uuid = 0;
   const context = {
     document: { querySelectorAll: () => [root], createElement: (tag: string) => new Element(tag) },
-    window: { location: { href: options.href ?? "https://fixture.test/events/ryuyo", assign: (url: string) => navigations.push(url) }, confirm: () => true, addEventListener() {}, print() {} },
+    window: { location: { hostname: new URL(options.href ?? "https://fixture.test/events/ryuyo").hostname, href: options.href ?? "https://fixture.test/events/ryuyo", assign: (url: string) => navigations.push(url) }, confirm: () => true, addEventListener() {}, print() {} },
     sessionStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value), removeItem: (key: string) => storage.delete(key) },
     crypto: { randomUUID: () => "test-key-" + ++uuid },
     AbortController, setTimeout: () => 1, clearTimeout() {},
@@ -397,4 +398,15 @@ test("a pending campaign reload cannot submit its previous occurrence and preser
   await app.node("[data-discovery-campaign-refresh]").dispatch("click");await flush();await form.dispatch("submit");
   assert.equal(form.hidden,true);assert.equal(form.querySelector('button[type=submit]')!.disabled,true);assert.equal(app.calls.some(call=>call.method==="POST"),false);assert.equal(JSON.parse(app.storage.get("zukan:event-discovery:application:event-a")!).name,"あお");
   resolveReload({events:[b],selectedEvent:null});await flush();assert.equal(app.node("[data-discovery-occurrence-select]").value,"event-b");assert.equal(formField(form,"display_name").value,"");assert.equal(form.hidden,false);
+});
+
+
+test("public tentative LP has no occurrence picker or failing intake when production has no event", async () => {
+  const app=setup("campaign",{preview:true,href:"https://zukan.earth/events/ryuyo",fetch:async()=>({selectedEvent:null,events:[]})});await flush();
+  assert.equal(app.root.dataset.discoveryPreview,"true");
+  assert.equal(app.node("[data-discovery-photo-link]").hidden,true);
+  assert.equal(app.node("[data-discovery-day-state]").textContent,"当日の写真投稿は、会場でご案内します。");
+  assert.equal(app.node("[data-discovery-gallery-status]").textContent,"");
+  assert.deepEqual(app.calls.map(c=>[c.method,c.url]),[["GET","/api/v1/observation-events/campaigns/ryuyo"]]);
+  assert.equal(app.root.walk().includes(app.node("[data-discovery-occurrence-select]")),false);
 });
