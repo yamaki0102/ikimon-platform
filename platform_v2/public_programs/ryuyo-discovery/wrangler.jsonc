@@ -1,0 +1,21 @@
+{
+  "name": "zukan-public-programs",
+  "main": "dist/worker.mjs",
+  "account_id": "089a2d3bdee8858689ae8de1e8232899",
+  "compatibility_date": "2026-10-07",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {"pattern": "https://zukan.earth/programs/ryuyo-discovery*", "zone_id": "ea76dbc460aa36116c8f4a4d9afcb83e"}
+  ],
+  "env": {
+    "staging": {
+      "name": "zukan-public-programs-staging",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [
+        {"pattern": "https://staging.zukan.earth/programs/ryuyo-discovery*", "zone_id": "ea76dbc460aa36116c8f4a4d9afcb83e"}
+      ]
+    }
+  }
+}
