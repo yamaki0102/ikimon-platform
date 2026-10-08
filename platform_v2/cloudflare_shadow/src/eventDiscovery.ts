@@ -1,4 +1,5 @@
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
+import { DISCOVERY_AUTO_PRIVACY_METHOD, type DiscoveryPrivacyResult } from "./eventDiscoveryPrivacy";
 
 export const EVENT_DISCOVERY_VERSION = "event-discovery-v1";
 export const EVENT_DISCOVERY_MAX_PHOTOS = 3;
@@ -208,6 +209,7 @@ export function discoveryReceipt(row: DiscoveryEntryRow, includeOwnKey = false) 
     mediaState: row.entry_kind === "paper" ? "saved" : row.media_state, mediaType: row.media_mime,
     rightsReviewStatus: withdrawn ? "withdrawn" : row.review_status, privacyStatus: row.privacy_status,
     privacyMethod: row.privacy_method, galleryStatus: galleryStatus(row), visibility: "private" as const,
+    reviewRequiredReason: row.review_status === "pending" && row.privacy_method === DISCOVERY_AUTO_PRIVACY_METHOD ? row.review_note : null,
     createdAt: row.created_at, updatedAt: row.updated_at, cleanupPending: row.private_delete_pending === 1,
     selectionLabel: row.selection_label, selectionComment: row.selection_comment,
     ...(includeOwnKey ? { idempotencyKey: row.idempotency_key } : {}),
@@ -314,8 +316,29 @@ export class EventDiscoveryStore {
     return { journalId, entries: rows.map((row) => discoveryReceipt(row!)), replay: Boolean(existing) };
   }
 
+  async autoPublishPhoto(sessionId: string, entryId: string, screen: (body: ArrayBuffer, text: string) => Promise<DiscoveryPrivacyResult>) {
+    return this.applyReview(sessionId, entryId, "system:event-discovery-privacy", {
+      decision: "approved", note: "clear", selectionLabel: null, selectionComment: null,
+    }, screen);
+  }
+
   async review(sessionId: string, entryId: string, organizerId: string, input: DiscoveryReviewInput) {
+    const result = await this.applyReview(sessionId, entryId, organizerId, input);
+    if (!result) throw new DiscoveryError(404, "reviewable_entry_not_found");
+    return result;
+  }
+
+  private async applyReview(sessionId: string, entryId: string, organizerId: string, input: DiscoveryReviewInput,
+    screen?: (body: ArrayBuffer, text: string) => Promise<DiscoveryPrivacyResult>) {
     const row = await this.get(sessionId, entryId);
+    // Automatic publication never reconsiders an existing human decision, scans a
+    // private submission, or invents guardian consent. Replay returns its state.
+    if (screen && (!row || row.entry_kind !== "photo" || row.review_status !== "pending" || row.reviewed_at
+      || row.privacy_method || row.withdrawn_at || !row.gallery_consent_at || row.media_state !== "saved"
+      || row.media_rights_status !== "pending" || row.private_delete_pending !== 0
+      || ((row.is_minor === 1 || row.participant_is_minor === 1) && !row.guardian_gallery_consent_at))) {
+      return row ? { receipt: discoveryReceipt(row), receiptId: entryId, rightsReviewStatus: row.review_status, galleryStatus: galleryStatus(row) } : null;
+    }
     if (!row || row.withdrawn_at || row.review_status === "withdrawn" || (row.entry_kind === "photo" && (row.media_state !== "saved" || row.media_rights_status === "withdrawn"))) {
       throw new DiscoveryError(404, "reviewable_entry_not_found");
     }
@@ -331,10 +354,21 @@ export class EventDiscoveryStore {
         throw new DiscoveryError(422, "image_privacy_metadata_verification_failed");
       }
       if (await discoveryHash(body) !== row.source_media_sha256) throw new DiscoveryError(409, "source_media_changed");
+      if (screen) {
+        const verdict = await screen(body, [row.caption, row.spot_label, row.participant_display_name].filter(Boolean).join("\n"));
+        if (!verdict.clear || verdict.reason !== "clear") {
+          await this.db.prepare("UPDATE observation_event_discoveries SET privacy_method = ?, review_note = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND entry_id = ? AND review_status = 'pending' AND reviewed_at IS NULL AND privacy_method IS NULL AND withdrawn_at IS NULL AND source_request_sha256 = ?")
+            .bind(DISCOVERY_AUTO_PRIVACY_METHOD, verdict.reason, sessionId, entryId, row.source_request_sha256).run();
+          const held = await this.get(sessionId, entryId);
+          return held ? { receipt: discoveryReceipt(held), receiptId: entryId, rightsReviewStatus: held.review_status, galleryStatus: galleryStatus(held) } : null;
+        }
+      }
       // Consent is not inferred from the organizer's review. Even approved
       // private-only submissions do not get a display derivative.
       if (row.gallery_consent_at && (!(row.is_minor === 1 || row.participant_is_minor === 1) || row.guardian_gallery_consent_at)) {
-        derivativeKey = this.derivativeKey(sessionId, entryId);
+        // An automatic request owns a unique object, so losing a concurrent
+        // human review cannot delete that human review's display derivative.
+        derivativeKey = screen ? this.derivativeKey(sessionId, entryId).replace("display.webp", "auto-" + crypto.randomUUID() + ".webp") : this.derivativeKey(sessionId, entryId);
         derivativeSha256 = await discoveryHash(body);
         await this.bucket.put(derivativeKey, body, { httpMetadata: { contentType: "image/webp", cacheControl: "private, no-store" }, customMetadata: { visibility: "unlisted-gated", source: EVENT_DISCOVERY_VERSION } });
         const persisted = await this.bucket.get(derivativeKey);
@@ -348,9 +382,11 @@ export class EventDiscoveryStore {
       "derivative_key = ?, derivative_sha256 = ?, derivative_verified_at = CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END,",
       "selection_label = ?, selection_comment = ?, updated_at = CURRENT_TIMESTAMP",
       "WHERE session_id = ? AND entry_id = ? AND withdrawn_at IS NULL AND source_request_sha256 = ?",
+      ...(screen ? ["AND review_status = 'pending' AND reviewed_at IS NULL AND privacy_method IS NULL AND gallery_consent_at IS NOT NULL",
+        "AND ((is_minor = 0 AND (SELECT is_minor FROM observation_event_participants WHERE participant_id = observation_event_discoveries.participant_id) = 0) OR guardian_gallery_consent_at IS NOT NULL)"] : []),
       "AND (entry_kind = 'paper' OR EXISTS (SELECT 1 FROM observation_event_guest_media m WHERE m.submission_id = observation_event_discoveries.submission_id AND m.media_state = 'saved' AND m.rights_review_status <> 'withdrawn' AND m.media_sha256 = observation_event_discoveries.source_media_sha256))",
     ].join(" ")).bind(input.decision, organizerId, input.note, row.participant_display_name?.trim() || null, input.decision === "approved" ? "verified" : "rejected",
-      row.entry_kind === "paper" ? "organizer-paper-visual/v1" : EVENT_DISCOVERY_PRIVACY_METHOD, input.decision,
+      screen ? DISCOVERY_AUTO_PRIVACY_METHOD : row.entry_kind === "paper" ? "organizer-paper-visual/v1" : EVENT_DISCOVERY_PRIVACY_METHOD, input.decision,
       derivativeKey, derivativeSha256, derivativeKey, input.decision === "approved" ? input.selectionLabel : null,
       input.decision === "approved" ? input.selectionComment : null, sessionId, entryId, row.source_request_sha256)];
     if (row.entry_kind === "photo") {
@@ -358,15 +394,18 @@ export class EventDiscoveryStore {
         "UPDATE observation_event_guest_media SET rights_review_status = ?, rights_reviewed_by = ?, rights_reviewed_at = CURRENT_TIMESTAMP, rights_review_note = ?, updated_at = CURRENT_TIMESTAMP",
         "WHERE session_id = ? AND submission_id = ? AND rights_review_status <> 'withdrawn' AND media_state = 'saved'",
         "AND EXISTS (SELECT 1 FROM observation_event_discoveries d WHERE d.entry_id = ? AND d.withdrawn_at IS NULL AND d.review_status = ?)",
-      ].join(" ")).bind(input.decision, organizerId, input.note, sessionId, entryId, entryId, input.decision));
+        ...(screen ? ["AND EXISTS (SELECT 1 FROM observation_event_discoveries d WHERE d.entry_id = observation_event_guest_media.submission_id AND d.derivative_key = ? AND d.privacy_method = ?)"] : []),
+      ].join(" ")).bind(input.decision, organizerId, input.note, sessionId, entryId, entryId, input.decision, ...(screen ? [derivativeKey, DISCOVERY_AUTO_PRIVACY_METHOD] : [])));
     }
     await this.db.batch(statements);
     const verified = await this.get(sessionId, entryId);
-    if (!verified || verified.withdrawn_at || verified.review_status !== input.decision) {
+    if (!verified || verified.withdrawn_at || verified.review_status !== input.decision || (screen && verified.derivative_key !== derivativeKey)) {
       if (derivativeKey) await this.bucket.delete(derivativeKey);
+      if (screen) return verified ? { receipt: discoveryReceipt(verified), receiptId: entryId, rightsReviewStatus: verified.review_status, galleryStatus: galleryStatus(verified) } : null;
       throw new DiscoveryError(409, "review_state_changed");
     }
     if (input.decision === "rejected") await this.bucket.delete(this.derivativeKey(sessionId, entryId));
+    if (row.derivative_key && row.derivative_key !== verified.derivative_key) await this.bucket.delete(row.derivative_key);
     return { receipt: discoveryReceipt(verified), receiptId: entryId, rightsReviewStatus: verified.review_status, galleryStatus: galleryStatus(verified) };
   }
 
@@ -401,7 +440,7 @@ export class EventDiscoveryStore {
   async content(sessionId: string, entryId: string): Promise<ArrayBuffer> {
     const row = await this.get(sessionId, entryId);
     if (!row || row.entry_kind !== "photo" || !isDiscoveryEntryEligible(row)
-      || row.derivative_key !== this.derivativeKey(sessionId, entryId)) throw new DiscoveryError(404, "not_found");
+      || !this.validDerivativeKey(sessionId, entryId, row.derivative_key)) throw new DiscoveryError(404, "not_found");
     const object = await this.bucket.get(row.derivative_key);
     if (!object?.body || object.httpMetadata?.contentType !== "image/webp") throw new DiscoveryError(404, "not_found");
     const body = await new Response(object.body).arrayBuffer();
@@ -414,9 +453,14 @@ export class EventDiscoveryStore {
   }
 
   async withdraw(sessionId: string, entryId: string): Promise<void> {
+    const row = await this.get(sessionId, entryId);
     await this.db.prepare("UPDATE observation_event_discoveries SET review_status = 'withdrawn', withdrawn_at = COALESCE(withdrawn_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND entry_id = ?")
       .bind(sessionId, entryId).run();
     await this.bucket.delete(this.derivativeKey(sessionId, entryId));
+    if (row?.derivative_key && this.validDerivativeKey(sessionId, entryId, row.derivative_key)) {
+      await this.bucket.delete(row.derivative_key);
+      if (await this.bucket.head(row.derivative_key)) throw new DiscoveryError(503, "display_derivative_delete_unverified");
+    }
     if (await this.bucket.head(this.derivativeKey(sessionId, entryId))) throw new DiscoveryError(503, "display_derivative_delete_unverified");
   }
 
@@ -444,5 +488,10 @@ export class EventDiscoveryStore {
 
   derivativeKey(sessionId: string, entryId: string): string {
     return "private/event-discovery-derivatives/" + encodeURIComponent(sessionId) + "/" + encodeURIComponent(entryId) + "/display.webp";
+  }
+
+  private validDerivativeKey(sessionId: string, entryId: string, key: string | null): key is string {
+    const base = this.derivativeKey(sessionId, entryId);
+    return key === base || Boolean(key?.startsWith(base.slice(0, -"display.webp".length)) && /^auto-[a-f0-9-]{36}\.webp$/u.test(key.slice(base.length - "display.webp".length)));
   }
 }

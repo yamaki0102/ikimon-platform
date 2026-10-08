@@ -252,6 +252,30 @@ test("a failed third photo consumes its slot but can retry with its original key
   assert.match(app.node("[data-discovery-photo-count]").textContent,/3 \/ 3 枚を保存/);
 });
 
+test("shared save immediately shows publication and a gallery link, held faces explain the review reason", async () => {
+  for (const galleryStatus of ["published", "pending_review"]) {
+    let rows: Data[] = [];
+    const app = setup("capture", { fetch: async call => {
+      if (call.method === "GET") return { receipts: rows };
+      rows = [receipt(1, { galleryStatus, galleryConsent: true, reviewRequiredReason: galleryStatus === "pending_review" ? "person" : null })];
+      return { receipt: rows[0] };
+    } });
+    await flush(); const form = app.node("[data-discovery-media-form]"); preparePhoto(form);
+    formField(form, "gallery_consent").checked = true;
+    await form.dispatch("submit");
+    const status = app.node("[data-discovery-status]").textContent;
+    const cards = app.node("[data-discovery-receipts]");
+    if (galleryStatus === "published") {
+      assert.match(status, /みんなの発見に掲載しました/);
+      assert.equal(cards.walk().find(item => item.textContent === "みんなの発見で見る →")?.href, "/events/event-fixture/discoveries");
+    } else {
+      assert.match(status, /人物や顔の写り込み/);
+      assert.match(cards.textContent, /確認してから掲載/);
+      assert.equal(cards.walk().some(item => item.textContent === "みんなの発見で見る →"), false);
+    }
+  }
+});
+
 test("unknown upload results retain text and consent across reload and reuse one idempotency key", async () => {
   const storage = new Map<string,string>();
   const first = setup("capture", { storage, fetch: async call => call.method === "POST" ? new Error("network_lost") : {receipts:[]} });
@@ -262,7 +286,7 @@ test("unknown upload results retain text and consent across reload and reuse one
   await flush();const restored=second.node("[data-discovery-media-form]");assert.equal(formField(restored,"caption").value,"小さな羽の色");assert.equal(formField(restored,"gallery_consent").checked,true);assert.equal(formField(restored,"media").files.length,0);formField(restored,"media").files=[mediaFile];await restored.dispatch("submit");
   assert.equal(second.calls.find(call=>call.method==="POST")!.options.headers["idempotency-key"],firstKey);
   assert.equal(storage.has("zukan:event-discovery:upload:event-fixture"),false);
-  assert.match(second.node("[data-discovery-status]").textContent,/主催者の確認待ち/);
+  assert.match(second.node("[data-discovery-status]").textContent,/写り込みなどの確認待ち/);
 });
 
 test("unknown upload that is visible in read-back is reported saved rather than failed", async () => {
