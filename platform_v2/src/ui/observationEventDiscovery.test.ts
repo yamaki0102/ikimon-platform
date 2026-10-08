@@ -192,7 +192,9 @@ test("the isolated preview marks its single tentative day and uses the published
   assert.doesNotMatch(preview, /data-discovery-occurrence-select|data-discovery-application-form|\/print|download=/);
   assert.match(preview, /紙のシートは、当日会場で配布/);
   assert.match(preview, /写真を選んだだけでは送信されません/);
-  assert.match(preview, /共有を選んだものだけ主催者の確認後/);
+  assert.match(preview, /共有を選んだ写真は自動確認を通るとすぐに掲載/);
+  assert.match(preview, /data-discovery-published open hidden/);
+  assert.ok(preview.indexOf('data-discovery-published') < preview.indexOf('ed-demo-gallery'), "published posts appear before illustrations");
 });
 
 test("unnamed login-free checkin sends an empty nickname, no account fallback, and no location consent", async () => {
