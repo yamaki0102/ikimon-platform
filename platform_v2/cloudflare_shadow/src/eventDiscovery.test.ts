@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { DISCOVERY_AUTO_PRIVACY_METHOD } from "./eventDiscoveryPrivacy";
 import {
   DiscoveryError, EventDiscoveryStore, discoveryHash, discoveryNickname, discoveryReceipt,
   isDiscoveryJournalConfig, isEventDiscoveryProfile, parseDiscoveryCaptureInput,
@@ -85,6 +86,73 @@ async function photo(state: ReturnType<typeof fixture>, participantId: string, k
 function count(db: SqlDatabase, table: string) {
   return Number((db.native.prepare("SELECT COUNT(*) AS count FROM " + table).get() as { count: number }).count);
 }
+
+test("clear shared photo publishes during save, replays once, and withdrawal deletes its unique display object", async () => {
+  const state = fixture(); participant(state.db, "guest");
+  const saved = await photo(state, "guest", "auto-clear");
+  let screens = 0;
+  const screen = async () => { screens++; return { clear: true, reason: "clear" as const }; };
+  const published = await state.store.autoPublishPhoto("event-a", saved.submissionId, screen);
+  assert.equal(published?.galleryStatus, "published");
+  assert.equal(published?.receipt.privacyMethod, DISCOVERY_AUTO_PRIVACY_METHOD);
+  assert.equal((await state.store.get("event-a", saved.submissionId))?.reviewed_by, "system:event-discovery-privacy");
+  assert.equal((await state.store.gallery("event-a")).counts.entries, 1);
+  assert.deepEqual(await state.store.content("event-a", saved.submissionId), WEBP);
+  await state.store.autoPublishPhoto("event-a", saved.submissionId, screen);
+  assert.equal(screens, 1);
+  const key = (await state.store.get("event-a", saved.submissionId))!.derivative_key!;
+  await state.store.withdraw("event-a", saved.submissionId);
+  assert.equal(await state.bucket.head(key), null);
+  assert.equal((await state.store.gallery("event-a")).counts.entries, 0);
+  await assert.rejects(state.store.content("event-a", saved.submissionId), /not_found/);
+});
+
+test("person, unknown and unavailable screens remain pending, private and unconsented minor photos never get scanned", async () => {
+  for (const reason of ["person", "uncertain", "unavailable"] as const) {
+    const state = fixture(); participant(state.db, "guest");
+    const saved = await photo(state, "guest", "held-" + reason);
+    const held = await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => ({ clear: false, reason }));
+    assert.equal(held?.galleryStatus, "pending_review");
+    assert.equal(held?.receipt.reviewRequiredReason, reason);
+    assert.equal((await state.store.gallery("event-a")).counts.entries, 0);
+    assert.equal(state.bucket.objects.size, 1);
+  }
+  for (const capture of [{ ...CAPTURE, galleryConsent: false }, CAPTURE]) {
+    const state = fixture(); participant(state.db, "guest");
+    const saved = await photo(state, "guest", "consent", capture);
+    if (capture.galleryConsent) state.db.native.prepare("UPDATE observation_event_participants SET is_minor = 1 WHERE participant_id = 'guest'").run();
+    await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => { throw new Error("must not scan"); });
+    assert.equal((await state.store.gallery("event-a")).counts.entries, 0);
+  }
+});
+
+test("withdrawal or a human rejection during automatic screening cannot be overridden", async () => {
+  for (const action of ["withdraw", "reject"] as const) {
+    const state = fixture(); participant(state.db, "guest");
+    const saved = await photo(state, "guest", "auto-race-" + action);
+    await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => {
+      if (action === "withdraw") await state.store.withdraw("event-a", saved.submissionId);
+      else await state.store.review("event-a", saved.submissionId, "organizer-private-id", { ...APPROVAL, decision: "rejected" });
+      return { clear: true, reason: "clear" };
+    });
+    const row = (await state.store.get("event-a", saved.submissionId))!;
+    assert.equal(row.review_status, action === "withdraw" ? "withdrawn" : "rejected");
+    assert.equal((await state.store.gallery("event-a")).counts.entries, 0);
+    assert.equal(state.bucket.objects.size, 1, "losing automatic request deletes its own derivative");
+  }
+});
+
+test("a concurrent manual approval retains its display object when automatic review loses", async () => {
+  const state = fixture(); participant(state.db, "guest");
+  const saved = await photo(state, "guest", "auto-manual-race");
+  await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => {
+    await state.store.review("event-a", saved.submissionId, "organizer-private-id", APPROVAL);
+    return { clear: true, reason: "clear" };
+  });
+  assert.equal((await state.store.get("event-a", saved.submissionId))?.reviewed_by, "organizer-private-id");
+  assert.deepEqual(await state.store.content("event-a", saved.submissionId), WEBP);
+  assert.equal(state.bucket.objects.size, 2);
+});
 
 test("discovery typed profile, optional nickname, explicit display and guardian consent", () => {
   const profile = { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" };
