@@ -25463,7 +25463,6 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
     return new Response(request.method === "HEAD" ? null : object.body, { headers: {
       "content-type": "image/webp", "cache-control": "public, max-age=31536000, immutable",
       "x-content-type-options": "nosniff", "x-ikimon-cloudflare-native": "ryuyo-generated-preview-image",
-      ...(object.httpEtag ? { etag: object.httpEtag } : {}),
     } });
   }
   const object = await getVersionedOriginalUiObject(env, originalUiStaticAssetKey(url.pathname));
