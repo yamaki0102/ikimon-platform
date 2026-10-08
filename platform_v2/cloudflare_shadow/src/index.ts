@@ -4265,7 +4265,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   const pathname = stripPublicLangPrefix(url.pathname);
   if (pathname === "/events/ryuyo" || pathname === "/events/ryuyo/print") {
     const response = observationEventPageHtml("こんちゅうクンとめぐる、竜洋のとっておき。", pathname.endsWith("/print")
-      ? renderObservationEventDiscoveryPrint() : renderObservationEventDiscoveryCampaign(), "event-discovery-campaign");
+      ? renderObservationEventDiscoveryPrint() : renderObservationEventDiscoveryCampaign(), "event-discovery-campaign", 200, "ja", false, { standalone: pathname === "/events/ryuyo" });
     response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
     return response;
   }
@@ -4855,14 +4855,15 @@ async function getObservationEventReportPage(request: Request, env: Env, session
   return pageHtml(`${session.title} 公式出力`, renderObservationEventReportPage(report), "event-page-report");
 }
 
-export function observationEventPageHtml(title: string, body: string, nativeMarker: string, status = 200, lang = "ja", member = false): Response {
+export function observationEventPageHtml(title: string, body: string, nativeMarker: string, status = 200, lang = "ja", member = false, options: { standalone?: boolean } = {}): Response {
   const cspNonce = createHtmlCspNonce();
+  const standalone = options.standalone === true;
   const document = `<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${escapeHtml(title)} — ZUKAN</title>
+    <title>${escapeHtml(title)}${standalone ? "" : " — ZUKAN"}</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7faf8;color:#17231b}
     main{max-width:980px;margin:0 auto;padding:24px 18px 48px}
@@ -4890,12 +4891,12 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#143f2e}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#143f2e}
   </style>
 </head>
-<body data-zukan-app-experience="v1">
-  ${renderAppExperienceHeader(lang, 4, member)}
+<body ${standalone ? 'data-zukan-design="v1" data-event-lp="standalone"' : 'data-zukan-app-experience="v1"'}>
+  ${standalone ? '<a class="zukan-app-skip" href="#main-content">本文へ</a>' : renderAppExperienceHeader(lang, 4, member)}
   <main id="main-content" tabindex="-1">
     ${body}
   </main>
-${renderAppExperienceNavigation(lang, 4, "bottom", member)}
+${standalone ? "" : renderAppExperienceNavigation(lang, 4, "bottom", member)}
 </body>
 </html>`;
   return html(applyCspNonceToHtmlScripts(document, cspNonce), status, {
