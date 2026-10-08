@@ -4734,7 +4734,7 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     readCompatibleSession(request, env).catch(() => null),
     getObservationEventSessionById(env, sessionId).catch(() => null)
   ]);
-  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned), { standalone: Boolean(session && page === "rally" && isEventDiscoveryProfile(session.config)) });
   if (!session) {
     return pageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
   }

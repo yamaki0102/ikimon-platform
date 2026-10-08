@@ -111,6 +111,7 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
     for (const name of ["private_storage_consent", "creator_rights_attestation", "gallery_consent", "guardian_gallery_consent"]) control(fields, name, "checkbox").required = name === "private_storage_consent" || name === "creator_rights_attestation";
     const guardian = new Element(); form.selectors.set("[data-discovery-guardian-row]", guardian);
     add("[data-discovery-photo-preview]", "div", form);
+    add("[data-discovery-photo-options]", "div", form).hidden = true;
   }
   if (kind === "gallery" || kind === "organizer") {
     add("[data-discovery-refresh]", "button"); add("[data-discovery-more]", "button").hidden = true;
@@ -398,9 +399,12 @@ test("late application and gallery responses for A cannot replace selected close
 
 test("camera selection validates with an empty album and cancel preserves the chosen photo",async()=>{
   const app=setup("capture",{fetch:async call=>call.method==="POST"?{receipt:receipt(1)}:{receipts:[]}});await flush();const form=app.node("[data-discovery-media-form]");const album=formField(form,"media"),camera=formField(form,"camera_media");
+  assert.equal(app.node("[data-discovery-photo-options]").hidden,true);
   formField(form,"private_storage_consent").checked=true;formField(form,"creator_rights_attestation").checked=true;formField(form,"caption").value="カメラからのコメント";
   camera.files=[mediaFile];await camera.dispatch("change");assert.equal(album.files.length,0);assert.equal(album.required,false);assert.equal(form.reportValidity(),true);assert.match(app.node("[data-discovery-photo-preview]").textContent,/この写真を保存/);
+  assert.equal(app.node("[data-discovery-photo-options]").hidden,false);
   camera.files=[];await camera.dispatch("change");await form.dispatch("submit");const post=app.calls.find(call=>call.method==="POST")!;assert.equal(post.body.get("media"),mediaFile);assert.equal(post.body.get("caption"),"カメラからのコメント");
+  assert.equal(app.node("[data-discovery-photo-options]").hidden,true);
 });
 
 test("album selection replaces camera selection through the same single-photo upload",async()=>{
