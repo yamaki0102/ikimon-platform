@@ -4401,7 +4401,7 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
     readCompatibleSession(request, env).catch(() => null),
     getObservationEventSessionByEventCode(env, eventCode).catch(() => null)
   ]);
-  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned), { standalone: Boolean(session && isEventDiscoveryProfile(session.config)) });
   if (!session) {
     return pageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
   }
@@ -4762,6 +4762,11 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     liveViewer = await observationEventParticipantContext(request, env, session);
     canManage = canManage || liveViewer.isOrganizer;
     if (!liveViewer.isOrganizer && !liveViewer.isCheckedInParticipant) {
+      if (page === "rally" && !auth?.banned && session.eventCode && isRyuyoDiscoveryEvent(env, session)) {
+        return redirect303(`/community/events/${encodeURIComponent(session.eventCode)}/join`, {
+          "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive",
+        });
+      }
       return pageHtml(
         "権限がありません",
         observationEventEmptyState("参加者のみ閲覧できます", "先に観察会へチェックインしてください。"),

@@ -27840,7 +27840,21 @@ test("discovery native routes preserve draft, production self-service, private r
   const start = await send(`${api}/rally/course`, "POST", ownerCookie, { status: "live" });
   assert.equal(start.response.status, 200, JSON.stringify(start.data));
   assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_rally_missions WHERE status = 'published'").get()!.n, 0, "the journal can run without requiring a separate rally mission publication");
+  const firstCapture = await send(`/events/${sessionId}/rally`);
+  assert.equal(firstCapture.response.status, 303, "a first-time visitor is guided into the existing login-free check-in");
+  assert.equal(firstCapture.response.headers.get("location"), "/community/events/RYUYO8AA/join");
+  assert.match(firstCapture.response.headers.get("cache-control") ?? "", /no-store/u);
+  assert.equal((await send(`${api}/guest-media`)).response.status, 403, "the entry redirect does not grant access to private photos");
+  for (const page of ["live", "gallery", "console"]) {
+    assert.equal((await send(`/events/${sessionId}/${page}`)).response.status, 403, "only the discovery capture entry redirects");
+  }
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET field_id = ? WHERE session_id = ?").run("another-field", sessionId);
+  assert.equal((await send(`/events/${sessionId}/rally`)).response.status, 403, "other event fields retain their participant gate");
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET field_id = ? WHERE session_id = ?").run(RYUYO_FIELD_ID, sessionId);
   const join = await send("/community/events/RYUYO8AA/join");
+  const joinHtml = await join.response.clone().text();
+  assert.match(joinHtml, /ログインは不要です/u);
+  assert.doesNotMatch(joinHtml, /aria-label="主なページ"|href="\/ja\/profile"/u);
   const guestCookie = (join.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
   assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
   assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 200);
