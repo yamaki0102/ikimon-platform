@@ -4264,7 +4264,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
   if (request.method !== "GET" && request.method !== "HEAD") return null;
   const pathname = stripPublicLangPrefix(url.pathname);
   if (pathname === "/events/ryuyo" || pathname === "/events/ryuyo/print") {
-    const response = observationEventPageHtml("竜洋で見つける、わたしの3枚", pathname.endsWith("/print")
+    const response = observationEventPageHtml("こんちゅうクンとめぐる、竜洋のとっておき。", pathname.endsWith("/print")
       ? renderObservationEventDiscoveryPrint() : renderObservationEventDiscoveryCampaign(), "event-discovery-campaign");
     response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
     return response;
@@ -25456,6 +25456,16 @@ function publicFieldLocationLabel(row: FieldDetailReadmodelRow): string {
 }
 
 async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): Promise<Response> {
+  // These public, content-addressed LP illustrations are release assets, never guest media.
+  if (/^\/assets\/event-discovery\/ryuyo-photo-(?:hero|mantis|dragonfly|butterfly|leaf|pond|path)-[a-f0-9]{12}\.webp$/.test(url.pathname)) {
+    const object = await env.ASSET_BUCKET.get(`event-discovery/preview-images/${url.pathname.split("/").at(-1)}`);
+    if (!object?.body) return new Response("Image unavailable", { status: 404, headers: { "cache-control": "no-store" } });
+    return new Response(request.method === "HEAD" ? null : object.body, { headers: {
+      "content-type": "image/webp", "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff", "x-ikimon-cloudflare-native": "ryuyo-generated-preview-image",
+      ...(object.httpEtag ? { etag: object.httpEtag } : {}),
+    } });
+  }
   const object = await getVersionedOriginalUiObject(env, originalUiStaticAssetKey(url.pathname));
   if (object?.body) {
     const fallbackContentType = contentTypeForOriginalUiStaticAsset(url.pathname);
@@ -25491,6 +25501,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (/^\/assets\/img\/invasive\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/img\/landing\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/event-discovery\/ryuyo-(?:hero|discovery|memories)\.webp$/.test(pathname)) return true;
+  if (/^\/assets\/event-discovery\/ryuyo-photo-(?:hero|mantis|dragonfly|butterfly|leaf|pond|path)-[a-f0-9]{12}\.webp$/.test(pathname)) return true;
   return false;
 }
 

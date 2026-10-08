@@ -22,23 +22,80 @@ function previewFormCta(): string {
     : '<button class="ed-button ed-primary" type="button" disabled>申し込みフォームを準備中</button>';
 }
 
+const RYUYO_PREVIEW_PHOTOS = {
+  "hero": {
+    "name": "ryuyo-photo-hero-910d4d1dcc80.webp",
+    "width": 1400,
+    "height": 933
+  },
+  "mantis": {
+    "name": "ryuyo-photo-mantis-a263162fb3fc.webp",
+    "width": 800,
+    "height": 800
+  },
+  "dragonfly": {
+    "name": "ryuyo-photo-dragonfly-e6c8709084c5.webp",
+    "width": 800,
+    "height": 800
+  },
+  "butterfly": {
+    "name": "ryuyo-photo-butterfly-24ed2129e469.webp",
+    "width": 800,
+    "height": 800
+  },
+  "leaf": {
+    "name": "ryuyo-photo-leaf-0b26a34b41a8.webp",
+    "width": 800,
+    "height": 800
+  },
+  "pond": {
+    "name": "ryuyo-photo-pond-4c2957c4bb1a.webp",
+    "width": 800,
+    "height": 800
+  },
+  "path": {
+    "name": "ryuyo-photo-path-0177adc2de81.webp",
+    "width": 800,
+    "height": 800
+  }
+} as const;
+function previewPhoto(id: keyof typeof RYUYO_PREVIEW_PHOTOS, alt: string, eager = false): string {
+  const asset = RYUYO_PREVIEW_PHOTOS[id];
+  return `<img src="${ASSET_ROOT}${asset.name}" width="${asset.width}" height="${asset.height}" alt="${escapeHtml(alt)}" ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async">`;
+}
+function previewPhotoExamples(): string {
+  const examples: Array<{ id: keyof typeof RYUYO_PREVIEW_PHOTOS; title: string; place: string; caption: string }> = [
+    { id: "mantis", title: "葉っぱの裏に、いた！", place: "草むらのそば", caption: "しゃがんで見たら、葉っぱと同じ色の虫を発見。" },
+    { id: "dragonfly", title: "ひと休みしているのかな。", place: "水辺の草", caption: "羽が透けて、きらきらして見えた。" },
+    { id: "butterfly", title: "黄色い羽と、小さな花。", place: "小道の花", caption: "花から花へ。止まった瞬間を一枚。" },
+    { id: "leaf", title: "穴あきの葉っぱも、おもしろい。", place: "小道の足元", caption: "だれが食べたんだろう。水のつぶも見つけた。" },
+    { id: "pond", title: "水の中にも、空がある。", place: "池のほとり", caption: "風が吹くと、映った景色もゆらゆら。" },
+    { id: "path", title: "見上げたら、この景色。", place: "木の下", caption: "虫を探す途中で、好きな光を見つけた。" },
+  ];
+  return examples.map((example) => `<figure class="ed-demo-tile"><button class="ed-gallery-open" type="button" data-discovery-demo data-demo-title="${escapeHtml(example.title)}" data-demo-place="${escapeHtml(example.place)}" data-demo-caption="${escapeHtml(example.caption)}" aria-label="${escapeHtml(example.title)}の写真とメモを見る（AI生成の例）">${previewPhoto(example.id, example.title + "（AI生成写真）")}<span class="ed-demo-caption"><span class="ed-sample-label">AI生成の例</span><strong>${escapeHtml(example.title)}</strong><span class="ed-demo-open" aria-hidden="true">写真とメモを見る ↗</span></span></button></figure>`).join("");
+}
+
 function previewCampaign(): string {
   return `<template data-discovery-preview-template data-preview-event-code="${RYUYO_PREVIEW_EVENT_CODE}">
     <div class="ed-preview-notice"><strong>仮日程・テスト公開</strong><span>開催は未決定です。申し込みもテスト用です。</span></div>
     <header class="ed-lp-hero">
       <div class="ed-lp-intro"><p class="ed-kicker">1日限定の自然観察イベント</p>
         <h1 class="ed-title"><span class="ed-title-preface">こんちゅうクンとめぐる、</span><span>竜洋のとっておき。</span></h1>
-        <p class="ed-lp-lead">こんちゅうクンと公園を歩いて、<wbr>気になった生きものや景色を写真に残そう。</p>
-        <dl class="ed-event-facts"><div class="ed-date-fact"><dt>仮日程</dt><dd><span class="ed-event-year">2026年</span><time datetime="2026-10-24">10月24日<span class="ed-event-weekday">（土）</span></time></dd></div><div class="ed-time-fact"><dt>時間</dt><dd>10:00〜12:00<span class="ed-fact-note">日本時間</span></dd></div><div class="ed-place-fact"><dt>会場</dt><dd>竜洋昆虫自然観察公園</dd></div></dl>
+        <p class="ed-lp-lead">公園を歩いて、見つけて、写真に残そう。<br>こんちゅうクンと楽しむ、2時間の自然観察。</p>
+        <dl class="ed-event-facts"><div class="ed-date-fact"><dt>仮日程</dt><dd><span class="ed-event-year">2026年</span><time datetime="2026-10-24">10月24日<span class="ed-event-weekday">（土）</span></time></dd></div><div class="ed-time-fact"><dt>時間</dt><dd>10:00〜12:00</dd></div><div class="ed-place-fact"><dt>会場</dt><dd>竜洋昆虫自然観察公園</dd></div></dl>
         <div class="ed-lp-action">${previewFormCta()}<p class="ed-help">Googleフォームで申し込む · 約1分</p></div>
-        <a class="ed-text-link" href="#discovery-day">当日の写真投稿へ</a>
-      </div><figure class="ed-lp-visual">${illustration("hero", "木漏れ日の小道と池を巡る自然観察のイメージイラスト", true)}<figcaption>イラストはイメージです</figcaption></figure>
+        <a class="ed-text-link" href="#discovery-community">写真とメモの例を見る<span aria-hidden="true"> ↓</span></a>
+      </div><figure class="ed-lp-visual">${previewPhoto("hero", "親子で小道の自然を観察するイメージ（AI生成写真）", true)}<figcaption>AI生成の体験イメージ · 実際の会場・出演者の写真ではありません</figcaption></figure>
     </header>
-    <section class="ed-lp-section" aria-labelledby="discovery-how"><h2 id="discovery-how">何をする？</h2><ol class="ed-steps"><li><span class="ed-step-number" aria-hidden="true">1</span><h3>一緒に歩く</h3><p>こんちゅうクンと、公園の小道や水辺をめぐります。</p></li><li><span class="ed-step-number" aria-hidden="true">2</span><h3>とっておきを見つける</h3><p>虫も、葉っぱも、好きな景色も。「ここ、いいな」を探そう。</p></li><li><span class="ed-step-number" aria-hidden="true">3</span><h3>写真を1〜3枚残す</h3><p>ひと言や場所のメモは、書きたいときだけで大丈夫。</p></li></ol></section>
-    <section class="ed-lp-section ed-lp-guide" aria-labelledby="discovery-guide"><h2 id="discovery-guide">こんちゅうクンと歩く。</h2><div><p>いつもの小道にも、小さな発見がいっぱい。こんちゅうクンと一緒に、立ち止まって、よく見てみよう。</p><p class="ed-guide-note">むずかしい生きものの名前を知らなくても参加できます。</p></div></section>
-    <section id="discovery-day" class="ed-lp-section" aria-labelledby="discovery-day-heading"><div class="ed-own-heading"><h2 id="discovery-day-heading">当日の流れ</h2><p class="ed-help">10:00集合 → 12:00終了予定</p></div><ol class="ed-day-flow"><li>集合</li><li>公園を観察</li><li>写真を残す</li><li>希望する人だけ共有</li></ol><div class="ed-lp-day-action"><a class="ed-button" data-discovery-photo-link hidden href="#discovery-day">写真の画面を開く<span aria-hidden="true"> →</span></a><p class="ed-help" data-discovery-day-state>写真投稿の受付状況を確認しています。</p></div><p class="ed-help ed-lp-safety">写真を選んだだけでは送信されません。「この写真を保存する」で保存し、共有を選んだものだけ主催者の確認後に掲載します。</p><p class="ed-help">紙のシートは、当日会場で配布します。</p>${statusRegion()}</section>
-    <section id="discovery-community" class="ed-lp-section" aria-labelledby="discovery-community-heading"><p class="ed-kicker">みんなの発見</p><h2 id="discovery-community-heading">みんなが見つけた、<wbr>今日のとっておき。</h2><p>共有OKになった写真やメモが、ここに並びます。</p><p class="ed-sample-notice">写真は生成イラストを使ったテスト投稿です。紙の記録もテストです。</p><div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>掲載された発見を読み込んでいます。</p><button class="ed-button ed-small" type="button" data-discovery-gallery-refresh disabled>発見を再読み込み</button></div><p class="ed-status" data-discovery-gallery-status role="status" aria-live="polite"></p><div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-gallery-more hidden>発見をもっと見る</button></section>
-    <section id="discovery-signup" class="ed-lp-section ed-lp-signup" aria-labelledby="discovery-signup-heading"><div><h2 id="discovery-signup-heading">あなたの「とっておき」を、<wbr>見つけに行こう。</h2><p class="ed-help">仮日程・テスト公開です。正式な開催案内ではありません。</p></div><div class="ed-lp-action">${previewFormCta()}<p class="ed-help">Googleフォームで申し込む · 約1分</p></div></section>
+    <section class="ed-lp-section" aria-labelledby="discovery-how"><h2 id="discovery-how">歩く、見つける、残す。</h2><ol class="ed-steps ed-photo-steps">
+      <li>${previewPhoto("hero", "", false)}<div><span class="ed-step-number" aria-hidden="true">1</span><h3>こんちゅうクンと歩く</h3><p>公園の小道や水辺を、ゆっくり観察。</p></div></li>
+      <li>${previewPhoto("mantis", "", false)}<div><span class="ed-step-number" aria-hidden="true">2</span><h3>「ここ、いいな」を探す</h3><p>虫も、葉っぱも、好きな景色も。</p></div></li>
+      <li>${previewPhoto("dragonfly", "", false)}<div><span class="ed-step-number" aria-hidden="true">3</span><h3>写真を1〜3枚残す</h3><p>ひと言や場所のメモは、書きたいときだけ。</p></div></li>
+    </ol><p class="ed-help ed-steps-image-note">写真はAI生成のイメージです。</p></section>
+    <section class="ed-lp-section ed-lp-guide" aria-labelledby="discovery-guide"><h2 id="discovery-guide">こんちゅうクンと、<wbr>よく見てみよう。</h2><div><p>葉っぱの裏をのぞいたり、水辺で立ち止まったり。こんちゅうクンと一緒なら、いつもの小道も発見の場所に。</p><p class="ed-guide-note">むずかしい生きものの名前を知らなくても大丈夫。</p></div></section>
+    <section id="discovery-day" class="ed-lp-section" aria-labelledby="discovery-day-heading"><div class="ed-own-heading"><h2 id="discovery-day-heading">当日の流れ</h2><p class="ed-help">10:00集合 → 12:00終了予定</p></div><ol class="ed-day-flow"><li>集合</li><li>公園を観察</li><li>写真を残す</li><li>希望する人だけ共有</li></ol><div class="ed-lp-day-action"><a class="ed-button" data-discovery-photo-link hidden href="#discovery-day">写真の画面を開く<span aria-hidden="true"> →</span></a><p class="ed-help" data-discovery-day-state>写真投稿の受付状況を確認しています。</p></div><details class="ed-lp-record-help"><summary>写真の保存と共有について</summary><p class="ed-help">写真を選んだだけでは送信されません。「この写真を保存する」で保存し、共有を選んだものだけ主催者の確認後に掲載します。共有しない写真は公開されません。未成年の方が共有する場合は、保護者の同意が必要です。</p></details><p class="ed-help ed-paper-guidance">紙のシートは、当日会場で配布します。</p>${statusRegion()}</section>
+    <section id="discovery-community" class="ed-lp-section ed-lp-community" aria-labelledby="discovery-community-heading"><h2 id="discovery-community-heading">みんなの発見</h2><p class="ed-gallery-lead">みんなが見つけた、今日のとっておき。</p><p class="ed-help">共有OKになった写真だけが、ここに並びます。</p><div class="ed-demo-gallery" aria-label="写真とメモの掲載イメージ"><div class="ed-demo-heading"><h3>こんな発見を、写真とひと言で。</h3><span class="ed-sample-label">掲載イメージ</span></div><p class="ed-sample-notice">以下の6枚はAI生成の例です。写真・メモは架空で、実参加者の投稿や実際の会場の写真ではありません。</p><div class="ed-demo-grid">${previewPhotoExamples()}</div></div><details class="ed-published-gallery" data-discovery-published hidden><summary>掲載されたテスト投稿を見る</summary><p class="ed-help">既存の写真2件は生成イラスト、紙の記録3件もテストです。</p><div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>掲載された発見を読み込んでいます。</p><button class="ed-button ed-small" type="button" data-discovery-gallery-refresh disabled>発見を再読み込み</button></div><p class="ed-status" data-discovery-gallery-status role="status" aria-live="polite"></p><div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-gallery-more hidden>発見をもっと見る</button></details><p class="ed-help ed-public-gallery-state" data-discovery-public-gallery-state>参加者の発見は、公開後にここで見られます。</p></section>
+    <section id="discovery-signup" class="ed-lp-section ed-lp-signup" aria-labelledby="discovery-signup-heading"><div><h2 id="discovery-signup-heading">あなたの「とっておき」を、<wbr>見つけに行こう。</h2><p class="ed-signup-facts">2026年10月24日（土）<wbr> 10:00〜12:00</p><p class="ed-help">仮日程・テスト公開です。正式な開催案内ではありません。</p></div><div class="ed-lp-action">${previewFormCta()}<p class="ed-help">Googleフォームで申し込む · 約1分</p></div></section>
   </template>`;
 }
 
@@ -209,10 +266,129 @@ export function renderObservationEventDiscoveryOrganizer(input: { sessionId: str
 export const EVENT_DISCOVERY_STYLES = `
 .ed{color:#17211b;font-size:16px;line-height:1.8;overflow-wrap:anywhere}.ed *{box-sizing:border-box}.ed [hidden]{display:none!important}.ed p{margin:0 0 16px}.ed h1,.ed h2,.ed h3{font-weight:700;color:#143f2e;line-height:1.45}.ed h1{font-size:32px;margin:0 0 16px}.ed h2{font-size:26px;margin:0 0 20px}.ed h3{font-size:20px;margin:0 0 12px}.ed input,.ed select,.ed textarea,.ed button{font:inherit}.ed input,.ed textarea,.ed select{max-width:100%;color:#17211b}.ed a{color:#0055ad;text-underline-offset:4px}.ed button,.ed a,.ed input,.ed select,.ed textarea{touch-action:manipulation}.ed .ed-kicker{font-size:14px;letter-spacing:.06em;font-weight:700;color:#55615a;margin:0 0 16px}.ed .ed-help{font-size:14px;color:#55615a;line-height:1.75}.ed .ed-button{display:inline-flex;justify-content:center;align-items:center;gap:12px;min-width:44px;min-height:48px;border:1px solid #68746c;border-radius:4px;padding:10px 20px;background:#fff;color:#17211b;font-weight:700;text-decoration:none;line-height:1.5;white-space:normal;cursor:pointer}.ed .ed-button.ed-primary{background:#143f2e;color:#fff;border-color:#143f2e}.ed .ed-button:not(:disabled):hover{background:#eef2e9}.ed .ed-button.ed-primary:not(:disabled):hover{background:#0f3023}.ed .ed-button:disabled{color:#55615a;background:#eef0ec;cursor:default;border-color:#a0a8a2}.ed .ed-button.ed-small{font-size:14px;padding:8px 14px;min-height:44px}.ed :is(a,button,input,select,textarea,summary):focus-visible{outline:3px solid #000;outline-offset:3px;box-shadow:0 0 0 6px #ffd43d}.ed .ed-status:focus{outline:2px solid #143f2e;outline-offset:4px}.ed .ed-text-link,.ed .ed-back{display:inline-flex;align-items:center;min-height:44px;line-height:1.5}.ed .ed-text-link{font-weight:700}.ed .ed-back{font-size:14px}.ed .ed-intro{display:grid;grid-template-columns:1.35fr 1fr;gap:32px;align-items:end;margin:24px 0 28px}.ed .ed-title{font-size:46px;letter-spacing:.01em;margin:0}.ed .ed-title>span{display:block}.ed .ed-title .ed-title-preface{font-size:28px;margin-bottom:8px}.ed .ed-intro p{margin:0 0 20px}.ed .ed-hero{margin:0}.ed .ed-hero img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:8px}.ed .ed-hero figcaption{font-size:14px;color:#55615a;text-align:right;margin-top:6px}.ed .ed-ribbon{list-style:none;margin:0;padding:24px 0 32px;display:flex;justify-content:center;gap:32px;border-bottom:1px solid #dde2dc}.ed .ed-ribbon li{display:flex;align-items:center;gap:12px}.ed .ed-ribbon li::before{content:"";display:block;width:8px;height:8px;border-radius:50%;background:#e2b63c}.ed .ed-section{padding:48px 0;border-bottom:1px solid #dde2dc;scroll-margin-top:96px}.ed .ed-steps{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin:0;padding:0}.ed .ed-step-number{font-size:14px;font-weight:700;color:#143f2e;letter-spacing:.12em;display:block;margin-bottom:8px}.ed .ed-steps p{color:#55615a;margin:0}.ed .ed-story{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.55fr);align-items:center;gap:48px}.ed .ed-story>img{width:100%;height:auto;aspect-ratio:1;border-radius:8px}.ed .ed-story h2{font-size:28px}.ed .ed-code{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start;scroll-margin-top:96px}.ed .ed-code input{display:block;width:100%;margin:8px 0 16px;min-height:48px;padding:10px 12px;border:1px solid #68746c;border-radius:4px;background:#fff}.ed .ed-code label{font-weight:700}.ed .ed-intro-links{display:flex;gap:12px 24px;flex-wrap:wrap;margin-top:20px}.ed .ed-participation{padding:32px;background:#eef2e9;border-radius:8px}.ed .ed-event-summary{margin:20px 0}.ed .ed-event-summary h3{margin-bottom:8px}.ed .ed-day{display:grid;grid-template-columns:1.5fr 1fr;gap:40px}.ed .ed-code-alternative{align-self:start}.ed .ed-code-alternative input{display:block;width:100%;min-height:48px;margin:8px 0 16px;padding:10px;border:1px solid #68746c;border-radius:4px;background:white}.ed .ed-campaign-settings{border-bottom:1px solid #dde2dc;padding-bottom:32px;margin-bottom:36px}.ed .ed-photo-inputs{display:grid;grid-template-columns:1fr 1fr;gap:16px}.ed .ed-organizer-link{padding:28px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:32px}.ed .ed-organizer-link p{margin:0}.ed .ed-organizer-link>a{max-width:280px}.ed .ed-welcome{display:grid;grid-template-columns:1.7fr 1fr;gap:32px;align-items:center;margin:24px 0 32px}.ed .ed-welcome img{display:block;width:100%;height:auto;border-radius:8px}.ed .ed-form{max-width:720px}.ed .ed-form label:not(.ed-check):not(.ed-photo-picker){display:block;font-weight:700;margin:20px 0 8px}.ed .ed-form input:not([type=checkbox]):not([type=file]),.ed .ed-form select,.ed .ed-form textarea{display:block;width:100%;min-height:48px;padding:10px 12px;border:1px solid #68746c;border-radius:4px;background:#fff;line-height:1.5}.ed .ed-form textarea{resize:vertical}.ed .ed-form fieldset{border:0;min-width:0;margin:0;padding:0}.ed .ed-form fieldset:disabled{opacity:.7}.ed .ed-form .ed-help{margin-top:8px}.ed .ed-optional{font-size:14px;font-weight:400;margin-inline-start:8px;color:#55615a}.ed .ed-check{display:flex;gap:12px;align-items:flex-start;min-height:44px;padding:10px 0;font-weight:400;cursor:pointer}.ed .ed-check input{flex:0 0 auto;width:20px;height:20px;margin:4px 0 0;accent-color:#143f2e}.ed .ed-check .ed-help{display:block;margin:4px 0 0}.ed .ed-status{margin:12px 0}.ed .ed-status:empty{display:none}.ed .ed-status:not(:empty){padding:12px 16px;border-inline-start:3px solid #68746c;background:#eef2e9}.ed .ed-status[data-error=true]{color:#b42318;border-color:#b42318;background:#fff3ef}.ed .ed-notice{padding:16px 20px;border-inline-start:3px solid #68746c;background:#eef2e9;margin:20px 0}.ed .ed-context,.ed .ed-own-heading,.ed .ed-gallery-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}.ed .ed-context{margin-bottom:24px}.ed .ed-page-heading{margin-bottom:32px}.ed .ed-own-heading{margin-bottom:16px}.ed .ed-own-heading h2{margin:0}.ed .ed-own-heading .ed-kicker{margin-bottom:4px}.ed .ed-own-journal{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.ed .ed-receipt{min-width:0;border-bottom:1px solid #dde2dc;padding-bottom:20px}.ed .ed-receipt img{width:100%;height:200px;object-fit:contain;background:#edf1e9;border-radius:8px}.ed .ed-receipt h3{font-size:18px;margin:12px 0 8px}.ed .ed-receipt p{white-space:pre-wrap;margin:8px 0}.ed .ed-receipt .ed-gallery-state{font-size:14px;white-space:normal;color:#55615a}.ed .ed-capture-form{border-top:1px solid #dde2dc;margin-top:32px;padding-top:28px}.ed .ed-photo-picker{display:flex;align-items:center;justify-content:center;flex-direction:column;min-height:160px;padding:24px;border:1px dashed #68746c;background:#f5f6f0;border-radius:8px;cursor:pointer;gap:6px}.ed .ed-photo-plus{font-size:30px;line-height:1}.ed .ed-file{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.ed .ed-photo-inputs>div:focus-within .ed-photo-picker{outline:3px solid #a98221;outline-offset:3px}.ed .ed-selected-preview:empty{display:none}.ed .ed-selected-preview img{display:block;max-width:100%;max-height:360px;object-fit:contain;border-radius:8px}.ed .ed-share-choice{padding:16px 20px;background:#eef2e9;border-radius:8px;margin:16px 0 24px}.ed .ed-share-choice>p:last-child{margin-bottom:0}.ed .ed-paper-strip{display:flex;align-items:center;justify-content:space-between;gap:24px;border-top:1px solid #dde2dc;margin-top:40px;padding-top:28px}.ed .ed-paper-strip h2{font-size:22px;margin-bottom:8px}.ed .ed-paper-strip p{margin:0}.ed .ed-paper-strip .ed-button{flex-shrink:0}.ed .ed-gallery-heading{max-width:720px;margin:24px 0 40px}.ed .ed-gallery-heading h1{font-size:40px}.ed .ed-gallery-toolbar{padding-bottom:20px;border-bottom:1px solid #dde2dc;margin-bottom:24px}.ed .ed-gallery-toolbar p{margin:0}.ed .ed-journals{display:grid;gap:32px}.ed .ed-journal{padding:24px;border:1px solid #dde2dc;border-radius:8px;background:#fff}.ed .ed-journal h2{font-size:22px;margin:0 0 20px}.ed .ed-journal-entries{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.ed .ed-entry{min-width:0;margin:0}.ed .ed-entry img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:#f1f3ed;border-radius:4px}.ed .ed-entry h3{font-size:18px;margin:12px 0 8px}.ed .ed-entry p{white-space:pre-wrap;margin:8px 0}.ed .ed-paper-note-view{border-top:3px solid #d8b446;background:#fbfaf2;padding:20px;min-height:160px}.ed .ed-paper-note-view .ed-kicker{margin:0 0 8px}.ed .ed-selection{padding:12px 14px;background:#f7f1d9;margin-top:12px;border-radius:4px}.ed .ed-selection strong{font-size:14px;display:block}.ed .ed-selection p{font-size:14px;margin-bottom:0}.ed .ed-empty{padding:40px 0;max-width:560px}.ed .ed-empty h2{margin-bottom:12px}.ed .ed-load-more{display:flex;margin:28px auto 0}.ed .ed-footer-note{margin-top:28px}.ed .ed-review-filters{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.ed .ed-review-filters [aria-pressed=true]{background:#143f2e;color:#fff;border-color:#143f2e}.ed .ed-review{padding:24px 0;border-bottom:1px solid #dde2dc;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:24px}.ed .ed-review img{display:block;width:100%;max-height:360px;object-fit:contain;background:#f1f3ed;border-radius:8px}.ed .ed-review>div>p{white-space:pre-wrap}.ed .ed-review .ed-form label{margin-top:12px}.ed .ed-review-actions{display:flex;gap:12px;flex-wrap:wrap}.ed .ed-review .ed-help{margin-bottom:8px}.ed .ed-paper-entry{margin-top:32px;border-top:1px solid #dde2dc}.ed summary{cursor:pointer;min-height:48px;padding:16px 0;font-weight:700;line-height:1.5}.ed .ed-paper-fields{margin-top:24px!important;border-top:1px solid #dde2dc!important;padding-top:16px!important}.ed .ed-paper-fields legend{font-weight:700;padding:0 12px 0 0}.ed .ed-print-toolbar{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:24px}.ed .ed-print-sheet{background:white;padding:32px;border:1px solid #dde2dc}.ed .ed-print-sheet h1{font-size:26px}.ed .ed-print-name{display:flex;flex-wrap:wrap;gap:8px}.ed .ed-print-name span{min-width:160px;flex:1;border-bottom:1px solid #68746c}.ed .ed-print-note{border:1px solid #68746c;border-radius:4px;padding:16px;margin:20px 0;break-inside:avoid}.ed .ed-print-note h2{font-size:18px;margin:0}.ed .ed-print-note h2 span{margin-right:12px}.ed .ed-print-writing{height:96px}.ed .ed-print-line{height:28px;border-top:1px solid #dde2dc;border-bottom:1px solid #dde2dc}.ed .ed-print-choice{margin-top:24px}.ed .ed-sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 /* The isolated preview LP owns these declarations; shared participant controls stay unchanged. */
-.ed .ed-preview-notice{display:flex;flex-wrap:wrap;gap:4px 16px;padding:12px 0 16px;color:#8a4b00;font-size:14px;line-height:1.7;border-bottom:1px solid #dde2dc;margin-bottom:24px}.ed .ed-preview-notice strong{font-weight:700}.ed .ed-lp-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px;align-items:center}.ed .ed-lp-intro{min-width:0}.ed .ed-lp-intro>.ed-kicker{margin-bottom:12px}.ed .ed-lp-intro .ed-title{margin-bottom:16px}.ed .ed-lp-lead{max-width:36em;text-wrap:pretty}.ed .ed-event-facts{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:20px 0 24px}.ed .ed-event-facts>div{display:flex;align-items:baseline;gap:12px}.ed .ed-event-facts dt{flex:0 0 3em;font-size:14px;color:#55615a}.ed .ed-event-facts dd{margin:0;min-width:0;font-weight:700;color:#143f2e}.ed .ed-date-fact dd{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;line-height:1.3}.ed .ed-event-year{font-size:14px}.ed .ed-date-fact time{font-size:32px;font-weight:700}.ed .ed-event-weekday{font-size:18px}.ed .ed-time-fact dd{font-size:24px;line-height:1.3}.ed .ed-fact-note{font-size:14px;font-weight:400;color:#55615a;margin-inline-start:12px}.ed .ed-lp-action .ed-button{min-height:52px}.ed .ed-lp-action .ed-help{margin:8px 0 0}.ed .ed-lp-intro>.ed-text-link{margin-top:8px}.ed .ed-lp-visual{min-width:0;margin:0}.ed .ed-lp-visual img{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;object-position:42% 50%;border-radius:8px}.ed .ed-lp-visual figcaption{font-size:14px;color:#55615a;margin-top:8px}.ed .ed-lp-section{padding:32px 0;border-bottom:1px solid #dde2dc;scroll-margin-top:96px}.ed .ed-lp-guide{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:32px}.ed .ed-lp-guide p:last-child{margin-bottom:0}.ed .ed-guide-note{font-weight:700}.ed .ed-lp-section .ed-own-heading>.ed-help{margin:0}.ed .ed-day-flow{list-style:none;margin:0 0 20px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.ed .ed-day-flow li{padding:12px 0;border-top:2px solid #143f2e;font-weight:700;line-height:1.6}.ed .ed-lp-day-action{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;margin-bottom:12px}.ed .ed-lp-day-action .ed-help{margin:0}.ed .ed-lp-safety{max-width:52em}.ed .ed-sample-notice{font-size:14px;color:#8a4b00}.ed .ed-photo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}.ed .ed-photo-journal,.ed .ed-photo-entries{display:contents}.ed .ed-gallery-tile{min-width:0;margin:0}.ed .ed-gallery-open{display:block;width:100%;padding:0;border:0;background:none;color:#17211b;text-align:start;cursor:pointer;border-radius:4px;font:inherit;min-height:44px;line-height:1.6}.ed .ed-gallery-open>img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:4px;background:#f7f7f3}.ed .ed-tile-caption{display:flex;flex-direction:column;gap:2px;padding:8px 0}.ed .ed-tile-caption>strong{font-size:16px;line-height:1.5}.ed .ed-sample-label,.ed .ed-tile-name{font-size:14px;line-height:1.6}.ed .ed-sample-label{color:#8a4b00}.ed .ed-tile-name{color:#55615a}.ed .ed-paper-summary{display:flex;flex-direction:column;gap:8px;min-height:112px;padding:16px;background:#f7f7f3;border-top:3px solid #d8b446;border-radius:4px}.ed .ed-paper-kind{font-size:14px;color:#55615a}.ed .ed-tile-excerpt{font-size:14px;color:#55615a;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.ed .ed-paper-tile .ed-tile-caption{padding-top:8px}.ed .ed-photo-grid>.ed-empty{grid-column:1/-1}.ed .ed-photo-dialog{width:calc(100% - 40px);max-width:720px;max-height:calc(100dvh - 40px);padding:20px;border:1px solid #68746c;border-radius:8px;background:#fff;color:#17211b;overflow:auto}.ed .ed-photo-dialog::backdrop{background:rgba(23,33,27,.65)}.ed .ed-photo-dialog>.ed-button{display:flex;margin-inline-start:auto;margin-bottom:16px}.ed .ed-photo-detail img{display:block;width:100%;height:auto;max-height:55dvh;object-fit:contain;background:#f7f7f3;border-radius:4px;margin:12px 0 20px}.ed .ed-photo-detail h2{font-size:24px;margin-bottom:8px}.ed .ed-detail-name{font-size:14px;color:#55615a}.ed .ed-detail-caption{white-space:pre-wrap}.ed .ed-lp-signup{display:flex;justify-content:space-between;align-items:center;gap:24px;border-bottom:0}.ed .ed-lp-signup h2{margin-bottom:8px}.ed .ed-lp-signup>div>p:last-child{margin-bottom:0}.ed .ed-lp-signup .ed-lp-action{flex-shrink:0}
-@media(min-width:721px) and (max-width:1099px){.ed .ed-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:900px){.ed .ed-lp-hero{grid-template-columns:1fr;gap:20px}.ed .ed-lp-visual img{aspect-ratio:2.5;object-position:45% 50%}.ed .ed-lp-guide{grid-template-columns:1fr;gap:0}}
-@media(max-width:720px){.ed .ed-preview-notice{margin-bottom:20px}.ed .ed-lp-intro .ed-title{margin-bottom:12px}.ed .ed-lp-lead{margin-bottom:12px}.ed .ed-event-facts{margin:16px 0 20px}.ed .ed-date-fact time{font-size:30px}.ed .ed-lp-action .ed-button{width:100%}.ed .ed-lp-visual img{aspect-ratio:1.9;object-position:42% 50%}.ed .ed-lp-section{padding:28px 0}.ed .ed-day-flow{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px;margin-bottom:16px}.ed .ed-day-flow li{font-size:16px;padding:8px 0}.ed .ed-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.ed .ed-paper-summary{padding:12px;gap:6px}.ed .ed-lp-signup{display:block}.ed .ed-lp-signup .ed-lp-action{margin-top:20px}.ed .ed-photo-dialog{width:calc(100% - 24px);max-height:calc(100dvh - 24px);padding:16px}.ed .ed-photo-detail img{max-height:50dvh}}
+.ed .ed-preview-notice{display:flex;flex-wrap:wrap;gap:2px 16px;padding:10px 0 14px;color:#8a4b00;font-size:14px;line-height:1.6;border-bottom:1px solid #dde2dc;margin-bottom:28px}
+.ed .ed-preview-notice strong{font-weight:700}
+.ed .ed-lp-hero{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:44px;align-items:center}
+.ed .ed-lp-intro,.ed .ed-lp-visual{min-width:0}
+.ed .ed-lp-intro>.ed-kicker{margin-bottom:12px;letter-spacing:.025em}
+.ed .ed-lp-intro .ed-title{font-size:42px;letter-spacing:0;margin-bottom:18px;line-height:1.35}
+.ed .ed-lp-intro .ed-title .ed-title-preface{font-size:24px;line-height:1.5;margin-bottom:6px}
+.ed .ed-lp-lead{max-width:34em;line-height:1.8;text-wrap:pretty}
+.ed .ed-event-facts{display:grid;gap:10px;margin:22px 0 26px;padding-top:18px;border-top:1px solid #dde2dc}
+.ed .ed-event-facts>div{display:flex;align-items:baseline;gap:12px}
+.ed .ed-event-facts dt{flex:0 0 3em;font-size:14px;color:#55615a}
+.ed .ed-event-facts dd{margin:0;min-width:0;font-weight:700;color:#143f2e}
+.ed .ed-date-fact dd{display:flex;gap:4px 8px;align-items:baseline;flex-wrap:wrap;line-height:1.3}
+.ed .ed-event-year{font-size:16px}
+.ed .ed-date-fact time{font-size:40px;font-weight:700;white-space:nowrap;letter-spacing:-.015em}
+.ed .ed-event-weekday{font-size:20px;letter-spacing:0}
+.ed .ed-time-fact dd{font-size:28px;line-height:1.4;font-variant-numeric:tabular-nums}
+.ed .ed-fact-note{font-size:14px;font-weight:400;color:#55615a;margin-inline-start:12px}
+.ed .ed-lp-action .ed-button{min-height:54px;padding-inline:24px}
+.ed .ed-lp-action .ed-help{margin:8px 0 0}
+.ed .ed-lp-intro>.ed-text-link{margin-top:12px;gap:12px;font-size:14px}
+.ed .ed-lp-visual{margin:0}
+.ed .ed-lp-visual img{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;object-position:55% 50%;border-radius:8px}
+.ed .ed-lp-visual figcaption{font-size:14px;color:#55615a;margin-top:8px;line-height:1.6}
+.ed .ed-lp-section{padding:40px 0;border-bottom:1px solid #dde2dc;scroll-margin-top:96px}
+.ed .ed-photo-steps{gap:28px}
+.ed .ed-photo-steps li{display:grid;grid-template-columns:88px minmax(0,1fr);align-items:start;gap:16px}
+.ed .ed-photo-steps img{display:block;width:88px;height:104px;object-fit:cover;border-radius:4px}
+.ed .ed-photo-steps .ed-step-number{float:none;margin:0 0 4px;font-size:14px;letter-spacing:0}
+.ed .ed-photo-steps h3{font-size:18px;margin-bottom:6px}
+.ed .ed-photo-steps p{font-size:14px;line-height:1.7}
+.ed .ed-steps-image-note{margin:12px 0 0;font-size:14px}
+.ed .ed-lp-guide{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:36px}
+.ed .ed-lp-guide h2{margin:0}
+.ed .ed-lp-guide p:last-child{margin-bottom:0}
+.ed .ed-guide-note{font-weight:700}
+.ed .ed-lp-section .ed-own-heading{align-items:baseline;margin-bottom:20px}
+.ed .ed-lp-section .ed-own-heading>h2,.ed .ed-lp-section .ed-own-heading>.ed-help{margin:0}
+.ed .ed-day-flow{list-style:none;margin:0 0 20px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px;counter-reset:day}
+.ed .ed-day-flow li{counter-increment:day;padding:12px 0;border-top:2px solid #143f2e;font-weight:700;line-height:1.6}
+.ed .ed-day-flow li::before{content:counter(day);font-size:14px;font-weight:400;margin-inline-end:12px}
+.ed .ed-lp-day-action{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;margin-bottom:12px}
+.ed .ed-lp-day-action .ed-help{margin:0}
+.ed .ed-lp-record-help>summary,.ed .ed-published-gallery>summary{min-height:44px;padding:9px 0;cursor:pointer;font-size:14px;font-weight:700}
+.ed .ed-lp-record-help>p{margin:4px 0 12px;max-width:55em}
+.ed .ed-paper-guidance{margin:8px 0 0}
+.ed .ed-lp-community>h2{margin-bottom:8px}
+.ed .ed-gallery-lead{font-size:18px;margin-bottom:4px}
+.ed .ed-demo-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:24px}
+.ed .ed-demo-heading h3{font-size:18px;margin:0 0 8px}
+.ed .ed-demo-heading>.ed-sample-label{flex-shrink:0}
+.ed .ed-sample-notice{font-size:14px;color:#8a4b00;line-height:1.7;max-width:55em}
+.ed .ed-demo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px 20px}
+.ed .ed-demo-tile,.ed .ed-gallery-tile{min-width:0;margin:0}
+.ed .ed-gallery-open{display:block;width:100%;padding:0;border:0;background:none;color:#17211b;text-align:start;cursor:pointer;border-radius:4px;font:inherit;min-height:44px;line-height:1.6}
+.ed .ed-gallery-open>img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:4px;background:#f7f7f3}
+.ed .ed-demo-tile .ed-gallery-open>img{aspect-ratio:1}
+.ed .ed-demo-caption{display:flex;flex-direction:column;gap:2px;padding-top:8px}
+.ed .ed-demo-caption>strong{font-size:16px;font-weight:600;line-height:1.5}
+.ed .ed-demo-open{font-size:14px;color:#55615a}
+.ed .ed-gallery-open:hover .ed-demo-open{text-decoration:underline;text-underline-offset:4px}
+.ed .ed-gallery-open:active{opacity:.85}
+.ed .ed-sample-label,.ed .ed-tile-name{font-size:14px;line-height:1.6}
+.ed .ed-sample-label{color:#8a4b00}
+.ed .ed-tile-name{color:#55615a}
+.ed .ed-published-gallery{margin-top:28px;border-top:1px solid #dde2dc;padding-top:8px}
+.ed .ed-public-gallery-state{margin:24px 0 0}
+.ed .ed-photo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
+.ed .ed-photo-journal,.ed .ed-photo-entries{display:contents}
+.ed .ed-tile-caption{display:flex;flex-direction:column;gap:2px;padding:8px 0}
+.ed .ed-tile-caption>strong{font-size:16px;line-height:1.5}
+.ed .ed-paper-summary{display:flex;flex-direction:column;gap:8px;min-height:112px;padding:16px;background:#f7f7f3;border-top:3px solid #d8b446;border-radius:4px}
+.ed .ed-paper-kind{font-size:14px;color:#55615a}
+.ed .ed-tile-excerpt{font-size:14px;color:#55615a;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ed .ed-paper-tile .ed-tile-caption{padding-top:8px}
+.ed .ed-photo-grid>.ed-empty{grid-column:1/-1}
+.ed .ed-photo-dialog{width:calc(100% - 40px);max-width:720px;max-height:calc(100dvh - 40px);padding:20px;border:1px solid #68746c;border-radius:8px;background:#fff;color:#17211b;overflow:auto}
+.ed .ed-photo-dialog::backdrop{background:rgba(23,33,27,.65)}
+.ed .ed-photo-dialog>.ed-button{display:flex;margin-inline-start:auto;margin-bottom:16px}
+.ed .ed-photo-detail img{display:block;width:100%;height:auto;max-height:55dvh;object-fit:contain;background:#f7f7f3;border-radius:4px;margin:12px 0 20px}
+.ed .ed-photo-detail h2{font-size:24px;margin-bottom:8px}
+.ed .ed-detail-name{font-size:14px;color:#55615a}
+.ed .ed-detail-caption{white-space:pre-wrap}
+.ed .ed-lp-signup{display:flex;justify-content:space-between;align-items:center;gap:28px;border-bottom:0}
+.ed .ed-lp-signup h2{font-size:26px;margin-bottom:10px}
+.ed .ed-lp-signup .ed-signup-facts{font-weight:700;color:#143f2e;margin-bottom:6px}
+.ed .ed-lp-signup>div>p:last-child{margin-bottom:0}
+.ed .ed-lp-signup .ed-lp-action{flex-shrink:0}
+@media(min-width:721px) and (max-width:1099px){.ed .ed-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.ed .ed-photo-steps li{grid-template-columns:64px minmax(0,1fr);gap:12px}.ed .ed-photo-steps img{width:64px;height:96px}}
+@media(max-width:900px){.ed .ed-lp-hero{grid-template-columns:1fr;gap:24px}.ed .ed-lp-visual img{aspect-ratio:2.3;object-position:50% 58%}.ed .ed-lp-guide{grid-template-columns:1fr;gap:16px}}
+@media(max-width:720px){
+.ed .ed-preview-notice{margin-bottom:20px}
+.ed .ed-lp-intro .ed-title{font-size:clamp(26px,7.5vw,34px);margin-bottom:14px}
+.ed .ed-lp-intro .ed-title .ed-title-preface{font-size:20px;line-height:1.5}
+.ed .ed-lp-lead{margin-bottom:12px;line-height:1.8}
+.ed .ed-event-facts{margin:18px 0 22px;padding-top:14px;gap:8px}
+.ed .ed-event-year{font-size:14px}
+.ed .ed-date-fact time{font-size:36px}
+.ed .ed-event-weekday{font-size:18px}
+.ed .ed-time-fact dd{font-size:26px}
+.ed .ed-lp-action .ed-button{width:100%}
+.ed .ed-lp-visual img{aspect-ratio:1.6;object-position:50% 50%}
+.ed .ed-lp-section{padding:30px 0}
+.ed .ed-photo-steps{grid-template-columns:1fr;gap:20px}
+.ed .ed-photo-steps li{grid-template-columns:84px minmax(0,1fr);gap:16px}
+.ed .ed-photo-steps img{width:84px;height:96px}
+.ed .ed-photo-steps h3{font-size:18px}
+.ed .ed-lp-guide h2{font-size:24px}
+.ed .ed-day-flow{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 20px;margin-bottom:16px}
+.ed .ed-day-flow li{font-size:16px;padding:8px 0}
+.ed .ed-demo-heading{display:block;margin-top:20px}
+.ed .ed-demo-heading h3{margin-bottom:2px}
+.ed .ed-sample-notice{margin-top:8px}
+.ed .ed-demo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}
+.ed .ed-demo-caption>strong{font-size:14px}
+.ed .ed-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ed .ed-paper-summary{padding:12px;gap:6px}
+.ed .ed-lp-signup{display:block}
+.ed .ed-lp-signup h2{font-size:24px}
+.ed .ed-lp-signup .ed-lp-action{margin-top:20px}
+.ed .ed-photo-dialog{width:calc(100% - 24px);max-height:calc(100dvh - 24px);padding:16px}
+.ed .ed-photo-detail img{max-height:50dvh}
+}
 @media(min-width:721px) and (max-width:900px){.ed .ed-intro{grid-template-columns:1fr;gap:24px}.ed .ed-title{font-size:40px}}
 @media(max-width:720px){.ed h1{font-size:28px}.ed h2{font-size:24px}.ed .ed-intro{grid-template-columns:1fr;gap:24px;margin-top:8px}.ed .ed-title{font-size:30px}.ed .ed-title .ed-title-preface{font-size:22px}.ed .ed-hero img{aspect-ratio:1.35;object-position:40% 50%}.ed .ed-ribbon{justify-content:flex-start;gap:12px 20px;flex-wrap:wrap;padding:20px 0 24px;font-size:14px}.ed .ed-steps{grid-template-columns:1fr;gap:24px}.ed .ed-step-number{float:left;margin:3px 16px 0 0}.ed .ed-steps h3{margin-bottom:8px}.ed .ed-section{padding:32px 0}.ed .ed-story{grid-template-columns:1fr;gap:24px}.ed .ed-story>img{max-width:360px;margin:auto}.ed .ed-story h2{font-size:26px}.ed .ed-code{grid-template-columns:1fr;gap:24px}.ed .ed-organizer-link{flex-direction:column;gap:12px}.ed .ed-organizer-link>a{max-width:none}.ed .ed-welcome{grid-template-columns:1fr;gap:16px}.ed .ed-welcome img{display:none}.ed .ed-join-form .ed-button{width:100%}.ed .ed-own-journal{grid-template-columns:1fr}.ed .ed-receipt{display:grid;grid-template-columns:120px minmax(0,1fr);gap:0 16px}.ed .ed-receipt>img{height:120px;grid-row:1/5}.ed .ed-receipt>h3{margin-top:0}.ed .ed-receipt>.ed-button{grid-column:2;justify-self:start}.ed .ed-receipt>p{margin-top:0}.ed .ed-paper-strip{flex-direction:column;align-items:flex-start;gap:16px}.ed .ed-gallery-heading h1{font-size:30px}.ed .ed-gallery-heading{margin:20px 0 28px}.ed .ed-journal{padding:20px 16px}.ed .ed-journal-entries{grid-template-columns:1fr;gap:24px}.ed .ed-journal h2{font-size:22px}.ed .ed-review{grid-template-columns:1fr}.ed .ed-share-choice{padding:12px 16px}.ed .ed-print-sheet{padding:20px}.ed .ed-print-sheet h1{font-size:24px}}
 @media(max-width:600px){.ed .ed-day,.ed .ed-photo-inputs{grid-template-columns:1fr;gap:20px}.ed .ed-participation{padding:24px 16px}.ed .ed-camera-picker{min-height:104px}}@media(prefers-reduced-motion:reduce){.ed *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}@media(forced-colors:active){.ed :is(a,button,input,select,textarea,summary):focus-visible{outline:3px solid Highlight;box-shadow:none}.ed .ed-photo-picker,.ed .ed-journal{border-color:CanvasText}}
@@ -283,6 +459,13 @@ export function observationEventDiscoveryScript(): string {
         dialog.addEventListener('cancel',event=>{event.preventDefault();dialog.close();});
         dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const bounds=dialog.getBoundingClientRect();if(event.clientX<bounds.left||event.clientX>bounds.right||event.clientY<bounds.top||event.clientY>bounds.bottom)dialog.close();});
         dialog.addEventListener('close',()=>{dialogBody.replaceChildren();if(dialogOpener?.isConnected)dialogOpener.focus();dialogOpener=null;});
+        // Fixed, explicitly marked examples never enter the publication data or media APIs.
+        root.querySelectorAll('[data-discovery-demo]').forEach(button=>button.addEventListener('click',()=>{
+          const detail=node('div');detail.append(node('p','AI生成写真・架空の掲載例','ed-sample-label'));
+          const source=button.querySelector('img');if(source){const image=node('img');image.src=source.getAttribute('src');image.alt=source.alt;detail.append(image);}
+          detail.append(node('h2',button.dataset.demoTitle),node('p','場所のメモの例：'+button.dataset.demoPlace,'ed-detail-name'),node('p',button.dataset.demoCaption,'ed-detail-caption'),node('p','実参加者の投稿ではありません。呼び名・場所・ひと言は、投稿した写真と一緒に表示できます。','ed-help'));
+          dialogBody.replaceChildren(detail);dialogOpener=button;dialog.showModal();
+        }));
       }
       function sampleLabel(entry){return entry.kind==='paper'?'紙のテスト記録':String(entry.caption||'').includes('生成イラスト')?'生成イラスト・テスト':'テスト投稿';}
       function openEntry(entry,journal,mediaBase,opener){
@@ -314,6 +497,7 @@ export function observationEventDiscoveryScript(): string {
           for(const journal of data.journals)if(!journal||typeof journal.journalId!=='string'||!Array.isArray(journal.entries)||journal.entries.length>3)throw new Error('ノートの内容を読み取れませんでした。');
           if(!append){known.clear();list.replaceChildren();}for(const journal of data.journals){const card=journalCard(journal,requestedBase);const previous=known.get(journal.journalId);if(previous)previous.replaceWith(card);else list.append(card);known.set(journal.journalId,card);}
           counts.textContent=data.counts.journals+(compact?'人の発見 · ':'冊のノート · ')+data.counts.entries+(compact?'件':'件の発見');nextCursor=typeof data.nextCursor==='string'&&data.nextCursor?data.nextCursor:null;more.hidden=!nextCursor;
+          if(compact){const published=query('[data-discovery-published]'),state=query('[data-discovery-public-gallery-state]');if(published)published.hidden=data.counts.entries===0;if(state)state.hidden=data.counts.entries>0;}
           if(!known.size){const empty=node('div',null,'ed-empty');empty.append(node('h3','この回の発見は、これから。'),node('p','共有を選んだ写真やメモは、主催者が確認したあと、ここに並びます。'));list.replaceChildren(empty);}
         }catch(error){if(ticket!==generation)return;tell(error.message||'みんなの発見を読み込めませんでした。',true,target);if(!known.size)counts.textContent='掲載数を確認できません。再読み込みで確認してください。';}
         finally{if(ticket===generation){busy=false;refresh.disabled=false;more.disabled=false;}}
