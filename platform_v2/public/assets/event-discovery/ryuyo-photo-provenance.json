@@ -1,0 +1,79 @@
+{
+  "version": "ryuyo-generated-photo-examples-v1",
+  "generated_by": "built-in imagegen",
+  "fictional": true,
+  "actual_venue_photography": false,
+  "actual_participant_submissions": false,
+  "assets": [
+    {
+      "id": "hero",
+      "name": "ryuyo-photo-hero-910d4d1dcc80.webp",
+      "sha256": "910d4d1dcc80471bc6e07ea079bf25b4c9ed3891ad639927c944cd5710cf1107",
+      "bytes": 234460,
+      "width": 1400,
+      "height": 933,
+      "mime": "image/webp",
+      "prompt": "Fictional photorealistic family park observation, faces not identifiable; not actual venue/guide."
+    },
+    {
+      "id": "mantis",
+      "name": "ryuyo-photo-mantis-a263162fb3fc.webp",
+      "sha256": "a263162fb3fcf98e3762811c14319235898ec06a97c150ea0b334830af2f816e",
+      "bytes": 50130,
+      "width": 800,
+      "height": 800,
+      "mime": "image/webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: single square generated sample discovery photograph for a Japanese family nature observation event gallery. Primary subject: a small green praying mantis clinging naturally under a fresh green leaf at a grassy park edge, slightly off center, lifelike six legs, folded raptorial forelegs, a little imperfect handheld focus. Style: believable casual smartphone nature photo someone could take during a park walk, rich real texture, soft natural daylight, calm colors, no artificial cinematic tone. Composition is simple and readable at small thumbnail size, the subject fills enough of the frame to recognize, modest depth of field. Fictional generated sample, not actual Ryuyo venue or participant documentation. No words, captions, signs, borders, collage, watermark or logo. Square image."
+    },
+    {
+      "id": "dragonfly",
+      "name": "ryuyo-photo-dragonfly-e6c8709084c5.webp",
+      "sha256": "e6c8709084c54a1713baba39cf38acbde81fbb2fa9b7b6d4fb31e4c2dcd6c1bc",
+      "bytes": 50520,
+      "width": 800,
+      "height": 800,
+      "mime": "image/webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: single square generated sample discovery photograph for a Japanese family nature observation event gallery. Primary subject: a reddish dragonfly at rest on a thin dry reed by a pond, four transparent delicate wings, green-brown water background, quiet ordinary daylight. Style: believable casual smartphone nature photo someone could take during a park walk, rich real texture, soft natural daylight, calm colors, no artificial cinematic tone. Composition is simple and readable at small thumbnail size, the subject fills enough of the frame to recognize, modest depth of field. Fictional generated sample, not actual Ryuyo venue or participant documentation. No words, captions, signs, borders, collage, watermark or logo. Square image."
+    },
+    {
+      "id": "butterfly",
+      "name": "ryuyo-photo-butterfly-24ed2129e469.webp",
+      "sha256": "24ed2129e469d5bdd4509a3f78ebd8cb4adc3e4c66d2d7d5eef8022648fa3fbf",
+      "bytes": 64586,
+      "width": 800,
+      "height": 800,
+      "mime": "image/webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: single square generated sample discovery photograph for a Japanese family nature observation event gallery. Primary subject: a small pale yellow butterfly resting on a white wildflower, not a spectacular tropical species, thin stems and untrimmed park grass around it. Style: believable casual smartphone nature photo someone could take during a park walk, rich real texture, soft natural daylight, calm colors, no artificial cinematic tone. Composition is simple and readable at small thumbnail size, the subject fills enough of the frame to recognize, modest depth of field. Fictional generated sample, not actual Ryuyo venue or participant documentation. No words, captions, signs, borders, collage, watermark or logo. Square image."
+    },
+    {
+      "id": "leaf",
+      "name": "ryuyo-photo-leaf-0b26a34b41a8.webp",
+      "sha256": "0b26a34b41a862bb9af5b586ccfa531dbc8dbde0865e48af6a8c9996f1980bc2",
+      "bytes": 133292,
+      "width": 800,
+      "height": 800,
+      "mime": "image/webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: single square generated sample discovery photograph for a Japanese family nature observation event gallery. Primary subject: a fallen yellow-brown leaf with tiny holes and a few morning droplets on dark soil, low angle, clover and green seedlings nearby; no insects needed. Style: believable casual smartphone nature photo someone could take during a park walk, rich real texture, soft natural daylight, calm colors, no artificial cinematic tone. Composition is simple and readable at small thumbnail size, the subject fills enough of the frame to recognize, modest depth of field. Fictional generated sample, not actual Ryuyo venue or participant documentation. No words, captions, signs, borders, collage, watermark or logo. Square image."
+    },
+    {
+      "id": "pond",
+      "name": "ryuyo-photo-pond-4c2957c4bb1a.webp",
+      "sha256": "4c2957c4bb1ad3b145f803a25b503d0158e354b58a718701062e7b07259184c9",
+      "bytes": 150562,
+      "width": 800,
+      "height": 800,
+      "mime": "image/webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: single square generated sample discovery photograph for a Japanese family nature observation event gallery. Primary subject: a close view of pond-edge reeds and their rippling reflections, a small patch of autumn blue sky reflected in water, natural textured scenery; no people or buildings. Style: believable casual smartphone nature photo someone could take during a park walk, rich real texture, soft natural daylight, calm colors, no artificial cinematic tone. Composition is simple and readable at small thumbnail size, the subject fills enough of the frame to recognize, modest depth of field. Fictional generated sample, not actual Ryuyo venue or participant documentation. No words, captions, signs, borders, collage, watermark or logo. Square image."
+    },
+    {
+      "id": "path",
+      "name": "ryuyo-photo-path-0177adc2de81.webp",
+      "sha256": "0177adc2de819216193ed8f5eb9bba87644c39c5cb3790207fff9c3a58184589",
+      "bytes": 157138,
+      "width": 800,
+      "height": 800,
+      "mime": "image/webp",
+      "prompt": "Use case: photorealistic-natural. Asset type: single square generated sample discovery photograph for a Japanese family nature observation event gallery. Primary subject: looking upward through irregular sunlit green and yellow leaves along a park path, dappled late-morning light, natural leaves with small blemishes, a child's-height point of view; no people or buildings. Style: believable casual smartphone nature photo someone could take during a park walk, rich real texture, soft natural daylight, calm colors, no artificial cinematic tone. Composition is simple and readable at small thumbnail size, the subject fills enough of the frame to recognize, modest depth of field. Fictional generated sample, not actual Ryuyo venue or participant documentation. No words, captions, signs, borders, collage, watermark or logo. Square image."
+    }
+  ]
+}
