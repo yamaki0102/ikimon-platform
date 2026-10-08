@@ -9,6 +9,7 @@ const ASSET_ROOT = "/assets/event-discovery/";
 /** This external application handoff is used by the explicitly marked tentative Ryuyo LP. */
 export const RYUYO_PREVIEW_GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdzTD9OYUKNRiqoMX0bSRHg8sAhzbvJ2q_sjnDGnYdnG_qmUQ/viewform?usp=publish-editor";
 const RYUYO_PREVIEW_EVENT_CODE = "RYUPREV1";
+export const RYUYO_PREVIEW_TEST_JOIN_URL = "https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/community/events/RYUPREV1/join";
 
 function previewFormCta(): string {
   let href = "";
@@ -84,6 +85,7 @@ function previewCampaign(): string {
         <p class="ed-lp-lead">公園を歩いて、見つけて、写真に残そう。<br>こんちゅうクンと楽しむ、2時間の自然観察。</p>
         <dl class="ed-event-facts"><div class="ed-date-fact"><dt>仮日程</dt><dd><span class="ed-event-year">2026年</span><time datetime="2026-10-24">10月24日<span class="ed-event-weekday">（土）</span></time></dd></div><div class="ed-time-fact"><dt>時間</dt><dd>10:00〜12:00</dd></div><div class="ed-place-fact"><dt>会場</dt><dd>竜洋昆虫自然観察公園</dd></div></dl>
         <div class="ed-lp-action">${previewFormCta()}<p class="ed-help">Googleフォームで申し込む · 約1分</p></div>
+        <div class="ed-lp-action"><a class="ed-button" data-discovery-test-link href="${RYUYO_PREVIEW_TEST_JOIN_URL}">写真のテスト投稿を試す<span aria-hidden="true"> →</span></a><p class="ed-help">会員登録・ログイン不要。テスト用ページで写真の保存・共有・削除を試せます。</p></div>
         <a class="ed-text-link" href="#discovery-community">写真とメモの例を見る<span aria-hidden="true"> ↓</span></a>
       </div><figure class="ed-lp-visual">${previewPhoto("hero", "親子で小道の自然を観察するイメージ（AI生成写真）", true)}<figcaption>AI生成の体験イメージ · 実際の会場・出演者の写真ではありません</figcaption></figure>
     </header>
