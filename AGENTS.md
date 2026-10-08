@@ -2,11 +2,23 @@
 
 ZUKAN is a place-centered shared knowledge and participation product across nature, culture, history and everyday regional life. Biodiversity is one Domain Pack; an observation event is one Program profile.
 
+## Codex Cloud — P0 fast start
+
+For “P0から開発して”, “最優先から”, or “続きから”:
+
+1. Scope to `ZUKAN`, current repo `yamaki0102/ikimon-platform` (`ikimon-life` is the existing technical key). P0 is a **priority filter**, not a Work ID, an old Factory P0-A/B/C/D phase, or a grant. Do not work in `t3ta/zukan`, legacy `ikimon.life`, or archived PHP by default.
+2. For a supplied Work ID/Factory receipt, read **that** NOCOSIL Work's fresh Current State/Resume/claim/`next_action`. For priority-only P0, use the existing **authenticated** Factory/NOCOSIL selector for lane `ZUKAN`, eligible nonterminal P0 Work (resume before create). Neither GitHub PR/Issue, management Board, `PROJECT.json` nor product registry is a live Work selector.
+3. If this Codex Cloud environment cannot access that selector, return `WORK_SELECTOR_UNAVAILABLE` and the exact missing connection/re-entry immediately. Do not invent a task or reconstruct the queue from old plans. Selection alone never grants a claim.
+4. Bind the selected Work, permitted scope, current authority/fence, exact source/tree, unresolved effects and reusable candidate. Execute only `next_action`; read changed paths and affected canonicals, not the full documentation/history. Active Worker is `platform_v2/cloudflare_shadow/src/`, shared source `platform_v2/src/`; UI additionally reads `DESIGN.md` plus affected experience spec.
+5. Do focused checks and registered publication/runtime read-back under existing rights. Save concise source/Evidence/Resume/`next_action` on the **same Work**; PR, staging, production and user Journey are distinct. Blocked Work does not stop unrelated authorized Work.
+
+This is a bounded entry rule, not a new selector, execution grant or proof that Codex Cloud's authenticated connection is present. Product/security/release rules below remain effective; demand-load only applicable documentation.
+
 ## Authority and start
 
-- Fresh-read `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`, the current work queue, and the relevant project packet before making current-state or delivery claims.
+- Fresh-read the relevant NOCOSIL Work/Current State/Resume and exact next-effect policy. Reference `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md` as the shared contract; read the relevant project packet on demand, not the entire portfolio queue.
 - Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work first reads `DESIGN.md`, the canonical ZUKAN design rulebook for shared brand, visual, interaction, internationalization and accessibility decisions, then `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md` for existing navigation, screen and state responsibilities; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
-- Product Registry owns meaning, acceptance and static dependencies. The management queue and shared Verified Outcome Status Resolver own current assignment and resolved evidence. A static task is not a live lease or runtime proof.
+- Product Registry owns meaning, acceptance and static dependencies; current Work/assignment/claim/Resume authority is NOCOSIL. Management queue/status projections, PRs and static tasks are neither live Work selectors nor runtime proof.
 - Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed Work identities. Apply the current management start/locality and admission contract for the actual execution node.
 - Owner-authorized reversible source, test, branch, PR and merge work proceeds without repeated approval. Existing protected release, rights, privacy, identity and external-send boundaries remain binding.
 
