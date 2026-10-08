@@ -4,16 +4,15 @@ ZUKAN is a place-centered shared knowledge and participation product across natu
 
 ## Codex Cloud — P0 fast start
 
-When asked “P0から開発して”, “最優先から”, or “続きから”, treat P0 as a **priority filter**, not a Work ID, historical Factory P0-A/B/C/D phase, or permission to pick a roadmap item.
+For “P0から開発して”, “最優先から”, or “続きから”:
 
-1. **Stay in ZUKAN:** current repository `yamaki0102/ikimon-platform`, product `ZUKAN` (technical key `ikimon-life`), lane `ZUKAN`. `t3ta/zukan`, legacy `ikimon.life` and `upload_package/` are not the active product implementation.
-2. **Resolve once from the canonical Work source.** If the task supplies a Work ID or accepted Factory receipt, read *that* NOCOSIL Work's fresh Current State/Resume, active claim/writer and unresolved effects. If only P0 is given, use the **existing authorized Factory/NOCOSIL Work selector** scoped to lane `ZUKAN`, priority P0, eligible/nonterminal Work, continuing existing Work first. Selector output alone is not a claim. No GitHub PR/Issue, old management Board/queue, `PROJECT.json` or product roadmap may be substituted as a live Work selector.
-3. **Fail fast on missing selection authority.** If the actual Codex Cloud environment lacks an authenticated selector/Work reader, say `WORK_SELECTOR_UNAVAILABLE`, the exact missing connection and the next supported re-entry action. Do not guess a Work, start a duplicate Work, scan historical plans for substitutes, or burn a long session reconstructing the backlog. A known Work may continue only through its current authorized route.
-4. **Act on the resolved `next_action`.** Bind Work ID/revision, exact source commit/tree, admitted paths, valid authority/claim/fence and any existing candidate checkpoint. Reconcile unknown effects or old writer before issuing an effect. Reuse valid Evidence and candidate bytes; read only changed/affected source, tests and decision clauses. No full-document read sequence or full repository search.
-5. **Change the active path only:** Worker entry `platform_v2/cloudflare_shadow/src/`; shared implementation `platform_v2/src/{routes,services,ui,content}`. Read `DESIGN.md` and relevant experience spec for UI, relevant rights/Publication contracts for public effects. Never begin normal work in legacy PHP.
-6. **Deliver and resume.** Apply focused tests and the registered publication/runtime steps within current authority. Distinguish source/PR, staging, production and user Journey; persist a compact same-Work Evidence/Resume/next_action. If blocked on this Work, pursue other *independently authorized* eligible ZUKAN Work, not a fabricated P0.
+1. Scope to `ZUKAN`, current repo `yamaki0102/ikimon-platform` (`ikimon-life` is the existing technical key). P0 is a **priority filter**, not a Work ID, an old Factory P0-A/B/C/D phase, or a grant. Do not work in `t3ta/zukan`, legacy `ikimon.life`, or archived PHP by default.
+2. For a supplied Work ID/Factory receipt, read **that** NOCOSIL Work's fresh Current State/Resume/claim/`next_action`. For priority-only P0, use the existing **authenticated** Factory/NOCOSIL selector for lane `ZUKAN`, eligible nonterminal P0 Work (resume before create). Neither GitHub PR/Issue, management Board, `PROJECT.json` nor product registry is a live Work selector.
+3. If this Codex Cloud environment cannot access that selector, return `WORK_SELECTOR_UNAVAILABLE` and the exact missing connection/re-entry immediately. Do not invent a task or reconstruct the queue from old plans. Selection alone never grants a claim.
+4. Bind the selected Work, permitted scope, current authority/fence, exact source/tree, unresolved effects and reusable candidate. Execute only `next_action`; read changed paths and affected canonicals, not the full documentation/history. Active Worker is `platform_v2/cloudflare_shadow/src/`, shared source `platform_v2/src/`; UI additionally reads `DESIGN.md` plus affected experience spec.
+5. Do focused checks and registered publication/runtime read-back under existing rights. Save concise source/Evidence/Resume/`next_action` on the **same Work**; PR, staging, production and user Journey are distinct. Blocked Work does not stop unrelated authorized Work.
 
-This is an entry/selection rule, **not** an added Work database, grant, selector implementation or proof that Codex Cloud has the required connection. Keep the owner/organization/Project security boundaries. The detailed policy and product references below are demand-loaded for the affected effect.
+This is a bounded entry rule, not a new selector, execution grant or proof that Codex Cloud's authenticated connection is present. Product/security/release rules below remain effective; demand-load only applicable documentation.
 
 ## Authority and start
 
