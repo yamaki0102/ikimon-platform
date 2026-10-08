@@ -2,11 +2,24 @@
 
 ZUKAN is a place-centered shared knowledge and participation product across nature, culture, history and everyday regional life. Biodiversity is one Domain Pack; an observation event is one Program profile.
 
+## Codex Cloud — P0 fast start
+
+When asked “P0から開発して”, “最優先から”, or “続きから”, treat P0 as a **priority filter**, not a Work ID, historical Factory P0-A/B/C/D phase, or permission to pick a roadmap item.
+
+1. **Stay in ZUKAN:** current repository `yamaki0102/ikimon-platform`, product `ZUKAN` (technical key `ikimon-life`), lane `ZUKAN`. `t3ta/zukan`, legacy `ikimon.life` and `upload_package/` are not the active product implementation.
+2. **Resolve once from the canonical Work source.** If the task supplies a Work ID or accepted Factory receipt, read *that* NOCOSIL Work's fresh Current State/Resume, active claim/writer and unresolved effects. If only P0 is given, use the **existing authorized Factory/NOCOSIL Work selector** scoped to lane `ZUKAN`, priority P0, eligible/nonterminal Work, continuing existing Work first. Selector output alone is not a claim. No GitHub PR/Issue, old management Board/queue, `PROJECT.json` or product roadmap may be substituted as a live Work selector.
+3. **Fail fast on missing selection authority.** If the actual Codex Cloud environment lacks an authenticated selector/Work reader, say `WORK_SELECTOR_UNAVAILABLE`, the exact missing connection and the next supported re-entry action. Do not guess a Work, start a duplicate Work, scan historical plans for substitutes, or burn a long session reconstructing the backlog. A known Work may continue only through its current authorized route.
+4. **Act on the resolved `next_action`.** Bind Work ID/revision, exact source commit/tree, admitted paths, valid authority/claim/fence and any existing candidate checkpoint. Reconcile unknown effects or old writer before issuing an effect. Reuse valid Evidence and candidate bytes; read only changed/affected source, tests and decision clauses. No full-document read sequence or full repository search.
+5. **Change the active path only:** Worker entry `platform_v2/cloudflare_shadow/src/`; shared implementation `platform_v2/src/{routes,services,ui,content}`. Read `DESIGN.md` and relevant experience spec for UI, relevant rights/Publication contracts for public effects. Never begin normal work in legacy PHP.
+6. **Deliver and resume.** Apply focused tests and the registered publication/runtime steps within current authority. Distinguish source/PR, staging, production and user Journey; persist a compact same-Work Evidence/Resume/next_action. If blocked on this Work, pursue other *independently authorized* eligible ZUKAN Work, not a fabricated P0.
+
+This is an entry/selection rule, **not** an added Work database, grant, selector implementation or proof that Codex Cloud has the required connection. Keep the owner/organization/Project security boundaries. The detailed policy and product references below are demand-loaded for the affected effect.
+
 ## Authority and start
 
-- Fresh-read `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`, the current work queue, and the relevant project packet before making current-state or delivery claims.
+- Fresh-read the relevant NOCOSIL Work/Current State/Resume and exact next-effect policy. Reference `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md` as the shared contract; read the relevant project packet on demand, not the entire portfolio queue.
 - Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work first reads `DESIGN.md`, the canonical ZUKAN design rulebook for shared brand, visual, interaction, internationalization and accessibility decisions, then `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md` for existing navigation, screen and state responsibilities; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
-- Product Registry owns meaning, acceptance and static dependencies. The management queue and shared Verified Outcome Status Resolver own current assignment and resolved evidence. A static task is not a live lease or runtime proof.
+- Product Registry owns meaning, acceptance and static dependencies; current Work/assignment/claim/Resume authority is NOCOSIL. Management queue/status projections, PRs and static tasks are neither live Work selectors nor runtime proof.
 - Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed Work identities. Apply the current management start/locality and admission contract for the actual execution node.
 - Owner-authorized reversible source, test, branch, PR and merge work proceeds without repeated approval. Existing protected release, rights, privacy, identity and external-send boundaries remain binding.
 
