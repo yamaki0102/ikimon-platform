@@ -2823,6 +2823,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       const [primaryDraftFile = null] = draftFiles;
       if (kind === 'photo') await photoPreviewWriteQueue;
       const draftContext = await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole }, kind === 'photo' ? photoPreviewOwnerKey : '');
+      if (kind === 'photo') await queuePhotoPreviewWrite('discard');
       window.location.href = withDraftParams(href, kind, recoverySource, draftContext && draftContext.continuationToken);
     } catch (_) {
       if (kind === 'photo' && draftFiles.length > 0) {
