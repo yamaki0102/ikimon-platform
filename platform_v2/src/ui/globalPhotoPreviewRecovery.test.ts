@@ -25,6 +25,7 @@ class Element {
   }
   dispatch(event: string) { for (const handler of this.listeners.get(event) ?? []) handler(); }
   click() { this.dispatch("click"); }
+  appendChild(_child: Element) {}
 }
 
 type Draft = {
