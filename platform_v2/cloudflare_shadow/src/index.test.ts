@@ -22714,6 +22714,29 @@ test("production original UI resolves selectively rebuilt objects through the bo
   assert.match(await response.text(), /selectively-reused/);
 });
 
+test("production About routes resolve the localized page from the pinned core manifest", async () => {
+  const { env } = createEnv();
+  const manifestHash = "a".repeat(64);
+  const objectHash = "c".repeat(64);
+  const versionPrefix = `original-ui/versions/${manifestHash}`;
+  const pageKey = "html/ja/about.html";
+  const productionEnv = { ...env, ENVIRONMENT: "production", IKIMON_UI_MANIFEST_HASH: manifestHash };
+  await env.ASSET_BUCKET.put(`${versionPrefix}/${pageKey}`, "<!doctype html><title>地域の記録について</title><main>about-page-from-core-manifest</main>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put(`${versionPrefix}/manifest.json`, JSON.stringify({
+    items: [{ key: pageKey, sha256: objectHash, version_prefix: versionPrefix }],
+  }), { httpMetadata: { contentType: "application/json" } });
+
+  for (const url of ["https://ikimon.life/ja/about", "https://ikimon.life/about?lang=ja"]) {
+    const response = await worker.fetch(new Request(url), productionEnv);
+    assert.equal(response.status, 200, url);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html", url);
+    assert.equal(response.headers.get("x-ikimon-cloudflare-materialized-sha256"), objectHash, url);
+    assert.match(await response.text(), /about-page-from-core-manifest/, url);
+  }
+});
+
 test("production original UI falls back to the current versioned pointer without a valid deployed hash", async () => {
   const { env } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };
@@ -23052,10 +23075,15 @@ test("materialized original UI core entry registry is single-sourced from the Wo
 
   for (const path of [
     "/home",
+    "/about",
     "/ja/home",
+    "/ja/about",
     "/en/home",
+    "/en/about",
     "/es/home",
+    "/es/about",
     "/pt-br/home",
+    "/pt-br/about",
     "/guide",
     "/guide-programs",
     "/my-guides",
@@ -23095,7 +23123,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
       assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
     }
   }
-  for (const path of ["/home", "/guide", "/guide-programs", "/my-guides", "/lens", "/map"]) {
+  for (const path of ["/home", "/about", "/guide", "/guide-programs", "/my-guides", "/lens", "/map"]) {
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
   }
   assert.match(workerSource, /pathname === "\/home"/);
