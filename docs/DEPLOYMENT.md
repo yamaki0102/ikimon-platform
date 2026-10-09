@@ -8,7 +8,9 @@ ZUKAN の通常開発・検証・staging・本番リリースは、自作プラ�
 2. 差分の実質的なリスクに応じた検証を行い、PR に「目的・変更・検証」を記す。適用される staging 条件を含む必須 checks・review と有効な承認を満たして merge する。main への直接 push、履歴の強制書換え、必須 checks の迂回は行わない。
 3. release に進むときだけ、中央正本 `yamaki0102/all-projects-management` で `php scripts/get_service_deploy_method.php zukan.earth --catalog` を実行し、現在の `effective_route`、対象 Worker、環境、実行能力を確認する。
 4. `STANDARD_READY` では登録済み runner `node scripts/run_registered_release.mjs` と選択された provider-native profile を使う。古い Queue/Executor の記述から、追加の `ops:command` Issue、nonce、Factory claim を通常経路の必須条件に戻さない。
-5. 対象 SHA に適用される staging 検証、実行直前の runtime と rollback 先、有効な本番承認を確認する。source の merge と本番配備を別々に判定し、配備後は稼働版と対象の利用者動線を確認する。
+5. runner の source/tree pin と exact source read-back、実行直前の current baseline と rollback 先、対象 SHA の staging 証拠、有効な既存本番承認を確認する。source の merge と本番配備を別々に判定する。配備後は Cloudflare API/runtime read-back、登録済み UI 検証（該当する場合は 320px / 375px と PWA を含む）を行い、公開 URL `https://zukan.earth/` も実際に確認する。
+
+Cloud Codex の実行ホストが既存 provider 認証を利用できない場合、中央の現行 runner adapter が登録しているときに限り、既存の認可済み Cloudflare Workers Builds 実行ホストへ同じ登録済み runner を戻す。これはホスト復旧であり、新しい workflow、credential、IAM 権限、deploy backend の追加ではない。source/tree pin と exact source、実行直前 baseline、staging 証拠、既存本番承認、rollback 先、Cloudflare API/runtime と UI（登録対象 viewport と PWA）の read-back を維持する。host/adapter の利用可否や実行成功は都度確認し、事前に完了扱い・固定 ID・配備証拠を記載しない。
 
 ZUKAN の技術識別子は `ikimon-life`、現行 repository は `yamaki0102/ikimon-platform`、公開先は `https://zukan.earth/`。実行時の設定は中央 catalog と provider の現在値を使う。NOCOSIL の `release/production` merge による本番配備を、そのまま ZUKAN の設定とみなさない。
 
