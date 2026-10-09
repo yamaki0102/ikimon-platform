@@ -95,6 +95,7 @@ const options = {
   lang: "ja" as const,
   recordHref: "/ja/record",
   recordsHref: "/ja/records",
+  placeHrefPrefix: "/ja/places/",
 };
 
 function withTimeline(state: "single_period" | "timeline" = "timeline"): PlaceAtlasProfile & Record<string, unknown> {
@@ -452,4 +453,30 @@ test("serialized browser runtime binds theme cards without compiler-only helpers
 
   assert.doesNotThrow(() => runtime.bind(root));
   assert.doesNotMatch(MAP_PLACE_ATLAS_PROFILE_RUNTIME, /\b__name\s*\(/);
+});
+
+
+test("canonical Place profile exposes a stable localized detail destination without leaking source coordinates", () => {
+  const profile = fixture({
+    place: {
+      ...fixture().place,
+      canonicalPlaceId: "plc_e3293ec4bb9288a0",
+      multilingualNames: { ja: "常磐公園", en: "Tokiwa Park" },
+    },
+    provenance: {
+      ...fixture().provenance,
+      sources: ["public_map_snapshot", "canonical_place_registry"],
+    },
+  });
+  const html = renderMapPlaceAtlasProfile(profile, options);
+  assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
+  assert.match(html, /data-kpi-action="map:place_atlas:open_detail"/);
+  assert.match(html, />場所の詳細</);
+  assert.doesNotMatch(html, /exactLat|exactLng|exact_lat|exact_lng/);
+});
+
+test("Place detail action is omitted without a registry-backed canonical identity or prefix", () => {
+  assert.doesNotMatch(renderMapPlaceAtlasProfile(fixture(), options), /map:place_atlas:open_detail/);
+  const profile = fixture({ place: { ...fixture().place, canonicalPlaceId: "plc_e3293ec4bb9288a0" } });
+  assert.doesNotMatch(renderMapPlaceAtlasProfile(profile, { ...options, placeHrefPrefix: undefined }), /map:place_atlas:open_detail/);
 });
