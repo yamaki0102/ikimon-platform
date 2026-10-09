@@ -1822,7 +1822,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         transaction.oncomplete = () => resolve(true);
         transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
       });
-      if (window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
+      if (storedDraft.globalPhotoPreview !== true && window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
         window.ikimonAppOutbox.enqueue({
           id: 'record:' + draftKey,
           source: 'record',
@@ -1847,6 +1847,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let photoPreviewWriteQueue = Promise.resolve();
   let photoPreviewDismissed = false;
   let photoPreviewOwnerKey = '';
+  let photoPreviewPostComplete = false;
   const readStoredPhotoPreview = async () => {
     if (!('indexedDB' in window)) return null;
     const owner = await draftOwnerContext();
@@ -2522,6 +2523,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     photoDraftRetryDetailId = '';
     photoDraftRetryVisitId = '';
     photoDraftRetryHasUploadedPhoto = false;
+    photoPreviewPostComplete = false;
+    photoPreviewOwnerKey = '';
     capturedReviewMeta = null;
     renderPhotoTray();
     setPhotoDraftLayout(false);
