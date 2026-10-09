@@ -56,6 +56,22 @@ async function digest(value: string): Promise<string> {
     b => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function hasBodyBytes(request: Request): Promise<boolean> {
+  const reader = request.body?.getReader();
+  if (!reader) return false;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (value?.byteLength) {
+        // Reject on the first byte without buffering or draining an unbounded body.
+        void reader.cancel().catch(() => {});
+        return true;
+      }
+      if (done) return false;
+    }
+  } finally { reader.releaseLock(); }
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   let difference = a.length ^ b.length;
   for (let i = 0; i < 43; i++) difference |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
@@ -86,7 +102,6 @@ export async function handleJourneySession(
   request: Request,
   env: JourneyEnv,
   issue: (user: JourneyUser, ttlSeconds: number) => Promise<{ cookie: string }>,
-  readOnlyDenied = false,
 ): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== JOURNEY_PATH) return null;
@@ -102,10 +117,9 @@ export async function handleJourneySession(
     return reply(reason, status);
   };
   try {
-    if (readOnlyDenied) return await deny("journey_read_only", 403);
     const keyBytes = decodeKey(env.JOURNEY_SESSION_HMAC_SECRET);
     if (!keyBytes) return await deny("disabled", 404);
-    if (request.method !== "POST" || url.href.includes("?") || request.body !== null) return await deny("journey_invalid_request", 400);
+    if (request.method !== "POST" || url.href.includes("?")) return await deny("journey_invalid_request", 400);
     const header = (name: string) => request.headers.get(`X-Zukan-Journey-${name}`) ?? "";
     const identity = header("Identity");
     if (identity !== JOURNEY_IDENTITY) return await deny("journey_identity_invalid", 403);
@@ -120,6 +134,7 @@ export async function handleJourneySession(
     const canonical = `POST\n${JOURNEY_PATH}\n${timestamp}\n${nonce}\n${identity}\n${workId}`;
     const expected = base64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(canonical))));
     if (!/^[A-Za-z0-9_-]{43}$/.test(signature) || !constantTimeEqual(expected, signature)) return await deny("journey_signature_invalid", 403);
+    if (await hasBodyBytes(request)) return await deny("journey_invalid_request", 400);
 
     // A future-dated accepted signature can remain valid for 600s. Retain nonces past that window.
     await env.CORE_DB.prepare("DELETE FROM journey_session_nonces WHERE minted_at < ?").bind(now - 601).run();
@@ -138,7 +153,7 @@ export async function handleJourneySession(
     const { cookie } = await issue(user, JOURNEY_SESSION_TTL);
     await audit("accepted", "issued");
     return Response.json({ identity: JOURNEY_IDENTITY, expires_in: JOURNEY_SESSION_TTL, schema: "zukan.journey-session/v1" },
-      { headers: { ...PRIVATE_HEADERS, "set-cookie": `${cookie}; Max-Age=${JOURNEY_SESSION_TTL}` } });
+      { headers: { ...PRIVATE_HEADERS, "set-cookie": cookie } });
   } catch {
     // Fail closed; diagnostics contain no headers, tokens, signatures, keys, or raw URL.
     try { await audit("failed", "journey_unavailable"); } catch {

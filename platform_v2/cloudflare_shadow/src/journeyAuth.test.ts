@@ -3,6 +3,7 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { createHmac, randomBytes, createHash } from "node:crypto";
+import { hashSync } from "bcryptjs";
 import { worker } from "./index";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_EMAIL, JOURNEY_IDENTITY, JOURNEY_PATH, JOURNEY_USER_ID, type JourneyDatabase } from "./journeyAuth";
 
@@ -33,7 +34,7 @@ function database(migration = true) {
   return { sqlite, db: db as JourneyDatabase, env };
 }
 
-function signed(options: { timestamp?: string; nonce?: string; identity?: string; workId?: string; signature?: string; key?: string; method?: string; query?: string; body?: string } = {}) {
+function signed(options: { timestamp?: string; nonce?: string; identity?: string; workId?: string; signature?: string; key?: string; method?: string; query?: string; body?: string | ReadableStream<Uint8Array> } = {}) {
   const timestamp = options.timestamp ?? String(Math.floor(Date.now() / 1000));
   const nonce = options.nonce ?? randomBytes(18).toString("base64url");
   const identity = options.identity ?? JOURNEY_IDENTITY;
@@ -45,6 +46,7 @@ function signed(options: { timestamp?: string; nonce?: string; identity?: string
     headers: { "X-Zukan-Journey-Timestamp": timestamp, "X-Zukan-Journey-Nonce": nonce,
       "X-Zukan-Journey-Identity": identity, "X-Zukan-Journey-Work-Id": workId, "X-Zukan-Journey-Signature": signature },
     ...(options.body === undefined ? {} : { body: options.body }),
+    ...(options.body instanceof ReadableStream ? { duplex: "half" } : {}),
   });
 }
 function privacy(response: Response) {
@@ -63,6 +65,7 @@ test("Worker mint reuses real session hashing/cookie attributes, 600s TTL and on
   assert.deepEqual(await response.json(), { identity: JOURNEY_IDENTITY, expires_in: 600, schema: "zukan.journey-session/v1" });
   const cookie = response.headers.get("set-cookie")!;
   for (const attribute of ["Path=/", "HttpOnly", "SameSite=Lax", "Secure", "Max-Age=600", "Expires="]) assert.ok(cookie.includes(attribute), attribute);
+  assert.deepEqual(cookie.match(/\bMax-Age=[^;]+/g), ["Max-Age=600"]);
   const token = decodeURIComponent(cookie.split(";", 1)[0]!.split("=")[1]!);
   const session = sqlite.prepare("SELECT * FROM auth_sessions").get()!;
   assert.equal(session.token_hash, createHash("sha256").update(token).digest("hex"));
@@ -112,9 +115,9 @@ test("disabled for missing, malformed or noncanonical secret, with audited 404",
   assert.equal(audits(sqlite).length, 4);
 });
 
-test("no body/query/other method is accepted", async t => {
+test("nonempty body, query and other methods are rejected", async t => {
   const { sqlite, env } = database(); t.after(() => sqlite.close());
-  for (const options of [{ query: "?ignored=1" }, { query: "?" }, { body: "" }, { body: "{}" }, { method: "GET" }, { method: "HEAD" }]) {
+  for (const options of [{ query: "?ignored=1" }, { query: "?" }, { body: "{}" }, { method: "GET" }, { method: "HEAD" }]) {
     assert.equal((await worker.fetch(signed(options), env)).status, 400);
   }
 });
@@ -155,21 +158,21 @@ test("synthetic guard fences every write verb and exempts only exact POST logout
   assert.equal(journeyReadOnlyGuard(new Request("https://zukan.earth/api/v1/auth/session/logout/", { method: "POST" }), synthetic)?.status, 403);
 });
 
-test("real-cookie Worker guard precedes routing; GET/HEAD, errors and logout all retain privacy headers", async t => {
+test("real-cookie Worker guard precedes write routing and logout retains privacy headers", async t => {
   const { sqlite, env } = database(); t.after(() => sqlite.close());
   const mint = await worker.fetch(signed(), env);
   const cookie = mint.headers.get("set-cookie")!.split(";", 1)[0]!;
-  for (const path of ["/api/v1/auth/session/issue", "/internal/anything", JOURNEY_PATH, "/ja/api/v1/me/saved"]) {
+  for (const path of ["/api/v1/auth/session/issue", "/internal/anything", "/ja/api/v1/me/saved"]) {
     const response = await worker.fetch(new Request(`https://zukan.earth${path}`, { method: "POST", headers: { cookie } }), env);
     assert.equal(response.status, 403); assert.deepEqual(await response.json(), { error: "journey_read_only" }); privacy(response);
   }
   for (const method of ["GET", "HEAD"]) {
     const response = await worker.fetch(new Request("https://zukan.earth/healthz", { method, headers: { cookie } }), env);
-    privacy(response); assert.notEqual(response.status, 403);
+    assert.equal(response.status, 200);
+    assert.notEqual(response.headers.get("cache-control"), "private, no-store");
   }
-  assert.ok(audits(sqlite).some(row => JSON.parse(String(row.payload_json)).reason === "journey_read_only"));
   const missing = await worker.fetch(new Request("https://zukan.earth/api/nonexistent", { headers: { cookie } }), env);
-  assert.equal(missing.status, 404); privacy(missing);
+  assert.equal(missing.status, 404);
   const logout = await worker.fetch(new Request("https://zukan.earth/api/v1/auth/session/logout", {
     method: "POST", headers: { cookie, origin: "https://zukan.earth" },
   }), env);
@@ -260,4 +263,76 @@ test("session guard fails closed on auth-store failure before routing any write"
   env.CORE_DB = { prepare() { throw new Error("store unavailable"); } } as never;
   const denied = await worker.fetch(new Request("https://zukan.earth/internal/anything", { method: "POST", headers: { cookie } }), env);
   assert.equal(denied.status, 503); assert.deepEqual(await denied.json(), { error: "auth_store_unavailable" }); privacy(denied);
+});
+
+test("GET/HEAD with a synthetic or normal cookie never reads the session in the guard", async t => {
+  const { sqlite, env } = database(); t.after(() => sqlite.close());
+  const mint = await worker.fetch(signed(), env);
+  const cookie = mint.headers.get("set-cookie")!.split(";", 1)[0]!;
+  let reads = 0;
+  env.CORE_DB = { prepare() { reads++; throw new Error("D1 unavailable"); } } as never;
+  for (const userId of [JOURNEY_USER_ID, "ordinary-user"]) {
+    sqlite.prepare("UPDATE auth_sessions SET user_id=?").run(userId);
+    for (const method of ["GET", "HEAD"]) {
+      const response = await worker.fetch(new Request("https://zukan.earth/healthz", { method, headers: { cookie } }), env);
+      assert.equal(response.status, 200);
+      assert.notEqual(response.headers.get("cache-control"), "private, no-store");
+    }
+  }
+  assert.equal(reads, 0, "GET/HEAD must neither pay an extra D1 read nor turn D1 failure into 503");
+});
+
+test("mint bypasses session reads even with a valid synthetic cookie", async t => {
+  const { sqlite, db, env } = database(); t.after(() => sqlite.close());
+  const mint = await worker.fetch(signed(), env);
+  const cookie = mint.headers.get("set-cookie")!.split(";", 1)[0]!;
+  let sessionReads = 0;
+  env.CORE_DB = { ...db, prepare(sql: string) {
+    if (/SELECT[\s\S]*FROM auth_sessions/.test(sql)) { sessionReads++; throw new Error("session read forbidden for mint"); }
+    return db.prepare(sql);
+  } } as WorkerEnv["CORE_DB"];
+  const request = signed(); request.headers.set("cookie", cookie);
+  const response = await worker.fetch(request, env);
+  assert.equal(response.status, 200); privacy(response);
+  assert.equal(sessionReads, 0);
+});
+
+test("zero-byte Content-Length: 0 and empty streams are accepted; any byte is rejected", async t => {
+  const { sqlite, env } = database(); t.after(() => sqlite.close());
+  for (const body of ["", new ReadableStream<Uint8Array>({ start(controller) {
+    controller.enqueue(new Uint8Array(0)); controller.close();
+  } })]) {
+    const request = signed({ body }); request.headers.set("content-length", "0");
+    assert.notEqual(request.body, null);
+    const response = await worker.fetch(request, env);
+    assert.equal(response.status, 200); privacy(response);
+    assert.equal(request.bodyUsed, true);
+  }
+  let canceled = false;
+  const request = signed({ body: new ReadableStream<Uint8Array>({ start(controller) {
+    controller.enqueue(new Uint8Array(0)); controller.enqueue(new Uint8Array([0]));
+  }, cancel() { canceled = true; } }) });
+  request.headers.set("content-length", "0");
+  const response = await worker.fetch(request, env);
+  assert.equal(response.status, 400); assert.deepEqual(await response.json(), { error: "journey_invalid_request" });
+  assert.equal(canceled, true);
+  assert.equal(sqlite.prepare("SELECT count(*) AS n FROM auth_sessions").get()!.n, 2);
+});
+
+test("ordinary password login keeps its 30-day Expires cookie and session TTL unchanged", async t => {
+  const { sqlite, env } = database(); t.after(() => sqlite.close());
+  sqlite.prepare("INSERT INTO auth_users(user_id,email,password_hash,display_name) VALUES ('ordinary-user','ordinary@example.com',?,'Ordinary')")
+    .run(hashSync("ordinary-qa-password", 4));
+  const before = Date.now();
+  const response = await worker.fetch(new Request("https://zukan.earth/api/v1/auth/login", {
+    method: "POST", headers: { origin: "https://zukan.earth", "content-type": "application/json" },
+    body: JSON.stringify({ email: "ordinary@example.com", password: "ordinary-qa-password" }),
+  }), env);
+  assert.equal(response.status, 200);
+  const session = sqlite.prepare("SELECT expires_at FROM auth_sessions").get()!;
+  const expiry = Date.parse(String(session.expires_at));
+  assert.ok(expiry >= before + 30 * 86_400_000 && expiry <= Date.now() + 30 * 86_400_000);
+  const cookie = response.headers.get("set-cookie")!;
+  assert.equal(cookie.includes("Max-Age"), false, "ordinary cookies retain their existing Expires-only contract");
+  assert.ok(cookie.includes(`Expires=${new Date(expiry).toUTCString()}`));
 });
