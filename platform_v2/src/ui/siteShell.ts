@@ -1803,8 +1803,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       return { draftKey: 'latest:guest:' + token, ownerKey: 'guest:' + token, continuationToken: token };
     }
   };
-  const saveDraft = async (draft) => {
+  const saveDraft = async (draft, expectedOwnerKey = '') => {
     const context = await draftOwnerContext();
+    if (expectedOwnerKey && context.ownerKey !== expectedOwnerKey) throw new Error('draft_owner_changed');
     if (draft.globalPhotoPreview === true) {
       if (photoPreviewOwnerKey && photoPreviewOwnerKey !== context.ownerKey) throw new Error('draft_owner_changed');
       photoPreviewOwnerKey = context.ownerKey;
@@ -2820,9 +2821,14 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     try {
       const [primaryDraftFile = null] = draftFiles;
       if (kind === 'photo') await photoPreviewWriteQueue;
-      const draftContext = await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
+      const draftContext = await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole }, kind === 'photo' ? photoPreviewOwnerKey : '');
       window.location.href = withDraftParams(href, kind, recoverySource, draftContext && draftContext.continuationToken);
     } catch (_) {
+      if (kind === 'photo' && draftFiles.length > 0) {
+        setStatus('端末への写真の保存に失敗しました。写真はこの画面に残しています。再読み込みせずに確認してください。');
+        if (captureButton) captureButton.disabled = false;
+        return;
+      }
       window.location.href = href;
     }
   };
