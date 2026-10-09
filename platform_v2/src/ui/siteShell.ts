@@ -1893,6 +1893,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
   };
   const queuePhotoPreviewWrite = (mode = 'save') => {
+    if (!('indexedDB' in window)) return Promise.reject(new Error('indexeddb_unavailable'));
     const files = mode === 'save' ? selectedPhotoDraftFiles().slice() : [];
     const snapshot = {
       file: files[0] || null,
