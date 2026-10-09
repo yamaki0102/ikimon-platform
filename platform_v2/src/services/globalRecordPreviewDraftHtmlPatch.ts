@@ -93,6 +93,11 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
     const draftFiles = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
     if (!draftFiles.length) return queuePhotoPreviewDraftClear();
     const metadata = capturedReviewMeta && typeof capturedReviewMeta === 'object' ? Object.assign({}, capturedReviewMeta) : {};
+    const retryState = photoDraftRetryDetailId ? {
+      detailId: photoDraftRetryDetailId,
+      visitId: photoDraftRetryVisitId,
+      hasUploadedPhoto: photoDraftRetryHasUploadedPhoto,
+    } : null;
     previewDraftWriteChain = previewDraftWriteChain.catch(() => undefined).then(async () => {
       const savedAt = Date.now();
       const [primaryFile = null] = draftFiles;
@@ -102,6 +107,7 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
         kind: 'photo',
         savedAt,
         metadata: Object.assign({}, metadata, { recoverySource: 'draft_restore' }),
+        retryState,
       });
       setPreviewDraftMarker(context, savedAt);
     });
@@ -147,6 +153,13 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
       }
       capturedReviewMeta = candidate.metadata && typeof candidate.metadata === 'object' ? candidate.metadata : {};
       openSheet('photo', { reviewOnly: true, keepReview: true });
+      const retryState = candidate.retryState;
+      if (retryState && typeof retryState.detailId === 'string' && retryState.detailId.trim()) {
+        photoDraftRetryDetailId = retryState.detailId.trim();
+        photoDraftRetryVisitId = typeof retryState.visitId === 'string' && retryState.visitId.trim()
+          ? retryState.visitId.trim() : visitIdFromObservationTargetId(photoDraftRetryDetailId);
+        photoDraftRetryHasUploadedPhoto = retryState.hasUploadedPhoto === true;
+      }
       addPhotoDraftFiles(files, capturedReviewMeta);
       previewDraftRestoredInPage = true;
       setStatus('端末に残っていた写真を復元しました。内容を確認して記録へ進めます。');
