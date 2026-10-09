@@ -1908,6 +1908,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       kind: 'photo',
       savedAt: Date.now(),
       metadata: Object.assign({}, capturedReviewMeta || {}),
+      capturePagePath: String(window.location.pathname || ''),
       globalPhotoPreview: true,
       previewCompleted: mode === 'complete',
       retryDetailId: photoDraftRetryDetailId,
@@ -3295,6 +3296,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
           return;
         } else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
+        else if (photoPreviewPostComplete) setStatus('記録と写真は保存済みです。端末の下書き削除だけ失敗しました。もう一度押すと削除を再試行します。');
         else if (photoDraftRetryDetailId) setStatus('記録本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ記録に再送します。');
         else setStatus(formatRecordSaveFailureReason(message));
       }
@@ -3499,6 +3501,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     const pathSegments = String(window.location.pathname || '').split('/').filter(Boolean);
     if (pathSegments[pathSegments.length - 1] === 'record' || !('indexedDB' in window)) return;
     const draft = await readStoredPhotoPreview();
+    if (draft && draft.capturePagePath && draft.capturePagePath !== String(window.location.pathname || '')) return;
     if (!draft || activeKind || selectedPhotoDraftFiles().length > 0 || photoPreviewDismissed) return;
     photoPreviewOwnerKey = draft.ownerKey;
     capturedPhotoFiles = draft.files;
