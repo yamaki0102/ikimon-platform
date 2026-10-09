@@ -27024,30 +27024,30 @@ function stateHomeCopy(lang: StateHomeLang) {
   const all = {
     ja: {
       recent: "最近の記録", recentAll: "すべて見る",
-      memory: "この前の記録", memoryLead: "前の写真を見返すと、次に残したいことが見つかります。", captureToday: "今日の記録を撮る",
+      memory: "この前の記録", memoryLead: "前の記録を見返すと、次に残したいことが見つかります。", captureToday: "今日の記録を撮る",
       places: "場所から見つける", placesBody: "記録が残っている場所や、参加できる活動を地図から見られます。", placesCta: "場所を見る",
-      open: "この記録を見る", unknown: "記録した写真",
+      open: "この記録を見る", unknown: "地域の記録",
       photo: "写真", video: "動画", audio: "音声", memo: "メモ"
     },
     en: {
       recent: "Recent records", recentAll: "View all",
-      memory: "Your last record", memoryLead: "Looking back at a photo can suggest what to keep next.", captureToday: "Capture today",
+      memory: "Your last record", memoryLead: "Looking back at a record can suggest what to keep next.", captureToday: "Capture today",
       places: "Explore by place", placesBody: "See places with records and activities you can join.", placesCta: "View places",
-      open: "Open this record", unknown: "Saved photo",
+      open: "Open this record", unknown: "Regional record",
       photo: "Photo", video: "Video", audio: "Audio", memo: "Note"
     },
     es: {
       recent: "Registros recientes", recentAll: "Ver todos",
-      memory: "Tu último registro", memoryLead: "Volver a una foto puede mostrarte qué guardar después.", captureToday: "Capturar hoy",
+      memory: "Tu último registro", memoryLead: "Volver a un registro puede mostrarte qué guardar después.", captureToday: "Capturar hoy",
       places: "Explorar por lugar", placesBody: "Descubre lugares con registros y actividades en las que participar.", placesCta: "Ver lugares",
-      open: "Abrir este registro", unknown: "Foto guardada",
+      open: "Abrir este registro", unknown: "Registro de la región",
       photo: "Foto", video: "Video", audio: "Audio", memo: "Nota"
     },
     "pt-br": {
       recent: "Registros recentes", recentAll: "Ver todos",
-      memory: "Seu último registro", memoryLead: "Rever uma foto pode mostrar o que guardar a seguir.", captureToday: "Registrar hoje",
+      memory: "Seu último registro", memoryLead: "Rever um registro pode mostrar o que guardar a seguir.", captureToday: "Registrar hoje",
       places: "Explorar por lugar", placesBody: "Veja lugares com registros e atividades das quais participar.", placesCta: "Ver lugares",
-      open: "Abrir este registro", unknown: "Foto salva",
+      open: "Abrir este registro", unknown: "Registro da região",
       photo: "Foto", video: "Vídeo", audio: "Áudio", memo: "Nota"
     }
   } as const;
@@ -39414,10 +39414,10 @@ function renderVpsImageHeader(): string {
       </a>
     </div>
     <nav class="site-nav site-nav-desktop"><a class="site-nav-link" href="/ja/map">地図</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/learn">使い方と考え方</a><a class="site-nav-link" href="/ja/community">みんなで調べる</a></nav>
-    <form class="site-search site-search-desktop" role="search" action="/ja/records" method="get" aria-label="サイト内検索">
+    <form class="site-search site-search-desktop" role="search" action="/ja/records" method="get" aria-label="地域の記録と場所を検索">
       <span class="site-search-icon" aria-hidden="true">🔍</span>
       <input type="hidden" name="view" value="public">
-      <input class="site-search-input" type="search" name="q" placeholder="生きものや場所を探す" value="" aria-label="サイト内検索">
+      <input class="site-search-input" type="search" name="q" placeholder="地域の記録や場所を探す" value="" aria-label="地域の記録と場所を検索">
     </form>
     <div class="site-header-actions site-header-actions-desktop">
       <div class="lang-switch lang-switch-desktop" aria-label="言語">
@@ -39434,10 +39434,10 @@ function renderVpsImageHeader(): string {
       <details class="site-mobile-menu">
         <summary class="site-mobile-menu-toggle" aria-label="メニュー" title="メニュー"><span class="site-mobile-menu-icon" aria-hidden="true"></span></summary>
         <div class="site-mobile-menu-panel">
-          <form class="site-search site-search-mobile" role="search" action="/ja/records" method="get" aria-label="サイト内検索">
+          <form class="site-search site-search-mobile" role="search" action="/ja/records" method="get" aria-label="地域の記録と場所を検索">
             <span class="site-search-icon" aria-hidden="true">🔍</span>
             <input type="hidden" name="view" value="public">
-            <input class="site-search-input" type="search" name="q" placeholder="生きものや場所を探す" value="" aria-label="サイト内検索">
+            <input class="site-search-input" type="search" name="q" placeholder="地域の記録や場所を探す" value="" aria-label="地域の記録と場所を検索">
           </form>
           <nav class="site-nav site-nav-mobile"><a class="site-nav-link" href="/ja/">ホーム</a><a class="site-nav-link" href="/ja/record">記録</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/map">マップ</a><a class="site-nav-link" href="/ja/guide">ガイド</a></nav>
         </div>

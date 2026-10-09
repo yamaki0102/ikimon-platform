@@ -1,15 +1,15 @@
 {
   "landing": {
-    "title": "A regional field guide built together | ZUKAN",
+    "title": "Regional records, built together | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "Find the present. Keep it. Take part again.", "heroLead": "Use records of places and local activity to see what is happening now, return to it later, and choose your next step.",
-        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "Featured records are being prepared.", "publicRecordsCta": "Browse public records", "proofEmptyNote": "Start with one photo. Your record stays connected to its place and time.", "inviteNote": "This experience is currently for invited members.", "recordStatusConfirmed": "Confirmed", "recordStatusPending": "Awaiting review", "recordStatusLimited": "Limited public detail", "emptyFlowAria": "Capture, keep it with a place, return to the record", "emptyFlowCapture": "Capture", "emptyFlowPlace": "Keep with a place", "emptyFlowReturn": "Return to the record",
+        "heroHeading": "Find the present. Keep it. Take part again.", "heroLead": "Streets, culture, history, everyday life, local activities, and nature. Find regional records by place and time, and return to them later.",
+        "primaryCta": "Capture", "secondaryCta": "View places", "categoriesTitle": "What you can keep", "proofEmpty": "Featured records are being prepared.", "publicRecordsCta": "Browse public records", "proofEmptyNote": "Keep a street scene, a tradition, a local activity, or nature in a photo. Return to it by place and time.", "inviteNote": "This experience is currently for invited members.", "recordStatusConfirmed": "Confirmed", "recordStatusPending": "Awaiting review", "recordStatusLimited": "Limited public detail", "emptyFlowAria": "Capture, keep it with a place, return to the record", "emptyFlowCapture": "Capture", "emptyFlowPlace": "Keep with a place", "emptyFlowReturn": "Return to the record",
         "categories": [
           { "title": "School & learning", "body": "Classes, projects, and workplace learning." },
           { "title": "Community & events", "body": "Festivals, markets, and local gatherings." },
-          { "title": "Work & culture", "body": "Shops, makers, skills, products, and traditions." },
-          { "title": "Daily life & nature", "body": "Scenery, roads, seasons, wildlife, and memories." }
+          { "title": "Culture & history", "body": "Buildings, skills, work, and traditions passed down." },
+          { "title": "Daily life & nature", "body": "Shops, roads, seasons, wildlife, and everyday memories." }
         ],
         "flowTitle": "How a record grows",
         "flowItems": [
@@ -25,11 +25,11 @@
       "member": {
         "actionTitle": "What will you keep today?", "actionLead": "Capture something that caught your attention to start your own record.", "primaryCta": "Capture",
         "continuationTitle": "Continue where you left off", "continuationBody": "You have an unsaved capture. Continue without losing it.", "continuationCta": "Continue",
-        "memoryEyebrow": "From your last record", "memoryLead": "Return to the photo, place, and time you kept.", "memoryCta": "Open this record",
+        "memoryEyebrow": "From your last record", "memoryLead": "Return to the record, place, and time you kept.", "memoryCta": "Open this record",
         "activeEyebrow": "An activity you are part of", "activeLead": "See what is happening here and what you can do next.", "activeCta": "Open activity",
         "watchUpdatesTitle": "Updates you follow", "watchUpdatesLoading": "Loading updates…", "watchUpdatesEmpty": "There are no updates yet.", "watchUpdatesError": "Could not load updates. Reload and try again.", "watchUpdatesReason": "An update from an area you follow", "watchUpdatesUnread": "Unread", "watchUpdatesObserved": "Observed", "watchUpdatesUpdated": "Updated", "watchUpdatesVerified": "Public and verified", "watchSignalChecklist": "New record with a completed checklist", "watchSignalEffort": "New record with effort details", "watchSignalPhoto": "New record with a photo", "watchSignalRecord": "New record",
         "recentTitle": "Recent records", "recentCta": "View all", "placesTitle": "Places you are involved with", "placesCta": "View map", "nextTitle": "What comes next",
-        "emptyTitle": "Leave your first record", "emptyBody": "Take one photo and keep it as your record with its time and place.",
+        "emptyTitle": "Leave your first record", "emptyBody": "A street, a historic building, a local activity, or nature. Take a photo and keep your record with its time and place.",
         "galleryCta": "Choose from this device", "emptyPlaceCta": "Explore by place",
         "routesTitle": "Where to go next", "routeRecord": "Record something", "routeSearch": "Find my records", "routePrivacy": "Check visibility", "routeCollaboration": "See group walks",
         "p0": {
@@ -39,7 +39,7 @@
         }
       },
       "shared": {
-        "openRecord": "Open record", "unknownRecord": "Record awaiting a name", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",
+        "openRecord": "Open record", "unknownRecord": "Regional record", "safePlaceFallback": "Community record", "aiCandidateSuffix": "may be the match", "fromRecord": "From this record", "multipleMedia": "media items",
         "operatorStatement": "ZUKAN is operated by IKIMON Inc. and is currently available at zukan.earth.",
         "media": { "photo": "Photo", "video": "Video", "audio": "Audio", "memo": "Note" },
         "navigation": { "home": "Home", "record": "Record", "discover": "Discover", "profile": "My page" }

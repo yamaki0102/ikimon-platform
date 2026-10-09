@@ -31,7 +31,7 @@ test("field loop page ja renders the reader-facing definition without external p
   }
 });
 
-test("about page sends readers to the learn hub", async () => {
+test("about page explains regional records and preserves specialist learning links", async () => {
   const app = buildApp();
   try {
     const response = await app.inject({
@@ -40,7 +40,20 @@ test("about page sends readers to the learn hub", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    assert.match(response.body, /観察の始め方を見る/);
+    const article = response.body.match(/<article class="doc-prose">([\s\S]*?)<\/article>/)?.[1];
+    assert.ok(article, "about longform should render inside the existing article");
+    for (const subject of ["自然", "文化", "歴史", "仕事", "暮らし", "活動"]) {
+      assert.match(article, new RegExp(subject), `about should include ${subject}`);
+    }
+    assert.match(article, /根拠と確認を分けて/);
+    assert.match(article, /AI の候補だけで名前を確定しません/);
+    assert.match(article, /別の目的で自由に使えるとは限りません/);
+    assert.match(article, /自然観察は、その具体的な入口の一つ/);
+    assert.match(article, /href="\/ja\/records\?view=public"/);
+    assert.match(article, /href="\/ja\/map"/);
+    assert.match(article, /href="\/ja\/record"/);
+    assert.match(article, /href="\/ja\/learn"/);
+    assert.match(response.body, /<div class="doc-link-strip"><a class="inline-link" href="\/ja\/records\?view=public">公開記録を見る<\/a>/);
     assert.match(response.body, /記録の信頼性を見る/);
     assert.match(response.body, /\/learn\/methodology/);
   } finally {
@@ -231,6 +244,8 @@ test("language-prefixed marketing pages stay usable while SEO remains Japanese",
     assert.equal(legacyFallback.statusCode, 200);
     assert.match(legacyFallback.body, /name="robots" content="noindex, nofollow"/);
     assert.match(legacyFallback.body, /rel="canonical" href="https:\/\/zukan\.earth\/ja\/about"/);
+    assert.match(legacyFallback.body, /自然観察は、その具体的な入口の一つ/);
+    assert.match(legacyFallback.body, /href="\/en\/records\?view=public"/);
   } finally {
     await app.close();
   }

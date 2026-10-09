@@ -83,7 +83,7 @@ test("guest Home exposes regional categories before place and community follow-u
   assert.match(html, /id="home-categories-heading">何を残せるか/);
   assert.match(html, /学校・学び/);
   assert.match(html, /地域・イベント/);
-  assert.match(html, /仕事・文化/);
+  assert.match(html, /文化・歴史/);
   assert.match(html, /暮らし・自然/);
   assert.match(html, /data-global-record-trigger="photo"/);
   assert.match(html, /data-kpi-action="top_capture_hero"/);

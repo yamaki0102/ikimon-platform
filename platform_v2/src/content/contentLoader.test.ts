@@ -48,7 +48,7 @@ test("content store loads canonical ja and partial fallback languages", () => {
   const enShared = store.short.en.shared as any;
 
   assert.equal(jaPublic.landing.title, "地域の記録から始める | ZUKAN");
-  assert.equal(enPublic.landing.title, "A regional field guide built together | ZUKAN");
+  assert.equal(enPublic.landing.title, "Regional records, built together | ZUKAN");
   assert.equal(enPublic.marketing.pages.about.heading, jaPublic.marketing.pages.about.heading);
   assert.equal(enShared.shell.skipToContent, "Skip to content");
   assert.ok(store.longform.en["learn-field-loop"]);

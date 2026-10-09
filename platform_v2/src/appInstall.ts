@@ -27,7 +27,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   ja: {
     name: "ZUKAN",
     shortName: "ZUKAN",
-    description: "写真や記録を場所と時間につなぎ、地域の記憶をみんなで育てるアプリ。",
+    description: "自然・文化・歴史・暮らしの記録を場所と時間につなぎ、地域の知識をみんなで育てるアプリ。",
     installTitle: "ZUKAN を端末に追加",
     installBody: "撮る、場所、記録、自分をすぐ開けます。",
     installAction: "追加",
@@ -44,7 +44,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   en: {
     name: "ZUKAN",
     shortName: "ZUKAN",
-    description: "A place- and time-aware photo record for growing local knowledge together.",
+    description: "Connect records of nature, culture, history and everyday life to places and time, and grow local knowledge together.",
     installTitle: "Add ZUKAN to this device",
     installBody: "Open Capture, Places, Records, and My page faster.",
     installAction: "Add",
@@ -61,7 +61,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   es: {
     name: "ZUKAN",
     shortName: "ZUKAN",
-    description: "Un registro de fotos conectado con lugares y tiempo para cultivar conocimiento local.",
+    description: "Conecta registros de naturaleza, cultura, historia y vida cotidiana con lugares y tiempo, y cultiva conocimiento local en comunidad.",
     installTitle: "Añadir ZUKAN al dispositivo",
     installBody: "Abre Capturar, Lugares, Registros y Mi página más rápido.",
     installAction: "Añadir",
@@ -78,7 +78,7 @@ export const appInstallCopy: Record<SiteLang, AppInstallCopy> = {
   "pt-BR": {
     name: "ZUKAN",
     shortName: "ZUKAN",
-    description: "Um registro de fotos ligado a lugares e tempo para cultivar conhecimento local.",
+    description: "Conecte registros de natureza, cultura, história e vida cotidiana a lugares e tempo, e cultive conhecimento local em conjunto.",
     installTitle: "Adicionar ZUKAN ao dispositivo",
     installBody: "Abra Capturar, Lugares, Registros e Minha página mais rápido.",
     installAction: "Adicionar",
