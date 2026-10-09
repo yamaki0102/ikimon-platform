@@ -1837,6 +1837,86 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       db.close();
     }
   };
+
+  // Persist preview bytes in the existing owner-scoped Record draft store, not a second database.
+  // Writes serialize so a late capture cannot resurrect an explicitly removed photo.
+  let photoPreviewWriteQueue = Promise.resolve();
+  let photoPreviewDismissed = false;
+  const readStoredPhotoPreview = async () => {
+    if (!('indexedDB' in window)) return null;
+    const owner = await draftOwnerContext();
+    const db = await openDraftDb();
+    let draft;
+    try {
+      draft = await new Promise((resolve, reject) => {
+        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(owner.draftKey);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
+      });
+    } finally {
+      db.close();
+    }
+    if (!draft || draft.ownerKey !== owner.ownerKey || draft.globalPhotoPreview !== true
+      || draft.kind !== 'photo' || draft.previewCompleted === true) return null;
+    const savedAt = Number(draft.savedAt || 0);
+    if (!Number.isFinite(savedAt) || savedAt <= 0 || Date.now() - savedAt > 7 * 86400000 || savedAt > Date.now() + 60000) return null;
+    const files = (Array.isArray(draft.files) ? draft.files : [draft.file]).slice(0, MAX_PHOTO_DRAFT_FILES)
+      .map((file, index) => {
+        if (file instanceof File) return file;
+        if (typeof Blob !== 'undefined' && file instanceof Blob) {
+          return new File([file], 'recovered-photo-' + String(index + 1) + '.jpg', { type: file.type || 'image/jpeg' });
+        }
+        return null;
+      })
+      .filter((file) => file && file.size > 0 && file.type.indexOf('image/') === 0);
+    return files.length > 0 ? Object.assign({}, draft, { files }) : null;
+  };
+  const deleteStoredPhotoPreview = async () => {
+    if (!('indexedDB' in window)) return;
+    const owner = await draftOwnerContext();
+    const db = await openDraftDb();
+    try {
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(STORE_NAME);
+        const lookup = store.get(owner.draftKey);
+        lookup.onsuccess = () => {
+          const draft = lookup.result;
+          if (draft && draft.ownerKey === owner.ownerKey && draft.globalPhotoPreview === true) store.delete(owner.draftKey);
+        };
+        lookup.onerror = () => reject(lookup.error || new Error('indexeddb_read_failed'));
+        transaction.oncomplete = () => resolve(true);
+        transaction.onerror = () => reject(transaction.error || new Error('indexeddb_delete_failed'));
+      });
+    } finally {
+      db.close();
+    }
+  };
+  const queuePhotoPreviewWrite = (mode = 'save') => {
+    const files = mode === 'save' ? selectedPhotoDraftFiles().slice() : [];
+    const snapshot = {
+      file: files[0] || null,
+      files,
+      kind: 'photo',
+      savedAt: Date.now(),
+      metadata: Object.assign({}, capturedReviewMeta || {}),
+      globalPhotoPreview: true,
+      previewCompleted: mode === 'complete',
+      retryDetailId: photoDraftRetryDetailId,
+      retryVisitId: photoDraftRetryVisitId,
+      retryHasUploadedPhoto: photoDraftRetryHasUploadedPhoto,
+    };
+    photoPreviewWriteQueue = photoPreviewWriteQueue.catch(() => undefined).then(() => {
+      if (mode === 'discard') return deleteStoredPhotoPreview();
+      return saveDraft(snapshot);
+    });
+    return photoPreviewWriteQueue;
+  };
+  const schedulePhotoPreviewWrite = () => {
+    void queuePhotoPreviewWrite().catch(() => {
+      if (selectedPhotoDraftFiles().length > 0) setStatus('端末への下書き保存に失敗しました。再読み込み前に記録してください。');
+    });
+  };
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
   };
@@ -2392,6 +2472,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     const [url] = capturedPhotoObjectUrls.splice(from, 1);
     capturedPhotoObjectUrls.splice(to, 0, url);
     syncPhotoDraftControls('写真の順番を変更しました。');
+    schedulePhotoPreviewWrite();
   };
   const removePhotoDraft = (index) => {
     const target = Number(index);
@@ -2405,6 +2486,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       photoDraftRetryHasUploadedPhoto = false;
     }
     syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
+    void queuePhotoPreviewWrite(capturedPhotoFiles.length > 0 ? 'save' : 'discard').catch(() => {
+      setStatus('下書きの更新に失敗しました。再読み込み前に確認してください。');
+    });
   };
   const keepOnlyPhotoDraftIndexes = (indexes) => {
     const keep = new Set(indexes.map((index) => Number(index)).filter((index) => Number.isInteger(index) && index >= 0));
@@ -2482,6 +2566,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       return;
     }
     try {
+      // Never start a non-idempotent Record write with only volatile photo bytes.
+      await queuePhotoPreviewWrite();
       setStatus('写真を記録用に整えています...');
       let preparedCount = 0;
       const prepareStartedAt = nowMs();
@@ -2575,6 +2661,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         }
         photoDraftRetryDetailId = detailId;
         photoDraftRetryVisitId = photoUploadTargetId || visitIdFromObservationTargetId(detailId);
+        // Durable receipt before attempting media upload: reload must retry the same Record.
+        await queuePhotoPreviewWrite();
       }
       if (!photoUploadTargetId) {
         photoUploadTargetId = photoDraftRetryVisitId || visitIdFromObservationTargetId(detailId);
@@ -2642,6 +2730,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       if (failedUploads.length > 0) {
         keepOnlyPhotoDraftIndexes(failedUploads.map((item) => item.index));
         syncPhotoDraftControls();
+        await queuePhotoPreviewWrite();
         const saved = uploadedIndexes.length;
         const failed = failedUploads.length;
         const reason = failedUploads[0] && failedUploads[0].error ? ' 理由: ' + formatPhotoUploadFailureReason(failedUploads[0].error) : '';
@@ -2649,6 +2738,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         setStatus('記録本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じ記録に再送します。' + reason);
         return;
       }
+      // Persist completion before deleting, so a missed cleanup cannot replay a posted photo.
+      await queuePhotoPreviewWrite('complete');
+      await queuePhotoPreviewWrite('discard');
       resetPhotoDraftAfterDirectPost('記録を保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
       sendGlobalRecordEvent('capture_saved', 'capture_saved', { mediaType: 'photo', fileCount: uploads.length });
       sendGlobalRecordKpi('direct_post_total_ms', durationSince(directPostStartedAt), {
@@ -2692,6 +2784,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     syncPhotoDraftControls();
     const dropped = incoming.length - accepted.length;
     setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+    schedulePhotoPreviewWrite();
   };
   const navigateWithDraft = async (files, kind, metadata, source) => {
     const href = RECORD_TARGETS[kind] || RECORD_TARGETS.photo;
@@ -2704,6 +2797,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     });
     try {
       const [primaryDraftFile = null] = draftFiles;
+      if (kind === 'photo') await photoPreviewWriteQueue;
       const draftContext = await saveDraft({ file: primaryDraftFile, files: draftFiles, kind, savedAt: Date.now(), metadata: metadataWithRole });
       window.location.href = withDraftParams(href, kind, recoverySource, draftContext && draftContext.continuationToken);
     } catch (_) {
@@ -2724,6 +2818,14 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
   };
   const closeSheet = () => {
+    if (directPostInFlight) {
+      setStatus('記録の保存中です。完了を待ってください。');
+      return;
+    }
+    photoPreviewDismissed = true;
+    if (selectedPhotoDraftFiles().length > 0) {
+      void queuePhotoPreviewWrite('discard').catch(() => undefined);
+    }
     cameraRequestId += 1;
     cameraStartInFlight = false;
     stopActiveStream();
@@ -3369,6 +3471,28 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
     if (captureButton) captureButton.hidden = true;
     setFooterActionMode('start');
+  });
+
+  const restorePhotoPreview = async () => {
+    // /record owns its own recovery: never steal its IndexedDB draft into the global sheet.
+    const pathSegments = String(window.location.pathname || '').split('/').filter(Boolean);
+    if (pathSegments[pathSegments.length - 1] === 'record' || !('indexedDB' in window)) return;
+    const draft = await readStoredPhotoPreview();
+    if (!draft || activeKind || selectedPhotoDraftFiles().length > 0 || photoPreviewDismissed) return;
+    capturedPhotoFiles = draft.files;
+    capturedReviewMeta = draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
+    photoDraftRetryDetailId = typeof draft.retryDetailId === 'string' ? draft.retryDetailId : '';
+    photoDraftRetryVisitId = typeof draft.retryVisitId === 'string' ? draft.retryVisitId : '';
+    photoDraftRetryHasUploadedPhoto = draft.retryHasUploadedPhoto === true;
+    openSheet('photo', { keepReview: true, reviewOnly: true });
+    if (empty) empty.hidden = true;
+    syncPhotoDraftControls(photoDraftRetryDetailId
+      ? '前回の写真を復旧しました。保存済みの記録に写真を再送できます。'
+      : '前回の写真を復旧しました。続きから記録できます。');
+  };
+  void restorePhotoPreview().catch(() => undefined);
+  window.addEventListener('online', () => {
+    if (!activeKind && !photoPreviewDismissed) void restorePhotoPreview().catch(() => undefined);
   });
   window.addEventListener('pagehide', () => {
     cameraRequestId += 1;
