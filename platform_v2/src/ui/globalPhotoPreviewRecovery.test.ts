@@ -83,13 +83,14 @@ function indexedDbFixture(drafts: Map<string, Draft>) {
   };
 }
 
-function cameraFixture(drafts: Map<string, Draft>, userId: string) {
+function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/ja/learn/field-loop") {
+  let currentUserId = userId;
   const html = patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
     basePath: "",
     title: "Capture preview",
     body: "<p>Fixture</p>",
     lang: "ja",
-    currentPath: "/ja/learn/field-loop",
+    currentPath: pathname,
   }));
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
@@ -124,7 +125,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string) {
     addEventListener() {},
     createElement: () => new Element(),
   };
-  const location = { pathname: "/ja/learn/field-loop", search: "", origin: "https://fixture.invalid" };
+  const location = { pathname, search: "", origin: "https://fixture.invalid" };
   const window = {
     location,
     indexedDB: indexedDbFixture(drafts),
@@ -147,13 +148,15 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string) {
     fetch: async (url: string) => {
       if (url === "/api/v1/auth/session") return {
         ok: true,
-        json: async () => ({ ok: true, session: { userId } }),
+        json: async () => ({ ok: true, session: { userId: currentUserId } }),
       };
       if (url === "/api/v1/ui-kpi/events") return { ok: true };
       throw new Error("Unexpected network call: " + url);
     },
   });
-  return { sheet, submit, input, trigger, close, photoGrid };
+  return { sheet, submit, input, trigger, close, photoGrid,
+    switchUserId(nextUserId: string) { currentUserId = nextUserId; },
+  };
 }
 
 async function drain() {
@@ -173,6 +176,10 @@ test("global photo preview persists before upload, survives page reload and stay
   assert.equal(saved?.ownerKey, "user:owner-A");
   assert.equal(saved?.files?.length, 1);
   assert.equal(saved?.files?.[0]?.name, "one.jpg");
+
+  const differentPage = cameraFixture(drafts, "owner-A", "/ja/map");
+  await drain();
+  assert.equal(differentPage.sheet.hidden, true, "navigation does not interrupt another screen");
 
   const differentOwner = cameraFixture(drafts, "owner-B");
   await drain();
@@ -219,4 +226,20 @@ test("completed preview tombstones and stale drafts do not reopen", async () => 
   const stale = cameraFixture(drafts, "owner-A");
   await drain();
   assert.equal(stale.sheet.hidden, true);
+});
+
+test("account changes cannot write a prior user's photo into the next user's draft", async () => {
+  const drafts = new Map<string, Draft>();
+  const browser = cameraFixture(drafts, "owner-A");
+  browser.input.files = [new File(["first"], "one.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  await drain();
+  assert.equal(drafts.get("latest:user:owner-A")?.files?.length, 1);
+
+  browser.switchUserId("owner-B");
+  browser.input.files = [new File(["second"], "two.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  await drain();
+  assert.equal(drafts.has("latest:user:owner-B"), false, "the next owner's key must never receive prior bytes");
+  assert.equal(drafts.get("latest:user:owner-A")?.files?.length, 1, "the original owner's draft remains intact");
 });
