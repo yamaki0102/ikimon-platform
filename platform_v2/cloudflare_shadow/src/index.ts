@@ -1,3 +1,4 @@
+import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
@@ -267,6 +268,7 @@ interface WorkersAiBinding {
 }
 
 interface Env {
+  JOURNEY_SESSION_HMAC_SECRET?: string;
   ZUKAN_QUIET_HOME_MODE?: string;
   CORE_DB: D1Database;
   OBS_DB: D1Database;
@@ -2558,9 +2560,26 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
 
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
+    let journeyReadOnly = false;
     const response = await (async (): Promise<Response> => {
     try {
       const url = new URL(request.url);
+      // Authenticate before every route, including internal/privileged routes and redirects.
+      // The guard read does not update ordinary sessions or their existing expiry.
+      const journeyToken = readSessionTokenFromCookie(request.headers.get("cookie"));
+      let journeySession: SessionSnapshot | null = null;
+      // Every session issued by this Worker is 32 random bytes encoded as 64 hex chars.
+      // Malformed cookies cannot be journey sessions; preserve secretless fixture routes.
+      if (journeyToken && /^[a-f0-9]{64}$/.test(journeyToken)) {
+        try { journeySession = await readCompatibleSession(request, env, false); }
+        catch { return json({ error: "auth_store_unavailable" }, 503, { "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive" }); }
+      }
+      journeyReadOnly = journeySession?.userId === JOURNEY_USER_ID;
+      const journeyGuard = journeyReadOnlyGuard(request, journeySession);
+      const journeyMint = await handleJourneySession(request, env,
+        (user, ttlSeconds) => issueSessionForAuthUser(request, env, user, ttlSeconds), Boolean(journeyGuard));
+      if (journeyMint) return journeyMint;
+      if (journeyGuard) return journeyGuard;
       const nativePathname = stripPublicLangPrefix(url.pathname);
       const syntheticRenriBrowserQaResponse = handleSyntheticRenriBrowserQa(
         request,
@@ -3449,7 +3468,8 @@ export const worker = {
       return json({ error: "internal_error" }, 500);
     }
     })();
-    return withAiContentPolicy(response, request, env);
+    const policyResponse = withAiContentPolicy(response, request, env);
+    return journeyReadOnly ? withJourneyPrivacy(policyResponse) : policyResponse;
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -30396,10 +30416,10 @@ async function findAuthUserByEmail(email: string, env: Env): Promise<AuthUserRow
   ).bind(email).first<AuthUserRow>();
 }
 
-async function issueSessionForAuthUser(request: Request, env: Env, user: AuthUserRow): Promise<{ cookie: string; rawToken: string; session: SessionSnapshot }> {
+async function issueSessionForAuthUser(request: Request, env: Env, user: AuthUserRow, ttlSeconds = 24 * 30 * 60 * 60): Promise<{ cookie: string; rawToken: string; session: SessionSnapshot }> {
   const rawToken = randomToken();
   const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
-  const expiresAt = new Date(Date.now() + 24 * 30 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
   const roleName = normalizeOptionalText(user.role_name) ?? "Observer";
   const rankLabel = normalizeOptionalText(user.rank_label) ?? "観察者";
 
@@ -30530,7 +30550,7 @@ async function recordUiKpiEventShim(request: Request): Promise<Response> {
   }, 200, { "cache-control": "no-store" });
 }
 
-async function readCompatibleSession(request: Request, env: Env): Promise<SessionSnapshot | null> {
+async function readCompatibleSession(request: Request, env: Env, touch = true): Promise<SessionSnapshot | null> {
   const rawToken = readSessionTokenFromCookie(request.headers.get("cookie"));
   if (!rawToken) return null;
   const tokenHash = await sha256Hex(textToArrayBuffer(rawToken));
@@ -30548,7 +30568,7 @@ async function readCompatibleSession(request: Request, env: Env): Promise<Sessio
     expires_at: string;
   }>();
   if (!session) return null;
-  await env.CORE_DB.prepare(
+  if (touch) await env.CORE_DB.prepare(
     "UPDATE auth_sessions SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?"
   ).bind(tokenHash).run();
   return {
