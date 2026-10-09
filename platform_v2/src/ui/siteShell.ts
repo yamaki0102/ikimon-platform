@@ -1916,7 +1916,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       retryHasUploadedPhoto: photoDraftRetryHasUploadedPhoto,
     };
     photoPreviewWriteQueue = photoPreviewWriteQueue.catch(() => undefined).then(() => {
-      if (mode === 'discard') return deleteStoredPhotoPreview();
+      if (mode === 'discard') return deleteStoredPhotoPreview().then(() => { photoPreviewOwnerKey = ''; });
       return saveDraft(snapshot);
     });
     return photoPreviewWriteQueue;
