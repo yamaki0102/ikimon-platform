@@ -1879,6 +1879,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const deleteStoredPhotoPreview = async () => {
     if (!('indexedDB' in window)) return;
     const owner = await draftOwnerContext();
+    if (photoPreviewOwnerKey && photoPreviewOwnerKey !== owner.ownerKey) throw new Error('draft_owner_changed');
     const db = await openDraftDb();
     try {
       await new Promise((resolve, reject) => {
@@ -3485,6 +3486,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (pathSegments[pathSegments.length - 1] === 'record' || !('indexedDB' in window)) return;
     const draft = await readStoredPhotoPreview();
     if (!draft || activeKind || selectedPhotoDraftFiles().length > 0 || photoPreviewDismissed) return;
+    photoPreviewOwnerKey = draft.ownerKey;
     capturedPhotoFiles = draft.files;
     capturedReviewMeta = draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
     photoDraftRetryDetailId = typeof draft.retryDetailId === 'string' ? draft.retryDetailId : '';
