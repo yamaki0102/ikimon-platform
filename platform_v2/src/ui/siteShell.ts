@@ -1803,6 +1803,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       return { draftKey: 'latest:guest:' + token, ownerKey: 'guest:' + token, continuationToken: token };
     }
   };
+  const photoPreviewDraftKey = (owner) => 'global-photo-preview:' + owner.draftKey;
   const saveDraft = async (draft, expectedOwnerKey = '') => {
     const context = await draftOwnerContext();
     if (expectedOwnerKey && context.ownerKey !== expectedOwnerKey) throw new Error('draft_owner_changed');
@@ -1810,7 +1811,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       if (photoPreviewOwnerKey && photoPreviewOwnerKey !== context.ownerKey) throw new Error('draft_owner_changed');
       photoPreviewOwnerKey = context.ownerKey;
     }
-    const draftKey = context.draftKey;
+    const draftKey = draft.globalPhotoPreview === true ? photoPreviewDraftKey(context) : context.draftKey;
     const storedDraft = Object.assign({}, draft, {
       ownerKey: context.ownerKey,
       continuationToken: context.continuationToken || null,
@@ -1856,7 +1857,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     let draft;
     try {
       draft = await new Promise((resolve, reject) => {
-        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(owner.draftKey);
+        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(photoPreviewDraftKey(owner));
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
       });
@@ -1887,10 +1888,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       await new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-        const lookup = store.get(owner.draftKey);
+        const lookup = store.get(photoPreviewDraftKey(owner));
         lookup.onsuccess = () => {
           const draft = lookup.result;
-          if (draft && draft.ownerKey === owner.ownerKey && draft.globalPhotoPreview === true) store.delete(owner.draftKey);
+          if (draft && draft.ownerKey === owner.ownerKey && draft.globalPhotoPreview === true) store.delete(photoPreviewDraftKey(owner));
         };
         lookup.onerror = () => reject(lookup.error || new Error('indexeddb_read_failed'));
         transaction.oncomplete = () => resolve(true);
