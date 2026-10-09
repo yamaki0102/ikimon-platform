@@ -165,17 +165,25 @@ async function drain() {
 
 test("global photo preview persists before upload, survives page reload and stays owner-scoped", async () => {
   const drafts = new Map<string, Draft>();
+  // Existing /record draft lives under the original key and must never be replaced.
+  drafts.set("latest:user:owner-A", {
+    ownerKey: "user:owner-A",
+    kind: "photo",
+    savedAt: Date.now(),
+    files: [new File(["existing-record"], "record.jpg", { type: "image/jpeg" })],
+  });
   const first = cameraFixture(drafts, "owner-A");
   first.input.files = [new File(["fixture-image"], "one.jpg", { type: "image/jpeg" })];
   first.input.dispatch("change");
   await drain();
 
-  const saved = drafts.get("latest:user:owner-A");
+  const saved = drafts.get("global-photo-preview:latest:user:owner-A");
   assert.ok(saved, "photo must be durable before submitting a Record");
   assert.equal(saved?.globalPhotoPreview, true);
   assert.equal(saved?.ownerKey, "user:owner-A");
   assert.equal(saved?.files?.length, 1);
   assert.equal(saved?.files?.[0]?.name, "one.jpg");
+  assert.equal(drafts.get("latest:user:owner-A")?.files?.[0]?.name, "record.jpg", "existing record draft is untouched");
 
   const differentPage = cameraFixture(drafts, "owner-A", "/ja/map");
   await drain();
@@ -192,12 +200,13 @@ test("global photo preview persists before upload, survives page reload and stay
 
   restored.close.click();
   await drain();
-  assert.equal(drafts.has("latest:user:owner-A"), false, "explicit discard removes preview bytes");
+  assert.equal(drafts.has("global-photo-preview:latest:user:owner-A"), false, "explicit discard removes preview bytes");
+  assert.equal(drafts.get("latest:user:owner-A")?.files?.[0]?.name, "record.jpg", "discard leaves the existing /record draft intact");
 });
 
 test("a persisted preview whose ownerKey disagrees with the scoped key is rejected", async () => {
   const drafts = new Map<string, Draft>();
-  drafts.set("latest:user:owner-B", {
+  drafts.set("global-photo-preview:latest:user:owner-B", {
     ownerKey: "user:owner-A",
     kind: "photo",
     globalPhotoPreview: true,
@@ -218,11 +227,11 @@ test("completed preview tombstones and stale drafts do not reopen", async () => 
     savedAt: Date.now(),
     files: [new File(["image"], "one.jpg", { type: "image/jpeg" })],
   };
-  drafts.set("latest:user:owner-A", { ...valid, previewCompleted: true });
+  drafts.set("global-photo-preview:latest:user:owner-A", { ...valid, previewCompleted: true });
   const complete = cameraFixture(drafts, "owner-A");
   await drain();
   assert.equal(complete.sheet.hidden, true);
-  drafts.set("latest:user:owner-A", { ...valid, savedAt: Date.now() - 8 * 86400000 });
+  drafts.set("global-photo-preview:latest:user:owner-A", { ...valid, savedAt: Date.now() - 8 * 86400000 });
   const stale = cameraFixture(drafts, "owner-A");
   await drain();
   assert.equal(stale.sheet.hidden, true);
@@ -234,12 +243,12 @@ test("account changes cannot write a prior user's photo into the next user's dra
   browser.input.files = [new File(["first"], "one.jpg", { type: "image/jpeg" })];
   browser.input.dispatch("change");
   await drain();
-  assert.equal(drafts.get("latest:user:owner-A")?.files?.length, 1);
+  assert.equal(drafts.get("global-photo-preview:latest:user:owner-A")?.files?.length, 1);
 
   browser.switchUserId("owner-B");
   browser.input.files = [new File(["second"], "two.jpg", { type: "image/jpeg" })];
   browser.input.dispatch("change");
   await drain();
-  assert.equal(drafts.has("latest:user:owner-B"), false, "the next owner's key must never receive prior bytes");
-  assert.equal(drafts.get("latest:user:owner-A")?.files?.length, 1, "the original owner's draft remains intact");
+  assert.equal(drafts.has("global-photo-preview:latest:user:owner-B"), false, "the next owner's key must never receive prior bytes");
+  assert.equal(drafts.get("global-photo-preview:latest:user:owner-A")?.files?.length, 1, "the original owner's draft remains intact");
 });
