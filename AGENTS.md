@@ -2,24 +2,31 @@
 
 ZUKAN is a place-centered shared knowledge and participation product across nature, culture, history and everyday regional life. Biodiversity is one Domain Pack; an observation event is one Program profile.
 
+## Native development and release — 2026-10-09 owner decision
+
+- Ordinary development, verification, staging and release must not depend on a custom plugin, MCP, executor, Factory acceptance or NOCOSIL Work connection. Use git, protected GitHub PRs and the service's registered provider-native route with existing authorization.
+- Apply the current owner's task scope directly. Preserve supplied task references and useful evidence, but do not require a Work selector or claim token to start ordinary code work. Keep one writer per mutable scope and read back unknown effects before continuing.
+- A frozen or unavailable Factory remains a separate infrastructure task. Its repair, connectivity and background jobs are not prerequisites for ZUKAN delivery.
+- Preserve applicable production activation, database, secret, IAM, DNS, rights, billing and external-send boundaries. Confirm the actual ZUKAN release route; NOCOSIL's `release/production` branch is not a portfolio-wide deployment setting.
+
 ## Codex Cloud — P0 fast start
 
 For “P0から開発して”, “最優先から”, or “続きから”:
 
 1. Scope to `ZUKAN`, current repo `yamaki0102/ikimon-platform` (`ikimon-life` is the existing technical key). P0 is a **priority filter**, not a Work ID, an old Factory P0-A/B/C/D phase, or a grant. Do not work in `t3ta/zukan`, legacy `ikimon.life`, or archived PHP by default.
-2. For a supplied Work ID/Factory receipt, read **that** NOCOSIL Work's fresh Current State/Resume/claim/`next_action`. For priority-only P0, use the existing **authenticated** Factory/NOCOSIL selector for lane `ZUKAN`, eligible nonterminal P0 Work (resume before create). Neither GitHub PR/Issue, management Board, `PROJECT.json` nor product registry is a live Work selector.
-3. If this Codex Cloud environment cannot access that selector, return `WORK_SELECTOR_UNAVAILABLE` and the exact missing connection/re-entry immediately. Do not invent a task or reconstruct the queue from old plans. Selection alone never grants a claim.
-4. Bind the selected Work, permitted scope, current authority/fence, exact source/tree, unresolved effects and reusable candidate. Execute only `next_action`; read changed paths and affected canonicals, not the full documentation/history. Active Worker is `platform_v2/cloudflare_shadow/src/`, shared source `platform_v2/src/`; UI additionally reads `DESIGN.md` plus affected experience spec.
-5. Do focused checks and registered publication/runtime read-back under existing rights. Save concise source/Evidence/Resume/`next_action` on the **same Work**; PR, staging, production and user Journey are distinct. Blocked Work does not stop unrelated authorized Work.
+2. Start with the current owner instruction and any supplied task ID, PR, source SHA or handoff. Fresh-read the relevant current source, existing candidate and available task evidence. Preserve supplied identities without turning their originating service into an execution prerequisite.
+3. For priority-only P0, use available current approved project priorities and task evidence to identify a bounded next action. A static plan or old PR is not a live queue or a grant. If the priority cannot be established, report that specific uncertainty and continue independently authorized work; do not stop merely because a Factory/Work selector is unavailable.
+4. Bind the permitted scope, valid authority, exact source/tree, unresolved effects and reusable candidate. Execute the next scoped action; read changed paths and affected canonicals, not the full documentation/history. Active Worker is `platform_v2/cloudflare_shadow/src/`, shared source `platform_v2/src/`; UI additionally reads `DESIGN.md` plus affected experience spec.
+5. Do focused checks and registered publication/runtime read-back under existing rights. Keep concise purpose, changes and verification in the PR, with detailed evidence locators only when useful. Preserve the existing task reference and next action without waiting for a custom plugin write-back. PR, staging, production and user Journey remain distinct.
 
-This is a bounded entry rule, not a new selector, execution grant or proof that Codex Cloud's authenticated connection is present. Product/security/release rules below remain effective; demand-load only applicable documentation.
+This is a bounded entry rule, not a new selector or permission grant. Product/security/release rules below remain effective; demand-load only applicable documentation. The former mandatory Factory selector and `WORK_SELECTOR_UNAVAILABLE` startup gate are superseded by the 2026-10-09 owner decision.
 
 ## Authority and start
 
-- Fresh-read the relevant NOCOSIL Work/Current State/Resume and exact next-effect policy. Reference `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md` as the shared contract; read the relevant project packet on demand, not the entire portfolio queue.
+- Fresh-read the current owner scope, relevant source and exact next-effect policy. Reference `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md` as the shared contract; read available relevant task evidence on demand, not the entire portfolio queue. A missing custom connection does not block independently authorized source work.
 - Product entry: `docs/START_HERE.md`, `PROJECT.json`, `docs/spec/zukan-product-architecture/{SPEC,PLAN,PROFILE_HORIZON}.md`. UI work first reads `DESIGN.md`, the canonical ZUKAN design rulebook for shared brand, visual, interaction, internationalization and accessibility decisions, then `docs/spec/zukan-app-experience/ZUKAN_APP_EXPERIENCE_V1.md` for existing navigation, screen and state responsibilities; `/profile` / `自分` UI additionally reads `docs/spec/zukan-app-experience/MY_PAGE_V2.md`; participation/Program discovery UI additionally reads `docs/spec/zukan-app-experience/PARTICIPATION_EXPERIENCE_V1.md`.
-- Product Registry owns meaning, acceptance and static dependencies; current Work/assignment/claim/Resume authority is NOCOSIL. Management queue/status projections, PRs and static tasks are neither live Work selectors nor runtime proof.
-- Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed Work identities. Apply the current management start/locality and admission contract for the actual execution node.
+- Product Registry owns meaning, acceptance and static dependencies. Preserve supplied Work/assignment/Resume provenance when available; management projections, PRs and static tasks do not prove current runtime or grant protected authority.
+- Use exact current source in an isolated native workspace, with one writer for the repository. Preserve unrelated dirty work and existing failed task identities. Apply the current service-scoped authority and conflict boundaries without reviving a superseded custom admission prerequisite.
 - Owner-authorized reversible source, test, branch, PR and merge work proceeds without repeated approval. Existing protected release, rights, privacy, identity and external-send boundaries remain binding.
 
 ## Runtime and repository map
@@ -72,15 +79,15 @@ Real-account QA uses an already authorized normal product session. Authenticatio
 
 ## Release and source adoption
 
-The sole release lookup is management `operations/deploy_standard/service_deploy_registry.json`; run `php scripts/get_service_deploy_method.php zukan.earth --catalog` there and follow its current effective route and registered release contract. `STANDARD_READY` uses the registered provider-native runner; custom transport is required only when the catalog says so. Read current source, provider snapshot, staging proof, rollback and valid authority before protected production work.
+The sole release lookup is management `operations/deploy_standard/service_deploy_registry.json`; run `php scripts/get_service_deploy_method.php zukan.earth --catalog` there and follow its current `effective_route` and registered release contract. `STANDARD_READY` uses the registered provider-native runner; legacy Queue/Executor fields do not override the resolved native route. Read current source, provider snapshot, staging proof, rollback and valid authority before protected production work. If the selected release capability is unavailable, complete independently authorized source work and report that specific release gap. Do not invent a route or copy NOCOSIL's release branch configuration.
 
-Use a short-lived `codex/<work-id>` branch → reviewed/verified PR → authorized merge. No direct main push, forced history or bypass of failing required checks. Do not claim deployment from merge. A database change does not itself create a human gate; apply the actual current migration/profile and recovery authority. No implicit DNS/IAM/secret/billing/customer-send permission.
+Use a short-lived `codex/<task-name>` branch → reviewed/verified PR → authorized merge. No direct main push, forced history or bypass of failing required checks. Do not claim deployment from merge. A database change does not itself create a human gate; apply the actual current migration/profile and recovery authority. No implicit DNS/IAM/secret/billing/customer-send permission.
 
 **SUPERSEDED (2026-09-05):** former root instructions describing VPS/Node/PostgreSQL as current production, mandatory GitHub Actions deployment, unconditional Queue/Sandbox routing, `ikimon.life` as canonical URL, archived PHP privacy helpers, mandatory full-suite verification and three unsolicited future proposals. Their historical text remains in Git history; current authority is the management contract/catalog and the product sources above.
 
 ## Completion
 
-Report changed behavior, exact source/PR, proportional checks, current runtime read-back, remaining real dependencies and next admitted Work. A passing test, merged PR, HTTP 200 or old LIVE_VERIFIED record does not establish the complete user journey. Preserve existing blocked slices and failure bindings; continue independent adopted source work through the same management queue without renaming or retrying the blocked task.
+Report changed behavior, exact source/PR, proportional checks, current runtime read-back, remaining real dependencies and the next concrete action. A passing test, merged PR, HTTP 200 or old LIVE_VERIFIED record does not establish the complete user journey. Preserve existing blocked slices and failure bindings; continue independent authorized work without renaming or blindly retrying the blocked task. Custom plugin write-back and Factory closeout are not ordinary delivery gates.
 
 ## Test data isolation (owner correction, 2026-09-05)
 

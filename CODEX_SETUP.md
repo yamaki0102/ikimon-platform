@@ -1,12 +1,13 @@
 # Codex Cloud — ZUKAN (current entry)
 
-Use [AGENTS.md](AGENTS.md), section **Codex Cloud — P0 fast start**, as the current entry for “P0から開発して”, the highest priority Work, or resuming an existing Work.
+Use [AGENTS.md](AGENTS.md), section **Codex Cloud — P0 fast start**, as the current entry for “P0から開発して”, the highest priority task, or resuming an existing task.
 
 - Product: ZUKAN / `zukan.earth`; current source `yamaki0102/ikimon-platform@main`. The physical `platform_v2` and `ikimon-life` identifiers remain valid technical names.
-- The task's supplied Work ID / Factory receipt takes precedence. Otherwise an **authenticated current NOCOSIL/Factory selector** must resolve an eligible ZUKAN P0 Work. The repository itself cannot grant claims or reconstruct live Work from old plans.
-- If Codex Cloud cannot access that selector, return `WORK_SELECTOR_UNAVAILABLE` promptly instead of browsing old tasks indefinitely. Preserve any known Work and provide the missing connection/re-entry.
-- Once admitted, use `platform_v2/cloudflare_shadow/src/` for live Worker routes and `platform_v2/src/` for shared UI/services. Read `docs/START_HERE.md` and the affected feature/spec only as needed.
-- Implement the current Work's `next_action`, run focused tests, use the registered release path, and store verified source/runtime state and Resume on the **same Work**. Don't confuse a PR or build with production success.
-- Preserve rights, review, publication, identity, secrets, source protection and current claim/fencing limits; no owner-PC or external chat as a prerequisite.
+- The current owner instruction defines the task scope. Preserve any supplied task ID, PR, exact source or handoff, then fresh-read the relevant current source and reusable evidence. Ordinary development does not require a custom plugin, MCP, executor, Factory acceptance or NOCOSIL Work connection.
+- For priority-only P0, identify a bounded next action from available current approved priorities and task evidence. If priority remains unclear, report that specific uncertainty and continue independently authorized work. Do not reconstruct a live queue from old plans or stop merely because a custom selector is unavailable.
+- Use `platform_v2/cloudflare_shadow/src/` for live Worker routes and `platform_v2/src/` for shared UI/services. Read `docs/START_HERE.md` and the affected feature/spec only as needed.
+- Implement the scoped next action, run focused tests, and use a short-lived branch → verified PR → authorized merge. Keep PR text to purpose, changes and verification; preserve useful evidence locators without requiring custom write-back.
+- For staging/release, resolve `zukan.earth` through the current central deploy catalog and its registered provider-native route. An unavailable release capability does not block independent source work. NOCOSIL's `release/production` branch does not establish ZUKAN's deployment configuration.
+- Preserve rights, review, publication, identity, source protection, one-writer scope and applicable production/database/secret/IAM/DNS/billing/external-send boundaries. Do not infer production or a complete user journey from a PR, build or merge.
 
-The older Phase 6/SQLite/PHP-oriented Codex instructions previously here were historical; they are **not** today's default ZUKAN implementation, queue or release procedure. Git history retains them if compatibility work explicitly requires them.
+The mandatory Factory/Work selector and `WORK_SELECTOR_UNAVAILABLE` startup gate are **superseded by the 2026-10-09 owner decision**. The older Phase 6/SQLite/PHP-oriented instructions are historical; Git history retains them for explicitly scoped compatibility work.
