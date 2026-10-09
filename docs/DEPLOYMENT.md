@@ -1,24 +1,40 @@
 # Deployment
 
-ikimon.life の通常deployは、`all-projects-management` の構造化Issueから Cloudflare Queue / Sandbox Executor がportable release scriptを実行する。GitHub Actionsはbuild、test、deploy、verify、Visual QA、rollbackの実行backendに使用しない。
-ローカル端末から `git add -A`、`main` への直接push、直接SSH deployは正規ルートにしない。
+## Current route — 2026-10-09 owner decision
 
-## 正規ルート
+ZUKAN の通常開発・検証・staging・本番リリースは、自作プラグイン、MCP、executor、Factory、NOCOSIL Work 接続を前提にしない。現在の依頼と有効な承認に従い、git・保護された GitHub PR・案件ごとに登録済みの provider-native 経路を使う。Factory の修復は独立した作業とする。
 
-1. 作業ブランチで変更する
-2. lint / test / deploy guardrail を通す
-3. PRを作成し、対象の40文字commit SHAを固定する
-4. `yamaki0102/all-projects-management` に `ops:command` Issueを作る
-5. Cloudflare Executorで `dry_run` → staging `deploy` → `verify` → `visual_qa` を実行する
-6. productionは同じIssueの30分nonce承認後、同じSHAをportable scriptでdeployする
+1. 現在の source SHA と対象範囲を確認し、短命の作業 branch で変更する。同じ mutable scope の writer は 1 体とし、無関係な変更を保持する。
+2. 差分の実質的なリスクに応じた検証を行い、PR に「目的・変更・検証」を記す。適用される staging 条件を含む必須 checks・review と有効な承認を満たして merge する。main への直接 push、履歴の強制書換え、必須 checks の迂回は行わない。
+3. release に進むときだけ、中央正本 `yamaki0102/all-projects-management` で `php scripts/get_service_deploy_method.php zukan.earth --catalog` を実行し、現在の `effective_route`、対象 Worker、環境、実行能力を確認する。
+4. `STANDARD_READY` では登録済み runner `node scripts/run_registered_release.mjs` と選択された provider-native profile を使う。古い Queue/Executor の記述から、追加の `ops:command` Issue、nonce、Factory claim を通常経路の必須条件に戻さない。
+5. 対象 SHA に適用される staging 検証、実行直前の runtime と rollback 先、有効な本番承認を確認する。source の merge と本番配備を別々に判定し、配備後は稼働版と対象の利用者動線を確認する。
 
-`manual_emergency` は明示承認済み非常時だけに使い、全経路で同じportable script、migration guard、runtime SHA verificationを再利用する。GitHub Actions fallbackは存在しない。
+ZUKAN の技術識別子は `ikimon-life`、現行 repository は `yamaki0102/ikimon-platform`、公開先は `https://zukan.earth/`。実行時の設定は中央 catalog と provider の現在値を使う。NOCOSIL の `release/production` merge による本番配備を、そのまま ZUKAN の設定とみなさない。
 
-現行本番は `ikimon-life-cloudflare-prod` を正本とし、VPS SSH や blue/green runtime は
-通常の release 経路で使わない。旧VPS deploy 資産は互換調査・退役作業の参照実装として
-保持し、Cloudflare production workflow の代替にしない。
+選択された release 経路の権限・接続・能力が不足する場合は、その具体的な release 工程だけを未完了として示す。独立して認可されている実装・検証・PR 作業は継続する。未登録の経路や VPS SSH を代替として作らない。
 
-## Source of Truth
+### Preserved boundaries
+
+- 本番の初回有効化、DB 実適用、secret、IAM・権限、DNS、新規課金、外部送信は、対象サービスに適用される有効な承認と保護境界に従う。通常の code-only release に無関係な承認を追加しない。
+- source records、production data、既存 credentials を保護し、secret の値を PR・ログへ出さない。legacy の `upload_package/data/**` と runtime config も明示範囲なく上書き・削除しない。
+- 本番に dummy 投稿を作らない。fixture と隔離された staging を使い、本番 read-back は許可済みの通常利用または read-only 確認で行う。
+- DB migration と rollback は現在の対象 profile に従う。古い VPS/PostgreSQL の手順を D1 の現行契約へ置き換えて解釈しない。
+- build・staging・production・ログイン後の Journey は個別に検証する。HTTP 200 や merge だけで利用完了とは判定しない。
+
+### Current source of truth
+
+- Development entry: [`../AGENTS.md`](../AGENTS.md)
+- Shared operating contract: `yamaki0102/all-projects-management:operations/ai_os/noah_operating_contract.md`
+- Release lookup: `yamaki0102/all-projects-management:scripts/get_service_deploy_method.php zukan.earth --catalog`
+- Registry and effective route: `operations/deploy_standard/service_deploy_registry.json`, `scripts/lib/effective_release_route.php` in that management repository
+- Runtime source: `platform_v2/cloudflare_shadow/src/`; shared UI/services: `platform_v2/src/`
+
+## Historical compatibility reference — SUPERSEDED
+
+以下は過去の Queue/Sandbox、GitHub Actions、VPS/blue-green 運用と移行資産の参照であり、通常開発・配備の指示ではない。旧正規経路は **2026-10-09** に上記の Current route と中央 `effective_route` へ置き換えた。明示的な互換調査・rollback 資産の確認・退役作業に必要な箇所だけを読み、古い workflow 名、required checks 件数、branch、nonce、PC 固有手順を現在の要件として復活させない。
+
+### Historical source locators
 
 - low-token deploy entry: `docs/DEPLOY_LOW_TOKEN_PROTOCOL.md`
 - deploy manifest: `ops/deploy/deploy_manifest.json`
@@ -44,7 +60,7 @@ ikimon.life の通常deployは、`all-projects-management` の構造化Issueか�
 - VPS prepare timing summary: `scripts/summarize_prepare_timing.ps1`
 - branch hygiene audit: `scripts/branch_hygiene_audit.ps1`
 
-## Persistent Paths
+### Persistent Paths
 
 以下は deploy 対象ではなく、保護対象:
 
@@ -60,7 +76,7 @@ VPS 側 deploy script では、上記のうち runtime に存在する `data/` �
 `config.php` / `oauth_config.php` / `secret.php` をバックアップしてから
 `git reset --hard` を行い、その後に復元する。
 
-## Local Commands
+### Local Commands
 
 ```powershell
 # 作業開始: 最新 main から task 専用レーンを作る
@@ -99,7 +115,7 @@ GitHub CLI と Git Credential Manager は非対話モードで使い、認証が
 失敗する。Cloudflare staging が必要な差分は full staging と required checks が成功するまで
 merge せず、`-PromoteProduction` がある場合だけ auto-merge と production workflow 監視へ進む。
 
-## Staging First
+### Staging First
 
 改装や大きい UI 変更は、production へ直接入れない。  
 必ず次の順にする。
@@ -121,7 +137,7 @@ workflowはfeature branchのpushから起動せず、`main`上のtrusted release
 
 staging の詳細は `docs/STAGING_RUNBOOK.md` を参照。
 
-## Branch Hygiene
+### Branch Hygiene
 
 GitHub repository setting `delete_branch_on_merge` must stay enabled. If it is disabled,
 merged PR branches accumulate and the repo quickly returns to stale branch triage.
@@ -155,7 +171,7 @@ Weekly audit:
 - reports: delete-branch-on-merge setting, operational branches, open PRs, stale branches,
   merged non-operational branches, and recent production/staging deploy runs
 
-## Migration Guardrails
+### Migration Guardrails
 
 `platform_v2/db/migrations/` の新規 migration は、CI / staging / production の
 pre-flight で `scripts/check_platform_migration_guardrails.ps1` を通す。
@@ -175,7 +191,7 @@ rollback plan をPR本文または incident / runbook に残す。
 が staging DB owner 権限で止まった。以後、既存 table を拡張するだけの目的なら
 `guide_record_latency_states` のような companion table を優先する。
 
-## Server Script Reference
+### Server Script Reference
 
 repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を repo に置いた。  
 サーバ側を変更するときは `ops/deploy/production_deploy_reference.sh` も同時に更新する。
@@ -184,7 +200,7 @@ repo 外の実体は `/var/www/ikimon.life/deploy.sh` だが、参照実装を r
 `/etc/ikimon/production-v2.env` を正本にする。旧 `pm2 ikimon-v2-production-api` は
 既存 env の移行元であり、通常 deploy の実行単位ではない。
 
-## Deploy Speed Guardrails
+### Deploy Speed Guardrails
 
 Production deploy keeps rollback, readiness, and candidate smoke checks intact. Speed improvements
 must remove repeated deterministic work, not safety checks.
@@ -220,7 +236,7 @@ must remove repeated deterministic work, not safety checks.
   production shadow verify and drift report gates after sync. Set `FORCE_LEGACY_SYNC=1` for
   recovery, cursor repair, or an intentional full legacy re-import.
 
-## Legacy Routes
+### Legacy Routes
 
 - `deploy.json` + `.agent/workflows/deploy_wsl.php`
 - `bash deploy.sh` での自動 commit / push / SSH deploy
