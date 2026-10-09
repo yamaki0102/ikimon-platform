@@ -1805,6 +1805,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   };
   const saveDraft = async (draft) => {
     const context = await draftOwnerContext();
+    if (draft.globalPhotoPreview === true) {
+      if (photoPreviewOwnerKey && photoPreviewOwnerKey !== context.ownerKey) throw new Error('draft_owner_changed');
+      photoPreviewOwnerKey = context.ownerKey;
+    }
     const draftKey = context.draftKey;
     const storedDraft = Object.assign({}, draft, {
       ownerKey: context.ownerKey,
@@ -1842,6 +1846,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   // Writes serialize so a late capture cannot resurrect an explicitly removed photo.
   let photoPreviewWriteQueue = Promise.resolve();
   let photoPreviewDismissed = false;
+  let photoPreviewOwnerKey = '';
   const readStoredPhotoPreview = async () => {
     if (!('indexedDB' in window)) return null;
     const owner = await draftOwnerContext();
