@@ -21,7 +21,7 @@ test("guest controls reuse canonical shape and touch targets", () => {
 });
 
 test("member thumbnails and navigation breakpoint are not redesigned", () => {
-  assert.match(styles, /\.home-recent-card \.home-card-media\{aspect-ratio:4\/3\}/);
+  assert.match(styles, /\.home-recent-card \.home-card-media\{aspect-ratio:4\/3(?:;|\})/);
   assert.match(styles, /\.home-recent-card \.home-card-media\{aspect-ratio:1\}/);
   assert.match(styles, /@media\(min-width:1161px\)/);
   assert.match(styles, /@media\(max-width:1160px\)/);

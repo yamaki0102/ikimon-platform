@@ -28,5 +28,5 @@ test("build copies content files into dist and the built loader can read them", 
 
   const builtModule = await import(`${pathToFileURL(join(platformRootPath, "dist", "content", "index.js")).href}?t=${Date.now()}`);
   assert.equal(builtModule.getShortCopy("ja", "public", "landing.title"), "地域の記録から始める | ZUKAN");
-  assert.match(builtModule.renderLongformPage("ja", "about"), /Enjoy Life から始める理由/);
+  assert.match(builtModule.renderLongformPage("ja", "about"), /地域の記録を、みんなで育てる/);
 });

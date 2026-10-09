@@ -108,7 +108,7 @@ test("general and group-help pages use the updated ja entry copy", async () => {
   try {
     const about = await app.inject({ method: "GET", url: "/about?lang=ja" });
     assert.equal(about.statusCode, 200);
-    assert.match(about.body, /生きものを楽しむことから始める/);
+    assert.match(about.body, /地域の記録を、みんなで育てる。/);
     assert.match(about.body, /記録の信頼性を見る/);
 
     const business = await app.inject({ method: "GET", url: "/for-business?lang=ja" });

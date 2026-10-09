@@ -256,7 +256,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     auth: "public",
     navVisibility: ["footer", "qa", "xml"],
     title: { ja: "ZUKANについて", en: "About ZUKAN" },
-    summary: { ja: "Enjoy Life と、身近な観察から自然との関係を取り戻す理由。", en: "Why ZUKAN starts with enjoying life through nature." },
+    summary: { ja: "自然、文化、歴史、仕事、暮らし、活動の記録を、場所・時間・根拠とつなぐZUKANの考え方。", en: "How ZUKAN connects records of nature, culture, history, work, everyday life and local activities with place, time and evidence." },
     marketing: { pageKey: "about" },
     legacyRedirects: ["/about.php"],
   },

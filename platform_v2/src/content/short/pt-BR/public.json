@@ -1,15 +1,15 @@
 {
   "landing": {
-    "title": "ZUKAN — Enjoy Life | Curtir e registrar a natureza próxima",
+    "title": "Registros da região, construídos juntos | ZUKAN",
     "home": {
       "guest": {
-        "heroHeading": "Encontre o presente. Guarde-o. Participe de novo.", "heroLead": "Use registros de lugares e atividades locais para entender o que acontece agora, voltar depois e escolher o próximo passo.",
-        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Estamos preparando os registros em destaque.", "publicRecordsCta": "Ver registros públicos", "proofEmptyNote": "Comece com uma foto. Seu registro fica ligado ao lugar e ao momento.", "inviteNote": "Esta experiência está disponível para pessoas convidadas.", "recordStatusConfirmed": "Confirmado", "recordStatusPending": "Aguardando revisão", "recordStatusLimited": "Detalhe público limitado", "emptyFlowAria": "Capturar, guardar com um lugar e voltar ao registro", "emptyFlowCapture": "Capturar", "emptyFlowPlace": "Guardar com um lugar", "emptyFlowReturn": "Voltar ao registro",
+        "heroHeading": "Encontre o presente. Guarde-o. Participe de novo.", "heroLead": "Ruas, cultura, história, cotidiano, atividades locais e natureza. Encontre registros da região por lugar e data, e volte a eles depois.",
+        "primaryCta": "Capturar", "secondaryCta": "Ver lugares", "categoriesTitle": "O que você pode guardar", "proofEmpty": "Estamos preparando os registros em destaque.", "publicRecordsCta": "Ver registros públicos", "proofEmptyNote": "Guarde uma rua, uma tradição, uma atividade local ou a natureza em uma foto. Volte a ela por lugar e data.", "inviteNote": "Esta experiência está disponível para pessoas convidadas.", "recordStatusConfirmed": "Confirmado", "recordStatusPending": "Aguardando revisão", "recordStatusLimited": "Detalhe público limitado", "emptyFlowAria": "Capturar, guardar com um lugar e voltar ao registro", "emptyFlowCapture": "Capturar", "emptyFlowPlace": "Guardar com um lugar", "emptyFlowReturn": "Voltar ao registro",
         "categories": [
           { "title": "Escola e aprendizado", "body": "Aulas, projetos e experiências de trabalho." },
           { "title": "Comunidade e eventos", "body": "Festas, feiras e encontros locais." },
-          { "title": "Trabalho e cultura", "body": "Lojas, produtores, técnicas, produtos e tradições." },
-          { "title": "Cotidiano e natureza", "body": "Paisagens, caminhos, estações, seres vivos e memórias." }
+          { "title": "Cultura e história", "body": "Edifícios, técnicas, trabalho e tradições transmitidas." },
+          { "title": "Cotidiano e natureza", "body": "Lojas, caminhos, estações, seres vivos e memórias do cotidiano." }
         ],
         "flowTitle": "Como um registro cresce",
         "flowItems": [
@@ -25,11 +25,11 @@
       "member": {
         "actionTitle": "O que você vai guardar hoje?", "actionLead": "Capture algo que chamou sua atenção para começar seu próprio registro.", "primaryCta": "Capturar",
         "continuationTitle": "Continue de onde parou", "continuationBody": "Há uma captura ainda não salva. Continue sem perdê-la.", "continuationCta": "Continuar",
-        "memoryEyebrow": "Do seu último registro", "memoryLead": "Volte à foto, ao lugar e ao momento que você guardou.", "memoryCta": "Abrir este registro",
+        "memoryEyebrow": "Do seu último registro", "memoryLead": "Volte ao registro, ao lugar e ao momento que você guardou.", "memoryCta": "Abrir este registro",
         "activeEyebrow": "Uma atividade em que você participa", "activeLead": "Veja o que acontece aqui e o que pode fazer depois.", "activeCta": "Ver atividade",
         "watchUpdatesTitle": "Atualizações que você acompanha", "watchUpdatesLoading": "Carregando atualizações…", "watchUpdatesEmpty": "Ainda não há atualizações.", "watchUpdatesError": "Não foi possível carregar as atualizações. Recarregue a página.", "watchUpdatesReason": "Uma atualização de uma área que você acompanha", "watchUpdatesUnread": "Não lida", "watchUpdatesObserved": "Observado", "watchUpdatesUpdated": "Atualizado", "watchUpdatesVerified": "Público e verificado", "watchSignalChecklist": "Novo registro com checklist concluído", "watchSignalEffort": "Novo registro com dados de esforço", "watchSignalPhoto": "Novo registro com foto", "watchSignalRecord": "Novo registro",
         "recentTitle": "Registros recentes", "recentCta": "Ver todos", "placesTitle": "Lugares com que você se envolve", "placesCta": "Ver mapa", "nextTitle": "Próxima atividade",
-        "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Tire uma foto e guarde-a como seu registro com a hora e o lugar.",
+        "emptyTitle": "Deixe seu primeiro registro", "emptyBody": "Uma rua, um edifício histórico, uma atividade local ou a natureza. Tire uma foto e guarde seu registro com a hora e o lugar.",
         "galleryCta": "Escolher do dispositivo", "emptyPlaceCta": "Explorar por lugar",
         "routesTitle": "Para onde ir agora", "routeRecord": "Guardar um registro", "routeSearch": "Buscar meus registros", "routePrivacy": "Ver visibilidade", "routeCollaboration": "Ver caminhadas em grupo",
         "p0": {
@@ -39,7 +39,7 @@
         }
       },
       "shared": {
-        "openRecord": "Ver registro", "unknownRecord": "Registro aguardando um nome", "safePlaceFallback": "Registro da comunidade", "aiCandidateSuffix": "pode ser", "fromRecord": "Deste registro", "multipleMedia": "itens de mídia",
+        "openRecord": "Ver registro", "unknownRecord": "Registro da região", "safePlaceFallback": "Registro da comunidade", "aiCandidateSuffix": "pode ser", "fromRecord": "Deste registro", "multipleMedia": "itens de mídia",
         "operatorStatement": "O ZUKAN é operado pela IKIMON Inc. e atualmente está disponível em zukan.earth.",
         "media": { "photo": "Foto", "video": "Vídeo", "audio": "Áudio", "memo": "Nota" },
         "navigation": { "home": "Início", "record": "Registrar", "discover": "Descobrir", "profile": "Minha página" }

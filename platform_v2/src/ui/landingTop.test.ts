@@ -49,10 +49,12 @@ test("guest Top explains the product and leads with concrete actions", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
   assert.match(html, /data-home-contract="state-split-v1"/);
   assert.match(html, /data-home-auth-state="guest"/);
-  assert.match(html, /撮ると、まちの今が図鑑になる。/);
-  assert.match(html, /写真1枚から、場所と時間に結びついた地域の記録を残せます。/);
+  assert.match(html, /地域の今を見つけ、残し、また関わる。/);
+  assert.match(html, /町並みや受け継がれる文化、歴史、日々の暮らしや活動、自然。/);
   assert.match(html, /現在は、招待された方をご案内しています。/);
-  assert.doesNotMatch(html, /何を残せるか|記録が育つ流れ|home-category-index|home-value-icon/);
+  assert.match(html, /何を残せるか/);
+  assert.match(html, /文化・歴史/);
+  assert.doesNotMatch(html, /記録が育つ流れ|home-value-icon/);
   assert.match(html, /場所から見る/);
   assert.match(html, /href="\/ja\/community\/events"/);
   assert.match(html, /観察会を見る/);
@@ -78,7 +80,7 @@ test("guest Top stays useful without public data and never invents record cards"
   assert.match(html, /data-home-public-records-link/);
   assert.doesNotMatch(html, /home-empty-proof-symbol/);
   assert.doesNotMatch(html, /home-place-visual is-placeholder/);
-  assert.match(html, /まずは一枚。撮った記録は、場所と時間に結びついて残ります。/);
+  assert.match(html, /町並みや文化、日々の活動、自然の風景も。写真に残して、場所と時間から見返せます。/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
   assert.doesNotMatch(html, /class="home-public-card"/);
   assert.doesNotMatch(html, /sample|placeholder\.jpg|0件|未記録|場所から見る<\/p>/);
@@ -109,6 +111,10 @@ test("guest proof uses safe public records as editorial evidence", () => {
   assert.match(html, /確認済み/);
   assert.doesNotMatch(html, /data-home-public-record="editorial-3"/);
   assert.doesNotMatch(html, /zukan-empty-illustration/);
+  const unnamed = render("ja", snapshot({ feed: [observation("candidate", { displayName: "", isAiCandidate: true, aiCandidateName: "ツバメ", identificationCount: 0 })] }));
+  assert.match(unnamed, /<strong>地域の記録<\/strong>/);
+  assert.match(unnamed, /home-guest-proof-status">確認待ち/);
+  assert.doesNotMatch(unnamed, /ツバメ|home-guest-proof-status">確認済み/);
 });
 
 test("member Home shows only the viewer's recent records as its main record section", () => {
@@ -264,9 +270,11 @@ test("home CSS enforces mobile card sizing, touch targets, focus and reduced mot
 
 test("guest Top keeps the optional invited note and starts with the shared camera action", () => {
   const html = render("ja", snapshot({ feed: [observation("public-1")] }));
-  assert.match(html, /撮ると、まちの今が図鑑になる。/);
+  assert.match(html, /地域の今を見つけ、残し、また関わる。/);
   assert.match(html, /現在は、招待された方をご案内しています。/);
-  assert.doesNotMatch(html, /学校・学び|地域・イベント|仕事・文化|暮らし・自然|home-category-index|home-value-icon/);
+  assert.match(html, /学校・学び|地域・イベント|文化・歴史|暮らし・自然/);
+  assert.equal((html.match(/class="home-category-index"/g) || []).length, 4);
+  assert.doesNotMatch(html, /home-value-icon/);
   assert.match(html, /home-community-section/);
   assert.match(html, /href="\/ja\/community\/events"/);
   assert.doesNotMatch(html, /home-generated-badge|home-daily-place\.webp|home-community-hero\.webp|home-school-learning\.webp/);
