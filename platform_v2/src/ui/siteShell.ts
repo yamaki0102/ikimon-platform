@@ -2554,6 +2554,16 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (directPostInFlight) return;
     const files = selectedPhotoDraftFiles();
     if (!files.length) return;
+    if (photoPreviewPostComplete) {
+      try {
+        await queuePhotoPreviewWrite('complete');
+        await queuePhotoPreviewWrite('discard');
+        resetPhotoDraftAfterDirectPost('記録は保存済みです。続けて撮影できます。');
+      } catch (_) {
+        setStatus('記録は保存済みです。端末の下書き削除だけ失敗しました。もう一度押すと削除を再試行します。');
+      }
+      return;
+    }
     const directPostStartedAt = nowMs();
     directPostInFlight = true;
     if (captureButton) {
@@ -2748,7 +2758,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         setStatus('記録本体は保存済みです。写真は' + String(uploads.length) + '枚中' + String(saved) + '枚を確認できました。失敗した写真は残しています。もう一度押すと同じ記録に再送します。' + reason);
         return;
       }
-      // Persist completion before deleting, so a missed cleanup cannot replay a posted photo.
+      // Confirmed media must not be uploaded a second time when draft cleanup fails.
+      photoPreviewPostComplete = true;
       await queuePhotoPreviewWrite('complete');
       await queuePhotoPreviewWrite('discard');
       resetPhotoDraftAfterDirectPost('記録を保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
