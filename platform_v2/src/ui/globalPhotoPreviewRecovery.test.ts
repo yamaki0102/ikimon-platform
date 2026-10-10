@@ -459,7 +459,7 @@ test("removing the last selected photo keeps it visible and durable when Indexed
 test("last-photo removal is ignored during upload so a failed photo remains retryable", async () => {
   const drafts = new Map<string, Draft>();
   let markUploadStarted: (() => void) | null = null;
-  let releaseUpload: ((response: { ok: boolean; status: number; json: () => Promise<unknown> }) => void) | null = null;
+  const uploadControl: { release?: (response: { ok: boolean; status: number; json: () => Promise<unknown> }) => void } = {};
   const uploadStarted = new Promise<void>((resolve) => { markUploadStarted = resolve; });
   const fetch = async (url: string) => {
     if (url === "/api/v1/observations/upsert") return {
@@ -470,7 +470,7 @@ test("last-photo removal is ignored during upload so a failed photo remains retr
     if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url)) {
       markUploadStarted?.();
       return await new Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>((resolve) => {
-        releaseUpload = resolve;
+        uploadControl.release = resolve;
       });
     }
     throw new Error("Unexpected network call: " + url);
@@ -489,7 +489,7 @@ test("last-photo removal is ignored during upload so a failed photo remains retr
   assert.equal(drafts.get(key)?.files?.length, 1);
   assert.match(browser.status.textContent, /保存が終わってから外せます/);
 
-  const finishUpload = releaseUpload;
+  const finishUpload = uploadControl.release;
   assert.ok(finishUpload, "the upload request is pending");
   finishUpload({ ok: false, status: 503, json: async () => ({ ok: false, error: "temporary" }) });
   await drain();
