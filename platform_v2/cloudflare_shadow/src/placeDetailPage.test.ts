@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import vm from "node:vm";
 import type { PlaceAtlasProfile } from "../../src/services/placeAtlasContract";
 import { buildPlaceAtlasProfile, type PlaceAtlasSourceRecord } from "../../src/services/placeAtlasContract";
 import type { SavedItem } from "./savedItems";
@@ -183,4 +184,88 @@ test("coarse public location mode never upgrades itself to a precise map handoff
   assert.doesNotMatch(html, /外部地図で開く/);
   assert.doesNotMatch(html, /静岡県 静岡市/);
   assert.match(html, /現地名/);
+});
+
+test("detail page scripts bind Atlas themes for click and keyboard and recover failed images", () => {
+  const profile = fixture();
+  profile.place.representativeMedia = [{ url: "/derived/park.jpg" }];
+  profile.facets = [{ key: "nature", label: "自然・生きもの", count: 3 }];
+  const html = renderGlobalPlaceDetailPage({ profile, lang: "ja", viewerAuthenticated: false });
+  assert.match(html, /data-place-atlas-theme="nature"/);
+  assert.match(html, /data-place-atlas-image/);
+
+  type Listener = (event: { key?: string; preventDefault(): void }) => void;
+  const themeListeners = new Map<string, Listener>();
+  const imageListeners = new Map<string, Listener>();
+  const attributes = new Map([ ["aria-pressed", "false"], ["data-place-atlas-theme", "nature"] ]);
+  const selectedClasses = new Set<string>();
+  const figureClasses = new Set<string>();
+  const themeEvents: Array<{ type: string; detail: { theme: string; open: boolean } }> = [];
+  const imageEvents: Array<{ type: string; detail: { src: string } }> = [];
+  let imageRemoved = false;
+  const theme = {
+    addEventListener: (type: string, listener: Listener) => themeListeners.set(type, listener),
+    getAttribute: (name: string) => attributes.get(name) ?? null,
+    setAttribute: (name: string, value: string) => attributes.set(name, value),
+    classList: {
+      toggle(name: string, enabled: boolean) {
+        if (enabled) selectedClasses.add(name);
+        else selectedClasses.delete(name);
+      },
+    },
+    dispatchEvent: (event: typeof themeEvents[number]) => themeEvents.push(event),
+  };
+  const image = {
+    currentSrc: "/derived/park.jpg",
+    addEventListener: (type: string, listener: Listener) => imageListeners.set(type, listener),
+    dispatchEvent: (event: typeof imageEvents[number]) => imageEvents.push(event),
+    closest: (selector: string) => selector === "figure" ? { classList: { add: (name: string) => figureClasses.add(name) } } : null,
+    remove: () => { imageRemoved = true; },
+  };
+  const root = {
+    querySelectorAll: (selector: string) => selector === "[data-place-atlas-theme]" ? [theme] : selector === "[data-place-atlas-image]" ? [image] : [],
+  };
+  const context = vm.createContext({
+    URL,
+    document: {
+      getElementById: (id: string) => id === "global-place-detail" ? root : null,
+      querySelectorAll: () => [],
+    },
+    CustomEvent: class {
+      constructor(public type: string, public options: { detail: unknown }) {}
+      get detail() { return this.options.detail; }
+    },
+  });
+  for (const match of html.matchAll(/<script>([\s\S]*?)<\/script>/gu)) {
+    new vm.Script(match[1]!).runInContext(context);
+  }
+
+  const click = themeListeners.get("click");
+  const keydown = themeListeners.get("keydown");
+  const imageError = imageListeners.get("error");
+  assert.ok(click, "the emitted detail page must bind theme clicks");
+  assert.ok(keydown, "the emitted detail page must bind keyboard activation");
+  assert.ok(imageError, "the emitted detail page must bind image recovery");
+  click({ preventDefault() {} });
+  assert.equal(attributes.get("aria-pressed"), "true");
+  assert.equal(selectedClasses.has("is-selected"), true);
+
+  let prevented = 0;
+  keydown({ key: "Enter", preventDefault: () => { prevented += 1; } });
+  assert.equal(attributes.get("aria-pressed"), "false");
+  keydown({ key: " ", preventDefault: () => { prevented += 1; } });
+  assert.equal(attributes.get("aria-pressed"), "true");
+  keydown({ key: "ArrowDown", preventDefault: () => { prevented += 1; } });
+  assert.equal(attributes.get("aria-pressed"), "true");
+  assert.equal(prevented, 2);
+  assert.equal(themeEvents.length, 3);
+  assert.equal(themeEvents[0]?.type, "ikimon:place-atlas-theme-open");
+  assert.equal(themeEvents[0]?.detail.theme, "nature");
+  assert.equal(themeEvents[0]?.detail.open, true);
+
+  imageError({ preventDefault() {} });
+  assert.equal(imageRemoved, true);
+  assert.equal(figureClasses.has("is-image-error"), true);
+  assert.equal(imageEvents[0]?.type, "ikimon:place-atlas-image-error");
+  assert.equal(imageEvents[0]?.detail.src, "/derived/park.jpg");
 });
