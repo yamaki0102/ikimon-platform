@@ -27976,8 +27976,10 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await send(`${otherApi}/discoveries`)).data.counts.entries, 1, "organizer review cannot substitute for participant display consent");
   assert.equal((await send(`${otherApi}/discoveries/${privatePhoto.data.receipt.receiptId}/content`)).response.status, 404);
   assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "変更したあだ名", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
-  assert.equal((await send(publishedHref)).response.status, 404, "renaming a participant cannot publish new unreviewed text under an old approval");
-  assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 1);
+  assert.equal((await send(publishedHref)).response.status, 200, "an approved anonymous post stays published after a later nickname change");
+  const renamedGallery = await send(`${api}/discoveries`);
+  assert.equal(renamedGallery.data.counts.entries, 4);
+  assert.doesNotMatch(JSON.stringify(renamedGallery.data), /変更したあだ名/u, "the later unreviewed nickname is not exposed in the anonymous projection");
   for (const row of receipts.data.receipts) await review(row.receiptId);
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 4);
   obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);

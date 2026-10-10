@@ -173,18 +173,13 @@ const SELECT_ENTRY = [
   "LEFT JOIN observation_event_guest_media m ON m.submission_id = d.submission_id",
 ].join(" ");
 
-const NICKNAME_HAS_CONTACT_PATTERN_SQL = [
-  "instr(p.display_name, '@') > 0",
-  "OR instr(lower(p.display_name), 'http://') > 0 OR instr(lower(p.display_name), 'https://') > 0 OR lower(trim(p.display_name)) LIKE 'www.%'",
-  "OR (length(replace(replace(replace(replace(replace(replace(trim(p.display_name), ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '')) >= 7",
-  "AND replace(replace(replace(replace(replace(replace(trim(p.display_name), ' ', ''), '-', ''), '(', ''), ')', ''), '+', ''), '.', '') NOT GLOB '*[^0-9]*')",
-  "OR (instr(p.display_name, '〒') > 0 AND p.display_name GLOB '*[0-9]*')",
-].join(" ");
-
 const ELIGIBLE_SQL = [
   "d.withdrawn_at IS NULL AND d.review_status = 'approved' AND d.privacy_status = 'verified'",
   "AND d.privacy_verified_at IS NOT NULL AND d.gallery_consent_at IS NOT NULL",
-  `AND ((d.reviewed_display_name IS NULLIF(TRIM(p.display_name), '') AND NOT (${NICKNAME_HAS_CONTACT_PATTERN_SQL})) OR (d.reviewed_display_name IS NULL AND (${NICKNAME_HAS_CONTACT_PATTERN_SQL})))`,
+  // reviewed_display_name is the sanitized snapshot generated at approval.
+  // NULL is a valid anonymous publication. Named approvals must still match
+  // their approved source name; never re-screen that name with SQL patterns.
+  "AND (d.reviewed_display_name IS NULL OR d.reviewed_display_name = NULLIF(TRIM(p.display_name), ''))",
   `AND (d.privacy_method IS NULL OR d.privacy_method <> '${DISCOVERY_AUTO_PRIVACY_METHOD}' OR (p.discovery_gemini_notice_version = '${RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION}' AND p.discovery_gemini_notice_at IS NOT NULL))`,
   "AND p.status IN ('checked_in', 'offline', 'left')",
   "AND ((d.is_minor = 0 AND p.is_minor = 0) OR d.guardian_gallery_consent_at IS NOT NULL)",
@@ -195,10 +190,10 @@ const ELIGIBLE_SQL = [
 ].join(" ");
 
 export function isDiscoveryEntryEligible(row: DiscoveryEntryRow): boolean {
-  const safeNickname = discoveryPublicNickname(row.participant_display_name);
   if (row.withdrawn_at || row.review_status !== "approved" || row.privacy_status !== "verified"
     || !row.privacy_verified_at || !row.gallery_consent_at
-    || row.reviewed_display_name !== safeNickname
+    || row.reviewed_display_name === ""
+    || (row.reviewed_display_name !== null && row.reviewed_display_name !== (row.participant_display_name?.trim() || null))
     || !["checked_in", "offline", "left"].includes(row.participant_status)
     || (row.privacy_method === DISCOVERY_AUTO_PRIVACY_METHOD && (row.participant_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !row.participant_gemini_notice_at))
     || ((row.is_minor === 1 || row.participant_is_minor === 1) && !row.guardian_gallery_consent_at)) return false;
