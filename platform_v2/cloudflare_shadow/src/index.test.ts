@@ -2618,7 +2618,7 @@ class FakeStatement {
 
     if (normalized.startsWith("UPDATE observation_event_participants SET display_name")) {
       const consentUpdate = normalized.includes("discovery_gemini_notice_version = CASE");
-      const row = requireRow(this.db.observationEventParticipants, string(v[consentUpdate ? 8 : 6]));
+      const row = requireRow(this.db.observationEventParticipants, string(v[consentUpdate ? 9 : 6]));
       row.display_name = string(v[0]);
       row.team_id = nullableString(v[1]) ?? row.team_id;
       row.status = "checked_in";
