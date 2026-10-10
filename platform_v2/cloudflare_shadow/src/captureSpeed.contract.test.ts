@@ -21,3 +21,12 @@ test("native capture and recovery share WebP-first preparation without breaking 
   assert.match(recoverySource, /"jpeg2560-v1", "webp2560-v1"/);
   assert.match(recoverySource, /photoPreparationVersion: "webp2560-v1"/);
 });
+
+test("direct video retries persist a stable upload key before requesting the reservation", () => {
+  const persistKeyAt = source.indexOf("pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey");
+  const directUploadAt = source.indexOf('postJson("/api/v1/videos/direct-upload", {');
+  assert.ok(persistKeyAt >= 0 && directUploadAt > persistKeyAt);
+  assert.match(source, /clientUploadKey: pendingVideoIdempotencyKey/);
+  assert.match(recoverySource, /pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey/);
+  assert.match(recoverySource, /clientUploadKey: pendingVideoIdempotencyKey/);
+});

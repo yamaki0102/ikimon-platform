@@ -942,6 +942,7 @@ interface AlertDeliveryJob {
 }
 
 interface VideoDirectUploadInput {
+  clientUploadKey?: string | null;
   maxDurationSeconds?: number | null;
   filename?: string | null;
   observationId?: string | null;
@@ -26238,6 +26239,11 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     let pendingVideoUid = "";
     let pendingVideoUploadUrl = "";
     let pendingVideoBodyUploaded = false;
+    let pendingVideoIdempotencyKey = "";
+    function newVideoUploadKey() {
+      const suffix = window.crypto?.randomUUID?.() || (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      return "record-video:" + suffix;
+    }
     async function persistRecordDraftProgress(formData, patch = {}) {
       const files = selectedFiles();
       if (!files.length) throw new Error("record_draft_media_missing");
@@ -26255,6 +26261,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           preparedPhotoUploads,
           photoPreparationVersion: "webp2560-v1",
           recoverySubmissionId,
+          pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
           recoveryObservedAt,
           eventContext,
           formValues: {
@@ -26360,12 +26367,20 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     }
     photoInput?.addEventListener("change", () => {
       const incoming = photoInput.files ? Array.from(photoInput.files).filter(file => file instanceof File && file.size > 0) : [];
+      pendingVideoUid = "";
+      pendingVideoUploadUrl = "";
+      pendingVideoBodyUploaded = false;
+      pendingVideoIdempotencyKey = "";
       selectedPhotos.push(...incoming);
       photoInput.value = "";
       reveal("photo");
       void eventMetric("event_photo_selected");
     });
     videoInput?.addEventListener("change", () => {
+      pendingVideoUid = "";
+      pendingVideoUploadUrl = "";
+      pendingVideoBodyUploaded = false;
+      pendingVideoIdempotencyKey = newVideoUploadKey();
       reveal("video");
     });
     async function postJson(path, body) {
@@ -26414,6 +26429,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
         recoveryObservedAt = new Date().toISOString();
       }
+      if (mediaKind === "video" && !pendingVideoIdempotencyKey) pendingVideoIdempotencyKey = newVideoUploadKey();
       if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
       const observationId = recoverySubmissionId;
       let observationStored = false;
@@ -26425,7 +26441,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           pendingMediaRetryVisitId: "",
           pendingMediaRetryVideoUid: "",
           pendingMediaRetryVideoUploadUrl: "",
-          pendingMediaRetryVideoBodyUploaded: false
+          pendingMediaRetryVideoBodyUploaded: false,
+          pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey
         });
         const observation = await postJson("/api/v1/observations/upsert", {
           observationId,
@@ -26488,7 +26505,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           mediaRole: "observation_video",
           fileSizeBytes: file.size,
           uploadProtocol: "post",
-          maxDurationSeconds: 60
+          maxDurationSeconds: 60,
+          clientUploadKey: pendingVideoIdempotencyKey
         });
         if (!direct.uploadUrl || !direct.uid) throw new Error("video_direct_upload_failed");
         pendingVideoUid = String(direct.uid);
@@ -26498,7 +26516,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           pendingMediaRetryVisitId: visitId,
           pendingMediaRetryVideoUid: pendingVideoUid,
           pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
-          pendingMediaRetryVideoBodyUploaded: false
+          pendingMediaRetryVideoBodyUploaded: false,
+          pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey
         });
         const bodyResponse = await fetch(String(direct.uploadUrl || ""), {
           method: "PUT",
@@ -26517,7 +26536,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           pendingMediaRetryVisitId: visitId,
           pendingMediaRetryVideoUid: pendingVideoUid,
           pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
-          pendingMediaRetryVideoBodyUploaded: true
+          pendingMediaRetryVideoBodyUploaded: true,
+          pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey
         });
         await postJson("/api/v1/videos/" + encodeURIComponent(String(direct.uid || "")) + "/finalize", {
           observationId: visitId,
@@ -26544,7 +26564,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
             pendingMediaRetryVisitId: visitId,
             pendingMediaRetryVideoUid: pendingVideoUid,
             pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
-            pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded
+            pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded,
+            pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey
           });
           void eventMetric("event_media_retry_queued", { retry_kind: mediaKind });
           location.assign(recordRecoveryHref());
@@ -30599,6 +30620,14 @@ async function createCompatibleVideoDirectUpload(request: Request, env: Env): Pr
   const input = await readJson<VideoDirectUploadInput>(request);
   const uploadProtocol = normalizeOptionalText(input.uploadProtocol) ?? "post";
   const fileSizeBytes = numberOrNull(input.fileSizeBytes);
+  const clientUploadKey = normalizeOptionalText(input.clientUploadKey);
+  if (clientUploadKey && (
+    clientUploadKey.length < 16
+    || clientUploadKey.length > 128
+    || !/^[A-Za-z0-9._:-]+$/.test(clientUploadKey)
+  )) {
+    return json({ ok: false, error: "valid_video_upload_key_required" }, 400, { "cache-control": "no-store" });
+  }
   if (uploadProtocol === "tus" && (!fileSizeBytes || fileSizeBytes <= 0)) {
     return json({ ok: false, error: "video_tus_upload_length_required" }, 400);
   }
@@ -30608,14 +30637,17 @@ async function createCompatibleVideoDirectUpload(request: Request, env: Env): Pr
     await assertObservationOwnedByUser(observationId, session.userId, env);
   }
 
-  const uid = newId("stream");
-  const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? `${uid}.mp4`);
   const maxDurationSeconds = clampVideoDuration(input.maxDurationSeconds);
+  const uid = clientUploadKey
+    ? `stream_${(await sha256Hex(textToArrayBuffer(`video-upload-v1\0${session.userId}\0${observationId ?? ""}\0${clientUploadKey}`))).slice(0, 40)}`
+    : newId("stream");
+  const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? `${uid}.mp4`);
+  const mediaRole = normalizeOptionalText(input.mediaRole) ?? "observation_video";
   const objectKey = `original/v1-compat-video/${uid}/${filename}`;
   const uploadUrl = `${new URL(request.url).origin}/api/v1/videos/${encodeURIComponent(uid)}/body`;
 
-  await env.OBS_DB.prepare(
-    `INSERT INTO video_upload_requests
+  const reservation = await env.OBS_DB.prepare(
+    `INSERT OR IGNORE INTO video_upload_requests
      (stream_uid, actor_id, observation_id, upload_status, max_duration_seconds, filename, upload_protocol, object_key, bytes, meta_json)
      VALUES (?, ?, ?, 'waiting_upload', ?, ?, ?, ?, ?, ?)`
   ).bind(
@@ -30627,8 +30659,55 @@ async function createCompatibleVideoDirectUpload(request: Request, env: Env): Pr
     uploadProtocol,
     objectKey,
     fileSizeBytes ?? 0,
-    JSON.stringify({ mediaRole: normalizeOptionalText(input.mediaRole) ?? "observation_video" })
+    JSON.stringify({ mediaRole })
   ).run();
+  const reservationChanges = Number((reservation as { meta?: { changes?: unknown } }).meta?.changes);
+  if (clientUploadKey && !Number.isFinite(reservationChanges)) {
+    return json({ ok: false, error: "video_upload_reservation_unknown" }, 503, { "cache-control": "no-store" });
+  }
+
+  const stored = await env.OBS_DB.prepare(
+    `SELECT stream_uid, actor_id, observation_id, upload_status, max_duration_seconds, filename,
+            upload_protocol, object_key, bytes, duration_ms, ready_to_stream, created_at, uploaded_at, meta_json
+       FROM video_upload_requests
+      WHERE stream_uid = ?
+      LIMIT 1`
+  ).bind(uid).first<{
+    stream_uid: string;
+    actor_id: string;
+    observation_id: string | null;
+    upload_status: string;
+    max_duration_seconds: number;
+    filename: string | null;
+    upload_protocol: string;
+    object_key: string | null;
+    bytes: number;
+    duration_ms: number;
+    ready_to_stream: number;
+    created_at: string;
+    uploaded_at: string | null;
+    meta_json: string | null;
+  }>();
+  if (!stored) return json({ ok: false, error: "video_upload_reservation_unknown" }, 503, { "cache-control": "no-store" });
+  let storedMediaRole = "observation_video";
+  try {
+    const storedMeta = stored.meta_json ? JSON.parse(stored.meta_json) as Record<string, unknown> : {};
+    storedMediaRole = normalizeOptionalText(storedMeta.mediaRole) ?? "observation_video";
+  } catch {
+    return json({ ok: false, error: "video_upload_reservation_unknown" }, 503, { "cache-control": "no-store" });
+  }
+  if (
+    stored.actor_id !== session.userId
+    || stored.observation_id !== observationId
+    || stored.filename !== filename
+    || stored.upload_protocol !== uploadProtocol
+    || stored.max_duration_seconds !== maxDurationSeconds
+    || stored.bytes !== (fileSizeBytes ?? 0)
+    || storedMediaRole !== mediaRole
+  ) {
+    return json({ ok: false, error: "video_upload_idempotency_conflict" }, 409, { "cache-control": "no-store" });
+  }
+  const reused = clientUploadKey !== null && reservationChanges === 0;
 
   return json({
     ok: true,
@@ -30637,7 +30716,8 @@ async function createCompatibleVideoDirectUpload(request: Request, env: Env): Pr
     maxDurationSeconds,
     iframeUrl: buildShadowVideoIframeUrl(uid),
     thumbnailUrl: buildShadowVideoThumbnailUrl(uid),
-    uploadProtocol
+    uploadProtocol,
+    ...(clientUploadKey ? { idempotency: { key: clientUploadKey, reused } } : {})
   });
 }
 
@@ -31456,8 +31536,8 @@ async function attachVideoAssetToObservation(input: {
   const partitionMonth = observation.partition_month ?? partitionMonthFromDate(new Date().toISOString());
 
   const assetId = `video_asset_${input.uid}`;
-  const outboxMediaId = newId("outbox");
-  const outboxReadModelId = newId("outbox");
+  const outboxMediaId = `outbox_${assetId}_media`;
+  const outboxReadModelId = `outbox_${assetId}_readmodel`;
   const ownerPlan = await existingOwnerObservationDualWritePlan(
     input.observationId,
     observation.owner_user_id,
@@ -31475,9 +31555,12 @@ async function attachVideoAssetToObservation(input: {
 
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
-      `INSERT OR REPLACE INTO asset_ledger
+      `INSERT INTO asset_ledger
        (asset_id, draft_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, width, height, duration_ms, visibility, processing_state, uploaded_at, partition_month)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'private', 'uploaded', CURRENT_TIMESTAMP, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'private', 'uploaded', CURRENT_TIMESTAMP, ?)
+       ON CONFLICT(asset_id) DO UPDATE SET
+         bytes = MAX(asset_ledger.bytes, excluded.bytes),
+         duration_ms = MAX(asset_ledger.duration_ms, excluded.duration_ms)`
     ).bind(
       assetId,
       observation.draft_id,
@@ -31493,14 +31576,15 @@ async function attachVideoAssetToObservation(input: {
       partitionMonth
     ),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxMediaId, "media.process", input.observationId, JSON.stringify({ observationId: input.observationId, assetId }), partitionMonth),
     env.OBS_DB.prepare(
-      "INSERT INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
+      "INSERT OR IGNORE INTO outbox (outbox_id, topic, target_id, payload_json, partition_month) VALUES (?, ?, ?, ?, ?)"
     ).bind(outboxReadModelId, "readmodel.refresh", input.observationId, JSON.stringify({ observationId: input.observationId }), partitionMonth),
     ...observationDualWriteStatements(env, ownerPlan),
     ...observationDualWriteStatements(env, mediaPlan),
     rollbackLedgerInsert(env, {
+      ledgerId: `rollback_${assetId}`,
       eventType: "asset.video.finalize",
       targetId: assetId,
       partitionMonth,
@@ -31519,10 +31603,15 @@ async function attachVideoAssetToObservation(input: {
     })
   ]);
 
-  return dispatchOutboxBestEffort(env, [
-    { outboxId: outboxMediaId, topic: "media.process", targetId: input.observationId },
-    { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: input.observationId }
-  ]);
+  const pending = await env.OBS_DB.prepare(
+    `SELECT outbox_id, topic, target_id FROM outbox
+      WHERE outbox_id IN (?, ?) AND dispatch_state = 'pending'`
+  ).bind(outboxMediaId, outboxReadModelId).all<{ outbox_id: string; topic: MediaJob["topic"]; target_id: string }>();
+  return dispatchOutboxBestEffort(env, pending.results.map((row) => ({
+    outboxId: row.outbox_id,
+    topic: row.topic,
+    targetId: row.target_id
+  })));
 }
 
 type LegacyObservationIdempotencyRow = {
