@@ -21,7 +21,7 @@ import {
 import {
   DiscoveryError, EventDiscoveryStore, isDiscoveryJournalConfig, isEventDiscoveryProfile,
   discoveryHash, discoveryNickname, discoveryReceipt, parseDiscoveryCaptureInput,
-  parseDiscoveryPaperInput, parseDiscoveryReviewInput, type DiscoveryCaptureInput,
+  parseDiscoveryPaperInput, parseDiscoveryReviewInput, RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION, type DiscoveryCaptureInput,
 } from "./eventDiscovery";
 import { COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, COMMON_EVENT_TEMPLATE_LABELS, isCommonEventTemplateConfig, isCommonEventTemplateKey, type CommonEventTemplateKey } from "../../src/services/commonEventTemplateContract";
 import { buildCommonEventTemplateDraft } from "../../src/services/commonEventTemplatePresets";
@@ -1693,6 +1693,8 @@ interface ObservationEventParticipantD1Row {
   share_location?: number;
   location_share_until?: string | null;
   is_minor: number;
+  discovery_gemini_notice_version?: string | null;
+  discovery_gemini_notice_at?: string | null;
 }
 
 interface ObservationEventMeshSummaryRow {
@@ -4413,6 +4415,7 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
     const ownApplication = !auth?.banned ? await ownObservationEventApplication(request, env, session, auth) : null;
     const response = pageHtml(session.title + " に参加", renderObservationEventDiscoveryJoin({
       sessionId: session.sessionId, title: session.title, eventCode: session.eventCode ?? eventCode,
+      geminiConsentVersion: isRyuyoDiscoveryEvent(env, session) ? RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION : undefined,
       startedAt: session.startedAt, endedAt: session.endedAt, isAuthenticated: Boolean(auth && !auth.banned), canJoin,
       displayName: ownApplication?.participant?.role === "participant" ? ownApplication.participant.display_name : null,
       canViewGallery: Boolean(course && course.status !== "draft" && session.config.cancelled !== true && session.config.status !== "cancelled" && session.config.state !== "cancelled"),
@@ -4487,7 +4490,9 @@ function discoveryCampaignConfig(config: Record<string, unknown>): DiscoveryCamp
 }
 
 function isRyuyoDiscoveryEvent(env: Env, session: ObservationEventTemplate): boolean {
-  return session.fieldId === RYUYO_FIELD_ID && isEventDiscoveryProfile(session.config) && observationEventGuestMediaEnabled(env, session);
+  const template = asPlainObject(session.config.event_template);
+  return session.fieldId === RYUYO_FIELD_ID && template?.key === "ryuyo"
+    && isEventDiscoveryProfile(session.config) && observationEventGuestMediaEnabled(env, session);
 }
 
 function isObservationEventCancelled(session: ObservationEventTemplate): boolean {
@@ -4781,6 +4786,11 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   if (page === "rally" && isEventDiscoveryProfile(session.config)) {
     if (auth?.banned || !observationEventGuestMediaEnabled(env, session)) return pageHtml("参加できません", observationEventEmptyState("参加できません", "主催者にお問い合わせください。"), "event-discovery-denied", 403);
     const [course, actor] = await Promise.all([getObservationRallyCourseBySession(env, sessionId), observationEventGuestMediaActor(request, env, sessionId)]);
+    if (isRyuyoDiscoveryEvent(env, session) && actor.participant?.discovery_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION) {
+      return redirect303(`/community/events/${encodeURIComponent(session.eventCode ?? "")}/join`, {
+        "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive",
+      });
+    }
     const canSubmit = Boolean(actor.participant?.status === "checked_in") && course?.status === "live" && isObservationEventActivityOpen(session);
     const response = pageHtml(session.title, renderObservationEventDiscoveryCapture({
       sessionId, title: session.title, eventCode: session.eventCode ?? "", canSubmit, canManage,
@@ -6097,6 +6107,10 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     ...metricContext
   }, metricActorKey);
   const body = await readJson<Record<string, unknown>>(request);
+  const discoveryGeminiConsentVersion = isRyuyoDiscoveryEvent(env, session) ? RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION : null;
+  if (discoveryGeminiConsentVersion && body.discovery_gemini_notice_version !== discoveryGeminiConsentVersion) {
+    return json({ error: "discovery_gemini_notice_required" }, 400, { "cache-control": "no-store" });
+  }
   const teamId = normalizeOptionalText(body.team_id);
   if (teamId && !(await listObservationEventTeams(env, sessionId)).some((team) => team.team_id === teamId)) {
     return json({ error: "event_team_not_found" }, 400, { "cache-control": "no-store" });
@@ -6127,7 +6141,8 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     isMinor,
     shareLocation,
     locationShareUntil: shareLocation ? observationEventLocationShareUntil(session) : null,
-    locationShareConsentType: shareLocation ? (isMinor ? "guardian" : "self") : null
+    locationShareConsentType: shareLocation ? (isMinor ? "guardian" : "self") : null,
+    discoveryGeminiConsentVersion
   });
   if (participant.created) {
     await appendObservationEventLive(env, {
@@ -8815,19 +8830,25 @@ async function upsertObservationEventParticipant(env: Env, input: {
   shareLocation?: boolean;
   locationShareUntil?: string | null;
   locationShareConsentType?: string | null;
+  discoveryGeminiConsentVersion?: string | null;
 }): Promise<{ participantId: string; created: boolean }> {
   const existing = await findObservationEventParticipant(env, input.sessionId, input.userId, input.guestToken);
   const shareLocation = input.shareLocation === true && (!input.isMinor || input.locationShareConsentType === "guardian") ? 1 : 0;
   const shareUntil = shareLocation ? input.locationShareUntil ?? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() : null;
   const consentType = shareLocation ? input.locationShareConsentType ?? "self" : null;
+  const geminiNoticeVersion = input.discoveryGeminiConsentVersion ?? null;
   if (existing) {
     await env.OBS_DB.prepare(
       `UPDATE observation_event_participants
           SET display_name = ?, team_id = COALESCE(?, team_id), status = 'checked_in',
               checked_in_at = CURRENT_TIMESTAMP, share_location = ?, is_minor = ?,
-              location_share_until = ?, location_share_consent_type = ?, updated_at = CURRENT_TIMESTAMP
+              location_share_until = ?, location_share_consent_type = ?,
+              discovery_gemini_notice_version = CASE WHEN ? IS NOT NULL THEN ? ELSE discovery_gemini_notice_version END,
+              discovery_gemini_notice_at = CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE discovery_gemini_notice_at END,
+              updated_at = CURRENT_TIMESTAMP
         WHERE participant_id = ?`
-    ).bind(input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType, existing.participant_id).run();
+    ).bind(input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType,
+      geminiNoticeVersion, geminiNoticeVersion, geminiNoticeVersion, existing.participant_id).run();
     return { participantId: existing.participant_id, created: false };
   }
   const participantId = crypto.randomUUID();
@@ -8835,9 +8856,10 @@ async function upsertObservationEventParticipant(env: Env, input: {
     await env.OBS_DB.prepare(
       `INSERT INTO observation_event_participants (
          participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
-         checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
-       ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?)`
-    ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType).run();
+         checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type,
+         discovery_gemini_notice_version, discovery_gemini_notice_at
+       ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END)`
+    ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType, geminiNoticeVersion, geminiNoticeVersion).run();
     return { participantId, created: true };
   } catch (error) {
     if (!isD1UniqueConstraintError(error)) throw error;
@@ -8851,7 +8873,7 @@ async function findObservationEventParticipant(env: Env, sessionId: string, user
   if (!userId && !guestToken) return null;
   return env.OBS_DB.prepare(
     `SELECT participant_id, user_id, guest_token, display_name, team_id, role, status,
-            share_location, location_share_until, is_minor
+            share_location, location_share_until, is_minor, discovery_gemini_notice_version, discovery_gemini_notice_at
        FROM observation_event_participants
       WHERE session_id = ?
         AND ((user_id IS NOT NULL AND user_id = ?) OR (guest_token IS NOT NULL AND guest_token = ?))

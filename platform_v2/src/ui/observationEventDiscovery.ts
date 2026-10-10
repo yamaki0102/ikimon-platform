@@ -105,6 +105,7 @@ export interface DiscoveryEventView {
   sessionId: string;
   title: string;
   eventCode: string;
+  geminiConsentVersion?: string;
   startedAt?: string | null;
   endedAt?: string | null;
   stateMessage?: string;
@@ -190,12 +191,13 @@ export function renderObservationEventDiscoveryJoin(input: DiscoveryEventView & 
       <label for="discovery-nickname">あだ名や下の名前を、よければどうぞ<span class="ed-optional">任意</span></label><input id="discovery-nickname" name="display_name" value="${escapeHtml(input.displayName)}" maxlength="32" autocomplete="nickname" placeholder="例：ゆう、むしずき" aria-describedby="discovery-name-help"><p class="ed-help" id="discovery-name-help">空欄でも参加できます。本名や連絡先は書かないでください。</p>
       ${teams.length ? `<label for="discovery-team">班<span class="ed-optional">任意</span></label><select id="discovery-team" name="team_id"><option value="">選ばない</option>${teams.map((team) => `<option value="${escapeHtml(team.teamId)}">${escapeHtml(team.name)}</option>`).join("")}</select>` : ""}
       <label class="ed-check"><input type="checkbox" name="is_minor"><span>参加者に未成年が含まれます</span></label>
+      ${input.geminiConsentVersion ? `<aside class="ed-notice ed-ai-notice"><h2>共有写真の安全確認と掲載について</h2><p>この開催回では、共有を選んだ写真と任意のコメント・場所のメモを、人物や個人情報などを確認するため Google Gemini に送信します。AI判定でリスクが検出されなかった共有写真は、主催者の個別確認前に、リンクを知っている人が見られる「みんなの発見」に掲載されます。判定できない写真や人物・個人情報などが含まれる可能性のある投稿は掲載せず、主催者の確認待ちにします。</p><p>写真を共有しない選択もできます。人物、名札、連絡先などが写った写真や個人情報を含むメモは共有しないでください。掲載後も取り下げられます。</p><p class="ed-help">「ノートを始める」を押して参加すると、この竜洋の開催回に限り、上記の安全確認と公開の取り扱いに同意したものとして記録します。</p></aside>` : ""}
       <p class="ed-help">${input.isAuthenticated ? "このイベントでの呼び名を使います。" : "ログインは不要です。"}同じ端末・ブラウザから、自分の記録を見返せます。写真や呼び名の公開は、あとで選べます。</p>
       ${statusRegion()}<button class="ed-button ed-primary" type="submit" data-discovery-join-submit>名前なしでも、ノートを始める<span aria-hidden="true">→</span></button>
     </form>`}
     ${input.canViewGallery ? `<p><a class="ed-button" href="${escapeHtml(eventHref(input.sessionId, "discoveries"))}">みんなの発見を見る<span aria-hidden="true"> →</span></a></p>` : ""}
     <p class="ed-help ed-footer-note">紙のシートは当日、会場でお配りします。写真を撮らずに、歩いて楽しむだけでも大丈夫です。</p>
-  `, "join", attrs(input));
+  `, "join", `${attrs(input)}${input.geminiConsentVersion ? ` data-discovery-gemini-consent-version="${escapeHtml(input.geminiConsentVersion)}"` : ""}`);
 }
 
 export function renderObservationEventDiscoveryCapture(input: DiscoveryEventView & {
@@ -221,7 +223,7 @@ export function renderObservationEventDiscoveryCapture(input: DiscoveryEventView
       <label for="discovery-caption">写真へのコメント<span class="ed-optional">任意</span></label><textarea id="discovery-caption" name="caption" maxlength="280" rows="3" placeholder="例：葉っぱの裏に、小さな虫を見つけた！"></textarea></details>
       <label class="ed-check"><input name="private_storage_consent" type="checkbox" value="yes" required><span>写真を保存し、自分と主催者が確認することに同意します。</span></label>
       <label class="ed-check"><input name="creator_rights_attestation" type="checkbox" value="yes" required><span>自分で撮った写真、またはこの用途で使う許可を得た写真です。</span></label>
-      <div class="ed-share-choice"><label class="ed-check"><input name="gallery_consent" type="checkbox" value="yes"><span>みんなの発見に載せてもよい<span class="ed-help">この写真・コメント・場所のメモ・呼び名を、リンクを知っている人が見られます。</span></span></label><p class="ed-help">写り込みなどの問題がなければ、保存後すぐ掲載します。人物や個人情報が含まれる可能性のある写真は確認待ちに。共有を選ばなくても保存でき、掲載後も取り下げられます。</p>
+      <div class="ed-share-choice"><label class="ed-check"><input name="gallery_consent" type="checkbox" value="yes"><span>みんなの発見に載せてもよい<span class="ed-help">この写真・コメント・場所のメモ・呼び名を、リンクを知っている人が見られます。</span></span></label><p class="ed-help">共有を選んだ写真は、保存後にメタデータを取り除き、参加時に案内した自動確認を行います。問題なしと判定された写真は掲載され、確認できない内容や人物・個人情報の可能性がある写真は主催者の確認待ちになります。共有を選ばなくても保存でき、掲載後も取り下げられます。</p>
       <label class="ed-check" data-discovery-guardian-row hidden><input name="guardian_gallery_consent" type="checkbox" value="yes"><span>このギャラリーへの公開について、保護者の同意があります。</span></label></div>
       <button class="ed-button ed-primary" type="submit" data-discovery-save>この写真を保存する</button></div></fieldset>
     </form>` : '<p class="ed-notice">いまは写真を追加できません。保存済みの記録はここで確認できます。</p>'}
@@ -618,7 +620,7 @@ export function observationEventDiscoveryScript(): string {
         const name = value(form,'display_name');
         if (name.length > 32 || /[\u0000-\u001f\u007f]/.test(name)) { tell('呼び名は32文字以内で入力してください。空欄でも参加できます。',true); field(form,'display_name').focus(); return; }
         button.disabled = true; save(); tell('参加情報を確認しています。');
-        try { const data = await jsonRequest(base + '/checkin','POST',{display_name:name,team_id:value(form,'team_id') || null,is_minor:checked(form,'is_minor'),share_location:false,guardian_location_consent:false}); if (typeof data.participant_id !== 'string' || !data.participant_id) throw new Error('参加の結果を確認できませんでした。入力は残っています。'); storagePut(draftKey,null); tell('ノートを開きます。'); window.location.assign('/events/' + encodeURIComponent(sessionId) + '/rally'); }
+        try { const data = await jsonRequest(base + '/checkin','POST',{display_name:name,team_id:value(form,'team_id') || null,is_minor:checked(form,'is_minor'),share_location:false,guardian_location_consent:false,...(root.dataset.discoveryGeminiConsentVersion?{discovery_gemini_notice_version:root.dataset.discoveryGeminiConsentVersion}:{})}); if (typeof data.participant_id !== 'string' || !data.participant_id) throw new Error('参加の結果を確認できませんでした。入力は残っています。'); storagePut(draftKey,null); tell('ノートを開きます。'); window.location.assign('/events/' + encodeURIComponent(sessionId) + '/rally'); }
         catch (error) { tell(error.message || '参加の結果を確認できませんでした。同じボタンから再確認できます。',true); button.disabled = false; }
       });
       return;

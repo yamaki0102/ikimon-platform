@@ -6,7 +6,7 @@ import { DISCOVERY_AUTO_PRIVACY_METHOD } from "./eventDiscoveryPrivacy";
 import {
   DiscoveryError, EventDiscoveryStore, discoveryHash, discoveryNickname, discoveryReceipt,
   isDiscoveryJournalConfig, isEventDiscoveryProfile, parseDiscoveryCaptureInput,
-  parseDiscoveryPaperInput, parseDiscoveryReviewInput, type DiscoveryDatabase,
+  parseDiscoveryPaperInput, parseDiscoveryReviewInput, RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION, type DiscoveryDatabase,
   type DiscoveryStatement, type DiscoveryCaptureInput,
 } from "./eventDiscovery";
 
@@ -24,7 +24,7 @@ class SqlDatabase implements DiscoveryDatabase {
   readonly native = new DatabaseSync(":memory:");
   constructor() {
     this.native.exec("PRAGMA foreign_keys = ON");
-    for (const migration of ["0019_observation_event_core.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+    for (const migration of ["0019_observation_event_core.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
       this.native.exec(readFileSync(new URL("../migrations/observations/" + migration, import.meta.url), "utf8"));
     }
   }
@@ -63,8 +63,9 @@ function fixture() {
   db.native.prepare("INSERT INTO observation_event_sessions (session_id, title, organizer_user_id, started_at) VALUES (?, ?, ?, ?)").run("event-a", "竜洋", "organizer-private-id", "2026-10-01");
   return { db, bucket, store };
 }
-function participant(db: SqlDatabase, id: string, nickname = "", isMinor = false) {
-  db.native.prepare("INSERT INTO observation_event_participants (participant_id, session_id, display_name, guest_token, status, is_minor) VALUES (?, 'event-a', ?, ?, 'checked_in', ?)").run(id, nickname, "private-token-" + id, isMinor ? 1 : 0);
+function participant(db: SqlDatabase, id: string, nickname = "", isMinor = false, acceptedGeminiNotice = false) {
+  db.native.prepare("INSERT INTO observation_event_participants (participant_id, session_id, display_name, guest_token, status, is_minor, discovery_gemini_notice_version, discovery_gemini_notice_at) VALUES (?, 'event-a', ?, ?, 'checked_in', ?, ?, CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE NULL END)")
+    .run(id, nickname, "private-token-" + id, isMinor ? 1 : 0, acceptedGeminiNotice ? RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION : null, acceptedGeminiNotice ? 1 : 0);
 }
 async function photoInput(participantId: string, key: string, capture: DiscoveryCaptureInput = CAPTURE) {
   const hash = await discoveryHash(key);
@@ -88,7 +89,7 @@ function count(db: SqlDatabase, table: string) {
 }
 
 test("clear shared photo publishes during save, replays once, and withdrawal deletes its unique display object", async () => {
-  const state = fixture(); participant(state.db, "guest");
+  const state = fixture(); participant(state.db, "guest", "", false, true);
   const saved = await photo(state, "guest", "auto-clear");
   let screens = 0;
   const screen = async () => { screens++; return { clear: true, reason: "clear" as const }; };
@@ -107,9 +108,23 @@ test("clear shared photo publishes during save, replays once, and withdrawal del
   await assert.rejects(state.store.content("event-a", saved.submissionId), /not_found/);
 });
 
+test("participants without the versioned Ryuyo Gemini notice remain private and are not sent for screening", async () => {
+  const state = fixture(); participant(state.db, "legacy-participant");
+  const saved = await photo(state, "legacy-participant", "legacy-no-gemini-notice");
+  let screens = 0;
+  const result = await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => {
+    screens++;
+    return { clear: true, reason: "clear" };
+  });
+  assert.equal(screens, 0);
+  assert.equal(result?.galleryStatus, "pending_review");
+  assert.equal((await state.store.get("event-a", saved.submissionId))?.privacy_method, null);
+  assert.equal((await state.store.gallery("event-a")).counts.entries, 0);
+});
+
 test("person, unknown and unavailable screens remain pending, private and unconsented minor photos never get scanned", async () => {
   for (const reason of ["person", "uncertain", "unavailable"] as const) {
-    const state = fixture(); participant(state.db, "guest");
+    const state = fixture(); participant(state.db, "guest", "", false, true);
     const saved = await photo(state, "guest", "held-" + reason);
     const held = await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => ({ clear: false, reason }));
     assert.equal(held?.galleryStatus, "pending_review");
@@ -128,7 +143,7 @@ test("person, unknown and unavailable screens remain pending, private and uncons
 
 test("withdrawal or a human rejection during automatic screening cannot be overridden", async () => {
   for (const action of ["withdraw", "reject"] as const) {
-    const state = fixture(); participant(state.db, "guest");
+    const state = fixture(); participant(state.db, "guest", "", false, true);
     const saved = await photo(state, "guest", "auto-race-" + action);
     await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => {
       if (action === "withdraw") await state.store.withdraw("event-a", saved.submissionId);
@@ -143,7 +158,7 @@ test("withdrawal or a human rejection during automatic screening cannot be overr
 });
 
 test("a concurrent manual approval retains its display object when automatic review loses", async () => {
-  const state = fixture(); participant(state.db, "guest");
+  const state = fixture(); participant(state.db, "guest", "", false, true);
   const saved = await photo(state, "guest", "auto-manual-race");
   await state.store.autoPublishPhoto("event-a", saved.submissionId, async () => {
     await state.store.review("event-a", saved.submissionId, "organizer-private-id", APPROVAL);

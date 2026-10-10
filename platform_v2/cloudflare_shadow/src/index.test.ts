@@ -1214,6 +1214,8 @@ interface ObservationEventParticipantTestRow {
   is_minor: number;
   location_share_until: string | null;
   location_share_consent_type: string | null;
+  discovery_gemini_notice_version?: string | null;
+  discovery_gemini_notice_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2596,6 +2598,8 @@ class FakeStatement {
         is_minor: registered ? 0 : number(v[7]),
         location_share_until: registered ? null : nullableString(v[8]),
         location_share_consent_type: registered ? null : nullableString(v[9]),
+        discovery_gemini_notice_version: nullableString(v[10]),
+        discovery_gemini_notice_at: nullableString(v[11]) ? now : null,
         created_at: now,
         updated_at: now
       });
@@ -2613,7 +2617,8 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("UPDATE observation_event_participants SET display_name")) {
-      const row = requireRow(this.db.observationEventParticipants, string(v[6]));
+      const consentUpdate = normalized.includes("discovery_gemini_notice_version = CASE");
+      const row = requireRow(this.db.observationEventParticipants, string(v[consentUpdate ? 8 : 6]));
       row.display_name = string(v[0]);
       row.team_id = nullableString(v[1]) ?? row.team_id;
       row.status = "checked_in";
@@ -2622,6 +2627,10 @@ class FakeStatement {
       row.is_minor = number(v[3]);
       row.location_share_until = nullableString(v[4]);
       row.location_share_consent_type = nullableString(v[5]);
+      if (consentUpdate && nullableString(v[6])) {
+        row.discovery_gemini_notice_version = string(v[7]);
+        row.discovery_gemini_notice_at = new Date().toISOString();
+      }
       row.updated_at = new Date().toISOString();
       return {};
     }
@@ -27569,7 +27578,7 @@ test("Ryuyo campaign applications use one optional-name participant from preregi
   const { env } = createEnv();
   const obs = new DiscoveryRouteSqliteD1();
   t.after(() => obs.sqlite.close());
-  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
     obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
   }
   Object.assign(env, { OBS_DB: obs });
@@ -27667,7 +27676,7 @@ test("Ryuyo campaign applications use one optional-name participant from preregi
   assert.equal((await send(api, "PATCH", ownerCookie, { config: profile, started_at: new Date(Date.now() - 60_000).toISOString() })).response.status, 200);
   assert.equal((await send(api + "/discovery-campaign", "GET", ownerCookie)).data.campaign.applicationsOpen, true, "generic settings preserve the dedicated publication sibling atomically");
   assert.equal((await send(api + "/rally/course", "POST", ownerCookie, { status: "live" })).response.status, 200);
-  const checked = await send(api + "/checkin", "POST", guestCookie, { display_name: "", share_location: false });
+  const checked = await send(api + "/checkin", "POST", guestCookie, { display_name: "", share_location: false, discovery_gemini_notice_version: "ryuyo-gemini-screening-publish-v1" });
   assert.equal(checked.response.status, 200, JSON.stringify(checked.data));
   assert.equal(checked.data.participant_id, registered.participant_id);
   assert.equal(count(), 2, "registered identities are reused at attendance");
@@ -27786,7 +27795,7 @@ test("discovery native routes preserve draft, production self-service, private r
   const obs = new DiscoveryRouteSqliteD1();
   t.after(() => obs.sqlite.close());
   obs.sqlite.exec("PRAGMA foreign_keys = ON");
-  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0029_observation_event_recap_capsule_report.sql", "0065_observation_rally_submission_idempotency.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0029_observation_event_recap_capsule_report.sql", "0065_observation_rally_submission_idempotency.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
     obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
   }
   Object.assign(env, { OBS_DB: obs });
@@ -27854,13 +27863,30 @@ test("discovery native routes preserve draft, production self-service, private r
   const join = await send("/community/events/RYUYO8AA/join");
   const joinHtml = await join.response.clone().text();
   assert.match(joinHtml, /ログインは不要です/u);
+  assert.match(joinHtml, /Google Gemini/u, "the event-specific destination and screening purpose are disclosed before participation");
+  assert.match(joinHtml, /リンクを知っている人が見られる/u, "the link-visible audience is disclosed before participation");
+  assert.match(joinHtml, /主催者の個別確認前/u, "the clear-result publication timing is disclosed before participation");
   assert.doesNotMatch(joinHtml, /aria-label="主なページ"|href="\/ja\/profile"/u);
   const guestCookie = (join.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
   assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
-  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 200);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 400, "Ryuyo check-in requires the version shown in its participation notice");
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true, discovery_gemini_notice_version: "wrong-version" })).response.status, 400, "an unknown notice version is not evidence of consent");
+  const acceptedNoticeVersion = "ryuyo-gemini-screening-publish-v1";
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true, discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   const guest = obs.sqlite.prepare("SELECT * FROM observation_event_participants WHERE session_id = ? AND guest_token IS NOT NULL").get(sessionId)!;
   assert.equal(guest.display_name, "");
   assert.equal(guest.share_location, 0, "discovery photos do not collect participant tracking locations");
+  assert.equal(guest.discovery_gemini_notice_version, acceptedNoticeVersion);
+  assert.equal(typeof guest.discovery_gemini_notice_at, "string");
+  const guestParticipantId = String(guest.participant_id);
+  obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);
+  const legacyCapture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
+  assert.equal(legacyCapture.response.status, 303, "a participant without historical notice evidence sees the notice before posting");
+  assert.equal(legacyCapture.response.headers.get("location"), "/community/events/RYUYO8AA/join");
+  assert.match(await (await send("/community/events/RYUYO8AA/join", "GET", guestCookie)).response.text(), /Google Gemini/u);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "" })).response.status, 400, "prior participation is not silently backfilled");
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
+  assert.equal(obs.sqlite.prepare("SELECT discovery_gemini_notice_version FROM observation_event_participants WHERE participant_id = ?").get(guestParticipantId)!.discovery_gemini_notice_version, acceptedNoticeVersion);
   const capture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
   assert.equal(capture.response.status, 200);
   assert.equal(/<form\b[^>]*data-discovery-media-form/u.test(await capture.response.text()), true, "checked-in participants receive the capture form");
@@ -27882,7 +27908,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await upload(`discovery-native-photo-${savedIndex}`, guestCookie, { caption: "変わったコメント" })).response.status, 409);
   const receipts = await send(`${api}/guest-media`, "GET", guestCookie);
   assert.equal(receipts.data.receipts.length, 3);
-  assert.equal(receipts.data.receipts.every((entry: any) => entry.displayName === null && entry.galleryStatus === "pending_review" && entry.privacyStatus === "pending"), true);
+  assert.equal(receipts.data.receipts.every((entry: any) => entry.displayName === null && entry.galleryStatus === "pending_review" && entry.privacyStatus === "pending" && entry.reviewRequiredReason === "unavailable"), true, "the missing local provider key is fail-closed and the test never calls Gemini");
   assert.equal(receipts.data.receipts.every((entry: any) => typeof entry.idempotencyKey === "string"), true);
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 0, "metadata-clean photos still await genuine visual/rights review");
   assert.equal((await send(`${api}/discoveries/${saved.receiptId}/content`)).response.status, 404);
@@ -27910,7 +27936,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal(organizerReceipts.data.receipts.some((entry: any) => "idempotencyKey" in entry), false);
   const otherJoin = await send("/community/events/RYUYO8AA/join");
   const otherCookie = (otherJoin.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
-  assert.equal((await send(`${api}/checkin`, "POST", otherCookie, { display_name: "むしずき", is_minor: true })).response.status, 200);
+  assert.equal((await send(`${api}/checkin`, "POST", otherCookie, { display_name: "むしずき", is_minor: true, discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   assert.equal((await send(saved.privateContentHref, "GET", otherCookie)).response.status, 404);
   assert.equal((await send(`${api}/guest-media/${saved.receiptId}/withdraw`, "POST", otherCookie, {})).response.status, 404);
   assert.equal((await upload("discovery-native-minor01", otherCookie)).response.status, 400);
@@ -27930,7 +27956,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await send(otherApi, "PATCH", ownerCookie, { started_at: eventBody.started_at })).response.status, 200);
   assert.equal((await send(`${otherApi}/discoveries/${saved.receiptId}/content`)).response.status, 404);
   assert.equal((await send(`${otherApi}/guest-media/${saved.receiptId}/review`, "PATCH", ownerCookie, { decision: "approved", note: "別の会からは確認できません", rightsConfirmed: true, privacyConfirmed: true })).response.status, 404);
-  assert.equal((await send(`${otherApi}/checkin`, "POST", ownerCookie, { display_name: "" })).response.status, 200);
+  assert.equal((await send(`${otherApi}/checkin`, "POST", ownerCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   const accountPhoto = await upload("discovery-account-blank", ownerCookie, {}, otherApi);
   assert.equal(accountPhoto.response.status, 201);
   const approveInOtherEvent = (id: string) => send(`${otherApi}/guest-media/${id}/review`, "PATCH", ownerCookie, { decision: "approved", note: "呼び名と写真・コメントの内容を目視確認", rightsConfirmed: true, privacyConfirmed: true });
@@ -27943,7 +27969,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await approveInOtherEvent(privatePhoto.data.receipt.receiptId)).data.galleryStatus, "private");
   assert.equal((await send(`${otherApi}/discoveries`)).data.counts.entries, 1, "organizer review cannot substitute for participant display consent");
   assert.equal((await send(`${otherApi}/discoveries/${privatePhoto.data.receipt.receiptId}/content`)).response.status, 404);
-  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "変更したあだ名" })).response.status, 200);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "変更したあだ名", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   assert.equal((await send(publishedHref)).response.status, 404, "renaming a participant cannot publish new unreviewed text under an old approval");
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 1);
   for (const row of receipts.data.receipts) await review(row.receiptId);
