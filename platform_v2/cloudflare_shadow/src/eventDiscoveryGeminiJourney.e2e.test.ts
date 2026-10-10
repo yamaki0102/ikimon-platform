@@ -236,7 +236,7 @@ test("Ryuyo check-in consent drives safe auto-publication, uncertain hold, guard
   assert.equal(safe.response.status, 201, JSON.stringify(safe.data));
   assert.equal(safe.data.receipt.galleryStatus, "published", "a clear photo is published by the automatic screen");
   assert.equal(safe.data.receipt.privacyMethod, "metadata-scrub+gemini-privacy/v1");
-  const safeRow = observations.sqlite.prepare("SELECT reviewed_by, rights_review_status FROM observation_event_discoveries d JOIN observation_event_guest_media m ON m.submission_id = d.submission_id WHERE d.entry_id = ?").get(safe.data.receipt.receiptId) as Record<string, unknown>;
+    const safeRow = observations.sqlite.prepare("SELECT reviewed_by, rights_review_status, m.asset_key, d.derivative_key FROM observation_event_discoveries d JOIN observation_event_guest_media m ON m.submission_id = d.submission_id WHERE d.entry_id = ?").get(safe.data.receipt.receiptId) as Record<string, unknown>;
   assert.equal(safeRow.reviewed_by, "system:event-discovery-privacy", "no organizer review is required for a clear photo");
   assert.equal(safeRow.rights_review_status, "approved");
   assert.equal(screeningCalls, 1);
@@ -278,13 +278,19 @@ test("Ryuyo check-in consent drives safe auto-publication, uncertain hold, guard
   assert.equal((await request(`/api/v1/observation-events/${SESSION_ID}/discoveries/${uncertain.data.receipt.receiptId}/content`)).response.status, 404);
   assert.equal((await request(uncertain.data.receipt.privateContentHref, "GET", adultCookie)).response.status, 200, "uncertain media remains available privately to its participant");
 
+  const storedBeforeWithdrawal = [...bucket.objects.keys()].sort();
+  const safeAssetKey = safeRow.asset_key as string;
+  const safeDerivativeKey = safeRow.derivative_key as string;
+  assert.ok(bucket.objects.has(safeAssetKey));
+  assert.ok(bucket.objects.has(safeDerivativeKey));
+  const otherAssetKeys = storedBeforeWithdrawal.filter((key) => key !== safeAssetKey && key !== safeDerivativeKey);
   const withdrawn = await request(`/api/v1/observation-events/${SESSION_ID}/guest-media/${safe.data.receipt.receiptId}/withdraw`, "POST", adultCookie, {});
   assert.equal(withdrawn.response.status, 200, JSON.stringify(withdrawn.data));
   assert.equal(withdrawn.data.rightsReviewStatus, "withdrawn");
+  assert.deepEqual([...bucket.objects.keys()].sort(), otherAssetKeys.sort(), "withdrawal removes only the owner's source and display derivative");
   assert.equal((await request(safeContentPath)).response.status, 404, "withdrawal removes public access to the derivative");
   const afterWithdrawal = await request(`/api/v1/observation-events/${SESSION_ID}/discoveries`);
   assert.equal(afterWithdrawal.data.counts.entries, 1);
   assert.equal(afterWithdrawal.data.journals.flatMap((journal: any) => journal.entries).some((entry: any) => entry.id === safe.data.receipt.receiptId), false);
-  assert.equal(bucket.objects.size, 4, "withdrawal deletes only the withdrawn photo and its derivative");
   assert.equal(fetchMock.mock.callCount(), screeningCalls, "all screening requests were intercepted; no network request escaped");
 });
