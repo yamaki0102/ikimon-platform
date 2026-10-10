@@ -1,7 +1,8 @@
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
-import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
+import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
+import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import type { ObservationEventSessionRow } from "../../src/services/observationEventModeManager";
@@ -2563,6 +2564,79 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
   }
 }
 
+
+async function getGlobalPlaceDetailPage(
+  request: Request,
+  url: URL,
+  env: Env,
+  canonicalPlaceId: string,
+): Promise<Response> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(canonicalPlaceId)) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  let result;
+  try {
+    const search = await searchD1PublicPlaces({ db: env.OBS_DB, query: canonicalPlaceId, limit: 2 });
+    result = search.results.find((candidate) => candidate.canonicalPlaceId === canonicalPlaceId) ?? null;
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+  if (!result?.osmSourceId) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const sourceMatch = result.osmSourceId.match(/^(way|relation):(\d+)$/u);
+  if (!sourceMatch?.[1] || !sourceMatch[2]) {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, { "cache-control": "no-store" });
+  }
+
+  let profile;
+  try {
+    profile = await loadCloudflarePlaceAtlasProfile({
+      db: env.OBS_DB,
+      placeRef: {
+        kind: "osm_area",
+        entityKey: `osm:${sourceMatch[1]}:${sourceMatch[2]}`,
+        osmType: sourceMatch[1] as "way" | "relation",
+        osmId: Number(sourceMatch[2]),
+      },
+      fetchFn: fetch,
+    });
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+
+  if (!isPublicGlobalPlaceDetailProfile(profile, canonicalPlaceId)) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const authenticated = Boolean(session && !session.banned);
+  let savedItem = null;
+  let savedStateAvailable = true;
+  if (authenticated && session) {
+    try {
+      savedItem = await getSavedItem(env.CORE_DB, session.userId, "place", canonicalPlaceId);
+    } catch {
+      savedStateAvailable = false;
+    }
+  }
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
+  const response = html(body, 200, {
+    "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+    "x-ikimon-cloudflare-native": "global-place-detail",
+  });
+  return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
+}
+
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
     let journeyReadOnly = false;
@@ -2899,6 +2973,11 @@ export const worker = {
 
       if (nativePathname === "/api/v1/me/saved") {
         return handleSavedItemsRequest(request, env.CORE_DB, await readCompatibleSession(request, env));
+      }
+
+      const globalPlaceDetailMatch = nativePathname.match(/^\/places\/([^/]+)$/u);
+      if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
+        return getGlobalPlaceDetailPage(request, url, env, globalPlaceDetailMatch[1]);
       }
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
@@ -4359,34 +4438,48 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
   return observationEventPageHtml("公開内容を確認", body, "program-confirmation", 200, lang, Boolean(auth && !auth.banned));
 }
 
+const OBSERVATION_EVENT_PUBLIC_LIST_LIMIT = 24;
+
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
   const publicLang = publicLangFromPath(new URL(request.url).pathname) ?? "ja";
   const lang = publicLang === "pt-br" ? "pt-BR" : publicLang;
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
   let loadFailed = false;
-  let rows: { results: ObservationEventSessionD1Row[] };
+  const sessions: ObservationEventSessionRow[] = [];
+  let cursor: { startedAt: string; sessionId: string } | null = null;
   try {
-    rows = await env.OBS_DB.prepare(
-      `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
-              plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
-              started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
-              created_at, updated_at
-         FROM observation_event_sessions
-        ORDER BY started_at DESC
-        LIMIT 24`
-    ).all<ObservationEventSessionD1Row>();
+    // LIMIT bounds each fetch; the shared QA filter runs before a row counts toward the 24 visible entries.
+    while (sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) {
+      const rows: { results: ObservationEventSessionD1Row[] } = await env.OBS_DB.prepare(
+        `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+                plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+                started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+                created_at, updated_at
+           FROM observation_event_sessions
+          WHERE event_code IS NOT NULL AND trim(event_code) <> ''
+            AND (? IS NULL OR started_at < ? OR (started_at = ? AND session_id > ?))
+          ORDER BY started_at DESC, session_id ASC
+          LIMIT ${OBSERVATION_EVENT_PUBLIC_LIST_LIMIT}`
+      ).bind(cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.sessionId ?? null)
+        .all<ObservationEventSessionD1Row>();
+      if (rows.results.length === 0) break;
+      for (const row of rows.results) {
+        const session = mapObservationEventSession(row);
+        if (auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session)) sessions.push(session);
+      }
+      const last: ObservationEventSessionD1Row = rows.results.at(-1)!;
+      cursor = { startedAt: last.started_at, sessionId: last.session_id };
+      if (rows.results.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) break;
+    }
   } catch {
     loadFailed = true;
-    rows = { results: [] };
+    sessions.length = 0;
   }
-  const sessions = rows.results
-    .map(mapObservationEventSession)
-    .filter((session) => auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session));
   const strings = getObservationEventStrings(lang);
   return pageHtml(
     strings.listHeroHeading,
-    renderEventListBody(sessions, strings, lang, { loadFailed, retryHref: "/community/events" }),
+    renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, { loadFailed, retryHref: "/community/events" }),
     "event-page-list",
   );
 }
@@ -28910,6 +29003,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
   const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
     feedKey: definition.feedKey,
     label: definition.scopeLabel.ja,
+    sourceVersion: definition.publicationPolicyVersion,
     sourceEnvironment: "production" as const,
     readOnly: true as const,
   }));

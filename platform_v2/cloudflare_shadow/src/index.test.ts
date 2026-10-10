@@ -7058,13 +7058,20 @@ class FakeStatement {
     if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
       const scheduledOnly = normalized.includes("AND julianday(started_at) <= julianday('now')");
       const activeOnly = scheduledOnly || normalized.includes("WHERE ended_at IS NULL");
+      const publicListQuery = normalized.includes("WHERE event_code IS NOT NULL AND trim(event_code) <> ''");
+      const cursorStartedAt = publicListQuery && v[0] !== null ? string(v[0]) : null;
+      const cursorSessionId = publicListQuery && v[3] !== null ? string(v[3]) : null;
       const rows = [...this.db.observationEventSessions.values()]
+        .filter((row) => !publicListQuery || Boolean(row.event_code?.trim()))
+        .filter((row) => !publicListQuery || cursorStartedAt === null
+          || row.started_at < cursorStartedAt
+          || (row.started_at === cursorStartedAt && cursorSessionId !== null && row.session_id > cursorSessionId))
         .filter((row) => !activeOnly || (
           (row.ended_at === null || (scheduledOnly && Date.parse(row.ended_at) > Date.now()))
           && Date.parse(row.started_at) <= Date.now()
           && (!scheduledOnly || !JSON.parse(row.config_json).program_receiver_private)
         ))
-        .sort((a, b) => b.started_at.localeCompare(a.started_at))
+        .sort((a, b) => b.started_at.localeCompare(a.started_at) || (publicListQuery ? a.session_id.localeCompare(b.session_id) : 0))
         .slice(0, activeOnly ? 50 : 24);
       return { results: rows as T[] };
     }
@@ -19606,6 +19613,25 @@ test("public participation list hides private and codeless lifecycle states whil
       });
     }
   }
+  const qaNoise = [
+    { title: "Flag alias fixture", event_code: "MIXEDFLAG2026", config: { qa_fixture: false, is_fixture: true } },
+    { title: "Source marker fixture", event_code: "MIXEDSOURCE2026", config: { source: "qa" } },
+    { title: "Code marker fixture", event_code: "qa-hidden-2026", config: {} },
+    { title: "PR #123 production rally fixture", event_code: "MIXEDTITLE2026", config: {} },
+    { title: "【検証用】fixture event", event_code: "MIXEDJAPANESE2026", config: {} },
+  ] as const;
+  for (let index = 0; index < 32; index += 1) {
+    const id = `unlisted-flood-${index}`;
+    const fixture = qaNoise[index % qaNoise.length]!;
+    obs.observationEventSessions.set(id, {
+      ...base,
+      session_id: id,
+      title: fixture.title,
+      event_code: fixture.event_code,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+      config_json: JSON.stringify(fixture.config),
+    });
+  }
 
   const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), localEnv);
   const html = await response.text();
@@ -19616,6 +19642,7 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.match(html, /data-participation-kind="ended"/);
   assert.match(html, /href="\/en\/community\/events\/OPEN2026\/join"/);
   assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
+  assert.doesNotMatch(html, /Flag alias fixture|Source marker fixture|Code marker fixture|PR #123 production rally fixture|検証用/);
   assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
 });
 
