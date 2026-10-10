@@ -103,10 +103,13 @@ test("map explorer boot script is syntactically valid JavaScript", () => {
 test("GBIF area taxa lead with their source-backed organism group and keep a generic fallback", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   const context = vm.createContext({
-    COPY: { gbifTaxonGroupLabels: { insect: "昆虫類", plant: "植物", fungi: "菌類", other: "その他の生物" } },
-    escapeHtml: (value: unknown) => String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!),
   });
-  new vm.Script(bootSection("function gbifTaxonGroupLabel(group)", "function renderGbifAreaSummary(summary)")).runInContext(context);
+  const declarations = ["COPY", "SEARCH_LANG"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
+  new vm.Script([
+    ...declarations,
+    bootSection("function escapeHtml(s)", "function escapeAttr(s)"),
+    bootSection("function gbifTaxonGroupLabel(group)", "function fetchGbifAreaSummary(cellId, target)"),
+  ].join("\n")).runInContext(context);
 
   const html = context.renderGbifTaxonRows([
     { taxonGroup: "plant", displayNameJa: "シロツメクサ", scientificName: "Trifolium repens", recordCount: 12 },
@@ -121,6 +124,39 @@ test("GBIF area taxa lead with their source-backed organism group and keep a gen
   assert.match(html, /<span class="me-gbif-taxon-group">その他の生物<\/span>分類未整理/);
   assert.match(html, /<em>Trifolium repens<\/em>/);
   assert.match(html, /<small>12<\/small>/);
+  for (const group of [undefined, null, "", "toString", "constructor", "__proto__"]) {
+    assert.equal(context.gbifTaxonGroupLabel(group), "その他の生物");
+  }
+  const escaped = context.renderGbifTaxonRows([{ taxonGroup: "<img>", displayNameJa: "<img src=x>", scientificName: "<script>", recordCount: 1 }]);
+  assert.doesNotMatch(escaped, /<img|<script>/);
+  assert.match(escaped, /&lt;img src=x&gt;/);
+  assert.match(escaped, /<em>&lt;script&gt;<\/em>/);
+});
+
+test("GBIF organism groups and counts use the selected map locale", () => {
+  const groups = ["insect", "bird", "plant", "amphibian_reptile", "mammal", "fungi", "other"];
+  const labels = {
+    ja: ["昆虫類", "鳥類", "植物", "両生類・爬虫類", "哺乳類", "菌類", "その他の生物"],
+    en: ["Insects", "Birds", "Plants", "Amphibians and reptiles", "Mammals", "Fungi", "Other organisms"],
+    es: ["Insectos", "Aves", "Plantas", "Anfibios y reptiles", "Mamíferos", "Hongos", "Otros organismos"],
+    "pt-BR": ["Insetos", "Aves", "Plantas", "Anfíbios e répteis", "Mamíferos", "Fungos", "Outros organismos"],
+  };
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const script = mapExplorerBootScript({ basePath: "", lang });
+    const declarations = ["COPY", "SEARCH_LANG"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
+    const context = vm.createContext({});
+    new vm.Script([
+      ...declarations,
+      bootSection("function escapeHtml(s)", "function escapeAttr(s)"),
+      bootSection("function gbifTaxonGroupLabel(group)", "function fetchGbifAreaSummary(cellId, target)"),
+    ].join("\n")).runInContext(context);
+    groups.forEach((group, index) => assert.equal(context.gbifTaxonGroupLabel(group), labels[lang][index]));
+    const html = context.renderGbifAreaSummary({ totalRecords: 12345, topTaxa: [{ taxonGroup: "plant", scientificName: "Trifolium repens", recordCount: 12345 }] });
+    const count = new Intl.NumberFormat(lang).format(12345);
+    assert.ok(html.includes(`<small>${count}</small>`), `${lang} taxon count`);
+    assert.ok(html.includes(`<strong>${count}</strong>`), `${lang} area count`);
+    assert.match(html, /Trifolium repens/);
+  }
 });
 
 test("map initialization failure offers a usable public-record fallback", () => {

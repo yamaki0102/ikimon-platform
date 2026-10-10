@@ -5023,14 +5023,15 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     }).join('') + '</div>';
   }
   function gbifTaxonGroupLabel(group) {
-    return COPY.gbifTaxonGroupLabels[group] || COPY.gbifTaxonGroupLabels.other;
+    var labels = COPY.gbifTaxonGroupLabels;
+    return Object.prototype.hasOwnProperty.call(labels, group) ? labels[group] : labels.other;
   }
   function renderGbifTaxonRows(taxa) {
     return taxa.map(function (taxon) {
       var label = taxon.displayNameJa || taxon.commonNameJa || taxon.canonicalName || taxon.scientificName || 'GBIF taxon';
       var scientific = taxon.scientificName || taxon.canonicalName || '';
       var scientificHtml = scientific && scientific !== label ? '<em>' + escapeHtml(scientific) + '</em>' : '';
-      var count = Number(taxon.recordCount || 0).toLocaleString();
+      var count = Number(taxon.recordCount || 0).toLocaleString(SEARCH_LANG);
       return '<div class="me-gbif-taxon"><strong><span class="me-gbif-taxon-group">' + escapeHtml(gbifTaxonGroupLabel(taxon.taxonGroup)) + '</span>' + escapeHtml(label) + scientificHtml + '</strong><small>' + escapeHtml(count) + '</small></div>';
     }).join('');
   }
@@ -5046,7 +5047,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         '<p class="me-gbif-area-note">' + escapeHtml(COPY.gbifAreaEmpty) + '</p>';
     }
     var taxa = Array.isArray(summary.topTaxa) ? summary.topTaxa.slice(0, 6) : [];
-    var total = Number(summary.totalRecords || 0).toLocaleString();
+    var total = Number(summary.totalRecords || 0).toLocaleString(SEARCH_LANG);
     var latest = summary.latestYear ? String(summary.latestYear) : '—';
     var sourceUrl = String(summary.sourceUrl || '');
     var taxonRows = taxa.length
@@ -13462,31 +13463,31 @@ export const MAP_EXPLORER_STYLES = `
   .me-gbif-taxon strong {
     min-width: 0;
     color: #0f172a;
-    font-size: 11.5px;
-    line-height: 1.3;
-    font-weight: 850;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 700;
     overflow-wrap: anywhere;
   }
   .me-gbif-taxon-group {
     display: block;
     margin-bottom: 3px;
     color: #0f766e;
-    font-size: 10px;
-    line-height: 1.2;
-    font-weight: 850;
+    font-size: .875rem;
+    line-height: 1.5;
+    font-weight: 700;
   }
   .me-gbif-taxon strong em {
     display: block;
     margin-top: 2px;
     color: #64748b;
-    font-size: 10px;
+    font-size: .875rem;
     font-style: italic;
     font-weight: 650;
   }
   .me-gbif-taxon small {
     color: #0f766e;
-    font-size: 10px;
-    font-weight: 950;
+    font-size: .875rem;
+    font-weight: 700;
   }
   .me-gbif-area-source {
     display: flex;
