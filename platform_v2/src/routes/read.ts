@@ -49,6 +49,7 @@ import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { normalizeFieldProfilePolicy } from "../services/fieldProfilePolicy.js";
 import { getField } from "../services/observationFieldRegistry.js";
 import { getObservationDataRights, type ObservationDataRights } from "../services/observationDataRights.js";
+import { ownerPublicationReviewDecisionFromQualityStatus } from "../services/publicationSyndication.js";
 import {
   decideObservationPublicationPolicy,
   type ObservationPublicationPolicy,
@@ -17960,9 +17961,10 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         publicationRightsUnavailable = true;
       }
     }
-    const reviewDecision = currentSubject.hasSpecialistApproval
+    const reviewFallback = currentSubject.hasSpecialistApproval
       ? { state: "approved", source: "human_review" }
       : null;
+    const reviewDecision = ownerPublicationReviewDecisionFromQualityStatus(snapshot.qualityReviewStatus, reviewFallback);
     const publicationReturnBlock = renderOwnerPublicationReturn({
       owner: isOwner,
       recordVisibility: snapshot.publicVisibility === "public" ? "public" : snapshot.publicVisibility === "limited" ? "limited" : "private",

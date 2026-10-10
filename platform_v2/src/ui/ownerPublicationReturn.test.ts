@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   PUBLICATION_SYNDICATION_POLICY_VERSION,
   PUBLICATION_SYNDICATION_PURPOSE,
+  ownerPublicationReviewDecisionFromQualityStatus,
 } from "../services/publicationSyndication.js";
 import { renderOwnerPublicationReturn } from "./ownerPublicationReturn.js";
 
@@ -34,6 +36,13 @@ const base = {
   rights,
   now: new Date("2026-09-15T00:00:00.000Z"),
 };
+const readRouteSource = readFileSync(new URL("../routes/read.ts", import.meta.url), "utf8");
+
+test("Node owner publication return uses the latest review status with an absence-only fallback", () => {
+  assert.match(readRouteSource, /ownerPublicationReviewDecisionFromQualityStatus\(snapshot\.qualityReviewStatus, reviewFallback\)/);
+  assert.match(readRouteSource, /const reviewFallback = currentSubject\.hasSpecialistApproval/);
+  assert.doesNotMatch(readRouteSource, /const reviewDecision = currentSubject\.hasSpecialistApproval/);
+});
 
 test("publication return is owner-only", () => {
   const html = renderOwnerPublicationReturn({ ...base, owner: false, lang: "ja" });
@@ -55,6 +64,54 @@ test("quality visibility status alone is not presented as a human Review decisio
   assert.match(html, /data-publication-review-state="not_reviewed"/);
   assert.match(html, /Not reviewed/);
   assert.doesNotMatch(html, /Reviewed and approved/);
+});
+
+test("latest correction or rejection replaces prior approval and excludes a published destination", () => {
+  const destination = "miyakoda-renri-area";
+  for (const status of ["changes_requested", "correction_requested", "rejected"]) {
+    const decision = ownerPublicationReviewDecisionFromQualityStatus(status, base.reviewDecision);
+    const html = renderOwnerPublicationReturn({
+      ...base,
+      reviewDecision: decision,
+      publishedDestinations: [destination],
+      lang: "en",
+    });
+    const expectedReviewState = status === "rejected" ? "rejected" : "changes_requested";
+
+    assert.match(html, new RegExp(`data-publication-review-state="${expectedReviewState}"`));
+    assert.match(html, /data-publication-state="not_ready"/);
+    assert.match(html, /data-publication-destination-status="excluded"/);
+    assert.doesNotMatch(html, /Eligible \(not published\)|Publication confirmed/);
+  }
+});
+
+test("only exact known latest statuses can override the fallback approval", () => {
+  const accepted = renderOwnerPublicationReturn({
+    ...base,
+    reviewDecision: ownerPublicationReviewDecisionFromQualityStatus("accepted", null),
+    lang: "en",
+  });
+  assert.match(accepted, /data-publication-state="eligible"/);
+
+  for (const status of ["needs_review", "verified", "archived", "ACCEPTED", "unknown", 1]) {
+    const html = renderOwnerPublicationReturn({
+      ...base,
+      reviewDecision: ownerPublicationReviewDecisionFromQualityStatus(status, base.reviewDecision),
+      lang: "en",
+    });
+    assert.match(html, /data-publication-review-state="not_reviewed"/);
+    assert.match(html, /data-publication-state="not_ready"/);
+    assert.doesNotMatch(html, /Eligible \(not published\)|Publication confirmed/);
+  }
+
+  for (const absentStatus of [null, undefined]) {
+    const html = renderOwnerPublicationReturn({
+      ...base,
+      reviewDecision: ownerPublicationReviewDecisionFromQualityStatus(absentStatus, base.reviewDecision),
+      lang: "en",
+    });
+    assert.match(html, /data-publication-state="eligible"/);
+  }
 });
 
 test("missing destination consent remains excluded", () => {
