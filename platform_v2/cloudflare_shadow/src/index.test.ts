@@ -19843,6 +19843,53 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
 });
 
+test("public participation list bounds QA-row scans and never labels a partial result as empty", async (t) => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const base: ObservationEventSessionTestRow = {
+    session_id: "qa-flood-000", legacy_event_id: null, event_code: "qa-flood-000",
+    title: "QA scan fixture", organizer_user_id: "fixture-owner", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2098-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: "{}", field_id: null,
+    template_source_session_id: null, created_at: "2098-01-01T00:00:00.000Z", updated_at: "2098-01-01T00:00:00.000Z",
+  };
+  for (let index = 0; index < 250; index += 1) {
+    const id = `qa-flood-${String(index).padStart(3, "0")}`;
+    obs.observationEventSessions.set(id, {
+      ...base,
+      session_id: id,
+      event_code: id,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+  obs.observationEventSessions.set("public-behind-qa-flood", {
+    ...base,
+    session_id: "public-behind-qa-flood",
+    event_code: "OPENBEHIND1",
+    title: "Public walk behind test data",
+    started_at: "2020-01-01T00:00:00.000Z",
+  });
+
+  let listQueries = 0;
+  const originalPrepare = obs.prepare.bind(obs);
+  t.mock.method(obs, "prepare", (query: string) => {
+    if (query.includes("FROM observation_event_sessions")) listQueries += 1;
+    return originalPrepare(query);
+  });
+
+  const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), productionEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(listQueries, 8, "one page request is capped at eight bounded D1 scans");
+  assert.match(html, /data-list-partial/);
+  assert.match(html, /This list may be incomplete/);
+  assert.match(html, /href="\/en\/community\/events"/);
+  assert.doesNotMatch(html, /data-participation-empty|No public programs are listed yet/);
+  assert.doesNotMatch(html, /Public walk behind test data|qa-flood-/);
+});
+
 test("newer public participation rows do not starve an organizer's private draft", async (t) => {
   const { env, obs } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };

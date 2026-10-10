@@ -4443,6 +4443,7 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
 }
 
 const OBSERVATION_EVENT_PUBLIC_LIST_LIMIT = 24;
+const OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT = 8;
 
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
@@ -4450,9 +4451,11 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
   const lang = publicLang === "pt-br" ? "pt-BR" : publicLang;
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
   let loadFailed = false;
+  let scanLimitReached = false;
   const sessions: ObservationEventSessionRow[] = [];
   const ownerSessionIds = new Set<string>();
   let cursor: { startedAt: string; sessionId: string } | null = null;
+  let publicScanPages = 0;
   try {
     if (auth?.userId) {
       const ownedRows = await env.OBS_DB.prepare(
@@ -4473,7 +4476,8 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
     }
     // Load owner rows first so public traffic cannot starve private drafts. Each public fetch stays bounded;
     // the shared QA filter runs before a row counts toward the 24 visible entries.
-    while (sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) {
+    while (sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT
+      && publicScanPages < OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT) {
       const rows: { results: ObservationEventSessionD1Row[] } = await env.OBS_DB.prepare(
         `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
                 plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
@@ -4486,6 +4490,7 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
           LIMIT ${OBSERVATION_EVENT_PUBLIC_LIST_LIMIT}`
       ).bind(cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.sessionId ?? null)
         .all<ObservationEventSessionD1Row>();
+      publicScanPages += 1;
       if (rows.results.length === 0) break;
       for (const row of rows.results) {
         const session = mapObservationEventSession(row);
@@ -4501,14 +4506,21 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
       cursor = { startedAt: last.started_at, sessionId: last.session_id };
       if (rows.results.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) break;
     }
+    scanLimitReached = sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT
+      && publicScanPages >= OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT;
   } catch {
     loadFailed = true;
+    scanLimitReached = false;
     sessions.length = 0;
   }
   const strings = getObservationEventStrings(lang);
   return pageHtml(
     strings.listHeroHeading,
-    renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, { loadFailed, retryHref: "/community/events" }),
+    renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, {
+      loadFailed,
+      partial: scanLimitReached,
+      retryHref: "/community/events",
+    }),
     "event-page-list",
   );
 }
