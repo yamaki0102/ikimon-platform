@@ -2842,6 +2842,11 @@ export const worker = {
         return await getMunicipalWalkMapPublicDetailPage(decodeURIComponent(municipalWalkMapDetailPageMatch[1]), env);
       }
 
+      const globalPlaceDetailMatch = nativePathname.match(/^\/places\/(plc_[A-Za-z0-9_-]{1,156})$/u);
+      if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
+        return getGlobalPlaceDetailPage(request, url, env, globalPlaceDetailMatch[1]);
+      }
+
       const nativePlacePageMatch = nativePathname.match(/^\/places\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && nativePlacePageMatch?.[1]) {
         return getNativePlaceLandingPage(decodeURIComponent(nativePlacePageMatch[1]), request);
@@ -2977,11 +2982,6 @@ export const worker = {
 
       if (nativePathname === "/api/v1/me/saved") {
         return handleSavedItemsRequest(request, env.CORE_DB, await readCompatibleSession(request, env));
-      }
-
-      const globalPlaceDetailMatch = nativePathname.match(/^\/places\/([^/]+)$/u);
-      if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
-        return getGlobalPlaceDetailPage(request, url, env, globalPlaceDetailMatch[1]);
       }
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);

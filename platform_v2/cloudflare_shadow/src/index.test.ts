@@ -18548,7 +18548,7 @@ test("production oauth callback fails closed when provider secrets are not confi
 });
 
 test("production public UI routes avoid legacy PHP fallback by default", async () => {
-  const { env, core } = createEnv();
+  const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -18596,6 +18596,118 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
     assert.equal(localizedPlace.status, 200);
     assert.equal(localizedPlace.headers.get("x-ikimon-cloudflare-native"), "place-guide-list");
     assert.equal(seen.length, 0);
+
+    const canonicalPlaceId = "plc_e3293ec4bb9288a0";
+    const placeGeometry = JSON.stringify({
+      type: "Polygon",
+      coordinates: [[[138.379, 34.969], [138.382, 34.969], [138.382, 34.972], [138.379, 34.972], [138.379, 34.969]]],
+    });
+    const searchRow = {
+      place_id: canonicalPlaceId,
+      canonical_name: "常磐公園",
+      canonical_name_normalized: "常磐公園",
+      place_kind: "park",
+      locality_label: "静岡県 静岡市",
+      verification_status: "verified",
+      official_status: "official",
+      aliases_json: "Tokiwa Park",
+      matched_alias_normalized: null,
+      boundary_geojson: placeGeometry,
+      boundary_precision: "exact",
+      boundary_confidence: 0.9,
+      bbox_west: 138.379,
+      bbox_south: 34.969,
+      bbox_east: 138.382,
+      bbox_north: 34.972,
+      source_type: "osm",
+      source_id: "way:125727939",
+      source_url: "https://www.openstreetmap.org/way/125727939",
+      source_confidence: 0.9,
+      source_verification_status: "source_verified",
+      source_last_checked_at: "2026-10-03T00:00:00Z",
+      osm_source_id: "way:125727939",
+    };
+    const registeredPlace = {
+      place_id: canonicalPlaceId,
+      canonical_name: "常磐公園",
+      locality_label: "静岡県 静岡市",
+      place_kind: "park",
+      verification_status: "verified",
+      official_status: "official",
+      public_summary: "地域の公園です。",
+      recording_policy: "allowed",
+      public_location_mode: "place",
+      contribution_cta_mode: "record",
+      official_rule_url: null,
+      policy_verification_status: "verified",
+    };
+    const placeBoundary = {
+      boundary_geojson: placeGeometry,
+      confidence: 0.9,
+      precision_kind: "exact",
+      bbox_west: 138.379,
+      bbox_south: 34.969,
+      bbox_east: 138.382,
+      bbox_north: 34.972,
+    };
+    const sourceRows = [{
+      source_type: "osm",
+      source_id: "way:125727939",
+      source_url: "https://www.openstreetmap.org/way/125727939",
+      source_confidence: 0.9,
+      verification_status: "source_verified",
+      last_checked_at: "2026-10-03T00:00:00Z",
+    }];
+    const originalPrepare = obs.prepare.bind(obs);
+    obs.prepare = ((query: string) => {
+      const normalized = normalize(query);
+      let values: D1Value[] = [];
+      const statement = {
+        bind(...next: D1Value[]) { values = next; return statement; },
+        async all<T>() {
+          if (normalized.includes("FROM places p") && normalized.includes("p.canonical_name_normalized")) {
+            return { results: [searchRow as unknown as T] };
+          }
+          if (normalized.startsWith("SELECT alias, language_code FROM place_aliases")) {
+            return { results: [{ alias: "Tokiwa Park", language_code: "en" } as unknown as T] };
+          }
+          if (normalized.startsWith("SELECT source_type, source_id, source_url, source_confidence")) {
+            return { results: sourceRows as unknown as T[] };
+          }
+          if (
+            normalized.includes("FROM place_facilities")
+            || normalized.includes("FROM place_content_items")
+            || normalized.includes("FROM public_map_snapshot_records_v1")
+            || normalized.includes("FROM record_place_memberships m")
+            || normalized.includes("FROM place_memory_entries")
+          ) {
+            return { results: [] as T[] };
+          }
+          return originalPrepare(query).bind(...values).all<T>();
+        },
+        async first<T>() {
+          if (normalized.includes("FROM place_source_references ps JOIN places p")) {
+            return registeredPlace as unknown as T;
+          }
+          if (normalized.startsWith("SELECT boundary_geojson, confidence, precision_kind")) {
+            return placeBoundary as unknown as T;
+          }
+          return originalPrepare(query).bind(...values).first<T>();
+        },
+      };
+      return statement as unknown as FakeStatement;
+    }) as typeof obs.prepare;
+    try {
+      const canonicalPlace = await worker.fetch(new Request(`https://ikimon.life/places/${canonicalPlaceId}`), productionEnv);
+      const canonicalPlaceBody = await canonicalPlace.text();
+      assert.equal(canonicalPlace.status, 200);
+      assert.equal(canonicalPlace.headers.get("x-ikimon-cloudflare-native"), "global-place-detail");
+      assert.match(canonicalPlaceBody, /<h1 id="gpd-title">常磐公園<\/h1>/);
+      assert.match(canonicalPlaceBody, new RegExp(canonicalPlaceId));
+      assert.equal(seen.length, 0);
+    } finally {
+      obs.prepare = originalPrepare;
+    }
 
     const placeSnapshot = await worker.fetch(new Request("https://ikimon.life/places/hamamatsu/snapshot"), productionEnv);
     assert.equal(placeSnapshot.status, 404);
