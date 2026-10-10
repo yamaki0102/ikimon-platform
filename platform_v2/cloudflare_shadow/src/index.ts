@@ -4975,8 +4975,8 @@ export function renderObservationEventCreatePage(
   ${template ? `<p class="muted" data-template-rehost>前回の企画設定だけを再利用しています。参加者・同意・review・公開状態は引き継ぎません。</p>` : ""}
   <form data-observation-event-create-form style="display:grid;gap:12px;">
     <label>タイトル<input name="title" value="${escapeHtml(templateTitle)}" required maxlength="80" placeholder="例: 秋の里山観察会"></label>
-    <label>開始日時（この端末の時間帯）<input name="started_at" required type="datetime-local"></label>
-    <label>終了日時（この端末の時間帯）<input name="ended_at" type="datetime-local"></label>
+    <label>開始日時（日本時間）<input name="started_at" required type="datetime-local"></label>
+    <label>終了日時（日本時間）<input name="ended_at" type="datetime-local"></label>
     <label>フィールドID<input name="field_id" value="${escapeHtml(templateFieldId)}" maxlength="120" placeholder="例: aikan-renri-ikan-hq"></label>
     <label>緯度（フィールドIDがない場合）<input name="location_lat" type="number" step="any" min="-90" max="90" placeholder="34.7108"></label>
     <label>経度（フィールドIDがない場合）<input name="location_lng" type="number" step="any" min="-180" max="180" placeholder="137.7261"></label>
@@ -5000,16 +5000,35 @@ export function renderObservationEventCreatePage(
   const eventTemplate = ${eventTemplateJson};
   const discoveryJournalEnabled = ${JSON.stringify(discoveryJournalEnabled)};
   if (!(form instanceof HTMLFormElement)) return;
+  const parseEventTokyoDateTime = (value) => {
+    const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.(\\d{1,3}))?)?$/.exec(String(value || "").trim());
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const hour = Number(match[4]);
+    const minute = Number(match[5]);
+    const second = Number(match[6] || "0");
+    const millisecond = Number(String(match[7] || "").padEnd(3, "0") || "0");
+    const wallClockAsUtc = new Date(0);
+    wallClockAsUtc.setUTCFullYear(year, month - 1, day);
+    wallClockAsUtc.setUTCHours(hour, minute, second, millisecond);
+    if (wallClockAsUtc.getUTCFullYear() !== year || wallClockAsUtc.getUTCMonth() + 1 !== month
+      || wallClockAsUtc.getUTCDate() !== day || wallClockAsUtc.getUTCHours() !== hour
+      || wallClockAsUtc.getUTCMinutes() !== minute || wallClockAsUtc.getUTCSeconds() !== second
+      || wallClockAsUtc.getUTCMilliseconds() !== millisecond) return null;
+    return new Date(wallClockAsUtc.getTime() - 9 * 60 * 60 * 1000);
+  };
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = form.querySelector("button[type=submit]");
     if (button instanceof HTMLButtonElement) button.disabled = true;
     if (status) status.textContent = "観察会を作成しています…";
     const data = new FormData(form);
-    const startedAt = new Date(String(data.get("started_at") || ""));
+    const startedAt = parseEventTokyoDateTime(data.get("started_at"));
     const endedAtValue = String(data.get("ended_at") || "").trim();
-    const endedAt = endedAtValue ? new Date(endedAtValue) : null;
-    if (!Number.isFinite(startedAt.getTime()) || (endedAt && (!Number.isFinite(endedAt.getTime()) || endedAt <= startedAt))) {
+    const endedAt = endedAtValue ? parseEventTokyoDateTime(endedAtValue) : null;
+    if (!startedAt || (endedAtValue && !endedAt) || (endedAt && endedAt <= startedAt)) {
       if (status) status.textContent = "開始日時と、それより後の終了日時を確認してください。";
       if (button instanceof HTMLButtonElement) button.disabled = false;
       return;

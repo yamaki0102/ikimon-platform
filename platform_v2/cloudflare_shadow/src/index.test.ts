@@ -28665,6 +28665,8 @@ test("event template creation preserves the selected template and field through 
   const response = await worker.fetch(new Request("https://ikimon.life" + returnPath, { headers: { cookie } }), env);
   const page = await response.text();
   assert.match(page, /data-common-event-template="ryuyo"/u);
+  assert.match(page, /開始日時（日本時間）/u);
+  assert.match(page, /終了日時（日本時間）/u);
   assert.match(page, new RegExp(`name="field_id" value="${RYUYO_FIELD_ID}"`, "u"));
   assert.doesNotMatch(page, /開催日が決定|参加費は無料|主催者承認済み/u);
 
@@ -28706,6 +28708,33 @@ test("event template creation preserves the selected template and field through 
       return Response.json(writes.length === 1 ? { error: "temporary_failure" } : { sessionId: "new-event", eventCode: body.event_code }, { status: writes.length === 1 ? 503 : 201 });
     }
   });
+  values.set("started_at", "2026-02-30T10:00");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "impossible Tokyo calendar dates are rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("started_at", "2026-11-12T24:00");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "out-of-range Tokyo wall-clock hours are rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("started_at", "");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "an empty required Tokyo start time is rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("started_at", "2026-11-12T10:00");
+  values.set("ended_at", "2026-02-30T12:00");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "an invalid non-empty Tokyo end time is rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("ended_at", "2026-11-12T09:59");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "an end time at or before the Tokyo start time is rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("ended_at", "2026-11-12T12:00");
   await submit!({ preventDefault() {} });
   assert.equal(button.disabled, false);
   await submit!({ preventDefault() {} });
@@ -28719,7 +28748,8 @@ test("event template creation preserves the selected template and field through 
   assert.equal(writes[0].config.public_listed, false);
   assert.equal(writes[0].plan, "public");
   assert.equal(writes[0].field_id, RYUYO_FIELD_ID);
-  assert.equal(writes[0].started_at, new Date("2026-11-12T10:00").toISOString());
+  assert.equal(writes[0].started_at, "2026-11-12T01:00:00.000Z");
+  assert.equal(writes[0].ended_at, "2026-11-12T03:00:00.000Z");
   assert.equal(next.hidden, false);
   assert.equal(next.href, `/community/events/${writes[0].event_code}/join`);
   assert.equal(organizer.hidden, false);
