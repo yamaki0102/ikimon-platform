@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { PlaceAtlasProfile } from "../../src/services/placeAtlasContract";
+import { buildPlaceAtlasProfile, type PlaceAtlasSourceRecord } from "../../src/services/placeAtlasContract";
 import type { SavedItem } from "./savedItems";
-import { renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 
 function fixture(): PlaceAtlasProfile {
   return {
@@ -78,6 +79,68 @@ test("detail rendering rejects a Place without a stable canonical identity", () 
   const invalid = fixture();
   (invalid.place as PlaceAtlasProfile["place"] & { canonicalPlaceId?: string }).canonicalPlaceId = "";
   assert.throws(() => renderGlobalPlaceDetailPage({ profile: invalid, lang: "ja" }), /canonical_place_id_required/);
+});
+
+test("public Place detail stays available for 0–3 Records while suppressed summaries remain empty", () => {
+  const states = ["published", "suppressed", "suppressed", "published"] as const;
+  for (let count = 0; count <= 3; count += 1) {
+    const records: PlaceAtlasSourceRecord[] = Array.from({ length: count }, (_, index) => ({
+      recordId: `record-${index + 1}`,
+      observedAt: `2026-09-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+      contributorKey: `contributor-${index + 1}`,
+      displayName: `Record ${index + 1}`,
+      identificationStatus: "confirmed",
+    }));
+    const profile = buildPlaceAtlasProfile({
+      placeRef: { kind: "osm_area", entityKey: "osm:way:125727939", osmType: "way", osmId: 125727939 },
+      place: {
+        name: "常磐公園", type: "park", localityLabel: "静岡県 静岡市", description: "まちなかの公園です。",
+        canonicalPlaceId: "plc_e3293ec4bb9288a0", multilingualNames: { ja: "常磐公園", en: "Tokiwa Park" },
+      },
+      records,
+      recordSetComplete: true,
+      locationMode: "osm_area",
+      minimumPublicRecords: 3,
+      contributorCountAllowed: false,
+      policy: {
+        placeVisibility: "public", recordingPolicy: "check_rules", publicLocationMode: "place",
+        contributionCtaMode: "check_rules", ruleSource: "official", ruleUrl: null, reason: "recording_rules_unverified",
+      },
+      sources: ["canonical_place_registry"],
+      generatedAt: "2026-09-15T00:00:00.000Z",
+    });
+    assert.equal(profile.publication.status, states[count]);
+    assert.equal(isPublicGlobalPlaceDetailProfile(profile, "plc_e3293ec4bb9288a0"), true);
+    const html = renderGlobalPlaceDetailPage({ profile, lang: "en", viewerAuthenticated: false });
+    assert.match(html, /<h1 id="gpd-title">Tokiwa Park<\/h1>/);
+    assert.match(html, new RegExp(`data-place-atlas-status="${states[count]}"`));
+    if (count === 0) assert.match(html, /data-place-atlas-state="empty"/);
+    if (count === 1 || count === 2) {
+      assert.match(html, /data-place-atlas-state="suppressed"/);
+      assert.equal(profile.summary.recordCount, null);
+      assert.equal(profile.recentRecords.length, 0);
+      assert.doesNotMatch(html, /Record 1|Record 2/);
+      const savedHtml = renderGlobalPlaceDetailPage({
+        profile,
+        lang: "en",
+        viewerAuthenticated: true,
+        savedItem: {
+          kind: "place", objectId: "plc_e3293ec4bb9288a0", path: "/places/plc_e3293ec4bb9288a0", title: "常磐公園",
+          state: "saved", revision: 3, savedAt: "2026-09-15T00:00:00Z", updatedAt: "2026-09-15T00:00:00Z",
+        },
+      });
+      assert.match(savedHtml, /data-saved-revision="3"/);
+    }
+    if (count === 3) assert.equal(profile.summary.recordCount, 3);
+  }
+});
+
+test("global Place detail continues to reject non-public registered policies", () => {
+  for (const placeVisibility of ["limited", "hidden"] as const) {
+    const profile = fixture();
+    profile.policy = { ...profile.policy!, placeVisibility };
+    assert.equal(isPublicGlobalPlaceDetailProfile(profile, "plc_e3293ec4bb9288a0"), false);
+  }
 });
 
 

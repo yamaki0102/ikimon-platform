@@ -7,6 +7,17 @@ import { QUIET_HOME_STYLES, renderSavedControl, renderSavedItemsScript, type Qui
 
 export type GlobalPlaceDetailLang = QuietHomeLang;
 
+export function isPublicGlobalPlaceDetailProfile(
+  profile: PlaceAtlasProfile | null | undefined,
+  canonicalPlaceId: string,
+): profile is PlaceAtlasProfile {
+  return Boolean(
+    profile
+    && profile.place.canonicalPlaceId === canonicalPlaceId
+    && profile.policy?.placeVisibility === "public"
+  );
+}
+
 type PlaceProfileWithGlobalNames = PlaceAtlasProfile & {
   place: PlaceAtlasProfile["place"] & {
     canonicalPlaceId?: string | null;

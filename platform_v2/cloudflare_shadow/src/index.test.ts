@@ -7082,24 +7082,19 @@ class FakeStatement {
       const scheduledOnly = normalized.includes("AND julianday(started_at) <= julianday('now')");
       const activeOnly = scheduledOnly || normalized.includes("WHERE ended_at IS NULL");
       const publicListQuery = normalized.includes("WHERE event_code IS NOT NULL AND trim(event_code) <> ''");
-      const viewerUserId = publicListQuery ? (v[0] === null ? null : string(v[0])) : null;
+      const cursorStartedAt = publicListQuery && v[0] !== null ? string(v[0]) : null;
+      const cursorSessionId = publicListQuery && v[3] !== null ? string(v[3]) : null;
       const rows = [...this.db.observationEventSessions.values()]
         .filter((row) => !publicListQuery || Boolean(row.event_code?.trim()))
-        .filter((row) => !publicListQuery || row.organizer_user_id === viewerUserId || (() => {
-          const config = JSON.parse(row.config_json) as Record<string, unknown>;
-          const listed = config.public_listed !== false && config.public_listed !== 0
-            && config.publicListVisible !== false && config.publicListVisible !== 0;
-          const visibility = String(config.public_list_visibility ?? config.publicListVisibility ?? "").trim().toLowerCase();
-          const hidden = [config.qa_fixture, config.qaFixture, config.is_fixture, config.isFixture, config.test_fixture, config.testFixture]
-            .some((value) => value === true || (typeof value === "string" && /^(?:1|true|yes|qa|fixture|test|smoke)$/iu.test(value.trim())));
-          return listed && !hidden && !["private-until-explicit", "hidden", "internal", "qa", "fixture", "test"].includes(visibility);
-        })())
+        .filter((row) => !publicListQuery || cursorStartedAt === null
+          || row.started_at < cursorStartedAt
+          || (row.started_at === cursorStartedAt && cursorSessionId !== null && row.session_id > cursorSessionId))
         .filter((row) => !activeOnly || (
           (row.ended_at === null || (scheduledOnly && Date.parse(row.ended_at) > Date.now()))
           && Date.parse(row.started_at) <= Date.now()
           && (!scheduledOnly || !JSON.parse(row.config_json).program_receiver_private)
         ))
-        .sort((a, b) => b.started_at.localeCompare(a.started_at))
+        .sort((a, b) => b.started_at.localeCompare(a.started_at) || (publicListQuery ? a.session_id.localeCompare(b.session_id) : 0))
         .slice(0, activeOnly ? 50 : 24);
       return { results: rows as T[] };
     }
@@ -19700,15 +19695,23 @@ test("public participation list hides private and codeless lifecycle states whil
       });
     }
   }
+  const qaNoise = [
+    { title: "Flag alias fixture", event_code: "MIXEDFLAG2026", config: { qa_fixture: false, is_fixture: true } },
+    { title: "Source marker fixture", event_code: "MIXEDSOURCE2026", config: { source: "qa" } },
+    { title: "Code marker fixture", event_code: "qa-hidden-2026", config: {} },
+    { title: "PR #123 production rally fixture", event_code: "MIXEDTITLE2026", config: {} },
+    { title: "【検証用】fixture event", event_code: "MIXEDJAPANESE2026", config: {} },
+  ] as const;
   for (let index = 0; index < 32; index += 1) {
     const id = `unlisted-flood-${index}`;
+    const fixture = qaNoise[index % qaNoise.length]!;
     obs.observationEventSessions.set(id, {
       ...base,
       session_id: id,
-      title: `Unlisted gathering ${index}`,
-      event_code: `UNLISTED${index}`,
-      started_at: `2098-01-${String((index % 28) + 1).padStart(2, "0")}T00:00:00.000Z`,
-      config_json: JSON.stringify({ public_listed: false }),
+      title: fixture.title,
+      event_code: fixture.event_code,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+      config_json: JSON.stringify(fixture.config),
     });
   }
 
@@ -19721,7 +19724,7 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.match(html, /data-participation-kind="ended"/);
   assert.match(html, /href="\/en\/community\/events\/OPEN2026\/join"/);
   assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
-  assert.doesNotMatch(html, /Unlisted gathering|UNLISTED\d/);
+  assert.doesNotMatch(html, /Flag alias fixture|Source marker fixture|Code marker fixture|PR #123 production rally fixture|検証用/);
   assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
 });
 
