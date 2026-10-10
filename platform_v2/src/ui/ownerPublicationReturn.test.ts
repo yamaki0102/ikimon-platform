@@ -66,9 +66,9 @@ test("quality visibility status alone is not presented as a human Review decisio
   assert.doesNotMatch(html, /Reviewed and approved/);
 });
 
-test("latest correction or rejection replaces prior approval and excludes a published destination", () => {
+test("explicit non-accepted quality state clears prior approval and excludes a published destination", () => {
   const destination = "miyakoda-renri-area";
-  for (const status of ["changes_requested", "correction_requested", "rejected"]) {
+  for (const status of ["needs_review", "rejected", "archived", "pending", "changes_requested", "correction_requested"]) {
     const decision = ownerPublicationReviewDecisionFromQualityStatus(status, base.reviewDecision);
     const html = renderOwnerPublicationReturn({
       ...base,
@@ -76,9 +76,8 @@ test("latest correction or rejection replaces prior approval and excludes a publ
       publishedDestinations: [destination],
       lang: "en",
     });
-    const expectedReviewState = status === "rejected" ? "rejected" : "changes_requested";
 
-    assert.match(html, new RegExp(`data-publication-review-state="${expectedReviewState}"`));
+    assert.match(html, /data-publication-review-state="not_reviewed"/);
     assert.match(html, /data-publication-state="not_ready"/);
     assert.match(html, /data-publication-destination-status="excluded"/);
     assert.doesNotMatch(html, /Eligible \(not published\)|Publication confirmed/);
@@ -104,9 +103,8 @@ test("accepted quality status cannot manufacture human approval", () => {
   assert.match(qualityAcceptedWithHumanApproval, /data-publication-state="eligible"/);
 });
 
-test("only exact correction and rejection states override a human approval", () => {
-
-  for (const status of ["needs_review", "verified", "archived", "ACCEPTED", "unknown", 1]) {
+test("pending, unknown, and unsupported review states fail closed", () => {
+  for (const status of ["verified", "ACCEPTED", "unknown", 1]) {
     const html = renderOwnerPublicationReturn({
       ...base,
       reviewDecision: ownerPublicationReviewDecisionFromQualityStatus(status, base.reviewDecision),
