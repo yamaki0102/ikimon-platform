@@ -8257,6 +8257,48 @@ function createConcurrentObservationEnv() {
   };
 }
 
+// Run the actual Worker idempotency reservation SQL against SQLite. Other
+// observation tables keep the established in-memory fixture.
+class ObservationIdempotencySqliteD1 extends FakeD1 {
+  readonly sqlite = new DatabaseSync(":memory:");
+  failPlaceMemoryReadOnce = false;
+  failObservationBatchOnce = false;
+
+  constructor(migrationSql: string) {
+    super();
+    this.sqlite.exec(migrationSql);
+  }
+
+  override async batch(statements: FakeStatement[]): Promise<unknown[]> {
+    if (this.failObservationBatchOnce) {
+      this.failObservationBatchOnce = false;
+      throw new Error("injected_unknown_observation_batch_outcome");
+    }
+    return super.batch(statements);
+  }
+
+  override prepare(query: string): FakeStatement {
+    const sqlite = this.sqlite;
+    if (this.failPlaceMemoryReadOnce && query.includes("FROM place_memory_user_preferences")) {
+      this.failPlaceMemoryReadOnce = false;
+      return {
+        bind() { return this; },
+        async first() { throw new Error("injected_pre_observation_batch_failure"); },
+        async all() { throw new Error("injected_pre_observation_batch_failure"); },
+        async run() { throw new Error("injected_pre_observation_batch_failure"); },
+      } as unknown as FakeStatement;
+    }
+    if (!query.includes("observation_write_idempotency")) return super.prepare(query);
+    let values: D1Value[] = [];
+    return {
+      bind(...bound: D1Value[]) { values = bound; return this; },
+      async first<T>() { return (sqlite.prepare(query).get(...values) as T | undefined) ?? null; },
+      async all<T>() { return { results: sqlite.prepare(query).all(...values) as T[] }; },
+      async run() { return { meta: { changes: Number(sqlite.prepare(query).run(...values).changes) } }; },
+    } as unknown as FakeStatement;
+  }
+}
+
 function streamWebhookSignature(body: string, secret: string, time = Math.floor(Date.now() / 1000)): string {
   const sig1 = createHmac("sha256", secret).update(`${time}.${body}`).digest("hex");
   return `time=${time},sig1=${sig1}`;
@@ -10665,6 +10707,68 @@ test("v1 observation upsert converges concurrent equivalent submissions to one r
   assert.equal(conflict.status, 409);
   assert.equal((await conflict.json() as Record<string, unknown>).error, "client_submission_id_conflict");
   assert.equal(obs.observations.size, 1);
+});
+
+test("v1 observation upsert releases a failed pre-batch SQLite idempotency reservation for retry", async (t) => {
+  const base = createEnv();
+  const migrationSql = await readFile(new URL("../migrations/observations/0051_observation_write_idempotency.sql", import.meta.url), "utf8");
+  const obs = new ObservationIdempotencySqliteD1(migrationSql);
+  t.after(() => obs.sqlite.close());
+  const env = { ...base.env, OBS_DB: obs };
+  const body = {
+    clientSubmissionId: "capture-recovery:sqlite-001",
+    userId: "capture-recovery-user",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    placeMemory: { tags: ["quiet_moment"] },
+    sourcePayload: { source: "pre_batch_recovery_contract" },
+  };
+  const request = (observationId: string) => worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...body, observationId }),
+  }), env);
+
+  obs.failPlaceMemoryReadOnce = true;
+  await assert.rejects(request("capture-recovery-original"), /injected_pre_observation_batch_failure/);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_write_idempotency WHERE client_submission_id = ?").get(body.clientSubmissionId)?.count, 0);
+
+  const retried = await request("capture-recovery-retry");
+  assert.equal(retried.status, 201);
+  const payload = await retried.json() as Record<string, unknown>;
+  assert.equal(payload.visitId, "capture-recovery-retry");
+  assert.equal(obs.sqlite.prepare("SELECT write_status FROM observation_write_idempotency WHERE client_submission_id = ?").get(body.clientSubmissionId)?.write_status, "succeeded");
+  assert.equal(obs.observations.size, 1);
+
+  const replayed = await request("capture-recovery-replay");
+  assert.equal(replayed.status, 200);
+  assert.equal((await replayed.json() as Record<string, unknown>).visitId, "capture-recovery-retry");
+  const conflict = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...body, note: "same key with changed payload", observationId: "capture-recovery-conflict" }),
+  }), env);
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json() as Record<string, unknown>).error, "client_submission_id_conflict");
+
+  const unknownBody = { ...body, clientSubmissionId: "capture-recovery:sqlite-002" };
+  obs.failObservationBatchOnce = true;
+  await assert.rejects(worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...unknownBody, observationId: "capture-recovery-unknown" }),
+  }), env), /injected_unknown_observation_batch_outcome/);
+  assert.equal(obs.sqlite.prepare("SELECT write_status FROM observation_write_idempotency WHERE client_submission_id = ?").get(unknownBody.clientSubmissionId)?.write_status, "in_progress");
+  assert.equal(obs.observations.size, 1, "unknown batch outcome must not create a second local fixture observation");
+  const unknownRetry = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...unknownBody, observationId: "capture-recovery-unknown-retry" }),
+  }), env);
+  assert.equal(unknownRetry.status, 409, "the issued batch reservation remains fenced from unsafe retry");
+  assert.equal((await unknownRetry.json() as Record<string, unknown>).error, "duplicate_submission_in_progress");
 });
 
 test("v1 observation upsert returns the current Fastify-compatible ok contract", async () => {
