@@ -7,6 +7,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { deflateSync } from "node:zlib";
 import { chromium } from "@playwright/test";
+import { buildApp } from "../../src/app";
 import * as bcrypt from "bcryptjs";
 import {
   listPublicSiteMapMaterializationPaths,
@@ -14,6 +15,7 @@ import {
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
 import { worker } from "./index";
+import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
 const INTERNAL_AUTH_TOKEN = "test-internal-token";
@@ -22187,6 +22189,46 @@ test("production original UI static assets serve materialized bytes from R2 with
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("offline shell foundation is idempotent through the default public presentation entry", async () => {
+  const app = buildApp();
+  const rendered = await app.inject({
+    method: "GET",
+    url: "/offline.html?lang=ja",
+    headers: { host: "zukan.earth", accept: "text/html", "cache-control": "no-store" },
+  });
+  assert.equal(rendered.statusCode, 200);
+  const renderedBytes = Buffer.from(rendered.body, "utf8");
+  const renderedSha256 = createHash("sha256").update(renderedBytes).digest("hex");
+  const manifestHash = "a".repeat(64);
+  const versionPrefix = `original-ui/versions/${manifestHash}`;
+  const { env } = createEnv();
+  const pinnedEnv = { ...env, ENVIRONMENT: "production", IKIMON_UI_MANIFEST_HASH: manifestHash };
+  await env.ASSET_BUCKET.put(`${versionPrefix}/manifest.json`, JSON.stringify({
+    items: [{ key: "static/offline.html", sha256: renderedSha256, version_prefix: versionPrefix }],
+  }), { httpMetadata: { contentType: "application/json" } });
+  await env.ASSET_BUCKET.put(`${versionPrefix}/static/offline.html`, renderedBytes, {
+    httpMetadata: { contentType: "text/html; charset=utf-8" },
+  });
+
+  const response = await publicPresentationEntry.fetch(
+    new Request("https://zukan.earth/offline.html?lang=ja"),
+    pinnedEnv,
+    {},
+  );
+  const servedBytes = Buffer.from(await response.arrayBuffer());
+  const servedBody = servedBytes.toString("utf8");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+  assert.deepEqual(servedBytes, renderedBytes);
+  assert.equal(createHash("sha256").update(servedBytes).digest("hex"), renderedSha256);
+  assert.equal((servedBody.match(/<style\b[^>]*id="zukan-design-foundation-v1"/g) ?? []).length, 1);
+  assert.equal((servedBody.match(/<body data-zukan-design="v1">/g) ?? []).length, 1);
+  assert.match(servedBody, /\.offline\{width:min\(420px,100%\)/);
+  assert.match(servedBody, /\.mark img\{width:100%;height:100%;display:block\}/);
+  await app.close();
 });
 
 test("production original UI static asset misses return 404 without origin fallback", async () => {

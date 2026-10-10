@@ -142,7 +142,7 @@ export function buildOfflineHtml(lang: SiteLang): string {
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
   <title>${copy.offlineTitle} | ZUKAN</title>
-  <style>
+  <style id="zukan-design-foundation-v1">
     *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;font-family:var(--zukan-font-sans);background:var(--zukan-surface-subtle);color:var(--zukan-text-primary)}.offline{width:min(420px,100%);display:grid;gap:16px}.mark{width:64px;height:64px;border-radius:var(--zukan-radius-content);display:grid;place-items:center;overflow:hidden}.mark img{width:100%;height:100%;display:block}.offline h1{margin:0;font-size:26px;line-height:1.2}.offline p{margin:0;color:var(--zukan-text-secondary);line-height:1.7}.links{display:grid;gap:10px;margin-top:6px}.links a,.retry{min-height:48px;border-radius:var(--zukan-radius-control);border:1px solid var(--zukan-border-control);display:flex;align-items:center;justify-content:center;padding:0 14px;text-decoration:none;font-weight:850;color:var(--zukan-action-primary);background:var(--zukan-surface-base)}.retry{background:var(--zukan-action-primary);color:#fff;border:0;font:inherit;cursor:pointer}${ZUKAN_DESIGN_FOUNDATION_STYLES}
   </style>
 </head>
