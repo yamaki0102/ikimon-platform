@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   PUBLICATION_SYNDICATION_POLICY_VERSION,
   PUBLICATION_SYNDICATION_PURPOSE,
+  ownerPublicationReviewDecisionFromQualityStatus,
 } from "../services/publicationSyndication.js";
 import { renderOwnerPublicationReturn } from "./ownerPublicationReturn.js";
 
@@ -34,6 +36,13 @@ const base = {
   rights,
   now: new Date("2026-09-15T00:00:00.000Z"),
 };
+const readRouteSource = readFileSync(new URL("../routes/read.ts", import.meta.url), "utf8");
+
+test("Node owner publication return uses the latest review status with an absence-only fallback", () => {
+  assert.match(readRouteSource, /ownerPublicationReviewDecisionFromQualityStatus\(snapshot\.qualityReviewStatus, reviewFallback\)/);
+  assert.match(readRouteSource, /const reviewFallback = currentSubject\.hasSpecialistApproval/);
+  assert.doesNotMatch(readRouteSource, /const reviewDecision = currentSubject\.hasSpecialistApproval/);
+});
 
 test("publication return is owner-only", () => {
   const html = renderOwnerPublicationReturn({ ...base, owner: false, lang: "ja" });
@@ -55,6 +64,65 @@ test("quality visibility status alone is not presented as a human Review decisio
   assert.match(html, /data-publication-review-state="not_reviewed"/);
   assert.match(html, /Not reviewed/);
   assert.doesNotMatch(html, /Reviewed and approved/);
+});
+
+test("explicit non-accepted quality state clears prior approval and excludes a published destination", () => {
+  const destination = "miyakoda-renri-area";
+  for (const status of ["needs_review", "rejected", "archived", "pending", "changes_requested", "correction_requested"]) {
+    const decision = ownerPublicationReviewDecisionFromQualityStatus(status, base.reviewDecision);
+    const html = renderOwnerPublicationReturn({
+      ...base,
+      reviewDecision: decision,
+      publishedDestinations: [destination],
+      lang: "en",
+    });
+
+    assert.match(html, /data-publication-review-state="not_reviewed"/);
+    assert.match(html, /data-publication-state="not_ready"/);
+    assert.match(html, /data-publication-destination-status="excluded"/);
+    assert.doesNotMatch(html, /Eligible \(not published\)|Publication confirmed/);
+  }
+});
+
+test("accepted quality status cannot manufacture human approval", () => {
+  const qualityAcceptedOnly = renderOwnerPublicationReturn({
+    ...base,
+    reviewDecision: ownerPublicationReviewDecisionFromQualityStatus("accepted", null),
+    lang: "en",
+  });
+  assert.match(qualityAcceptedOnly, /data-publication-review-state="not_reviewed"/);
+  assert.match(qualityAcceptedOnly, /data-publication-state="not_ready"/);
+  assert.doesNotMatch(qualityAcceptedOnly, /Reviewed and approved|Eligible \(not published\)|Publication confirmed/);
+
+  const qualityAcceptedWithHumanApproval = renderOwnerPublicationReturn({
+    ...base,
+    reviewDecision: ownerPublicationReviewDecisionFromQualityStatus("accepted", base.reviewDecision),
+    lang: "en",
+  });
+  assert.match(qualityAcceptedWithHumanApproval, /data-publication-review-state="approved"/);
+  assert.match(qualityAcceptedWithHumanApproval, /data-publication-state="eligible"/);
+});
+
+test("pending, unknown, and unsupported review states fail closed", () => {
+  for (const status of ["verified", "ACCEPTED", "unknown", 1]) {
+    const html = renderOwnerPublicationReturn({
+      ...base,
+      reviewDecision: ownerPublicationReviewDecisionFromQualityStatus(status, base.reviewDecision),
+      lang: "en",
+    });
+    assert.match(html, /data-publication-review-state="not_reviewed"/);
+    assert.match(html, /data-publication-state="not_ready"/);
+    assert.doesNotMatch(html, /Eligible \(not published\)|Publication confirmed/);
+  }
+
+  for (const absentStatus of [null, undefined]) {
+    const html = renderOwnerPublicationReturn({
+      ...base,
+      reviewDecision: ownerPublicationReviewDecisionFromQualityStatus(absentStatus, base.reviewDecision),
+      lang: "en",
+    });
+    assert.match(html, /data-publication-state="eligible"/);
+  }
 });
 
 test("missing destination consent remains excluded", () => {

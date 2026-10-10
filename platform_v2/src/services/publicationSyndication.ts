@@ -273,6 +273,25 @@ export type OwnerPublicationReturnInput = {
   now?: Date;
 };
 
+/**
+ * Project the latest known observation quality state without treating it as
+ * proof of human review. Only an absent or exactly accepted state may preserve
+ * an existing human-review fallback; every explicit non-accepted state clears it.
+ */
+export function ownerPublicationReviewDecisionFromQualityStatus(
+  qualityReviewStatus: unknown,
+  fallback: OwnerPublicationReturnInput["reviewDecision"] = null,
+): OwnerPublicationReturnInput["reviewDecision"] {
+  if (qualityReviewStatus === null || qualityReviewStatus === undefined) return fallback;
+  if (typeof qualityReviewStatus !== "string") return null;
+  switch (qualityReviewStatus) {
+    case "accepted":
+      return fallback;
+    default:
+      return null;
+  }
+}
+
 function reviewProjection(decision: OwnerPublicationReturnInput["reviewDecision"]): OwnerPublicationReturn["review"] {
   const state = decision?.source === "human_review" && ["approved", "changes_requested", "held", "rejected", "withdrawn"].includes(decision.state)
     ? decision.state as Exclude<OwnerPublicationReviewState, "not_reviewed">
