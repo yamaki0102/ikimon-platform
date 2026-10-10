@@ -113,19 +113,26 @@ test("clear shared photo publishes during save, replays once, and withdrawal del
 
 test("personal information in a nickname is omitted from publication while ordinary nicknames remain", async () => {
   const state = fixture();
-  participant(state.db, "private-contact", "parent@example.test", false, true);
+  const privateNames = [
+    ["private-email", "parent@example.test"],
+    ["private-tel-prefix", "TEL09012345678"],
+    ["private-fullwidth-phone", "０９０－１２３４－５６７８"],
+    ["private-separated-phone", "+81 (90) 1234-5678"],
+  ] as const;
+  for (const [id, nickname] of privateNames) participant(state.db, id, nickname, false, true);
   participant(state.db, "safe-alias", "むしずき", false, true);
-  for (const [participantId, key] of [["private-contact", "contact-nickname"], ["safe-alias", "safe-nickname"]] as const) {
+  for (const [participantId, key] of [...privateNames.map(([id]) => [id, "contact-" + id] as const), ["safe-alias", "safe-nickname"]] as const) {
     const saved = await photo(state, participantId, key);
-    await state.store.autoPublishPhoto("event-a", saved.submissionId, async (_body, text) => {
-      assert.doesNotMatch(text, /example\.test|むしずき/u, "the nickname never leaves the service for screening");
+    const result = await state.store.autoPublishPhoto("event-a", saved.submissionId, async (_body, text) => {
+      assert.doesNotMatch(text, /example\.test|090|１２３４|むしずき/u, "the nickname never leaves the service for screening");
       return { clear: true, reason: "clear" };
     });
+    assert.equal(result?.galleryStatus, "published", "a sanitized or omitted public name does not block publication");
   }
   const gallery = await state.store.gallery("event-a");
-  assert.equal(gallery.counts.entries, 2);
-  assert.deepEqual(gallery.journals.map((journal) => journal.displayName).sort(), [null, "むしずき"]);
-  assert.doesNotMatch(JSON.stringify(gallery), /parent@example\.test/u);
+  assert.equal(gallery.counts.entries, privateNames.length + 1);
+  assert.deepEqual(gallery.journals.map((journal) => journal.displayName).sort(), [null, null, null, null, "むしずき"]);
+  assert.doesNotMatch(JSON.stringify(gallery), /parent@example\.test|TEL09012345678|０９０－１２３４－５６７８|\+81 \(90\) 1234-5678/u);
 });
 
 test("participants without the versioned Ryuyo Gemini notice remain private and are not sent for screening", async () => {
@@ -261,12 +268,14 @@ test("only consented human-reviewed derivatives enter a journal; anonymous names
   assert.equal((await state.store.privateReceipts("event-a", null)).receipts.find((row) => row.receiptId === first.submissionId)?.rightsReviewNote, APPROVAL.note);
   assert.equal((await state.store.privateReceipts("event-a", null)).receipts.some((row) => "idempotencyKey" in row), false);
   state.db.native.prepare("UPDATE observation_event_participants SET display_name = 'あとで変えた名前' WHERE participant_id = ?").run("private-participant-a");
-  assert.equal((await state.store.gallery("event-a")).counts.entries, 0, "nickname changes are not published under an earlier review");
-  await assert.rejects(state.store.content("event-a", first.submissionId), /not_found/);
+  assert.equal((await state.store.gallery("event-a")).counts.entries, 1, "the reviewed anonymous name snapshot remains eligible after the source nickname changes");
+  assert.equal((await state.store.gallery("event-a")).journals[0]?.displayName, null, "a later nickname is not exposed before review");
+  assert.deepEqual(await state.store.content("event-a", first.submissionId), WEBP);
   await state.store.review("event-a", first.submissionId, "organizer-private-id", APPROVAL);
   assert.equal((await state.store.gallery("event-a")).journals[0]?.displayName, "あとで変えた名前");
   state.db.native.prepare("UPDATE observation_event_participants SET display_name = '' WHERE participant_id = ?").run("private-participant-a");
-  assert.equal((await state.store.gallery("event-a")).counts.entries, 0, "clearing a nickname also removes the old displayed name immediately");
+  assert.equal((await state.store.gallery("event-a")).counts.entries, 0, "changing a named approval invalidates the old public name");
+  await assert.rejects(state.store.content("event-a", first.submissionId), /not_found/);
   await state.store.review("event-a", first.submissionId, "organizer-private-id", APPROVAL);
   assert.equal((await state.store.gallery("event-a")).journals[0]?.displayName, null);
   state.db.native.prepare("UPDATE observation_event_participants SET status = 'registered' WHERE participant_id = ?").run("private-participant-a");
