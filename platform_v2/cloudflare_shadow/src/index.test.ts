@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { deflateSync } from "node:zlib";
+import { chromium } from "@playwright/test";
 import * as bcrypt from "bcryptjs";
 import {
   listPublicSiteMapMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes";
+import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
 import { worker } from "./index";
 
@@ -26567,6 +26570,63 @@ test("native public Records filters one product list by search query without dup
   assert.match(html, /アキアカネ/);
   assert.equal((html.match(/name="q"/g) ?? []).length, 1);
   assert.doesNotMatch(html, /ニホンアマガエル|data-cloudflare-records-live|最近の投稿/);
+});
+
+test("native public empty-search action keeps its foreground contrast on mobile", { skip: !existsSync(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath()) && "Playwright Chromium is unavailable" }, async () => {
+  const { env } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
+  const materializedShell = renderSiteDocument({
+    basePath: "",
+    currentPath: "/ja/records",
+    canonicalPath: "/ja/records",
+    lang: "ja",
+    title: "みんなの記録 | ZUKAN",
+    description: "公開された写真やメモを、名前や場所から探せます。",
+    activeNav: "records",
+    body: "<div>Materialized Records shell placeholder</div>",
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/records.html", materializedShell, {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const response = await worker.fetch(new Request("https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/ja/records?view=public&q=%E6%A1%9C"), stagingEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /data-cloudflare-records-native/);
+  assert.match(html, /「桜」に合う記録は見つかりませんでした。/);
+  assert.match(html, /class="cf-records-native-empty-action" href="\/ja\/records\?view=public"/);
+
+  const browserPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath();
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  try {
+    for (const width of [320, 375]) {
+      const page = await browser.newPage({ viewport: { width, height: 844 } });
+      await page.route("https://**/*", (route) => route.abort());
+      await page.setContent(html, { waitUntil: "domcontentloaded" });
+      const measureStyle = new Function("anchor", `
+        const computed = getComputedStyle(anchor);
+        const channels = (value) => value.match(/\\d+/g).slice(0, 3).map(Number).map((channel) => channel / 255).map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+        const luminance = (value) => { const rgb = channels(value); return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]; };
+        const foreground = luminance(computed.color);
+        const background = luminance(computed.backgroundColor);
+        const rect = anchor.getBoundingClientRect();
+        return {
+          color: computed.color,
+          backgroundColor: computed.backgroundColor,
+          contrastRatio: (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05),
+          visible: rect.width > 0 && rect.height > 0 && computed.visibility === "visible",
+          height: rect.height,
+        };
+      `) as (anchor: Element) => { color: string; backgroundColor: string; contrastRatio: number; visible: boolean; height: number };
+      const style = await page.locator("main .cf-records-native-empty-action").evaluate(measureStyle);
+      assert.equal(style.visible, true, `empty-search action is hidden at ${width}px`);
+      assert.equal(style.color, "rgb(255, 255, 255)", `empty-search action foreground is not white at ${width}px`);
+      assert.ok(style.contrastRatio >= 4.5, `empty-search action contrast is ${style.contrastRatio.toFixed(2)}:1 at ${width}px`);
+      assert.ok(style.height >= 44, `empty-search action is shorter than 44px at ${width}px`);
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
 });
 
 test("guest cannot open the member Records view", async () => {
