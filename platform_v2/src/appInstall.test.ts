@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { BRAND_ASSETS } from "./brandAssets.js";
-import { buildAppServiceWorker } from "./appInstall.js";
+import { buildAppServiceWorker, buildOfflineHtml } from "./appInstall.js";
+
+test("offline shell identifies its existing public design foundation stylesheet", () => {
+  const html = buildOfflineHtml("ja");
+  assert.equal((html.match(/<style\b[^>]*id="zukan-design-foundation-v1"/g) ?? []).length, 1);
+  assert.match(html, /<style\b[^>]*id="zukan-design-foundation-v1"[^>]*>[\s\S]*?--zukan-font-sans:/);
+  assert.match(html, /\.offline\{width:min\(420px,100%\)/);
+  assert.match(html, /\.mark img\{width:100%;height:100%;display:block\}/);
+  assert.match(html, /<body data-zukan-design="v1">/);
+});
 
 test("app service worker serves its pre-cached brand assets offline without caching private routes", async () => {
   const listeners = new Map<string, (event: any) => void>();
