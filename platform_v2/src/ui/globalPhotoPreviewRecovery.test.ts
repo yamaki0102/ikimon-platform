@@ -13,10 +13,16 @@ class Element {
   disabled = false;
   value = "";
   textContent = "";
-  innerHTML = "";
+  private htmlValue = "";
+  get innerHTML() { return this.htmlValue; }
+  set innerHTML(value: string) {
+    this.htmlValue = value;
+    if (!value) this.children = [];
+  }
   files: File[] = [];
+  children: Element[] = [];
   attributes = new Map<string, string>();
-  listeners = new Map<string, Array<(event?: { preventDefault?: () => void }) => void>>();
+  listeners = new Map<string, Array<(event?: { preventDefault?: () => void; target?: Element }) => void>>();
   classList = { add() {}, remove() {} };
   style = { setProperty() {}, removeProperty() {} };
   videoWidth = 1280;
@@ -34,15 +40,15 @@ class Element {
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
   getAttribute(key: string) { return this.attributes.get(key) ?? null; }
   removeAttribute(key: string) { this.attributes.delete(key); }
-  addEventListener(event: string, fn: (event?: { preventDefault?: () => void }) => void) {
+  addEventListener(event: string, fn: (event?: { preventDefault?: () => void; target?: Element }) => void) {
     this.listeners.set(event, [...(this.listeners.get(event) ?? []), fn]);
   }
-  dispatch(event: string) {
-    const payload = { preventDefault() {} };
+  dispatch(event: string, target: Element = this) {
+    const payload = { target, preventDefault() {} };
     for (const handler of this.listeners.get(event) ?? []) handler(payload);
   }
   click() { this.dispatch("click"); }
-  appendChild(_child: Element) {}
+  appendChild(child: Element) { this.children.push(child); }
 }
 
 class FixtureFileReader {
@@ -235,6 +241,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     Blob,
     File,
     FileReader: FixtureFileReader,
+    HTMLElement: Element,
     TextEncoder,
     URL,
     navigator: {
@@ -261,6 +268,11 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     },
   });
   return { sheet, submit, input, trigger, close, start, photoGrid, status, cameraErrorBody,
+    removePhoto(index: number) {
+      const button = new Element();
+      button.setAttribute("data-global-record-photo-remove", String(index));
+      photoGrid.dispatch("click", button);
+    },
     resolveCanvasBlob(blob: Blob | null) {
       const callback = pendingCanvasBlob;
       pendingCanvasBlob = null;
@@ -420,6 +432,70 @@ test("cancel reports an IndexedDB delete failure and keeps the selected preview 
   await drain();
   assert.equal(browser.sheet.hidden, true, "retrying cancel closes only after deletion succeeds");
   assert.equal(drafts.has(key), false);
+});
+
+test("removing the last selected photo keeps it visible and durable when IndexedDB deletion fails", async () => {
+  const drafts = new Map<string, Draft>();
+  const browser = cameraFixture(drafts, "owner-A", "/ja/learn/field-loop", { deleteFailures: 1 });
+  browser.input.files = [new File(["keep-until-delete"], "keep.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  await drain();
+  const key = photoPreviewKey("owner-A", "/ja/learn/field-loop");
+  assert.equal(browser.photoGrid.children.length, 1);
+  assert.equal(drafts.get(key)?.files?.length, 1);
+
+  browser.removePhoto(0);
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 1, "the preview stays visible when durable removal fails");
+  assert.equal(drafts.get(key)?.files?.length, 1, "the saved preview remains available for a retry");
+  assert.match(browser.status.textContent, /写真は残しています/);
+
+  browser.removePhoto(0);
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 0, "the preview disappears after durable removal succeeds");
+  assert.equal(drafts.has(key), false);
+});
+
+test("last-photo removal is ignored during upload so a failed photo remains retryable", async () => {
+  const drafts = new Map<string, Draft>();
+  let markUploadStarted: (() => void) | null = null;
+  let releaseUpload: ((response: { ok: boolean; status: number; json: () => Promise<unknown> }) => void) | null = null;
+  const uploadStarted = new Promise<void>((resolve) => { markUploadStarted = resolve; });
+  const fetch = async (url: string) => {
+    if (url === "/api/v1/observations/upsert") return {
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, visitId: "visit-race", occurrenceIds: ["occ:visit-race:0"] }),
+    };
+    if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url)) {
+      markUploadStarted?.();
+      return await new Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>((resolve) => {
+        releaseUpload = resolve;
+      });
+    }
+    throw new Error("Unexpected network call: " + url);
+  };
+  const browser = cameraFixture(drafts, "owner-A", "/ja/learn/field-loop", { fetch });
+  browser.input.files = [new File(["keep-after-failed-upload"], "keep.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  await drain();
+  const key = photoPreviewKey("owner-A", "/ja/learn/field-loop");
+
+  browser.submit.click();
+  await uploadStarted;
+  browser.removePhoto(0);
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 1, "an in-flight upload cannot race with local removal");
+  assert.equal(drafts.get(key)?.files?.length, 1);
+  assert.match(browser.status.textContent, /保存が終わってから外せます/);
+
+  const finishUpload = releaseUpload;
+  assert.ok(finishUpload, "the upload request is pending");
+  finishUpload({ ok: false, status: 503, json: async () => ({ ok: false, error: "temporary" }) });
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 1, "the failed image remains available to retry");
+  assert.equal(drafts.get(key)?.files?.length, 1);
+  assert.equal(drafts.get(key)?.retryVisitId, "visit-race");
 });
 
 test("cancel does not delete or hide an existing preview when the session check is offline", async () => {

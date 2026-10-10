@@ -1601,6 +1601,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let capturedReviewFile = null;
   let capturedPhotoFiles = [];
   let capturedPhotoObjectUrls = [];
+  let photoDraftRemovalInFlight = false;
   let capturedReviewMeta = null;
   let photoCaptureSource = '';
   let reviewObjectUrl = '';
@@ -1949,11 +1950,13 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       db.close();
     }
   };
-  const queuePhotoPreviewWrite = (mode = 'save') => {
+  const queuePhotoPreviewWrite = (mode = 'save', filesOverride = null) => {
     if (!('indexedDB' in window)) return Promise.reject(new Error('indexeddb_unavailable'));
     const capturePagePath = photoPreviewPagePath || String(window.location.pathname || '/');
     if (mode !== 'discard' && !photoPreviewPagePath) photoPreviewPagePath = capturePagePath;
-    const files = mode === 'save' ? selectedPhotoDraftFiles().slice() : [];
+    const files = mode === 'save'
+      ? (Array.isArray(filesOverride) ? normalizeDraftFiles(filesOverride) : selectedPhotoDraftFiles()).slice()
+      : [];
     const snapshot = {
       file: files[0] || null,
       files,
@@ -2533,6 +2536,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (message) setStatus(message);
   };
   const movePhotoDraft = (index, direction) => {
+    if (photoDraftRemovalInFlight) return;
     const from = Number(index);
     const to = from + Number(direction);
     if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= capturedPhotoFiles.length || to >= capturedPhotoFiles.length) return;
@@ -2545,18 +2549,35 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   };
   const removePhotoDraft = (index) => {
     const target = Number(index);
-    if (!Number.isInteger(target) || target < 0 || target >= capturedPhotoFiles.length) return;
-    capturedPhotoFiles.splice(target, 1);
-    const [url] = capturedPhotoObjectUrls.splice(target, 1);
-    if (url) URL.revokeObjectURL(url);
-    if (capturedPhotoFiles.length === 0) {
-      photoDraftRetryDetailId = '';
-      photoDraftRetryVisitId = '';
-      photoDraftRetryHasUploadedPhoto = false;
+    if (directPostInFlight) {
+      setStatus('写真を保存中です。保存が終わってから外せます。');
+      return;
     }
-    syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
-    void queuePhotoPreviewWrite(capturedPhotoFiles.length > 0 ? 'save' : 'discard').catch(() => {
-      setStatus('下書きの更新に失敗しました。再読み込み前に確認してください。');
+    if (photoDraftRemovalInFlight || !Number.isInteger(target) || target < 0 || target >= capturedPhotoFiles.length) return;
+    const nextFiles = capturedPhotoFiles.slice();
+    nextFiles.splice(target, 1);
+    const removedUrl = capturedPhotoObjectUrls[target] || '';
+    const nextUrls = capturedPhotoObjectUrls.slice();
+    nextUrls.splice(target, 1);
+    photoDraftRemovalInFlight = true;
+    if (startButton) startButton.disabled = true;
+    if (captureButton) captureButton.disabled = true;
+    void queuePhotoPreviewWrite(nextFiles.length > 0 ? 'save' : 'discard', nextFiles).then(() => {
+      capturedPhotoFiles = nextFiles;
+      capturedPhotoObjectUrls = nextUrls;
+      if (removedUrl) URL.revokeObjectURL(removedUrl);
+      if (capturedPhotoFiles.length === 0) {
+        photoDraftRetryDetailId = '';
+        photoDraftRetryVisitId = '';
+        photoDraftRetryHasUploadedPhoto = false;
+      }
+      syncPhotoDraftControls(capturedPhotoFiles.length > 0 ? '写真を外しました。' : '写真をすべて外しました。');
+    }).catch(() => {
+      setStatus('下書きの更新に失敗しました。写真は残しています。もう一度お試しください。');
+    }).finally(() => {
+      photoDraftRemovalInFlight = false;
+      if (startButton) startButton.disabled = capturedPhotoFiles.length >= MAX_PHOTO_DRAFT_FILES;
+      if (captureButton) captureButton.disabled = false;
     });
   };
   const keepOnlyPhotoDraftIndexes = (indexes) => {
@@ -2845,6 +2866,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
   };
   const addPhotoDraftFiles = (files, metadata) => {
+    if (photoDraftRemovalInFlight) {
+      setStatus('写真の更新中です。完了してからもう一度お試しください。');
+      return;
+    }
     const incoming = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
     if (!incoming.length) return;
     // A confirmed upload is a finished Record. Any later capture starts a fresh one,
@@ -3495,6 +3520,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   if (captureButton) captureButton.addEventListener('click', captureFromSheet);
   if (photoGrid) {
     photoGrid.addEventListener('click', (event) => {
+      if (photoDraftRemovalInFlight) return;
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
       const removeIndex = target.getAttribute('data-global-record-photo-remove');
