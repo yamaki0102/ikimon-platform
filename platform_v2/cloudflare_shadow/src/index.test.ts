@@ -19890,6 +19890,44 @@ test("public participation list bounds QA-row scans and never labels a partial r
   assert.doesNotMatch(html, /Public walk behind test data|qa-flood-/);
 });
 
+test("public participation list reports an empty result when the capped scan reaches a short final page", async (t) => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const base: ObservationEventSessionTestRow = {
+    session_id: "qa-short-scan-000", legacy_event_id: null, event_code: "qa-short-scan-000",
+    title: "QA scan fixture", organizer_user_id: "fixture-owner", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2098-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: "{}", field_id: null,
+    template_source_session_id: null, created_at: "2098-01-01T00:00:00.000Z", updated_at: "2098-01-01T00:00:00.000Z",
+  };
+  for (let index = 0; index < 170; index += 1) {
+    const id = `qa-short-scan-${String(index).padStart(3, "0")}`;
+    obs.observationEventSessions.set(id, {
+      ...base,
+      session_id: id,
+      event_code: id,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+
+  let listQueries = 0;
+  const originalPrepare = obs.prepare.bind(obs);
+  t.mock.method(obs, "prepare", (query: string) => {
+    if (query.includes("FROM observation_event_sessions")) listQueries += 1;
+    return originalPrepare(query);
+  });
+
+  const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), productionEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(listQueries, 8, "the short final page is reached on the eighth bounded D1 scan");
+  assert.doesNotMatch(html, /data-list-partial|This list may be incomplete/);
+  assert.match(html, /data-participation-empty/);
+  assert.match(html, /No public programs are listed yet/);
+});
+
 test("newer public participation rows do not starve an organizer's private draft", async (t) => {
   const { env, obs } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };

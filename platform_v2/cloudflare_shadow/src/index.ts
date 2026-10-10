@@ -4456,6 +4456,7 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
   const ownerSessionIds = new Set<string>();
   let cursor: { startedAt: string; sessionId: string } | null = null;
   let publicScanPages = 0;
+  let lastPublicPageWasFull = false;
   try {
     if (auth?.userId) {
       const ownedRows = await env.OBS_DB.prepare(
@@ -4491,6 +4492,7 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
       ).bind(cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.sessionId ?? null)
         .all<ObservationEventSessionD1Row>();
       publicScanPages += 1;
+      lastPublicPageWasFull = rows.results.length === OBSERVATION_EVENT_PUBLIC_LIST_LIMIT;
       if (rows.results.length === 0) break;
       for (const row of rows.results) {
         const session = mapObservationEventSession(row);
@@ -4507,7 +4509,8 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
       if (rows.results.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) break;
     }
     scanLimitReached = sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT
-      && publicScanPages >= OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT;
+      && publicScanPages >= OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT
+      && lastPublicPageWasFull;
   } catch {
     loadFailed = true;
     scanLimitReached = false;
