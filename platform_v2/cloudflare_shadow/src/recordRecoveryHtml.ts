@@ -435,6 +435,11 @@ export function renderCloudflareRecordRecoverySignedHtml(
     let pendingVideoUid = "";
     let pendingVideoUploadUrl = "";
     let pendingVideoBodyUploaded = false;
+    let pendingVideoIdempotencyKey = "";
+    function newVideoUploadKey() {
+      const suffix = window.crypto?.randomUUID?.() || (Date.now().toString(36) + Math.random().toString(36).slice(2));
+      return "record-video:" + suffix;
+    }
 
     function setStatus(message, error) {
       if (!status) return;
@@ -676,6 +681,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     pendingVideoUid = String(recoveryMetadata.pendingMediaRetryVideoUid || "").trim();
     pendingVideoUploadUrl = String(recoveryMetadata.pendingMediaRetryVideoUploadUrl || "").trim();
     pendingVideoBodyUploaded = recoveryMetadata.pendingMediaRetryVideoBodyUploaded === true;
+    pendingVideoIdempotencyKey = String(recoveryMetadata.pendingMediaRetryVideoIdempotencyKey || "").trim();
   }
     async function restoreDraft() {
       setPanelState("checking", copy.checking, copy.checkingBody);
@@ -714,6 +720,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     pendingVideoUid = "";
     pendingVideoUploadUrl = "";
     pendingVideoBodyUploaded = false;
+    pendingVideoIdempotencyKey = "";
     reveal("photo", copy.selected + " (" + recoveredFiles.length + ")");
     void eventMetric("event_photo_selected");
     try {
@@ -723,6 +730,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
         pendingMediaRetryVideoBodyUploaded: false,
+        pendingMediaRetryVideoIdempotencyKey: "",
       });
     } catch (error) {
       console.error(error);
@@ -736,6 +744,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
     pendingVideoUid = "";
     pendingVideoUploadUrl = "";
     pendingVideoBodyUploaded = false;
+    pendingVideoIdempotencyKey = newVideoUploadKey();
     reveal("video", copy.selected);
     try {
       await persistDraftProgress({
@@ -745,6 +754,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
         pendingMediaRetryVideoBodyUploaded: false,
+        pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
       });
     } catch (error) {
       console.error(error);
@@ -820,6 +830,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
         recoveryObservedAt = new Date().toISOString();
       }
+      if (mediaKind === "video" && !pendingVideoIdempotencyKey) pendingVideoIdempotencyKey = newVideoUploadKey();
       if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
       await persistDraftProgress({
         recoverySubmissionId,
@@ -829,6 +840,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
         pendingMediaRetryVideoUid: pendingVideoUid,
         pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
         pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded,
+        pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
       });
       const observationId = recoverySubmissionId || ("record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8));
         let visitId = visitIdFromTarget(pendingRetryTarget);
@@ -897,6 +909,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
             fileSizeBytes: file.size,
             uploadProtocol: "post",
             maxDurationSeconds: 60,
+            clientUploadKey: pendingVideoIdempotencyKey,
           });
           if (!direct.uploadUrl || !direct.uid) throw new Error("video_direct_upload_failed");
           pendingVideoUid = String(direct.uid);
@@ -908,6 +921,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
             pendingMediaRetryVideoUid: pendingVideoUid,
             pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
             pendingMediaRetryVideoBodyUploaded: false,
+            pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
           });
         }
         if (!pendingVideoBodyUploaded) {
@@ -925,6 +939,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
               pendingMediaRetryVideoUid: "",
               pendingMediaRetryVideoUploadUrl: "",
               pendingMediaRetryVideoBodyUploaded: false,
+              pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
             });
             throw new Error("video_body_upload_failed");
           }
@@ -935,6 +950,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
             pendingMediaRetryVideoUid: pendingVideoUid,
             pendingMediaRetryVideoUploadUrl: pendingVideoUploadUrl,
             pendingMediaRetryVideoBodyUploaded: true,
+            pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
           });
         }
         await postJson("/api/v1/videos/" + encodeURIComponent(pendingVideoUid) + "/finalize", {

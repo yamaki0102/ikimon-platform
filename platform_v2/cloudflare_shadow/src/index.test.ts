@@ -322,6 +322,7 @@ interface AssetRow {
   sha256: string | null;
   mime: string;
   bytes: number;
+  duration_ms?: number | null;
   width?: number | null;
   height?: number | null;
   processing_state: string;
@@ -537,6 +538,7 @@ interface VideoUploadRow {
   ready_to_stream: number;
   created_at: string;
   uploaded_at: string | null;
+  meta_json: string | null;
 }
 
 interface LegacyAssetImportRow {
@@ -3139,8 +3141,16 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("INSERT INTO asset_ledger") && normalized.includes("(asset_id, draft_id, observation_id,")) {
-      this.db.assets.set(string(v[0]), {
-        asset_id: string(v[0]),
+      const assetId = string(v[0]);
+      const existing = this.db.assets.get(assetId);
+      if (existing) {
+        existing.bytes = Math.max(existing.bytes, number(v[7]));
+        const durationMs = numberOrNull(v[10]);
+        if (durationMs !== null) existing.duration_ms = Math.max(existing.duration_ms ?? 0, durationMs);
+        return { meta: { changes: 1 } };
+      }
+      this.db.assets.set(assetId, {
+        asset_id: assetId,
         draft_id: string(v[1]),
         observation_id: string(v[2]),
         owner_user_id: string(v[3]),
@@ -3149,6 +3159,7 @@ class FakeStatement {
         sha256: nullableString(v[5]),
         mime: string(v[6]),
         bytes: number(v[7]),
+        duration_ms: numberOrNull(v[10]),
         processing_state: "uploaded",
         public_derivative_key: null,
         public_derivative_sha256: null,
@@ -3204,9 +3215,11 @@ class FakeStatement {
       return {};
     }
 
-    if (normalized.startsWith("INSERT INTO video_upload_requests")) {
-      this.db.videoUploads.set(string(v[0]), {
-        stream_uid: string(v[0]),
+    if (normalized.startsWith("INSERT OR IGNORE INTO video_upload_requests")) {
+      const uid = string(v[0]);
+      if (this.db.videoUploads.has(uid)) return { meta: { changes: 0 } };
+      this.db.videoUploads.set(uid, {
+        stream_uid: uid,
         actor_id: string(v[1]),
         observation_id: nullableString(v[2]),
         upload_status: "waiting_upload",
@@ -3218,9 +3231,10 @@ class FakeStatement {
         duration_ms: 0,
         ready_to_stream: 0,
         created_at: "2026-06-15T00:00:00.000Z",
-        uploaded_at: null
+        uploaded_at: null,
+        meta_json: string(v[8])
       });
-      return {};
+      return { meta: { changes: 1 } };
     }
 
     if (normalized.startsWith("UPDATE video_upload_requests SET upload_status = 'uploaded'")) {
@@ -7282,8 +7296,9 @@ class FakeStatement {
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT outbox_id, topic, target_id FROM outbox")) {
+      const requestedIds = normalized.includes(" IN (") ? this.values.map((value) => string(value)) : null;
       const rows = [...this.db.outbox.values()]
-        .filter((row) => row.dispatch_state === "pending")
+        .filter((row) => row.dispatch_state === "pending" && (!requestedIds || requestedIds.includes(row.outbox_id)))
         .slice(0, 100)
         .map((row) => ({ outbox_id: row.outbox_id, topic: row.topic, target_id: row.target_id }));
       return { results: rows as T[] };
@@ -11618,7 +11633,8 @@ test("v1 video direct upload and finalize keep the current Cloudflare Stream-com
       observationId: "visit-video-contract",
       maxDurationSeconds: 120,
       fileSizeBytes: 11,
-      uploadProtocol: "post"
+      uploadProtocol: "post",
+      clientUploadKey: "record-video:contract-idempotency-001"
     })
   }), env);
   const directPayload = await directResponse.json() as any;
@@ -11628,7 +11644,43 @@ test("v1 video direct upload and finalize keep the current Cloudflare Stream-com
   assert.equal(directPayload.maxDurationSeconds, 60);
   assert.match(directPayload.uploadUrl, /^https:\/\/shadow\.test\/api\/v1\/videos\/stream_/);
   assert.match(directPayload.iframeUrl, /^\/shadow\/stream\/stream_/);
+  assert.equal(directPayload.idempotency.reused, false);
 
+  const directRetryResponse = await worker.fetch(new Request("https://shadow.test/api/v1/videos/direct-upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "field video.mp4",
+      observationId: "visit-video-contract",
+      maxDurationSeconds: 120,
+      fileSizeBytes: 11,
+      uploadProtocol: "post",
+      clientUploadKey: "record-video:contract-idempotency-001"
+    })
+  }), env);
+  const directRetryPayload = await directRetryResponse.json() as any;
+  assert.equal(directRetryResponse.ok, true, JSON.stringify(directRetryPayload));
+  assert.equal(directRetryPayload.uid, directPayload.uid, "a lost direct-upload response returns the original upload UID");
+  assert.equal(directRetryPayload.uploadUrl, directPayload.uploadUrl);
+  assert.equal(directRetryPayload.idempotency.reused, true);
+  assert.equal(obs.videoUploads.size, 1, "repeating a reservation does not create another upload row");
+
+  const conflictingRetry = await worker.fetch(new Request("https://shadow.test/api/v1/videos/direct-upload", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "different-video.mp4",
+      observationId: "visit-video-contract",
+      fileSizeBytes: 11,
+      uploadProtocol: "post",
+      clientUploadKey: "record-video:contract-idempotency-001"
+    })
+  }), env);
+  assert.equal(conflictingRetry.status, 409, "a key cannot silently bind to different video metadata");
+  assert.deepEqual(await conflictingRetry.json(), { ok: false, error: "video_upload_idempotency_conflict" });
+
+  const videoBucket = env.ASSET_BUCKET as unknown as FakeBucket;
+  const videoObjectsBefore = videoBucket.objects.size;
   const bodyResponse = await worker.fetch(new Request(directPayload.uploadUrl, {
     method: "PUT",
     headers: { "content-type": "video/mp4" },
@@ -11637,6 +11689,14 @@ test("v1 video direct upload and finalize keep the current Cloudflare Stream-com
   const bodyPayload = await bodyResponse.json() as any;
   assert.equal(bodyResponse.ok, true, JSON.stringify(bodyPayload));
   assert.equal(bodyPayload.bytes, 11);
+
+  const repeatedBodyResponse = await worker.fetch(new Request(directRetryPayload.uploadUrl, {
+    method: "PUT",
+    headers: { "content-type": "video/mp4" },
+    body: "video-bytes"
+  }), env);
+  assert.equal(repeatedBodyResponse.ok, true, "a lost body response can safely overwrite the same object key");
+  assert.equal(videoBucket.objects.size, videoObjectsBefore + 1, "body retries retain one R2 object");
 
   const finalizeResponse = await worker.fetch(new Request(`https://shadow.test/api/v1/videos/${encodeURIComponent(directPayload.uid)}/finalize`, {
     method: "POST",
@@ -11664,6 +11724,19 @@ test("v1 video direct upload and finalize keep the current Cloudflare Stream-com
   assert.equal(queue.messages.length, 2);
   assert.equal(obs.videoUploads.get(directPayload.uid)?.upload_status, "ready");
   assert.equal(obs.assets.get(`video_asset_${directPayload.uid}`)?.processing_state, "uploaded");
+
+  const outboxSizeAfterFinalize = obs.outbox.size;
+  const rollbackSizeAfterFinalize = obs.rollbackLedger.size;
+  const finalizeRetry = await worker.fetch(new Request(`https://shadow.test/api/v1/videos/${encodeURIComponent(directPayload.uid)}/finalize`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ observationId: "visit-video-contract", durationMs: 9000, readyToStream: true })
+  }), env);
+  assert.equal(finalizeRetry.ok, true, "a lost finalize response can be replayed");
+  assert.equal(obs.assets.size, 1, "finalize replay does not create a duplicate asset");
+  assert.equal(obs.outbox.size, outboxSizeAfterFinalize, "finalize replay does not enqueue duplicate work");
+  assert.equal(obs.rollbackLedger.size, rollbackSizeAfterFinalize, "finalize replay does not duplicate compensation records");
+  assert.equal(queue.messages.length, 2, "finalize replay does not dispatch duplicate messages");
 
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
   assert.equal(obs.readmodel.get("visit-video-contract")?.asset_count, 1);

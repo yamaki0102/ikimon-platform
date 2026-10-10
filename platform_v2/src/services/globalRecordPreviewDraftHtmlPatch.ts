@@ -177,6 +177,11 @@ const PREVIEW_DRAFT_HELPERS = `  const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecord
 const PREVIEW_DRAFT_INJECT_PATCH_FLAG = "__ikimonGlobalRecordPreviewDraftInjectPatched";
 
 export function patchGlobalRecordPreviewDraftHtml(html: string): string {
+  // The current renderer owns an isolated `global-photo-preview:` key and
+  // serializes the same recovery lifecycle itself. Never layer the legacy
+  // `latest:` writer over it: that would duplicate previews and overwrite an
+  // existing /record draft.
+  if (html.includes("const photoPreviewDraftKey = (owner) => 'global-photo-preview:'")) return html;
   if (!html.includes("data-global-record-camera-sheet")) return html;
   if (html.includes("ikimonRecordPreviewDraftV1")) return html;
   if (!html.includes(SYNC_ANCHOR) || !html.includes(RESET_ANCHOR)) return html;

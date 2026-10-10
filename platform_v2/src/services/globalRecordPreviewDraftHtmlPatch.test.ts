@@ -15,8 +15,17 @@ function realShell(): string {
   });
 }
 
+function legacyShell(): string {
+  // Exercise the fallback patch against a shell that predates native preview
+  // persistence without changing the current renderer's active implementation.
+  return realShell().replace(
+    "const photoPreviewDraftKey = (owner) => 'global-photo-preview:'",
+    "const legacyPhotoPreviewDraftKey = (owner) => 'global-photo-preview:'",
+  );
+}
+
 function previewRuntime(options: { candidate?: Record<string, unknown>; ownerKey?: string } = {}) {
-  const html = patchGlobalRecordPreviewDraftHtml(realShell());
+  const html = patchGlobalRecordPreviewDraftHtml(legacyShell());
   const start = html.indexOf("  const PREVIEW_DRAFT_HISTORY_KEY");
   const end = html.indexOf(SYNC_RUNTIME_ANCHOR, start);
   assert.ok(start >= 0 && end > start);
@@ -116,8 +125,11 @@ test("preview draft patch binds to the real photo-draft controls and success res
   assert.match(original, /const syncPhotoDraftControls = \(message\) =>/);
   assert.match(original, /const resetPhotoDraftAfterDirectPost = \(message\) =>/);
   assert.doesNotMatch(original, /ikimonRecordPreviewDraftV1/);
+  assert.match(original, /global-photo-preview:/);
+  assert.match(original, /queuePhotoPreviewWrite/);
+  assert.equal(patchGlobalRecordPreviewDraftHtml(original), original, "native persistence must not receive a second legacy writer");
 
-  const patched = patchGlobalRecordPreviewDraftHtml(original);
+  const patched = patchGlobalRecordPreviewDraftHtml(legacyShell());
   assert.notEqual(patched, original, "site-shell drift must not silently disable preview-draft recovery");
   assert.match(patched, /const PREVIEW_DRAFT_HISTORY_KEY = 'ikimonRecordPreviewDraftV1'/);
   assert.match(patched, /void persistPhotoPreviewDraft\(files\)/);
@@ -128,7 +140,7 @@ test("preview draft patch binds to the real photo-draft controls and success res
 });
 
 test("preview draft restore remains owner-scoped and fail-closed", () => {
-  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  const patched = patchGlobalRecordPreviewDraftHtml(legacyShell());
   assert.match(patched, /markerMatchesContext/);
   assert.match(patched, /String\(marker\.draftKey \|\| ''\) === String\(context\.draftKey \|\| ''\)/);
   assert.match(patched, /String\(marker\.ownerKey \|\| ''\) === String\(context\.ownerKey \|\| ''\)/);
@@ -139,7 +151,7 @@ test("preview draft restore remains owner-scoped and fail-closed", () => {
 });
 
 test("guest preview drafts hand off through the existing record claim flow after session recovery", () => {
-  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  const patched = patchGlobalRecordPreviewDraftHtml(legacyShell());
   assert.match(patched, /markerOwnerKey\.startsWith\('guest:'\)/);
   assert.match(patched, /contextOwnerKey\.startsWith\('user:'\)/);
   assert.match(patched, /withDraftParams\(RECORD_TARGETS\.photo, 'photo', 'login_required', marker\.continuationToken\)/);
@@ -148,7 +160,7 @@ test("guest preview drafts hand off through the existing record claim flow after
 });
 
 test("preview draft restore retries after visibility or focus changes without duplicating the preview", () => {
-  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  const patched = patchGlobalRecordPreviewDraftHtml(legacyShell());
   assert.match(patched, /let previewDraftRestoredInPage = false/);
   assert.match(patched, /if \(previewDraftRestoredInPage\) return/);
   assert.match(patched, /previewDraftRestoredInPage = true/);
@@ -157,7 +169,7 @@ test("preview draft restore retries after visibility or focus changes without du
 });
 
 test("history state stores only a draft locator, never media or coordinates", () => {
-  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  const patched = patchGlobalRecordPreviewDraftHtml(legacyShell());
   const markerStart = patched.indexOf("state[PREVIEW_DRAFT_HISTORY_KEY] = {");
   const markerEnd = patched.indexOf("history.replaceState(state, '', window.location.href);", markerStart);
   assert.ok(markerStart >= 0 && markerEnd > markerStart);
@@ -171,7 +183,7 @@ test("history state stores only a draft locator, never media or coordinates", ()
 });
 
 test("empty draft and direct-post success retire the restore marker before async cleanup", () => {
-  const patched = patchGlobalRecordPreviewDraftHtml(realShell());
+  const patched = patchGlobalRecordPreviewDraftHtml(legacyShell());
   assert.match(patched, /const queuePhotoPreviewDraftClear = \(\) => \{\n    clearPreviewDraftMarker\(\);/);
   assert.match(patched, /if \(!draftFiles\.length\) return queuePhotoPreviewDraftClear\(\)/);
   assert.match(patched, /const resetPhotoDraftAfterDirectPost = \(message\) => \{\n    void queuePhotoPreviewDraftClear\(\);/);
@@ -179,7 +191,7 @@ test("empty draft and direct-post success retire the restore marker before async
 });
 
 test("preview draft patch is idempotent and leaves unrelated HTML unchanged", () => {
-  const once = patchGlobalRecordPreviewDraftHtml(realShell());
+  const once = patchGlobalRecordPreviewDraftHtml(legacyShell());
   assert.equal(patchGlobalRecordPreviewDraftHtml(once), once);
 
   const unrelated = "<html lang=\"ja\"><body><main>plain page</main></body></html>";
@@ -195,8 +207,9 @@ test("preview draft patch reaches the root route materialization", async () => {
   try {
     const root = await app.inject({ method: "GET", url: "/" });
     assert.equal(root.statusCode, 200);
-    assert.match(root.body, /ikimonRecordPreviewDraftV1/);
-    assert.match(root.body, /void persistPhotoPreviewDraft\(files\)/);
+    assert.match(root.body, /global-photo-preview:/);
+    assert.match(root.body, /queuePhotoPreviewWrite/);
+    assert.doesNotMatch(root.body, /ikimonRecordPreviewDraftV1/);
   } finally {
     await app.close();
   }

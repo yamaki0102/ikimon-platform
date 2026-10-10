@@ -1027,7 +1027,14 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
   const location = { pathname: `/${lang}/learn/field-loop`, search: "", origin: "https://camera-fixture.invalid" };
   runInNewContext(script, {
     document,
-    window: { isSecureContext: true, location, innerWidth: 390, innerHeight: 844, addEventListener: windowEvents.addEventListener.bind(windowEvents) },
+    window: {
+      isSecureContext: true,
+      location,
+      innerWidth: 390,
+      innerHeight: 844,
+      confirm: () => true,
+      addEventListener: windowEvents.addEventListener.bind(windowEvents),
+    },
     location,
     navigator: { mediaDevices: { getUserMedia(constraints: { audio: boolean }) {
       const request = { ...deferred<ReturnType<typeof cameraTestStream>>(), constraints };
