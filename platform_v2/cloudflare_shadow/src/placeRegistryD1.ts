@@ -116,13 +116,13 @@ const D1_PUBLIC_PLACE_SEARCH_SQL = `
     )
     AND (
       p.place_id = ?
-      OR p.canonical_name_normalized LIKE ?
+      OR instr(p.canonical_name_normalized, ?) > 0
       OR EXISTS (
         SELECT 1
         FROM place_aliases pa
         WHERE pa.place_id = p.place_id
           AND pa.valid_to IS NULL
-          AND pa.alias_normalized LIKE ?
+          AND instr(pa.alias_normalized, ?) > 0
       )
     )
   LIMIT ?
@@ -147,7 +147,7 @@ export async function searchD1PublicPlaces(input: {
   const limit = Math.max(1, Math.min(20, Math.trunc(input.limit ?? 8)));
   const rows = await input.db
     .prepare(D1_PUBLIC_PLACE_SEARCH_SQL)
-    .bind(normalized, query, `%${normalized}%`, `%${normalized}%`, limit * 3)
+    .bind(normalized, query, normalized, normalized, limit * 3)
     .all<PlaceRegistryRow>();
   const results = rankPublicPlaceResults(rows.results, query, limit);
   return {
@@ -167,13 +167,13 @@ export async function listD1PublicPlaceChildren(input: {
   const limit = Math.max(1, Math.min(50, Math.trunc(input.limit ?? 20)));
   const childSql = D1_PUBLIC_PLACE_SEARCH_SQL.replace(
     `p.place_id = ?
-      OR p.canonical_name_normalized LIKE ?
+      OR instr(p.canonical_name_normalized, ?) > 0
       OR EXISTS (
         SELECT 1
         FROM place_aliases pa
         WHERE pa.place_id = p.place_id
           AND pa.valid_to IS NULL
-          AND pa.alias_normalized LIKE ?
+          AND instr(pa.alias_normalized, ?) > 0
       )`,
     `EXISTS (
         SELECT 1
