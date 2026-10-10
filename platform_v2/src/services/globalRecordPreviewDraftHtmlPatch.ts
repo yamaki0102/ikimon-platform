@@ -181,7 +181,7 @@ export function patchGlobalRecordPreviewDraftHtml(html: string): string {
   // serializes the same recovery lifecycle itself. Never layer the legacy
   // `latest:` writer over it: that would duplicate previews and overwrite an
   // existing /record draft.
-  if (html.includes("const photoPreviewDraftKey = (owner) => 'global-photo-preview:'")) return html;
+  if (html.includes("const photoPreviewDraftKey = (owner, pagePath = window.location.pathname) =>")) return html;
   if (!html.includes("data-global-record-camera-sheet")) return html;
   if (html.includes("ikimonRecordPreviewDraftV1")) return html;
   if (!html.includes(SYNC_ANCHOR) || !html.includes(RESET_ANCHOR)) return html;

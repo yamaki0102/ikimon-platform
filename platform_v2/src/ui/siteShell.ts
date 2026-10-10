@@ -1154,6 +1154,9 @@ type GlobalRecordEntryCopy = {
   retry: string;
   cancel: string;
   discardPreviewConfirm: string;
+  discardPreviewFailed: string;
+  captureOwnerUnavailable: string;
+  captureOwnerChanged: string;
 };
 
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
@@ -1185,6 +1188,9 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimStart: "開始",
       trimEnd: "終了",
       discardPreviewConfirm: "選んだ写真をこの端末から破棄します。すでに保存された記録本体は残ります。続けますか？",
+      discardPreviewFailed: "写真プレビューを端末から削除できませんでした。画面は閉じず、通信を確認してもう一度お試しください。",
+      captureOwnerUnavailable: "ログイン状態を確認できません。撮影結果は表示せずに破棄しました。通信を確認して再撮影してください。",
+      captureOwnerChanged: "撮影中にアカウントが切り替わりました。この撮影結果は表示しませんでした。もう一度撮影してください。",
     },
     en: {
       video: "Video",
@@ -1212,6 +1218,9 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimStart: "Start",
       trimEnd: "End",
       discardPreviewConfirm: "Discard the selected photos from this device? Any record already saved will remain.",
+      discardPreviewFailed: "The photo preview could not be removed from this device. This screen is still open; check your connection and try again.",
+      captureOwnerUnavailable: "Your sign-in state could not be checked. The captured photo was discarded. Check your connection and capture it again.",
+      captureOwnerChanged: "The account changed during capture. This photo was not shown. Capture it again.",
     },
     es: {
       video: "Video",
@@ -1239,6 +1248,9 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimStart: "Inicio",
       trimEnd: "Fin",
       discardPreviewConfirm: "¿Descartar las fotos seleccionadas de este dispositivo? Se conservará cualquier registro ya guardado.",
+      discardPreviewFailed: "No se pudo borrar la vista previa de este dispositivo. La pantalla sigue abierta; comprueba la conexión e inténtalo de nuevo.",
+      captureOwnerUnavailable: "No se pudo comprobar la sesión. Se descartó la foto capturada. Comprueba la conexión y vuelve a tomarla.",
+      captureOwnerChanged: "La cuenta cambió durante la captura. No se mostró esta foto. Vuelve a tomarla.",
     },
     "pt-BR": {
       video: "Video",
@@ -1266,6 +1278,9 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
       trimStart: "Inicio",
       trimEnd: "Fim",
       discardPreviewConfirm: "Descartar as fotos selecionadas deste dispositivo? Qualquer registro já salvo será mantido.",
+      discardPreviewFailed: "Não foi possível remover a prévia deste dispositivo. A tela continua aberta; confira a conexão e tente novamente.",
+      captureOwnerUnavailable: "Não foi possível confirmar a sessão. A foto capturada foi descartada. Confira a conexão e tire outra foto.",
+      captureOwnerChanged: "A conta mudou durante a captura. Esta foto não foi exibida. Tire outra foto.",
     },
   };
   const bottomNav = getShortCopy<{
@@ -1799,24 +1814,41 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
     return token.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 96);
   };
-  const draftOwnerContext = async () => {
-    try {
-      const userId = await getCurrentSessionUserId();
-      return { draftKey: 'latest:user:' + userId, ownerKey: 'user:' + userId, continuationToken: '' };
-    } catch (_) {
-      const token = guestDraftToken();
-      return { draftKey: 'latest:guest:' + token, ownerKey: 'guest:' + token, continuationToken: token };
-    }
+  const guestDraftOwnerContext = () => {
+    const token = guestDraftToken();
+    return { draftKey: 'latest:guest:' + token, ownerKey: 'guest:' + token, continuationToken: token };
   };
-  const photoPreviewDraftKey = (owner) => 'global-photo-preview:' + owner.draftKey;
+  const draftOwnerContext = async () => {
+    const response = await fetch(apiPath('/api/v1/auth/session') + '?optional=1', {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      credentials: 'include',
+    });
+    const json = await response.json().catch(() => null);
+    if (response.ok && json && json.ok && json.session && json.session.userId) {
+      const userId = String(json.session.userId);
+      return { draftKey: 'latest:user:' + userId, ownerKey: 'user:' + userId, continuationToken: '' };
+    }
+    if (response.ok && json && json.ok === false && json.error === 'session_not_found' && json.session === null) {
+      return guestDraftOwnerContext();
+    }
+    throw new Error('session_status_unavailable');
+  };
+  const photoPreviewDraftKey = (owner, pagePath = window.location.pathname) =>
+    'global-photo-preview:' + owner.draftKey + ':page:' + encodeURIComponent(String(pagePath || '/'));
   const saveDraft = async (draft, expectedOwnerKey = '') => {
     const context = await draftOwnerContext();
     if (expectedOwnerKey && context.ownerKey !== expectedOwnerKey) throw new Error('draft_owner_changed');
     if (draft.globalPhotoPreview === true) {
       if (photoPreviewOwnerKey && photoPreviewOwnerKey !== context.ownerKey) throw new Error('draft_owner_changed');
       photoPreviewOwnerKey = context.ownerKey;
+      const pagePath = String(draft.capturePagePath || photoPreviewPagePath || window.location.pathname || '/');
+      if (photoPreviewPagePath && photoPreviewPagePath !== pagePath) throw new Error('draft_page_changed');
+      photoPreviewPagePath = pagePath;
     }
-    const draftKey = draft.globalPhotoPreview === true ? photoPreviewDraftKey(context) : context.draftKey;
+    const draftKey = draft.globalPhotoPreview === true
+      ? photoPreviewDraftKey(context, draft.capturePagePath || photoPreviewPagePath || window.location.pathname)
+      : context.draftKey;
     const storedDraft = Object.assign({}, draft, {
       ownerKey: context.ownerKey,
       continuationToken: context.continuationToken || null,
@@ -1828,6 +1860,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
         transaction.objectStore(STORE_NAME).put(storedDraft, draftKey);
         transaction.oncomplete = () => resolve(true);
         transaction.onerror = () => reject(transaction.error || new Error('indexeddb_write_failed'));
+        transaction.onabort = () => reject(transaction.error || new Error('indexeddb_write_aborted'));
       });
       if (storedDraft.globalPhotoPreview !== true && window.ikimonAppOutbox && typeof window.ikimonAppOutbox.enqueue === 'function') {
         window.ikimonAppOutbox.enqueue({
@@ -1854,7 +1887,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let photoPreviewWriteQueue = Promise.resolve();
   let photoPreviewDismissed = false;
   let photoPreviewOwnerKey = '';
+  let photoPreviewPagePath = '';
   let photoPreviewPostComplete = false;
+  let photoPreviewEpoch = 0;
+  let photoPreviewCloseInFlight = false;
   const readStoredPhotoPreview = async () => {
     if (!('indexedDB' in window)) return null;
     const owner = await draftOwnerContext();
@@ -1862,7 +1898,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     let draft;
     try {
       draft = await new Promise((resolve, reject) => {
-        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(photoPreviewDraftKey(owner));
+        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME)
+          .get(photoPreviewDraftKey(owner, window.location.pathname));
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
       });
@@ -1873,6 +1910,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       || draft.kind !== 'photo' || draft.previewCompleted === true) return null;
     const savedAt = Number(draft.savedAt || 0);
     if (!Number.isFinite(savedAt) || savedAt <= 0 || Date.now() - savedAt > 7 * 86400000 || savedAt > Date.now() + 60000) return null;
+    photoPreviewPagePath = String(draft.capturePagePath || window.location.pathname || '/');
     const files = (Array.isArray(draft.files) ? draft.files : [draft.file]).slice(0, MAX_PHOTO_DRAFT_FILES)
       .map((file, index) => {
         if (file instanceof File) return file;
@@ -1884,7 +1922,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       .filter((file) => file && file.size > 0 && file.type.indexOf('image/') === 0);
     return files.length > 0 ? Object.assign({}, draft, { files }) : null;
   };
-  const deleteStoredPhotoPreview = async () => {
+  const deleteStoredPhotoPreview = async (pagePath = window.location.pathname) => {
     if (!('indexedDB' in window)) return;
     const owner = await draftOwnerContext();
     if (photoPreviewOwnerKey && photoPreviewOwnerKey !== owner.ownerKey) throw new Error('draft_owner_changed');
@@ -1893,14 +1931,17 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       await new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-        const lookup = store.get(photoPreviewDraftKey(owner));
+        const lookup = store.get(photoPreviewDraftKey(owner, pagePath));
         lookup.onsuccess = () => {
           const draft = lookup.result;
-          if (draft && draft.ownerKey === owner.ownerKey && draft.globalPhotoPreview === true) store.delete(photoPreviewDraftKey(owner));
+          if (draft && draft.ownerKey === owner.ownerKey && draft.globalPhotoPreview === true) {
+            store.delete(photoPreviewDraftKey(owner, pagePath));
+          }
         };
         lookup.onerror = () => reject(lookup.error || new Error('indexeddb_read_failed'));
         transaction.oncomplete = () => resolve(true);
         transaction.onerror = () => reject(transaction.error || new Error('indexeddb_delete_failed'));
+        transaction.onabort = () => reject(transaction.error || new Error('indexeddb_delete_aborted'));
       });
     } finally {
       db.close();
@@ -1908,6 +1949,8 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   };
   const queuePhotoPreviewWrite = (mode = 'save') => {
     if (!('indexedDB' in window)) return Promise.reject(new Error('indexeddb_unavailable'));
+    const capturePagePath = photoPreviewPagePath || String(window.location.pathname || '/');
+    if (mode !== 'discard' && !photoPreviewPagePath) photoPreviewPagePath = capturePagePath;
     const files = mode === 'save' ? selectedPhotoDraftFiles().slice() : [];
     const snapshot = {
       file: files[0] || null,
@@ -1915,7 +1958,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       kind: 'photo',
       savedAt: Date.now(),
       metadata: Object.assign({}, capturedReviewMeta || {}),
-      capturePagePath: String(window.location.pathname || ''),
+      capturePagePath,
       globalPhotoPreview: true,
       previewCompleted: mode === 'complete',
       retryDetailId: photoDraftRetryDetailId,
@@ -1923,7 +1966,12 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       retryHasUploadedPhoto: photoDraftRetryHasUploadedPhoto,
     };
     photoPreviewWriteQueue = photoPreviewWriteQueue.catch(() => undefined).then(() => {
-      if (mode === 'discard') return deleteStoredPhotoPreview().then(() => { photoPreviewOwnerKey = ''; });
+      if (mode === 'discard') {
+        return deleteStoredPhotoPreview(snapshot.capturePagePath).then(() => {
+          photoPreviewOwnerKey = '';
+          photoPreviewPagePath = '';
+        });
+      }
       return saveDraft(snapshot);
     });
     return photoPreviewWriteQueue;
@@ -2343,6 +2391,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     setPrimaryAction(captureButton, false);
   };
   const clearReview = () => {
+    photoPreviewEpoch += 1;
+    photoPreviewPagePath = '';
+    photoPreviewPostComplete = false;
     setPhotoDraftLayout(false);
     photoDraftSubmitConfirmUntil = 0;
     capturedReviewFile = null;
@@ -2533,6 +2584,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     photoDraftRetryHasUploadedPhoto = false;
     photoPreviewPostComplete = false;
     photoPreviewOwnerKey = '';
+    photoPreviewPagePath = '';
     capturedReviewMeta = null;
     renderPhotoTray();
     setPhotoDraftLayout(false);
@@ -2793,6 +2845,9 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const addPhotoDraftFiles = (files, metadata) => {
     const incoming = normalizeDraftFiles(files).filter((file) => file.type && file.type.indexOf('image/') === 0);
     if (!incoming.length) return;
+    // A confirmed upload is a finished Record. Any later capture starts a fresh one,
+    // even if removing the old local tombstone previously failed.
+    if (photoPreviewPostComplete) clearReview();
     const available = Math.max(0, MAX_PHOTO_DRAFT_FILES - capturedPhotoFiles.length);
     const accepted = incoming.slice(0, available);
     capturedPhotoFiles = capturedPhotoFiles.concat(accepted);
@@ -2852,20 +2907,28 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       input.click();
     }
   };
-  const closeSheet = () => {
+  const closeSheet = async () => {
     if (directPostInFlight) {
       setStatus('記録の保存中です。完了を待ってください。');
       return;
     }
+    if (photoPreviewCloseInFlight) return;
     const hasSelectedPhotos = selectedPhotoDraftFiles().length > 0;
     if (hasSelectedPhotos && !photoPreviewPostComplete && !window.confirm(CAMERA_COPY.discardPreviewConfirm)) return;
-    photoPreviewDismissed = true;
-    if (hasSelectedPhotos) {
-      void queuePhotoPreviewWrite('discard').catch(() => undefined);
-    }
+    photoPreviewCloseInFlight = true;
+    photoPreviewEpoch += 1;
     cameraRequestId += 1;
     cameraStartInFlight = false;
     stopActiveStream();
+    try {
+      if (hasSelectedPhotos) await queuePhotoPreviewWrite('discard');
+    } catch (_) {
+      setStatus(CAMERA_COPY.discardPreviewFailed);
+      photoPreviewCloseInFlight = false;
+      return;
+    }
+    photoPreviewCloseInFlight = false;
+    photoPreviewDismissed = true;
     clearReview();
     if (sheet) sheet.hidden = true;
     if (backdrop) backdrop.hidden = true;
@@ -2883,6 +2946,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       cameraStartInFlight = false;
       stopActiveStream();
     }
+    photoPreviewDismissed = false;
     hideCameraError();
     if (!(options && options.keepReview)) clearReview();
     sheetOpenedAt = nowMs();
@@ -2935,6 +2999,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
     const requestId = cameraRequestId + 1;
     cameraRequestId = requestId;
+    photoPreviewEpoch += 1;
     cameraStartInFlight = true;
     if (startButton) {
       startButton.disabled = true;
@@ -3198,6 +3263,16 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   };
   const capturePhoto = () => {
     if (!cameraVideo || !activeStream) return;
+    const captureRequestId = cameraRequestId;
+    const captureEpoch = photoPreviewEpoch;
+    const capturePagePath = String(window.location.pathname || '');
+    const captureOwnerContext = draftOwnerContext();
+    const captureIsCurrent = () => captureRequestId === cameraRequestId
+      && captureEpoch === photoPreviewEpoch
+      && activeKind === 'photo'
+      && !(sheet && sheet.hidden)
+      && !photoPreviewDismissed
+      && String(window.location.pathname || '') === capturePagePath;
     const captureStartedAt = capturePressedAt || nowMs();
     const encodeStartedAt = nowMs();
     const width = cameraVideo.videoWidth || 1280;
@@ -3209,10 +3284,27 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (!context) return;
     context.drawImage(cameraVideo, 0, 0, width, height);
     canvas.toBlob(async (blob) => {
+      if (!captureIsCurrent()) return;
       if (!blob) {
         setStatus('写真を保存できませんでした。');
         return;
       }
+      let capturedOwner;
+      try {
+        capturedOwner = await captureOwnerContext;
+        const currentOwner = await draftOwnerContext();
+        if (!captureIsCurrent()) return;
+        if (capturedOwner.ownerKey !== currentOwner.ownerKey
+          || (photoPreviewOwnerKey && photoPreviewOwnerKey !== capturedOwner.ownerKey)) {
+          setStatus(CAMERA_COPY.captureOwnerChanged);
+          return;
+        }
+        if (!photoPreviewOwnerKey) photoPreviewOwnerKey = capturedOwner.ownerKey;
+      } catch (_) {
+        if (captureIsCurrent()) setStatus(CAMERA_COPY.captureOwnerUnavailable);
+        return;
+      }
+      if (!captureIsCurrent()) return;
       const file = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
       stopActiveStream();
       const metadata = buildCaptureMetadata();
@@ -3519,6 +3611,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (draft && draft.capturePagePath && draft.capturePagePath !== String(window.location.pathname || '')) return;
     if (!draft || activeKind || selectedPhotoDraftFiles().length > 0 || photoPreviewDismissed) return;
     photoPreviewOwnerKey = draft.ownerKey;
+    photoPreviewPagePath = String(draft.capturePagePath || window.location.pathname || '/');
     capturedPhotoFiles = draft.files;
     capturedReviewMeta = draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
     photoDraftRetryDetailId = typeof draft.retryDetailId === 'string' ? draft.retryDetailId : '';

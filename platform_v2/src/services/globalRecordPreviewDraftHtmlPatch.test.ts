@@ -19,7 +19,7 @@ function legacyShell(): string {
   // Exercise the fallback patch against a shell that predates native preview
   // persistence without changing the current renderer's active implementation.
   return realShell().replace(
-    "const photoPreviewDraftKey = (owner) => 'global-photo-preview:'",
+    "const photoPreviewDraftKey = (owner, pagePath = window.location.pathname) =>\n    'global-photo-preview:'",
     "const legacyPhotoPreviewDraftKey = (owner) => 'global-photo-preview:'",
   );
 }
