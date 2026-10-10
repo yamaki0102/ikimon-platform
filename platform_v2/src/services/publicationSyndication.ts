@@ -274,9 +274,9 @@ export type OwnerPublicationReturnInput = {
 };
 
 /**
- * Project the latest known observation quality review into the owner publication
- * return. Unknown and pending values stay unreviewed; absence may retain the
- * existing human-review fallback because no newer status is available.
+ * Project the latest known observation quality state without treating it as
+ * proof of human review. Unknown and pending values stay unreviewed; an
+ * accepted quality state may preserve only an existing human-review fallback.
  */
 export function ownerPublicationReviewDecisionFromQualityStatus(
   qualityReviewStatus: unknown,
@@ -286,7 +286,7 @@ export function ownerPublicationReviewDecisionFromQualityStatus(
   if (typeof qualityReviewStatus !== "string") return null;
   switch (qualityReviewStatus) {
     case "accepted":
-      return { state: "approved", source: "human_review" };
+      return fallback;
     case "changes_requested":
     case "correction_requested":
       return { state: "changes_requested", source: "human_review" };

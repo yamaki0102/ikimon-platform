@@ -85,13 +85,26 @@ test("latest correction or rejection replaces prior approval and excludes a publ
   }
 });
 
-test("only exact known latest statuses can override the fallback approval", () => {
-  const accepted = renderOwnerPublicationReturn({
+test("accepted quality status cannot manufacture human approval", () => {
+  const qualityAcceptedOnly = renderOwnerPublicationReturn({
     ...base,
     reviewDecision: ownerPublicationReviewDecisionFromQualityStatus("accepted", null),
     lang: "en",
   });
-  assert.match(accepted, /data-publication-state="eligible"/);
+  assert.match(qualityAcceptedOnly, /data-publication-review-state="not_reviewed"/);
+  assert.match(qualityAcceptedOnly, /data-publication-state="not_ready"/);
+  assert.doesNotMatch(qualityAcceptedOnly, /Reviewed and approved|Eligible \(not published\)|Publication confirmed/);
+
+  const qualityAcceptedWithHumanApproval = renderOwnerPublicationReturn({
+    ...base,
+    reviewDecision: ownerPublicationReviewDecisionFromQualityStatus("accepted", base.reviewDecision),
+    lang: "en",
+  });
+  assert.match(qualityAcceptedWithHumanApproval, /data-publication-review-state="approved"/);
+  assert.match(qualityAcceptedWithHumanApproval, /data-publication-state="eligible"/);
+});
+
+test("only exact correction and rejection states override a human approval", () => {
 
   for (const status of ["needs_review", "verified", "archived", "ACCEPTED", "unknown", 1]) {
     const html = renderOwnerPublicationReturn({
