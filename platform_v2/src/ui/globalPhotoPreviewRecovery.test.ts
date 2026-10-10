@@ -80,9 +80,12 @@ function indexedDbFixture(
   drafts: Map<string, Draft>,
   shouldFailDelete: () => boolean = () => false,
   deferFirstGet = false,
+  deferFirstDelete = false,
 ) {
   let shouldDeferGet = deferFirstGet;
   let pendingGet: (() => void) | null = null;
+  let shouldDeferDelete = deferFirstDelete;
+  let pendingDelete: (() => void) | null = null;
   const db = {
     objectStoreNames: { contains: () => true },
     close() {},
@@ -113,7 +116,7 @@ function indexedDbFixture(
           });
         },
         delete(key: string) {
-          queueMicrotask(() => {
+          const complete = () => {
             if (shouldFailDelete()) {
               transaction.error = new Error("indexeddb_delete_failed");
               transaction.onerror?.();
@@ -121,7 +124,11 @@ function indexedDbFixture(
             }
             drafts.delete(key);
             transaction.oncomplete?.();
-          });
+          };
+          if (shouldDeferDelete) {
+            shouldDeferDelete = false;
+            pendingDelete = complete;
+          } else queueMicrotask(complete);
         },
       };
       transaction.objectStore = () => objectStore;
@@ -140,6 +147,12 @@ function indexedDbFixture(
       assert.ok(complete, "an IndexedDB get is pending");
       complete();
     },
+    completePendingDelete() {
+      const complete = pendingDelete;
+      pendingDelete = null;
+      assert.ok(complete, "an IndexedDB delete is pending");
+      complete();
+    },
   };
 }
 
@@ -150,6 +163,7 @@ type CameraFixtureOptions = {
   deleteFailures?: number;
   deferCanvasBlob?: boolean;
   deferDraftRead?: boolean;
+  deferDraftDelete?: boolean;
 };
 
 function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/ja/learn/field-loop", options: CameraFixtureOptions = {}) {
@@ -215,7 +229,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     deleteFailures -= 1;
     return true;
   };
-  const indexedDB = indexedDbFixture(drafts, shouldFailDelete, options.deferDraftRead);
+  const indexedDB = indexedDbFixture(drafts, shouldFailDelete, options.deferDraftRead, options.deferDraftDelete);
   const window = {
     location,
     indexedDB,
@@ -280,6 +294,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
       callback(blob);
     },
     resolveDraftRead() { indexedDB.completePendingGet(); },
+    completePendingDelete() { indexedDB.completePendingDelete(); },
     switchUserId(nextUserId: string) { currentUserId = nextUserId; currentSession = "user"; },
     switchToGuest() { currentSession = "guest"; },
     navigateToPath(nextPath: string) { location.pathname = nextPath; },
@@ -432,6 +447,37 @@ test("cancel reports an IndexedDB delete failure and keeps the selected preview 
   await drain();
   assert.equal(browser.sheet.hidden, true, "retrying cancel closes only after deletion succeeds");
   assert.equal(drafts.has(key), false);
+});
+
+test("photo removal cannot re-save a draft while confirmed discard is still pending", async () => {
+  const drafts = new Map<string, Draft>();
+  const pagePath = "/ja/learn/field-loop";
+  const key = photoPreviewKey("owner-A", pagePath);
+  drafts.set(key, {
+    ownerKey: "user:owner-A",
+    kind: "photo",
+    globalPhotoPreview: true,
+    savedAt: Date.now(),
+    capturePagePath: pagePath,
+    files: [
+      new File(["first"], "first.jpg", { type: "image/jpeg" }),
+      new File(["second"], "second.jpg", { type: "image/jpeg" }),
+    ],
+  });
+  const browser = cameraFixture(drafts, "owner-A", pagePath, { deferDraftDelete: true });
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 2);
+
+  browser.close.click();
+  await drain();
+  assert.equal(drafts.has(key), true, "the original draft remains until the IndexedDB discard completes");
+
+  browser.removePhoto(0);
+  browser.completePendingDelete();
+  await drain();
+
+  assert.equal(browser.sheet.hidden, true, "confirmed discard closes after durable deletion");
+  assert.equal(drafts.has(key), false, "an in-flight tray mutation cannot queue a save after discard");
 });
 
 test("removing the last selected photo keeps it visible and durable when IndexedDB deletion fails", async () => {

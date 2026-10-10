@@ -2536,7 +2536,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (message) setStatus(message);
   };
   const movePhotoDraft = (index, direction) => {
-    if (photoDraftRemovalInFlight) return;
+    if (photoPreviewCloseInFlight || photoDraftRemovalInFlight) return;
     const from = Number(index);
     const to = from + Number(direction);
     if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 || from >= capturedPhotoFiles.length || to >= capturedPhotoFiles.length) return;
@@ -2548,6 +2548,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     schedulePhotoPreviewWrite();
   };
   const removePhotoDraft = (index) => {
+    if (photoPreviewCloseInFlight) return;
     const target = Number(index);
     if (directPostInFlight) {
       setStatus('写真を保存中です。保存が終わってから外せます。');
@@ -2634,7 +2635,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     setStatusHtml(savedRecordActionsHtml(message));
   };
   const directPostPhotoDraft = async () => {
-    if (directPostInFlight) return;
+    if (photoPreviewCloseInFlight || directPostInFlight) return;
     const files = selectedPhotoDraftFiles();
     if (!files.length) return;
     if (photoPreviewPostComplete) {
@@ -2866,6 +2867,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }
   };
   const addPhotoDraftFiles = (files, metadata) => {
+    if (photoPreviewCloseInFlight) {
+      setStatus('写真を閉じています。完了してからもう一度お試しください。');
+      return;
+    }
     if (photoDraftRemovalInFlight) {
       setStatus('写真の更新中です。完了してからもう一度お試しください。');
       return;
@@ -2898,6 +2903,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     schedulePhotoPreviewWrite();
   };
   const navigateWithDraft = async (files, kind, metadata, source) => {
+    if (kind === 'photo' && photoPreviewCloseInFlight) return;
     const href = RECORD_TARGETS[kind] || RECORD_TARGETS.photo;
     const draftFiles = normalizeDraftFiles(files);
     const metadataValue = metadata && typeof metadata === 'object' ? metadata : {};
@@ -2968,6 +2974,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     setStatus('');
   };
   const openSheet = (kind, options) => {
+    if (photoPreviewCloseInFlight) return;
     if (activeKind && activeKind !== kind) {
       cameraRequestId += 1;
       cameraStartInFlight = false;
@@ -3010,7 +3017,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     if (!(options && options.reviewOnly)) void startCamera();
   };
   const startCamera = async () => {
-    if (!activeKind) return;
+    if (!activeKind || photoPreviewCloseInFlight) return;
     if (cameraStartInFlight) return;
     const cameraStartedAt = nowMs();
     setPhotoDraftLayout(false);
@@ -3409,6 +3416,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     }, 500);
   };
   const captureFromSheet = async () => {
+    if (photoPreviewCloseInFlight) return;
     if (activeKind === 'photo' && activeStream) {
       resetPhotoDraftSubmitConfirm();
       capturePressedAt = nowMs();
@@ -3481,6 +3489,10 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       const files = input.files ? Array.from(input.files) : [];
       const kind = input.getAttribute('data-global-record-input') || 'gallery';
       if (!files.length) return;
+      if (photoPreviewCloseInFlight) {
+        input.value = '';
+        return;
+      }
       if (kind === 'photo') {
         photoCaptureSource = 'native';
         openSheet('photo', { reviewOnly: true, keepReview: true });
