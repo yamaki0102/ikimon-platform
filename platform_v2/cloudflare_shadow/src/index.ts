@@ -32147,6 +32147,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     }
   }
 
+  let observationBatchIssued = false;
+  try {
   const draftId = newId("draft");
   const visitId = normalizeOptionalId(input.observationId) ?? newId("obs");
   const partition = resolveObservationPartition(input.observedAt, env);
@@ -32227,7 +32229,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   await env.CORE_DB.batch([
     env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId)
   ]);
-  await env.OBS_DB.batch([
+  const observationBatch = [
     env.OBS_DB.prepare(
       `INSERT INTO draft_observations
        (draft_id, owner_user_id, observed_at, exact_lat, exact_lng, location_accuracy_m, public_cell, visibility, partition_month)
@@ -32357,7 +32359,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         visibility
       )
     })
-  ]);
+  ];
+  observationBatchIssued = true;
+  await env.OBS_DB.batch(observationBatch);
 
   await insertCompatibleAutoEnvironmentRecordIfPresent({
     occurrenceId: visitId,
@@ -32450,6 +32454,24 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     placeMemory: placeMemory.result,
     placeMemorySample: placeMemory.sample,
   }, input), 201, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
+  } catch (error) {
+    if (clientSubmissionId && idempotencyFingerprint && !observationBatchIssued) {
+      await env.OBS_DB.prepare(
+        `DELETE FROM observation_write_idempotency
+          WHERE client_submission_id = ?
+            AND user_id = ?
+            AND request_fingerprint = ?
+            AND write_status = 'in_progress'
+            AND visit_id IS NULL`
+      ).bind(clientSubmissionId, input.userId, idempotencyFingerprint).run().catch((cleanupError) => {
+        console.warn(JSON.stringify({
+          message: "observation_idempotency_pre_batch_release_failed",
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+        }));
+      });
+    }
+    throw error;
+  }
 }
 
 async function upsertCompatibleWaterRecordIfPresent(
