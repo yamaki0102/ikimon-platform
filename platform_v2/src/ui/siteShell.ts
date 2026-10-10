@@ -1888,11 +1888,24 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let photoPreviewWriteQueue = Promise.resolve();
   let photoPreviewDismissed = false;
   let photoPreviewOwnerKey = '';
+  let photoPreviewOwnerContextPromise = null;
   let photoPreviewPagePath = '';
   let photoPreviewPostComplete = false;
   let photoPreviewEpoch = 0;
   let photoPreviewCloseInFlight = false;
   let photoPreviewRestoreInFlight = false;
+  const pinPhotoPreviewOwnerContext = () => {
+    if (!photoPreviewOwnerContextPromise) {
+      photoPreviewOwnerContextPromise = draftOwnerContext().then((owner) => {
+        if (photoPreviewOwnerKey && photoPreviewOwnerKey !== owner.ownerKey) throw new Error('draft_owner_changed');
+        photoPreviewOwnerKey = owner.ownerKey;
+        return owner;
+      });
+      // The serial write may still be pending when this lookup rejects.
+      photoPreviewOwnerContextPromise.catch(() => undefined);
+    }
+    return photoPreviewOwnerContextPromise;
+  };
   const readStoredPhotoPreview = async (owner, pagePath) => {
     if (!('indexedDB' in window)) return null;
     const ownerContext = owner || await draftOwnerContext();
@@ -1970,14 +1983,18 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       retryVisitId: photoDraftRetryVisitId,
       retryHasUploadedPhoto: photoDraftRetryHasUploadedPhoto,
     };
+    // Bind native selections before yielding to the write queue, then recheck
+    // that same owner when persisting. A later session cannot claim these bytes.
+    const ownerContext = mode === 'discard' ? null : pinPhotoPreviewOwnerContext();
     photoPreviewWriteQueue = photoPreviewWriteQueue.catch(() => undefined).then(() => {
       if (mode === 'discard') {
         return deleteStoredPhotoPreview(snapshot.capturePagePath).then(() => {
           photoPreviewOwnerKey = '';
+          photoPreviewOwnerContextPromise = null;
           photoPreviewPagePath = '';
         });
       }
-      return saveDraft(snapshot);
+      return ownerContext.then((owner) => saveDraft(snapshot, owner.ownerKey));
     });
     return photoPreviewWriteQueue;
   };
@@ -2608,6 +2625,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     photoDraftRetryHasUploadedPhoto = false;
     photoPreviewPostComplete = false;
     photoPreviewOwnerKey = '';
+    photoPreviewOwnerContextPromise = null;
     photoPreviewPagePath = '';
     capturedReviewMeta = null;
     renderPhotoTray();

@@ -792,6 +792,34 @@ test("preview restore is abandoned if the page changes during the IndexedDB read
   assert.equal(browser.sheet.hidden, true, "a draft read started on one page cannot affect another page");
 });
 
+test("a native photo selection cannot be reassigned when the account changes before its first queued write", async () => {
+  const drafts = new Map<string, Draft>();
+  const pagePath = "/ja/learn/field-loop";
+  const server = recoveryServer();
+  const browser = cameraFixture(drafts, "owner-A", pagePath, { fetch: server.fetch });
+  await drain();
+  browser.input.files = [new File(["captured-under-first-session"], "original.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  browser.switchUserId("owner-B");
+  await drain();
+
+  assert.equal(drafts.has(photoPreviewKey("owner-B", pagePath)), false, "a later account must never receive the original photo");
+  assert.equal(drafts.has(photoPreviewKey("owner-A", pagePath)), false, "an unconfirmed owner change fails closed");
+  assert.equal(browser.photoGrid.children.length, 1, "the original photo remains available in the preview");
+  assert.equal(browser.sheet.hidden, false, "failed persistence must not discard the photo");
+
+  browser.submit.click();
+  await drain();
+  assert.equal(server.upserts.length, 0, "the next account cannot submit the retained original photo");
+  assert.equal(drafts.has(photoPreviewKey("owner-B", pagePath)), false);
+
+  browser.switchUserId("owner-A");
+  browser.submit.click();
+  await drain();
+  assert.equal(server.records.size, 1, "the original owner can continue with the retained photo");
+  assert.equal(drafts.get(photoPreviewKey("owner-A", pagePath))?.files?.[0]?.name, "original.jpg");
+});
+
 test("account changes cannot write a prior user's photo into the next user's draft", async () => {
   const drafts = new Map<string, Draft>();
   const browser = cameraFixture(drafts, "owner-A");
