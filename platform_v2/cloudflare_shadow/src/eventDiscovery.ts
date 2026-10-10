@@ -1,9 +1,10 @@
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
-import { DISCOVERY_AUTO_PRIVACY_METHOD, type DiscoveryPrivacyResult } from "./eventDiscoveryPrivacy";
+import { containsDiscoveryPersonalInformation, DISCOVERY_AUTO_PRIVACY_METHOD, type DiscoveryPrivacyResult } from "./eventDiscoveryPrivacy";
 
 export const EVENT_DISCOVERY_VERSION = "event-discovery-v1";
 export const EVENT_DISCOVERY_MAX_PHOTOS = 3;
 export const EVENT_DISCOVERY_PRIVACY_METHOD = "metadata-scrub+organizer-visual/v1";
+export const RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION = "ryuyo-gemini-screening-publish-v1";
 
 type Value = string | number | null;
 export interface DiscoveryStatement {
@@ -152,6 +153,7 @@ export interface DiscoveryEntryRow {
   gallery_consent_at: string | null; guardian_gallery_consent_at: string | null; idempotency_key: string;
   source_request_sha256: string; source_media_sha256: string | null;
   privacy_status: "pending" | "verified" | "rejected"; privacy_method: string | null; privacy_verified_at: string | null;
+  participant_gemini_notice_version: string | null; participant_gemini_notice_at: string | null;
   derivative_key: string | null; derivative_sha256: string | null; derivative_verified_at: string | null;
   review_status: "pending" | "approved" | "rejected" | "withdrawn"; reviewed_by: string | null; reviewed_at: string | null; review_note: string | null; reviewed_display_name: string | null;
   selection_label: string | null; selection_comment: string | null; withdrawn_at: string | null; created_at: string; updated_at: string;
@@ -163,6 +165,7 @@ export interface DiscoveryEntryRow {
 
 const SELECT_ENTRY = [
   "SELECT d.*, p.display_name AS participant_display_name, p.is_minor AS participant_is_minor, p.status AS participant_status,",
+  "p.discovery_gemini_notice_version AS participant_gemini_notice_version, p.discovery_gemini_notice_at AS participant_gemini_notice_at,",
   "m.media_state, m.rights_review_status AS media_rights_status, m.media_sha256, m.asset_key AS media_asset_key,",
   "m.mime AS media_mime, m.bytes AS media_bytes, m.participant_id AS media_participant_id, m.session_id AS media_session_id, m.private_delete_pending",
   "FROM observation_event_discoveries d",
@@ -173,7 +176,11 @@ const SELECT_ENTRY = [
 const ELIGIBLE_SQL = [
   "d.withdrawn_at IS NULL AND d.review_status = 'approved' AND d.privacy_status = 'verified'",
   "AND d.privacy_verified_at IS NOT NULL AND d.gallery_consent_at IS NOT NULL",
-  "AND d.reviewed_display_name IS NULLIF(TRIM(p.display_name), '')",
+  // reviewed_display_name is the sanitized snapshot generated at approval.
+  // NULL is a valid anonymous publication. Named approvals must still match
+  // their approved source name; never re-screen that name with SQL patterns.
+  "AND (d.reviewed_display_name IS NULL OR d.reviewed_display_name = NULLIF(TRIM(p.display_name), ''))",
+  `AND (d.privacy_method IS NULL OR d.privacy_method <> '${DISCOVERY_AUTO_PRIVACY_METHOD}' OR (p.discovery_gemini_notice_version = '${RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION}' AND p.discovery_gemini_notice_at IS NOT NULL))`,
   "AND p.status IN ('checked_in', 'offline', 'left')",
   "AND ((d.is_minor = 0 AND p.is_minor = 0) OR d.guardian_gallery_consent_at IS NOT NULL)",
   "AND (d.entry_kind = 'paper' OR (m.media_state = 'saved' AND m.rights_review_status = 'approved'",
@@ -185,12 +192,19 @@ const ELIGIBLE_SQL = [
 export function isDiscoveryEntryEligible(row: DiscoveryEntryRow): boolean {
   if (row.withdrawn_at || row.review_status !== "approved" || row.privacy_status !== "verified"
     || !row.privacy_verified_at || !row.gallery_consent_at
-    || row.reviewed_display_name !== (row.participant_display_name?.trim() || null)
+    || row.reviewed_display_name === ""
+    || (row.reviewed_display_name !== null && row.reviewed_display_name !== (row.participant_display_name?.trim() || null))
     || !["checked_in", "offline", "left"].includes(row.participant_status)
+    || (row.privacy_method === DISCOVERY_AUTO_PRIVACY_METHOD && (row.participant_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !row.participant_gemini_notice_at))
     || ((row.is_minor === 1 || row.participant_is_minor === 1) && !row.guardian_gallery_consent_at)) return false;
   return row.entry_kind === "paper" || Boolean(row.media_state === "saved" && row.media_rights_status === "approved"
     && row.private_delete_pending === 0 && row.media_session_id === row.session_id && row.media_participant_id === row.participant_id
     && row.media_sha256 === row.source_media_sha256 && row.derivative_key && row.derivative_sha256 && row.derivative_verified_at);
+}
+
+function discoveryPublicNickname(value: string | null | undefined): string | null {
+  const nickname = value?.trim() || null;
+  return nickname && !containsDiscoveryPersonalInformation(nickname) ? nickname : null;
 }
 
 function galleryStatus(row: DiscoveryEntryRow): "private" | "pending_review" | "published" | "withdrawn" {
@@ -333,7 +347,8 @@ export class EventDiscoveryStore {
     const row = await this.get(sessionId, entryId);
     // Automatic publication never reconsiders an existing human decision, scans a
     // private submission, or invents guardian consent. Replay returns its state.
-    if (screen && (!row || row.entry_kind !== "photo" || row.review_status !== "pending" || row.reviewed_at
+    if (screen && (!row || row.participant_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !row.participant_gemini_notice_at
+      || row.entry_kind !== "photo" || row.review_status !== "pending" || row.reviewed_at
       || row.privacy_method || row.withdrawn_at || !row.gallery_consent_at || row.media_state !== "saved"
       || row.media_rights_status !== "pending" || row.private_delete_pending !== 0
       || ((row.is_minor === 1 || row.participant_is_minor === 1) && !row.guardian_gallery_consent_at))) {
@@ -355,7 +370,9 @@ export class EventDiscoveryStore {
       }
       if (await discoveryHash(body) !== row.source_media_sha256) throw new DiscoveryError(409, "source_media_changed");
       if (screen) {
-        const verdict = await screen(body, [row.caption, row.spot_label, row.participant_display_name].filter(Boolean).join("\n"));
+        // Send only the text needed to check the shared post. A participant's
+        // nickname is not relevant to image screening and stays on this service.
+        const verdict = await screen(body, [row.caption, row.spot_label].filter(Boolean).join("\n"));
         if (!verdict.clear || verdict.reason !== "clear") {
           await this.db.prepare("UPDATE observation_event_discoveries SET privacy_method = ?, review_note = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND entry_id = ? AND review_status = 'pending' AND reviewed_at IS NULL AND privacy_method IS NULL AND withdrawn_at IS NULL AND source_request_sha256 = ?")
             .bind(DISCOVERY_AUTO_PRIVACY_METHOD, verdict.reason, sessionId, entryId, row.source_request_sha256).run();
@@ -385,7 +402,7 @@ export class EventDiscoveryStore {
       ...(screen ? ["AND review_status = 'pending' AND reviewed_at IS NULL AND privacy_method IS NULL AND gallery_consent_at IS NOT NULL",
         "AND ((is_minor = 0 AND (SELECT is_minor FROM observation_event_participants WHERE participant_id = observation_event_discoveries.participant_id) = 0) OR guardian_gallery_consent_at IS NOT NULL)"] : []),
       "AND (entry_kind = 'paper' OR EXISTS (SELECT 1 FROM observation_event_guest_media m WHERE m.submission_id = observation_event_discoveries.submission_id AND m.media_state = 'saved' AND m.rights_review_status <> 'withdrawn' AND m.media_sha256 = observation_event_discoveries.source_media_sha256))",
-    ].join(" ")).bind(input.decision, organizerId, input.note, row.participant_display_name?.trim() || null, input.decision === "approved" ? "verified" : "rejected",
+    ].join(" ")).bind(input.decision, organizerId, input.note, discoveryPublicNickname(row.participant_display_name), input.decision === "approved" ? "verified" : "rejected",
       screen ? DISCOVERY_AUTO_PRIVACY_METHOD : row.entry_kind === "paper" ? "organizer-paper-visual/v1" : EVENT_DISCOVERY_PRIVACY_METHOD, input.decision,
       derivativeKey, derivativeSha256, derivativeKey, input.decision === "approved" ? input.selectionLabel : null,
       input.decision === "approved" ? input.selectionComment : null, sessionId, entryId, row.source_request_sha256)];
@@ -417,7 +434,7 @@ export class EventDiscoveryStore {
       + " GROUP BY d.journal_id ORDER BY d.journal_id ASC LIMIT ?").bind(sessionId, after, size + 1).all<{ journal_id: string }>();
     const ids = journalRows.results.slice(0, size).map((row) => row.journal_id);
     const rows = ids.length ? (await this.db.prepare(SELECT_ENTRY + " WHERE d.session_id = ? AND d.journal_id IN (" + ids.map(() => "?").join(",") + ") AND " + ELIGIBLE_SQL
-      + " ORDER BY d.journal_id ASC, d.created_at ASC, d.entry_id ASC").bind(sessionId, ...ids).all<DiscoveryEntryRow>()).results : [];
+      + " ORDER BY d.journal_id ASC, d.created_at ASC, d.entry_id ASC").bind(sessionId, ...ids).all<DiscoveryEntryRow>()).results.filter(isDiscoveryEntryEligible) : [];
     const counts = await this.db.prepare("SELECT COUNT(DISTINCT d.journal_id) AS journals, COUNT(*) AS entries" + from
       + " WHERE d.session_id = ? AND " + ELIGIBLE_SQL).bind(sessionId).first<{ journals: number; entries: number }>();
     return {
@@ -431,7 +448,7 @@ export class EventDiscoveryStore {
             selectionLabel: row.selection_label, selectionComment: row.selection_comment,
           })),
         };
-      }),
+      }).filter((journal) => journal.entries.length > 0),
       nextCursor: journalRows.results.length > size ? ids.at(-1)! : null,
       counts: { journals: Number(counts?.journals ?? 0), entries: Number(counts?.entries ?? 0) },
     };
