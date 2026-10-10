@@ -7082,10 +7082,13 @@ class FakeStatement {
       const scheduledOnly = normalized.includes("AND julianday(started_at) <= julianday('now')");
       const activeOnly = scheduledOnly || normalized.includes("WHERE ended_at IS NULL");
       const publicListQuery = normalized.includes("WHERE event_code IS NOT NULL AND trim(event_code) <> ''");
+      const ownerListQuery = normalized.includes("WHERE organizer_user_id = ? AND event_code IS NOT NULL");
+      const ownerUserId = ownerListQuery ? string(v[0]) : null;
       const cursorStartedAt = publicListQuery && v[0] !== null ? string(v[0]) : null;
       const cursorSessionId = publicListQuery && v[3] !== null ? string(v[3]) : null;
       const rows = [...this.db.observationEventSessions.values()]
         .filter((row) => !publicListQuery || Boolean(row.event_code?.trim()))
+        .filter((row) => !ownerListQuery || (row.organizer_user_id === ownerUserId && Boolean(row.event_code?.trim())))
         .filter((row) => !publicListQuery || cursorStartedAt === null
           || row.started_at < cursorStartedAt
           || (row.started_at === cursorStartedAt && cursorSessionId !== null && row.session_id > cursorSessionId))
@@ -19726,6 +19729,62 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
   assert.doesNotMatch(html, /Flag alias fixture|Source marker fixture|Code marker fixture|PR #123 production rally fixture|検証用/);
   assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
+});
+
+test("newer public participation rows do not starve an organizer's private draft", async (t) => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
+  const issue = async (userId: string) => {
+    const response = await worker.fetch(new Request("https://zukan.earth/api/v1/auth/session/issue", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, displayName: userId, ttlHours: 1 })
+    }), env);
+    assert.equal(response.status, 200);
+    return response.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issue("flood-list-owner");
+  const productionOrigin = "https://zukan.earth";
+  const base: ObservationEventSessionTestRow = {
+    session_id: "owner-only-old-draft", legacy_event_id: null, event_code: "OWNDRAFT1",
+    title: "Organizer-only older draft", organizer_user_id: "flood-list-owner", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2020-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: JSON.stringify({ public_list_visibility: "private-until-explicit" }),
+    field_id: null, template_source_session_id: null,
+    created_at: "2020-01-01T00:00:00.000Z", updated_at: "2020-01-01T00:00:00.000Z",
+  };
+  obs.observationEventSessions.set(base.session_id, base);
+  obs.observationEventSessions.set("other-organizer-private", {
+    ...base, session_id: "other-organizer-private", event_code: "OTHERPRIV1",
+    title: "Another organizer private draft", organizer_user_id: "someone-else",
+    started_at: "2099-01-01T00:00:00.000Z",
+  });
+  for (let index = 0; index < 24; index += 1) {
+    const id = `newer-public-${String(index).padStart(2, "0")}`;
+    obs.observationEventSessions.set(id, {
+      ...base, session_id: id, event_code: `PUBLIC${String(index).padStart(2, "02")}`,
+      title: `Eligible public program ${String(index).padStart(2, "02")}`,
+      organizer_user_id: "public-organizer", config_json: "{}",
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+
+  const readList = (cookie = "") => worker.fetch(new Request(`${productionOrigin}/en/community/events`, {
+    headers: { cookie }
+  }), productionEnv);
+  const ownerHtml = await (await readList(ownerCookie)).text();
+  assert.match(ownerHtml, /Organizer-only older draft/);
+  assert.doesNotMatch(ownerHtml, /Another organizer private draft|OTHERPRIV1/);
+  assert.equal((ownerHtml.match(/data-participation-result/g) ?? []).length, 24);
+  assert.ok((ownerHtml.match(/<h3>Eligible public program \d{2}<\/h3>/g) ?? []).length <= 24);
+
+  const publicHtml = await (await readList()).text();
+  assert.doesNotMatch(publicHtml, /Organizer-only older draft|OWNDRAFT1/);
+  assert.doesNotMatch(publicHtml, /Another organizer private draft|OTHERPRIV1/);
+  assert.equal((publicHtml.match(/<h3>Eligible public program \d{2}<\/h3>/g) ?? []).length, 24);
+  assert.equal((publicHtml.match(/data-participation-result/g) ?? []).length, 24);
 });
 
 test("unpublished organizer templates stay private throughout their lifecycle until explicit publication", async (t) => {

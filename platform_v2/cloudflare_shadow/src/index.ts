@@ -4451,9 +4451,28 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
   let loadFailed = false;
   const sessions: ObservationEventSessionRow[] = [];
+  const ownerSessionIds = new Set<string>();
   let cursor: { startedAt: string; sessionId: string } | null = null;
   try {
-    // LIMIT bounds each fetch; the shared QA filter runs before a row counts toward the 24 visible entries.
+    if (auth?.userId) {
+      const ownedRows = await env.OBS_DB.prepare(
+        `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+                plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+                started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+                created_at, updated_at
+           FROM observation_event_sessions
+          WHERE organizer_user_id = ? AND event_code IS NOT NULL AND trim(event_code) <> ''
+          ORDER BY started_at DESC, session_id ASC
+          LIMIT ${OBSERVATION_EVENT_PUBLIC_LIST_LIMIT}`
+      ).bind(auth.userId).all<ObservationEventSessionD1Row>();
+      for (const row of ownedRows.results) {
+        const session = mapObservationEventSession(row);
+        ownerSessionIds.add(session.sessionId);
+        sessions.push(session);
+      }
+    }
+    // Load owner rows first so public traffic cannot starve private drafts. Each public fetch stays bounded;
+    // the shared QA filter runs before a row counts toward the 24 visible entries.
     while (sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) {
       const rows: { results: ObservationEventSessionD1Row[] } = await env.OBS_DB.prepare(
         `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
@@ -4470,7 +4489,13 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
       if (rows.results.length === 0) break;
       for (const row of rows.results) {
         const session = mapObservationEventSession(row);
-        if (auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session)) sessions.push(session);
+        if (ownerSessionIds.has(session.sessionId)) continue;
+        if (auth?.userId === session.organizerUserId) {
+          ownerSessionIds.add(session.sessionId);
+          sessions.push(session);
+        } else if (!isObservationEventQaFixture(session)) {
+          sessions.push(session);
+        }
       }
       const last: ObservationEventSessionD1Row = rows.results.at(-1)!;
       cursor = { startedAt: last.started_at, sessionId: last.session_id };
