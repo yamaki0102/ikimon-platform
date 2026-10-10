@@ -1791,6 +1791,13 @@ export function renderMapExplorer(props: MapExplorerProps): string {
 
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
+  const gbifTaxonGroupLabels = props.lang === "ja"
+    ? { insect: "昆虫類", bird: "鳥類", plant: "植物", amphibian_reptile: "両生類・爬虫類", mammal: "哺乳類", fungi: "菌類", other: "その他の生物" }
+    : props.lang === "es"
+      ? { insect: "Insectos", bird: "Aves", plant: "Plantas", amphibian_reptile: "Anfibios y reptiles", mammal: "Mamíferos", fungi: "Hongos", other: "Otros organismos" }
+      : props.lang === "pt-BR"
+        ? { insect: "Insetos", bird: "Aves", plant: "Plantas", amphibian_reptile: "Anfíbios e répteis", mammal: "Mamíferos", fungi: "Fungos", other: "Outros organismos" }
+        : { insect: "Insects", bird: "Birds", plant: "Plants", amphibian_reptile: "Amphibians and reptiles", mammal: "Mammals", fungi: "Fungi", other: "Other organisms" };
   const ambient = ambientPanelLabels(props.lang);
   const actor = actorPanelLabels(props.lang);
   const noticeCopy = getOfficialNoticeRenderCopy(props.lang);
@@ -2044,6 +2051,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     seasonWinter: copy.seasonWinter,
     shareCopied: copy.shareCopied,
     shareError: copy.shareError,
+    gbifTaxonGroupLabels: gbifTaxonGroupLabels,
     rainNow: props.lang === "ja" ? "現在" : props.lang === "es" ? "Ahora" : props.lang === "pt-BR" ? "Agora" : "Now",
     rainMinute: props.lang === "ja" ? "__MIN__分後" : props.lang === "es" ? "+__MIN__ min" : props.lang === "pt-BR" ? "+__MIN__ min" : "+__MIN__ min",
     rainHour: props.lang === "ja" ? "__HOUR__時間後" : props.lang === "es" ? "+__HOUR__ h" : props.lang === "pt-BR" ? "+__HOUR__ h" : "+__HOUR__ h",
@@ -5014,14 +5022,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       return '<div><span>' + escapeHtml(item.label) + '</span><strong>' + escapeHtml(item.value) + '</strong></div>';
     }).join('') + '</div>';
   }
-  function gbifTaxonIcon(group) {
-    if (group === 'bird') return '鳥';
-    if (group === 'insect') return '虫';
-    if (group === 'plant') return '植';
-    if (group === 'amphibian_reptile') return '両';
-    if (group === 'mammal') return '哺';
-    if (group === 'fungi') return '菌';
-    return '生';
+  function gbifTaxonGroupLabel(group) {
+    return COPY.gbifTaxonGroupLabels[group] || COPY.gbifTaxonGroupLabels.other;
+  }
+  function renderGbifTaxonRows(taxa) {
+    return taxa.map(function (taxon) {
+      var label = taxon.displayNameJa || taxon.commonNameJa || taxon.canonicalName || taxon.scientificName || 'GBIF taxon';
+      var scientific = taxon.scientificName || taxon.canonicalName || '';
+      var scientificHtml = scientific && scientific !== label ? '<em>' + escapeHtml(scientific) + '</em>' : '';
+      var count = Number(taxon.recordCount || 0).toLocaleString();
+      return '<div class="me-gbif-taxon"><strong><span class="me-gbif-taxon-group">' + escapeHtml(gbifTaxonGroupLabel(taxon.taxonGroup)) + '</span>' + escapeHtml(label) + scientificHtml + '</strong><small>' + escapeHtml(count) + '</small></div>';
+    }).join('');
   }
   function renderGbifAreaSummarySlot(slotId) {
     return '<section id="' + escapeHtml(slotId) + '" class="me-gbif-area-summary me-detail-section is-loading" aria-live="polite">' +
@@ -5039,13 +5050,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var latest = summary.latestYear ? String(summary.latestYear) : '—';
     var sourceUrl = String(summary.sourceUrl || '');
     var taxonRows = taxa.length
-      ? '<div class="me-gbif-taxa-list" aria-label="' + escapeHtml(COPY.gbifAreaTopTaxaLabel) + '">' + taxa.map(function (taxon) {
-          var label = taxon.displayNameJa || taxon.commonNameJa || taxon.canonicalName || taxon.scientificName || 'GBIF taxon';
-          var scientific = taxon.scientificName || taxon.canonicalName || '';
-          var scientificHtml = scientific && scientific !== label ? '<em>' + escapeHtml(scientific) + '</em>' : '';
-          var count = Number(taxon.recordCount || 0).toLocaleString();
-          return '<div class="me-gbif-taxon"><span aria-hidden="true">' + escapeHtml(gbifTaxonIcon(taxon.taxonGroup)) + '</span><strong>' + escapeHtml(label) + scientificHtml + '</strong><small>' + escapeHtml(count) + '</small></div>';
-        }).join('') + '</div>'
+      ? '<div class="me-gbif-taxa-list" aria-label="' + escapeHtml(COPY.gbifAreaTopTaxaLabel) + '">' + renderGbifTaxonRows(taxa) + '</div>'
       : '';
     return '<div class="me-detail-section-head"><span>' + escapeHtml(COPY.gbifAreaBadge) + '</span><strong>' + escapeHtml(COPY.gbifAreaTitle) + '</strong></div>' +
       '<p class="me-gbif-area-note">' + escapeHtml(COPY.gbifAreaSafety) + '</p>' +
@@ -13445,7 +13450,7 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-gbif-taxon {
     display: grid;
-    grid-template-columns: 30px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 8px;
     min-height: 38px;
@@ -13454,14 +13459,6 @@ export const MAP_EXPLORER_STYLES = `
     background: rgba(255,255,255,.82);
     border: 1px solid rgba(148,163,184,.12);
   }
-  .me-gbif-taxon > span {
-    width: 30px;
-    height: 30px;
-    display: grid;
-    place-items: center;
-    border-radius: 999px;
-    background: rgba(20,184,166,.10);
-  }
   .me-gbif-taxon strong {
     min-width: 0;
     color: #0f172a;
@@ -13469,6 +13466,14 @@ export const MAP_EXPLORER_STYLES = `
     line-height: 1.3;
     font-weight: 850;
     overflow-wrap: anywhere;
+  }
+  .me-gbif-taxon-group {
+    display: block;
+    margin-bottom: 3px;
+    color: #0f766e;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 850;
   }
   .me-gbif-taxon strong em {
     display: block;

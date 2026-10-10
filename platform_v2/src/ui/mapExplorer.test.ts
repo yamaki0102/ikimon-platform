@@ -100,6 +100,29 @@ test("map explorer boot script is syntactically valid JavaScript", () => {
   assert.doesNotThrow(() => new vm.Script(script));
 });
 
+test("GBIF area taxa lead with their source-backed organism group and keep a generic fallback", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const context = vm.createContext({
+    COPY: { gbifTaxonGroupLabels: { insect: "昆虫類", plant: "植物", fungi: "菌類", other: "その他の生物" } },
+    escapeHtml: (value: unknown) => String(value).replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!),
+  });
+  new vm.Script(bootSection("function gbifTaxonGroupLabel(group)", "function renderGbifAreaSummary(summary)")).runInContext(context);
+
+  const html = context.renderGbifTaxonRows([
+    { taxonGroup: "plant", displayNameJa: "シロツメクサ", scientificName: "Trifolium repens", recordCount: 12 },
+    { taxonGroup: "insect", displayNameJa: "ミツバチ", scientificName: "Apis mellifera", recordCount: 4 },
+    { taxonGroup: "fungi", displayNameJa: "菌類名未確認", scientificName: "Fungi taxon", recordCount: 2 },
+    { taxonGroup: "unrecognized", displayNameJa: "分類未整理", scientificName: null, recordCount: 1 },
+  ]);
+
+  assert.match(html, /<span class="me-gbif-taxon-group">植物<\/span>シロツメクサ/);
+  assert.match(html, /<span class="me-gbif-taxon-group">昆虫類<\/span>ミツバチ/);
+  assert.match(html, /<span class="me-gbif-taxon-group">菌類<\/span>菌類名未確認/);
+  assert.match(html, /<span class="me-gbif-taxon-group">その他の生物<\/span>分類未整理/);
+  assert.match(html, /<em>Trifolium repens<\/em>/);
+  assert.match(html, /<small>12<\/small>/);
+});
+
 test("map initialization failure offers a usable public-record fallback", () => {
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
     const script = mapExplorerBootScript({ basePath: "", lang });
