@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseDiscoveryPrivacyResult, screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
+import { containsDiscoveryPersonalInformation, parseDiscoveryPrivacyResult, screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
 
 test("privacy screen requires every explicit boolean, rejects malformed or incomplete answers", () => {
   const clear = { person: false, personal_information: false, sensitive_content: false, uncertain: false };
@@ -18,6 +18,10 @@ test("privacy provider failures, missing configuration and contact text never au
   assert.equal((await screenDiscoveryPhoto(undefined, image, "", fail)).reason, "unavailable");
   assert.equal((await screenDiscoveryPhoto("test-key", image, "test@example.org", fail)).reason, "personal_information");
   assert.equal((await screenDiscoveryPhoto("test-key", image, "電話090-1234-5678", fail)).reason, "personal_information");
+  for (const text of ["example.com", "example.co.jp", "example。com", "example｡com", "〒123−4567", "123−4567"]) {
+    assert.equal(containsDiscoveryPersonalInformation(text), true, `contact detail should be held: ${text}`);
+    assert.equal((await screenDiscoveryPhoto("test-key", image, text, fail)).reason, "personal_information");
+  }
   assert.equal(calls, 0);
   assert.equal((await screenDiscoveryPhoto("test-key", image, "", fail)).reason, "unavailable");
   assert.equal(calls, 1);

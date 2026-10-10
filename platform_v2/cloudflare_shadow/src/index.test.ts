@@ -28058,7 +28058,9 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.match(joinHtml, /Google Gemini/u, "the event-specific destination and screening purpose are disclosed before participation");
   assert.match(joinHtml, /リンクを知っている人が見られる/u, "the link-visible audience is disclosed before participation");
   assert.match(joinHtml, /主催者の個別確認前/u, "the clear-result publication timing is disclosed before participation");
-  assert.doesNotMatch(joinHtml, /aria-label="主なページ"|href="\/ja\/profile"/u);
+  const joinForm = joinHtml.match(/<form\b[^>]*data-discovery-join-form[\s\S]*?<\/form>/u)?.[0] ?? "";
+  assert.ok(joinForm, "the event notice and check-in controls are rendered together");
+  assert.doesNotMatch(joinForm, /aria-label="主なページ"|href="\/ja\/profile"/u, "the check-in form itself does not require profile navigation");
   const guestCookie = (join.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
   assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
   assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 400, "Ryuyo check-in requires the version shown in its participation notice");
@@ -28187,11 +28189,14 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 3);
   assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200, "a participant can restore new-post access after seeing the notice again");
   assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_event_guest_media WHERE submission_id = ?").get(saved.receiptId)!.n, 1, "withdrawal preserves the source receipt");
-  assert.equal((await upload("discovery-native-replacement")).response.status, 201, "withdrawal frees exactly one photo slot");
+  const replacementPhoto = await upload("discovery-native-replacement");
+  assert.equal(replacementPhoto.response.status, 201, "withdrawal frees exactly one photo slot");
+  const replacementReceiptId = replacementPhoto.data.receipt.receiptId as string;
   const end = await send(`${api}/end`, "POST", ownerCookie, {});
   assert.equal(end.response.status, 200);
   assert.ok(Date.parse(end.data.session.endedAt) <= Date.now(), JSON.stringify({ endedAt: end.data.session.endedAt, now: new Date().toISOString() }));
   assert.equal((await upload("discovery-native-afterend")).response.status, 409);
+  assert.equal((await send(`${api}/guest-media/${replacementReceiptId}/withdraw`, "POST", guestCookie, {})).response.status, 200, "a participant can withdraw a saved photo after the event ends");
   obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);
   const endedLegacyCapture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
   assert.equal(endedLegacyCapture.response.status, 200, "ended legacy participants can still access the read-only capture journal");

@@ -4,7 +4,7 @@ export const DISCOVERY_AUTO_PRIVACY_METHOD = "metadata-scrub+gemini-privacy/v1";
 export type DiscoveryPrivacyResult = { clear: boolean; reason: "clear" | "person" | "personal_information" | "sensitive_content" | "uncertain" | "unavailable" };
 
 const flags = ["person", "personal_information", "sensitive_content", "uncertain"] as const;
-const personalInformationPattern = /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:https?:\/\/|www\.)|(?:@[^\s@]{3,})|〒?\d{3}-?\d{4}/iu;
+const personalInformationPattern = /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:https?:\/\/|www\.)|(?:@[^\s@]{3,})|(?:^|[^a-z0-9-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:[a-z]{2,63}|xn--[a-z0-9-]{2,59})(?=$|[^a-z0-9-])|〒?\d{3}-?\d{4}/iu;
 const telephonePrefixPattern = /(?:\b(?:tel(?:ephone)?|phone|mobile|cell)\s*[:：]?\s*|電話\s*[:：]?\s*|携帯(?:電話)?\s*[:：]?\s*|連絡先\s*[:：]?\s*)/iu;
 const telephoneCandidatePattern = /[+\d][\d\s().+\-/‐‑‒–—―−]*\d/gu;
 const schema = {
@@ -27,7 +27,7 @@ export function parseDiscoveryPrivacyResult(text: string): DiscoveryPrivacyResul
 export function containsDiscoveryPersonalInformation(text: string): boolean {
   // NFKC folds full-width digits and punctuation before applying the one
   // publication/screening rule. Keep the original safe nickname for display.
-  const normalized = text.normalize("NFKC");
+  const normalized = text.normalize("NFKC").replace(/[‐‑‒–—―−]/gu, "-").replace(/[。｡]/gu, ".");
   if (personalInformationPattern.test(normalized)) return true;
   const hasTelephonePrefix = telephonePrefixPattern.test(normalized);
   for (const candidate of normalized.matchAll(telephoneCandidatePattern)) {
