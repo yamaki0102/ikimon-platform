@@ -16,6 +16,10 @@ ZUKAN の技術識別子は `ikimon-life`、現行 repository は `yamaki0102/ik
 
 選択された release 経路の権限・接続・能力が不足する場合は、その具体的な release 工程だけを未完了として示す。独立して認可されている実装・検証・PR 作業は継続する。未登録の経路や VPS SSH を代替として作らない。
 
+### Concurrent release rule
+
+See the [shared release coordination policy](https://github.com/yamaki0102/all-projects-management/blob/main/operations/deploy_standard/release_coordination.md). The local owner-PC `release-queue.mjs` is **not** attached to this cloud/native ZUKAN registered runner; its mock tests and dashboard projection cannot certify cloud serialization. Before changing staging or production, inspect the currently active registered service/resource release and exact source/rollback baseline. Do not launch a competing deployment that overwrites staged evidence. On `RESOURCE_CONFLICT` or an uncertain provider effect, read back runtime and reconcile; never bypass the selected route or add Factory/PC authorization as a prerequisite. Keep staging and production evidence for the actual promoted source distinct.
+
 ### Preserved boundaries
 
 - 本番の初回有効化、DB 実適用、secret、IAM・権限、DNS、新規課金、外部送信は、対象サービスに適用される有効な承認と保護境界に従う。通常の code-only release に無関係な承認を追加しない。
