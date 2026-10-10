@@ -13,10 +13,16 @@ class Element {
   disabled = false;
   value = "";
   textContent = "";
-  innerHTML = "";
+  private htmlValue = "";
+  get innerHTML() { return this.htmlValue; }
+  set innerHTML(value: string) {
+    this.htmlValue = value;
+    if (!value) this.children = [];
+  }
   files: File[] = [];
+  children: Element[] = [];
   attributes = new Map<string, string>();
-  listeners = new Map<string, Array<(event?: { preventDefault?: () => void }) => void>>();
+  listeners = new Map<string, Array<(event?: { preventDefault?: () => void; target?: Element }) => void>>();
   classList = { add() {}, remove() {} };
   style = { setProperty() {}, removeProperty() {} };
   videoWidth = 1280;
@@ -34,15 +40,15 @@ class Element {
   setAttribute(key: string, value: string) { this.attributes.set(key, value); }
   getAttribute(key: string) { return this.attributes.get(key) ?? null; }
   removeAttribute(key: string) { this.attributes.delete(key); }
-  addEventListener(event: string, fn: (event?: { preventDefault?: () => void }) => void) {
+  addEventListener(event: string, fn: (event?: { preventDefault?: () => void; target?: Element }) => void) {
     this.listeners.set(event, [...(this.listeners.get(event) ?? []), fn]);
   }
-  dispatch(event: string) {
-    const payload = { preventDefault() {} };
+  dispatch(event: string, target: Element = this) {
+    const payload = { target, preventDefault() {} };
     for (const handler of this.listeners.get(event) ?? []) handler(payload);
   }
   click() { this.dispatch("click"); }
-  appendChild(_child: Element) {}
+  appendChild(child: Element) { this.children.push(child); }
 }
 
 class FixtureFileReader {
@@ -74,9 +80,12 @@ function indexedDbFixture(
   drafts: Map<string, Draft>,
   shouldFailDelete: () => boolean = () => false,
   deferFirstGet = false,
+  deferFirstDelete = false,
 ) {
   let shouldDeferGet = deferFirstGet;
   let pendingGet: (() => void) | null = null;
+  let shouldDeferDelete = deferFirstDelete;
+  let pendingDelete: (() => void) | null = null;
   const db = {
     objectStoreNames: { contains: () => true },
     close() {},
@@ -107,7 +116,7 @@ function indexedDbFixture(
           });
         },
         delete(key: string) {
-          queueMicrotask(() => {
+          const complete = () => {
             if (shouldFailDelete()) {
               transaction.error = new Error("indexeddb_delete_failed");
               transaction.onerror?.();
@@ -115,7 +124,11 @@ function indexedDbFixture(
             }
             drafts.delete(key);
             transaction.oncomplete?.();
-          });
+          };
+          if (shouldDeferDelete) {
+            shouldDeferDelete = false;
+            pendingDelete = complete;
+          } else queueMicrotask(complete);
         },
       };
       transaction.objectStore = () => objectStore;
@@ -134,6 +147,12 @@ function indexedDbFixture(
       assert.ok(complete, "an IndexedDB get is pending");
       complete();
     },
+    completePendingDelete() {
+      const complete = pendingDelete;
+      pendingDelete = null;
+      assert.ok(complete, "an IndexedDB delete is pending");
+      complete();
+    },
   };
 }
 
@@ -144,6 +163,7 @@ type CameraFixtureOptions = {
   deleteFailures?: number;
   deferCanvasBlob?: boolean;
   deferDraftRead?: boolean;
+  deferDraftDelete?: boolean;
 };
 
 function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/ja/learn/field-loop", options: CameraFixtureOptions = {}) {
@@ -209,7 +229,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     deleteFailures -= 1;
     return true;
   };
-  const indexedDB = indexedDbFixture(drafts, shouldFailDelete, options.deferDraftRead);
+  const indexedDB = indexedDbFixture(drafts, shouldFailDelete, options.deferDraftRead, options.deferDraftDelete);
   const window = {
     location,
     indexedDB,
@@ -235,6 +255,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     Blob,
     File,
     FileReader: FixtureFileReader,
+    HTMLElement: Element,
     TextEncoder,
     URL,
     navigator: {
@@ -261,6 +282,11 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     },
   });
   return { sheet, submit, input, trigger, close, start, photoGrid, status, cameraErrorBody,
+    removePhoto(index: number) {
+      const button = new Element();
+      button.setAttribute("data-global-record-photo-remove", String(index));
+      photoGrid.dispatch("click", button);
+    },
     resolveCanvasBlob(blob: Blob | null) {
       const callback = pendingCanvasBlob;
       pendingCanvasBlob = null;
@@ -268,6 +294,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
       callback(blob);
     },
     resolveDraftRead() { indexedDB.completePendingGet(); },
+    completePendingDelete() { indexedDB.completePendingDelete(); },
     switchUserId(nextUserId: string) { currentUserId = nextUserId; currentSession = "user"; },
     switchToGuest() { currentSession = "guest"; },
     navigateToPath(nextPath: string) { location.pathname = nextPath; },
@@ -420,6 +447,101 @@ test("cancel reports an IndexedDB delete failure and keeps the selected preview 
   await drain();
   assert.equal(browser.sheet.hidden, true, "retrying cancel closes only after deletion succeeds");
   assert.equal(drafts.has(key), false);
+});
+
+test("photo removal cannot re-save a draft while confirmed discard is still pending", async () => {
+  const drafts = new Map<string, Draft>();
+  const pagePath = "/ja/learn/field-loop";
+  const key = photoPreviewKey("owner-A", pagePath);
+  drafts.set(key, {
+    ownerKey: "user:owner-A",
+    kind: "photo",
+    globalPhotoPreview: true,
+    savedAt: Date.now(),
+    capturePagePath: pagePath,
+    files: [
+      new File(["first"], "first.jpg", { type: "image/jpeg" }),
+      new File(["second"], "second.jpg", { type: "image/jpeg" }),
+    ],
+  });
+  const browser = cameraFixture(drafts, "owner-A", pagePath, { deferDraftDelete: true });
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 2);
+
+  browser.close.click();
+  await drain();
+  assert.equal(drafts.has(key), true, "the original draft remains until the IndexedDB discard completes");
+
+  browser.removePhoto(0);
+  browser.completePendingDelete();
+  await drain();
+
+  assert.equal(browser.sheet.hidden, true, "confirmed discard closes after durable deletion");
+  assert.equal(drafts.has(key), false, "an in-flight tray mutation cannot queue a save after discard");
+});
+
+test("removing the last selected photo keeps it visible and durable when IndexedDB deletion fails", async () => {
+  const drafts = new Map<string, Draft>();
+  const browser = cameraFixture(drafts, "owner-A", "/ja/learn/field-loop", { deleteFailures: 1 });
+  browser.input.files = [new File(["keep-until-delete"], "keep.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  await drain();
+  const key = photoPreviewKey("owner-A", "/ja/learn/field-loop");
+  assert.equal(browser.photoGrid.children.length, 1);
+  assert.equal(drafts.get(key)?.files?.length, 1);
+
+  browser.removePhoto(0);
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 1, "the preview stays visible when durable removal fails");
+  assert.equal(drafts.get(key)?.files?.length, 1, "the saved preview remains available for a retry");
+  assert.match(browser.status.textContent, /写真は残しています/);
+
+  browser.removePhoto(0);
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 0, "the preview disappears after durable removal succeeds");
+  assert.equal(drafts.has(key), false);
+});
+
+test("last-photo removal is ignored during upload so a failed photo remains retryable", async () => {
+  const drafts = new Map<string, Draft>();
+  let markUploadStarted: (() => void) | null = null;
+  const uploadControl: { release?: (response: { ok: boolean; status: number; json: () => Promise<unknown> }) => void } = {};
+  const uploadStarted = new Promise<void>((resolve) => { markUploadStarted = resolve; });
+  const fetch = async (url: string) => {
+    if (url === "/api/v1/observations/upsert") return {
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, visitId: "visit-race", occurrenceIds: ["occ:visit-race:0"] }),
+    };
+    if (/^\/api\/v1\/observations\/[^/]+\/photos\/upload$/.test(url)) {
+      markUploadStarted?.();
+      return await new Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>((resolve) => {
+        uploadControl.release = resolve;
+      });
+    }
+    throw new Error("Unexpected network call: " + url);
+  };
+  const browser = cameraFixture(drafts, "owner-A", "/ja/learn/field-loop", { fetch });
+  browser.input.files = [new File(["keep-after-failed-upload"], "keep.jpg", { type: "image/jpeg" })];
+  browser.input.dispatch("change");
+  await drain();
+  const key = photoPreviewKey("owner-A", "/ja/learn/field-loop");
+
+  browser.submit.click();
+  await uploadStarted;
+  browser.removePhoto(0);
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 1, "an in-flight upload cannot race with local removal");
+  assert.equal(drafts.get(key)?.files?.length, 1);
+  assert.match(browser.status.textContent, /保存が終わってから外せます/);
+
+  const finishUpload = uploadControl.release;
+  assert.ok(finishUpload, "the upload request is pending");
+  finishUpload({ ok: false, status: 503, json: async () => ({ ok: false, error: "temporary" }) });
+  await drain();
+  assert.equal(browser.photoGrid.children.length, 1, "the failed image remains available to retry");
+  assert.equal(drafts.get(key)?.files?.length, 1);
+  assert.equal(drafts.get(key)?.retryVisitId, "visit-race");
 });
 
 test("cancel does not delete or hide an existing preview when the session check is offline", async () => {

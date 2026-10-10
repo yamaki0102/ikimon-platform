@@ -56,6 +56,13 @@ function publicItem(row: Row): SavedItem {
     title: row.display_title, state: row.state, revision: Number(row.revision), savedAt: row.saved_at, updatedAt: row.updated_at};
 }
 const SQL_SELECT = `SELECT * FROM user_saved_items WHERE user_id = ? AND object_kind = ? AND object_id = ?`;
+export async function getSavedItem(database: Database, userId: string, kind: SavedKind, objectId: string): Promise<SavedItem | null> {
+  if (!(SAVED_KINDS as readonly string[]).includes(kind) || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$/u.test(objectId)) {
+    return fail("saved_reference_invalid");
+  }
+  const row = await database.prepare(SQL_SELECT).bind(userId, kind, objectId).first<Row>();
+  return row ? publicItem(row) : null;
+}
 export async function listSavedItems(database: Database, userId: string, options: {limit?: number; cursor?: string; includeRemoved?: boolean} = {}) {
   const limit = options.limit ?? 20;
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) return fail("saved_limit_invalid");

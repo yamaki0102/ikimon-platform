@@ -123,7 +123,7 @@ test("owner publication return separates human Review, eligibility, configured d
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "human_review", decidedAt: "2026-09-14T12:00:00.000Z" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", sourceEnvironment: "production", readOnly: true }],
     now,
   });
   assert.ok(returned);
@@ -137,7 +137,7 @@ test("owner publication return separates human Review, eligibility, configured d
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "human_review", decidedAt: "2026-09-14T12:00:00.000Z" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", sourceEnvironment: "production", readOnly: true }],
     publishedDestinations: [destination],
     now,
   });
@@ -149,7 +149,7 @@ test("owner publication return separates human Review, eligibility, configured d
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "ai", decidedAt: "2026-09-14T12:00:00.000Z" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", sourceEnvironment: "production", readOnly: true }],
     now,
   });
   assert.equal(aiOnly?.review.state, "not_reviewed");
@@ -162,7 +162,7 @@ test("guest and non-public owner projections do not receive private return data"
     recordVisibility: "public",
     reviewDecision: { state: "approved", source: "human_review" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", sourceEnvironment: "production", readOnly: true }],
     now,
   }), null);
 
@@ -171,7 +171,7 @@ test("guest and non-public owner projections do not receive private return data"
     recordVisibility: "private",
     reviewDecision: { state: "approved", source: "human_review" },
     rights,
-    destinations: [{ feedKey: destination, label: "浜松・都田", sourceEnvironment: "production", readOnly: true }],
+    destinations: [{ feedKey: destination, label: "浜松・都田", sourceVersion: "public-feed-v1", sourceEnvironment: "production", readOnly: true }],
     now,
   });
   assert.equal(nonPublic?.publication.state, "excluded");

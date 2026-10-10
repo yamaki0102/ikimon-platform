@@ -1,7 +1,8 @@
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
-import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
+import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
+import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import type { ObservationEventSessionRow } from "../../src/services/observationEventModeManager";
@@ -22,7 +23,7 @@ import {
 import {
   DiscoveryError, EventDiscoveryStore, isDiscoveryJournalConfig, isEventDiscoveryProfile,
   discoveryHash, discoveryNickname, discoveryReceipt, parseDiscoveryCaptureInput,
-  parseDiscoveryPaperInput, parseDiscoveryReviewInput, type DiscoveryCaptureInput,
+  parseDiscoveryPaperInput, parseDiscoveryReviewInput, RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION, type DiscoveryCaptureInput,
 } from "./eventDiscovery";
 import { COMMON_EVENT_TEMPLATE_CONTRACT_VERSION, COMMON_EVENT_TEMPLATE_LABELS, isCommonEventTemplateConfig, isCommonEventTemplateKey, type CommonEventTemplateKey } from "../../src/services/commonEventTemplateContract";
 import { buildCommonEventTemplateDraft } from "../../src/services/commonEventTemplatePresets";
@@ -34,6 +35,7 @@ import {
 } from "./recordRecoveryHtml";
 import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
+import { screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
 import {
   OBSERVATION_AI_PROMPT_VERSION,
   OBSERVATION_AI_RULE_VERSION,
@@ -1695,6 +1697,8 @@ interface ObservationEventParticipantD1Row {
   share_location?: number;
   location_share_until?: string | null;
   is_minor: number;
+  discovery_gemini_notice_version?: string | null;
+  discovery_gemini_notice_at?: string | null;
 }
 
 interface ObservationEventMeshSummaryRow {
@@ -2564,6 +2568,79 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
   }
 }
 
+
+async function getGlobalPlaceDetailPage(
+  request: Request,
+  url: URL,
+  env: Env,
+  canonicalPlaceId: string,
+): Promise<Response> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(canonicalPlaceId)) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  let result;
+  try {
+    const search = await searchD1PublicPlaces({ db: env.OBS_DB, query: canonicalPlaceId, limit: 2 });
+    result = search.results.find((candidate) => candidate.canonicalPlaceId === canonicalPlaceId) ?? null;
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+  if (!result?.osmSourceId) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const sourceMatch = result.osmSourceId.match(/^(way|relation):(\d+)$/u);
+  if (!sourceMatch?.[1] || !sourceMatch[2]) {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, { "cache-control": "no-store" });
+  }
+
+  let profile;
+  try {
+    profile = await loadCloudflarePlaceAtlasProfile({
+      db: env.OBS_DB,
+      placeRef: {
+        kind: "osm_area",
+        entityKey: `osm:${sourceMatch[1]}:${sourceMatch[2]}`,
+        osmType: sourceMatch[1] as "way" | "relation",
+        osmId: Number(sourceMatch[2]),
+      },
+      fetchFn: fetch,
+    });
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+
+  if (!isPublicGlobalPlaceDetailProfile(profile, canonicalPlaceId)) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const authenticated = Boolean(session && !session.banned);
+  let savedItem = null;
+  let savedStateAvailable = true;
+  if (authenticated && session) {
+    try {
+      savedItem = await getSavedItem(env.CORE_DB, session.userId, "place", canonicalPlaceId);
+    } catch {
+      savedStateAvailable = false;
+    }
+  }
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
+  const response = html(body, 200, {
+    "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+    "x-ikimon-cloudflare-native": "global-place-detail",
+  });
+  return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
+}
+
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
     let journeyReadOnly = false;
@@ -2763,6 +2840,11 @@ export const worker = {
       const municipalWalkMapDetailPageMatch = nativePathname.match(/^\/walk-maps\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && municipalWalkMapDetailPageMatch?.[1]) {
         return await getMunicipalWalkMapPublicDetailPage(decodeURIComponent(municipalWalkMapDetailPageMatch[1]), env);
+      }
+
+      const globalPlaceDetailMatch = nativePathname.match(/^\/places\/(plc_[A-Za-z0-9_-]{1,156})$/u);
+      if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
+        return getGlobalPlaceDetailPage(request, url, env, globalPlaceDetailMatch[1]);
       }
 
       const nativePlacePageMatch = nativePathname.match(/^\/places\/([^/]+)$/);
@@ -4360,34 +4442,88 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
   return observationEventPageHtml("公開内容を確認", body, "program-confirmation", 200, lang, Boolean(auth && !auth.banned));
 }
 
+const OBSERVATION_EVENT_PUBLIC_LIST_LIMIT = 24;
+const OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT = 8;
+
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
   const publicLang = publicLangFromPath(new URL(request.url).pathname) ?? "ja";
   const lang = publicLang === "pt-br" ? "pt-BR" : publicLang;
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
   let loadFailed = false;
-  let rows: { results: ObservationEventSessionD1Row[] };
+  let scanLimitReached = false;
+  const sessions: ObservationEventSessionRow[] = [];
+  const ownerSessionIds = new Set<string>();
+  let cursor: { startedAt: string; sessionId: string } | null = null;
+  let publicScanPages = 0;
+  let lastPublicPageWasFull = false;
   try {
-    rows = await env.OBS_DB.prepare(
-      `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
-              plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
-              started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
-              created_at, updated_at
-         FROM observation_event_sessions
-        ORDER BY started_at DESC
-        LIMIT 24`
-    ).all<ObservationEventSessionD1Row>();
+    if (auth?.userId) {
+      const ownedRows = await env.OBS_DB.prepare(
+        `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+                plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+                started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+                created_at, updated_at
+           FROM observation_event_sessions
+          WHERE organizer_user_id = ? AND event_code IS NOT NULL AND trim(event_code) <> ''
+          ORDER BY started_at DESC, session_id ASC
+          LIMIT ${OBSERVATION_EVENT_PUBLIC_LIST_LIMIT}`
+      ).bind(auth.userId).all<ObservationEventSessionD1Row>();
+      for (const row of ownedRows.results) {
+        const session = mapObservationEventSession(row);
+        ownerSessionIds.add(session.sessionId);
+        sessions.push(session);
+      }
+    }
+    // Load owner rows first so public traffic cannot starve private drafts. Each public fetch stays bounded;
+    // the shared QA filter runs before a row counts toward the 24 visible entries.
+    while (sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT
+      && publicScanPages < OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT) {
+      const rows: { results: ObservationEventSessionD1Row[] } = await env.OBS_DB.prepare(
+        `SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id,
+                plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m,
+                started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
+                created_at, updated_at
+           FROM observation_event_sessions
+          WHERE event_code IS NOT NULL AND trim(event_code) <> ''
+            AND (? IS NULL OR started_at < ? OR (started_at = ? AND session_id > ?))
+          ORDER BY started_at DESC, session_id ASC
+          LIMIT ${OBSERVATION_EVENT_PUBLIC_LIST_LIMIT}`
+      ).bind(cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.startedAt ?? null, cursor?.sessionId ?? null)
+        .all<ObservationEventSessionD1Row>();
+      publicScanPages += 1;
+      lastPublicPageWasFull = rows.results.length === OBSERVATION_EVENT_PUBLIC_LIST_LIMIT;
+      if (rows.results.length === 0) break;
+      for (const row of rows.results) {
+        const session = mapObservationEventSession(row);
+        if (ownerSessionIds.has(session.sessionId)) continue;
+        if (auth?.userId === session.organizerUserId) {
+          ownerSessionIds.add(session.sessionId);
+          sessions.push(session);
+        } else if (!isObservationEventQaFixture(session)) {
+          sessions.push(session);
+        }
+      }
+      const last: ObservationEventSessionD1Row = rows.results.at(-1)!;
+      cursor = { startedAt: last.started_at, sessionId: last.session_id };
+      if (rows.results.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT) break;
+    }
+    scanLimitReached = sessions.length < OBSERVATION_EVENT_PUBLIC_LIST_LIMIT
+      && publicScanPages >= OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT
+      && lastPublicPageWasFull;
   } catch {
     loadFailed = true;
-    rows = { results: [] };
+    scanLimitReached = false;
+    sessions.length = 0;
   }
-  const sessions = rows.results
-    .map(mapObservationEventSession)
-    .filter((session) => auth?.userId === session.organizerUserId || !isObservationEventQaFixture(session));
   const strings = getObservationEventStrings(lang);
   return pageHtml(
     strings.listHeroHeading,
-    renderEventListBody(sessions, strings, lang, { loadFailed, retryHref: "/community/events" }),
+    renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, {
+      loadFailed,
+      partial: scanLimitReached,
+      retryHref: "/community/events",
+    }),
     "event-page-list",
   );
 }
@@ -4438,6 +4574,7 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
     const ownApplication = !auth?.banned ? await ownObservationEventApplication(request, env, session, auth) : null;
     const response = pageHtml(session.title + " に参加", renderObservationEventDiscoveryJoin({
       sessionId: session.sessionId, title: session.title, eventCode: session.eventCode ?? eventCode,
+      geminiConsentVersion: isRyuyoDiscoveryEvent(env, session) ? RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION : undefined,
       startedAt: session.startedAt, endedAt: session.endedAt, isAuthenticated: Boolean(auth && !auth.banned), canJoin,
       displayName: ownApplication?.participant?.role === "participant" ? ownApplication.participant.display_name : null,
       canViewGallery: Boolean(course && course.status !== "draft" && session.config.cancelled !== true && session.config.status !== "cancelled" && session.config.state !== "cancelled"),
@@ -4512,7 +4649,9 @@ function discoveryCampaignConfig(config: Record<string, unknown>): DiscoveryCamp
 }
 
 function isRyuyoDiscoveryEvent(env: Env, session: ObservationEventTemplate): boolean {
-  return session.fieldId === RYUYO_FIELD_ID && isEventDiscoveryProfile(session.config) && observationEventGuestMediaEnabled(env, session);
+  const template = asPlainObject(session.config.event_template);
+  return session.fieldId === RYUYO_FIELD_ID && template?.key === "ryuyo"
+    && isEventDiscoveryProfile(session.config) && observationEventGuestMediaEnabled(env, session);
 }
 
 function isObservationEventCancelled(session: ObservationEventTemplate): boolean {
@@ -4801,11 +4940,17 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   if (page === "rally" && isEventDiscoveryProfile(session.config)) {
     if (auth?.banned || !observationEventGuestMediaEnabled(env, session)) return pageHtml("参加できません", observationEventEmptyState("参加できません", "主催者にお問い合わせください。"), "event-discovery-denied", 403);
     const [course, actor] = await Promise.all([getObservationRallyCourseBySession(env, sessionId), observationEventGuestMediaActor(request, env, sessionId)]);
-    const canSubmit = Boolean(actor.participant?.status === "checked_in") && course?.status === "live" && isObservationEventActivityOpen(session);
+    const geminiNoticeRequired = isRyuyoDiscoveryEvent(env, session) && course?.status === "live"
+      && isObservationEventActivityOpen(session)
+      && (actor.participant?.discovery_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !actor.participant?.discovery_gemini_notice_at);
+    const canSubmit = Boolean(actor.participant?.status === "checked_in") && course?.status === "live"
+      && isObservationEventActivityOpen(session) && !geminiNoticeRequired;
     const response = pageHtml(session.title, renderObservationEventDiscoveryCapture({
       sessionId, title: session.title, eventCode: session.eventCode ?? "", canSubmit, canManage,
+      geminiNoticeRequired,
       isMinor: actor.participant?.is_minor === 1, displayName: actor.participant?.display_name?.trim() || null,
-      stateMessage: canSubmit ? undefined : !isObservationEventCheckinOpen(session) ? "受付は終了しました。保存した3枚は引き続き確認できます。" : "いまは写真の受付を停止しています。保存した写真は確認できます。",
+      stateMessage: canSubmit ? undefined : !isObservationEventCheckinOpen(session) ? "受付は終了しました。保存した3枚は引き続き確認できます。"
+        : geminiNoticeRequired ? undefined : "いまは写真の受付を停止しています。保存した写真は確認できます。",
     }), "event-discovery-capture");
     response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
     return response;
@@ -4963,8 +5108,8 @@ export function renderObservationEventCreatePage(
   ${template ? `<p class="muted" data-template-rehost>前回の企画設定だけを再利用しています。参加者・同意・review・公開状態は引き継ぎません。</p>` : ""}
   <form data-observation-event-create-form style="display:grid;gap:12px;">
     <label>タイトル<input name="title" value="${escapeHtml(templateTitle)}" required maxlength="80" placeholder="例: 秋の里山観察会"></label>
-    <label>開始日時（この端末の時間帯）<input name="started_at" required type="datetime-local"></label>
-    <label>終了日時（この端末の時間帯）<input name="ended_at" type="datetime-local"></label>
+    <label>開始日時（日本時間）<input name="started_at" required type="datetime-local"></label>
+    <label>終了日時（日本時間）<input name="ended_at" type="datetime-local"></label>
     <label>フィールドID<input name="field_id" value="${escapeHtml(templateFieldId)}" maxlength="120" placeholder="例: aikan-renri-ikan-hq"></label>
     <label>緯度（フィールドIDがない場合）<input name="location_lat" type="number" step="any" min="-90" max="90" placeholder="34.7108"></label>
     <label>経度（フィールドIDがない場合）<input name="location_lng" type="number" step="any" min="-180" max="180" placeholder="137.7261"></label>
@@ -4988,16 +5133,35 @@ export function renderObservationEventCreatePage(
   const eventTemplate = ${eventTemplateJson};
   const discoveryJournalEnabled = ${JSON.stringify(discoveryJournalEnabled)};
   if (!(form instanceof HTMLFormElement)) return;
+  const parseEventTokyoDateTime = (value) => {
+    const match = /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.(\\d{1,3}))?)?$/.exec(String(value || "").trim());
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const hour = Number(match[4]);
+    const minute = Number(match[5]);
+    const second = Number(match[6] || "0");
+    const millisecond = Number(String(match[7] || "").padEnd(3, "0") || "0");
+    const wallClockAsUtc = new Date(0);
+    wallClockAsUtc.setUTCFullYear(year, month - 1, day);
+    wallClockAsUtc.setUTCHours(hour, minute, second, millisecond);
+    if (wallClockAsUtc.getUTCFullYear() !== year || wallClockAsUtc.getUTCMonth() + 1 !== month
+      || wallClockAsUtc.getUTCDate() !== day || wallClockAsUtc.getUTCHours() !== hour
+      || wallClockAsUtc.getUTCMinutes() !== minute || wallClockAsUtc.getUTCSeconds() !== second
+      || wallClockAsUtc.getUTCMilliseconds() !== millisecond) return null;
+    return new Date(wallClockAsUtc.getTime() - 9 * 60 * 60 * 1000);
+  };
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const button = form.querySelector("button[type=submit]");
     if (button instanceof HTMLButtonElement) button.disabled = true;
     if (status) status.textContent = "観察会を作成しています…";
     const data = new FormData(form);
-    const startedAt = new Date(String(data.get("started_at") || ""));
+    const startedAt = parseEventTokyoDateTime(data.get("started_at"));
     const endedAtValue = String(data.get("ended_at") || "").trim();
-    const endedAt = endedAtValue ? new Date(endedAtValue) : null;
-    if (!Number.isFinite(startedAt.getTime()) || (endedAt && (!Number.isFinite(endedAt.getTime()) || endedAt <= startedAt))) {
+    const endedAt = endedAtValue ? parseEventTokyoDateTime(endedAtValue) : null;
+    if (!startedAt || (endedAtValue && !endedAt) || (endedAt && endedAt <= startedAt)) {
       if (status) status.textContent = "開始日時と、それより後の終了日時を確認してください。";
       if (button instanceof HTMLButtonElement) button.disabled = false;
       return;
@@ -6117,6 +6281,10 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     ...metricContext
   }, metricActorKey);
   const body = await readJson<Record<string, unknown>>(request);
+  const discoveryGeminiConsentVersion = isRyuyoDiscoveryEvent(env, session) ? RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION : null;
+  if (discoveryGeminiConsentVersion && body.discovery_gemini_notice_version !== discoveryGeminiConsentVersion) {
+    return json({ error: "discovery_gemini_notice_required" }, 400, { "cache-control": "no-store" });
+  }
   const teamId = normalizeOptionalText(body.team_id);
   if (teamId && !(await listObservationEventTeams(env, sessionId)).some((team) => team.team_id === teamId)) {
     return json({ error: "event_team_not_found" }, 400, { "cache-control": "no-store" });
@@ -6147,7 +6315,8 @@ async function checkinObservationEvent(request: Request, env: Env, sessionId: st
     isMinor,
     shareLocation,
     locationShareUntil: shareLocation ? observationEventLocationShareUntil(session) : null,
-    locationShareConsentType: shareLocation ? (isMinor ? "guardian" : "self") : null
+    locationShareConsentType: shareLocation ? (isMinor ? "guardian" : "self") : null,
+    discoveryGeminiConsentVersion
   });
   if (participant.created) {
     await appendObservationEventLive(env, {
@@ -7282,6 +7451,10 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   const actor = await observationEventGuestMediaActor(request, env, sessionId);
   if (actor.auth?.banned) return json({ error: "event_media_unavailable" }, 403, { "cache-control": "no-store" });
   if (!actor.participant || actor.participant.status !== "checked_in") return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
+  if (isRyuyoDiscoveryEvent(env, session)
+    && (actor.participant.discovery_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !actor.participant.discovery_gemini_notice_at)) {
+    return json({ error: "discovery_gemini_notice_required" }, 403, { "cache-control": "no-store" });
+  }
   if (Number(request.headers.get("content-length") ?? 0) > 13_107_200) return json({ error: "media_too_large" }, 413, { "cache-control": "no-store" });
   let form: FormData;
   try { form = await request.formData(); } catch { return json({ error: "multipart_form_required" }, 400, { "cache-control": "no-store" }); }
@@ -7322,7 +7495,10 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   let row = await findByKey();
   if (row && row.request_sha256 !== requestSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
-  if (row?.media_state === "saved") return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, 200, { "cache-control": "no-store" });
+  if (row?.media_state === "saved") {
+    if (isRyuyoDiscoveryEvent(env, session)) await autoPublishRyuyoDiscovery(env, sessionId, row.submission_id);
+    return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, 200, { "cache-control": "no-store" });
+  }
   let transformed: ArrayBuffer;
   if (isImage) {
     try {
@@ -7391,7 +7567,17 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   ).bind(row.submission_id).first<ObservationEventGuestMediaRow>();
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
   if (!row || row.media_state !== "saved") return json({ error: "private_media_save_failed" }, 503, { "cache-control": "no-store" });
+  if (isRyuyoDiscoveryEvent(env, session)) await autoPublishRyuyoDiscovery(env, sessionId, row.submission_id);
   return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, replay ? 200 : 201, { "cache-control": "no-store" });
+}
+
+async function autoPublishRyuyoDiscovery(env: Env, sessionId: string, entryId: string) {
+  // Saving the owner's private photo has already succeeded. A publication
+  // failure keeps it private/pending; it must not invite a duplicate upload.
+  try {
+    await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).autoPublishPhoto(sessionId, entryId,
+      (body, text) => screenDiscoveryPhoto(env.GEMINI_API_KEY, body, text));
+  } catch { /* The eligible-gallery gate remains closed. */ }
 }
 
 async function observationEventGuestMediaProfileReceipt(row: ObservationEventGuestMediaRow, env: Env, discoveryProfile: boolean) {
@@ -8822,19 +9008,25 @@ async function upsertObservationEventParticipant(env: Env, input: {
   shareLocation?: boolean;
   locationShareUntil?: string | null;
   locationShareConsentType?: string | null;
+  discoveryGeminiConsentVersion?: string | null;
 }): Promise<{ participantId: string; created: boolean }> {
   const existing = await findObservationEventParticipant(env, input.sessionId, input.userId, input.guestToken);
   const shareLocation = input.shareLocation === true && (!input.isMinor || input.locationShareConsentType === "guardian") ? 1 : 0;
   const shareUntil = shareLocation ? input.locationShareUntil ?? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() : null;
   const consentType = shareLocation ? input.locationShareConsentType ?? "self" : null;
+  const geminiNoticeVersion = input.discoveryGeminiConsentVersion ?? null;
   if (existing) {
     await env.OBS_DB.prepare(
       `UPDATE observation_event_participants
           SET display_name = ?, team_id = COALESCE(?, team_id), status = 'checked_in',
               checked_in_at = CURRENT_TIMESTAMP, share_location = ?, is_minor = ?,
-              location_share_until = ?, location_share_consent_type = ?, updated_at = CURRENT_TIMESTAMP
+              location_share_until = ?, location_share_consent_type = ?,
+              discovery_gemini_notice_version = CASE WHEN ? IS NOT NULL THEN ? ELSE discovery_gemini_notice_version END,
+              discovery_gemini_notice_at = CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE discovery_gemini_notice_at END,
+              updated_at = CURRENT_TIMESTAMP
         WHERE participant_id = ?`
-    ).bind(input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType, existing.participant_id).run();
+    ).bind(input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType,
+      geminiNoticeVersion, geminiNoticeVersion, geminiNoticeVersion, existing.participant_id).run();
     return { participantId: existing.participant_id, created: false };
   }
   const participantId = crypto.randomUUID();
@@ -8842,9 +9034,10 @@ async function upsertObservationEventParticipant(env: Env, input: {
     await env.OBS_DB.prepare(
       `INSERT INTO observation_event_participants (
          participant_id, session_id, user_id, guest_token, display_name, team_id, role, status,
-         checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type
-       ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?)`
-    ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType).run();
+         checked_in_at, share_location, is_minor, location_share_until, location_share_consent_type,
+         discovery_gemini_notice_version, discovery_gemini_notice_at
+       ) VALUES (?, ?, ?, ?, ?, ?, 'participant', 'checked_in', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, CASE WHEN ? IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END)`
+    ).bind(participantId, input.sessionId, input.userId, input.guestToken, input.displayName, input.teamId, shareLocation, input.isMinor ? 1 : 0, shareUntil, consentType, geminiNoticeVersion, geminiNoticeVersion).run();
     return { participantId, created: true };
   } catch (error) {
     if (!isD1UniqueConstraintError(error)) throw error;
@@ -8858,7 +9051,7 @@ async function findObservationEventParticipant(env: Env, sessionId: string, user
   if (!userId && !guestToken) return null;
   return env.OBS_DB.prepare(
     `SELECT participant_id, user_id, guest_token, display_name, team_id, role, status,
-            share_location, location_share_until, is_minor
+            share_location, location_share_until, is_minor, discovery_gemini_notice_version, discovery_gemini_notice_at
        FROM observation_event_participants
       WHERE session_id = ?
         AND ((user_id IS NOT NULL AND user_id = ?) OR (guest_token IS NOT NULL AND guest_token = ?))
@@ -28931,6 +29124,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
   const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
     feedKey: definition.feedKey,
     label: definition.scopeLabel.ja,
+    sourceVersion: definition.publicationPolicyVersion,
     sourceEnvironment: "production" as const,
     readOnly: true as const,
   }));

@@ -742,6 +742,8 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 export interface EventListRenderOptions {
   /** The discovery query failed; keep any already-loaded rows and offer retry. */
   loadFailed?: boolean;
+  /** A bounded scan ended before 24 visible rows were found; do not claim the list is empty. */
+  partial?: boolean;
   /** Where the explicit retry link points (normally the current list URL). */
   retryHref?: string;
 }
@@ -808,6 +810,7 @@ export function renderEventListBody(
   const termsLabels = participationTermsLabels(d);
   const { actionable, upcoming, history } = groupSessions(sessions, Date.now());
   const loadFailed = options.loadFailed === true;
+  const partial = options.partial === true;
   const nothing = actionable.length === 0 && upcoming.length === 0 && history.length === 0;
 
   const renderRow = (s: ObservationEventSessionRow, kind: ParticipationKind): string => {
@@ -858,6 +861,16 @@ export function renderEventListBody(
   </div>`
     : "";
 
+  const partialBanner = partial
+    ? `
+  <div class="zukan-participation-notice" role="status" data-list-partial>
+    <p>${escapeHtml(d.partialList)}</p>
+    ${options.retryHref
+      ? `<p><a class="zukan-participation-secondary-action" href="${escapeHtml(appendLangToHref(options.retryHref, lang))}">${escapeHtml(d.retryCta)}</a></p>`
+      : ""}
+  </div>`
+    : "";
+
   const actionableSection = `
   <section class="zukan-participation-section" aria-labelledby="participation-actionable-heading">
     <h2 id="participation-actionable-heading">${escapeHtml(d.sectionActionable)}</h2>
@@ -891,6 +904,8 @@ export function renderEventListBody(
   let discoveryBody: string;
   if (loadFailed && nothing) {
     discoveryBody = "";
+  } else if (partial && nothing) {
+    discoveryBody = "";
   } else if (nothing) {
     discoveryBody = noProgramsBlock;
   } else {
@@ -910,6 +925,7 @@ export function renderEventListBody(
     ${tzNote}
   </header>
 ${failureBanner}
+${partialBanner}
 ${discoveryBody}
   <aside class="zukan-participation-organizer" data-organizer-entry>
     <h2>${escapeHtml(strings.listOrganizerHeading)}</h2>

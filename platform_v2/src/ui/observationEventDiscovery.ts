@@ -95,8 +95,23 @@ function previewCampaign(): string {
       <li>${previewPhoto("dragonfly", "", false)}<div><span class="ed-step-number" aria-hidden="true">3</span><h3>写真を1〜3枚残す</h3><p>ひと言や場所のメモは、書きたいときだけ。</p></div></li>
     </ol><p class="ed-help ed-steps-image-note">写真はAI生成のイメージです。</p></section>
     <section class="ed-lp-section ed-lp-guide" aria-labelledby="discovery-guide"><h2 id="discovery-guide">こんちゅうクンと、<wbr>よく見てみよう。</h2><div><p>葉っぱの裏をのぞいたり、水辺で立ち止まったり。こんちゅうクンと一緒なら、いつもの小道も発見の場所に。</p><p class="ed-guide-note">むずかしい生きものの名前を知らなくても大丈夫。</p></div></section>
-    <section id="discovery-day" class="ed-lp-section" aria-labelledby="discovery-day-heading"><div class="ed-own-heading"><h2 id="discovery-day-heading">当日の流れ</h2><p class="ed-help">10:00集合 → 12:00終了予定</p></div><ol class="ed-day-flow"><li>集合</li><li>公園を観察</li><li>写真を残す</li><li>希望者は共有</li></ol><div class="ed-lp-day-action"><a class="ed-button" data-discovery-photo-link hidden href="#discovery-day">写真の画面を開く<span aria-hidden="true"> →</span></a><p class="ed-help" data-discovery-day-state>写真投稿の受付状況を確認しています。</p></div><details class="ed-lp-record-help"><summary>写真の保存と共有について</summary><p class="ed-help">写真を選んだだけでは送信されません。「この写真を保存する」で保存し、共有を選んだものだけ主催者の確認後に掲載します。共有しない写真は公開されません。未成年の方が共有する場合は、保護者の同意が必要です。</p></details><p class="ed-help ed-paper-guidance">紙のシートは、当日会場で配布します。</p>${statusRegion()}</section>
-    <section id="discovery-community" class="ed-lp-section ed-lp-community" aria-labelledby="discovery-community-heading"><h2 id="discovery-community-heading">みんなの発見</h2><p class="ed-gallery-lead">みんなが見つけた、今日のとっておき。</p><p class="ed-help">共有OKになった写真だけが、ここに並びます。</p><div class="ed-demo-gallery" aria-label="写真とメモの掲載イメージ"><div class="ed-demo-heading"><h3>こんな発見を、写真とひと言で。</h3><span class="ed-sample-label">掲載イメージ</span></div><p class="ed-sample-notice">6枚はAI生成の掲載例です。実参加者の投稿・会場写真ではありません。写真を押すと、架空のメモの例が開きます。</p><div class="ed-demo-grid">${previewPhotoExamples()}</div></div><details class="ed-published-gallery" data-discovery-published hidden><summary>掲載されたテスト投稿を見る</summary><p class="ed-help">既存の写真2件は生成イラスト、紙の記録3件もテストです。</p><div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>掲載された発見を読み込んでいます。</p><button class="ed-button ed-small" type="button" data-discovery-gallery-refresh disabled>発見を再読み込み</button></div><p class="ed-status" data-discovery-gallery-status role="status" aria-live="polite"></p><div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-gallery-more hidden>発見をもっと見る</button></details><p class="ed-help ed-public-gallery-state" data-discovery-public-gallery-state>参加者の発見は、公開後にここで見られます。</p></section>
+    <section id="discovery-day" class="ed-lp-section" aria-labelledby="discovery-day-heading"><div class="ed-own-heading"><h2 id="discovery-day-heading">当日の流れ</h2><p class="ed-help">10:00集合 → 12:00終了予定</p></div><ol class="ed-day-flow"><li>集合</li><li>公園を観察</li><li>写真を残す</li><li>希望者は共有</li></ol><div class="ed-lp-day-action"><a class="ed-button" data-discovery-photo-link hidden href="#discovery-day">写真の画面を開く<span aria-hidden="true"> →</span></a><p class="ed-help" data-discovery-day-state>写真投稿の受付状況を確認しています。</p></div><details class="ed-lp-record-help"><summary>写真の保存と共有について</summary><p class="ed-help">写真を選んだだけでは送信されません。「この写真を保存する」で保存します。参加時にGoogle Gemini利用と公開範囲を案内し、共有を選んだ写真は自動確認を通るとすぐに掲載します。人物や個人情報の可能性がある写真、自動確認できない写真は主催者確認後に掲載します。共有しない写真は公開されません。未成年の方が共有する場合は、保護者の同意が必要です。</p></details><p class="ed-help ed-paper-guidance">紙のシートは、当日会場で配布します。</p>${statusRegion()}</section>
+    <section id="discovery-community" class="ed-lp-section ed-lp-community" aria-labelledby="discovery-community-heading">
+      <h2 id="discovery-community-heading">みんなの発見</h2>
+      <p class="ed-gallery-lead">みんなが見つけた、今日のとっておき。</p>
+      <p class="ed-help">共有OKになった写真だけが、ここに並びます。</p>
+      <details class="ed-published-gallery" data-discovery-published open hidden>
+        <summary>掲載されたテスト投稿を見る</summary><p class="ed-help">既存の写真2件は生成イラスト、紙の記録3件もテストです。</p>
+        <div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>掲載された発見を読み込んでいます。</p><button class="ed-button ed-small" type="button" data-discovery-gallery-refresh disabled>発見を再読み込み</button></div>
+        <p class="ed-status" data-discovery-gallery-status role="status" aria-live="polite"></p><div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-gallery-more hidden>発見をもっと見る</button>
+      </details>
+      <div class="ed-demo-gallery" aria-label="写真とメモの掲載イメージ">
+        <div class="ed-demo-heading"><h3>こんな発見を、写真とひと言で。</h3><span class="ed-sample-label">掲載イメージ</span></div>
+        <p class="ed-sample-notice">6枚はAI生成の掲載例です。実参加者の投稿・会場写真ではありません。写真を押すと、架空のメモの例が開きます。</p>
+        <div class="ed-demo-grid">${previewPhotoExamples()}</div>
+      </div>
+      <p class="ed-help ed-public-gallery-state" data-discovery-public-gallery-state>参加者の発見は、公開後にここで見られます。</p>
+    </section>
     <section id="discovery-signup" class="ed-lp-section ed-lp-signup" aria-labelledby="discovery-signup-heading"><div><h2 id="discovery-signup-heading">あなたの「とっておき」を、<wbr>見つけに行こう。</h2><p class="ed-signup-facts">2026年10月24日（土）<wbr> 10:00〜12:00</p><p class="ed-help">仮日程・テスト公開です。正式な開催案内ではありません。</p></div><div class="ed-lp-action">${previewFormCta()}<p class="ed-help">Googleフォームで申し込む · 約1分</p></div></section>
   </template>`;
 }
@@ -105,6 +120,8 @@ export interface DiscoveryEventView {
   sessionId: string;
   title: string;
   eventCode: string;
+  geminiConsentVersion?: string;
+  geminiNoticeRequired?: boolean;
   startedAt?: string | null;
   endedAt?: string | null;
   stateMessage?: string;
@@ -155,12 +172,12 @@ export function renderObservationEventDiscoveryCampaign(): string {
     <p class="ed-kicker">竜洋昆虫自然観察公園</p>
     <div class="ed-intro">
       <h1 class="ed-title"><span class="ed-title-preface">こんちゅうクンとめぐる、</span><span>竜洋のとっておき。</span></h1>
-      <div><p>気に入った場所。<br>初めて見つけた、小さなこと。<br>今日の「ここ、いいな」を、写真で３枚まで。</p><p class="ed-help">写真ごとのコメントは任意。共有を選んだ写真は、主催者の確認後に、このページの「みんなの発見」に掲載されます。</p><a class="ed-button ed-primary" href="#discovery-signup">参加を申し込む<span aria-hidden="true">→</span></a><div class="ed-intro-links"><a class="ed-text-link" href="#discovery-day">当日、写真を投稿する</a><a class="ed-text-link" href="#discovery-community">みんなの発見</a></div></div>
+      <div><p>気に入った場所。<br>初めて見つけた、小さなこと。<br>今日の「ここ、いいな」を、写真で３枚まで。</p><p class="ed-help">写真ごとのコメントは任意。共有を選んだ写真は、写り込みなどの自動確認を通ると、すぐ「みんなの発見」に掲載されます。人物や個人情報が写る写真などは確認待ちになります。</p><a class="ed-button ed-primary" href="#discovery-signup">参加を申し込む<span aria-hidden="true">→</span></a><div class="ed-intro-links"><a class="ed-text-link" href="#discovery-day">当日、写真を投稿する</a><a class="ed-text-link" href="#discovery-community">みんなの発見</a></div></div>
     </div>
     <figure class="ed-hero">${illustration("hero", "木漏れ日の小道と池を巡る自然観察のイラスト", true)}<figcaption>イラストはイメージです</figcaption></figure>
     <ul class="ed-ribbon" aria-label="参加のしかた"><li>あだ名は任意</li><li>写真は１枚から</li><li>コメントも任意</li></ul>
     <section class="ed-section" aria-labelledby="discovery-how"><p class="ed-kicker">見つけたあとの、３ステップ</p><h2 id="discovery-how">あなたが見つけた、竜洋を残そう。</h2>
-      <ol class="ed-steps"><li><span class="ed-step-number" aria-hidden="true">01</span><h3>写真を選ぶ。</h3><p>気に入った場所や発見を、スマートフォンから１枚ずつ。カメラで撮ることもできます。全部で３枚まで。</p></li><li><span class="ed-step-number" aria-hidden="true">02</span><h3>ひと言を、添えても。</h3><p>写真ごとに「ここがよかった」を書けます。コメントも場所のメモも、空欄で大丈夫です。</p></li><li><span class="ed-step-number" aria-hidden="true">03</span><h3>写真を保存する。</h3><p>共有するかを選んで保存。主催者が内容を確認した写真が、ひとり分のノートとして集まります。</p></li></ol><p class="ed-help ed-footer-note">写真を選んだだけでは送信・掲載されません。主催者が選んだとっておきは、ひと言のコメントを添えて紹介できます。</p>
+      <ol class="ed-steps"><li><span class="ed-step-number" aria-hidden="true">01</span><h3>写真を選ぶ。</h3><p>気に入った場所や発見を、スマートフォンから１枚ずつ。カメラで撮ることもできます。全部で３枚まで。</p></li><li><span class="ed-step-number" aria-hidden="true">02</span><h3>ひと言を、添えても。</h3><p>写真ごとに「ここがよかった」を書けます。コメントも場所のメモも、空欄で大丈夫です。</p></li><li><span class="ed-step-number" aria-hidden="true">03</span><h3>写真を保存する。</h3><p>共有するかを選んで保存。問題のない写真はすぐに、人物などが写る写真は確認後に、ひとり分のノートとして集まります。</p></li></ol><p class="ed-help ed-footer-note">写真を選んだだけでは送信・掲載されません。主催者が選んだとっておきは、ひと言のコメントを添えて紹介できます。</p>
     </section>
     <section class="ed-section ed-story">${illustration("discovery", "葉の上のテントウムシと黄色いチョウ、虫眼鏡のイラスト")}<div><p class="ed-kicker">発見のヒント</p><h2>むずかしい名前は、<br>知らなくて大丈夫。</h2><p>葉っぱの重なり、きらっと光る水辺、目をこらして見つけた虫。気になったものを、よく見てみよう。</p><p>「思ったより小さかった」「この場所が好き」。そんなひと言も、あなたらしい発見です。</p></div></section>
     <section id="discovery-signup" class="ed-section ed-participation" aria-labelledby="discovery-signup-heading"><div class="ed-own-heading"><div><p class="ed-kicker">事前の参加申し込み</p><h2 id="discovery-signup-heading">開催日を選んで、申し込もう。</h2></div><button class="ed-button ed-small" type="button" data-discovery-campaign-refresh>開催日を再読み込み</button></div><p>ログインは不要です。申し込みに参加コードは必要ありません。</p>${statusRegion()}
@@ -168,7 +185,7 @@ export function renderObservationEventDiscoveryCampaign(): string {
       <form class="ed-form" data-discovery-application-form hidden><label for="discovery-application-name">あだ名や下の名前を、よければどうぞ<span class="ed-optional">任意</span></label><input id="discovery-application-name" name="display_name" maxlength="32" autocomplete="nickname" placeholder="例：ゆう、むしずき"><p class="ed-help">空欄でも申し込めます。本名や連絡先は書かないでください。呼び名は、この回の主催者が確認します。</p><button class="ed-button ed-primary" type="submit">申し込みを送る<span aria-hidden="true"> →</span></button><p class="ed-help">これは申込の受領です。参加確定や定員確保ではありません。メール等の通知は送信しません。</p></form><p class="ed-status" data-discovery-application-status role="status" aria-live="polite"></p>
     </section>
     <section id="discovery-day" class="ed-section ed-day" aria-labelledby="discovery-day-heading"><div><p class="ed-kicker">参加する当日に</p><h2 id="discovery-day-heading">写真とひと言を、残そう。</h2><p>主催者が受付を始めると、写真の画面を開けます。写真を選び、コメントを添えたら「この写真を保存する」を押してください。</p><p class="ed-help" data-discovery-day-state>開催回を選ぶと、写真の受付状況を確認できます。</p><a class="ed-button ed-primary" data-discovery-photo-link hidden href="#discovery-signup">写真を投稿する<span aria-hidden="true"> →</span></a></div><details class="ed-code-alternative"><summary>参加コードで開催回を開く</summary><p class="ed-help">担当者から参加コードの案内が届いている方はこちら。</p><form data-discovery-code-form><label for="discovery-event-code">参加コード</label><input id="discovery-event-code" name="event_code" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" required><button class="ed-button" type="submit">この回を開く</button></form></details></section>
-    <section id="discovery-community" class="ed-section" aria-labelledby="discovery-community-heading"><p class="ed-kicker">みんなの発見</p><h2 id="discovery-community-heading">それぞれの「いいな」が、集まる。</h2><p>選んだ開催回の、掲載済みの写真とコメントです。本人が共有を選び、主催者が確認した記録を、参加者ごとにまとめています。</p><div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>開催回を選ぶと、その回の発見がここに並びます。</p><button class="ed-button ed-small" type="button" data-discovery-gallery-refresh disabled>新しい発見を読み込む</button></div><p class="ed-status" data-discovery-gallery-status role="status" aria-live="polite"></p><div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-gallery-more hidden>次のノートを見る</button></section>
+    <section id="discovery-community" class="ed-section" aria-labelledby="discovery-community-heading"><p class="ed-kicker">みんなの発見</p><h2 id="discovery-community-heading">それぞれの「いいな」が、集まる。</h2><p>選んだ開催回の、掲載済みの写真とコメントです。本人が共有を選び、写り込みなどを確認した記録を、参加者ごとにまとめています。</p><div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>開催回を選ぶと、その回の発見がここに並びます。</p><button class="ed-button ed-small" type="button" data-discovery-gallery-refresh disabled>新しい発見を読み込む</button></div><p class="ed-status" data-discovery-gallery-status role="status" aria-live="polite"></p><div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-gallery-more hidden>次のノートを見る</button></section>
     <section class="ed-section ed-story">${illustration("memories", "3枚の写真枠を並べた観察ノートと鉛筆のイラスト")}<div><p class="ed-kicker">その日の、とっておき</p><h2>１枚でも、２枚でも。<br>自分のペースで。</h2><p>写真やコメントをみんなに見せるかは、一つずつ選べます。共有しない写真も、自分と主催者だけの記録として残せます。</p><p>紙のシートは当日、会場でお配りします。絵や言葉で発見を残し、共有したい記録は担当者へ。内容を確認してから掲載します。歩いて楽しむだけでも大丈夫です。</p></div></section>
     <section class="ed-organizer-link"><div><p>担当者の方へ</p><p class="ed-help">日時と案内を入れて、この企画の開催準備を始められます。</p></div><a class="ed-text-link" href="/community/events/new?event_template=ryuyo&amp;field_id=${RYUYO_FIELD_ID}">この企画で開催準備を始める<span aria-hidden="true"> →</span></a></section>
   `, "campaign");
@@ -187,15 +204,16 @@ export function renderObservationEventDiscoveryJoin(input: DiscoveryEventView & 
     ${stateNotice(input.stateMessage)}
     <div class="ed-welcome"><div><p class="ed-kicker">あなたの発見ノート</p><h1>${escapeHtml(input.title)}</h1><p class="ed-help">${escapeHtml(dateLabel(input.startedAt))}</p><p>気に入った場所や、ちょっとした発見を写真で３枚まで。名前もコメントも、入れたければ。</p></div>${illustration("discovery", "小さな発見を楽しむ、葉と虫眼鏡のイラスト")}</div>
     ${input.canJoin === false ? '<p class="ed-notice">いまは参加の受付をしていません。主催者の案内をご確認ください。</p>' : `<form class="ed-form ed-join-form" data-discovery-join-form novalidate>
-      <label for="discovery-nickname">あだ名や下の名前を、よければどうぞ<span class="ed-optional">任意</span></label><input id="discovery-nickname" name="display_name" value="${escapeHtml(input.displayName)}" maxlength="32" autocomplete="nickname" placeholder="例：ゆう、むしずき" aria-describedby="discovery-name-help"><p class="ed-help" id="discovery-name-help">空欄でも参加できます。本名や連絡先は書かないでください。</p>
+      <label for="discovery-nickname">あだ名や下の名前を、よければどうぞ<span class="ed-optional">任意</span></label><input id="discovery-nickname" name="display_name" value="${escapeHtml(input.displayName)}" maxlength="32" autocomplete="nickname" placeholder="例：ゆう、むしずき" aria-describedby="discovery-name-help"><p class="ed-help" id="discovery-name-help">空欄でも参加できます。本名や連絡先は書かないでください。メール・電話番号などを含む呼び名は公開しません。</p>
       ${teams.length ? `<label for="discovery-team">班<span class="ed-optional">任意</span></label><select id="discovery-team" name="team_id"><option value="">選ばない</option>${teams.map((team) => `<option value="${escapeHtml(team.teamId)}">${escapeHtml(team.name)}</option>`).join("")}</select>` : ""}
       <label class="ed-check"><input type="checkbox" name="is_minor"><span>参加者に未成年が含まれます</span></label>
+      ${input.geminiConsentVersion ? `<aside class="ed-notice ed-ai-notice"><h2>共有写真の安全確認と掲載について</h2><p>この開催回では、共有を選んだ写真と任意のコメント・場所のメモを、人物や個人情報などを確認するため Google Gemini に送信します。AI判定でリスクが検出されなかった共有写真は、主催者の個別確認前に、リンクを知っている人が見られる「みんなの発見」に掲載されます。判定できない写真や人物・個人情報などが含まれる可能性のある投稿は掲載せず、主催者の確認待ちにします。</p><p>写真を共有しない選択もできます。人物、名札、連絡先などが写った写真や個人情報を含むメモは共有しないでください。掲載後も取り下げられます。</p><p class="ed-help">「ノートを始める」を押して参加すると、この竜洋の開催回に限り、上記の安全確認と公開の取り扱いに同意したものとして記録します。</p></aside>` : ""}
       <p class="ed-help">${input.isAuthenticated ? "このイベントでの呼び名を使います。" : "ログインは不要です。"}同じ端末・ブラウザから、自分の記録を見返せます。写真や呼び名の公開は、あとで選べます。</p>
       ${statusRegion()}<button class="ed-button ed-primary" type="submit" data-discovery-join-submit>名前なしでも、ノートを始める<span aria-hidden="true">→</span></button>
     </form>`}
     ${input.canViewGallery ? `<p><a class="ed-button" href="${escapeHtml(eventHref(input.sessionId, "discoveries"))}">みんなの発見を見る<span aria-hidden="true"> →</span></a></p>` : ""}
     <p class="ed-help ed-footer-note">紙のシートは当日、会場でお配りします。写真を撮らずに、歩いて楽しむだけでも大丈夫です。</p>
-  `, "join", attrs(input));
+  `, "join", `${attrs(input)}${input.geminiConsentVersion ? ` data-discovery-gemini-consent-version="${escapeHtml(input.geminiConsentVersion)}"` : ""}`);
 }
 
 export function renderObservationEventDiscoveryCapture(input: DiscoveryEventView & {
@@ -209,6 +227,7 @@ export function renderObservationEventDiscoveryCapture(input: DiscoveryEventView
     <div class="ed-context"><a class="ed-back" href="/events/ryuyo?event=${encodeURIComponent(input.eventCode)}">竜洋のとっておき</a><a class="ed-text-link" href="${escapeHtml(eventHref(input.sessionId, "discoveries"))}">みんなの発見を見る</a></div>
     ${stateNotice(input.stateMessage)}
     <header class="ed-page-heading"><p class="ed-kicker">${escapeHtml(input.title)}</p><h1>${escapeHtml(title)}</h1><p>今日の「ここ、いいな」を、写真で３枚まで。１枚から残せます。</p></header>
+    ${input.geminiNoticeRequired ? `<p class="ed-notice">新しい写真を投稿するには、参加時の案内を確認して再チェックインしてください。保存済みの記録は、ここで確認・取り下げできます。<a href="/community/events/${encodeURIComponent(input.eventCode)}/join">参加時の案内を確認する</a></p>` : ""}
     ${statusRegion()}<div class="ed-own-heading"><h2>残した写真</h2><button class="ed-button ed-small" type="button" data-discovery-refresh>再読み込み</button></div><div class="ed-own-journal" data-discovery-receipts><p class="ed-help">保存した記録を読み込んでいます。</p></div>
     <p class="ed-help" data-discovery-photo-count></p>
     ${input.canSubmit === true ? `<form class="ed-form ed-capture-form" data-discovery-media-form>
@@ -219,7 +238,7 @@ export function renderObservationEventDiscoveryCapture(input: DiscoveryEventView
       <label for="discovery-caption">写真へのコメント<span class="ed-optional">任意</span></label><textarea id="discovery-caption" name="caption" maxlength="280" rows="3" placeholder="例：葉っぱの裏に、小さな虫を見つけた！"></textarea><div class="ed-selected-preview" data-discovery-photo-preview></div>
       <label class="ed-check"><input name="private_storage_consent" type="checkbox" value="yes" required><span>写真を保存し、自分と主催者が確認できるようにします。</span></label>
       <label class="ed-check"><input name="creator_rights_attestation" type="checkbox" value="yes" required><span>自分で撮った写真、またはこの用途で使う許可を得た写真です。</span></label>
-      <div class="ed-share-choice"><label class="ed-check"><input name="gallery_consent" type="checkbox" value="yes"><span>みんなの発見に載せてもよい<span class="ed-help">この写真・コメント・場所のメモ・呼び名を、主催者が確認したあと、企画ページの「みんなの発見」に掲載します。リンクを知っている人が見られます。</span></span></label><p class="ed-help">選ばなくても、自分の記録として保存できます。</p>
+      <div class="ed-share-choice"><label class="ed-check"><input name="gallery_consent" type="checkbox" value="yes"><span>みんなの発見に載せてもよい<span class="ed-help">この写真・コメント・場所のメモ・呼び名を自動確認し、写り込みなどの問題がなければ、保存後すぐ企画ページの「みんなの発見」に掲載します。人物や個人情報が含まれる可能性のある写真は、確認待ちになります。リンクを知っている人が見られます。</span></span></label><p class="ed-help">共有を選んだ写真はメタデータを取り除き、参加時に案内した自動確認を通して掲載します。自動確認で問題が見つかったり内容を確認できなかったりした写真は、主催者の確認待ちになります。共有を選ばなくても自分の記録として保存でき、掲載後もこの画面から取り下げられます。</p>
       <label class="ed-check" data-discovery-guardian-row hidden><input name="guardian_gallery_consent" type="checkbox" value="yes"><span>このギャラリーへの公開について、保護者の同意があります。</span></label></div>
       <button class="ed-button ed-primary" type="submit" data-discovery-save>この写真を保存する</button></fieldset>
     </form>` : '<p class="ed-notice">いまは写真を追加できません。保存済みの記録はここで確認できます。</p>'}
@@ -234,7 +253,7 @@ export function renderObservationEventDiscoveryGallery(input: DiscoveryEventView
     <header class="ed-gallery-heading"><p class="ed-kicker">${escapeHtml(input.title)}</p><h1>みんなの、とっておき。</h1><p>同じ場所を歩いても、見つけるものはひとりずつ。<br>写真とひと言で集まった、小さな発見ノートです。</p></header>
     <div class="ed-gallery-toolbar"><p class="ed-help" data-discovery-counts>掲載されたノートを読み込んでいます。</p><button class="ed-button ed-small" type="button" data-discovery-refresh>新しい発見を読み込む</button></div>
     ${statusRegion()}<div class="ed-journals" data-discovery-journals></div><button class="ed-button ed-load-more" type="button" data-discovery-more hidden>続きを見る</button>
-    <p class="ed-help ed-footer-note">本人が共有を選び、主催者が確認した記録を掲載しています。このページはリンクを知っている人が見られます。</p>
+    <p class="ed-help ed-footer-note">本人が共有を選び、写り込みなどを確認した記録を掲載しています。このページはリンクを知っている人が見られます。</p>
     ${input.canManage ? `<p><a class="ed-text-link" href="${escapeHtml(eventHref(input.sessionId, "console"))}">主催者の確認画面へ</a></p>` : ""}
   `, "gallery", attrs(input));
 }
@@ -414,7 +433,8 @@ export function observationEventDiscoveryScript(): string {
     const value = (form, name) => String(field(form, name)?.value || '').trim();
     const checked = (form, name) => field(form, name)?.checked === true;
     const randomKey = () => crypto.randomUUID();
-    const labels = {private:'自分と主催者だけの記録',pending_review:'主催者の確認待ち',published:'みんなの発見に掲載',withdrawn:'取り下げ済み'};
+    const labels = {private:'自分と主催者だけの記録',pending_review:'写り込みなどの確認待ち',published:'みんなの発見に掲載',withdrawn:'取り下げ済み'};
+    const reviewReasons = {person:'人物や顔の写り込みがあるため、確認してから掲載します。',personal_information:'個人情報が含まれる可能性があるため、確認してから掲載します。',sensitive_content:'写真の内容を確認してから掲載します。',uncertain:'写真の写り込みを判定できなかったため、確認してから掲載します。',unavailable:'自動確認を完了できなかったため、確認してから掲載します。'};
     const errors = {event_media_intake_closed:'写真の受付は終了しています。保存済みの記録は確認できます。',event_discovery_not_live:'まだ記録の受付が始まっていません。主催者の案内をご確認ください。',event_checkin_closed:'いまは参加の受付をしていません。',checked_in_participant_required:'参加情報を確認できません。同じ端末の参加リンクから開き直してください。',event_guest_cookie_required:'参加情報を保存できませんでした。Cookieを利用できる設定で、このページを開き直してください。',discovery_photo_limit_reached:'写真は３枚までです。残した写真を確認してください。',media_too_large:'写真を12 MB以下にして選び直してください。',media_required_or_too_large:'12 MB以下の写真を選んでください。',unsupported_media_type:'JPEG・PNG・WebPの写真を選んでください。',guardian_gallery_consent_required:'公開する場合は、保護者の同意を確認してください。',private_image_scrubber_unavailable:'いまは写真を安全に保存する準備ができません。時間をおいてお試しください。',private_image_scrub_failed:'この写真を保存できませんでした。別の写真を選ぶか、時間をおいてお試しください。',idempotency_key_conflict:'前の送信と内容が変わっています。保存済みの記録を確認してください。',withdrawal_cleanup_pending:'取り下げを受け付けました。削除の完了を確認しています。',media_withdrawn:'この写真は取り下げられています。'};
     Object.assign(errors,{three_photo_limit:'写真は３枚までです。保存が完了していない記録も、再試行するか取り下げてください。',discovery_claim_photo_limit:'記録を引き継ぐと３枚を超えます。先に残す写真を確認してください。',event_media_intake_not_started:'まだ写真の受付が始まっていません。主催者の案内をご確認ください。',event_checkin_not_started:'まだ参加の受付が始まっていません。主催者の案内をご確認ください。',rights_and_visual_privacy_confirmation_required:'利用する権利と写り込みを確認し、チェックを入れてください。',caption_invalid:'ひと言は280文字以内で入力してください。',spot_label_invalid:'場所のメモは80文字以内で入力してください。',nickname_invalid:'呼び名は32文字以内で入力してください。空欄でも参加できます。',invalid_cursor:'続きの取得情報を確認できません。再読み込みしてください。',image_privacy_metadata_verification_failed:'写真の確認処理を完了できませんでした。掲載せず、主催者用の記録として残っています。',private_media_unavailable:'保存した写真を読み取れませんでした。再読み込みしてから確認してください。'});
     Object.assign(errors,{discovery_campaign_event_unavailable:'この開催回は表示できません。案内のリンクを確認するか、開催日を選び直してください。',event_application_unavailable:'この開催回は、いま事前申し込みを受け付けていません。',event_application_name_invalid:'呼び名は32文字以内にしてください。空欄でも申し込めます。',discovery_campaign_invalid:'案内と申込受付の設定を確認してください。',discovery_campaign_listing_forbidden:'企画ページへの表示を変更する権限がありません。',discovery_campaign_closed:'終了・中止した開催回の申込受付は開始できません。'});
@@ -499,7 +519,7 @@ export function observationEventDiscoveryScript(): string {
           if(!append){known.clear();list.replaceChildren();}for(const journal of data.journals){const card=journalCard(journal,requestedBase);const previous=known.get(journal.journalId);if(previous)previous.replaceWith(card);else list.append(card);known.set(journal.journalId,card);}
           counts.textContent=data.counts.journals+(compact?'人の発見 · ':'冊のノート · ')+data.counts.entries+(compact?'件':'件の発見');nextCursor=typeof data.nextCursor==='string'&&data.nextCursor?data.nextCursor:null;more.hidden=!nextCursor;
           if(compact){const published=query('[data-discovery-published]'),state=query('[data-discovery-public-gallery-state]');if(published)published.hidden=data.counts.entries===0;if(state)state.hidden=data.counts.entries>0;}
-          if(!known.size){const empty=node('div',null,'ed-empty');empty.append(node('h3','この回の発見は、これから。'),node('p','共有を選んだ写真やメモは、主催者が確認したあと、ここに並びます。'));list.replaceChildren(empty);}
+          if(!known.size){const empty=node('div',null,'ed-empty');empty.append(node('h3','この回の発見は、これから。'),node('p','共有を選んだ写真は、写り込みなどの自動確認を通ると、ここに並びます。人物などが写る写真や紙のメモは確認後に掲載します。'));list.replaceChildren(empty);}
         }catch(error){if(ticket!==generation)return;tell(error.message||'みんなの発見を読み込めませんでした。',true,target);if(!known.size)counts.textContent='掲載数を確認できません。再読み込みで確認してください。';}
         finally{if(ticket===generation){busy=false;refresh.disabled=false;more.disabled=false;}}
       }
@@ -609,7 +629,7 @@ export function observationEventDiscoveryScript(): string {
         const name = value(form,'display_name');
         if (name.length > 32 || /[\u0000-\u001f\u007f]/.test(name)) { tell('呼び名は32文字以内で入力してください。空欄でも参加できます。',true); field(form,'display_name').focus(); return; }
         button.disabled = true; save(); tell('参加情報を確認しています。');
-        try { const data = await jsonRequest(base + '/checkin','POST',{display_name:name,team_id:value(form,'team_id') || null,is_minor:checked(form,'is_minor'),share_location:false,guardian_location_consent:false}); if (typeof data.participant_id !== 'string' || !data.participant_id) throw new Error('参加の結果を確認できませんでした。入力は残っています。'); storagePut(draftKey,null); tell('ノートを開きます。'); window.location.assign('/events/' + encodeURIComponent(sessionId) + '/rally'); }
+        try { const data = await jsonRequest(base + '/checkin','POST',{display_name:name,team_id:value(form,'team_id') || null,is_minor:checked(form,'is_minor'),share_location:false,guardian_location_consent:false,...(root.dataset.discoveryGeminiConsentVersion?{discovery_gemini_notice_version:root.dataset.discoveryGeminiConsentVersion}:{})}); if (typeof data.participant_id !== 'string' || !data.participant_id) throw new Error('参加の結果を確認できませんでした。入力は残っています。'); storagePut(draftKey,null); tell('ノートを開きます。'); window.location.assign('/events/' + encodeURIComponent(sessionId) + '/rally'); }
         catch (error) { tell(error.message || '参加の結果を確認できませんでした。同じボタンから再確認できます。',true); button.disabled = false; }
       });
       return;
@@ -658,6 +678,8 @@ export function observationEventDiscoveryScript(): string {
           card.append(node('h3',receipt.spotLabel || 'とっておき ' + (index+1)));
           if (receipt.caption) card.append(node('p',receipt.caption));
           card.append(node('p',receipt.mediaState === 'saved' ? labels[receipt.galleryStatus] || '記録の状態を確認できません' : receipt.mediaState === 'uploading' ? '保存の完了を確認しています。再読み込みで状態を確認できます。' : '保存が完了していません。同じ写真で再試行できます。','ed-gallery-state'));
+          if (receipt.galleryStatus === 'pending_review' && reviewReasons[receipt.reviewRequiredReason]) card.append(node('p',reviewReasons[receipt.reviewRequiredReason],'ed-help'));
+          if (receipt.galleryStatus === 'published') { const gallery=node('a','みんなの発見で見る →','ed-text-link');gallery.href='/events/'+encodeURIComponent(sessionId)+'/discoveries';card.append(gallery); }
           if (form && receipt.mediaState !== 'saved' && typeof receipt.idempotencyKey === 'string') {
             const retry = node('button','この写真を再試行','ed-button ed-small'); retry.type='button';
             retry.addEventListener('click',()=>{if(saving)return;pending={key:receipt.idempotencyKey,fingerprint:null,payload:{caption:receipt.caption,spotLabel:receipt.spotLabel,galleryConsent:receipt.galleryConsent,guardianGalleryConsent:receipt.guardianGalleryConsent}};storagePut(pendingKey,pending);restoreDraft(pending.payload);storagePut(draftKey,draftPayload());updateForm();tell('同じ写真を選んで、保存を再試行してください。別の写真にする場合は、この記録を取り下げてから追加します。');field(form,'media').focus();});card.append(retry);
@@ -700,14 +722,14 @@ export function observationEventDiscoveryScript(): string {
           const fingerprint=JSON.stringify([file.name,file.size,file.lastModified,payload.caption,payload.spotLabel,payload.galleryConsent,payload.guardianGalleryConsent]);
           if(pending?.fingerprint&&pending.fingerprint!==fingerprint){tell('前の写真の保存結果を先に確認してください。「再読み込み」で記録を確認し、同じ写真・内容で再試行できます。',true);await load();return;}
           if(!pending)pending={key:randomKey()};pending.fingerprint=fingerprint;pending.payload=payload;storagePut(pendingKey,pending);storagePut(draftKey,payload);
-          saving=true;updateForm();tell('写真を保存しています。画面をそのままにしてください。');
+          saving=true;updateForm();tell(payload.galleryConsent?'写真を保存し、写り込みを確認しています。画面をそのままにしてください。':'写真を保存しています。画面をそのままにしてください。');
           try{
             const data=new FormData();data.set('media',file);data.set('caption',payload.caption);data.set('spot_label',payload.spotLabel);data.set('gallery_consent',payload.galleryConsent?'yes':'no');data.set('guardian_gallery_consent',payload.guardianGalleryConsent?'yes':'no');data.set('private_storage_consent','yes');data.set('creator_rights_attestation','yes');
             const saved=await request(base+'/guest-media',{method:'POST',headers:{'idempotency-key':pending.key},body:data});
             if(!saved.receipt||typeof saved.receipt.receiptId!=='string')throw new Error('保存の結果を確認できませんでした。「再読み込み」で確認してください。');
             const galleryState=saved.receipt.galleryStatus;
             pending=null;storagePut(pendingKey,null);resetDraft();const verified=await load();
-            if(verified)tell(galleryState==='published'?'写真を保存し、みんなの発見に掲載しました。':galleryState==='pending_review'?'写真を保存しました。みんなの発見への掲載は、主催者の確認待ちです。':'写真を保存しました。自分と主催者だけが確認できます。');
+            if(verified)tell(galleryState==='published'?'写真を保存し、みんなの発見に掲載しました。':galleryState==='pending_review'?'写真を保存しました。'+(reviewReasons[saved.receipt.reviewRequiredReason]||'みんなの発見への掲載は、写り込みなどの確認待ちです。'):'写真を保存しました。自分と主催者だけが確認できます。');
             else tell('写真の保存を受け付けました。一覧の読み込みに失敗したため、「再読み込み」で確認してください。',true);
           }catch(error){
             const uncertain=error.unknownEffect||!error.status;

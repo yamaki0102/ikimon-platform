@@ -370,6 +370,7 @@ export interface ObservationEventDiscoveryStrings {
   actionableEmpty: string;
   noProgramsLead: string;
   loadFailed: string;
+  partialList: string;
   retryCta: string;
   badgeActionable: string;
   badgeUpcoming: string;
@@ -418,6 +419,7 @@ const discoveryJa: ObservationEventDiscoveryStrings = {
   actionableEmpty: "いま参加できる企画はありません。",
   noProgramsLead: "掲載中の公開企画はまだありません。",
   loadFailed: "企画を読み込めませんでした。",
+  partialList: "表示中の一覧は一部の可能性があります。公開企画をすべて確認できませんでした。",
   retryCta: "再読み込み",
   badgeActionable: "受付中",
   badgeUpcoming: "開催予定",
@@ -466,6 +468,7 @@ const discoveryEn: ObservationEventDiscoveryStrings = {
   actionableEmpty: "No programs are open to join right now.",
   noProgramsLead: "No public programs are listed yet.",
   loadFailed: "Couldn’t load programs.",
+  partialList: "This list may be incomplete. We could not check every public program.",
   retryCta: "Reload",
   badgeActionable: "Open",
   badgeUpcoming: "Scheduled",
@@ -514,6 +517,7 @@ const discoveryEs: ObservationEventDiscoveryStrings = {
   actionableEmpty: "Ahora no hay actividades abiertas para participar.",
   noProgramsLead: "Todavía no hay actividades públicas publicadas.",
   loadFailed: "No se pudieron cargar las actividades.",
+  partialList: "Esta lista puede estar incompleta. No pudimos revisar todas las actividades públicas.",
   retryCta: "Recargar",
   badgeActionable: "Abierto",
   badgeUpcoming: "Programado",
@@ -562,6 +566,7 @@ const discoveryPtBR: ObservationEventDiscoveryStrings = {
   actionableEmpty: "Não há atividades abertas para participar agora.",
   noProgramsLead: "Ainda não há atividades públicas publicadas.",
   loadFailed: "Não foi possível carregar as atividades.",
+  partialList: "Esta lista pode estar incompleta. Não foi possível conferir todas as atividades públicas.",
   retryCta: "Recarregar",
   badgeActionable: "Aberto",
   badgeUpcoming: "Programado",

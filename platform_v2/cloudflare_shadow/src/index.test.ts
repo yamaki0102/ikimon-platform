@@ -1221,6 +1221,8 @@ interface ObservationEventParticipantTestRow {
   is_minor: number;
   location_share_until: string | null;
   location_share_consent_type: string | null;
+  discovery_gemini_notice_version?: string | null;
+  discovery_gemini_notice_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -2603,6 +2605,8 @@ class FakeStatement {
         is_minor: registered ? 0 : number(v[7]),
         location_share_until: registered ? null : nullableString(v[8]),
         location_share_consent_type: registered ? null : nullableString(v[9]),
+        discovery_gemini_notice_version: nullableString(v[10]),
+        discovery_gemini_notice_at: nullableString(v[11]) ? now : null,
         created_at: now,
         updated_at: now
       });
@@ -2620,7 +2624,8 @@ class FakeStatement {
     }
 
     if (normalized.startsWith("UPDATE observation_event_participants SET display_name")) {
-      const row = requireRow(this.db.observationEventParticipants, string(v[6]));
+      const consentUpdate = normalized.includes("discovery_gemini_notice_version = CASE");
+      const row = requireRow(this.db.observationEventParticipants, string(v[consentUpdate ? 9 : 6]));
       row.display_name = string(v[0]);
       row.team_id = nullableString(v[1]) ?? row.team_id;
       row.status = "checked_in";
@@ -2629,6 +2634,10 @@ class FakeStatement {
       row.is_minor = number(v[3]);
       row.location_share_until = nullableString(v[4]);
       row.location_share_consent_type = nullableString(v[5]);
+      if (consentUpdate && nullableString(v[6])) {
+        row.discovery_gemini_notice_version = string(v[7]);
+        row.discovery_gemini_notice_at = new Date().toISOString();
+      }
       row.updated_at = new Date().toISOString();
       return {};
     }
@@ -7072,13 +7081,23 @@ class FakeStatement {
     if (normalized.startsWith("SELECT session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id")) {
       const scheduledOnly = normalized.includes("AND julianday(started_at) <= julianday('now')");
       const activeOnly = scheduledOnly || normalized.includes("WHERE ended_at IS NULL");
+      const publicListQuery = normalized.includes("WHERE event_code IS NOT NULL AND trim(event_code) <> ''");
+      const ownerListQuery = normalized.includes("WHERE organizer_user_id = ? AND event_code IS NOT NULL");
+      const ownerUserId = ownerListQuery ? string(v[0]) : null;
+      const cursorStartedAt = publicListQuery && v[0] !== null ? string(v[0]) : null;
+      const cursorSessionId = publicListQuery && v[3] !== null ? string(v[3]) : null;
       const rows = [...this.db.observationEventSessions.values()]
+        .filter((row) => !publicListQuery || Boolean(row.event_code?.trim()))
+        .filter((row) => !ownerListQuery || (row.organizer_user_id === ownerUserId && Boolean(row.event_code?.trim())))
+        .filter((row) => !publicListQuery || cursorStartedAt === null
+          || row.started_at < cursorStartedAt
+          || (row.started_at === cursorStartedAt && cursorSessionId !== null && row.session_id > cursorSessionId))
         .filter((row) => !activeOnly || (
           (row.ended_at === null || (scheduledOnly && Date.parse(row.ended_at) > Date.now()))
           && Date.parse(row.started_at) <= Date.now()
           && (!scheduledOnly || !JSON.parse(row.config_json).program_receiver_private)
         ))
-        .sort((a, b) => b.started_at.localeCompare(a.started_at))
+        .sort((a, b) => b.started_at.localeCompare(a.started_at) || (publicListQuery ? a.session_id.localeCompare(b.session_id) : 0))
         .slice(0, activeOnly ? 50 : 24);
       return { results: rows as T[] };
     }
@@ -18529,7 +18548,7 @@ test("production oauth callback fails closed when provider secrets are not confi
 });
 
 test("production public UI routes avoid legacy PHP fallback by default", async () => {
-  const { env, core } = createEnv();
+  const { env, core, obs } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -18577,6 +18596,118 @@ test("production public UI routes avoid legacy PHP fallback by default", async (
     assert.equal(localizedPlace.status, 200);
     assert.equal(localizedPlace.headers.get("x-ikimon-cloudflare-native"), "place-guide-list");
     assert.equal(seen.length, 0);
+
+    const canonicalPlaceId = "plc_e3293ec4bb9288a0";
+    const placeGeometry = JSON.stringify({
+      type: "Polygon",
+      coordinates: [[[138.379, 34.969], [138.382, 34.969], [138.382, 34.972], [138.379, 34.972], [138.379, 34.969]]],
+    });
+    const searchRow = {
+      place_id: canonicalPlaceId,
+      canonical_name: "常磐公園",
+      canonical_name_normalized: "常磐公園",
+      place_kind: "park",
+      locality_label: "静岡県 静岡市",
+      verification_status: "verified",
+      official_status: "official",
+      aliases_json: "Tokiwa Park",
+      matched_alias_normalized: null,
+      boundary_geojson: placeGeometry,
+      boundary_precision: "exact",
+      boundary_confidence: 0.9,
+      bbox_west: 138.379,
+      bbox_south: 34.969,
+      bbox_east: 138.382,
+      bbox_north: 34.972,
+      source_type: "osm",
+      source_id: "way:125727939",
+      source_url: "https://www.openstreetmap.org/way/125727939",
+      source_confidence: 0.9,
+      source_verification_status: "source_verified",
+      source_last_checked_at: "2026-10-03T00:00:00Z",
+      osm_source_id: "way:125727939",
+    };
+    const registeredPlace = {
+      place_id: canonicalPlaceId,
+      canonical_name: "常磐公園",
+      locality_label: "静岡県 静岡市",
+      place_kind: "park",
+      verification_status: "verified",
+      official_status: "official",
+      public_summary: "地域の公園です。",
+      recording_policy: "allowed",
+      public_location_mode: "place",
+      contribution_cta_mode: "record",
+      official_rule_url: null,
+      policy_verification_status: "verified",
+    };
+    const placeBoundary = {
+      boundary_geojson: placeGeometry,
+      confidence: 0.9,
+      precision_kind: "exact",
+      bbox_west: 138.379,
+      bbox_south: 34.969,
+      bbox_east: 138.382,
+      bbox_north: 34.972,
+    };
+    const sourceRows = [{
+      source_type: "osm",
+      source_id: "way:125727939",
+      source_url: "https://www.openstreetmap.org/way/125727939",
+      source_confidence: 0.9,
+      verification_status: "source_verified",
+      last_checked_at: "2026-10-03T00:00:00Z",
+    }];
+    const originalPrepare = obs.prepare.bind(obs);
+    obs.prepare = ((query: string) => {
+      const normalized = normalize(query);
+      let values: D1Value[] = [];
+      const statement = {
+        bind(...next: D1Value[]) { values = next; return statement; },
+        async all<T>() {
+          if (normalized.includes("FROM places p") && normalized.includes("p.canonical_name_normalized")) {
+            return { results: [searchRow as unknown as T] };
+          }
+          if (normalized.startsWith("SELECT alias, language_code FROM place_aliases")) {
+            return { results: [{ alias: "Tokiwa Park", language_code: "en" } as unknown as T] };
+          }
+          if (normalized.startsWith("SELECT source_type, source_id, source_url, source_confidence")) {
+            return { results: sourceRows as unknown as T[] };
+          }
+          if (
+            normalized.includes("FROM place_facilities")
+            || normalized.includes("FROM place_content_items")
+            || normalized.includes("FROM public_map_snapshot_records_v1")
+            || normalized.includes("FROM record_place_memberships m")
+            || normalized.includes("FROM place_memory_entries")
+          ) {
+            return { results: [] as T[] };
+          }
+          return originalPrepare(query).bind(...values).all<T>();
+        },
+        async first<T>() {
+          if (normalized.includes("FROM place_source_references ps JOIN places p")) {
+            return registeredPlace as unknown as T;
+          }
+          if (normalized.startsWith("SELECT boundary_geojson, confidence, precision_kind")) {
+            return placeBoundary as unknown as T;
+          }
+          return originalPrepare(query).bind(...values).first<T>();
+        },
+      };
+      return statement as unknown as FakeStatement;
+    }) as typeof obs.prepare;
+    try {
+      const canonicalPlace = await worker.fetch(new Request(`https://ikimon.life/places/${canonicalPlaceId}`), productionEnv);
+      const canonicalPlaceBody = await canonicalPlace.text();
+      assert.equal(canonicalPlace.status, 200);
+      assert.equal(canonicalPlace.headers.get("x-ikimon-cloudflare-native"), "global-place-detail");
+      assert.match(canonicalPlaceBody, /<h1 id="gpd-title">常磐公園<\/h1>/);
+      assert.match(canonicalPlaceBody, new RegExp(canonicalPlaceId));
+      assert.equal(seen.length, 0);
+    } finally {
+      obs.prepare = originalPrepare;
+    }
 
     const placeSnapshot = await worker.fetch(new Request("https://ikimon.life/places/hamamatsu/snapshot"), productionEnv);
     assert.equal(placeSnapshot.status, 404);
@@ -19679,6 +19810,25 @@ test("public participation list hides private and codeless lifecycle states whil
       });
     }
   }
+  const qaNoise = [
+    { title: "Flag alias fixture", event_code: "MIXEDFLAG2026", config: { qa_fixture: false, is_fixture: true } },
+    { title: "Source marker fixture", event_code: "MIXEDSOURCE2026", config: { source: "qa" } },
+    { title: "Code marker fixture", event_code: "qa-hidden-2026", config: {} },
+    { title: "PR #123 production rally fixture", event_code: "MIXEDTITLE2026", config: {} },
+    { title: "【検証用】fixture event", event_code: "MIXEDJAPANESE2026", config: {} },
+  ] as const;
+  for (let index = 0; index < 32; index += 1) {
+    const id = `unlisted-flood-${index}`;
+    const fixture = qaNoise[index % qaNoise.length]!;
+    obs.observationEventSessions.set(id, {
+      ...base,
+      session_id: id,
+      title: fixture.title,
+      event_code: fixture.event_code,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+      config_json: JSON.stringify(fixture.config),
+    });
+  }
 
   const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), localEnv);
   const html = await response.text();
@@ -19689,7 +19839,149 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.match(html, /data-participation-kind="ended"/);
   assert.match(html, /href="\/en\/community\/events\/OPEN2026\/join"/);
   assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
+  assert.doesNotMatch(html, /Flag alias fixture|Source marker fixture|Code marker fixture|PR #123 production rally fixture|検証用/);
   assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
+});
+
+test("public participation list bounds QA-row scans and never labels a partial result as empty", async (t) => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const base: ObservationEventSessionTestRow = {
+    session_id: "qa-flood-000", legacy_event_id: null, event_code: "qa-flood-000",
+    title: "QA scan fixture", organizer_user_id: "fixture-owner", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2098-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: "{}", field_id: null,
+    template_source_session_id: null, created_at: "2098-01-01T00:00:00.000Z", updated_at: "2098-01-01T00:00:00.000Z",
+  };
+  for (let index = 0; index < 250; index += 1) {
+    const id = `qa-flood-${String(index).padStart(3, "0")}`;
+    obs.observationEventSessions.set(id, {
+      ...base,
+      session_id: id,
+      event_code: id,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+  obs.observationEventSessions.set("public-behind-qa-flood", {
+    ...base,
+    session_id: "public-behind-qa-flood",
+    event_code: "OPENBEHIND1",
+    title: "Public walk behind test data",
+    started_at: "2020-01-01T00:00:00.000Z",
+  });
+
+  let listQueries = 0;
+  const originalPrepare = obs.prepare.bind(obs);
+  t.mock.method(obs, "prepare", (query: string) => {
+    if (query.includes("FROM observation_event_sessions")) listQueries += 1;
+    return originalPrepare(query);
+  });
+
+  const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), productionEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(listQueries, 8, "one page request is capped at eight bounded D1 scans");
+  assert.match(html, /data-list-partial/);
+  assert.match(html, /This list may be incomplete/);
+  assert.match(html, /href="\/en\/community\/events"/);
+  assert.doesNotMatch(html, /data-participation-empty|No public programs are listed yet/);
+  assert.doesNotMatch(html, /Public walk behind test data|qa-flood-/);
+});
+
+test("public participation list reports an empty result when the capped scan reaches a short final page", async (t) => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const base: ObservationEventSessionTestRow = {
+    session_id: "qa-short-scan-000", legacy_event_id: null, event_code: "qa-short-scan-000",
+    title: "QA scan fixture", organizer_user_id: "fixture-owner", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2098-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: "{}", field_id: null,
+    template_source_session_id: null, created_at: "2098-01-01T00:00:00.000Z", updated_at: "2098-01-01T00:00:00.000Z",
+  };
+  for (let index = 0; index < 170; index += 1) {
+    const id = `qa-short-scan-${String(index).padStart(3, "0")}`;
+    obs.observationEventSessions.set(id, {
+      ...base,
+      session_id: id,
+      event_code: id,
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+
+  let listQueries = 0;
+  const originalPrepare = obs.prepare.bind(obs);
+  t.mock.method(obs, "prepare", (query: string) => {
+    if (query.includes("FROM observation_event_sessions")) listQueries += 1;
+    return originalPrepare(query);
+  });
+
+  const response = await worker.fetch(new Request("https://zukan.earth/en/community/events"), productionEnv);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.equal(listQueries, 8, "the short final page is reached on the eighth bounded D1 scan");
+  assert.doesNotMatch(html, /data-list-partial|This list may be incomplete/);
+  assert.match(html, /data-participation-empty/);
+  assert.match(html, /No public programs are listed yet/);
+});
+
+test("newer public participation rows do not starve an organizer's private draft", async (t) => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
+  const issue = async (userId: string) => {
+    const response = await worker.fetch(new Request("https://zukan.earth/api/v1/auth/session/issue", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, displayName: userId, ttlHours: 1 })
+    }), env);
+    assert.equal(response.status, 200);
+    return response.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issue("flood-list-owner");
+  const productionOrigin = "https://zukan.earth";
+  const base: ObservationEventSessionTestRow = {
+    session_id: "owner-only-old-draft", legacy_event_id: null, event_code: "OWNDRAFT1",
+    title: "Organizer-only older draft", organizer_user_id: "flood-list-owner", corporation_id: null,
+    plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
+    location_lat: null, location_lng: null, location_radius_m: 1000,
+    started_at: "2020-01-01T00:00:00.000Z", ended_at: null,
+    target_species_json: "[]", config_json: JSON.stringify({ public_list_visibility: "private-until-explicit" }),
+    field_id: null, template_source_session_id: null,
+    created_at: "2020-01-01T00:00:00.000Z", updated_at: "2020-01-01T00:00:00.000Z",
+  };
+  obs.observationEventSessions.set(base.session_id, base);
+  obs.observationEventSessions.set("other-organizer-private", {
+    ...base, session_id: "other-organizer-private", event_code: "OTHERPRIV1",
+    title: "Another organizer private draft", organizer_user_id: "someone-else",
+    started_at: "2099-01-01T00:00:00.000Z",
+  });
+  for (let index = 0; index < 24; index += 1) {
+    const id = `newer-public-${String(index).padStart(2, "0")}`;
+    obs.observationEventSessions.set(id, {
+      ...base, session_id: id, event_code: `PUBLIC${String(index).padStart(2, "02")}`,
+      title: `Eligible public program ${String(index).padStart(2, "02")}`,
+      organizer_user_id: "public-organizer", config_json: "{}",
+      started_at: new Date(Date.UTC(2098, 0, 1, 0, 0, index)).toISOString(),
+    });
+  }
+
+  const readList = (cookie = "") => worker.fetch(new Request(`${productionOrigin}/en/community/events`, {
+    headers: { cookie }
+  }), productionEnv);
+  const ownerHtml = await (await readList(ownerCookie)).text();
+  assert.match(ownerHtml, /Organizer-only older draft/);
+  assert.doesNotMatch(ownerHtml, /Another organizer private draft|OTHERPRIV1/);
+  assert.equal((ownerHtml.match(/data-participation-result/g) ?? []).length, 24);
+  assert.ok((ownerHtml.match(/<h3>Eligible public program \d{2}<\/h3>/g) ?? []).length <= 24);
+
+  const publicHtml = await (await readList()).text();
+  assert.doesNotMatch(publicHtml, /Organizer-only older draft|OWNDRAFT1/);
+  assert.doesNotMatch(publicHtml, /Another organizer private draft|OTHERPRIV1/);
+  assert.equal((publicHtml.match(/<h3>Eligible public program \d{2}<\/h3>/g) ?? []).length, 24);
+  assert.equal((publicHtml.match(/data-participation-result/g) ?? []).length, 24);
 });
 
 test("unpublished organizer templates stay private throughout their lifecycle until explicit publication", async (t) => {
@@ -27772,7 +28064,7 @@ test("Ryuyo campaign applications use one optional-name participant from preregi
   const { env } = createEnv();
   const obs = new DiscoveryRouteSqliteD1();
   t.after(() => obs.sqlite.close());
-  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
     obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
   }
   Object.assign(env, { OBS_DB: obs });
@@ -27870,7 +28162,7 @@ test("Ryuyo campaign applications use one optional-name participant from preregi
   assert.equal((await send(api, "PATCH", ownerCookie, { config: profile, started_at: new Date(Date.now() - 60_000).toISOString() })).response.status, 200);
   assert.equal((await send(api + "/discovery-campaign", "GET", ownerCookie)).data.campaign.applicationsOpen, true, "generic settings preserve the dedicated publication sibling atomically");
   assert.equal((await send(api + "/rally/course", "POST", ownerCookie, { status: "live" })).response.status, 200);
-  const checked = await send(api + "/checkin", "POST", guestCookie, { display_name: "", share_location: false });
+  const checked = await send(api + "/checkin", "POST", guestCookie, { display_name: "", share_location: false, discovery_gemini_notice_version: "ryuyo-gemini-screening-publish-v1" });
   assert.equal(checked.response.status, 200, JSON.stringify(checked.data));
   assert.equal(checked.data.participant_id, registered.participant_id);
   assert.equal(count(), 2, "registered identities are reused at attendance");
@@ -27989,7 +28281,7 @@ test("discovery native routes preserve draft, production self-service, private r
   const obs = new DiscoveryRouteSqliteD1();
   t.after(() => obs.sqlite.close());
   obs.sqlite.exec("PRAGMA foreign_keys = ON");
-  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0029_observation_event_recap_capsule_report.sql", "0065_observation_rally_submission_idempotency.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql"]) {
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0029_observation_event_recap_capsule_report.sql", "0065_observation_rally_submission_idempotency.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
     obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
   }
   Object.assign(env, { OBS_DB: obs });
@@ -28044,12 +28336,37 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal(start.response.status, 200, JSON.stringify(start.data));
   assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_rally_missions WHERE status = 'published'").get()!.n, 0, "the journal can run without requiring a separate rally mission publication");
   const join = await send("/community/events/RYUYO8AA/join");
+  const joinHtml = await join.response.clone().text();
+  assert.match(joinHtml, /ログインは不要です/u);
+  assert.match(joinHtml, /Google Gemini/u, "the event-specific destination and screening purpose are disclosed before participation");
+  assert.match(joinHtml, /リンクを知っている人が見られる/u, "the link-visible audience is disclosed before participation");
+  assert.match(joinHtml, /主催者の個別確認前/u, "the clear-result publication timing is disclosed before participation");
+  const joinForm = joinHtml.match(/<form\b[^>]*data-discovery-join-form[\s\S]*?<\/form>/u)?.[0] ?? "";
+  assert.ok(joinForm, "the event notice and check-in controls are rendered together");
+  assert.doesNotMatch(joinForm, /aria-label="主なページ"|href="\/ja\/profile"/u, "the check-in form itself does not require profile navigation");
   const guestCookie = (join.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
   assert.match(guestCookie, /^__Host-ikimon_evt_[a-f0-9]{16}=/u);
-  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 200);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true })).response.status, 400, "Ryuyo check-in requires the version shown in its participation notice");
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true, discovery_gemini_notice_version: "wrong-version" })).response.status, 400, "an unknown notice version is not evidence of consent");
+  const acceptedNoticeVersion = "ryuyo-gemini-screening-publish-v1";
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", share_location: true, discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   const guest = obs.sqlite.prepare("SELECT * FROM observation_event_participants WHERE session_id = ? AND guest_token IS NOT NULL").get(sessionId)!;
   assert.equal(guest.display_name, "");
   assert.equal(guest.share_location, 0, "discovery photos do not collect participant tracking locations");
+  assert.equal(guest.discovery_gemini_notice_version, acceptedNoticeVersion);
+  assert.equal(typeof guest.discovery_gemini_notice_at, "string");
+  const guestParticipantId = String(guest.participant_id);
+  obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);
+  const legacyCapture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
+  assert.equal(legacyCapture.response.status, 200, "legacy participants retain access to their private journal");
+  const legacyCaptureHtml = await legacyCapture.response.text();
+  assert.doesNotMatch(legacyCaptureHtml, /<form\b[^>]*data-discovery-media-form/u, "missing notice evidence blocks new posts");
+  assert.match(legacyCaptureHtml, /参加時の案内を確認する/u);
+  assert.match(legacyCaptureHtml, /data-discovery-receipts/u, "the saved-photo list remains available");
+  assert.match(await (await send("/community/events/RYUYO8AA/join", "GET", guestCookie)).response.text(), /Google Gemini/u);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "" })).response.status, 400, "prior participation is not silently backfilled");
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
+  assert.equal(obs.sqlite.prepare("SELECT discovery_gemini_notice_version FROM observation_event_participants WHERE participant_id = ?").get(guestParticipantId)!.discovery_gemini_notice_version, acceptedNoticeVersion);
   const capture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
   assert.equal(capture.response.status, 200);
   assert.equal(/<form\b[^>]*data-discovery-media-form/u.test(await capture.response.text()), true, "checked-in participants receive the capture form");
@@ -28060,6 +28377,9 @@ test("discovery native routes preserve draft, production self-service, private r
     const response = await worker.fetch(new Request(origin + targetApi + "/guest-media", { method: "POST", headers: { cookie, origin, "idempotency-key": key }, body: form }), env);
     return { response, data: await response.clone().json() as any };
   };
+  obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);
+  assert.equal((await upload("unconsented-api-photo")).response.status, 403, "the API independently blocks a new Ryuyo post without the versioned notice");
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   const concurrent = await Promise.all(Array.from({ length: 4 }, (_, i) => upload(`discovery-native-photo-${i}`)));
   assert.deepEqual(concurrent.map((entry) => entry.response.status).sort(), [201, 201, 201, 409]);
   assert.equal(concurrent.find((entry) => entry.response.status === 409)!.data.error, "three_photo_limit");
@@ -28071,7 +28391,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await upload(`discovery-native-photo-${savedIndex}`, guestCookie, { caption: "変わったコメント" })).response.status, 409);
   const receipts = await send(`${api}/guest-media`, "GET", guestCookie);
   assert.equal(receipts.data.receipts.length, 3);
-  assert.equal(receipts.data.receipts.every((entry: any) => entry.displayName === null && entry.galleryStatus === "pending_review" && entry.privacyStatus === "pending"), true);
+  assert.equal(receipts.data.receipts.every((entry: any) => entry.displayName === null && entry.galleryStatus === "pending_review" && entry.privacyStatus === "pending" && entry.reviewRequiredReason === "unavailable"), true, "the missing local provider key is fail-closed and the test never calls Gemini");
   assert.equal(receipts.data.receipts.every((entry: any) => typeof entry.idempotencyKey === "string"), true);
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 0, "metadata-clean photos still await genuine visual/rights review");
   assert.equal((await send(`${api}/discoveries/${saved.receiptId}/content`)).response.status, 404);
@@ -28099,7 +28419,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal(organizerReceipts.data.receipts.some((entry: any) => "idempotencyKey" in entry), false);
   const otherJoin = await send("/community/events/RYUYO8AA/join");
   const otherCookie = (otherJoin.response.headers.get("set-cookie") ?? "").split(";", 1)[0]!;
-  assert.equal((await send(`${api}/checkin`, "POST", otherCookie, { display_name: "むしずき", is_minor: true })).response.status, 200);
+  assert.equal((await send(`${api}/checkin`, "POST", otherCookie, { display_name: "むしずき", is_minor: true, discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   assert.equal((await send(saved.privateContentHref, "GET", otherCookie)).response.status, 404);
   assert.equal((await send(`${api}/guest-media/${saved.receiptId}/withdraw`, "POST", otherCookie, {})).response.status, 404);
   assert.equal((await upload("discovery-native-minor01", otherCookie)).response.status, 400);
@@ -28119,7 +28439,7 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await send(otherApi, "PATCH", ownerCookie, { started_at: eventBody.started_at })).response.status, 200);
   assert.equal((await send(`${otherApi}/discoveries/${saved.receiptId}/content`)).response.status, 404);
   assert.equal((await send(`${otherApi}/guest-media/${saved.receiptId}/review`, "PATCH", ownerCookie, { decision: "approved", note: "別の会からは確認できません", rightsConfirmed: true, privacyConfirmed: true })).response.status, 404);
-  assert.equal((await send(`${otherApi}/checkin`, "POST", ownerCookie, { display_name: "" })).response.status, 200);
+  assert.equal((await send(`${otherApi}/checkin`, "POST", ownerCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
   const accountPhoto = await upload("discovery-account-blank", ownerCookie, {}, otherApi);
   assert.equal(accountPhoto.response.status, 201);
   const approveInOtherEvent = (id: string) => send(`${otherApi}/guest-media/${id}/review`, "PATCH", ownerCookie, { decision: "approved", note: "呼び名と写真・コメントの内容を目視確認", rightsConfirmed: true, privacyConfirmed: true });
@@ -28132,21 +28452,39 @@ test("discovery native routes preserve draft, production self-service, private r
   assert.equal((await approveInOtherEvent(privatePhoto.data.receipt.receiptId)).data.galleryStatus, "private");
   assert.equal((await send(`${otherApi}/discoveries`)).data.counts.entries, 1, "organizer review cannot substitute for participant display consent");
   assert.equal((await send(`${otherApi}/discoveries/${privatePhoto.data.receipt.receiptId}/content`)).response.status, 404);
-  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "変更したあだ名" })).response.status, 200);
-  assert.equal((await send(publishedHref)).response.status, 404, "renaming a participant cannot publish new unreviewed text under an old approval");
-  assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 1);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "変更したあだ名", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200);
+  assert.equal((await send(publishedHref)).response.status, 200, "an approved anonymous post stays published after a later nickname change");
+  const renamedGallery = await send(`${api}/discoveries`);
+  assert.equal(renamedGallery.data.counts.entries, 4);
+  assert.doesNotMatch(JSON.stringify(renamedGallery.data), /変更したあだ名/u, "the later unreviewed nickname is not exposed in the anonymous projection");
   for (const row of receipts.data.receipts) await review(row.receiptId);
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 4);
+  obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);
+  const legacyWithSavedPhotos = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
+  assert.equal(legacyWithSavedPhotos.response.status, 200, "missing notice history does not hide saved photos or their withdrawal controls");
+  assert.doesNotMatch(await legacyWithSavedPhotos.response.text(), /<form\b[^>]*data-discovery-media-form/u);
+  const legacyReceipts = await send(`${api}/guest-media`, "GET", guestCookie);
+  assert.equal(legacyReceipts.response.status, 200);
+  assert.equal(legacyReceipts.data.receipts.length, 3);
   assert.equal((await send(`${api}/guest-media/${saved.receiptId}/withdraw`, "POST", guestCookie, {})).response.status, 200);
   assert.equal((await send(publishedHref)).response.status, 404);
   assert.equal((await send(saved.privateContentHref, "GET", guestCookie)).response.status, 404);
   assert.equal((await send(`${api}/discoveries`)).data.counts.entries, 3);
+  assert.equal((await send(`${api}/checkin`, "POST", guestCookie, { display_name: "", discovery_gemini_notice_version: acceptedNoticeVersion })).response.status, 200, "a participant can restore new-post access after seeing the notice again");
   assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS n FROM observation_event_guest_media WHERE submission_id = ?").get(saved.receiptId)!.n, 1, "withdrawal preserves the source receipt");
-  assert.equal((await upload("discovery-native-replacement")).response.status, 201, "withdrawal frees exactly one photo slot");
+  const replacementPhoto = await upload("discovery-native-replacement");
+  assert.equal(replacementPhoto.response.status, 201, "withdrawal frees exactly one photo slot");
+  const replacementReceiptId = replacementPhoto.data.receipt.receiptId as string;
   const end = await send(`${api}/end`, "POST", ownerCookie, {});
   assert.equal(end.response.status, 200);
   assert.ok(Date.parse(end.data.session.endedAt) <= Date.now(), JSON.stringify({ endedAt: end.data.session.endedAt, now: new Date().toISOString() }));
   assert.equal((await upload("discovery-native-afterend")).response.status, 409);
+  assert.equal((await send(`${api}/guest-media/${replacementReceiptId}/withdraw`, "POST", guestCookie, {})).response.status, 200, "a participant can withdraw a saved photo after the event ends");
+  obs.sqlite.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = ?").run(guestParticipantId);
+  const endedLegacyCapture = await send(`/events/${sessionId}/rally`, "GET", guestCookie);
+  assert.equal(endedLegacyCapture.response.status, 200, "ended legacy participants can still access the read-only capture journal");
+  assert.doesNotMatch(await endedLegacyCapture.response.text(), /<form\b[^>]*data-discovery-media-form/u);
+  assert.equal((await send(`${api}/guest-media`, "GET", guestCookie)).response.status, 200);
   const closedJoin = await send("/community/events/RYUYO8AA/join");
   assert.equal(/<form\b[^>]*data-discovery-join-form/u.test(await closedJoin.response.clone().text()), false, "ended join has no active form");
   assert.match(await closedJoin.response.text(), new RegExp(`/events/${sessionId}/discoveries`, "u"));
@@ -28610,6 +28948,8 @@ test("event template creation preserves the selected template and field through 
   const response = await worker.fetch(new Request("https://ikimon.life" + returnPath, { headers: { cookie } }), env);
   const page = await response.text();
   assert.match(page, /data-common-event-template="ryuyo"/u);
+  assert.match(page, /開始日時（日本時間）/u);
+  assert.match(page, /終了日時（日本時間）/u);
   assert.match(page, new RegExp(`name="field_id" value="${RYUYO_FIELD_ID}"`, "u"));
   assert.doesNotMatch(page, /開催日が決定|参加費は無料|主催者承認済み/u);
 
@@ -28651,6 +28991,33 @@ test("event template creation preserves the selected template and field through 
       return Response.json(writes.length === 1 ? { error: "temporary_failure" } : { sessionId: "new-event", eventCode: body.event_code }, { status: writes.length === 1 ? 503 : 201 });
     }
   });
+  values.set("started_at", "2026-02-30T10:00");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "impossible Tokyo calendar dates are rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("started_at", "2026-11-12T24:00");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "out-of-range Tokyo wall-clock hours are rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("started_at", "");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "an empty required Tokyo start time is rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("started_at", "2026-11-12T10:00");
+  values.set("ended_at", "2026-02-30T12:00");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "an invalid non-empty Tokyo end time is rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("ended_at", "2026-11-12T09:59");
+  await submit!({ preventDefault() {} });
+  assert.equal(writes.length, 0, "an end time at or before the Tokyo start time is rejected before writing");
+  assert.match(status.textContent, /日時/u);
+  assert.equal(button.disabled, false);
+  values.set("ended_at", "2026-11-12T12:00");
   await submit!({ preventDefault() {} });
   assert.equal(button.disabled, false);
   await submit!({ preventDefault() {} });
@@ -28664,7 +29031,8 @@ test("event template creation preserves the selected template and field through 
   assert.equal(writes[0].config.public_listed, false);
   assert.equal(writes[0].plan, "public");
   assert.equal(writes[0].field_id, RYUYO_FIELD_ID);
-  assert.equal(writes[0].started_at, new Date("2026-11-12T10:00").toISOString());
+  assert.equal(writes[0].started_at, "2026-11-12T01:00:00.000Z");
+  assert.equal(writes[0].ended_at, "2026-11-12T03:00:00.000Z");
   assert.equal(next.hidden, false);
   assert.equal(next.href, `/community/events/${writes[0].event_code}/join`);
   assert.equal(organizer.hidden, false);
