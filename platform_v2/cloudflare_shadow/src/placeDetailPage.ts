@@ -138,7 +138,7 @@ export function renderGlobalPlaceDetailPage(input: {
     ? input.savedStateAvailable === false
       ? `<span class="gpd-secondary" role="status" aria-disabled="true">${escapeHtml(copy.saveUnavailable)}</span>`
       : renderSavedControl({ kind: "place", objectId: canonicalPlaceId, path, title: local || selected }, lang, input.savedItem ?? null)
-    : `<a class="gpd-secondary" href="/auth?redirect=${encodeURIComponent(localizedPath)}">${escapeHtml(copy.saveLogin)}</a>`;
+    : `<a class="gpd-secondary" href="${prefix}/login?redirect=${encodeURIComponent(localizedPath)}">${escapeHtml(copy.saveLogin)}</a>`;
   const externalMap = canExposePlaceLocation ? externalMapHref(profile) : "";
   const displayProfile: PlaceAtlasProfile = canExposePlaceLocation
     ? profile

@@ -69,10 +69,15 @@ test("authenticated Place detail binds the existing Saved control to the stable 
 });
 
 test("guest Place detail never claims a private Save succeeded", () => {
-  const html = renderGlobalPlaceDetailPage({ profile: fixture(), lang: "ja", viewerAuthenticated: false });
-  assert.match(html, /ログインして保存/);
-  assert.doesNotMatch(html, /<button\b[^>]*data-zukan-save/);
-  assert.doesNotMatch(html, /ZUKANに保存しました/);
+  for (const lang of ["ja", "en", "es", "pt-br"] as const) {
+    const html = renderGlobalPlaceDetailPage({ profile: fixture(), lang, viewerAuthenticated: false });
+    const localizedPlacePath = `/${lang}/places/plc_e3293ec4bb9288a0`;
+    assert.ok(html.includes(`href="/${lang}/login?redirect=${encodeURIComponent(localizedPlacePath)}"`));
+    assert.doesNotMatch(html, /href="\/auth\?redirect=/);
+    assert.doesNotMatch(html, /<button\b[^>]*data-zukan-save/);
+    assert.doesNotMatch(html, /ZUKANに保存しました/);
+  }
+  assert.match(renderGlobalPlaceDetailPage({ profile: fixture(), lang: "ja", viewerAuthenticated: false }), /ログインして保存/);
 });
 
 test("detail rendering rejects a Place without a stable canonical identity", () => {
