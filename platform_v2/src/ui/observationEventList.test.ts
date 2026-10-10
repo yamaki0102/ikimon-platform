@@ -69,6 +69,54 @@ test("upcoming sessions are grouped apart from currently actionable ones", () =>
   assert.doesNotMatch(actionableRow, /秋の夜の生きもの観察/);
 });
 
+test("public discovery rows show purpose, full JST window, place, cost, and entry provider", () => {
+  const discoverable: ObservationEventSessionRow = {
+    ...session,
+    title: "川辺を歩く会",
+    eventCode: "PUBLIC1",
+    startedAt: "2099-09-05T01:00:00.000Z",
+    endedAt: "2099-09-05T03:30:00.000Z",
+    config: {
+      summary: "水路と地域の暮らしを確かめます。",
+      placeName: "旧東海道沿いの水路",
+      priceText: "無料",
+      booking: { providerName: "まちの受付サイト", providerUrl: "https://example.org/programs/river-walk" },
+    },
+  };
+  const html = renderEventListBody([discoverable], getObservationEventStrings("ja"), "ja");
+  const row = html.match(/<article class="zukan-participation-row"[^>]*>[\s\S]*?<\/article>/)?.[0] ?? "";
+
+  assert.match(row, /水路と地域の暮らしを確かめます。/);
+  assert.match(row, /9月5日[^<]*10:00–12:30/);
+  assert.match(row, /旧東海道沿いの水路/);
+  assert.match(row, /無料/);
+  assert.match(row, /まちの受付サイト/);
+  assert.match(html, /data-participation-kind="upcoming"/);
+});
+
+test("public discovery facts escape organizer text and keep partial results explicit", () => {
+  const discoverable: ObservationEventSessionRow = {
+    ...session,
+    eventCode: "PUBLIC2",
+    title: "春の散策",
+    startedAt: "2099-04-01T00:00:00.000Z",
+    endedAt: null,
+    config: { summary: "<script>bad()</script>", placeName: "公園 <北口>", cost: "未定" },
+  };
+  const html = renderEventListBody([discoverable], getObservationEventStrings("ja"), "ja", {
+    partial: true,
+    retryHref: "/community/events",
+  });
+  const row = html.match(/<article class="zukan-participation-row"[^>]*>[\s\S]*?<\/article>/)?.[0] ?? "";
+
+  assert.match(row, /&lt;script&gt;bad\(\)&lt;\/script&gt;/);
+  assert.doesNotMatch(row, /<script>bad\(\)<\/script>/);
+  assert.match(row, /公園 &lt;北口&gt;/);
+  assert.match(row, /未定/);
+  assert.match(html, /data-list-partial/);
+  assert.match(html, /再読み込み/);
+});
+
 test("ended events are kept behind explicit history with a recap action", () => {
   const ended: ObservationEventSessionRow = {
     ...session,
@@ -248,11 +296,14 @@ test("codeless sessions stay out of every public participation group", () => {
         startedAt: state === "upcoming" ? "2099-01-01T00:00:00.000Z" : "2020-01-01T00:00:00.000Z",
         endedAt: state === "ended" ? "2020-01-01T01:00:00.000Z" : null,
         targetSpecies: ["Private observation target"],
-        config: state === "cancelled" ? { status: "cancelled" } : {},
+        config: state === "cancelled"
+          ? { status: "cancelled", summary: "Private purpose", placeName: "Private place", cost: "Private cost", booking: { providerName: "Private entry" } }
+          : { summary: "Private purpose", placeName: "Private place", cost: "Private cost", booking: { providerName: "Private entry" } },
       };
       const html = renderEventListBody([privateSession], getObservationEventStrings("en"), "en");
 
       assert.doesNotMatch(html, /Private family gathering|Private observation target|private-history-id/, `${state} / ${eventCode}`);
+      assert.doesNotMatch(html, /Private purpose|Private place|Private cost|Private entry/, `${state} / ${eventCode} detail`);
       assert.doesNotMatch(html, /data-participation-result|zukan-participation-history/);
       assert.match(html, /No public programs are listed yet/);
     }

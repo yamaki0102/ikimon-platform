@@ -19788,7 +19788,12 @@ test("public participation list hides private and codeless lifecycle states whil
     plan: "public", primary_mode: "discovery", active_modes_json: '["discovery"]',
     location_lat: null, location_lng: null, location_radius_m: 1000,
     started_at: "2020-01-01T00:00:00.000Z", ended_at: null,
-    target_species_json: "[]", config_json: "{}", field_id: null,
+    target_species_json: "[]", config_json: JSON.stringify({
+      summary: "A short river walk to learn about local waterways.",
+      placeName: "Old Tokaido waterway",
+      priceText: "Free",
+      booking: { providerName: "Town registration", providerUrl: "https://example.org/river-walk" },
+    }), field_id: null,
     template_source_session_id: null, created_at: "2020-01-01T00:00:00.000Z", updated_at: "2020-01-01T00:00:00.000Z",
   };
   obs.observationEventSessions.set(base.session_id, base);
@@ -19834,6 +19839,10 @@ test("public participation list hides private and codeless lifecycle states whil
   const html = await response.text();
   assert.equal(response.status, 200);
   assert.match(html, /Open riverside walk/);
+  assert.match(html, /A short river walk to learn about local waterways\./);
+  assert.match(html, /Old Tokaido waterway/);
+  assert.match(html, /Free/);
+  assert.match(html, /Town registration/);
   assert.match(html, /Past riverside walk/);
   assert.match(html, /data-participation-kind="actionable"/);
   assert.match(html, /data-participation-kind="ended"/);
