@@ -46,7 +46,8 @@ export function readQueryUserId(query: unknown): string {
 }
 
 function isProductionRuntime(): boolean {
-  return process.env.NODE_ENV === "production" || process.env.ENVIRONMENT === "production";
+  const environment = String(process.env.ENVIRONMENT ?? "");
+  return process.env.NODE_ENV === "production" || environment === "production";
 }
 
 function queryOverrideAllowed(session: SessionLike, requestedUserId: string): boolean {

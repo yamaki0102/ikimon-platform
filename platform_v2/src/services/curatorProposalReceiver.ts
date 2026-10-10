@@ -47,7 +47,13 @@ export function buildGitHubGitArgs(args: string[]): string[] {
   return ["-c", "credential.https://github.com.helper=", "-c", `credential.https://github.com.helper=${GITHUB_CREDENTIAL_HELPER}`, ...args];
 }
 
-export function buildGitHubGitEnv(ghToken: string): NodeJS.ProcessEnv {
+export type GitHubGitEnvironment = {
+  GH_TOKEN: string;
+  GITHUB_TOKEN: string;
+  GIT_TERMINAL_PROMPT: "0";
+};
+
+export function buildGitHubGitEnv(ghToken: string): GitHubGitEnvironment {
   return { GH_TOKEN: ghToken, GITHUB_TOKEN: ghToken, GIT_TERMINAL_PROMPT: "0" };
 }
 
@@ -81,7 +87,7 @@ async function nextMigrationNumber(repoRoot: string): Promise<string> {
   return String(max + 1).padStart(4, "0");
 }
 
-async function runGit(args: string[], cwd: string, env?: NodeJS.ProcessEnv): Promise<string> {
+async function runGit(args: string[], cwd: string, env?: Record<string, string | undefined>): Promise<string> {
   const { stdout, stderr } = await execFile("git", args, {
     cwd,
     env: { ...process.env, ...(env ?? {}) },
