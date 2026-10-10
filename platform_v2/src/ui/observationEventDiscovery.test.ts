@@ -78,9 +78,10 @@ function control(form: Element, name: string, type = "text") {
   child.name = name; child.type = type; form.append(child); return child;
 }
 
-function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (call: Call) => Promise<any>; minor?: boolean; href?: string; displayName?: string; preview?: boolean } = {}) {
+function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (call: Call) => Promise<any>; minor?: boolean; href?: string; displayName?: string; preview?: boolean; geminiConsentVersion?: string } = {}) {
   const root = new Element("section");
   root.dataset = { eventDiscovery: kind, sessionId: "event-fixture", isMinor: String(options.minor === true) };
+  if (options.geminiConsentVersion) root.dataset.discoveryGeminiConsentVersion = options.geminiConsentVersion;
   const storage = options.storage ?? new Map<string, string>();
   const calls: Call[] = []; const navigations: string[] = [];
   const nodes = new Map<string, Element>();
@@ -192,7 +193,11 @@ test("the isolated preview marks its single tentative day and uses the published
   assert.doesNotMatch(preview, /data-discovery-occurrence-select|data-discovery-application-form|\/print|download=/);
   assert.match(preview, /紙のシートは、当日会場で配布/);
   assert.match(preview, /写真を選んだだけでは送信されません/);
-  assert.match(preview, /共有を選んだものだけ主催者の確認後/);
+  assert.match(preview, /共有を選んだ写真は自動確認を通るとすぐに掲載/);
+  assert.equal((preview.match(/data-discovery-demo /g) ?? []).length, 6, "all six sample photos are synthetic and separately labeled");
+  assert.match(preview, /6枚はAI生成の掲載例です。実参加者の投稿・会場写真ではありません/u);
+  assert.match(preview, /data-discovery-published open hidden/);
+  assert.ok(preview.indexOf('data-discovery-published') < preview.indexOf('ed-demo-gallery'), "published posts appear before illustrations");
 });
 
 test("unnamed login-free checkin sends an empty nickname, no account fallback, and no location consent", async () => {
@@ -202,6 +207,21 @@ test("unnamed login-free checkin sends an empty nickname, no account fallback, a
   assert.deepEqual(app.calls[0]!.body, { display_name: "", team_id: null, is_minor: false, share_location: false, guardian_location_consent: false });
   assert.equal(app.calls[0]!.options.credentials, "same-origin");
   assert.deepEqual(app.navigations, ["/events/event-fixture/rally"]);
+});
+
+test("Ryuyo join discloses Gemini use and link-visible publication before recording the participation notice", async () => {
+  const version = "ryuyo-gemini-screening-publish-v1";
+  const html = renderObservationEventDiscoveryJoin({ sessionId: "event-fixture", eventCode: "RYUYO1", title: "竜洋", geminiConsentVersion: version });
+  assert.match(html, /Google Gemini/);
+  assert.match(html, /リンクを知っている人が見られる/);
+  assert.match(html, /主催者の個別確認前/);
+  assert.match(html, new RegExp(`data-discovery-gemini-consent-version="${version}"`));
+  const app = setup("join", { geminiConsentVersion: version, fetch: async () => ({ participant_id: "participant-fixture" }) });
+  await app.node("[data-discovery-join-form]").dispatch("submit");
+  assert.equal(app.calls[0]!.body.discovery_gemini_notice_version, version);
+  assert.deepEqual(app.navigations, ["/events/event-fixture/rally"]);
+  const otherEvent = renderObservationEventDiscoveryJoin({ sessionId: "event-fixture", eventCode: "OTHER", title: "別の会" });
+  assert.doesNotMatch(otherEvent, /Google Gemini/);
 });
 
 test("day-of join preserves the escaped application nickname and lets an explicit local draft replace or clear it", async () => {
