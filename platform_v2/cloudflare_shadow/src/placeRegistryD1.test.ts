@@ -118,6 +118,26 @@ test("D1 place search preserves canonical identity for orthographic alias", asyn
   assert.equal(JSON.stringify(response).includes("center_latitude"), false);
 });
 
+test("D1 public Place search treats SQL wildcard characters as literal query text", async () => {
+  const { db } = realPlaceDatabase();
+  for (const query of ["%%", "常磐%", "Tokiwa%", "％％"]) {
+    const response = await searchD1PublicPlaces({ db, query });
+    assert.deepEqual(response.results, [], `unexpected Place match for ${query}`);
+  }
+
+  const canonical = await searchD1PublicPlaces({ db, query: "常磐公園" });
+  assert.equal(canonical.results[0]?.canonicalName, "常磐公園");
+  const alias = await searchD1PublicPlaces({ db, query: "常盤公園" });
+  assert.equal(alias.results[0]?.canonicalName, "常磐公園");
+
+  // The children query rewrites the same search SQL and must still bind correctly.
+  const children = await listD1PublicPlaceChildren({
+    db,
+    parentPlaceId: tokiwaAdoption.source.selectedPlaceId,
+  });
+  assert.deepEqual(children, []);
+});
+
 test("D1 place children query is recursive-ready and boundary-only", async () => {
   const results = await listD1PublicPlaceChildren({
     db: databaseWithRows([{ ...tokiwa, place_id: "place_tokiwa_zone" }]),
