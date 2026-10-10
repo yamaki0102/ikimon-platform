@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import test from "node:test";
+import { chromium } from "@playwright/test";
 import { buildApp } from "../app.js";
 
 test("manifest is app-first and localized from device or query language", async () => {
@@ -90,6 +92,91 @@ test("app service worker keeps authenticated navigation out of shared caches wit
     assert.match(response.body, /self\.addEventListener\('sync'/);
     assert.doesNotMatch(response.body, /registration\.unregister/);
   } finally {
+    await app.close();
+  }
+});
+
+test("offline page displays its precached brand mark without caching private navigation", { skip: !existsSync(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath()) && "Playwright Chromium is unavailable" }, async () => {
+  const app = buildApp();
+  const browser = await chromium.launch({
+    executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath(),
+    headless: true,
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  });
+  let context: Awaited<ReturnType<typeof browser.newContext>> | undefined;
+  const unsafeRequests: string[] = [];
+  try {
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    assert.ok(address && typeof address === "object");
+    const origin = `http://127.0.0.1:${address.port}`;
+    context = await browser.newContext({ viewport: { width: 320, height: 720 }, serviceWorkers: "allow" });
+    await context.route("**/*", (route) => {
+      const method = route.request().method().toUpperCase();
+      if (["GET", "HEAD", "OPTIONS"].includes(method)) return route.continue();
+      unsafeRequests.push(`${method} ${route.request().url()}`);
+      return route.abort("blockedbyclient");
+    });
+    const page = await context.newPage();
+    const failedRequests: Array<{ url: string; reason: string }> = [];
+    page.on("requestfailed", (request) => failedRequests.push({ url: request.url(), reason: request.failure()?.errorText ?? "unknown" }));
+    await page.goto(`${origin}/?lang=ja`, { waitUntil: "load", timeout: 45000 });
+    const waitForWorker = new Function(`return async () => {
+      const ready = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('service worker readiness timeout')), 20000)),
+      ]);
+      const active = ready.active;
+      if (!active) throw new Error('service worker has no active worker');
+      if (active.state !== 'activated') await Promise.race([
+        new Promise((resolve, reject) => {
+          const check = () => {
+            if (active.state === 'activated') resolve();
+            else if (active.state === 'redundant') reject(new Error('service worker became redundant'));
+          };
+          active.addEventListener('statechange', check);
+          check();
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('service worker activation timeout')), 10000)),
+      ]);
+      if (!navigator.serviceWorker.controller) await Promise.race([
+        new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('service worker control timeout')), 10000)),
+      ]);
+      return {
+        scope: ready.scope,
+        scriptUrl: active.scriptURL,
+        state: active.state,
+        controllerScriptUrl: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL,
+        offlineShellCached: Boolean(await caches.match('/offline.html?lang=ja')),
+        brandMarkCached: Boolean(await caches.match('/assets/brand/zukan-app-icon-192.png')),
+      };
+    }`)() as () => Promise<{ scope: string; scriptUrl: string; state: string; controllerScriptUrl: string | null; offlineShellCached: boolean; brandMarkCached: boolean }>;
+    const registration = await page.evaluate(waitForWorker);
+    assert.equal(registration.scope, `${origin}/`);
+    assert.equal(registration.scriptUrl, `${origin}/app-sw.js`);
+    assert.equal(registration.state, "activated");
+    assert.equal(registration.controllerScriptUrl, `${origin}/app-sw.js`);
+    assert.equal(registration.offlineShellCached, true);
+    assert.equal(registration.brandMarkCached, true);
+
+    await context.setOffline(true);
+    await page.goto(`${origin}/ja/records?view=public`, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.locator("body").getByText("オフラインです", { exact: true }).waitFor({ state: "visible" });
+    const inspectOfflinePage = new Function(`return async () => ({
+      offlineShellVisible: document.body.innerText.includes('オフラインです'),
+      image: Array.from(document.images).map((image) => ({ src: new URL(image.src).pathname, complete: image.complete, naturalWidth: image.naturalWidth })),
+      privatePageCached: Boolean(await caches.match('/ja/records?view=public')),
+    })`)() as () => Promise<{ offlineShellVisible: boolean; image: Array<{ src: string; complete: boolean; naturalWidth: number }>; privatePageCached: boolean }>;
+    const offlineState = await page.evaluate(inspectOfflinePage);
+    assert.equal(offlineState.offlineShellVisible, true);
+    assert.deepEqual(offlineState.image, [{ src: "/assets/brand/zukan-app-icon-192.png", complete: true, naturalWidth: 192 }]);
+    assert.equal(offlineState.privatePageCached, false);
+    assert.deepEqual(unsafeRequests, []);
+    assert.equal(failedRequests.some(({ url }) => url.includes("/assets/brand/zukan-app-icon-192.png")), false);
+  } finally {
+    if (context) await context.close();
+    await browser.close();
     await app.close();
   }
 });

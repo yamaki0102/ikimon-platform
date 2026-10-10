@@ -188,6 +188,7 @@ const STATIC_ASSETS = [
   '${BRAND_ASSETS.appleTouchIcon}',
   '${BRAND_ASSETS.favicon32}'
 ];
+const STATIC_ASSET_PATHS = new Set(STATIC_ASSETS.map((asset) => new URL(asset, self.location.origin).pathname));
 const MAP_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?map\\/?$/;
 const PERSONAL_NAV_RE = /^\\/(?:ja|en|es|pt-br)?\\/?(?:$|home\\/?$|profile(?:\\/settings)?\\/?$|settings\\/?$|records\\/?$|record\\/?$)/;
 
@@ -234,6 +235,10 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== location.origin) return;
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));
+    return;
+  }
+  if (STATIC_ASSET_PATHS.has(url.pathname)) {
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
     return;
   }
   if (url.pathname.startsWith('/assets/img/')) {
