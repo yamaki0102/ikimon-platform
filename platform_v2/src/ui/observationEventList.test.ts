@@ -88,6 +88,7 @@ test("public discovery rows show purpose, full JST window, place, cost, and entr
 
   assert.match(row, /水路と地域の暮らしを確かめます。/);
   assert.match(row, /9月5日[^<]*10:00–12:30/);
+  assert.doesNotMatch(row, /<dt>いつ<\/dt>/);
   assert.match(row, /旧東海道沿いの水路/);
   assert.match(row, /無料/);
   assert.match(row, /まちの受付サイト/);

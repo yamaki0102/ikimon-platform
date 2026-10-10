@@ -845,7 +845,6 @@ export function renderEventListBody(
     const externalSignup = readObservationEventExternalSignup(s);
     const nativeCheckin = shouldRenderObservationEventCheckin(s, externalSignup);
     const facts = ([
-      [d.detailWhenLabel, when],
       [d.detailWhereLabel, place ?? d.detailUnknownValue],
       [d.detailCostLabel, cost ?? d.detailUnknownValue],
       [d.detailMethodLabel, externalSignup?.providerLabel ?? (nativeCheckin ? d.detailNativeEntryLabel : d.detailUnknownValue)],
