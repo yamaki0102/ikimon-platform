@@ -48,6 +48,8 @@ import { getSiteBrief, type SiteBrief } from "../services/siteBrief.js";
 import { normalizeFieldProfilePolicy } from "../services/fieldProfilePolicy.js";
 import { getField } from "../services/observationFieldRegistry.js";
 import { getObservationDataRights, type ObservationDataRights } from "../services/observationDataRights.js";
+import { PUBLICATION_FEED_DEFINITIONS } from "../services/publicationFeedDefinitions.js";
+import { projectOwnerPublicationReturn } from "../services/publicationSyndication.js";
 import {
   decideObservationPublicationPolicy,
   type ObservationPublicationPolicy,
@@ -948,6 +950,13 @@ const OBSERVATION_DETAIL_STYLES = `
   .obs-public-state span { display: block; color: #64748b; font-size: 10px; line-height: 1.25; letter-spacing: .08em; font-weight: 950; text-transform: uppercase; }
   .obs-public-state strong { display: block; margin-top: 3px; color: #0f172a; font-size: 12.5px; line-height: 1.55; font-weight: 850; }
   .obs-public-state small { flex: 0 0 190px; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 800; text-align: right; }
+  .obs-publication-return { max-width: var(--ikimon-content-max); margin: 0 auto 12px; padding: 14px 16px; border: 1px solid rgba(100,116,139,.2); border-radius: 14px; background: #fff; }
+  .obs-publication-return h2 { margin: 0 0 10px; font-size: 16px; line-height: 1.4; }
+  .obs-publication-return dl { display: grid; gap: 8px; margin: 0; }
+  .obs-publication-return dl > div { display: grid; grid-template-columns: 104px minmax(0,1fr); gap: 12px; }
+  .obs-publication-return dt { color: #64748b; }
+  .obs-publication-return dd { margin: 0; color: #0f172a; font-weight: 800; }
+  .obs-publication-return small { display: block; color: #64748b; font-size: 14px; font-weight: 500; }
   .obs-site-contribution { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; max-width: var(--ikimon-content-max); margin: 0 auto 12px; padding: 12px 13px; border-radius: 14px; background: #f0fdf4; border: 1px solid rgba(22,163,74,.2); box-shadow: 0 6px 16px rgba(15,23,42,.04); }
   .obs-site-contribution[data-site-contribution="pending"] { background: #fffbeb; border-color: rgba(217,119,6,.22); }
   .obs-site-contribution[data-site-contribution="suppressed"], .obs-site-contribution[data-site-contribution="private"] { background: #f8fafc; border-color: rgba(100,116,139,.2); }
@@ -4330,6 +4339,76 @@ function renderObservationOwnerPublicStatePanel(snapshot: ObservationDetailSnaps
       <strong>${escapeHtml(body)}</strong>
     </div>
     <small>${escapeHtml(copy.removeHint)}</small>
+  </section>`;
+}
+
+async function renderOwnerPublicationReturnPanel(
+  snapshot: ObservationDetailSnapshot,
+  isOwner: boolean,
+): Promise<string> {
+  if (!isOwner) return "";
+  const rights = await getObservationDataRights(snapshot.visitId).catch(() => null);
+  const qualityState = String(snapshot.qualityReviewStatus || "");
+  const reviewDecision = qualityState === "accepted"
+    ? { state: "approved", source: "human_review" }
+    : qualityState === "changes_requested" || qualityState === "correction_requested"
+      ? { state: "changes_requested", source: "human_review" }
+      : qualityState === "rejected"
+        ? { state: "rejected", source: "human_review" }
+        : null;
+  const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
+    feedKey: definition.feedKey,
+    label: definition.scopeLabel.ja,
+    sourceVersion: definition.publicationPolicyVersion,
+    href: null,
+    sourceEnvironment: "production" as const,
+    readOnly: true as const,
+  }));
+  const result = projectOwnerPublicationReturn({
+    owner: true,
+    recordVisibility: snapshot.publicVisibility === "public" ? "public" : "private",
+    reviewDecision,
+    rights: rights ? {
+      recordConsent: rights.recordConsent,
+      researchUseConsent: rights.researchUseConsent,
+      datasetLicense: rights.datasetLicense,
+      mediaLicense: rights.mediaLicense,
+      externalExportAllowed: rights.externalExportAllowed,
+      withdrawalStatus: rights.withdrawalStatus,
+      sourcePayload: rights.sourcePayload,
+    } : {},
+    destinations,
+  });
+  if (!result) return "";
+  const reviewLabel = result.review.state === "approved" ? "確認済み・承認"
+    : result.review.state === "changes_requested" ? "修正依頼"
+      : result.review.state === "rejected" ? "却下"
+        : result.review.state === "withdrawn" ? "撤回" : "未確認";
+  const exclusionLabels: Record<string, string> = {
+    record_not_public: "記録が公開範囲ではありません",
+    review_not_approved: "確認の承認がありません",
+    destination_not_configured: "未取得",
+    destination_not_consented: "この掲載先への同意がありません",
+    syndication_consent_missing: "この掲載先への同意がありません",
+    minor_status_unresolved: "未成年者区分を確認できません",
+    guardian_authority_unresolved: "保護者権限を確認できません",
+    guardian_authority_withdrawn: "保護者同意が撤回されています",
+    record_withdrawn: "記録または公開同意が撤回されています",
+    syndication_consent_withdrawn: "記録または公開同意が撤回されています",
+  };
+  const publicationLabel = result.publication.state === "published" ? "公開確認済み"
+    : result.publication.state === "eligible" ? "公開可能（未公開）"
+      : result.publication.state === "excluded" ? "公開対象外" : "未確認";
+  const exclusion = result.publication.exclusionCode ? exclusionLabels[result.publication.exclusionCode] ?? "必要な公開条件を満たしていません" : null;
+  const destination = result.publication.destinations[0];
+  const destinationHtml = destination
+    ? `${escapeHtml(destination.label)}<small>公開フィード · ${escapeHtml(destination.sourceVersion)}</small>`
+    : "未取得";
+  return `<section class="obs-publication-return" data-publication-return="owner-only" aria-labelledby="owner-publication-return-title">
+    <h2 id="owner-publication-return-title">公開と確認</h2>
+    <dl><div><dt>確認結果</dt><dd>${escapeHtml(reviewLabel)}</dd></div>
+    <div><dt>公開状況</dt><dd>${escapeHtml(publicationLabel)}${exclusion ? `<small>${escapeHtml(exclusion)}</small>` : ""}</dd></div>
+    <div><dt>掲載先</dt><dd>${destinationHtml}</dd></div></dl>
   </section>`;
 }
 
@@ -18118,6 +18197,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
            <span class="obs-reassess-status" data-reassess-status hidden></span>
          </section>`
       : "";
+    const publicationReturnBlock = await renderOwnerPublicationReturnPanel(snapshot, isOwner);
     const ownerToolsBlock = (photoRecoveryBlock || ownerDeleteBlock || reassessBlock)
       ? `<section class="obs-owner-tools" aria-label="投稿者用ツール">${photoRecoveryBlock}${ownerDeleteBlock}${reassessBlock}</section>`
       : "";
@@ -18622,7 +18702,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${siteContributionBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
+    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${siteContributionBlock}${publicationReturnBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
