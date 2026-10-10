@@ -4,6 +4,7 @@ export const DISCOVERY_AUTO_PRIVACY_METHOD = "metadata-scrub+gemini-privacy/v1";
 export type DiscoveryPrivacyResult = { clear: boolean; reason: "clear" | "person" | "personal_information" | "sensitive_content" | "uncertain" | "unavailable" };
 
 const flags = ["person", "personal_information", "sensitive_content", "uncertain"] as const;
+const personalInformationPattern = /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\d ().-]{7,}\d)|(?:https?:\/\/|www\.)|(?:@[^\s@]{3,})|〒?\d{3}-?\d{4}/iu;
 const schema = {
   type: "object", additionalProperties: false,
   properties: Object.fromEntries(flags.map((key) => [key, { type: "boolean" }])),
@@ -21,13 +22,17 @@ export function parseDiscoveryPrivacyResult(text: string): DiscoveryPrivacyResul
   } catch { return { clear: false, reason: "uncertain" }; }
 }
 
+export function containsDiscoveryPersonalInformation(text: string): boolean {
+  return personalInformationPattern.test(text);
+}
+
 /** A conservative publication screen, not identity recognition or a guarantee. */
 export async function screenDiscoveryPhoto(
   apiKey: string | undefined, image: ArrayBuffer, text: string, fetcher: typeof fetch = fetch,
 ): Promise<DiscoveryPrivacyResult> {
   if (!apiKey) return { clear: false, reason: "unavailable" };
   // Obvious contact details are held without asking the model.
-  if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\d ()-]{7,}\d)/iu.test(text)) return { clear: false, reason: "personal_information" };
+  if (containsDiscoveryPersonalInformation(text)) return { clear: false, reason: "personal_information" };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
   try {

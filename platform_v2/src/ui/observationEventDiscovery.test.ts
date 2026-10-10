@@ -224,6 +224,13 @@ test("Ryuyo join discloses Gemini use and link-visible publication before record
   assert.doesNotMatch(otherEvent, /Google Gemini/);
 });
 
+test("a participant missing notice history keeps saved-photo controls and sees how to re-check in", () => {
+  const html = renderObservationEventDiscoveryCapture({ sessionId: "event-fixture", eventCode: "RYUYO1", title: "竜洋", canSubmit: false, geminiNoticeRequired: true });
+  assert.match(html, /参加時の案内を確認する/);
+  assert.match(html, /data-discovery-receipts/);
+  assert.doesNotMatch(html, /<form\b[^>]*data-discovery-media-form/);
+});
+
 test("day-of join preserves the escaped application nickname and lets an explicit local draft replace or clear it", async () => {
   const html = renderObservationEventDiscoveryJoin({ sessionId: "event-fixture", eventCode: "CODE", title: "竜洋", displayName: '<虫 & ゆう>"' });
   assert.match(html, /name="display_name" value="&lt;虫 &amp; ゆう&gt;&quot;"/);

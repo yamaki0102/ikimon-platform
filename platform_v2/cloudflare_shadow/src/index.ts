@@ -4807,16 +4807,17 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
   if (page === "rally" && isEventDiscoveryProfile(session.config)) {
     if (auth?.banned || !observationEventGuestMediaEnabled(env, session)) return pageHtml("参加できません", observationEventEmptyState("参加できません", "主催者にお問い合わせください。"), "event-discovery-denied", 403);
     const [course, actor] = await Promise.all([getObservationRallyCourseBySession(env, sessionId), observationEventGuestMediaActor(request, env, sessionId)]);
-    if (isRyuyoDiscoveryEvent(env, session) && actor.participant?.discovery_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION) {
-      return redirect303(`/community/events/${encodeURIComponent(session.eventCode ?? "")}/join`, {
-        "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive",
-      });
-    }
-    const canSubmit = Boolean(actor.participant?.status === "checked_in") && course?.status === "live" && isObservationEventActivityOpen(session);
+    const geminiNoticeRequired = isRyuyoDiscoveryEvent(env, session) && course?.status === "live"
+      && isObservationEventActivityOpen(session)
+      && (actor.participant?.discovery_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !actor.participant?.discovery_gemini_notice_at);
+    const canSubmit = Boolean(actor.participant?.status === "checked_in") && course?.status === "live"
+      && isObservationEventActivityOpen(session) && !geminiNoticeRequired;
     const response = pageHtml(session.title, renderObservationEventDiscoveryCapture({
       sessionId, title: session.title, eventCode: session.eventCode ?? "", canSubmit, canManage,
+      geminiNoticeRequired,
       isMinor: actor.participant?.is_minor === 1, displayName: actor.participant?.display_name?.trim() || null,
-      stateMessage: canSubmit ? undefined : !isObservationEventCheckinOpen(session) ? "受付は終了しました。保存した3枚は引き続き確認できます。" : "いまは写真の受付を停止しています。保存した写真は確認できます。",
+      stateMessage: canSubmit ? undefined : !isObservationEventCheckinOpen(session) ? "受付は終了しました。保存した3枚は引き続き確認できます。"
+        : geminiNoticeRequired ? undefined : "いまは写真の受付を停止しています。保存した写真は確認できます。",
     }), "event-discovery-capture");
     response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
     return response;
@@ -7298,6 +7299,10 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   const actor = await observationEventGuestMediaActor(request, env, sessionId);
   if (actor.auth?.banned) return json({ error: "event_media_unavailable" }, 403, { "cache-control": "no-store" });
   if (!actor.participant || actor.participant.status !== "checked_in") return json({ error: "checked_in_participant_required" }, 403, { "cache-control": "no-store" });
+  if (isRyuyoDiscoveryEvent(env, session)
+    && (actor.participant.discovery_gemini_notice_version !== RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION || !actor.participant.discovery_gemini_notice_at)) {
+    return json({ error: "discovery_gemini_notice_required" }, 403, { "cache-control": "no-store" });
+  }
   if (Number(request.headers.get("content-length") ?? 0) > 13_107_200) return json({ error: "media_too_large" }, 413, { "cache-control": "no-store" });
   let form: FormData;
   try { form = await request.formData(); } catch { return json({ error: "multipart_form_required" }, 400, { "cache-control": "no-store" }); }

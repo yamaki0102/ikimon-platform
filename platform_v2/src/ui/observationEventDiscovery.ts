@@ -106,6 +106,7 @@ export interface DiscoveryEventView {
   title: string;
   eventCode: string;
   geminiConsentVersion?: string;
+  geminiNoticeRequired?: boolean;
   startedAt?: string | null;
   endedAt?: string | null;
   stateMessage?: string;
@@ -188,7 +189,7 @@ export function renderObservationEventDiscoveryJoin(input: DiscoveryEventView & 
     ${stateNotice(input.stateMessage)}
     <div class="ed-welcome"><div><p class="ed-kicker">あなたの発見ノート</p><h1>${escapeHtml(input.title)}</h1><p class="ed-help">${escapeHtml(dateLabel(input.startedAt))}</p><p>気に入った場所や、ちょっとした発見を写真で３枚まで。名前もコメントも、入れたければ。</p></div>${illustration("discovery", "小さな発見を楽しむ、葉と虫眼鏡のイラスト")}</div>
     ${input.canJoin === false ? '<p class="ed-notice">いまは参加の受付をしていません。主催者の案内をご確認ください。</p>' : `<form class="ed-form ed-join-form" data-discovery-join-form novalidate>
-      <label for="discovery-nickname">あだ名や下の名前を、よければどうぞ<span class="ed-optional">任意</span></label><input id="discovery-nickname" name="display_name" value="${escapeHtml(input.displayName)}" maxlength="32" autocomplete="nickname" placeholder="例：ゆう、むしずき" aria-describedby="discovery-name-help"><p class="ed-help" id="discovery-name-help">空欄でも参加できます。本名や連絡先は書かないでください。</p>
+      <label for="discovery-nickname">あだ名や下の名前を、よければどうぞ<span class="ed-optional">任意</span></label><input id="discovery-nickname" name="display_name" value="${escapeHtml(input.displayName)}" maxlength="32" autocomplete="nickname" placeholder="例：ゆう、むしずき" aria-describedby="discovery-name-help"><p class="ed-help" id="discovery-name-help">空欄でも参加できます。本名や連絡先は書かないでください。メール・電話番号などを含む呼び名は公開しません。</p>
       ${teams.length ? `<label for="discovery-team">班<span class="ed-optional">任意</span></label><select id="discovery-team" name="team_id"><option value="">選ばない</option>${teams.map((team) => `<option value="${escapeHtml(team.teamId)}">${escapeHtml(team.name)}</option>`).join("")}</select>` : ""}
       <label class="ed-check"><input type="checkbox" name="is_minor"><span>参加者に未成年が含まれます</span></label>
       ${input.geminiConsentVersion ? `<aside class="ed-notice ed-ai-notice"><h2>共有写真の安全確認と掲載について</h2><p>この開催回では、共有を選んだ写真と任意のコメント・場所のメモを、人物や個人情報などを確認するため Google Gemini に送信します。AI判定でリスクが検出されなかった共有写真は、主催者の個別確認前に、リンクを知っている人が見られる「みんなの発見」に掲載されます。判定できない写真や人物・個人情報などが含まれる可能性のある投稿は掲載せず、主催者の確認待ちにします。</p><p>写真を共有しない選択もできます。人物、名札、連絡先などが写った写真や個人情報を含むメモは共有しないでください。掲載後も取り下げられます。</p><p class="ed-help">「ノートを始める」を押して参加すると、この竜洋の開催回に限り、上記の安全確認と公開の取り扱いに同意したものとして記録します。</p></aside>` : ""}
@@ -211,6 +212,7 @@ export function renderObservationEventDiscoveryCapture(input: DiscoveryEventView
     <div class="ed-context"><a class="ed-back" href="/events/ryuyo?event=${encodeURIComponent(input.eventCode)}">竜洋のとっておき</a><a class="ed-text-link" href="${escapeHtml(eventHref(input.sessionId, "discoveries"))}">みんなの発見を見る</a></div>
     ${stateNotice(input.stateMessage)}
     <header class="ed-page-heading"><p class="ed-kicker">${escapeHtml(input.title)}</p><h1>${escapeHtml(title)}</h1><p>今日の「ここ、いいな」を、写真で３枚まで。１枚から残せます。</p></header>
+    ${input.geminiNoticeRequired ? `<p class="ed-notice">新しい写真を投稿するには、参加時の案内を確認して再チェックインしてください。保存済みの記録は、ここで確認・取り下げできます。<a href="/community/events/${encodeURIComponent(input.eventCode)}/join">参加時の案内を確認する</a></p>` : ""}
     ${statusRegion()}<div class="ed-own-heading"><h2>残した写真</h2><button class="ed-button ed-small" type="button" data-discovery-refresh>再読み込み</button></div><div class="ed-own-journal" data-discovery-receipts><p class="ed-help">保存した記録を読み込んでいます。</p></div>
     <p class="ed-help" data-discovery-photo-count></p>
     ${input.canSubmit === true ? `<form class="ed-form ed-capture-form" data-discovery-media-form>

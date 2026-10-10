@@ -101,11 +101,31 @@ test("clear shared photo publishes during save, replays once, and withdrawal del
   assert.deepEqual(await state.store.content("event-a", saved.submissionId), WEBP);
   await state.store.autoPublishPhoto("event-a", saved.submissionId, screen);
   assert.equal(screens, 1);
+  state.db.native.prepare("UPDATE observation_event_participants SET discovery_gemini_notice_version = NULL, discovery_gemini_notice_at = NULL WHERE participant_id = 'guest'").run();
+  assert.equal((await state.store.gallery("event-a")).counts.entries, 0, "a pre-notice automatic approval is excluded from the public projection");
+  await assert.rejects(state.store.content("event-a", saved.submissionId), /not_found/);
   const key = (await state.store.get("event-a", saved.submissionId))!.derivative_key!;
   await state.store.withdraw("event-a", saved.submissionId);
   assert.equal(await state.bucket.head(key), null);
   assert.equal((await state.store.gallery("event-a")).counts.entries, 0);
   await assert.rejects(state.store.content("event-a", saved.submissionId), /not_found/);
+});
+
+test("personal information in a nickname is omitted from publication while ordinary nicknames remain", async () => {
+  const state = fixture();
+  participant(state.db, "private-contact", "parent@example.test", false, true);
+  participant(state.db, "safe-alias", "むしずき", false, true);
+  for (const [participantId, key] of [["private-contact", "contact-nickname"], ["safe-alias", "safe-nickname"]] as const) {
+    const saved = await photo(state, participantId, key);
+    await state.store.autoPublishPhoto("event-a", saved.submissionId, async (_body, text) => {
+      assert.doesNotMatch(text, /example\.test|むしずき/u, "the nickname never leaves the service for screening");
+      return { clear: true, reason: "clear" };
+    });
+  }
+  const gallery = await state.store.gallery("event-a");
+  assert.equal(gallery.counts.entries, 2);
+  assert.deepEqual(gallery.journals.map((journal) => journal.displayName).sort(), [null, "むしずき"]);
+  assert.doesNotMatch(JSON.stringify(gallery), /parent@example\.test/u);
 });
 
 test("participants without the versioned Ryuyo Gemini notice remain private and are not sent for screening", async () => {
