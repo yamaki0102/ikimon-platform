@@ -9,6 +9,12 @@ ZUKAN is a place-centered shared knowledge and participation product across natu
 - A frozen or unavailable Factory remains a separate infrastructure task. Its repair, connectivity and background jobs are not prerequisites for ZUKAN delivery.
 - Preserve applicable production activation, database, secret, IAM, DNS, rights, billing and external-send boundaries. Confirm the actual ZUKAN release route; NOCOSIL's `release/production` branch is not a portfolio-wide deployment setting.
 
+## Cross-agent release coordination — 2026-10-10
+
+- Before a mutating staging/production release, follow the central [release coordination policy](https://github.com/yamaki0102/all-projects-management/blob/main/operations/deploy_standard/release_coordination.md), resolve the current service `effective_route` and overlapping Cloudflare Worker/R2/D1 resources. One writer for a conflicting release scope; independent code writers can proceed in parallel.
+- The Windows PC `~/.claude/bin/release-queue.mjs` only coordinates that PC's hooked `release.sh`; it does **not** coordinate ZUKAN cloud `run_registered_release.mjs`, provider-native paths or other hosts. Do not require the PC queue, a Factory gateway or an unregistered alternate runner for cloud delivery.
+- On competing release/`RESOURCE_CONFLICT`, or unknown staging/provider result, read back active source/runtime before retry. Do not let a different branch overwrite verified staging while production promotion is in progress. Coalesce only when the selected SHA is verified to include every intended change; never infer global serialization from the dashboard.
+
 ## Codex Cloud — P0 fast start
 
 For “P0から開発して”, “最優先から”, or “続きから”:
