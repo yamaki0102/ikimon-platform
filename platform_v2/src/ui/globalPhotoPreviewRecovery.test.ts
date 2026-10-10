@@ -70,7 +70,13 @@ type Draft = {
   [key: string]: unknown;
 };
 
-function indexedDbFixture(drafts: Map<string, Draft>, shouldFailDelete: () => boolean = () => false) {
+function indexedDbFixture(
+  drafts: Map<string, Draft>,
+  shouldFailDelete: () => boolean = () => false,
+  deferFirstGet = false,
+) {
+  let shouldDeferGet = deferFirstGet;
+  let pendingGet: (() => void) | null = null;
   const db = {
     objectStoreNames: { contains: () => true },
     close() {},
@@ -84,10 +90,14 @@ function indexedDbFixture(drafts: Map<string, Draft>, shouldFailDelete: () => bo
       const objectStore = {
         get(key: string) {
           const req: { result?: Draft; onsuccess?: () => void; onerror?: () => void; error?: Error } = {};
-          queueMicrotask(() => {
+          const complete = () => {
             req.result = drafts.get(key);
             req.onsuccess?.();
-          });
+          };
+          if (shouldDeferGet) {
+            shouldDeferGet = false;
+            pendingGet = complete;
+          } else queueMicrotask(complete);
           return req;
         },
         put(value: Draft, key: string) {
@@ -118,6 +128,12 @@ function indexedDbFixture(drafts: Map<string, Draft>, shouldFailDelete: () => bo
       queueMicrotask(() => { req.result = db; req.onsuccess?.(); });
       return req;
     },
+    completePendingGet() {
+      const complete = pendingGet;
+      pendingGet = null;
+      assert.ok(complete, "an IndexedDB get is pending");
+      complete();
+    },
   };
 }
 
@@ -127,10 +143,12 @@ type CameraFixtureOptions = {
   session?: "user" | "guest" | "unavailable";
   deleteFailures?: number;
   deferCanvasBlob?: boolean;
+  deferDraftRead?: boolean;
 };
 
 function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/ja/learn/field-loop", options: CameraFixtureOptions = {}) {
   let currentUserId = userId;
+  let currentSession: NonNullable<CameraFixtureOptions["session"]> = options.session ?? "user";
   let deleteFailures = options.deleteFailures ?? 0;
   let pendingCanvasBlob: ((blob: Blob | null) => void) | null = null;
   const sessionStorageValues = new Map<string, string>();
@@ -191,7 +209,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     deleteFailures -= 1;
     return true;
   };
-  const indexedDB = indexedDbFixture(drafts, shouldFailDelete);
+  const indexedDB = indexedDbFixture(drafts, shouldFailDelete, options.deferDraftRead);
   const window = {
     location,
     indexedDB,
@@ -229,8 +247,8 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
     clearTimeout,
     fetch: async (url: string, init?: { method?: string; body?: string }) => {
       if (url.startsWith("/api/v1/auth/session")) {
-        if (options.session === "unavailable") throw new Error("session_check_network_failure");
-        if (options.session === "guest") return {
+        if (currentSession === "unavailable") throw new Error("session_check_network_failure");
+        if (currentSession === "guest") return {
           ok: true,
           json: async () => ({ ok: false, error: "session_not_found", session: null }),
         };
@@ -249,7 +267,10 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
       assert.ok(callback, "a delayed canvas blob callback is pending");
       callback(blob);
     },
-    switchUserId(nextUserId: string) { currentUserId = nextUserId; },
+    resolveDraftRead() { indexedDB.completePendingGet(); },
+    switchUserId(nextUserId: string) { currentUserId = nextUserId; currentSession = "user"; },
+    switchToGuest() { currentSession = "guest"; },
+    navigateToPath(nextPath: string) { location.pathname = nextPath; },
   };
 }
 
@@ -584,6 +605,69 @@ test("completed preview tombstones and stale drafts do not reopen", async () => 
   const stale = cameraFixture(drafts, "owner-A");
   await drain();
   assert.equal(stale.sheet.hidden, true);
+});
+
+test("preview restore is abandoned if the authenticated owner changes during the IndexedDB read", async () => {
+  const drafts = new Map<string, Draft>();
+  const pagePath = "/ja/learn/field-loop";
+  const key = photoPreviewKey("owner-A", pagePath);
+  drafts.set(key, {
+    ownerKey: "user:owner-A",
+    kind: "photo",
+    globalPhotoPreview: true,
+    savedAt: Date.now(),
+    capturePagePath: pagePath,
+    files: [new File(["owner-A-photo"], "owner-A.jpg", { type: "image/jpeg" })],
+  });
+  const browser = cameraFixture(drafts, "owner-A", pagePath, { deferDraftRead: true });
+  await drain();
+  browser.switchUserId("owner-B");
+  browser.resolveDraftRead();
+  await drain();
+
+  assert.equal(browser.sheet.hidden, true, "a stale owner read cannot reopen the global capture sheet");
+  assert.equal(drafts.has(key), true, "the original user's preview remains in its own key");
+});
+
+test("preview restore is abandoned if the session becomes a guest during the IndexedDB read", async () => {
+  const drafts = new Map<string, Draft>();
+  const pagePath = "/ja/learn/field-loop";
+  const key = photoPreviewKey("owner-A", pagePath);
+  drafts.set(key, {
+    ownerKey: "user:owner-A",
+    kind: "photo",
+    globalPhotoPreview: true,
+    savedAt: Date.now(),
+    capturePagePath: pagePath,
+    files: [new File(["private-photo"], "private.jpg", { type: "image/jpeg" })],
+  });
+  const browser = cameraFixture(drafts, "owner-A", pagePath, { deferDraftRead: true });
+  await drain();
+  browser.switchToGuest();
+  browser.resolveDraftRead();
+  await drain();
+
+  assert.equal(browser.sheet.hidden, true, "an explicit logout while reading prevents private photos from rendering");
+  assert.equal(drafts.has(key), true, "the former user's preview is neither revealed nor removed");
+});
+
+test("preview restore is abandoned if the page changes during the IndexedDB read", async () => {
+  const drafts = new Map<string, Draft>();
+  const pagePath = "/ja/learn/field-loop";
+  drafts.set(photoPreviewKey("owner-A", pagePath), {
+    ownerKey: "user:owner-A",
+    kind: "photo",
+    globalPhotoPreview: true,
+    savedAt: Date.now(),
+    capturePagePath: pagePath,
+    files: [new File(["page-photo"], "page.jpg", { type: "image/jpeg" })],
+  });
+  const browser = cameraFixture(drafts, "owner-A", pagePath, { deferDraftRead: true });
+  await drain();
+  browser.navigateToPath("/ja/map");
+  browser.resolveDraftRead();
+  await drain();
+  assert.equal(browser.sheet.hidden, true, "a draft read started on one page cannot affect another page");
 });
 
 test("account changes cannot write a prior user's photo into the next user's draft", async () => {

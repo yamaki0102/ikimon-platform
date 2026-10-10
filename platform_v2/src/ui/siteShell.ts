@@ -1891,26 +1891,28 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   let photoPreviewPostComplete = false;
   let photoPreviewEpoch = 0;
   let photoPreviewCloseInFlight = false;
-  const readStoredPhotoPreview = async () => {
+  let photoPreviewRestoreInFlight = false;
+  const readStoredPhotoPreview = async (owner, pagePath) => {
     if (!('indexedDB' in window)) return null;
-    const owner = await draftOwnerContext();
+    const ownerContext = owner || await draftOwnerContext();
+    const requestedPagePath = String(pagePath || window.location.pathname || '/');
     const db = await openDraftDb();
     let draft;
     try {
       draft = await new Promise((resolve, reject) => {
         const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME)
-          .get(photoPreviewDraftKey(owner, window.location.pathname));
+          .get(photoPreviewDraftKey(ownerContext, requestedPagePath));
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error || new Error('indexeddb_read_failed'));
       });
     } finally {
       db.close();
     }
-    if (!draft || draft.ownerKey !== owner.ownerKey || draft.globalPhotoPreview !== true
-      || draft.kind !== 'photo' || draft.previewCompleted === true) return null;
+    if (!draft || draft.ownerKey !== ownerContext.ownerKey || draft.globalPhotoPreview !== true
+      || draft.kind !== 'photo' || draft.previewCompleted === true
+      || (draft.capturePagePath && draft.capturePagePath !== requestedPagePath)) return null;
     const savedAt = Number(draft.savedAt || 0);
     if (!Number.isFinite(savedAt) || savedAt <= 0 || Date.now() - savedAt > 7 * 86400000 || savedAt > Date.now() + 60000) return null;
-    photoPreviewPagePath = String(draft.capturePagePath || window.location.pathname || '/');
     const files = (Array.isArray(draft.files) ? draft.files : [draft.file]).slice(0, MAX_PHOTO_DRAFT_FILES)
       .map((file, index) => {
         if (file instanceof File) return file;
@@ -3606,22 +3608,37 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const restorePhotoPreview = async () => {
     // /record owns its own recovery: never steal its IndexedDB draft into the global sheet.
     const pathSegments = String(window.location.pathname || '').split('/').filter(Boolean);
-    if (pathSegments[pathSegments.length - 1] === 'record' || !('indexedDB' in window)) return;
-    const draft = await readStoredPhotoPreview();
-    if (draft && draft.capturePagePath && draft.capturePagePath !== String(window.location.pathname || '')) return;
-    if (!draft || activeKind || selectedPhotoDraftFiles().length > 0 || photoPreviewDismissed) return;
-    photoPreviewOwnerKey = draft.ownerKey;
-    photoPreviewPagePath = String(draft.capturePagePath || window.location.pathname || '/');
-    capturedPhotoFiles = draft.files;
-    capturedReviewMeta = draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
-    photoDraftRetryDetailId = typeof draft.retryDetailId === 'string' ? draft.retryDetailId : '';
-    photoDraftRetryVisitId = typeof draft.retryVisitId === 'string' ? draft.retryVisitId : '';
-    photoDraftRetryHasUploadedPhoto = draft.retryHasUploadedPhoto === true;
-    openSheet('photo', { keepReview: true, reviewOnly: true });
-    if (empty) empty.hidden = true;
-    syncPhotoDraftControls(photoDraftRetryDetailId
-      ? '前回の写真を復旧しました。保存済みの記録に写真を再送できます。'
-      : '前回の写真を復旧しました。続きから記録できます。');
+    if (pathSegments[pathSegments.length - 1] === 'record' || !('indexedDB' in window) || photoPreviewRestoreInFlight) return;
+    const restoreEpoch = photoPreviewEpoch;
+    const restorePagePath = String(window.location.pathname || '');
+    const restoreIsCurrent = () => restoreEpoch === photoPreviewEpoch
+      && restorePagePath === String(window.location.pathname || '');
+    photoPreviewRestoreInFlight = true;
+    try {
+      const restoreOwner = await draftOwnerContext();
+      if (!restoreIsCurrent()) return;
+      const draft = await readStoredPhotoPreview(restoreOwner, restorePagePath);
+      if (!draft) return;
+      const currentOwner = await draftOwnerContext();
+      if (!restoreIsCurrent() || currentOwner.ownerKey !== restoreOwner.ownerKey
+        || draft.ownerKey !== currentOwner.ownerKey
+        || (draft.capturePagePath && draft.capturePagePath !== restorePagePath)
+        || activeKind || selectedPhotoDraftFiles().length > 0 || photoPreviewDismissed) return;
+      photoPreviewOwnerKey = draft.ownerKey;
+      photoPreviewPagePath = restorePagePath;
+      capturedPhotoFiles = draft.files;
+      capturedReviewMeta = draft.metadata && typeof draft.metadata === 'object' ? draft.metadata : {};
+      photoDraftRetryDetailId = typeof draft.retryDetailId === 'string' ? draft.retryDetailId : '';
+      photoDraftRetryVisitId = typeof draft.retryVisitId === 'string' ? draft.retryVisitId : '';
+      photoDraftRetryHasUploadedPhoto = draft.retryHasUploadedPhoto === true;
+      openSheet('photo', { keepReview: true, reviewOnly: true });
+      if (empty) empty.hidden = true;
+      syncPhotoDraftControls(photoDraftRetryDetailId
+        ? '前回の写真を復旧しました。保存済みの記録に写真を再送できます。'
+        : '前回の写真を復旧しました。続きから記録できます。');
+    } finally {
+      photoPreviewRestoreInFlight = false;
+    }
   };
   void restorePhotoPreview().catch(() => undefined);
   window.addEventListener('online', () => {
