@@ -34,6 +34,7 @@ import {
 } from "./recordRecoveryHtml";
 import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
+import { screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
 import {
   OBSERVATION_AI_PROMPT_VERSION,
   OBSERVATION_AI_RULE_VERSION,
@@ -4425,7 +4426,7 @@ async function getObservationEventJoinPage(request: Request, env: Env, eventCode
     readCompatibleSession(request, env).catch(() => null),
     getObservationEventSessionByEventCode(env, eventCode).catch(() => null)
   ]);
-  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned), { standalone: Boolean(session && isEventDiscoveryProfile(session.config)) });
   if (!session) {
     return pageHtml("観察会が見つかりません", observationEventEmptyState("参加コードが見つかりません", "主催者にコードを確認してください。"), "event-page-not-found", 404);
   }
@@ -4758,7 +4759,7 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     readCompatibleSession(request, env).catch(() => null),
     getObservationEventSessionById(env, sessionId).catch(() => null)
   ]);
-  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
+  const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned), { standalone: Boolean(session && page === "rally" && isEventDiscoveryProfile(session.config)) });
   if (!session) {
     return pageHtml("観察会が見つかりません", observationEventEmptyState("セッションが見つかりません", "観察会一覧から選び直してください。"), "event-page-not-found", 404);
   }
@@ -4786,6 +4787,11 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     liveViewer = await observationEventParticipantContext(request, env, session);
     canManage = canManage || liveViewer.isOrganizer;
     if (!liveViewer.isOrganizer && !liveViewer.isCheckedInParticipant) {
+      if (page === "rally" && !auth?.banned && session.eventCode && isRyuyoDiscoveryEvent(env, session)) {
+        return redirect303(`/community/events/${encodeURIComponent(session.eventCode)}/join`, {
+          "cache-control": "private, no-store", "x-robots-tag": "noindex, nofollow, noarchive",
+        });
+      }
       return pageHtml(
         "権限がありません",
         observationEventEmptyState("参加者のみ閲覧できます", "先に観察会へチェックインしてください。"),
@@ -7321,7 +7327,10 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   let row = await findByKey();
   if (row && row.request_sha256 !== requestSha256) return json({ error: "idempotency_key_conflict" }, 409, { "cache-control": "no-store" });
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
-  if (row?.media_state === "saved") return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, 200, { "cache-control": "no-store" });
+  if (row?.media_state === "saved") {
+    if (isRyuyoDiscoveryEvent(env, session)) await autoPublishRyuyoDiscovery(env, sessionId, row.submission_id);
+    return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, 200, { "cache-control": "no-store" });
+  }
   let transformed: ArrayBuffer;
   if (isImage) {
     try {
@@ -7390,7 +7399,17 @@ async function createObservationEventGuestMedia(request: Request, env: Env, sess
   ).bind(row.submission_id).first<ObservationEventGuestMediaRow>();
   if (row?.rights_review_status === "withdrawn") return json({ error: "media_withdrawn" }, 410, { "cache-control": "no-store" });
   if (!row || row.media_state !== "saved") return json({ error: "private_media_save_failed" }, 503, { "cache-control": "no-store" });
+  if (isRyuyoDiscoveryEvent(env, session)) await autoPublishRyuyoDiscovery(env, sessionId, row.submission_id);
   return json({ receipt: await observationEventGuestMediaProfileReceipt(row, env, discoveryProfile) }, replay ? 200 : 201, { "cache-control": "no-store" });
+}
+
+async function autoPublishRyuyoDiscovery(env: Env, sessionId: string, entryId: string) {
+  // Saving the owner's private photo has already succeeded. A publication
+  // failure keeps it private/pending; it must not invite a duplicate upload.
+  try {
+    await new EventDiscoveryStore(env.OBS_DB, env.ASSET_BUCKET).autoPublishPhoto(sessionId, entryId,
+      (body, text) => screenDiscoveryPhoto(env.GEMINI_API_KEY, body, text));
+  } catch { /* The eligible-gallery gate remains closed. */ }
 }
 
 async function observationEventGuestMediaProfileReceipt(row: ObservationEventGuestMediaRow, env: Env, discoveryProfile: boolean) {

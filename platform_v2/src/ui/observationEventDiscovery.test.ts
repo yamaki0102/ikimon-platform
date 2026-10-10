@@ -111,6 +111,7 @@ function setup(kind: string, options: { storage?: Map<string, string>; fetch?: (
     for (const name of ["private_storage_consent", "creator_rights_attestation", "gallery_consent", "guardian_gallery_consent"]) control(fields, name, "checkbox").required = name === "private_storage_consent" || name === "creator_rights_attestation";
     const guardian = new Element(); form.selectors.set("[data-discovery-guardian-row]", guardian);
     add("[data-discovery-photo-preview]", "div", form);
+    add("[data-discovery-photo-options]", "div", form).hidden = true;
   }
   if (kind === "gallery" || kind === "organizer") {
     add("[data-discovery-refresh]", "button"); add("[data-discovery-more]", "button").hidden = true;
@@ -192,7 +193,9 @@ test("the isolated preview marks its single tentative day and uses the published
   assert.doesNotMatch(preview, /data-discovery-occurrence-select|data-discovery-application-form|\/print|download=/);
   assert.match(preview, /紙のシートは、当日会場で配布/);
   assert.match(preview, /写真を選んだだけでは送信されません/);
-  assert.match(preview, /共有を選んだものだけ主催者の確認後/);
+  assert.match(preview, /共有を選んだ写真は自動確認を通るとすぐに掲載/);
+  assert.match(preview, /data-discovery-published open hidden/);
+  assert.ok(preview.indexOf('data-discovery-published') < preview.indexOf('ed-demo-gallery'), "published posts appear before illustrations");
 });
 
 test("unnamed login-free checkin sends an empty nickname, no account fallback, and no location consent", async () => {
@@ -252,6 +255,30 @@ test("a failed third photo consumes its slot but can retry with its original key
   assert.match(app.node("[data-discovery-photo-count]").textContent,/3 \/ 3 枚を保存/);
 });
 
+test("shared save immediately shows publication and a gallery link, held faces explain the review reason", async () => {
+  for (const galleryStatus of ["published", "pending_review"]) {
+    let rows: Data[] = [];
+    const app = setup("capture", { fetch: async call => {
+      if (call.method === "GET") return { receipts: rows };
+      rows = [receipt(1, { galleryStatus, galleryConsent: true, reviewRequiredReason: galleryStatus === "pending_review" ? "person" : null })];
+      return { receipt: rows[0] };
+    } });
+    await flush(); const form = app.node("[data-discovery-media-form]"); preparePhoto(form);
+    formField(form, "gallery_consent").checked = true;
+    await form.dispatch("submit");
+    const status = app.node("[data-discovery-status]").textContent;
+    const cards = app.node("[data-discovery-receipts]");
+    if (galleryStatus === "published") {
+      assert.match(status, /みんなの発見に掲載しました/);
+      assert.equal(cards.walk().find(item => item.textContent === "みんなの発見で見る →")?.href, "/events/event-fixture/discoveries");
+    } else {
+      assert.match(status, /人物や顔の写り込み/);
+      assert.match(cards.textContent, /確認してから掲載/);
+      assert.equal(cards.walk().some(item => item.textContent === "みんなの発見で見る →"), false);
+    }
+  }
+});
+
 test("unknown upload results retain text and consent across reload and reuse one idempotency key", async () => {
   const storage = new Map<string,string>();
   const first = setup("capture", { storage, fetch: async call => call.method === "POST" ? new Error("network_lost") : {receipts:[]} });
@@ -262,7 +289,7 @@ test("unknown upload results retain text and consent across reload and reuse one
   await flush();const restored=second.node("[data-discovery-media-form]");assert.equal(formField(restored,"caption").value,"小さな羽の色");assert.equal(formField(restored,"gallery_consent").checked,true);assert.equal(formField(restored,"media").files.length,0);formField(restored,"media").files=[mediaFile];await restored.dispatch("submit");
   assert.equal(second.calls.find(call=>call.method==="POST")!.options.headers["idempotency-key"],firstKey);
   assert.equal(storage.has("zukan:event-discovery:upload:event-fixture"),false);
-  assert.match(second.node("[data-discovery-status]").textContent,/主催者の確認待ち/);
+  assert.match(second.node("[data-discovery-status]").textContent,/写り込みなどの確認待ち/);
 });
 
 test("unknown upload that is visible in read-back is reported saved rather than failed", async () => {
@@ -372,9 +399,12 @@ test("late application and gallery responses for A cannot replace selected close
 
 test("camera selection validates with an empty album and cancel preserves the chosen photo",async()=>{
   const app=setup("capture",{fetch:async call=>call.method==="POST"?{receipt:receipt(1)}:{receipts:[]}});await flush();const form=app.node("[data-discovery-media-form]");const album=formField(form,"media"),camera=formField(form,"camera_media");
+  assert.equal(app.node("[data-discovery-photo-options]").hidden,true);
   formField(form,"private_storage_consent").checked=true;formField(form,"creator_rights_attestation").checked=true;formField(form,"caption").value="カメラからのコメント";
   camera.files=[mediaFile];await camera.dispatch("change");assert.equal(album.files.length,0);assert.equal(album.required,false);assert.equal(form.reportValidity(),true);assert.match(app.node("[data-discovery-photo-preview]").textContent,/この写真を保存/);
+  assert.equal(app.node("[data-discovery-photo-options]").hidden,false);
   camera.files=[];await camera.dispatch("change");await form.dispatch("submit");const post=app.calls.find(call=>call.method==="POST")!;assert.equal(post.body.get("media"),mediaFile);assert.equal(post.body.get("caption"),"カメラからのコメント");
+  assert.equal(app.node("[data-discovery-photo-options]").hidden,true);
 });
 
 test("album selection replaces camera selection through the same single-photo upload",async()=>{
