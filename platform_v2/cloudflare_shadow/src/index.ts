@@ -1,7 +1,8 @@
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
-import { handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
+import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
+import { renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import type { ObservationEventSessionRow } from "../../src/services/observationEventModeManager";
@@ -2563,6 +2564,79 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
   }
 }
 
+
+async function getGlobalPlaceDetailPage(
+  request: Request,
+  url: URL,
+  env: Env,
+  canonicalPlaceId: string,
+): Promise<Response> {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(canonicalPlaceId)) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  let result;
+  try {
+    const search = await searchD1PublicPlaces({ db: env.OBS_DB, query: canonicalPlaceId, limit: 2 });
+    result = search.results.find((candidate) => candidate.canonicalPlaceId === canonicalPlaceId) ?? null;
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+  if (!result?.osmSourceId) {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const sourceMatch = result.osmSourceId.match(/^(way|relation):(\d+)$/u);
+  if (!sourceMatch?.[1] || !sourceMatch[2]) {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, { "cache-control": "no-store" });
+  }
+
+  let profile;
+  try {
+    profile = await loadCloudflarePlaceAtlasProfile({
+      db: env.OBS_DB,
+      placeRef: {
+        kind: "osm_area",
+        entityKey: `osm:${sourceMatch[1]}:${sourceMatch[2]}`,
+        osmType: sourceMatch[1] as "way" | "relation",
+        osmId: Number(sourceMatch[2]),
+      },
+      fetchFn: fetch,
+    });
+  } catch {
+    return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
+      "cache-control": "no-store",
+      "retry-after": "60",
+    });
+  }
+
+  if (!profile || profile.place.canonicalPlaceId !== canonicalPlaceId || profile.publication.status === "suppressed") {
+    return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
+  }
+
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const authenticated = Boolean(session && !session.banned);
+  let savedItem = null;
+  let savedStateAvailable = true;
+  if (authenticated && session) {
+    try {
+      savedItem = await getSavedItem(env.CORE_DB, session.userId, "place", canonicalPlaceId);
+    } catch {
+      savedStateAvailable = false;
+    }
+  }
+  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
+  const response = html(body, 200, {
+    "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+    "x-ikimon-cloudflare-native": "global-place-detail",
+  });
+  return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
+}
+
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
     let journeyReadOnly = false;
@@ -2899,6 +2973,11 @@ export const worker = {
 
       if (nativePathname === "/api/v1/me/saved") {
         return handleSavedItemsRequest(request, env.CORE_DB, await readCompatibleSession(request, env));
+      }
+
+      const globalPlaceDetailMatch = nativePathname.match(/^\/places\/([^/]+)$/u);
+      if ((request.method === "GET" || request.method === "HEAD") && globalPlaceDetailMatch?.[1]) {
+        return getGlobalPlaceDetailPage(request, url, env, globalPlaceDetailMatch[1]);
       }
 
       const placeMemoryResponse = await handlePlaceMemoryRuntime(request, url, env);
@@ -4373,9 +4452,16 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
               started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id,
               created_at, updated_at
          FROM observation_event_sessions
+        WHERE event_code IS NOT NULL AND trim(event_code) <> ''
+          AND (organizer_user_id = ? OR CASE WHEN json_valid(config_json) THEN
+            COALESCE(json_extract(config_json, '$.public_listed'), 1) = 1
+            AND COALESCE(json_extract(config_json, '$.publicListVisible'), 1) = 1
+            AND lower(trim(COALESCE(json_extract(config_json, '$.public_list_visibility'), json_extract(config_json, '$.publicListVisibility'), ''))) NOT IN ('private-until-explicit', 'hidden', 'internal', 'qa', 'fixture', 'test')
+            AND lower(CAST(COALESCE(json_extract(config_json, '$.qa_fixture'), json_extract(config_json, '$.qaFixture'), json_extract(config_json, '$.is_fixture'), json_extract(config_json, '$.isFixture'), json_extract(config_json, '$.test_fixture'), json_extract(config_json, '$.testFixture'), 0) AS TEXT)) NOT IN ('1', 'true', 'yes', 'qa', 'fixture', 'test', 'smoke')
+          ELSE 0 END)
         ORDER BY started_at DESC
         LIMIT 24`
-    ).all<ObservationEventSessionD1Row>();
+    ).bind(auth?.userId ?? null).all<ObservationEventSessionD1Row>();
   } catch {
     loadFailed = true;
     rows = { results: [] };
@@ -28910,6 +28996,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
   const destinations = Object.values(PUBLICATION_FEED_DEFINITIONS).map((definition) => ({
     feedKey: definition.feedKey,
     label: definition.scopeLabel.ja,
+    sourceVersion: definition.publicationPolicyVersion,
     sourceEnvironment: "production" as const,
     readOnly: true as const,
   }));

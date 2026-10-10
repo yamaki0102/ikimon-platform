@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
-import { changeSavedItem, listSavedItems, handleSavedItemsRequest, savedReference, SavedItemError, type SavedDatabase } from "./savedItems";
+import { changeSavedItem, getSavedItem, listSavedItems, handleSavedItemsRequest, savedReference, SavedItemError, type SavedDatabase } from "./savedItems";
 function database() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec(readFileSync(new URL("../migrations/core/0019_private_saved_items.sql",import.meta.url),"utf8"));
@@ -88,4 +88,18 @@ test("missing migration is 503, never empty data or success",async()=>{
  const db={prepare(){throw new Error("no such table");}} as unknown as SavedDatabase;
  assert.equal((await handleSavedItemsRequest(new Request("https://zukan.earth/api/v1/me/saved"),db,session)).status,503);
  assert.equal((await handleSavedItemsRequest(request(command()),db,session)).status,503);
+});
+
+
+test("getSavedItem returns the exact desired-state bookmark without exposing another object", async () => {
+  const { db, sqlite } = database();
+  await changeSavedItem(db, "traveler-one", {
+    reference: { kind: "place", objectId: "plc_tokiwa", path: "/places/plc_tokiwa", title: "常磐公園" },
+    state: "saved", expectedRevision: 0, commandId: "save-place-tokiwa-0001",
+  }, "2026-10-03T00:00:00.000Z");
+  const item = await getSavedItem(db, "traveler-one", "place", "plc_tokiwa");
+  assert.equal(item?.state, "saved");
+  assert.equal(item?.path, "/places/plc_tokiwa");
+  assert.equal(await getSavedItem(db, "traveler-one", "place", "plc_other"), null);
+  sqlite.close();
 });

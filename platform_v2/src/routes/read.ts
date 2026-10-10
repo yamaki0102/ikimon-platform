@@ -1,4 +1,5 @@
 import { renderObservationOwnerDeletePanel, renderObservationOwnerDeleteScript } from "../ui/observationOwnerDelete.js";
+import { OWNER_PUBLICATION_RETURN_STYLES, renderOwnerPublicationReturn } from "../ui/ownerPublicationReturn.js";
 import type { FastifyInstance } from "fastify";
 import { registerSnapshotInvalidator } from "../services/snapshotInvalidation.js";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
@@ -522,6 +523,7 @@ function verificationStatusLabel(status: IdentificationConsensusResult["identifi
 }
 
 const OBSERVATION_DETAIL_STYLES = `
+  ${OWNER_PUBLICATION_RETURN_STYLES}
   ${OBSERVATION_MEDIA_STYLES}
   .shell.shell-observation-detail { --ikimon-shell-target-max: var(--ikimon-page-max); }
   .obs-reading-hero { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 16px; margin-bottom: 16px; }
@@ -17949,6 +17951,26 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       lang,
     });
     const ownerPublicStateBlock = renderObservationOwnerPublicStatePanel(snapshot, isOwner, lang);
+    let publicationRights = null;
+    let publicationRightsUnavailable = false;
+    if (isOwner) {
+      try {
+        publicationRights = await getObservationDataRights(bundle.visitId);
+      } catch {
+        publicationRightsUnavailable = true;
+      }
+    }
+    const reviewDecision = currentSubject.hasSpecialistApproval
+      ? { state: "approved", source: "human_review" }
+      : null;
+    const publicationReturnBlock = renderOwnerPublicationReturn({
+      owner: isOwner,
+      recordVisibility: snapshot.publicVisibility === "public" ? "public" : snapshot.publicVisibility === "limited" ? "limited" : "private",
+      reviewDecision,
+      rights: publicationRights ?? {},
+      rightsUnavailable: publicationRightsUnavailable,
+      lang,
+    });
     const siteContributionBlock = await buildObservationDetailSiteContribution({
       basePath,
       snapshot,
@@ -18622,7 +18644,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
     void identifyBlock;
     void regionalStoryBlock;
     void layer6;
-    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${siteContributionBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
+    const detailBody = `${heroBlock}${recordPageNearbyGuideBlock}${shotFeedbackBlock}${readProgressBlock}${ownerPublicStateBlock}${siteContributionBlock}${publicationReturnBlock}${ownerToolsBlock}${invasiveReportingGuidanceBlock}${readingFlow}<div hidden>${subjectTemplates}</div>${switchScript}${annotationScript}${photoRecoveryScript}${ownerDeleteScript}${reassessScript}${candidateAdoptionScript}${identifyScript}${galleryScript}${localPolishScript}${renderGlossaryHintScript()}`;
     const canonicalDetailPath = `/observations/${encodeURIComponent(bundle.visitId)}`;
     const structuredHead = renderObservationDetailStructuredHead({
       snapshot,
