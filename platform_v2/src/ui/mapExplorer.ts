@@ -2226,6 +2226,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
   var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang))};
   var COMMUNITY_RECORDS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=public"), props.lang))};
+  var PLACE_HREF_PREFIX = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/places/"), props.lang))};
   var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
   var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
   var EVENTS_ORGANIZER_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang))};
@@ -5249,6 +5250,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       lang: SEARCH_LANG,
       recordHref: RECORD_HREF,
       recordsHref: COMMUNITY_RECORDS_HREF,
+      placeHrefPrefix: PLACE_HREF_PREFIX,
     };
   }
   function renderPlaceAtlasContent(context, fallbackHtml) {
