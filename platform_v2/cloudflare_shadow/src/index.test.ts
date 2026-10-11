@@ -8220,6 +8220,7 @@ class FakeEmail {
 class FakeBucket {
   objects = new Map<string, { value: unknown; size: number; uploaded: Date; contentType?: string }>();
   getCalls: string[] = [];
+  headCalls: string[] = [];
   failDelete = false;
   beforePut?: (key: string) => Promise<void>;
 
@@ -8254,6 +8255,7 @@ class FakeBucket {
   }
 
   async head(key: string) {
+    this.headCalls.push(key);
     const object = this.objects.get(key);
     if (!object) return null;
     return { size: object.size, httpMetadata: { contentType: object.contentType } };
@@ -10470,6 +10472,11 @@ test("public observation detail route exposes a safe read page and JSON without 
     asset_role: "observation_photo",
     legacy_relative_path: "uploads/v2-observations/visit-detail-contract/detail.jpg"
   });
+  await env.ASSET_BUCKET.put(
+    "original-ui/html/observations/visit-detail-contract.html",
+    "<html><body>stale materialized withdrawn detail</body></html>",
+    { httpMetadata: { contentType: "text/html; charset=utf-8" } }
+  );
 
   // Change only the canonical withdrawal field. Visibility, safety metadata,
   // certified media and pre-existing public readmodel/snapshot rows stay intact.
@@ -10482,6 +10489,7 @@ test("public observation detail route exposes a safe read page and JSON without 
     "https://shadow.test/observations/visit-detail-contract"
   ), env);
   assert.equal(withdrawnPageResponse.status, 404, "stale materialized detail fallback must not serve a withdrawn native record");
+  assert.doesNotMatch(await withdrawnPageResponse.text(), /stale materialized withdrawn detail/);
   const withdrawnMapResponse = await worker.fetch(new Request(
     `https://shadow.test/api/v1/map/observations?cell_id=${encodeURIComponent(recordCellId)}`
   ), env);
@@ -10495,9 +10503,11 @@ test("public observation detail route exposes a safe read page and JSON without 
   ] as const) {
     for (const method of methods) {
       env.ASSET_BUCKET.getCalls.length = 0;
+      env.ASSET_BUCKET.headCalls.length = 0;
       const response = await worker.fetch(new Request(`https://shadow.test${path}`, { method }), env);
       assert.equal(response.status, 404, `${method} ${path} must deny withdrawn native media`);
       assert.deepEqual(env.ASSET_BUCKET.getCalls, [], `${method} ${path} must deny before reading R2`);
+      assert.deepEqual(env.ASSET_BUCKET.headCalls, [], `${method} ${path} must deny before checking R2 metadata`);
     }
   }
 
@@ -10508,6 +10518,26 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(reactivatedDetail.status, 200, "reactivating only withdrawal status restores existing public eligibility");
   const reactivatedDerivative = await worker.fetch(new Request(`https://shadow.test/${publicDerivativeKey}`), env);
   assert.equal(reactivatedDerivative.status, 200);
+
+  obs.observationDataRights.delete("visit-detail-contract");
+  const legacyRightsDetail = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"
+  ), env);
+  assert.equal(legacyRightsDetail.status, 200, "an absent rights row retains the existing legacy public behavior");
+  const legacyRightsMap = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/map/observations?cell_id=${encodeURIComponent(recordCellId)}`
+  ), env);
+  const legacyRightsMapPayload = await legacyRightsMap.json() as any;
+  assert.equal(legacyRightsMapPayload.items.some((item: any) => item.visitId === "visit-detail-contract"), true);
+  const legacyRightsDerivative = await worker.fetch(new Request(`https://shadow.test/${publicDerivativeKey}`), env);
+  assert.equal(legacyRightsDerivative.status, 200);
+  for (const method of ["GET", "HEAD"] as const) {
+    const legacyRightsThumb = await worker.fetch(new Request(
+      "https://shadow.test/thumb/md/v2-observations/visit-detail-contract/detail.jpg",
+      { method }
+    ), env);
+    assert.equal(legacyRightsThumb.status, 200, `${method} retains existing behavior when a native rights row is absent`);
+  }
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
   assert.equal(missingResponse.status, 404);
