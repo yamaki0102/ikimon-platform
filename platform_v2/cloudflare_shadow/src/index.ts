@@ -44,6 +44,20 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
 import {
+  buildObservationAiQualityBacklogPayload,
+  GEMINI_QUALITY_BACKLOG_MAX_ACTIVE,
+  GEMINI_QUALITY_BACKLOG_MAX_SCAN_PER_TICK,
+  GEMINI_QUALITY_BACKLOG_VERSION,
+  OBSERVATION_AI_QUALITY_BACKLOG_CAS_SQL,
+  OBSERVATION_AI_QUALITY_BACKLOG_INSERT_SQL,
+  OBSERVATION_AI_QUALITY_BACKLOG_REVALIDATE_SQL,
+  OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL,
+  observationAiQualityBacklogCapacity,
+  observationAiBatchResultIndexes,
+  publicQualityBacklogCancellationPayload,
+  type ObservationAiQualityBacklogTargetRow,
+} from "./observationAiQualityBacklog";
+import {
   GEMINI_ANALYSIS_MODEL,
   GEMINI_BATCH_MAX_INLINE_BYTES,
   GEMINI_BATCH_MAX_RECORDS,
@@ -34016,82 +34030,44 @@ async function recoverLegacyFalsePositiveImageDerivatives(env: Env): Promise<voi
 
 async function runScheduledObservationReassessments(env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
-  await requeueLatestPublicGeminiUpgradeTargets(env);
+  await requeuePublicPhotoAiQualityBacklog(env);
   await resumeGeminiObservationBatchGroups(env);
   await submitGeminiObservationReassessmentGroups([], env);
 }
 
-async function requeueLatestPublicGeminiUpgradeTargets(env: Env): Promise<void> {
-  const latestPublicIds = (await recentPublicRecordCards(env, 120))
-    .filter((item) => Boolean(item.photoUrl))
-    .slice(0, 30)
-    .map((item) => item.visitId);
-  if (latestPublicIds.length === 0) return;
-  const rows = await env.OBS_DB.prepare(
-    `SELECT rr.request_id, o.observation_id, o.owner_user_id,
-            rr.actor_user_id, rr.request_state, rr.source_payload_json
-       FROM observations o
-       LEFT JOIN observation_reassessment_requests rr
-         ON rr.observation_id = o.observation_id
-        AND rr.request_kind = 'standard'
-        AND rr.actor_user_id = o.owner_user_id
-      WHERE o.visibility = 'public' AND o.emergency_hidden = 0
-        AND o.observation_id IN (${latestPublicIds.map(() => "?").join(", ")})`
-  ).bind(...latestPublicIds).all<ObservationReassessmentUpgradeTargetRow>();
-  const targetsById = new Map(rows.results.map((row) => [row.observation_id, row]));
-  for (const observationId of latestPublicIds) {
-    const row = targetsById.get(observationId);
-    if (!row) continue;
-    if (!row.request_id) {
-      const requestId = `reassess:${row.observation_id}:standard:${row.owner_user_id}`;
-      await env.OBS_DB.prepare(
-        `INSERT INTO observation_reassessment_requests (
-           request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json,
-           created_at, updated_at
-         ) VALUES (?, ?, 'standard', ?, 'pending', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-         ON CONFLICT(observation_id, request_kind, actor_user_id) DO NOTHING`
-      ).bind(
-        requestId,
-        row.observation_id,
-        row.owner_user_id,
-        JSON.stringify({
-          source: "latest_public_record_ai_upgrade_v2",
-          reason: "missing_reassessment_request",
-          executionStatus: "pending",
-          attemptCount: 0,
-          requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
-          requestedAt: new Date().toISOString(),
-        }),
-      ).run();
-      continue;
-    }
-    if (!row.source_payload_json || !["completed", "failed"].includes(row.request_state ?? "")) continue;
-    if (String(reassessmentPayload(row.source_payload_json).ruleVersion ?? "") === GEMINI_OBSERVATION_RULE_VERSION) continue;
-    const source = reassessmentPayload(row.source_payload_json);
-    delete source.batchExecution;
-    const nextPayload = JSON.stringify({
-      ...source,
-      source: "latest_public_record_ai_upgrade_v2",
-      executionStatus: "pending",
-      attemptCount: 0,
-      requestedRuleVersion: GEMINI_OBSERVATION_RULE_VERSION,
-      requestedAt: new Date().toISOString(),
-    });
-    await env.OBS_DB.prepare(
-      `UPDATE observation_reassessment_requests SET request_state = 'pending', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE request_id = ? AND request_state IN ('completed', 'failed') AND source_payload_json = ?`
-    ).bind(nextPayload, row.request_id, row.source_payload_json).run();
+async function requeuePublicPhotoAiQualityBacklog(env: Env): Promise<void> {
+  const active = await env.OBS_DB.prepare(
+    `SELECT COUNT(*) AS active_count FROM observation_reassessment_requests
+      WHERE request_kind = 'standard' AND request_state IN ('pending', 'processing')`
+  ).first<{ active_count: number }>();
+  let remaining = observationAiQualityBacklogCapacity(Number(active?.active_count ?? 0));
+  if (remaining === 0) return;
+
+  const rows = (await env.OBS_DB.prepare(OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL)
+    .bind(GEMINI_OBSERVATION_RULE_VERSION, GEMINI_QUALITY_BACKLOG_MAX_SCAN_PER_TICK)
+    .all<ObservationAiQualityBacklogTargetRow>()).results;
+  for (const row of rows) {
+    if (remaining <= 0) break;
+    const safety = await publicSafetyGateForObservation(row.observation_id, env).catch(() => ({ blocked: true }));
+    if (safety.blocked) continue;
+    const payload = buildObservationAiQualityBacklogPayload(
+      row.source_payload_json,
+      row.needs_reason,
+      row.quality_revision,
+      new Date().toISOString(),
+    );
+    const result = row.request_id
+      ? await env.OBS_DB.prepare(OBSERVATION_AI_QUALITY_BACKLOG_CAS_SQL)
+        .bind(payload, row.request_id, row.source_payload_json, GEMINI_QUALITY_BACKLOG_MAX_ACTIVE)
+        .run()
+      : await env.OBS_DB.prepare(OBSERVATION_AI_QUALITY_BACKLOG_INSERT_SQL)
+        .bind(`reassess:${row.observation_id}:standard:${row.owner_user_id}`, row.observation_id,
+          row.owner_user_id, payload, GEMINI_QUALITY_BACKLOG_MAX_ACTIVE)
+        .run();
+    const changes = Number((result as { meta?: { changes?: number } }).meta?.changes ?? 0);
+    if (changes > 0) remaining -= 1;
   }
 }
-
-type ObservationReassessmentUpgradeTargetRow = {
-  request_id: string | null;
-  observation_id: string;
-  owner_user_id: string;
-  actor_user_id: string | null;
-  request_state: string | null;
-  source_payload_json: string | null;
-};
 
 type ObservationReassessmentRequestRow = {
   request_id: string;
@@ -34207,6 +34183,7 @@ function observationMediaDedupInput(
 async function loadObservationAiAssetSelection(
   observationId: string,
   env: Env,
+  requireVerifiedPublicDerivative = false,
 ): Promise<{
   sourceAssets: ObservationAiAssetRow[];
   assets: ObservationAiAssetRow[];
@@ -34218,6 +34195,19 @@ async function loadObservationAiAssetSelection(
             public_derivative_sha256, public_derivative_metadata_json
        FROM asset_ledger
       WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'image/%'
+        ${requireVerifiedPublicDerivative ? `
+          AND public_derivative_key IS NOT NULL
+          AND public_derivative_sha256 IS NOT NULL
+          AND public_derivative_verified_at IS NOT NULL
+          AND public_derivative_metadata_json IS NOT NULL
+          AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+          AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+          AND public_ready_at IS NOT NULL
+          AND exif_scrub_state = 'scrubbed'
+          AND NOT (COALESCE(width, 0) = ${PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH}
+            AND COALESCE(height, 0) = ${PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT}
+            AND COALESCE(bytes, 0) > 0 AND bytes <= ${PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES})
+          AND NOT (COALESCE(width, 0) = 1 AND COALESCE(height, 0) = 1)` : ""}
       ORDER BY CASE WHEN public_ready_at IS NOT NULL THEN 0 ELSE 1 END, created_at, asset_id
       LIMIT 36`
   ).bind(observationId).all<ObservationAiAssetRow>()).results;
@@ -34254,7 +34244,11 @@ function imageBytesToBase64(bytes: ArrayBuffer): string {
   return btoa(binary);
 }
 
-async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): Promise<GeminiObservationImage> {
+async function observationAiImageInput(
+  asset: ObservationAiAssetRow,
+  env: Env,
+  requireVerifiedPublicDerivative = false,
+): Promise<GeminiObservationImage> {
   let sourceBytes: ArrayBuffer | null = null;
   let sourceMime = asset.mime;
   if (asset.public_derivative_key) {
@@ -34266,6 +34260,10 @@ async function observationAiImageInput(asset: ObservationAiAssetRow, env: Env): 
         sourceMime = "image/webp";
       }
     }
+  }
+
+  if (requireVerifiedPublicDerivative && !sourceBytes) {
+    throw new Error("public_quality_backlog_derivative_unavailable");
   }
 
   if (!sourceBytes) {
@@ -34393,14 +34391,30 @@ function geminiBatchExecution(sourcePayloadJson: string): GeminiBatchExecution |
     : null;
 }
 
+async function assertPublicQualityBacklogEligibility(observationId: string, env: Env): Promise<void> {
+  const eligible = await env.OBS_DB.prepare(OBSERVATION_AI_QUALITY_BACKLOG_REVALIDATE_SQL)
+    .bind(observationId).first<{ eligible: number }>();
+  if (!eligible) throw new Error("public_quality_backlog_no_longer_eligible");
+  const safety = await publicSafetyGateForObservation(observationId, env);
+  if (safety.blocked) throw new Error("public_quality_backlog_public_safety_blocked");
+}
+
 async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env): Promise<PreparedGeminiObservation> {
+  const isPublicQualityBacklog = reassessmentPayload(request.source_payload_json).qualityBacklogVersion
+    === GEMINI_QUALITY_BACKLOG_VERSION;
+  if (isPublicQualityBacklog) {
+    await assertPublicQualityBacklogEligibility(request.observation_id, env);
+  }
   const record = await env.OBS_DB.prepare(
     "SELECT owner_user_id, observed_at, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
   ).bind(request.observation_id).first<ObservationAiRecordRow>();
   if (!record) throw new Error("ai_record_missing");
-  const selection = await loadObservationAiAssetSelection(request.observation_id, env);
+  const selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
   const images: GeminiObservationImage[] = [];
-  for (const asset of selection.assets) images.push(await observationAiImageInput(asset, env));
+  for (const asset of selection.assets) {
+    images.push(await observationAiImageInput(asset, env, isPublicQualityBacklog));
+  }
+  if (isPublicQualityBacklog) await assertPublicQualityBacklogEligibility(request.observation_id, env);
   return {
     request,
     record,
@@ -34522,6 +34536,9 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (reassessmentPayload(request.source_payload_json).qualityBacklogVersion === GEMINI_QUALITY_BACKLOG_VERSION) {
+      await assertPublicQualityBacklogEligibility(request.observation_id, env);
+    }
     const [primaryResult, censusResult, environmentResult] = await Promise.all([
       generateDirectGeminiLane("primary", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiPrimaryRequest(request.observation_id, prepared.record.observed_at, prepared.images)),
       generateDirectGeminiLane("census", env.GEMINI_API_KEY!, GEMINI_PRIMARY_MODEL, buildGeminiCensusDirectRequest(request.observation_id, prepared.images)),
@@ -34582,11 +34599,24 @@ async function updateProcessingGeminiPayload(request: ObservationReassessmentReq
 
 async function failGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
   const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+  const transitionAt = new Date().toISOString();
+  const cancellationPayload = publicQualityBacklogCancellationPayload(
+    request.source_payload_json,
+    errorCode,
+    transitionAt,
+  );
+  const requestState = cancellationPayload ? "cancelled" : "failed";
+  const failurePayload = cancellationPayload ?? reassessmentPayloadWithResult(request.source_payload_json, {
+    executionStatus: "failed",
+    errorCode,
+    failedAt: transitionAt,
+  });
   await env.OBS_DB.prepare(
-    `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+    `UPDATE observation_reassessment_requests SET request_state = ?, source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
   ).bind(
-    reassessmentPayloadWithResult(request.source_payload_json, { executionStatus: "failed", errorCode, failedAt: new Date().toISOString() }),
+    requestState,
+    failurePayload,
     request.request_id,
     request.source_payload_json,
   ).run();
@@ -34625,16 +34655,24 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
       prepared.push(item);
       inlineBudget += estimatedBytes;
     } catch (error) {
-      const claimPayload = reassessmentPayloadWithResult(request.source_payload_json, {
+      const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+      const transitionAt = new Date().toISOString();
+      const cancellationPayload = publicQualityBacklogCancellationPayload(
+        request.source_payload_json,
+        errorCode,
+        transitionAt,
+      );
+      const requestState = cancellationPayload ? "cancelled" : "failed";
+      const claimPayload = cancellationPayload ?? reassessmentPayloadWithResult(request.source_payload_json, {
         executionStatus: "failed",
         attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
-        errorCode: (error instanceof Error ? error.message : String(error)).slice(0, 180),
-        failedAt: new Date().toISOString(),
+        errorCode,
+        failedAt: transitionAt,
       });
       await env.OBS_DB.prepare(
-        `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        `UPDATE observation_reassessment_requests SET request_state = ?, source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
           WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
-      ).bind(claimPayload, request.request_id, request.source_payload_json).run();
+      ).bind(requestState, claimPayload, request.request_id, request.source_payload_json).run();
     }
   }
   if (prepared.length === 0) return new Set();
@@ -34693,25 +34731,57 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
   }
   if (claimed.length === 0) return new Set();
 
-  const primaryRequests: GeminiBatchRequest[] = claimed.map((item) => ({
+  const providerReady: PreparedGeminiObservation[] = [];
+  for (const item of claimed) {
+    if (reassessmentPayload(item.request.source_payload_json).qualityBacklogVersion === GEMINI_QUALITY_BACKLOG_VERSION) {
+      try {
+        await assertPublicQualityBacklogEligibility(item.request.observation_id, env);
+      } catch {
+        const cancelledPayload = reassessmentPayloadWithResult(item.request.source_payload_json, {
+          executionStatus: "cancelled",
+          errorCode: "public_quality_backlog_no_longer_eligible",
+          cancelledAt: new Date().toISOString(),
+        });
+        await env.OBS_DB.prepare(
+          `UPDATE observation_reassessment_requests SET request_state = 'cancelled', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+        ).bind(cancelledPayload, item.request.request_id, item.request.source_payload_json).run();
+        continue;
+      }
+    }
+    providerReady.push(item);
+  }
+  if (providerReady.length === 0) return new Set(claimed.map((item) => item.request.request_id));
+
+  const indexedProviderReady: PreparedGeminiObservation[] = [];
+  for (const item of providerReady) {
+    const execution = geminiBatchExecution(item.request.source_payload_json);
+    if (!execution) continue;
+    const indexes = observationAiBatchResultIndexes(indexedProviderReady.length);
+    const persisted = await updateProcessingGeminiPayload(item.request, { ...execution, ...indexes }, env);
+    if (persisted) indexedProviderReady.push(item);
+  }
+  if (indexedProviderReady.length === 0) return new Set(claimed.map((item) => item.request.request_id));
+
+  const primaryRequests: GeminiBatchRequest[] = indexedProviderReady.map((item) => ({
     request: buildGeminiPrimaryRequest(item.request.observation_id, item.record.observed_at, item.images),
     metadata: { key: item.request.observation_id, lane: "primary" },
   }));
-  const analysisRequests: GeminiBatchRequest[] = claimed.flatMap((item) => [
+  const analysisRequests: GeminiBatchRequest[] = indexedProviderReady.flatMap((item) => [
     { request: buildGeminiCensusRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "census" } },
     { request: buildGeminiEnvironmentRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "environment" } },
   ]);
   try {
-    const firstExecution = geminiBatchExecution(claimed[0]!.request.source_payload_json)!;
+    const firstExecution = geminiBatchExecution(indexedProviderReady[0]!.request.source_payload_json)!;
     const primaryJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_PRIMARY_MODEL, firstExecution.primaryDisplayName, primaryRequests);
     const analysisJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_ANALYSIS_MODEL, firstExecution.analysisDisplayName, analysisRequests);
-    for (const item of claimed) {
+    for (const item of indexedProviderReady) {
       const execution = geminiBatchExecution(item.request.source_payload_json)!;
       await updateProcessingGeminiPayload(item.request, { ...execution, primaryJobName: primaryJob.name, analysisJobName: analysisJob.name }, env);
     }
   } catch (error) {
     console.error("[gemini-batch] submit deferred for recovery", error);
-    for (const item of claimed) {
+    for (const item of indexedProviderReady) {
       const execution = geminiBatchExecution(item.request.source_payload_json)!;
       await updateProcessingGeminiPayload(item.request, execution, env, { lastSubmitError: (error instanceof Error ? error.message : String(error)).slice(0, 180) });
     }
@@ -35023,6 +35093,9 @@ async function finalizeGeminiObservationReassessment(
   env: Env,
   provider: GeminiProviderMetadata = { mode: "batch", source: "google_gemini_batch_observation_reassessment" },
 ): Promise<void> {
+  if (reassessmentPayload(prepared.request.source_payload_json).qualityBacklogVersion === GEMINI_QUALITY_BACKLOG_VERSION) {
+    await assertPublicQualityBacklogEligibility(prepared.request.observation_id, env);
+  }
   const request = prepared.request;
   const observationId = request.observation_id;
   const candidate = merged.candidate;
