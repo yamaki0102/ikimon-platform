@@ -9,10 +9,10 @@ const manifestHash = "e".repeat(64);
 const versionPrefix = `original-ui/versions/${manifestHash}`;
 const manifestKey = `${versionPrefix}/manifest.json`;
 const locales = [
-  { path: "/ja/lens", lang: "ja", title: "その場で観察する | ZUKAN", heading: "気になった生きものを、その場で確かめる", lead: "散歩中でも旅先でも、気になった生きものにカメラを向けると AI が候補と見分けるヒントを返します。ここで決めきらなくて大丈夫です。まずは発見を残すための入口です。" },
-  { path: "/en/lens", lang: "en", title: "Observe in the moment | ZUKAN", heading: "Take a closer look at something that caught your eye", lead: "Whether you are out for a walk or traveling, point your camera at a creature you are curious about. AI can offer possible names and identification tips. You do not have to decide here. Start by saving what you found.", aiLimit: "AI offers clues; you make the decision.", unsaved: "This page does not save records.", ctaHref: "/en/record" },
-  { path: "/es/lens", lang: "es", title: "Observar en el momento | ZUKAN", heading: "Observa de cerca eso que te llamó la atención", lead: "Ya sea durante un paseo o un viaje, apunta la cámara a un ser vivo que te dé curiosidad. La IA puede ofrecer posibles nombres y pistas para distinguirlos. No tienes que decidir aquí. Empieza por guardar lo que encontraste.", aiLimit: "La IA da pistas; tú decides.", unsaved: "Esta página no guarda registros.", ctaHref: "/es/record" },
-  { path: "/pt-br/lens", lang: "pt-BR", title: "Observar na hora | ZUKAN", heading: "Olhe de perto o que chamou sua atenção", lead: "Durante uma caminhada ou viagem, aponte a câmera para um ser vivo que despertou sua curiosidade. A IA pode sugerir nomes possíveis e dicas para diferenciá-los. Você não precisa decidir aqui. Comece guardando o que encontrou.", aiLimit: "A IA dá pistas; você decide.", unsaved: "Esta página não salva registros.", ctaHref: "/pt-br/record" },
+  { path: "/ja/lens", lang: "ja", title: "その場で観察する | ZUKAN", heading: "気になった生きものを、その場で確かめる", lead: "散歩中でも旅先でも、気になった生きものにカメラを向けると AI が候補と見分けるヒントを返します。ここで決めきらなくて大丈夫です。まずは発見を残すための入口です。", recordHref: "/ja/record", recordsHref: "/ja/records?view=mine" },
+  { path: "/en/lens", lang: "en", title: "Observe in the moment | ZUKAN", heading: "Take a closer look at something that caught your eye", lead: "Whether you are out for a walk or traveling, point your camera at a creature you are curious about. AI can offer possible names and identification tips. You do not have to decide here. Start by saving what you found.", aiLimit: "AI offers clues; you make the decision.", unsaved: "This page does not save records.", recordHref: "/en/record", recordsHref: "/en/records?view=mine" },
+  { path: "/es/lens", lang: "es", title: "Observar en el momento | ZUKAN", heading: "Observa de cerca eso que te llamó la atención", lead: "Ya sea durante un paseo o un viaje, apunta la cámara a un ser vivo que te dé curiosidad. La IA puede ofrecer posibles nombres y pistas para distinguirlos. No tienes que decidir aquí. Empieza por guardar lo que encontraste.", aiLimit: "La IA da pistas; tú decides.", unsaved: "Esta página no guarda registros.", recordHref: "/es/record", recordsHref: "/es/records?view=mine" },
+  { path: "/pt-br/lens", lang: "pt-BR", title: "Observar na hora | ZUKAN", heading: "Olhe de perto o que chamou sua atenção", lead: "Durante uma caminhada ou viagem, aponte a câmera para um ser vivo que despertou sua curiosidade. A IA pode sugerir nomes possíveis e dicas para diferenciá-los. Você não precisa decidir aqui. Comece guardando o que encontrou.", aiLimit: "A IA dá pistas; você decide.", unsaved: "Esta página não salva registros.", recordHref: "/pt-br/record", recordsHref: "/pt-br/records?view=mine" },
 ] as const;
 const sha256 = (body: string) => createHash("sha256").update(body).digest("hex");
 
@@ -105,10 +105,11 @@ test("the Worker serves localized Lens HTML rendered from the canonical route co
           assert.ok(body.includes(`<h1>${locale.heading}</h1>`), locale.path);
           assert.ok(body.includes(`<meta name="description" content="${locale.lead}" />`), locale.path);
           assert.ok(body.includes('<link rel="canonical" href="https://zukan.earth/ja/"'), locale.path);
+          assert.ok(body.includes(`class="btn btn-solid" href="${locale.recordHref}"`), locale.path);
+          assert.ok(body.includes(`class="btn btn-ghost-on-dark" href="${locale.recordsHref}"`), locale.path);
           if (locale.lang !== "ja") {
             assert.ok(body.includes(locale.aiLimit), locale.path);
             assert.ok(body.includes(locale.unsaved), locale.path);
-            assert.ok(body.includes(`href="${locale.ctaHref}"`), locale.path);
           }
           if (locale.lang !== "ja") {
             assert.doesNotMatch(body, /気になった生きものを、その場で確かめる/u, locale.path);
