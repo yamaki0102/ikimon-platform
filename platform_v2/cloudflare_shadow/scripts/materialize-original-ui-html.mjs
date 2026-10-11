@@ -8,6 +8,7 @@ import {
   listPublicSiteMapLocalizableBasePaths,
   listPublicSiteMapMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes.ts";
+import { listLearnMaterializationPaths } from "../../src/learn/materialization.ts";
 import {
   gatewayPutSha256,
   selectMaterializationItems,
@@ -436,7 +437,12 @@ async function readAllOriginalUiStaticPaths() {
 async function resolveTargetPaths() {
   if (explicitPaths.length > 0) return [...new Set(explicitPaths)];
   if (scope === "core") {
-    return targetEnv === "staging" ? [...corePaths, ...queryVariantPaths, ...stagingOnlyAdminPreviewPaths] : [...corePaths, ...queryVariantPaths];
+    return [...new Set([
+      ...corePaths,
+      ...queryVariantPaths,
+      ...listLearnMaterializationPaths(),
+      ...(targetEnv === "staging" ? stagingOnlyAdminPreviewPaths : []),
+    ])];
   }
   if (scope === "staging-qa") {
     if (targetEnv !== "staging") {

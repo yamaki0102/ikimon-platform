@@ -4,6 +4,7 @@ import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountN
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
+import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
 import { ProgramHandoverApplyRuntime } from "../../src/services/programHandoverApplyRuntime";
 import type { ObservationEventSessionRow } from "../../src/services/observationEventModeManager";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
@@ -25889,6 +25890,9 @@ async function getVersionedOriginalUiObject(env: Env, legacyKey: string): Promis
       // An invalid or partially written pointer never replaces the legacy key.
     }
   }
+  // Learn publication is derived from the exact registered content manifest.
+  // Do not turn a stale, unlisted legacy object into a newly admitted article.
+  if (isJapaneseLearnHtmlKey(legacyKey.replace(/^original-ui\//, ""))) return null;
   const legacy = await env.ASSET_BUCKET.get(legacyKey);
   return await bindMaterializedSourceSha256(env, "", legacyKey.replace(/^original-ui\//, ""), legacy);
 }
@@ -25898,16 +25902,22 @@ async function getManifestBoundOriginalUiObject(
   manifestVersionPrefix: string,
   relativeKey: string,
 ): Promise<MaterializedR2ObjectBody | null> {
+  const requiresLearnEntry = isJapaneseLearnHtmlKey(relativeKey);
   const manifest = await env.ASSET_BUCKET.get(`${manifestVersionPrefix}/manifest.json`);
+  if (requiresLearnEntry && !manifest?.body) return null;
   let objectVersionPrefix = manifestVersionPrefix;
   if (manifest?.body) {
     try {
       const parsed = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; version_prefix?: unknown }> };
       const entry = parsed.items?.find((item) => String(item?.key ?? "") === relativeKey);
+      // New Learn routes are admitted from the exact public content projection,
+      // rather than a second article list in this Worker. Unlisted objects stay private.
+      if (requiresLearnEntry && !entry) return null;
       const candidate = String(entry?.version_prefix ?? "");
       if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(candidate)) objectVersionPrefix = candidate;
     } catch {
       // An invalid manifest is handled as a missing versioned object.
+      if (requiresLearnEntry) return null;
     }
   }
   const object = await env.ASSET_BUCKET.get(`${objectVersionPrefix}/${relativeKey}`);
@@ -28239,6 +28249,7 @@ function personalizeAuthRedirectHtml(html: string, redirect: string): string {
 }
 
 function isOriginalUiHtmlPath(pathname: string): boolean {
+  if (isJapaneseLearnHtmlPath(pathname)) return true;
   if (ORIGINAL_UI_HTML_STATIC_PATHS.has(pathname)) return true;
   if (pathname === "/admin/municipal-walk-maps") return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(pathname)) return true;
