@@ -30,6 +30,49 @@ async function withEnv(
   }
 }
 
+test("record save renders localized guidance for idempotency 409 responses", async () => {
+  await withEnv({ ALLOW_QUERY_USER_ID: "1" }, async () => {
+    const app = buildApp();
+    const expected = [
+      {
+        lang: "ja",
+        conflict: "この送信キーは別の内容に使われています。重複や上書きを防ぐため、今回の保存は停止しました。記録一覧を確認し、別の記録なら新しく記録を始めてください。",
+        inProgress: "同じ送信の保存結果をまだ確認できません。重複を防ぐため、再送を停止しました。少し待ってから記録一覧を確認してください。",
+      },
+      {
+        lang: "en",
+        conflict: "This submission key is already tied to different details. To avoid a duplicate or overwrite, this save was stopped. Check your records; if this is a separate record, start a new one.",
+        inProgress: "We can’t confirm the result of this save yet, so a second save was not started. Wait briefly, then check your records before trying again.",
+      },
+      {
+        lang: "es",
+        conflict: "Esta clave de envío ya está vinculada a otros datos. Para evitar un duplicado o una sobrescritura, se detuvo este guardado. Revisa tus registros; si es otro registro, empieza uno nuevo.",
+        inProgress: "Aún no podemos confirmar el resultado de este guardado, así que no iniciamos otro. Espera un momento y revisa tus registros antes de intentarlo de nuevo.",
+      },
+      {
+        lang: "pt-BR",
+        conflict: "Esta chave de envio já está vinculada a outros dados. Para evitar duplicação ou sobrescrita, este salvamento foi interrompido. Confira seus registros; se for outro registro, comece um novo.",
+        inProgress: "Ainda não podemos confirmar o resultado deste salvamento, então outro envio não foi iniciado. Aguarde um pouco e confira seus registros antes de tentar novamente.",
+      },
+    ];
+    try {
+      for (const copy of expected) {
+        const response = await app.inject({
+          method: "GET",
+          url: `/record?userId=idempotency-copy-test&lang=${encodeURIComponent(copy.lang)}`,
+        });
+        assert.equal(response.statusCode, 200, `${copy.lang} route status`);
+        assert.ok(response.body.includes("if (text === 'client_submission_id_conflict') return recordUiCopy.submissionKeyConflict;"));
+        assert.ok(response.body.includes("if (text === 'duplicate_submission_in_progress') return recordUiCopy.submissionStillProcessing;"));
+        assert.ok(response.body.includes(copy.conflict), `${copy.lang} conflict guidance`);
+        assert.ok(response.body.includes(copy.inProgress), `${copy.lang} in-progress guidance`);
+      }
+    } finally {
+      await app.close();
+    }
+  });
+});
+
 test("record route exposes quick revisit fields in staging mode", async () => {
   await withEnv(
     {

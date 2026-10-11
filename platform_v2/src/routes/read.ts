@@ -4526,6 +4526,8 @@ type RecordPageCopy = {
   locationBody: string;
   locationAction: string;
   submittingLabel: string;
+  submissionKeyConflict: string;
+  submissionStillProcessing: string;
   modeEntryLabel: string;
   modeQuickLabel: string;
   modeSurveyLabel: string;
@@ -4870,6 +4872,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       locationBody: "許可すると、この記録の地点入力に使います。",
       locationAction: "現在地を使う",
       submittingLabel: "送信中...",
+      submissionKeyConflict: "この送信キーは別の内容に使われています。重複や上書きを防ぐため、今回の保存は停止しました。記録一覧を確認し、別の記録なら新しく記録を始めてください。",
+      submissionStillProcessing: "同じ送信の保存結果をまだ確認できません。重複を防ぐため、再送を停止しました。少し待ってから記録一覧を確認してください。",
       modeEntryLabel: "記録入口",
       modeQuickLabel: "ふだんの記録",
       modeSurveyLabel: "しっかり記録",
@@ -4918,6 +4922,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       locationBody: "If you allow it, we use it to fill in this record's location.",
       locationAction: "Use current location",
       submittingLabel: "Sending...",
+      submissionKeyConflict: "This submission key is already tied to different details. To avoid a duplicate or overwrite, this save was stopped. Check your records; if this is a separate record, start a new one.",
+      submissionStillProcessing: "We can’t confirm the result of this save yet, so a second save was not started. Wait briefly, then check your records before trying again.",
       modeEntryLabel: "Record entry",
       modeQuickLabel: "Everyday record",
       modeSurveyLabel: "Survey record",
@@ -4966,6 +4972,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       locationBody: "Si lo permites, usamos tu ubicacion para completar el lugar de este registro.",
       locationAction: "Usar ubicacion actual",
       submittingLabel: "Enviando...",
+      submissionKeyConflict: "Esta clave de envío ya está vinculada a otros datos. Para evitar un duplicado o una sobrescritura, se detuvo este guardado. Revisa tus registros; si es otro registro, empieza uno nuevo.",
+      submissionStillProcessing: "Aún no podemos confirmar el resultado de este guardado, así que no iniciamos otro. Espera un momento y revisa tus registros antes de intentarlo de nuevo.",
       modeEntryLabel: "Entrada de registro",
       modeQuickLabel: "Registro diario",
       modeSurveyLabel: "Registro de muestreo",
@@ -5014,6 +5022,8 @@ function recordPageCopy(lang: SiteLang): RecordPageCopy {
       locationBody: "Se voce permitir, usamos seu local para preencher o lugar deste registro.",
       locationAction: "Usar local atual",
       submittingLabel: "Enviando...",
+      submissionKeyConflict: "Esta chave de envio já está vinculada a outros dados. Para evitar duplicação ou sobrescrita, este salvamento foi interrompido. Confira seus registros; se for outro registro, comece um novo.",
+      submissionStillProcessing: "Ainda não podemos confirmar o resultado deste salvamento, então outro envio não foi iniciado. Aguarde um pouco e confira seus registros antes de tentar novamente.",
       modeEntryLabel: "Entrada do registro",
       modeQuickLabel: "Registro diario",
       modeSurveyLabel: "Registro de campo",
@@ -12099,6 +12109,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           quickLead: ${JSON.stringify(recordCopy.modeQuickLead)},
           surveyLead: ${JSON.stringify(recordCopy.modeSurveyLead)},
           submittingLabel: ${JSON.stringify(recordCopy.submittingLabel)},
+          submissionKeyConflict: ${JSON.stringify(recordCopy.submissionKeyConflict)},
+          submissionStillProcessing: ${JSON.stringify(recordCopy.submissionStillProcessing)},
           locationUnknown: ${JSON.stringify(recordForm.locationUnknown)},
           locationHelp: ${JSON.stringify(recordForm.locationHelp)},
           locationSelected: ${JSON.stringify(recordForm.locationSelected)},
@@ -12628,6 +12640,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
 
         const formatRecordSaveFailureReason = (message) => {
           const text = String(message || '').trim();
+          if (text === 'client_submission_id_conflict') return recordUiCopy.submissionKeyConflict;
+          if (text === 'duplicate_submission_in_progress') return recordUiCopy.submissionStillProcessing;
           if (!text || text === 'observation_upsert_failed') {
             return '記録の保存に失敗しました。入力内容と写真はこの画面に残しています。通信状態を確認してもう一度試してください。';
           }
