@@ -291,15 +291,53 @@ function pointInGeometry(lng: unknown, lat: unknown, geometry: SupportedGeometry
 function metadataProvesPublicFaceSafety(value: string | null): boolean {
   if (!value) return false;
   try {
-    const metadata = JSON.parse(value) as Record<string, unknown>;
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+    const metadata = parsed as Record<string, unknown>;
     const facePrivacy = metadata.facePrivacy;
-    if (facePrivacy === "no_faces" || facePrivacy === "redacted") return true;
+    const faceStatuses: string[] = [];
+    if (typeof facePrivacy === "string" && facePrivacy.trim()) faceStatuses.push(facePrivacy.trim());
     if (facePrivacy && typeof facePrivacy === "object" && !Array.isArray(facePrivacy)) {
       const status = cleanText((facePrivacy as Record<string, unknown>).status);
-      if (status === "no_faces" || status === "redacted") return true;
+      if (status) faceStatuses.push(status);
     }
-    const status = cleanText(metadata.facePrivacyStatus ?? metadata.face_privacy_status);
-    return status === "no_faces" || status === "redacted";
+    for (const status of [metadata.facePrivacyStatus, metadata.face_privacy_status]) {
+      if (typeof status === "string" && status.trim()) faceStatuses.push(status.trim());
+    }
+    const faceSafetyProven = faceStatuses.length > 0 && faceStatuses.every((status) => status === "no_faces" || status === "redacted");
+    const faceObject = facePrivacy && typeof facePrivacy === "object" && !Array.isArray(facePrivacy)
+      ? facePrivacy as Record<string, unknown>
+      : null;
+    if (
+      (faceObject?.hasFace === true || Number(faceObject?.faceCount) > 0) &&
+      faceObject?.status === "no_faces"
+    ) return false;
+
+    // Public image derivatives are emitted and binary-inspected as WebP by
+    // createRealPublicImageDerivative. Require the inspector's complete result
+    // so missing, contradictory, or unsupported container metadata cannot
+    // ride alongside a face-safety approval into either feed channel.
+    const booleans = [
+      metadata.gpsExifPresent,
+      metadata.exifPresent,
+      metadata.gpsPresent,
+      metadata.xmpPresent,
+      metadata.exactCoordinateLiteralPresent,
+    ];
+    const inspectedBytes = positiveInteger(metadata.bytes);
+    const derivativeBytes = positiveInteger(metadata.derivativeBytes);
+    const containerProvenSafe =
+      metadata.tool === "cloudflare-images-public-derivative-v1" &&
+      metadata.inspectionVersion === "webp-chunk-v2" &&
+      metadata.contentType === "image/webp" &&
+      metadata.scannedContainer === "webp" &&
+      metadata.derivativeFormat === "webp" &&
+      normalizedDate(metadata.checkedAt) !== null &&
+      inspectedBytes !== null &&
+      inspectedBytes === derivativeBytes &&
+      booleans.every((flag) => flag === false);
+
+    return faceSafetyProven && containerProvenSafe;
   } catch {
     return false;
   }
