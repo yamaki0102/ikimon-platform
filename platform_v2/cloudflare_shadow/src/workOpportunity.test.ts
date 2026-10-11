@@ -34,3 +34,14 @@ test("HEAD is read-only and returns no detail body",async()=>{
  const response=await handleWorkOpportunityRequest(req("/jobs/opening-1","HEAD"),new URL("https://zukan.earth/jobs/opening-1"),db([row(item)]) as never);
  assert.equal(response?.status,200);assert.equal(await response?.text(),"");
 });
+
+test("a repeated detail GET observes withdrawal immediately instead of serving a cached published view",async()=>{
+ let published=true;
+ const database={prepare(){return {async all<T>(){return {results:(published?[row(item)]:[]) as T[]};}};}};
+ const env={CORE_DB:database,ENVIRONMENT:"production"};
+ const first=await publicPresentationEntry.fetch(req("/jobs/opening-1"),env,{waitUntil(){}});
+ assert.equal(first.status,200);assert.equal(first.headers.get("cache-control"),"no-store");
+ published=false;
+ const afterWithdrawal=await publicPresentationEntry.fetch(req("/jobs/opening-1"),env,{waitUntil(){}});
+ assert.equal(afterWithdrawal.status,404);
+});
