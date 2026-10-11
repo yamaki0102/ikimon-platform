@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, langFromPathPrefix, type SiteLang } from "../i18n.js";
 import { getShortCopy, renderLongformPage } from "../content/index.js";
+import { buildLearnCatalog } from "../learn/catalog.js";
+import { LEARN_CATALOG_STYLES, renderLearnCatalog } from "../learn/view.js";
 import { createContactProof } from "../services/contactSubmit.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
@@ -1333,7 +1335,9 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   const isCommunityProductPage = page.path === "/community";
 
   const rawBodyHtml = isLearnIndexHub
-    ? renderLearnIndexHub(basePath, lang)
+    ? (lang === "ja"
+      ? renderLearnCatalog(basePath, buildLearnCatalog(), renderLearnIndexHub(basePath, lang))
+      : renderLearnIndexHub(basePath, lang))
     : localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
   const headings = headingsFromHtml(rawBodyHtml);
   const articleHtml = isLearnIndexHub
@@ -1366,7 +1370,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     alternateLangs: availableLangs,
     noindex: lang !== "ja" || !hasLocalizedSeoPage,
     structuredDataHtml,
-    extraStyles: LOWER_PAGE_STYLES,
+    extraStyles: LOWER_PAGE_STYLES + (isLearnIndexHub && lang === "ja" ? LEARN_CATALOG_STYLES : ""),
     hero: heroConfig,
     body: `<div class="lower-page is-article${isLearnIndexHub ? " is-learn-hub" : ""}">
       ${prependHtml}
