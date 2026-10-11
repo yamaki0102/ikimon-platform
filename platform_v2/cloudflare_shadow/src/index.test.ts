@@ -5375,7 +5375,14 @@ class FakeStatement {
         asset_owner_user_id: asset.owner_user_id,
         observation_owner_user_id: observation?.owner_user_id ?? null,
         visibility: observation?.visibility ?? null,
-        emergency_hidden: observation?.emergency_hidden ?? null
+        emergency_hidden: observation?.emergency_hidden ?? null,
+        mime: asset.mime,
+        processing_state: asset.processing_state,
+        public_derivative_key: asset.public_derivative_key,
+        public_derivative_verified_at: asset.public_derivative_verified_at,
+        public_derivative_metadata_json: asset.public_derivative_metadata_json,
+        exif_scrub_state: asset.exif_scrub_state,
+        public_ready_at: asset.public_ready_at
       } as T);
     }
 
@@ -23034,6 +23041,177 @@ test("production public derived media uses bounded cache headers and HEAD withou
   }
 });
 
+test("ledger-backed derived bytes require verified public-ready scrubbed metadata and retain binary WebP history", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", IMAGES: undefined };
+  const addAsset = async (
+    assetId: string,
+    metadata: string | null,
+    changes: Partial<AssetRow> = {}
+  ) => {
+    const observationId = `derived-guard-${assetId}`;
+    const key = `derived/import/20261011/observation_photo/${assetId}/display.webp`;
+    obs.observations.set(observationId, {
+      observation_id: observationId,
+      draft_id: `draft-${assetId}`,
+      owner_user_id: `owner-${assetId}`,
+      observed_at: "2026-10-11T00:00:00.000Z",
+      partition_month: "2026-10",
+      taxon_label: null,
+      note: null,
+      exact_lat: null,
+      exact_lng: null,
+      location_accuracy_m: null,
+      public_cell: "34.71,137.81",
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "complete"
+    });
+    obs.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: observationId,
+      owner_user_id: `owner-${assetId}`,
+      object_key: `original/${assetId}/photo.jpg`,
+      partition_month: "2026-10",
+      sha256: `${assetId}-source-sha`,
+      mime: "image/jpeg",
+      bytes: 1024,
+      processing_state: "uploaded",
+      public_derivative_key: key,
+      public_derivative_sha256: `${assetId}-derivative-sha`,
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z",
+      public_derivative_metadata_json: metadata,
+      exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z",
+      ...changes
+    });
+    await env.ASSET_BUCKET.put(key, `bytes-${assetId}`, { httpMetadata: { contentType: "image/webp" } });
+    return key;
+  };
+  const currentMetadata = JSON.stringify({
+    tool: "cloudflare-images-public-derivative-v1",
+    inspectionVersion: "webp-chunk-v2",
+    contentType: "image/webp",
+    bytes: "bytes-current".length,
+    scannedContainer: "webp",
+    gpsExifPresent: false,
+    exifPresent: false,
+    gpsPresent: false,
+    xmpPresent: false,
+    exactCoordinateLiteralPresent: false,
+    checkedAt: "2026-10-11T00:00:00.000Z",
+    sourceContentType: "image/jpeg",
+    sourceBytes: 1024,
+    sourceWidth: 640,
+    sourceHeight: 480,
+    derivativeFormat: "webp",
+    derivativeWidth: 640,
+    derivativeHeight: 480,
+    derivativeBytes: "bytes-current".length
+  });
+  const currentKey = await addAsset("current", currentMetadata);
+  const legacyKey = await addAsset("legacy-binary", JSON.stringify({
+    gpsExifPresent: false,
+    contentType: "image/webp",
+    scannedContainer: "binary"
+  }));
+
+  const get = await worker.fetch(new Request(`https://ikimon.life/${currentKey}`), productionEnv);
+  assert.equal(get.status, 200);
+  assert.equal(await get.text(), "bytes-current");
+  const head = await worker.fetch(new Request(`https://ikimon.life/${currentKey}`, { method: "HEAD" }), productionEnv);
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  assert.equal(head.headers.get("content-length"), String("bytes-current".length));
+  const legacy = await worker.fetch(new Request(`https://ikimon.life/${legacyKey}`), productionEnv);
+  assert.equal(legacy.status, 200, "verified historical WebP metadata used the supported binary scanner label");
+  assert.equal(await legacy.text(), "bytes-legacy-binary");
+});
+
+test("ledger-backed derived GET, HEAD, and transforms fail closed for unready or unsafe metadata", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", IMAGES: undefined };
+  const unsafeCases: Array<{ name: string; metadata: string | null; changes?: Partial<AssetRow> }> = [
+    { name: "not-uploaded", metadata: '{"contentType":"image/webp","scannedContainer":"webp","gpsExifPresent":false}', changes: { processing_state: "processing" } },
+    { name: "unverified", metadata: '{"contentType":"image/webp","scannedContainer":"webp","gpsExifPresent":false}', changes: { public_derivative_verified_at: null } },
+    { name: "not-ready", metadata: '{"contentType":"image/webp","scannedContainer":"webp","gpsExifPresent":false}', changes: { public_ready_at: null } },
+    { name: "scrub-failed", metadata: '{"contentType":"image/webp","scannedContainer":"webp","gpsExifPresent":false}', changes: { exif_scrub_state: "failed" } },
+    { name: "failed-derivative-retains-key", metadata: '{"reason":"image_info_failed","gpsExifPresent":false}', changes: { public_derivative_verified_at: null, public_ready_at: null, exif_scrub_state: "failed" } },
+    { name: "malformed-json", metadata: "{not-json" },
+    { name: "non-object-json", metadata: "[]" },
+    { name: "missing-gps-result", metadata: '{"contentType":"image/webp","scannedContainer":"webp"}' },
+    { name: "gps-present", metadata: '{"contentType":"image/webp","scannedContainer":"webp","gpsExifPresent":true}' },
+    { name: "contradictory-exif", metadata: '{"contentType":"image/webp","scannedContainer":"webp","gpsExifPresent":false,"exifPresent":true}' },
+    { name: "svg-container", metadata: '{"contentType":"image/svg+xml","scannedContainer":"svg+xml","gpsExifPresent":false}' },
+    { name: "wrong-content-type", metadata: '{"contentType":"image/jpeg","scannedContainer":"webp","gpsExifPresent":false}' },
+    { name: "unknown-container", metadata: '{"contentType":"image/webp","scannedContainer":"unknown","gpsExifPresent":false}' }
+  ];
+  for (const testCase of unsafeCases) {
+    const observationId = `derived-unsafe-${testCase.name}`;
+    const assetId = `unsafe-${testCase.name}`;
+    const key = `derived/import/20261011/observation_photo/${assetId}/display.webp`;
+    obs.observations.set(observationId, {
+      observation_id: observationId,
+      draft_id: `draft-${assetId}`,
+      owner_user_id: `owner-${assetId}`,
+      observed_at: "2026-10-11T00:00:00.000Z",
+      partition_month: "2026-10",
+      taxon_label: null,
+      note: null,
+      exact_lat: null,
+      exact_lng: null,
+      location_accuracy_m: null,
+      public_cell: "34.71,137.81",
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "complete"
+    });
+    obs.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: observationId,
+      owner_user_id: `owner-${assetId}`,
+      object_key: `original/${assetId}/photo.jpg`,
+      partition_month: "2026-10",
+      sha256: `${assetId}-source-sha`,
+      mime: "image/jpeg",
+      bytes: 1024,
+      processing_state: "uploaded",
+      public_derivative_key: key,
+      public_derivative_sha256: `${assetId}-derivative-sha`,
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z",
+      public_derivative_metadata_json: testCase.metadata,
+      exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z",
+      ...testCase.changes
+    });
+    await env.ASSET_BUCKET.put(key, `unsafe-bytes-${testCase.name}`, { httpMetadata: { contentType: "image/webp" } });
+  }
+
+  const originalFetch = globalThis.fetch;
+  let transformFetches = 0;
+  globalThis.fetch = (async () => {
+    transformFetches += 1;
+    return new Response("must not transform unsafe ledger media", { status: 200 });
+  }) as typeof fetch;
+  try {
+    for (const testCase of unsafeCases) {
+      const key = `derived/import/20261011/observation_photo/unsafe-${testCase.name}/display.webp`;
+      const responses = await Promise.all([
+        worker.fetch(new Request(`https://ikimon.life/${key}`), productionEnv),
+        worker.fetch(new Request(`https://ikimon.life/${key}`, { method: "HEAD" }), productionEnv),
+        worker.fetch(new Request(`https://ikimon.life/derived-transform/w680/${key}`), productionEnv)
+      ]);
+      assert.deepEqual(responses.map((response) => response.status), [404, 404, 404], testCase.name);
+      for (const response of responses) assert.equal(response.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+    }
+    assert.equal(transformFetches, 0, "unsafe ledger rows must be rejected before transform/fallback reads");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("production public derived image transform route is bounded and copy-free", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
@@ -23111,6 +23289,60 @@ test("public derived image transform reads R2 through Images binding and preserv
   await env.ASSET_BUCKET.put(privateKey, "source-private-webp", {
     httpMetadata: { contentType: "image/webp" }
   });
+  const validImageMetadata = JSON.stringify({
+    tool: "cloudflare-images-public-derivative-v1",
+    inspectionVersion: "webp-chunk-v2",
+    contentType: "image/webp",
+    scannedContainer: "webp",
+    bytes: "source-public-webp".length,
+    gpsExifPresent: false,
+    exifPresent: false,
+    gpsPresent: false,
+    xmpPresent: false,
+    exactCoordinateLiteralPresent: false,
+    sourceContentType: "image/jpeg",
+    sourceBytes: 1234,
+    sourceWidth: 640,
+    sourceHeight: 480,
+    derivativeFormat: "webp",
+    derivativeWidth: 640,
+    derivativeHeight: 480,
+    derivativeBytes: "source-public-webp".length
+  });
+  obs.observations.set("public-transform-record", {
+    observation_id: "public-transform-record",
+    draft_id: "draft-public-transform",
+    owner_user_id: "public-transform-owner",
+    observed_at: "2026-06-15T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: null,
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "complete"
+  });
+  obs.assets.set("asset-public-transform", {
+    asset_id: "asset-public-transform",
+    draft_id: "draft-public-transform",
+    observation_id: "public-transform-record",
+    owner_user_id: "public-transform-owner",
+    object_key: "original/public-transform/photo.jpg",
+    partition_month: "2026-06",
+    sha256: "public-transform-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: publicKey,
+    public_derivative_sha256: "public-transform-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T00:00:00.000Z",
+    public_derivative_metadata_json: validImageMetadata,
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T00:00:00.000Z"
+  });
   obs.observations.set("private-transform-record", {
     observation_id: "private-transform-record",
     draft_id: "draft-private-transform",
@@ -23142,6 +23374,42 @@ test("public derived image transform reads R2 through Images binding and preserv
     public_derivative_sha256: "private-transform-derivative-sha",
     public_derivative_verified_at: "2026-06-15T00:00:00.000Z",
     public_derivative_metadata_json: "{\"gpsExifPresent\":false}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T00:00:00.000Z"
+  });
+  const hiddenKey = "derived/import/20260615/observation_photo/asset-hidden-transform/display.webp";
+  await env.ASSET_BUCKET.put(hiddenKey, "source-hidden-webp", { httpMetadata: { contentType: "image/webp" } });
+  obs.observations.set("hidden-transform-record", {
+    observation_id: "hidden-transform-record",
+    draft_id: "draft-hidden-transform",
+    owner_user_id: "hidden-transform-owner",
+    observed_at: "2026-06-15T00:00:00.000Z",
+    partition_month: "2026-06",
+    taxon_label: null,
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "",
+    visibility: "public",
+    emergency_hidden: 1,
+    processing_state: "complete"
+  });
+  obs.assets.set("asset-hidden-transform", {
+    asset_id: "asset-hidden-transform",
+    draft_id: "draft-hidden-transform",
+    observation_id: "hidden-transform-record",
+    owner_user_id: "hidden-transform-owner",
+    object_key: "original/hidden-transform/photo.jpg",
+    partition_month: "2026-06",
+    sha256: "hidden-transform-sha",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: hiddenKey,
+    public_derivative_sha256: "hidden-transform-derivative-sha",
+    public_derivative_verified_at: "2026-06-15T00:00:00.000Z",
+    public_derivative_metadata_json: validImageMetadata,
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-15T00:00:00.000Z"
   });
@@ -23204,6 +23472,10 @@ test("public derived image transform reads R2 through Images binding and preserv
     }), productionEnv);
     assert.equal(unauthenticatedPrivateResponse.status, 404);
     assert.deepEqual(await unauthenticatedPrivateResponse.json(), { error: "media_not_found" });
+    const unauthenticatedHiddenResponse = await worker.fetch(new Request(`https://staging.zukan.earth/derived-transform/w680/${hiddenKey}`, {
+      headers: { accept: "image/avif,image/webp" }
+    }), productionEnv);
+    assert.equal(unauthenticatedHiddenResponse.status, 404, "emergency-hidden public visibility must still require the owner");
     assert.equal(imageCalls.length, 2);
 
     const rawToken = "private-transform-owner-session";
@@ -23232,6 +23504,24 @@ test("public derived image transform reads R2 through Images binding and preserv
       kind: "output",
       options: { format: "image/webp", quality: 82, anim: false }
     });
+
+    const hiddenRawToken = "hidden-transform-owner-session";
+    const hiddenTokenHash = createHash("sha256").update(hiddenRawToken).digest("hex");
+    core.authSessions.set(hiddenTokenHash, {
+      token_hash: hiddenTokenHash,
+      user_id: "hidden-transform-owner",
+      display_name: "Hidden Transform Owner",
+      role_name: "Observer",
+      rank_label: "観察者",
+      banned: 0,
+      expires_at: "2099-01-01T00:00:00.000Z",
+      last_used_at: null
+    });
+    const hiddenOwnerResponse = await worker.fetch(new Request(`https://staging.zukan.earth/derived-transform/w360/${hiddenKey}`, {
+      headers: { accept: "image/webp,image/jpeg", cookie: `ikimon_v2_session=${hiddenRawToken}` }
+    }), productionEnv);
+    assert.equal(hiddenOwnerResponse.status, 200, "owner access to an emergency-hidden record remains available");
+    assert.equal(hiddenOwnerResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
   } finally {
     globalThis.fetch = originalFetch;
   }
