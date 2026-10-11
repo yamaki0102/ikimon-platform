@@ -7414,7 +7414,8 @@ class FakeStatement {
       return { results: rows as T[] };
     }
     if (
-      normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key,")
+      normalized.startsWith("SELECT a.asset_id, a.object_key, a.mime, a.bytes, a.duration_ms, a.public_derivative_key,")
+      || normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key,")
       || normalized.startsWith("SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key FROM asset_ledger")
     ) {
       const rows = [...this.db.assets.values()]
@@ -7430,17 +7431,28 @@ class FakeStatement {
           !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
           !isPublicMapPlaceholderLikeAsset(asset)
         )
-        .map((asset) => ({
-          asset_id: asset.asset_id,
-          object_key: asset.object_key,
-          mime: asset.mime,
-          bytes: asset.bytes,
-          duration_ms: null,
-          public_derivative_key: asset.public_derivative_key,
-          sha256: asset.sha256,
-          public_derivative_sha256: asset.public_derivative_sha256,
-          public_derivative_metadata_json: asset.public_derivative_metadata_json
-        }));
+        .map((asset) => {
+          const observation = asset.observation_id ? this.db.observations.get(asset.observation_id) : null;
+          const rights = asset.observation_id ? this.db.observationDataRights.get(asset.observation_id) : null;
+          return {
+            asset_id: asset.asset_id,
+            object_key: asset.object_key,
+            mime: asset.mime,
+            bytes: asset.bytes,
+            duration_ms: null,
+            public_derivative_key: asset.public_derivative_key,
+            sha256: asset.sha256,
+            public_derivative_sha256: asset.public_derivative_sha256,
+            public_derivative_metadata_json: asset.public_derivative_metadata_json,
+            processing_state: asset.processing_state,
+            public_derivative_verified_at: asset.public_derivative_verified_at,
+            exif_scrub_state: asset.exif_scrub_state,
+            public_ready_at: asset.public_ready_at,
+            visibility: observation?.visibility ?? null,
+            emergency_hidden: observation?.emergency_hidden ?? null,
+            withdrawal_status: rights?.withdrawal_status ?? null
+          };
+        });
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,")) {
@@ -7479,7 +7491,22 @@ class FakeStatement {
         });
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT observation_id, public_derivative_key FROM asset_ledger")) {
+    if (normalized.startsWith("SELECT DISTINCT observation_id FROM asset_ledger WHERE observation_id IN (")) {
+      const observationIds = new Set(this.values.map(string));
+      const ids = [...new Set([...this.db.assets.values()]
+        .filter((asset) =>
+          asset.observation_id && observationIds.has(asset.observation_id) &&
+          asset.processing_state === "uploaded" && asset.public_derivative_key &&
+          asset.public_derivative_verified_at && asset.public_derivative_metadata_json &&
+          !asset.public_derivative_metadata_json.includes('"scannedContainer":"svg+xml"') &&
+          !asset.public_derivative_metadata_json.includes('"contentType":"image/svg') &&
+          asset.exif_scrub_state === "scrubbed" && asset.public_ready_at && asset.mime.startsWith("image/") &&
+          !isPublicMapPlaceholderLikeAsset(asset)
+        )
+        .map((asset) => asset.observation_id as string))];
+      return { results: ids.map((observation_id) => ({ observation_id })) as T[] };
+    }
+    if (normalized.startsWith("SELECT a.observation_id, a.public_derivative_key, a.mime, a.processing_state")) {
       const rows = [...this.db.assets.values()]
         .filter((asset) =>
           asset.observation_id &&
@@ -7495,10 +7522,23 @@ class FakeStatement {
           !isPublicMapPlaceholderLikeAsset(asset)
         )
         .sort((a, b) => (b.public_ready_at ?? "").localeCompare(a.public_ready_at ?? ""))
-        .map((asset) => ({
-          observation_id: asset.observation_id,
-          public_derivative_key: asset.public_derivative_key
-        }));
+        .map((asset) => {
+          const observation = asset.observation_id ? this.db.observations.get(asset.observation_id) : null;
+          const rights = asset.observation_id ? this.db.observationDataRights.get(asset.observation_id) : null;
+          return {
+            observation_id: asset.observation_id,
+            public_derivative_key: asset.public_derivative_key,
+            mime: asset.mime,
+            processing_state: asset.processing_state,
+            public_derivative_verified_at: asset.public_derivative_verified_at,
+            public_derivative_metadata_json: asset.public_derivative_metadata_json,
+            exif_scrub_state: asset.exif_scrub_state,
+            public_ready_at: asset.public_ready_at,
+            visibility: observation?.visibility ?? null,
+            emergency_hidden: observation?.emergency_hidden ?? null,
+            withdrawal_status: rights?.withdrawal_status ?? null
+          };
+        });
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT COALESCE(visit_id, occurrence_id) AS observation_id")) {
@@ -8739,6 +8779,14 @@ test("v1 public map read routes expose current shell contracts without exact coo
     base64Data: Buffer.from("map-image").toString("base64")
   });
   await worker.queue({ messages: queue.messages.map((body) => ({ body: body as any })) }, env);
+  const mapObservation = env.OBS_DB.observations.get("visit-map-contract");
+  assert.ok(mapObservation);
+  mapObservation.visibility = "public";
+  mapObservation.emergency_hidden = 0;
+  for (const [assetId, asset] of env.OBS_DB.assets) {
+    if (asset.observation_id === "visit-map-contract") env.OBS_DB.assets.delete(assetId);
+  }
+  const unsafeMapDerivativeKey = "derived/import/20260615/observation_photo/asset-map-contract-real-derivative/display.webp";
   env.OBS_DB.assets.set("asset-map-contract-real-derivative", {
     asset_id: "asset-map-contract-real-derivative",
     draft_id: "draft-map-contract-real-derivative",
@@ -8750,12 +8798,15 @@ test("v1 public map read routes expose current shell contracts without exact coo
     mime: "image/jpeg",
     bytes: 1234,
     processing_state: "uploaded",
-    public_derivative_key: "derived/import/20260615/observation_photo/asset-map-contract-real-derivative/display.webp",
+    public_derivative_key: unsafeMapDerivativeKey,
     public_derivative_sha256: "map-real-derivative-sha",
     public_derivative_verified_at: "2026-06-15T02:30:00.000Z",
-    public_derivative_metadata_json: "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}",
+    public_derivative_metadata_json: "{\"contentType\":\"image/webp\",\"scannedContainer\":\"webp\"}",
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-15T02:30:00.000Z"
+  });
+  await env.ASSET_BUCKET.put(unsafeMapDerivativeKey, "uncertified-map-webp", {
+    httpMetadata: { contentType: "image/webp" }
   });
   env.OBS_DB.assets.set("asset-map-contract-placeholder-derivative", {
     asset_id: "asset-map-contract-placeholder-derivative",
@@ -8777,12 +8828,6 @@ test("v1 public map read routes expose current shell contracts without exact coo
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-15T03:30:00.000Z"
   });
-  await env.ASSET_BUCKET.put(
-    "derived/import/20260615/observation_photo/asset-map-contract-real-derivative/display.webp",
-    "map-real-webp",
-    { httpMetadata: { contentType: "image/webp" } }
-  );
-
   const missingScope = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations"), env);
   assert.equal(missingScope.status, 400);
   assert.deepEqual(await missingScope.json(), { error: "missing_scope" });
@@ -8819,14 +8864,54 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(observationsPayload.items[0].occurrenceId, "occ:visit-map-contract:0");
   assert.equal(observationsPayload.items[0].displayName, "地図テスト植物");
   assert.ok(!("cellId" in observationsPayload.items[0]));
-  assert.match(observationsPayload.items[0].photoUrl, /^\/derived\/.+\/display\.webp$/);
-  assert.match(observationsPayload.items[0].photoUrl, /\/derived\/.+\/display\.webp$/);
-  assert.doesNotMatch(observationsPayload.items[0].photoUrl, /placeholder/);
+  assert.equal(observationsPayload.items[0].photoUrl, null, "uncertified public ledger rows must not emit broken references");
+  const unsafeResponses = await Promise.all([
+    worker.fetch(new Request(`https://shadow.test/${unsafeMapDerivativeKey}`), env),
+    worker.fetch(new Request(`https://shadow.test/${unsafeMapDerivativeKey}`, { method: "HEAD" }), env)
+  ]);
+  assert.deepEqual(unsafeResponses.map((response) => response.status), [404, 404]);
   assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
+  const mapAsset = env.OBS_DB.assets.get("asset-map-contract-real-derivative");
+  assert.ok(mapAsset);
+  mapObservation.visibility = "private";
+  const privateMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  assert.equal((await privateMapResponse.json() as any).items[0].photoUrl, null);
+  mapObservation.visibility = "public";
+  mapObservation.emergency_hidden = 1;
+  const hiddenMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  assert.equal((await hiddenMapResponse.json() as any).items[0].photoUrl, null);
+  mapObservation.emergency_hidden = 0;
+  env.OBS_DB.observationDataRights.set("visit-map-contract", {
+    visit_id: "visit-map-contract",
+    occurrence_id: "occ:visit-map-contract:0",
+    record_consent: "public",
+    research_use_consent: "none",
+    enterprise_report_consent: "none",
+    dataset_license: null,
+    media_license: null,
+    external_export_allowed: 0,
+    withdrawal_status: "withdrawn",
+    source_payload_json: "{}"
+  });
+  const withdrawnMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const withdrawnMapPayload = await withdrawnMapResponse.json() as any;
+  assert.equal(withdrawnMapPayload.items.find((item: any) => item.visitId === "visit-map-contract")?.photoUrl, undefined);
+  env.OBS_DB.observationDataRights.get("visit-map-contract")!.withdrawal_status = "active";
+  mapAsset.public_derivative_metadata_json = "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}";
+  const legacyCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const legacyCertifiedPayload = await legacyCertifiedResponse.json() as any;
+  assert.equal(legacyCertifiedPayload.items[0].photoUrl, `/${unsafeMapDerivativeKey}`, "verified historical binary WebP remains eligible");
+  mapAsset.public_derivative_metadata_json = JSON.stringify({
+    contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false,
+    exifPresent: false, gpsPresent: false, xmpPresent: false, exactCoordinateLiteralPresent: false
+  });
+  const currentCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const currentCertifiedPayload = await currentCertifiedResponse.json() as any;
+  assert.equal(currentCertifiedPayload.items[0].photoUrl, `/${unsafeMapDerivativeKey}`);
   const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
-  assert.match(workerSource, /async function queryPublicMapPhotoUrls[\s\S]*presentablePublicPhotoSql\(\)/);
+  assert.match(workerSource, /async function queryPublicMapPhotoUrls[\s\S]*presentablePublicPhotoSql\("a"\)/);
 
   env.OBS_DB.readmodel.set("visit-unidentified-contract", {
     observation_id: "visit-unidentified-contract",
@@ -10125,6 +10210,24 @@ test("public observation detail route exposes a safe read page and JSON without 
     exif_scrub_state: "scrubbed",
     public_ready_at: "2026-06-15T03:30:01.000Z"
   });
+  env.OBS_DB.assets.set("asset-detail-contract-uncertified", {
+    asset_id: "asset-detail-contract-uncertified",
+    draft_id: "draft-detail-contract-uncertified",
+    observation_id: "visit-detail-contract",
+    owner_user_id: "detail-user",
+    object_key: "original/visit-detail-contract/detail-uncertified.jpg",
+    partition_month: "2026-06",
+    sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    mime: "image/jpeg",
+    bytes: 1234,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260615/observation_photo/asset-detail-contract-uncertified/display.webp",
+    public_derivative_sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    public_derivative_verified_at: "2026-06-15T03:30:02.000Z",
+    public_derivative_metadata_json: "{\"contentType\":\"image/webp\",\"scannedContainer\":\"webp\"}",
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-15T03:30:02.000Z"
+  });
   await env.ASSET_BUCKET.put(
     "derived/import/20260615/observation_photo/asset-detail-contract-real-derivative/display.webp",
     "detail-real-webp",
@@ -10164,6 +10267,11 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(
     jsonPayload.observation.photoAssets.some((asset: any) => asset.assetId === "asset-detail-contract-real-duplicate"),
     false
+  );
+  assert.equal(
+    jsonPayload.observation.photoAssets.some((asset: any) => asset.assetId === "asset-detail-contract-uncertified"),
+    false,
+    "public detail must omit ledger images without the strict byte certificate"
   );
   const regionPhotoAsset = jsonPayload.observation.photoAssets.find((asset: any) =>
     /asset-detail-contract-real-derivative\/display\.webp$/.test(String(asset.url ?? ""))
