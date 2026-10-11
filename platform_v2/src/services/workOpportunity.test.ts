@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findPublicWorkOpportunities, type PublicWorkOpportunity } from "./workOpportunity.js";
-import { renderWorkOpportunityDiscovery } from "../ui/workOpportunity.js";
+import { findPublicWorkOpportunities, parsePublicWorkOpportunity, type PublicWorkOpportunity } from "./workOpportunity.js";
+import { renderWorkOpportunityDetail, renderWorkOpportunityDiscovery } from "../ui/workOpportunity.js";
 
 const base: PublicWorkOpportunity = { id:"opening-1",editionId:"edition-1",kind:"job",state:"open",title:"地域資料の整理",organizationName:"まちの資料館",placeName:"浜松市",relationshipLabel:"契約職員",payLabel:null,scheduleLabel:"週3日",summary:"地域資料を整理します。",sourceLabel:"まちの資料館 採用情報",sourceUrl:"https://example.org/jobs/1",publishedAt:"2026-09-01T00:00:00Z",validThrough:"2026-10-31T23:59:59Z",detailPath:"/jobs/opening-1" };
 
@@ -17,6 +17,34 @@ test("failure and zero results are distinct recoverable states", () => {
   const failed=renderWorkOpportunityDiscovery({items:[],query:{},state:"unavailable",currentPath:"/ja/jobs"});
   const empty=renderWorkOpportunityDiscovery({items:[],query:{query:"林業"},state:"ready",currentPath:"/ja/jobs?q=林業"});
   assert.match(failed,/仕事の情報を読み込めませんでした/); assert.match(failed,/もう一度読み込む/); assert.match(empty,/条件に合う仕事・職場・見学は見つかりませんでした/); assert.match(empty,/条件をクリア/);
+});
+
+test("public edition parser rejects unsafe identifiers, stale dates and unsafe source schemes", () => {
+  const raw = { ...base };
+  assert.equal(parsePublicWorkOpportunity(raw)?.editionId, "edition-1");
+  assert.equal(parsePublicWorkOpportunity({ ...raw, id: "../private" }), null);
+  assert.equal(parsePublicWorkOpportunity({ ...raw, sourceUrl: "javascript:alert(1)" }), null);
+  assert.equal(parsePublicWorkOpportunity({ ...raw, publishedAt: "not-a-date" }), null);
+  assert.equal(parsePublicWorkOpportunity({ ...raw, validThrough: "not-a-date" }), null);
+  assert.equal(parsePublicWorkOpportunity({ ...raw, payLabel: "", scheduleLabel: "  " })?.payLabel, null);
+});
+
+test("detail view uses the canonical public id and edition evidence without an application CTA", () => {
+  const html=renderWorkOpportunityDetail({item:{...base,detailPath:"https://evil.example/redirect"},currentPath:"/ja/jobs/opening-1",returnPath:"/ja/jobs?q=資料"});
+  assert.match(html,/canonical" href="https:\/\/zukan\.earth\/ja\/jobs\/opening-1"/);
+  assert.match(html,/data-edition-id="edition-1"/);
+  assert.match(html,/公開情報の出典/);
+  assert.match(html,/href="\/ja\/jobs\?q=資料"/);
+  assert.doesNotMatch(html,/evil\.example|応募する|応募フォーム/);
+});
+
+test("prefixed listing and detail routes preserve their locale path without changing the Japanese page language", () => {
+  const listing=renderWorkOpportunityDiscovery({items:[base],query:{},state:"ready",currentPath:"/en/jobs"});
+  const detail=renderWorkOpportunityDetail({item:base,currentPath:"/en/jobs/opening-1",returnPath:"/en/jobs"});
+  assert.match(listing,/href="\/en\/jobs\/opening-1"/);
+  assert.match(detail,/lang="ja"/);
+  assert.match(detail,/href="\/en\/jobs"/);
+  assert.match(detail,/canonical" href="https:\/\/zukan\.earth\/ja\/jobs\/opening-1"/);
 });
 import { readFileSync } from "node:fs";
 
