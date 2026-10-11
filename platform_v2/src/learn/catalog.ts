@@ -1,5 +1,6 @@
 import { getShortCopy, renderLongformPage } from "../content/index.js";
 import { listMarketingPages, type SitePageDefinition } from "../siteMap.js";
+import { isLearnArticlePath } from "./paths.js";
 import type { LearnCatalogEntry } from "./search.js";
 
 export type { LearnCatalogEntry } from "./search.js";
@@ -49,9 +50,7 @@ function isPublicLearnArticle(page: SitePageDefinition): boolean {
   if (page.lane !== "learn" || page.layout !== "reading" || page.auth !== "public") return false;
   if (page.audience !== "public" && page.audience !== "visitor") return false;
   if (!page.marketing || !page.navVisibility.includes("xml")) return false;
-  if (!page.path.startsWith("/learn/") || /[?#:\\\s]/u.test(page.path)) return false;
-  const path = new URL(page.path, "https://learn.invalid").pathname;
-  return path === page.path && !path.includes("//") && !path.endsWith("/");
+  return isLearnArticlePath(page.path);
 }
 
 /**
