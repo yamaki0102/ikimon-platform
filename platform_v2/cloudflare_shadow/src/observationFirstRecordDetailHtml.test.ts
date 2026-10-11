@@ -616,6 +616,41 @@ test("owner publication return distinguishes Review, eligible destination, and c
   assert.match(published, /公開確認済み/);
 });
 
+test("owner publication destination uses a localized place label", () => {
+  const publicationReturn: OwnerPublicationReturn = {
+    schema_version: "zukan.publication-return/v1",
+    review: { state: "not_reviewed", source: "none", decidedAt: null },
+    publication: {
+      state: "not_ready",
+      exclusionCode: "review_not_approved",
+      destinations: [{
+        feedKey: "miyakoda-renri-area",
+        label: "浜松・都田",
+        sourceVersion: "public-feed-v1",
+        sourceEnvironment: "production",
+        readOnly: true,
+        status: "excluded",
+        exclusionCode: "review_not_approved",
+      }],
+    },
+  };
+
+  for (const lang of ["en", "es", "pt-br"] as const) {
+    const rendered = renderObservationFirstRecordDetailHtml(detail, {
+      lang,
+      title: "Public record",
+      observedLabel: "September 15, 2026",
+      note: null,
+      media: [],
+      publicationReturn,
+      actionNonce: `nonce-publication-${lang}`,
+      viewerAuthenticated: true,
+    });
+    assert.match(rendered, /Miyakoda, Hamamatsu/);
+    assert.doesNotMatch(rendered, /浜松・都田/);
+  }
+});
+
 test("publication exclusion is owner-only and uses a safe localized reason", () => {
   const publicationReturn: OwnerPublicationReturn = {
     schema_version: "zukan.publication-return/v1",
