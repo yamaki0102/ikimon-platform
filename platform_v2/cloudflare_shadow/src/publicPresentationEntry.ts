@@ -7,6 +7,7 @@ import {
   type OAuthBoundaryEnv,
 } from "./oauthStartBoundary";
 import { personPublicationResponse } from "./personPublication";
+import { readPersonEdition, type PersonD1 } from "./personPublicationExchange";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { ensurePublicDesignFoundation } from "./publicDesignFoundation";
@@ -30,6 +31,30 @@ export default {
       return oauthErrorResponse(request, oauthEnv, oauthKind);
     }
 
+    const publicPath = new URL(request.url).pathname;
+    if (publicPath.startsWith("/ja/people/")) {
+      const foundId = /-([a-f0-9]{32})\/?$/u.exec(publicPath)?.[1];
+      const database = (env as { CORE_DB?: PersonD1 }).CORE_DB;
+      if (foundId && database) {
+        try {
+          const stored = await readPersonEdition(database, foundId);
+          if (stored.found) {
+            // A withdrawal overrides any source-managed earlier edition.
+            const resolved = personPublicationResponse(request, env as { ENVIRONMENT?: string; IKIMON_GIT_SHA?: string },
+              stored.profile === null ? [] : [stored.profile]);
+            if (resolved !== null) return ensurePublicDesignFoundation(request, resolved);
+          }
+        } catch (error) {
+          // Maintain the existing approved static page before the additive migration.
+          // Any other read error must NOT resurrect a possibly withdrawn public profile.
+          if (!/no such table: zukan_person_publications/u.test(String(error))) {
+            return new Response("Unavailable", { status: 503, headers: {
+              "cache-control": "no-store", "x-robots-tag": "noindex, nofollow",
+            } });
+          }
+        }
+      }
+    }
     const publication = personPublicationResponse(request, env as { ENVIRONMENT?: string; IKIMON_GIT_SHA?: string });
     if (publication !== null) return ensurePublicDesignFoundation(request, publication);
 
