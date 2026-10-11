@@ -18,7 +18,7 @@ const STYLE = `
 `;
 
 export function personPublicationPath(p: Pick<PersonPublication, "slug" | "publicId">): string {
-  return `${PREFIX}${p.identityMode === "anonymous" ? "person" : p.slug}-${p.publicId}`;
+  return `${PREFIX}${p.identityMode === "alias" || p.identityMode === "anonymous" ? "person" : p.slug}-${p.publicId}`;
 }
 
 const escapeHtml = (value: string): string => value.replace(/[&<>"']/gu, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -49,7 +49,7 @@ export function personPublicationResponse(request: Request, env: { ENVIRONMENT?:
   if (!["GET", "HEAD"].includes(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD", "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } });
   const path = personPublicationPath(p);
   if (url.pathname !== path) {
-    if (p.identityMode === "anonymous") return notFound(); // Never redirect a name-bearing old URL after anonymity is selected.
+    if (p.identityMode === "anonymous" || p.identityMode === "alias") return notFound(); // Never redirect a name-bearing old URL after anonymity is selected.
     return new Response(null, { status: 308, headers: { location: path, "cache-control": "no-store" } });
   }
   const indexable = env.ENVIRONMENT === "production" && url.origin === ORIGIN && p.discoverability === "indexed";
