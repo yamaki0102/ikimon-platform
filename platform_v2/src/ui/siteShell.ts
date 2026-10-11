@@ -7681,9 +7681,12 @@ ${alternateLinks}
         display: grid;
       }
     }
-    @media (min-width: 721px) and (max-width: 960px) {
+    @media (min-width: 721px) and (max-width: 1160px) {
       .global-record-launcher {
         display: grid;
+      }
+      .site-core-nav {
+        display: none;
       }
       .site-shell.has-global-record-launcher {
         padding-bottom: calc(112px + max(0px, env(safe-area-inset-bottom)));
@@ -7692,7 +7695,7 @@ ${alternateLinks}
         padding-bottom: 0;
       }
     }
-    @media (min-width: 961px) {
+    @media (min-width: 1161px) {
       .site-core-nav {
         display: flex;
       }
