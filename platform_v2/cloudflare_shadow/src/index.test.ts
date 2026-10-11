@@ -8201,6 +8201,7 @@ class FakeEmail {
 
 class FakeBucket {
   objects = new Map<string, { value: unknown; size: number; uploaded: Date; contentType?: string }>();
+  getCalls: string[] = [];
   failDelete = false;
   beforePut?: (key: string) => Promise<void>;
 
@@ -8225,6 +8226,7 @@ class FakeBucket {
   }
 
   async get(key: string) {
+    this.getCalls.push(key);
     const object = this.objects.get(key);
     if (!object) return null;
     const body = typeof object.value === "string" || object.value instanceof ArrayBuffer || ArrayBuffer.isView(object.value)
@@ -23650,7 +23652,7 @@ test("production legacy thumbnails preserve the unknown-canonical historical fal
     assert.equal(await response.text(), "webp-bytes");
     assert.equal(response.headers.get("content-type"), "image/webp");
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "thumb-derivative-readmodel");
-    assert.equal(response.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+    assert.equal(response.headers.get("cache-control"), "public, max-age=31536000, immutable");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
@@ -23804,13 +23806,36 @@ test("production known public legacy thumbnails require strict ledger readiness 
     await env.ASSET_BUCKET.put(`original-ui/thumb/md/v2-observations/${recordId}/photo.jpg`, `prematerialized-${assetId}`, {
       httpMetadata: { contentType: "image/jpeg" }
     });
+    await env.ASSET_BUCKET.put(`derived/${assetId}/display.webp`, `certified-${assetId}`, {
+      httpMetadata: { contentType: "image/webp" }
+    });
   };
 
   await addKnownRecord("known-public-thumb", "known-public-asset");
   const publicResponse = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/known-public-thumb/photo.jpg"), productionEnv);
   assert.equal(publicResponse.status, 200);
-  assert.equal(await publicResponse.text(), "prematerialized-known-public-asset");
+  assert.equal(await publicResponse.text(), "certified-known-public-asset", "known records serve the verified derivative bytes, not an independent prematerialized object");
   assert.equal(publicResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+  assert.deepEqual(env.ASSET_BUCKET.getCalls, ["derived/known-public-asset/display.webp"]);
+
+  env.OBS_DB.productionVisits.set("known-public-no-ledger-thumb", {
+    visit_id: "known-public-no-ledger-thumb",
+    legacy_observation_id: null,
+    user_id: "known-public-owner",
+    public_visibility: "public",
+    observed_at: "2026-10-11T00:00:00.000Z"
+  });
+  await env.ASSET_BUCKET.put("original-ui/thumb/md/v2-observations/known-public-no-ledger-thumb/photo.jpg", "uncertified-materialized", {
+    httpMetadata: { contentType: "image/jpeg" }
+  });
+  env.ASSET_BUCKET.getCalls.length = 0;
+  for (const method of ["GET", "HEAD"] as const) {
+    const response = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/known-public-no-ledger-thumb/photo.jpg", { method }), productionEnv);
+    assert.equal(response.status, 404, `${method} without a matching certified ledger derivative must fail closed`);
+    if (method === "HEAD") assert.equal(await response.text(), "");
+    else assert.deepEqual(await response.json(), { ok: false, error: "thumb_not_materialized" });
+  }
+  assert.deepEqual(env.ASSET_BUCKET.getCalls, [], "known records without certification are denied before any R2 read");
 
   await addKnownRecord("known-public-fallback-thumb", "known-public-fallback-asset", {}, null);
   await env.ASSET_BUCKET.delete("original-ui/thumb/md/v2-observations/known-public-fallback-thumb/photo.jpg");

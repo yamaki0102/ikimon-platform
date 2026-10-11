@@ -25919,15 +25919,17 @@ async function getOriginalUiThumb(request: Request, url: URL, env: Env): Promise
     return originalUiThumbMiss(request);
   }
 
-  const object = await env.ASSET_BUCKET.get(originalUiThumbKey(url.pathname));
-  if (object?.body) {
-    return new Response(request.method === "HEAD" ? null : object.body, {
-      headers: {
-        "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiThumb(url.pathname),
-        "cache-control": preflight?.known ? "private, no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable",
-        "x-ikimon-cloudflare-materialized": "original-ui-thumb"
-      }
-    });
+  if (!preflight?.known) {
+    const object = await env.ASSET_BUCKET.get(originalUiThumbKey(url.pathname));
+    if (object?.body) {
+      return new Response(request.method === "HEAD" ? null : object.body, {
+        headers: {
+          "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiThumb(url.pathname),
+          "cache-control": "public, max-age=31536000, immutable",
+          "x-ikimon-cloudflare-materialized": "original-ui-thumb"
+        }
+      });
+    }
   }
 
   const nativeThumb = await getLegacyObservationThumbFromDerivative(request, url, env, preflight);
@@ -26026,39 +26028,28 @@ async function legacyObservationThumbPreflight(
     return { allowed: false, known: true, derivative: derivative ?? null };
   }
 
+  if (canonicalKnown && !derivative) {
+    return { allowed: false, known: true, derivative: null };
+  }
   if (derivative) {
     const ready = canonicalKnown
       ? publicDerivedLedgerAssetIsReady({ ...derivative, mime: derivative.mime ?? "" })
       : legacyThumbCompatibilityAssetIsReady(derivative);
     if (!ready) return { allowed: false, known: true, derivative };
   }
-  return { allowed: true, known: canonicalKnown || Boolean(derivative), derivative: derivative ?? null };
+  return { allowed: true, known: canonicalKnown, derivative: derivative ?? null };
 }
 
 function legacyThumbCompatibilityAssetIsReady(asset: LegacyThumbDerivativeRow): boolean {
-  // Some historical imports have no canonical visibility row and only the
-  // original GPS inspection result. Keep that narrow legacy shape readable;
-  // records with a current native/import row use the strict current validator.
+  // Keep the pre-ledger historical fallback contract for records whose current
+  // canonical visibility row is unavailable. Current records use the strict validator.
   if (
     asset.processing_state !== "uploaded"
     || !normalizeOptionalText(asset.public_derivative_key)
-    || !normalizeOptionalText(asset.public_derivative_verified_at)
     || asset.exif_scrub_state !== "scrubbed"
     || !normalizeOptionalText(asset.public_ready_at)
-    || !asset.public_derivative_metadata_json
   ) return false;
-  try {
-    const parsed: unknown = JSON.parse(asset.public_derivative_metadata_json);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
-    const metadata = parsed as Record<string, unknown>;
-    if (metadata.gpsExifPresent !== false) return false;
-    return Object.keys(metadata).every((field) =>
-      !["exifPresent", "gpsPresent", "xmpPresent", "exactCoordinateLiteralPresent"].includes(field)
-      || metadata[field] === false
-    );
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 function parseLegacyObservationThumbPath(pathname: string): { recordId: string; legacyRelativePath: string } | null {
