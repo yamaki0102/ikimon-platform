@@ -178,6 +178,75 @@
       "title": "Life map | ZUKAN",
       "activeNav": "home",
       "footerNote": "Zoom in to see where records, species, parks, and water-side clues are gathering."
+    },
+    "lens": {
+      "title": "Observe in the moment | ZUKAN",
+      "activeNav": "home",
+      "footerNote": "AI offers possible names and identification tips. People make the decision.",
+      "hero": {
+        "eyebrow": "Observe in the moment",
+        "heading": "Take a closer look at something that caught your eye",
+        "lead": "Whether you are out for a walk or traveling, point your camera at a creature you are curious about. AI can offer possible names and identification tips. You do not have to decide here. Start by saving what you found."
+      },
+      "steps": [
+        {
+          "title": "1. Save what you saw",
+          "body": "It is okay not to know what it is. First, keep the photo, place, time, and what you noticed."
+        },
+        {
+          "title": "2. Check what to look for next",
+          "body": "Use AI tips to narrow down the features to check next instead of relying only on the suggested name."
+        },
+        {
+          "title": "3. Add your observations to a record",
+          "body": "This page does not save records. Add the photo, place, time, and notes together on the record page."
+        }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "Good for",
+          "title": "When you want to keep a moment from a walk or a trip",
+          "body": "Use this when you would rather save what you saw and compare it later than decide on an answer right away."
+        },
+        {
+          "eyebrow": "Keep in mind",
+          "title": "AI offers clues; you make the decision.",
+          "body": "AI suggests possibilities and tips for telling them apart. It does not decide the name for you."
+        },
+        {
+          "eyebrow": "Next step",
+          "title": "Save the photo and place in a record",
+          "body": "This page does not save records. Add the place, time, and photo together on the record page.",
+          "ctaHref": "/record",
+          "ctaLabel": "Create a record"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "Where your records live",
+          "title": "Keep what you found in your records",
+          "body": "On the record page, add photos, places, and notes together. Your saved records become a library you can revisit later.",
+          "meta": "One place to save, another to browse later.",
+          "ctaHref": "/records?view=mine",
+          "ctaLabel": "View my records"
+        },
+        {
+          "eyebrow": "Choosing where to walk",
+          "title": "Pick a place on the map first",
+          "body": "If you want to choose where to walk before looking up a name, open the map first.",
+          "meta": "This page helps you look more closely at something you found; the map helps you choose where to go next.",
+          "ctaHref": "/map",
+          "ctaLabel": "Open the map"
+        },
+        {
+          "eyebrow": "For a continuous guide while walking",
+          "title": "Use the live guide for continuous recording",
+          "body": "This page helps you look at one finding at a time. For continuous video or audio while walking, use the live guide.",
+          "meta": "One finding at a time here; continuous recording in the live guide.",
+          "ctaHref": "/guide",
+          "ctaLabel": "Open the live guide"
+        }
+      ]
     }
   }
 }

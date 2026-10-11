@@ -86,8 +86,8 @@ export async function registerPublicEntryReadRoutes(app: FastifyInstance): Promi
         tone: "light",
         align: "center",
         actions: [
-          { href: "/record", label: sharedCopy.cta.record },
-          { href: "/records?view=mine", label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
+          { href: appendLangToHref(withBasePath(basePath, "/record"), lang), label: sharedCopy.cta.record },
+          { href: appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang), label: sharedCopy.cta.openNotebook, variant: "secondary" as const },
         ],
       },
       body: `<section class="section">
