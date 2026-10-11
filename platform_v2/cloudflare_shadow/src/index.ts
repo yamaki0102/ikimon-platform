@@ -1078,6 +1078,7 @@ interface LegacyThumbDerivativeRow {
 interface LegacyThumbNativeVisibilityRow {
   visibility: string;
   emergency_hidden: number;
+  withdrawal_status: string | null;
 }
 
 interface LegacyThumbImportVisibilityRow {
@@ -25994,9 +25995,11 @@ async function legacyObservationThumbPreflight(
   env: Env
 ): Promise<LegacyThumbPreflight> {
   const native = await env.OBS_DB.prepare(
-    `SELECT visibility, emergency_hidden
-       FROM observations
-      WHERE observation_id = ?
+    `SELECT o.visibility, o.emergency_hidden,
+            (SELECT rights.withdrawal_status FROM observation_data_rights rights
+              WHERE rights.visit_id = o.observation_id LIMIT 1) AS withdrawal_status
+       FROM observations o
+      WHERE o.observation_id = ?
       LIMIT 1`
   ).bind(legacy.recordId).first<LegacyThumbNativeVisibilityRow>();
   const imported = await env.OBS_DB.prepare(
@@ -26020,7 +26023,8 @@ async function legacyObservationThumbPreflight(
   ).bind(legacy.recordId, legacy.legacyRelativePath).first<LegacyThumbDerivativeRow>();
 
   const canonicalKnown = Boolean(native || imported);
-  if (native && (native.visibility !== "public" || Number(native.emergency_hidden) !== 0)) {
+  if (native && (native.visibility !== "public" || Number(native.emergency_hidden) !== 0
+    || (native.withdrawal_status != null && native.withdrawal_status !== "active"))) {
     return { allowed: false, known: true, derivative: derivative ?? null };
   }
   const importedVisibility = imported?.public_visibility ?? imported?.readmodel_visibility ?? "public";
@@ -28400,12 +28404,13 @@ async function publicDerivedMediaAccess(
   request: Request,
   key: string,
   env: Env
-): Promise<"public" | "owner" | "denied"> {
+): Promise<"public" | "public-current" | "owner" | "denied"> {
   const row = await env.OBS_DB.prepare(
     `SELECT a.owner_user_id AS asset_owner_user_id,
             o.owner_user_id AS observation_owner_user_id,
             o.visibility,
             o.emergency_hidden,
+            rights.withdrawal_status,
             a.mime,
             a.processing_state,
             a.public_derivative_key,
@@ -28415,6 +28420,7 @@ async function publicDerivedMediaAccess(
             a.public_ready_at
        FROM asset_ledger a
        LEFT JOIN observations o ON o.observation_id = a.observation_id
+       LEFT JOIN observation_data_rights rights ON rights.visit_id = o.observation_id
       WHERE a.public_derivative_key = ?
       LIMIT 1`
   ).bind(key).first<{
@@ -28422,6 +28428,7 @@ async function publicDerivedMediaAccess(
     observation_owner_user_id: string | null;
     visibility: string | null;
     emergency_hidden: number | null;
+    withdrawal_status: string | null;
     mime: string;
     processing_state: string;
     public_derivative_key: string | null;
@@ -28433,8 +28440,9 @@ async function publicDerivedMediaAccess(
   // Historical materialized public assets predate the ledger. Their existing
   // public contract remains intact; public eligibility for ledger rows is gated.
   if (!row) return "public";
-  if (row.visibility === "public" && row.emergency_hidden === 0) {
-    return publicDerivedLedgerAssetIsReady(row) ? "public" : "denied";
+  if (row.visibility === "public" && row.emergency_hidden === 0
+    && (row.withdrawal_status === null || row.withdrawal_status === "active")) {
+    return publicDerivedLedgerAssetIsReady(row) ? "public-current" : "denied";
   }
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerUserId = row.observation_owner_user_id ?? row.asset_owner_user_id;
@@ -28529,6 +28537,12 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
     const rows = await env.OBS_DB.prepare(
       `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label
        FROM readmodel_public_observations
+       WHERE NOT EXISTS (
+         SELECT 1 FROM observation_data_rights rights
+          WHERE rights.visit_id = readmodel_public_observations.observation_id
+            AND rights.withdrawal_status IS NOT NULL
+            AND rights.withdrawal_status <> 'active'
+       )
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
@@ -28538,6 +28552,12 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
     const rows = await env.OBS_DB.prepare(
       `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count
        FROM readmodel_public_observations
+       WHERE NOT EXISTS (
+         SELECT 1 FROM observation_data_rights rights
+          WHERE rights.visit_id = readmodel_public_observations.observation_id
+            AND rights.withdrawal_status IS NOT NULL
+            AND rights.withdrawal_status <> 'active'
+       )
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
@@ -28551,6 +28571,12 @@ async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
       `SELECT visit_id, cell_1000, observed_at, display_name, asset_count
          FROM public_map_snapshot_records_v1
         WHERE snapshot_key = 'public-map:v1:global'
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = public_map_snapshot_records_v1.visit_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
         ORDER BY observed_at DESC
         LIMIT 5000`
     ).all<PublicMapSnapshotRow>();
@@ -29113,6 +29139,9 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     : null;
   const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null);
   if (!detail) {
+    if (!ownerStatus && await hasExplicitlyWithdrawnNativeObservation(detailIdToVisitId(rawId), env)) {
+      return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
+    }
     const materialized = await getOriginalUiHtml(request, url, env);
     if (materialized.status !== 404) {
       return materialized;
@@ -29510,6 +29539,16 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
   return publicDetail;
 }
 
+async function hasExplicitlyWithdrawnNativeObservation(observationId: string, env: Env): Promise<boolean> {
+  const row = await env.OBS_DB.prepare(
+    `SELECT withdrawal_status
+       FROM observation_data_rights
+      WHERE visit_id = ?
+      LIMIT 1`
+  ).bind(observationId).first<{ withdrawal_status: string | null }>();
+  return row?.withdrawal_status != null && row.withdrawal_status !== "active";
+}
+
 async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null) {
   const visitId = detailIdToVisitId(rawId);
   const row = ownerUserId
@@ -29551,7 +29590,13 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
            LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
           WHERE r.observation_id = ?
             AND o.visibility = 'public'
-            AND o.emergency_hidden = 0`
+            AND o.emergency_hidden = 0
+            AND NOT EXISTS (
+              SELECT 1 FROM observation_data_rights rights
+               WHERE rights.visit_id = o.observation_id
+                 AND rights.withdrawal_status IS NOT NULL
+                 AND rights.withdrawal_status <> 'active'
+            )`
       ).bind(visitId).first<PublicDetailRow>();
   if (!row) return null;
 
@@ -35388,6 +35433,10 @@ async function refreshPublicReadmodel(observationId: string, env: Env): Promise<
   }
   if (observation.visibility !== "public" || Number(observation.emergency_hidden) !== 0) {
     await clearObservationPublicAreaLabel(observationId, env);
+    await deletePublicReadmodelRow(observationId, env);
+    return;
+  }
+  if (await hasExplicitlyWithdrawnNativeObservation(observationId, env)) {
     await deletePublicReadmodelRow(observationId, env);
     return;
   }
