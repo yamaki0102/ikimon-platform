@@ -73,6 +73,32 @@ test("enabled legacy redirect preserves path/query and excludes protected routes
     );
   }
 
+  for (const path of [
+    "/", "/ja/", "/home", "/ja/home", "/record", "/ja/record?draft=1", "/profile",
+    "/ja/profile/settings", "/my-guides", "/ja/my-guides",
+  ]) {
+    assert.equal(
+      canonicalPublicHostRedirect(
+        new Request(`https://ikimon.life${path}`),
+        new URL(`https://ikimon.life${path}`),
+        env("enabled"),
+      ),
+      null,
+      path,
+    );
+  }
+
+  for (const path of ["/guide?lang=ja", "/ja/guide?from=legacy"]) {
+    const publicGuideRedirect = canonicalPublicHostRedirect(
+      new Request(`https://ikimon.life${path}`),
+      new URL(`https://ikimon.life${path}`),
+      env("enabled"),
+    );
+    assert.ok(publicGuideRedirect, path);
+    assert.equal(publicGuideRedirect.status, 308, path);
+    assert.equal(publicGuideRedirect.headers.get("location"), `https://zukan.earth${path}`, path);
+  }
+
   assert.equal(
     canonicalPublicHostRedirect(
       new Request("https://ikimon.life/ja/records", { method: "POST" }),
