@@ -27998,6 +27998,9 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
   const withMenu = html.replace(/(\s*)<\/div>\s*<\/header>/i, `${menu}$1</div>\n  </header>`);
   if (withMenu === html) return html;
   if (withMenu.includes("cf-header-menu-style")) return withMenu;
+  const desktopNativeMenuFallbackStyle = hasDesktopSideNavToggle
+    ? "@media (min-width: 1161px){.cf-header-menu{display:none!important}.site-header .site-header-actions-desktop{display:flex!important}}"
+    : "";
   return withMenu.replace("</head>", `<style id="cf-header-menu-style">
     .site-header .site-header-actions-desktop,.site-header .site-header-actions-mobile{display:none!important}
     .cf-header-menu{position:relative;margin-left:auto}
@@ -28014,6 +28017,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
     .cf-header-menu-lang{min-width:0;justify-content:flex-start;font-size:12px}
     .cf-header-menu-lang span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cf-header-menu-lang.is-active{background:#eef8f5;color:#0f766e}
+    ${desktopNativeMenuFallbackStyle}
   </style></head>`);
 }
 
