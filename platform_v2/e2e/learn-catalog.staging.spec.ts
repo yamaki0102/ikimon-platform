@@ -315,6 +315,80 @@ test.describe("ordinary links without JavaScript", () => {
   });
 });
 
+for (const fixture of [
+  { name: "draft over an existing query", initialQuery: "TNFD", composing: false },
+  { name: "IME draft over an empty query", initialQuery: "", composing: true },
+]) {
+  test(`[local-fixture] initial pageshow preserves ${fixture.name}`, async ({ page, baseURL }, testInfo) => {
+    test.skip(!baseURL || !["127.0.0.1", "localhost"].includes(new URL(baseURL).hostname), "Delayed-load fixtures only run against a local Worker, never a public page.");
+    let releaseImage!: () => void;
+    let markImageRequested!: () => void;
+    const imageGate = new Promise<void>((resolve) => { releaseImage = resolve; });
+    const imageRequested = new Promise<void>((resolve) => { markImageRequested = resolve; });
+    await page.route("**/__learn-catalog-delayed-image__", async (route) => {
+      markImageRequested();
+      await imageGate;
+      await route.fulfill({ status: 200, contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' });
+    });
+    // Keep the real Worker document and scripts. A benign pending image delays
+    // the natural initial pageshow until a person has already typed a draft.
+    await page.addInitScript(() => {
+      const observed = window as Window & { __learnInitialPageShow: { persisted: boolean; draft: string | undefined }[] };
+      observed.__learnInitialPageShow = [];
+      window.addEventListener("pageshow", (event) => {
+        observed.__learnInitialPageShow.push({ persisted: event.persisted, draft: document.querySelector<HTMLInputElement>("#learn-query")?.value });
+      });
+      document.addEventListener("DOMContentLoaded", () => {
+        const image = document.createElement("img");
+        image.alt = "";
+        image.width = 1;
+        image.height = 1;
+        image.loading = "eager";
+        image.style.cssText = "position:absolute;opacity:0;pointer-events:none";
+        image.src = "/__learn-catalog-delayed-image__";
+        document.body.append(image);
+      }, { once: true });
+    });
+    try {
+      await openCatalogue(page, fixture.initialQuery ? "?q=TNFD" : "");
+      await imageRequested;
+      const input = page.locator(querySelector);
+      await expect(input).toHaveValue(fixture.initialQuery);
+      if (fixture.composing) await input.dispatchEvent("compositionstart", { data: "ＴＮＦＤ" });
+      await input.fill("ＴＮＦＤ");
+      const before = await page.evaluate(() => ({
+        readyState: document.readyState,
+        input: document.querySelector<HTMLInputElement>("#learn-query")?.value,
+        events: (window as Window & { __learnInitialPageShow: unknown[] }).__learnInitialPageShow,
+      }));
+      expect(before).toEqual({ readyState: "interactive", input: "ＴＮＦＤ", events: [] });
+      releaseImage();
+      await page.waitForLoadState("load");
+      await page.waitForFunction(() => (window as Window & { __learnInitialPageShow: unknown[] }).__learnInitialPageShow.length > 0);
+      const after = await page.evaluate(() => ({
+        readyState: document.readyState,
+        input: document.querySelector<HTMLInputElement>("#learn-query")?.value,
+        events: (window as Window & { __learnInitialPageShow: unknown[] }).__learnInitialPageShow,
+      }));
+      const evidence = { scope: "local natural initial pageshow fixture", ...fixture, before, after };
+      await testInfo.attach("initial-pageshow-order", { body: JSON.stringify(evidence), contentType: "application/json" });
+      console.log(JSON.stringify({ evidence: "learn-catalog-initial-pageshow", ...evidence }));
+      expect(after).toEqual({ readyState: "complete", input: "ＴＮＦＤ", events: [{ persisted: false, draft: "ＴＮＦＤ" }] });
+      if (fixture.composing) {
+        await input.press("Enter");
+        expect(new URL(page.url()).search).toBe("");
+        await expect(input).toHaveValue("ＴＮＦＤ");
+        await input.dispatchEvent("compositionend", { data: "ＴＮＦＤ" });
+      }
+      await input.press("Enter");
+      await expectState(page, { q: "ＴＮＦＤ", kind: "all" });
+      expect(new URL(page.url()).searchParams.get("q")).toBe("ＴＮＦＤ");
+    } finally {
+      releaseImage();
+    }
+  });
+}
+
 test("[local-fixture] 1000 synthetic entries measure DOM update and compressed feature HTML", async ({ page, baseURL }, testInfo) => {
   test.skip(!baseURL || !["127.0.0.1", "localhost"].includes(new URL(baseURL).hostname), "Synthetic load evidence is isolated to a local server, never public content.");
   await openCatalogue(page);
