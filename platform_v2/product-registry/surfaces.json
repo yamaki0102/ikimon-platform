@@ -673,6 +673,274 @@
       "content_contract": "content.zukan.place-detail",
       "quality_contract": "quality.zukan.place-detail",
       "implementation_ref": "platform_v2/src/routes/observationEventPages.ts"
+    },
+    {
+      "id": "zukan.biosecurity.guide",
+      "route": "/biosecurity",
+      "route_source": "site-map",
+      "kind": "domain-guide",
+      "area": "biosecurity",
+      "purpose": "地域の見守り方、危険な行動を避ける方法、写真の非公開保存と自治体への選択共有を案内する",
+      "personas": [
+        "visitor",
+        "municipal_staff"
+      ],
+      "auth": "public",
+      "privacy": "public",
+      "implementation_status": "implemented",
+      "known_gaps": [],
+      "capabilities": [
+        "zukan.biosecurity.guide"
+      ],
+      "entry_points": [
+        "external"
+      ],
+      "transitions": [
+        {
+          "action": "写真と場所を残す",
+          "target": "zukan.biosecurity.capture",
+          "status": "implemented"
+        },
+        {
+          "action": "この端末の記録を見る",
+          "target": "zukan.biosecurity.receipt",
+          "status": "implemented"
+        },
+        {
+          "action": "自治体の利用案内を見る",
+          "target": "zukan.biosecurity.mailbox",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "guest",
+        "ready",
+        "unavailable"
+      ],
+      "design_contract": "design.zukan.biosecurity-guide",
+      "content_contract": "content.zukan.biosecurity-guide",
+      "quality_contract": "quality.zukan.biosecurity-guide",
+      "implementation_ref": "platform_v2/cloudflare_shadow/src/biosecurity.ts"
+    },
+    {
+      "id": "zukan.biosecurity.capture",
+      "route": "/biosecurity/:profileId/capture",
+      "route_source": "site-map",
+      "kind": "capture-flow",
+      "area": "biosecurity",
+      "purpose": "写真・日時・任意の場所を、登録不要で共通Recordと非公開mediaへ保存する",
+      "personas": [
+        "visitor"
+      ],
+      "auth": "anonymous-owner-cookie",
+      "privacy": "private-draft",
+      "implementation_status": "implemented",
+      "known_gaps": [],
+      "capabilities": [
+        "zukan.biosecurity.capture-private"
+      ],
+      "entry_points": [
+        "zukan.biosecurity.guide",
+        "zukan.biosecurity.receipt"
+      ],
+      "transitions": [
+        {
+          "action": "保存された記録を確認する",
+          "target": "zukan.biosecurity.receipt",
+          "status": "implemented"
+        },
+        {
+          "action": "案内へ戻る",
+          "target": "zukan.biosecurity.guide",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "guest",
+        "ready",
+        "preview",
+        "submitting",
+        "saved",
+        "validation-error",
+        "storage-unavailable",
+        "capacity-reached",
+        "retrying",
+        "denied"
+      ],
+      "design_contract": "design.zukan.biosecurity-capture",
+      "content_contract": "content.zukan.biosecurity-capture",
+      "quality_contract": "quality.zukan.biosecurity-capture",
+      "implementation_ref": "platform_v2/cloudflare_shadow/src/biosecurity.ts"
+    },
+    {
+      "id": "zukan.biosecurity.receipt",
+      "route": "/biosecurity/records/:recordId",
+      "route_source": "site-map",
+      "kind": "private-record-receipt",
+      "area": "biosecurity",
+      "purpose": "匿名の本人だけが保存結果を見返し、宛先と提供項目を選び、共有撤回・削除を行う",
+      "personas": [
+        "visitor"
+      ],
+      "auth": "anonymous-owner-cookie",
+      "privacy": "owner-only",
+      "implementation_status": "implemented",
+      "known_gaps": [],
+      "capabilities": [
+        "zukan.biosecurity.receipt",
+        "zukan.biosecurity.share-selected"
+      ],
+      "entry_points": [
+        "external",
+        "zukan.biosecurity.guide",
+        "zukan.biosecurity.capture",
+        "zukan.biosecurity.inbox"
+      ],
+      "transitions": [
+        {
+          "action": "新しく記録する",
+          "target": "zukan.biosecurity.capture",
+          "status": "implemented"
+        },
+        {
+          "action": "自治体の利用案内を見る",
+          "target": "zukan.biosecurity.mailbox",
+          "status": "implemented"
+        },
+        {
+          "action": "見守りの案内へ戻る",
+          "target": "zukan.biosecurity.guide",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "owner",
+        "empty",
+        "saved",
+        "sharing",
+        "shared",
+        "acknowledged",
+        "withdrawn",
+        "deleted",
+        "expired",
+        "denied",
+        "not-found",
+        "error",
+        "retrying"
+      ],
+      "design_contract": "design.zukan.biosecurity-receipt",
+      "content_contract": "content.zukan.biosecurity-receipt",
+      "quality_contract": "quality.zukan.biosecurity-receipt",
+      "implementation_ref": "platform_v2/cloudflare_shadow/src/biosecurity.ts"
+    },
+    {
+      "id": "zukan.biosecurity.mailbox",
+      "route": "/biosecurity/municipalities",
+      "route_source": "site-map",
+      "kind": "official-mailbox-proof",
+      "area": "biosecurity",
+      "purpose": "自治体と公式メールを選び、公式出典とメール所有確認を用いて担当者受信箱を自動開設する",
+      "personas": [
+        "municipal_staff"
+      ],
+      "auth": "public-to-official-email-proof",
+      "privacy": "private-proof",
+      "implementation_status": "implemented",
+      "known_gaps": [],
+      "capabilities": [
+        "zukan.biosecurity.verify-mailbox"
+      ],
+      "entry_points": [
+        "external",
+        "zukan.biosecurity.guide",
+        "zukan.biosecurity.receipt",
+        "zukan.biosecurity.inbox"
+      ],
+      "transitions": [
+        {
+          "action": "公式メールの所有確認を完了する",
+          "target": "zukan.biosecurity.inbox",
+          "status": "implemented"
+        },
+        {
+          "action": "見守りの案内へ戻る",
+          "target": "zukan.biosecurity.guide",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "ready",
+        "source-checking",
+        "code-requested",
+        "delivery-unconfirmed",
+        "verifying",
+        "verified",
+        "invalid-code",
+        "expired",
+        "domain-unverified",
+        "capacity-reached",
+        "unavailable",
+        "denied"
+      ],
+      "design_contract": "design.zukan.biosecurity-mailbox",
+      "content_contract": "content.zukan.biosecurity-mailbox",
+      "quality_contract": "quality.zukan.biosecurity-mailbox",
+      "implementation_ref": "platform_v2/cloudflare_shadow/src/biosecurity.ts"
+    },
+    {
+      "id": "zukan.biosecurity.inbox",
+      "route": "/biosecurity/inbox",
+      "route_source": "site-map",
+      "kind": "consented-recipient-inbox",
+      "area": "biosecurity",
+      "purpose": "公式メールを確認した担当者が、その自治体への提供同意のある項目だけを読み、確認を記録する",
+      "personas": [
+        "municipal_staff"
+      ],
+      "auth": "municipal-inbox-session",
+      "privacy": "recipient-scoped-private",
+      "implementation_status": "implemented",
+      "known_gaps": [],
+      "capabilities": [
+        "zukan.biosecurity.receive-selected",
+        "zukan.biosecurity.acknowledge-receipt"
+      ],
+      "entry_points": [
+        "external",
+        "zukan.biosecurity.mailbox"
+      ],
+      "transitions": [
+        {
+          "action": "公式メールで再認証する",
+          "target": "zukan.biosecurity.mailbox",
+          "status": "implemented"
+        },
+        {
+          "action": "この端末の記録へ戻る",
+          "target": "zukan.biosecurity.receipt",
+          "status": "implemented"
+        },
+        {
+          "action": "見守りの案内へ戻る",
+          "target": "zukan.biosecurity.guide",
+          "status": "implemented"
+        }
+      ],
+      "states": [
+        "authenticated",
+        "empty",
+        "populated",
+        "loading",
+        "acknowledged",
+        "withdrawn",
+        "expired",
+        "denied",
+        "error"
+      ],
+      "design_contract": "design.zukan.biosecurity-inbox",
+      "content_contract": "content.zukan.biosecurity-inbox",
+      "quality_contract": "quality.zukan.biosecurity-inbox",
+      "implementation_ref": "platform_v2/cloudflare_shadow/src/biosecurity.ts"
     }
   ]
 }

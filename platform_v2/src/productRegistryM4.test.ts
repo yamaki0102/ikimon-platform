@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { SITE_PAGE_DEFINITIONS } from "./siteMap.js";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadProductRegistry, validateProductRegistry } from "./productRegistry.js";
@@ -57,6 +58,6 @@ test("M4 negative Evals are registered against real fail-closed fixtures", () =>
 
 test("M4 preserves the shared Resolver authority and registry trace", () => {
   assert.equal(registry.product.status_authority.locator, "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus");
-  assert.deepEqual(validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/observations/:id", "/map", "/home", "/community/events", "/community/events/new", "/community/fields/:fieldId", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) }), []);
+  assert.deepEqual(validateProductRegistry(registry, { "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)) }), []);
   assert.deepEqual(validateProductRegistryNavigation(loadProductRegistryNavigation(), new Set(registry.requirements.map((item) => item.id))), []);
 });

@@ -168,6 +168,26 @@
       "id": "asset.place-detail",
       "locator": "platform_v2/src/routes/observationEventPages.ts",
       "use": "existing Area Encyclopedia / Place detail runtime locator; Core Loop accumulation stage"
+    },
+    {
+      "id": "asset.biosecurity-native",
+      "locator": "platform_v2/cloudflare_shadow/src/biosecurity.ts",
+      "use": "shared native guest capture, scoped municipal mailbox and field-specific consent implementation"
+    },
+    {
+      "id": "asset.biosecurity-profiles",
+      "locator": "platform_v2/src/services/biosecurityProfiles.ts",
+      "use": "versioned biodiversity response profile settings on the shared runtime"
+    },
+    {
+      "id": "asset.municipality-directory",
+      "locator": "platform_v2/src/services/municipalityDirectory.ts",
+      "use": "versioned official Japanese local-government directory and exact email eligibility"
+    },
+    {
+      "id": "asset.municipal-domain-evidence",
+      "locator": "platform_v2/cloudflare_shadow/src/municipalDomainEvidence.ts",
+      "use": "bounded same-official-site published mailbox evidence; no applicant URLs"
     }
   ],
   "required_surface_ids": [
@@ -182,7 +202,12 @@
     "zukan.program.activation",
     "zukan.program.console",
     "zukan.program.participation",
-    "zukan.program.recap"
+    "zukan.program.recap",
+    "zukan.biosecurity.guide",
+    "zukan.biosecurity.capture",
+    "zukan.biosecurity.receipt",
+    "zukan.biosecurity.mailbox",
+    "zukan.biosecurity.inbox"
   ],
   "rules": {
     "all_surfaces_require_design_contract": true,

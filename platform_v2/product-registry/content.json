@@ -295,6 +295,121 @@
       "analytics": {
         "primary_event": "record_detail_viewed"
       }
+    },
+    {
+      "id": "content.zukan.biosecurity-guide",
+      "surface": "zukan.biosecurity.guide",
+      "audience": "気になるものを見つけた市民と自治体担当者",
+      "user_intent": "地域の見守り方、危険な行動を避ける方法、写真の非公開保存と自治体への選択共有を案内する",
+      "primary_message": "写真と場所から、地域を見守る",
+      "primary_cta": "写真と場所を残す",
+      "prohibited_claims": [
+        "メールの所有確認を自治体の代表権限・公認と表示する",
+        "写真保存を自治体への正式な通報や受理と表示する",
+        "AIまたは未確認の写真から種が確定したと表示する",
+        "未同意の写真・本文・位置を提供済みまたは公開済みと表示する",
+        "根拠や実利用検証なしに全自治体の全メールで利用可能と表示する"
+      ],
+      "seo": {
+        "index": true,
+        "canonical_path": "/biosecurity"
+      },
+      "analytics": {
+        "primary_event": "biosecurity_guide_viewed",
+        "privacy": "画像、本文、正確な位置、メール、credentialを分析イベントに含めない"
+      }
+    },
+    {
+      "id": "content.zukan.biosecurity-capture",
+      "surface": "zukan.biosecurity.capture",
+      "audience": "写真から記録を残したい市民",
+      "user_intent": "写真・日時・任意の場所を、登録不要で共通Recordと非公開mediaへ保存する",
+      "primary_message": "ログイン不要・無料。まず非公開で保存します。",
+      "primary_cta": "非公開で保存する",
+      "prohibited_claims": [
+        "メールの所有確認を自治体の代表権限・公認と表示する",
+        "写真保存を自治体への正式な通報や受理と表示する",
+        "AIまたは未確認の写真から種が確定したと表示する",
+        "未同意の写真・本文・位置を提供済みまたは公開済みと表示する",
+        "根拠や実利用検証なしに全自治体の全メールで利用可能と表示する"
+      ],
+      "seo": {
+        "index": false,
+        "canonical_path": "/biosecurity/:profileId/capture"
+      },
+      "analytics": {
+        "primary_event": "biosecurity_capture_viewed",
+        "privacy": "画像、本文、正確な位置、メール、credentialを分析イベントに含めない"
+      }
+    },
+    {
+      "id": "content.zukan.biosecurity-receipt",
+      "surface": "zukan.biosecurity.receipt",
+      "audience": "記録を保存した本人",
+      "user_intent": "匿名の本人だけが保存結果を見返し、宛先と提供項目を選び、共有撤回・削除を行う",
+      "primary_message": "保存した記録を、この端末で確認できます。",
+      "primary_cta": "選んだ情報を自治体と共有する",
+      "prohibited_claims": [
+        "メールの所有確認を自治体の代表権限・公認と表示する",
+        "写真保存を自治体への正式な通報や受理と表示する",
+        "AIまたは未確認の写真から種が確定したと表示する",
+        "未同意の写真・本文・位置を提供済みまたは公開済みと表示する",
+        "根拠や実利用検証なしに全自治体の全メールで利用可能と表示する"
+      ],
+      "seo": {
+        "index": false,
+        "canonical_path": "/biosecurity/records/:recordId"
+      },
+      "analytics": {
+        "primary_event": "biosecurity_receipt_viewed",
+        "privacy": "画像、本文、正確な位置、メール、credentialを分析イベントに含めない"
+      }
+    },
+    {
+      "id": "content.zukan.biosecurity-mailbox",
+      "surface": "zukan.biosecurity.mailbox",
+      "audience": "自治体の公式メールを利用する担当者",
+      "user_intent": "自治体と公式メールを選び、公式出典とメール所有確認を用いて担当者受信箱を自動開設する",
+      "primary_message": "公式メールを確認して、無料の受信箱を開きます。",
+      "primary_cta": "確認コードを送る",
+      "prohibited_claims": [
+        "メールの所有確認を自治体の代表権限・公認と表示する",
+        "写真保存を自治体への正式な通報や受理と表示する",
+        "AIまたは未確認の写真から種が確定したと表示する",
+        "未同意の写真・本文・位置を提供済みまたは公開済みと表示する",
+        "根拠や実利用検証なしに全自治体の全メールで利用可能と表示する"
+      ],
+      "seo": {
+        "index": false,
+        "canonical_path": "/biosecurity/municipalities"
+      },
+      "analytics": {
+        "primary_event": "biosecurity_mailbox_viewed",
+        "privacy": "画像、本文、正確な位置、メール、credentialを分析イベントに含めない"
+      }
+    },
+    {
+      "id": "content.zukan.biosecurity-inbox",
+      "surface": "zukan.biosecurity.inbox",
+      "audience": "有効な公式メール所有確認を持つ自治体担当者",
+      "user_intent": "公式メールを確認した担当者が、その自治体への提供同意のある項目だけを読み、確認を記録する",
+      "primary_message": "この自治体へ共有された記録",
+      "primary_cta": "確認したことを記録する",
+      "prohibited_claims": [
+        "メールの所有確認を自治体の代表権限・公認と表示する",
+        "写真保存を自治体への正式な通報や受理と表示する",
+        "AIまたは未確認の写真から種が確定したと表示する",
+        "未同意の写真・本文・位置を提供済みまたは公開済みと表示する",
+        "根拠や実利用検証なしに全自治体の全メールで利用可能と表示する"
+      ],
+      "seo": {
+        "index": false,
+        "canonical_path": "/biosecurity/inbox"
+      },
+      "analytics": {
+        "primary_event": "biosecurity_inbox_viewed",
+        "privacy": "画像、本文、正確な位置、メール、credentialを分析イベントに含めない"
+      }
     }
   ]
 }

@@ -436,6 +436,158 @@
         "denied",
         "not-found"
       ]
+    },
+    {
+      "id": "design.zukan.biosecurity-guide",
+      "surface": "zukan.biosecurity.guide",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.campaign-landing",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "contextual-zukan",
+      "responsive": {
+        "mobile": "single-column-context-and-primary-action",
+        "tablet": "centered-content-with-optional-photo-preview",
+        "desktop": "centered-content-with-optional-photo-preview"
+      },
+      "state_presentations": [
+        "guest",
+        "ready",
+        "unavailable"
+      ],
+      "rules": [
+        "共通のZUKAN token・brand・44px以上の操作対象と明瞭なfocusを用いる",
+        "非公開保存・共有・担当者の確認を別の状態として、文字でも説明する",
+        "新しい最上位navigationを増やさず、案内・本人の記録・自治体用画面を往復できる"
+      ]
+    },
+    {
+      "id": "design.zukan.biosecurity-capture",
+      "surface": "zukan.biosecurity.capture",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.capture-flow",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "contextual-zukan",
+      "responsive": {
+        "mobile": "single-column-context-and-primary-action",
+        "tablet": "centered-content-with-optional-photo-preview",
+        "desktop": "centered-content-with-optional-photo-preview"
+      },
+      "state_presentations": [
+        "guest",
+        "ready",
+        "preview",
+        "submitting",
+        "saved",
+        "validation-error",
+        "storage-unavailable",
+        "capacity-reached",
+        "retrying",
+        "denied"
+      ],
+      "rules": [
+        "共通のZUKAN token・brand・44px以上の操作対象と明瞭なfocusを用いる",
+        "非公開保存・共有・担当者の確認を別の状態として、文字でも説明する",
+        "新しい最上位navigationを増やさず、案内・本人の記録・自治体用画面を往復できる"
+      ]
+    },
+    {
+      "id": "design.zukan.biosecurity-receipt",
+      "surface": "zukan.biosecurity.receipt",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.personal-library",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "contextual-zukan",
+      "responsive": {
+        "mobile": "single-column-context-and-primary-action",
+        "tablet": "centered-content-with-optional-photo-preview",
+        "desktop": "centered-content-with-optional-photo-preview"
+      },
+      "state_presentations": [
+        "owner",
+        "empty",
+        "saved",
+        "sharing",
+        "shared",
+        "acknowledged",
+        "withdrawn",
+        "deleted",
+        "expired",
+        "denied",
+        "not-found",
+        "error",
+        "retrying"
+      ],
+      "rules": [
+        "共通のZUKAN token・brand・44px以上の操作対象と明瞭なfocusを用いる",
+        "非公開保存・共有・担当者の確認を別の状態として、文字でも説明する",
+        "新しい最上位navigationを増やさず、案内・本人の記録・自治体用画面を往復できる"
+      ]
+    },
+    {
+      "id": "design.zukan.biosecurity-mailbox",
+      "surface": "zukan.biosecurity.mailbox",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.program-flow",
+      "layout": "narrow",
+      "density": "comfortable",
+      "navigation": "contextual-zukan",
+      "responsive": {
+        "mobile": "single-column-context-and-primary-action",
+        "tablet": "centered-content-with-optional-photo-preview",
+        "desktop": "centered-content-with-optional-photo-preview"
+      },
+      "state_presentations": [
+        "ready",
+        "source-checking",
+        "code-requested",
+        "delivery-unconfirmed",
+        "verifying",
+        "verified",
+        "invalid-code",
+        "expired",
+        "domain-unverified",
+        "capacity-reached",
+        "unavailable",
+        "denied"
+      ],
+      "rules": [
+        "共通のZUKAN token・brand・44px以上の操作対象と明瞭なfocusを用いる",
+        "非公開保存・共有・担当者の確認を別の状態として、文字でも説明する",
+        "新しい最上位navigationを増やさず、案内・本人の記録・自治体用画面を往復できる"
+      ]
+    },
+    {
+      "id": "design.zukan.biosecurity-inbox",
+      "surface": "zukan.biosecurity.inbox",
+      "brand": "brand.zukan-v1",
+      "archetype": "archetype.personal-library",
+      "layout": "wide",
+      "density": "comfortable",
+      "navigation": "contextual-zukan",
+      "responsive": {
+        "mobile": "single-column-context-and-primary-action",
+        "tablet": "centered-content-with-optional-photo-preview",
+        "desktop": "centered-content-with-optional-photo-preview"
+      },
+      "state_presentations": [
+        "authenticated",
+        "empty",
+        "populated",
+        "loading",
+        "acknowledged",
+        "withdrawn",
+        "expired",
+        "denied",
+        "error"
+      ],
+      "rules": [
+        "共通のZUKAN token・brand・44px以上の操作対象と明瞭なfocusを用いる",
+        "非公開保存・共有・担当者の確認を別の状態として、文字でも説明する",
+        "新しい最上位navigationを増やさず、案内・本人の記録・自治体用画面を往復できる"
+      ]
     }
   ],
   "exceptions": []
