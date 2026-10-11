@@ -132,6 +132,9 @@ test("the actual public Worker serves the complete Learn materialization project
       if (path === "/ja/learn") {
         assert.deepEqual(catalogueData(body), catalogue);
         assert.equal([...body.matchAll(/data-learn-entry=/gu)].length, catalogue.length);
+        assert.match(body, /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/u, "the shared desktop navigation remains available");
+        assert.match(body, /class="site-mobile-menu"/u, "the shared mobile menu remains available");
+        assert.doesNotMatch(body, /data-cloudflare-header-menu/u, "the Worker does not add a duplicate header menu to the shared shell");
         for (const entry of catalogue) assert.ok(body.includes(`href="/ja${entry.path}"`), entry.path);
       } else if (!isJapanese) {
         assert.doesNotMatch(body, /data-learn-catalog(?:[=>\s])/u);
