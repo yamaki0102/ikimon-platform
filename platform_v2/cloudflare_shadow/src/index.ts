@@ -13748,6 +13748,46 @@ type PublicAreaWatchAssetRow = {
   public_ready_at: string | null;
 };
 
+function publicDerivedLedgerAssetIsReady(asset: Pick<PublicAreaWatchAssetRow,
+  "mime" | "processing_state" | "public_derivative_key" | "public_derivative_verified_at"
+  | "public_derivative_metadata_json" | "exif_scrub_state" | "public_ready_at"
+>): boolean {
+  if (
+    asset.processing_state !== "uploaded"
+    || !normalizeOptionalText(asset.public_derivative_key)
+    || !normalizeOptionalText(asset.public_derivative_verified_at)
+    || asset.exif_scrub_state !== "scrubbed"
+    || !normalizeOptionalText(asset.public_ready_at)
+    || !asset.public_derivative_metadata_json
+  ) return false;
+  try {
+    const parsed: unknown = JSON.parse(asset.public_derivative_metadata_json);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+    const metadata = parsed as Record<string, unknown>;
+    if (typeof metadata.contentType !== "string" || typeof metadata.scannedContainer !== "string") return false;
+    if (metadata.gpsExifPresent !== false) return false;
+    for (const field of ["exifPresent", "gpsPresent", "xmpPresent", "exactCoordinateLiteralPresent"] as const) {
+      if (Object.hasOwn(metadata, field) && metadata[field] !== false) return false;
+    }
+    const contentType = metadata.contentType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+    const scannedContainer = metadata.scannedContainer.trim().toLowerCase();
+    if (asset.mime.startsWith("image/")) {
+      // `binary` is the stored legacy result from the same byte inspector for
+      // historical WebP derivatives; current producer rows say `webp`.
+      return contentType === "image/webp" && (scannedContainer === "webp" || scannedContainer === "binary");
+    }
+    if (asset.mime.startsWith("video/")) {
+      return contentType === "video/mp4" && scannedContainer === "mp4";
+    }
+    if (asset.mime.startsWith("audio/")) {
+      return contentType.startsWith("audio/") && scannedContainer === "audio";
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function publicAreaWatchAssetIsReady(asset: PublicAreaWatchAssetRow): boolean {
   if (
     !asset.public_derivative_key
@@ -28257,7 +28297,14 @@ async function publicDerivedMediaAccess(
     `SELECT a.owner_user_id AS asset_owner_user_id,
             o.owner_user_id AS observation_owner_user_id,
             o.visibility,
-            o.emergency_hidden
+            o.emergency_hidden,
+            a.mime,
+            a.processing_state,
+            a.public_derivative_key,
+            a.public_derivative_verified_at,
+            a.public_derivative_metadata_json,
+            a.exif_scrub_state,
+            a.public_ready_at
        FROM asset_ledger a
        LEFT JOIN observations o ON o.observation_id = a.observation_id
       WHERE a.public_derivative_key = ?
@@ -28267,11 +28314,20 @@ async function publicDerivedMediaAccess(
     observation_owner_user_id: string | null;
     visibility: string | null;
     emergency_hidden: number | null;
+    mime: string;
+    processing_state: string;
+    public_derivative_key: string | null;
+    public_derivative_verified_at: string | null;
+    public_derivative_metadata_json: string | null;
+    exif_scrub_state: string | null;
+    public_ready_at: string | null;
   }>();
   // Historical materialized public assets predate the ledger. Their existing
-  // public contract remains intact; every current ledger-backed asset is gated.
+  // public contract remains intact; public eligibility for ledger rows is gated.
   if (!row) return "public";
-  if (row.visibility === "public" && row.emergency_hidden === 0) return "public";
+  if (row.visibility === "public" && row.emergency_hidden === 0) {
+    return publicDerivedLedgerAssetIsReady(row) ? "public" : "denied";
+  }
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerUserId = row.observation_owner_user_id ?? row.asset_owner_user_id;
   return session && !session.banned && ownerUserId === session.userId ? "owner" : "denied";
