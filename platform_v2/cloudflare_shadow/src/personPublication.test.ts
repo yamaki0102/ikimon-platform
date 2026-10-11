@@ -61,3 +61,38 @@ test("public rendering escapes text, drops unsafe links, and does not spread pri
   assert.match(html, /&lt;img/u);
   assert.match(html, /href="https:\/\/ikimon.co.jp\/"/u);
 });
+
+test("alias can be public without exposing legal name or romanized name", async () => {
+  const alias = { ...person, identityMode: "alias", name: "浜松の自然案内人", latinName: "SECRET_LEGAL_NAME",
+    slug: "nature-guide", discoverability: "unlisted" } as const;
+  const response = personPublicationResponse(req(personPublicationPath(alias)), production, [alias])!;
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+  const html = await response.text();
+  assert.match(html, /浜松の自然案内人/u);
+  assert.doesNotMatch(html, /SECRET_LEGAL_NAME/u);
+  assert.doesNotMatch(html, /name="robots" content="index,follow"/u);
+  assert.equal(personPublicationPath(alias), "/ja/people/nature-guide-" + alias.publicId);
+});
+
+test("anonymous has stable ID-only public locator; never reveals hidden names or outgoing identity links", async () => {
+  const anonymous = { ...person, identityMode: "anonymous", name: "SECRET_PRIVATE_LEGAL_NAME",
+    latinName: "SECRET_ROMAN_NAME", slug: "real-name-leak", discoverability: "unlisted" } as const;
+  const path = personPublicationPath(anonymous);
+  assert.equal(path, "/ja/people/person-" + anonymous.publicId);
+  const published = personPublicationResponse(req(path), production, [anonymous])!;
+  const html = await published.text();
+  assert.match(html, /<h1>匿名<\/h1>/u);
+  for (const leak of ["SECRET_PRIVATE_LEGAL_NAME", "SECRET_ROMAN_NAME", "real-name-leak", "ikimon.co.jp/company/"])
+    assert.equal(html.includes(leak), false, leak);
+  assert.equal(published.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(personPublicationResponse(req("/ja/people/real-name-leak-" + anonymous.publicId), production, [anonymous])!.status, 404);
+  assert.equal(personPublicationResponse(req(path, "HEAD"), production, [anonymous])!.status, 200);
+});
+
+test("new editions without explicit search consent default to noindex", async () => {
+  const draft = { ...person, discoverability: undefined };
+  const response = personPublicationResponse(req(), production, [draft])!;
+  assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(response.status, 200);
+});
