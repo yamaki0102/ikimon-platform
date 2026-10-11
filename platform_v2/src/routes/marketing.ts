@@ -648,6 +648,7 @@ function legacyLearningTarget(url: string): string {
 const LOWER_PAGE_STYLES = `
   .lower-page { display: grid; gap: 24px; }
   .lower-page.is-article { max-width: 1180px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 28px) 54px; }
+  .shell.shell-layout-reading:has(.doc-reading-layout) { --ikimon-shell-target-max: 1180px; }
   .doc-reading-layout { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: clamp(22px, 4vw, 42px); align-items: start; }
   .doc-article { width: 100%; max-width: 760px; margin: 0 auto; }
   .doc-page-header { margin: 0 0 30px; padding: 22px 0 18px; border-bottom: 1px solid rgba(15,23,42,.12); }
