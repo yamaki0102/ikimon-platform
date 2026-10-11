@@ -18121,6 +18121,40 @@ function getNativePlaceLandingPage(slug: string, request: Request, env: Env): Re
     return getNativeNotFoundPage(request, env);
   }
 
+  const pathLang = publicLangFromPath(new URL(request.url).pathname);
+  const lang = pathLang ?? "ja";
+  const localizedPrefix = pathLang ? `/${lang}` : "";
+  const copy = {
+    ja: {
+      title: "浜松のガイド地点",
+      summary: "文化財や地域の見どころを、出典つきで歩きやすく並べています。現地で写真やメモを残す入口として使えます。",
+      map: "地図で見る",
+      walks: "散策マップ",
+      navigation: "浜松の操作",
+    },
+    en: {
+      title: "Places to explore in Hamamatsu",
+      summary: "Explore cultural sites and local places with sources. Use this page to plan a walk and find places where you can add a photo or note.",
+      map: "Explore on the map",
+      walks: "Walking maps",
+      navigation: "Hamamatsu navigation",
+    },
+    es: {
+      title: "Lugares para explorar en Hamamatsu",
+      summary: "Explora lugares culturales y de la comunidad con sus fuentes. Usa esta página para planear un paseo y encontrar dónde añadir una foto o una nota.",
+      map: "Ver en el mapa",
+      walks: "Rutas a pie",
+      navigation: "Navegación de Hamamatsu",
+    },
+    "pt-br": {
+      title: "Lugares para conhecer em Hamamatsu",
+      summary: "Explore locais culturais e da comunidade com suas fontes. Use esta página para planejar um passeio e encontrar lugares onde adicionar uma foto ou anotação.",
+      map: "Ver no mapa",
+      walks: "Roteiros a pé",
+      navigation: "Navegação de Hamamatsu",
+    },
+  }[lang];
+
   const spots = SHADOW_MAP_GUIDE_SPOTS
     .filter((spot) => spot.id.startsWith("hamamatsu-"))
     .slice(0, 8);
@@ -18137,11 +18171,11 @@ function getNativePlaceLandingPage(slug: string, request: Request, env: Env): Re
     </article>`;
   }).join("");
   const body = `<!doctype html>
-<html lang="ja">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>浜松のガイド地点 - ikimon</title>
+<title>${escapeHtml(copy.title)} - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
 .place{max-width:1040px;margin:0 auto;padding:24px 16px 72px}
@@ -18149,7 +18183,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 .place-head h1{margin:0;font-size:30px;line-height:1.18;letter-spacing:0;color:#0f172a}
 .place-head p{margin:0;max-width:720px;color:#475569;line-height:1.75}
 .place-actions{display:flex;flex-wrap:wrap;gap:8px}
-.place-actions a{display:inline-flex;align-items:center;min-height:38px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
+.place-actions a{display:inline-flex;align-items:center;min-height:44px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
 .place-actions a:first-child{background:#0f766e;color:#fff;border-color:#0f766e}
 .place-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .place-card{display:grid;gap:8px;padding:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff}
@@ -18164,14 +18198,14 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 <body>
 <main class="place">
   <header class="place-head">
-    <h1>浜松のガイド地点</h1>
-    <p>文化財や地域の見どころを、出典つきで歩きやすく並べています。現地で写真やメモを残す入口として使えます。</p>
-    <nav class="place-actions" aria-label="浜松の操作">
-      <a href="/map?place=hamamatsu">地図で見る</a>
-      <a href="/walk-maps">散策マップ</a>
+    <h1>${escapeHtml(copy.title)}</h1>
+    <p>${escapeHtml(copy.summary)}</p>
+    <nav class="place-actions" aria-label="${escapeHtml(copy.navigation)}">
+      <a href="${localizedPrefix}/map?place=hamamatsu">${escapeHtml(copy.map)}</a>
+      <a href="${localizedPrefix}/walk-maps">${escapeHtml(copy.walks)}</a>
     </nav>
   </header>
-  <section class="place-grid">${spotItems}</section>
+  <section class="place-grid" lang="ja">${spotItems}</section>
 </main>
 </body>
 </html>`;
