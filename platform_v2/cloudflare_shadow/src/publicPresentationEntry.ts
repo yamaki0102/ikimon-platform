@@ -7,7 +7,7 @@ import {
   type OAuthBoundaryEnv,
 } from "./oauthStartBoundary";
 import { personPublicationResponse } from "./personPublication";
-import { readPersonEdition, type PersonD1 } from "./personPublicationExchange";
+import { readPersonEdition, type PersonD1, type PersonEditionBlobStore } from "./personPublicationExchange";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { ensurePublicDesignFoundation } from "./publicDesignFoundation";
@@ -35,9 +35,13 @@ export default {
     if (publicPath.startsWith("/ja/people/")) {
       const foundId = /-([a-f0-9]{32})\/?$/u.exec(publicPath)?.[1];
       const database = (env as { CORE_DB?: PersonD1 }).CORE_DB;
-      if (foundId && database) {
+      const assetStore = (env as { ASSET_BUCKET?: PersonEditionBlobStore }).ASSET_BUCKET;
+      if (foundId && database && !assetStore) {
+        return new Response("Unavailable", { status: 503, headers: { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } });
+      }
+      if (foundId && database && assetStore) {
         try {
-          const stored = await readPersonEdition(database, foundId);
+          const stored = await readPersonEdition(database, assetStore, foundId);
           if (stored.found) {
             // A withdrawal overrides any source-managed earlier edition.
             const resolved = personPublicationResponse(request, env as { ENVIRONMENT?: string; IKIMON_GIT_SHA?: string },
