@@ -5372,11 +5372,13 @@ class FakeStatement {
       const asset = [...this.db.assets.values()].find((candidate) => candidate.public_derivative_key === string(v[0]));
       if (!asset) return null;
       const observation = asset.observation_id ? this.db.observations.get(asset.observation_id) : null;
+      const rights = observation?.observation_id ? this.db.observationDataRights.get(observation.observation_id) : null;
       return ({
         asset_owner_user_id: asset.owner_user_id,
         observation_owner_user_id: observation?.owner_user_id ?? null,
         visibility: observation?.visibility ?? null,
         emergency_hidden: observation?.emergency_hidden ?? null,
+        withdrawal_status: rights?.withdrawal_status ?? null,
         mime: asset.mime,
         processing_state: asset.processing_state,
         public_derivative_key: asset.public_derivative_key,
@@ -5387,12 +5389,18 @@ class FakeStatement {
       } as T);
     }
 
-    if (normalized.startsWith("SELECT visibility, emergency_hidden FROM observations")) {
+    if (normalized.startsWith("SELECT o.visibility, o.emergency_hidden,")) {
       const observation = this.db.observations.get(string(v[0]));
       return observation ? ({
         visibility: observation.visibility,
-        emergency_hidden: observation.emergency_hidden
+        emergency_hidden: observation.emergency_hidden,
+        withdrawal_status: this.db.observationDataRights.get(observation.observation_id)?.withdrawal_status ?? null
       } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT withdrawal_status FROM observation_data_rights WHERE visit_id = ?")) {
+      const row = this.db.observationDataRights.get(string(v[0]));
+      return row ? ({ withdrawal_status: row.withdrawal_status } as T) : null;
     }
 
     if (normalized.startsWith("SELECT v.public_visibility, p.visibility AS readmodel_visibility FROM production_import_visits")) {
@@ -5813,7 +5821,9 @@ class FakeStatement {
       const read = this.db.readmodel.get(string(v[0]));
       const observation = this.db.observations.get(string(v[0]));
       const aiTarget = this.db.observationAiReviewTargets.get(`occ:${string(v[0])}:0`);
-      return read && observation && observation.visibility === "public" && observation.emergency_hidden === 0 ? ({
+      const rights = this.db.observationDataRights.get(string(v[0]));
+      return read && observation && observation.visibility === "public" && observation.emergency_hidden === 0
+        && (rights?.withdrawal_status == null || rights.withdrawal_status === "active") ? ({
         ...read,
         owner_user_id: observation.owner_user_id,
         note: observation.note,
@@ -7575,11 +7585,19 @@ class FakeStatement {
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label FROM readmodel_public_observations")
       || normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
+        .filter((row) => {
+          const withdrawal = this.db.observationDataRights.get(row.observation_id)?.withdrawal_status;
+          return withdrawal == null || withdrawal === "active";
+        })
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT visit_id, cell_1000, observed_at, display_name, asset_count FROM public_map_snapshot_records_v1")) {
       const rows = [...this.db.publicMapSnapshotRecords]
+        .filter((row) => {
+          const withdrawal = this.db.observationDataRights.get(row.visit_id)?.withdrawal_status;
+          return withdrawal == null || withdrawal === "active";
+        })
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
         .slice(0, 5000);
       return { results: rows as T[] };
@@ -9691,6 +9709,25 @@ test("public map routes prefer D1 snapshot records when present", async () => {
     display_name: "D1 snapshot plant",
     asset_count: 2
   });
+  obs.observationDataRights.set("snapshot-withdrawn", {
+    visit_id: "snapshot-withdrawn",
+    occurrence_id: "occ:snapshot-withdrawn:0",
+    record_consent: "public_summary",
+    research_use_consent: "none",
+    enterprise_report_consent: "none",
+    dataset_license: null,
+    media_license: null,
+    external_export_allowed: 0,
+    withdrawal_status: "withdrawn",
+    source_payload_json: "{}"
+  });
+  obs.publicMapSnapshotRecords.push({
+    visit_id: "snapshot-withdrawn",
+    cell_1000: "35.01,138.39",
+    observed_at: "2026-06-26T00:00:00.000Z",
+    display_name: "stale withdrawn snapshot",
+    asset_count: 1
+  });
 
   const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells"), env);
   const cellsPayload = await cellsResponse.json() as any;
@@ -9705,6 +9742,7 @@ test("public map routes prefer D1 snapshot records when present", async () => {
   assert.equal(observationsPayload.items.length, 1);
   assert.equal(observationsPayload.items[0].visitId, "snapshot-visit");
   assert.equal(observationsPayload.items[0].displayName, "D1 snapshot plant");
+  assert.doesNotMatch(JSON.stringify(observationsPayload), /snapshot-withdrawn|stale withdrawn snapshot/);
 
   const statusResponse = await worker.fetch(new Request("https://shadow.test/ops/public-map-snapshot"), env);
   const statusPayload = await statusResponse.json() as any;
@@ -10415,6 +10453,61 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(privateGuestResponse.status, 404);
   const privatePublicApiResponse = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-private-detail-contract/public-detail"), env);
   assert.equal(privatePublicApiResponse.status, 404);
+
+  const recordRights = obs.observationDataRights.get("visit-detail-contract");
+  assert.ok(recordRights, "the native fixture must have a current rights row");
+  assert.equal(recordRights.withdrawal_status, "active");
+  const recordCellId = `cell:${obs.readmodel.get("visit-detail-contract")!.public_cell}`;
+  const activeMapResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/map/observations?cell_id=${encodeURIComponent(recordCellId)}`
+  ), env);
+  const activeMapPayload = await activeMapResponse.json() as any;
+  assert.equal(activeMapPayload.items.some((item: any) => item.visitId === "visit-detail-contract"), true);
+  const publicDerivativeKey = "derived/import/20260615/observation_photo/asset-detail-contract-real-derivative/display.webp";
+  obs.productionEvidenceAssets.push({
+    asset_id: "asset-detail-contract-real-derivative",
+    visit_id: "visit-detail-contract",
+    asset_role: "observation_photo",
+    legacy_relative_path: "uploads/v2-observations/visit-detail-contract/detail.jpg"
+  });
+
+  // Change only the canonical withdrawal field. Visibility, safety metadata,
+  // certified media and pre-existing public readmodel/snapshot rows stay intact.
+  recordRights.withdrawal_status = "withdrawn";
+  const withdrawnDetailResponse = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"
+  ), env);
+  assert.equal(withdrawnDetailResponse.status, 404);
+  const withdrawnPageResponse = await worker.fetch(new Request(
+    "https://shadow.test/observations/visit-detail-contract"
+  ), env);
+  assert.equal(withdrawnPageResponse.status, 404, "stale materialized detail fallback must not serve a withdrawn native record");
+  const withdrawnMapResponse = await worker.fetch(new Request(
+    `https://shadow.test/api/v1/map/observations?cell_id=${encodeURIComponent(recordCellId)}`
+  ), env);
+  const withdrawnMapPayload = await withdrawnMapResponse.json() as any;
+  assert.equal(withdrawnMapPayload.items.some((item: any) => item.visitId === "visit-detail-contract"), false);
+
+  for (const [path, methods] of [
+    [`/${publicDerivativeKey}`, ["GET", "HEAD"]],
+    [`/derived-transform/w680/${publicDerivativeKey}`, ["GET", "HEAD"]],
+    ["/thumb/md/v2-observations/visit-detail-contract/detail.jpg", ["GET", "HEAD"]]
+  ] as const) {
+    for (const method of methods) {
+      env.ASSET_BUCKET.getCalls.length = 0;
+      const response = await worker.fetch(new Request(`https://shadow.test${path}`, { method }), env);
+      assert.equal(response.status, 404, `${method} ${path} must deny withdrawn native media`);
+      assert.deepEqual(env.ASSET_BUCKET.getCalls, [], `${method} ${path} must deny before reading R2`);
+    }
+  }
+
+  recordRights.withdrawal_status = "active";
+  const reactivatedDetail = await worker.fetch(new Request(
+    "https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"
+  ), env);
+  assert.equal(reactivatedDetail.status, 200, "reactivating only withdrawal status restores existing public eligibility");
+  const reactivatedDerivative = await worker.fetch(new Request(`https://shadow.test/${publicDerivativeKey}`), env);
+  assert.equal(reactivatedDerivative.status, 200);
 
   const missingResponse = await worker.fetch(new Request("https://shadow.test/observations/not-found"), env);
   assert.equal(missingResponse.status, 404);
@@ -23159,9 +23252,11 @@ test("ledger-backed derived bytes require verified public-ready scrubbed metadat
   const get = await worker.fetch(new Request(`https://ikimon.life/${currentKey}`), productionEnv);
   assert.equal(get.status, 200);
   assert.equal(await get.text(), "bytes-current");
+  assert.equal(get.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
   const head = await worker.fetch(new Request(`https://ikimon.life/${currentKey}`, { method: "HEAD" }), productionEnv);
   assert.equal(head.status, 200);
   assert.equal(await head.text(), "");
+  assert.equal(head.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
   assert.equal(head.headers.get("content-length"), String("bytes-current".length));
   const legacy = await worker.fetch(new Request(`https://ikimon.life/${legacyKey}`), productionEnv);
   assert.equal(legacy.status, 200, "verified historical WebP metadata used the supported binary scanner label");
@@ -23498,7 +23593,7 @@ test("public derived image transform reads R2 through Images binding and preserv
     assert.equal(publicResponse.status, 200);
     assert.equal(await publicResponse.text(), "transformed-avif");
     assert.equal(publicResponse.headers.get("content-type"), "image/avif");
-    assert.equal(publicResponse.headers.get("cache-control"), "public, max-age=3600");
+    assert.equal(publicResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
     assert.equal(publicResponse.headers.get("vary"), "Accept");
     assert.equal(publicResponse.headers.get("x-ikimon-image-transform-result"), "internal=ok");
     assert.deepEqual(imageCalls, [
