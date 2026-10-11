@@ -27245,6 +27245,18 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
     exact_lat: 34.6698,
     exact_lng: 137.8398,
     display_name: "園内の公開記録",
+  }, {
+    visit_id: "ryuyo-unsafe-path-record",
+    observed_at: "2026-09-27T08:00:00.000Z",
+    exact_lat: 34.6699,
+    exact_lng: 137.8399,
+    display_name: "パス確認用の公開記録",
+  }, {
+    visit_id: "ryuyo-uncertified-record",
+    observed_at: "2026-09-26T08:00:00.000Z",
+    exact_lat: 34.6700,
+    exact_lng: 137.8400,
+    display_name: "未認証記録",
   }];
   const nearbyRows = [{
     visit_id: "ryuyo-nearby-public-record",
@@ -27277,6 +27289,76 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
           },
         } as unknown as ReturnType<typeof originalObsDb.prepare>;
       }
+      if (normalized.toLowerCase().includes("from production_import_evidence_assets e")
+        && normalized.toLowerCase().includes("join asset_ledger a on a.asset_id = e.asset_id")) {
+        return {
+          bind(...visitIds: unknown[]) {
+            const assets = [
+              {
+                visit_id: "ryuyo-core-public-record",
+                legacy_relative_path: "uploads/v2-observations/ryuyo-core-public-record/field.webp",
+                mime: "image/jpeg",
+                processing_state: "uploaded",
+                public_derivative_key: "public/ryuyo-core.webp",
+                public_derivative_verified_at: "2026-09-29T00:00:00.000Z",
+                public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false, exifPresent: false, gpsPresent: false, xmpPresent: false, exactCoordinateLiteralPresent: false }),
+                exif_scrub_state: "scrubbed",
+                public_ready_at: "2026-09-29T00:00:00.000Z",
+                asset_role: "observation_photo",
+                width: 1200,
+                height: 900,
+                bytes: 85000,
+              },
+              {
+                visit_id: "ryuyo-nearby-public-record",
+                legacy_relative_path: "uploads/v2-observations/ryuyo-nearby-public-record/field.webp",
+                mime: "image/jpeg",
+                processing_state: "uploaded",
+                public_derivative_key: "public/ryuyo-nearby.webp",
+                public_derivative_verified_at: "2026-09-29T00:00:00.000Z",
+                public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: true }),
+                exif_scrub_state: "scrubbed",
+                public_ready_at: "2026-09-29T00:00:00.000Z",
+                asset_role: "observation_photo",
+                width: 1200,
+                height: 900,
+                bytes: 85000,
+              },
+              {
+                visit_id: "ryuyo-unsafe-path-record",
+                legacy_relative_path: 'uploads/v2-observations/ryuyo-unsafe-path-record/x" onerror="alert(1).webp',
+                mime: "image/jpeg",
+                processing_state: "uploaded",
+                public_derivative_key: "public/ryuyo-unsafe-path.webp",
+                public_derivative_verified_at: "2026-09-29T00:00:00.000Z",
+                public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false, exactCoordinateLiteralPresent: false }),
+                exif_scrub_state: "scrubbed",
+                public_ready_at: "2026-09-29T00:00:00.000Z",
+                asset_role: "observation_photo",
+                width: 1200,
+                height: 900,
+                bytes: 85000,
+              },
+              {
+                visit_id: "ryuyo-uncertified-record",
+                legacy_relative_path: "uploads/v2-observations/ryuyo-uncertified-record/field.webp",
+                mime: "image/jpeg",
+                processing_state: "uploaded",
+                public_derivative_key: "public/ryuyo-uncertified.webp",
+                public_derivative_verified_at: null,
+                public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false }),
+                exif_scrub_state: "scrubbed",
+                public_ready_at: "2026-09-29T00:00:00.000Z",
+                asset_role: "observation_photo",
+                width: 1200,
+                height: 900,
+                bytes: 85000,
+              },
+            ];
+            return { all: async () => ({ results: assets.filter((asset) => visitIds.includes(asset.visit_id)) }) };
+          },
+        } as unknown as ReturnType<typeof originalObsDb.prepare>;
+      }
       return originalObsDb.prepare(query);
     },
     batch(statements: FakeStatement[]) {
@@ -27297,8 +27379,14 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
   const coreSection = html.slice(coreStart, html.indexOf("</section>", coreStart));
   const nearbySection = html.slice(nearbyStart, html.indexOf("</section>", nearbyStart));
   assert.match(coreSection, /ryuyo-core-public-record/);
+  assert.match(coreSection, /<img[^>]+src="\/thumb\/sm\/v2-observations\/ryuyo-core-public-record\/field\.webp"/);
+  assert.match(coreSection, /ryuyo-unsafe-path-record/);
+  assert.match(coreSection, /ryuyo-uncertified-record/);
+  assert.doesNotMatch(coreSection, /x" onerror|ryuyo-unsafe-path.webp|ryuyo-uncertified.webp/);
+  assert.equal((coreSection.match(/<img\b/g) ?? []).length, 1);
   assert.doesNotMatch(coreSection, /ryuyo-nearby-public-record/);
   assert.match(nearbySection, /ryuyo-nearby-public-record/);
+  assert.doesNotMatch(nearbySection, /<img/);
   assert.doesNotMatch(nearbySection, /ryuyo-core-public-record/);
   assert.match(html, /href="https:\/\/www\.openstreetmap\.org\/way\/530835577"/);
   assert.match(html, /href="https:\/\/www\.openstreetmap\.org\/copyright"/);
@@ -27306,6 +27394,33 @@ test("Ryuyo field page renders real OSM provenance and distinct core/nearby reco
   assert.doesNotMatch(html, /認定情報/);
   assert.match(html, /OpenStreetMap Way 530835577/);
   assert.doesNotMatch(html, /34\.6698|137\.8398|137\.8393578|exact_lat|exact_lng|EXIF|GPSLatitude|private_note/i);
+
+  const configuredDb = env.OBS_DB;
+  env.OBS_DB = {
+    prepare(query: string) {
+      const normalized = normalize(query).toLowerCase();
+      if (normalized.includes("from production_import_evidence_assets e")
+        && normalized.includes("join asset_ledger a on a.asset_id = e.asset_id")) {
+        throw new Error("thumbnail ledger unavailable");
+      }
+      return configuredDb.prepare(query);
+    },
+    batch(statements: FakeStatement[]) {
+      return configuredDb.batch(statements);
+    },
+  } as typeof env.OBS_DB;
+  try {
+    const textOnlyResponse = await worker.fetch(
+      new Request(`https://zukan.earth/ja/community/fields/${fieldId}`),
+      { ...env, ENVIRONMENT: "production" },
+    );
+    const textOnlyHtml = await textOnlyResponse.text();
+    assert.equal(textOnlyResponse.status, 200);
+    assert.match(textOnlyHtml, /園内の公開記録/);
+    assert.doesNotMatch(textOnlyHtml, /<img class="record-thumbnail"/);
+  } finally {
+    env.OBS_DB = configuredDb;
+  }
 
   const detailResponse = await worker.fetch(new Request(`https://zukan.earth/api/v1/fields/${fieldId}/public-detail`), { ...env, ENVIRONMENT: "production" });
   const detail = await detailResponse.json() as any;

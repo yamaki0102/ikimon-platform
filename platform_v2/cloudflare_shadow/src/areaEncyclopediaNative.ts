@@ -15,6 +15,7 @@ export interface AreaRecordCandidate {
   displayName: string | null;
   lat: number;
   lng: number;
+  thumbnailUrl?: string;
 }
 
 export interface AreaRecordContext {
