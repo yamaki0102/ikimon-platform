@@ -1046,6 +1046,15 @@ function presentablePublicPhotoSql(alias = ""): string {
 interface PublicMapPhotoRow {
   observation_id: string;
   public_derivative_key: string;
+  visibility: string | null;
+  emergency_hidden: number | null;
+  withdrawal_status: string | null;
+  mime: string;
+  processing_state: string;
+  public_derivative_verified_at: string | null;
+  public_derivative_metadata_json: string | null;
+  exif_scrub_state: string | null;
+  public_ready_at: string | null;
 }
 
 interface PublicMapMediaKindRow {
@@ -1185,6 +1194,16 @@ interface PublicDetailAssetRow {
   sha256: string | null;
   public_derivative_sha256: string | null;
   public_derivative_metadata_json: string | null;
+}
+
+interface PublicObservationDetailAssetRow extends PublicDetailAssetRow {
+  processing_state: string;
+  public_derivative_verified_at: string | null;
+  exif_scrub_state: string | null;
+  public_ready_at: string | null;
+  visibility: string | null;
+  emergency_hidden: number | null;
+  withdrawal_status: string | null;
 }
 
 type PublicDetailRegionRect = {
@@ -6543,7 +6562,10 @@ async function buildObservationEventRecapPhotos(
   sessionId: string,
   observationEvents: Awaited<ReturnType<typeof listObservationEventLiveEvents>>
 ) {
-  const availablePhotos = await queryPublicMapPhotoUrls(env);
+  const availablePhotos = await queryObservationEventRecapPhotoIds(
+    env,
+    observationEvents.map(observationEventObservationId).filter((id): id is string => Boolean(id))
+  );
   const seen = new Set<string>();
   const photos: Array<{ photoUrl: string; observedAt: string }> = [];
   for (const event of observationEvents) {
@@ -6558,6 +6580,30 @@ async function buildObservationEventRecapPhotos(
     if (photos.length >= 60) break;
   }
   return photos;
+}
+
+async function queryObservationEventRecapPhotoIds(env: Env, observationIds: string[]): Promise<Set<string>> {
+  // Event recap media stays behind the participant check in both the recap and
+  // photo routes, so private event observations retain their scoped access.
+  const ids = [...new Set(observationIds)].slice(0, 500);
+  if (ids.length === 0) return new Set();
+  const rows = await env.OBS_DB.prepare(
+    `SELECT DISTINCT observation_id
+       FROM asset_ledger
+      WHERE observation_id IN (${ids.map(() => "?").join(",")})
+        AND processing_state = 'uploaded'
+        AND public_derivative_key IS NOT NULL
+        AND public_derivative_verified_at IS NOT NULL
+        AND public_derivative_metadata_json IS NOT NULL
+        AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+        AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+        AND exif_scrub_state = 'scrubbed'
+        AND public_ready_at IS NOT NULL
+        AND mime LIKE 'image/%'
+        ${presentablePublicPhotoSql()}
+      LIMIT 500`
+  ).bind(...ids).all<{ observation_id: string }>();
+  return new Set(rows.results.map((row) => row.observation_id));
 }
 
 function publicObservationEventRecapSession(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>) {
@@ -13822,6 +13868,22 @@ function publicDerivedLedgerAssetIsReady(asset: Pick<PublicAreaWatchAssetRow,
   } catch {
     return false;
   }
+}
+
+type PublicDerivedLedgerVisibilityRow = Pick<PublicAreaWatchAssetRow,
+  "mime" | "processing_state" | "public_derivative_key" | "public_derivative_verified_at"
+  | "public_derivative_metadata_json" | "exif_scrub_state" | "public_ready_at"
+> & {
+  visibility: string | null;
+  emergency_hidden: number | null;
+  withdrawal_status: string | null;
+};
+
+function publicDerivedLedgerAssetIsPublic(asset: PublicDerivedLedgerVisibilityRow): boolean {
+  return asset.visibility === "public"
+    && asset.emergency_hidden === 0
+    && (asset.withdrawal_status === null || asset.withdrawal_status === "active")
+    && publicDerivedLedgerAssetIsReady(asset);
 }
 
 function publicAreaWatchAssetIsReady(asset: PublicAreaWatchAssetRow): boolean {
@@ -28442,7 +28504,7 @@ async function publicDerivedMediaAccess(
   if (!row) return "public";
   if (row.visibility === "public" && row.emergency_hidden === 0
     && (row.withdrawal_status === null || row.withdrawal_status === "active")) {
-    return publicDerivedLedgerAssetIsReady(row) ? "public-current" : "denied";
+    return publicDerivedLedgerAssetIsPublic(row) ? "public-current" : "denied";
   }
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerUserId = row.observation_owner_user_id ?? row.asset_owner_user_id;
@@ -28609,25 +28671,32 @@ async function queryPublicMapSnapshotMeta(env: Env): Promise<PublicMapSnapshotMe
 
 async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
   const rows = await env.OBS_DB.prepare(
-    `SELECT observation_id, public_derivative_key
-       FROM asset_ledger
-      WHERE observation_id IS NOT NULL
-        AND processing_state = 'uploaded'
-        AND public_derivative_key IS NOT NULL
-        AND public_derivative_verified_at IS NOT NULL
-        AND public_derivative_metadata_json IS NOT NULL
-        AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
-        AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
-        AND exif_scrub_state = 'scrubbed'
-        AND public_ready_at IS NOT NULL
-        AND mime LIKE 'image/%'
-        ${presentablePublicPhotoSql()}
-      ORDER BY public_ready_at DESC
+    `SELECT a.observation_id, a.public_derivative_key, a.mime, a.processing_state,
+            a.public_derivative_verified_at, a.public_derivative_metadata_json,
+            a.exif_scrub_state, a.public_ready_at,
+            o.visibility, o.emergency_hidden, rights.withdrawal_status
+       FROM asset_ledger a
+       LEFT JOIN observations o ON o.observation_id = a.observation_id
+       LEFT JOIN observation_data_rights rights ON rights.visit_id = o.observation_id
+      WHERE a.observation_id IS NOT NULL
+        AND a.processing_state = 'uploaded'
+        AND a.public_derivative_key IS NOT NULL
+        AND a.public_derivative_verified_at IS NOT NULL
+        AND a.public_derivative_metadata_json IS NOT NULL
+        AND a.public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+        AND a.public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+        AND a.exif_scrub_state = 'scrubbed'
+        AND a.public_ready_at IS NOT NULL
+        AND a.mime LIKE 'image/%'
+        ${presentablePublicPhotoSql("a")}
+      ORDER BY a.public_ready_at DESC
       LIMIT 5000`
   ).all<PublicMapPhotoRow>();
   const map = new Map<string, string>();
   for (const row of rows.results) {
-    if (!map.has(row.observation_id)) map.set(row.observation_id, publicMediaUrl(row.public_derivative_key));
+    if (publicDerivedLedgerAssetIsPublic(row) && !map.has(row.observation_id)) {
+      map.set(row.observation_id, publicMediaUrl(row.public_derivative_key));
+    }
   }
   return map;
 }
@@ -29601,22 +29670,29 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
   if (!row) return null;
 
   const assets = await env.OBS_DB.prepare(
-    `SELECT asset_id, object_key, mime, bytes, duration_ms, public_derivative_key,
-            sha256, public_derivative_sha256, public_derivative_metadata_json
-     FROM asset_ledger
-     WHERE observation_id = ?
-       AND processing_state = 'uploaded'
-       AND public_derivative_key IS NOT NULL
-       AND public_derivative_verified_at IS NOT NULL
-       AND public_derivative_metadata_json IS NOT NULL
-       AND public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
-       AND public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
-       AND exif_scrub_state = 'scrubbed'
-       AND public_ready_at IS NOT NULL
-       ${presentablePublicPhotoSql()}
-     ORDER BY created_at ASC
+    `SELECT a.asset_id, a.object_key, a.mime, a.bytes, a.duration_ms, a.public_derivative_key,
+            a.sha256, a.public_derivative_sha256, a.public_derivative_metadata_json,
+            a.processing_state, a.public_derivative_verified_at, a.exif_scrub_state, a.public_ready_at,
+            o.visibility, o.emergency_hidden, rights.withdrawal_status
+       FROM asset_ledger a
+       LEFT JOIN observations o ON o.observation_id = a.observation_id
+       LEFT JOIN observation_data_rights rights ON rights.visit_id = o.observation_id
+      WHERE a.observation_id = ?
+        AND a.processing_state = 'uploaded'
+        AND a.public_derivative_key IS NOT NULL
+        AND a.public_derivative_verified_at IS NOT NULL
+        AND a.public_derivative_metadata_json IS NOT NULL
+        AND a.public_derivative_metadata_json NOT LIKE '%"scannedContainer":"svg+xml"%'
+        AND a.public_derivative_metadata_json NOT LIKE '%"contentType":"image/svg%'
+        AND a.exif_scrub_state = 'scrubbed'
+        AND a.public_ready_at IS NOT NULL
+        ${presentablePublicPhotoSql("a")}
+      ORDER BY a.created_at ASC
      LIMIT 24`
-  ).bind(visitId).all<PublicDetailAssetRow>();
+  ).bind(visitId).all<PublicObservationDetailAssetRow>();
+  const eligibleAssets = ownerUserId
+    ? assets.results
+    : assets.results.filter((asset) => publicDerivedLedgerAssetIsPublic(asset));
 
   const mediaRegions = await readPublicObservationMediaRegions(env, visitId);
   const regionsByAssetId = new Map<string, PublicDetailMediaRegion[]>();
@@ -29625,13 +29701,13 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     list.push(region);
     regionsByAssetId.set(region.assetId, list);
   }
-  const sourcePhotoAssets = assets.results.filter((asset) => asset.mime.startsWith("image/"));
+  const sourcePhotoAssets = eligibleAssets.filter((asset) => asset.mime.startsWith("image/"));
   const photoDedupPlan = buildObservationMediaDedupPlan(
     sourcePhotoAssets.map((asset, displayOrder) => observationMediaDedupInput(asset, displayOrder)),
   );
   const photoAssets = photoDedupPlan.representatives
     .map((representative) => sourcePhotoAssets.find((asset) => asset.asset_id === representative.mediaId))
-    .filter((asset): asset is PublicDetailAssetRow => Boolean(asset))
+    .filter((asset): asset is PublicObservationDetailAssetRow => Boolean(asset))
     .map((asset) => ({
       assetId: asset.asset_id,
       url: publicMediaUrl(asset.public_derivative_key),
@@ -29640,7 +29716,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       mediaRole: null,
       regions: regionsByAssetId.get(asset.asset_id) ?? []
     }));
-  const videoAssets = assets.results
+  const videoAssets = eligibleAssets
     .filter((asset) => asset.mime.startsWith("video/"))
     .map((asset) => {
       const streamUid = asset.asset_id.replace(/^video_asset_/, "");
@@ -29657,7 +29733,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
         mediaRole: "observation_video"
       };
     });
-  const audioAssets = assets.results
+  const audioAssets = eligibleAssets
     .filter((asset) => asset.mime.startsWith("audio/"))
     .map((asset) => ({
       assetId: asset.asset_id,
@@ -29706,7 +29782,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     videoAssets,
     audioAssets,
     assetCount: photoAssets.length + videoAssets.length + audioAssets.length,
-    sourceAssetCount: assets.results.length,
+    sourceAssetCount: eligibleAssets.length,
     mediaDedup: {
       ruleVersion: photoDedupPlan.ruleVersion,
       sourcePhotoCount: sourcePhotoAssets.length,
