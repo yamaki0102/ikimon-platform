@@ -824,6 +824,51 @@ test("site shell treats guide outcomes as a reading surface with quick record ac
   assert.match(html, /site-shell has-global-record-launcher/);
 });
 
+test("desktop directory omits the duplicate primary rail while keeping its unique routes", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Learn",
+    body: "<p>learn</p>",
+    lang: "ja",
+    currentPath: "/ja/learn/field-loop",
+  });
+  const desktopAside = html.match(/<aside class="desktop-side-nav"[\s\S]*?<\/aside>/)?.[0] ?? "";
+  const desktopFind = desktopAside.match(/<section class="desktop-side-nav-section desktop-side-nav-section--secondary">\s*<h2 class="desktop-side-nav-section-title">探す・見る<\/h2>[\s\S]*?<\/section>/)?.[0] ?? "";
+  const mobileDirectory = html.match(/<nav class="site-nav site-nav-mobile">[\s\S]*?<\/nav>/)?.[0] ?? "";
+
+  assert.match(desktopAside, /aria-label="PC navigation directory"/);
+  assert.doesNotMatch(desktopAside, /desktop-side-nav-section--primary|class="desktop-side-nav-link/);
+  assert.match(desktopAside, /href="\/ja\/records\?view=public">記録を見る<\/a>/);
+  assert.match(desktopAside, /href="\/ja\/lens">その場で見る<\/a>/);
+  assert.match(desktopAside, /href="\/ja\/jobs">仕事を探す<\/a>/);
+  assert.match(desktopAside, /href="\/ja\/guide">ライブガイド<\/a>/);
+  assert.doesNotMatch(desktopFind, /href="\/ja\/community\/events"/);
+  assert.match(html, /body\.is-desktop-side-nav-collapsed \.desktop-side-nav \{\s*display: none;/);
+
+  assert.match(mobileDirectory, /href="\/ja\/"/);
+  assert.match(mobileDirectory, /href="\/ja\/records"/);
+  assert.match(mobileDirectory, /href="\/ja\/map"/);
+  assert.match(mobileDirectory, /href="\/ja\/guide"/);
+  assert.match(mobileDirectory, /href="\/ja\/community\/events"/);
+
+  for (const localizedGuide of [
+    { lang: "en" as const, href: "/en/guide", label: "Live guide" },
+    { lang: "es" as const, href: "/es/guide", label: "Guia en vivo" },
+    { lang: "pt-BR" as const, href: "/pt-br/guide", label: "Guia ao vivo" },
+  ]) {
+    const localizedHtml = renderSiteDocument({
+      basePath: "",
+      title: "Learn",
+      body: "<p>learn</p>",
+      lang: localizedGuide.lang,
+      currentPath: `/${localizedGuide.lang.toLowerCase()}/learn/field-loop`,
+    });
+    const localizedAside = localizedHtml.match(/<aside class="desktop-side-nav"[\s\S]*?<\/aside>/)?.[0] ?? "";
+    assert.match(localizedAside, new RegExp(`href="${localizedGuide.href}">${localizedGuide.label}<\\/a>`));
+    assert.doesNotMatch(localizedAside, /desktop-side-nav-section--primary|class="desktop-side-nav-link/);
+  }
+});
+
 test("desktop side nav is opaque and footerless on immersive surfaces", () => {
   const html = renderSiteDocument({
     basePath: "",
