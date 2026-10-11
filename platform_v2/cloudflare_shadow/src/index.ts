@@ -133,6 +133,7 @@ import {
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
 import { PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN, resolveTrustedRequestOrigin } from "../../src/services/trustedPublicOrigin";
+import { appendSharedArrivalContext, appendSharedArrivalContextToLocalHrefs, collectSharedArrivalContext } from "./sharedArrivalContext";
 import {
   normalizePlaceAtlasRef,
   PLACE_ATLAS_PROFILE_VERSION,
@@ -29256,6 +29257,7 @@ function injectLegacyObservationSavedContinuity(html: string, saved: { controlHt
 }
 
 async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
+  const sharedArrivalContext = collectSharedArrivalContext(url.searchParams);
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerStatus = session && !session.banned
     ? await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
@@ -29310,7 +29312,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         detail.aiAssessmentStatus,
         detail.aiRequestStatus,
       );
-      return html(applyCspNonceToHtmlScripts(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
+      const canonicalObservationPath = `/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`;
+      return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
@@ -29329,7 +29332,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
           observedLabel: formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),
-        canonicalUrl: new URL(`/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`, url.origin).toString(),
+        canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
+        shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
         actionNonce: crypto.randomUUID(),
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
         processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
@@ -29340,17 +29344,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         savedControlHtml: savedContinuity.controlHtml,
         savedScriptHtml: savedContinuity.scriptHtml,
         publicationReturn: observationFirst.publicationReturn,
-      }), cspNonce), 200, {
+      }), sharedArrivalContext), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
         "cache-control": "private, no-store",
         "x-ikimon-record-reader": "observation-first/v1",
       });
     }
   }
-  const legacyDetailHtml = injectLegacyObservationSavedContinuity(
+  const legacyDetailHtml = appendSharedArrivalContextToLocalHrefs(injectLegacyObservationSavedContinuity(
     renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce),
     savedContinuity,
-  );
+  ), sharedArrivalContext);
   return html(applyCspNonceToHtmlScripts(legacyDetailHtml, cspNonce), 200, {
     ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "no-store",
@@ -38886,7 +38890,7 @@ function renderPublicObservationDetailHtml(
   const relatedLead = polish?.relatedLead ?? "";
   const relatedCountLabel = polish?.relatedCountLabel ?? `${relatedForDisplay.length}件`;
   const actionRailBlock = polish?.actionRailBlock ?? (polish ? `<nav class="obs-action-strip" aria-label="関連操作">
-        <a href="${escapeHtml(recordHref)}">もう一度記録する</a>
+        <a data-shared-arrival-cta href="${escapeHtml(recordHref)}">もう一度記録する</a>
         <a href="${escapeHtml(mapHref)}">地図で見る</a>
       </nav>` : `<div class="obs-action-rail" aria-label="関連操作">
         <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
