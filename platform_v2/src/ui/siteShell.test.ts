@@ -590,8 +590,8 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /data-global-record-camera-cancel/);
   assert.match(html, /端末の写真から選ぶ/);
   assert.match(html, /global-record-camera-sheet\[data-camera-error="true"\] \.global-record-camera-preview/);
-  assert.match(html, /@media \(min-width: 721px\) and \(max-width: 960px\)/);
-  assert.match(html, /@media \(min-width: 961px\) \{\s+\.site-core-nav \{\s+display: flex;/);
+  assert.match(html, /@media \(min-width: 721px\) and \(max-width: 1160px\)/);
+  assert.match(html, /@media \(min-width: 1161px\) \{\s+\.site-core-nav \{\s+display: flex;/);
   assert.match(html, /もう1枚撮る/);
   assert.match(html, /VIDEO_MAX_SECONDS = 60/);
   assert.match(html, /動画記録は最大60秒/);
@@ -600,6 +600,23 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /名前、メモを整えられます/);
   assert.match(html, /この内容で記録画面へ/);
   assert.match(html, /撮り直す/);
+});
+
+test("site shell moves the shared primary nav to the bottom across the tablet breakpoint", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Learn",
+    body: "<h1>Learn</h1>",
+    lang: "ja",
+    currentPath: "/ja/learn",
+  });
+
+  assert.doesNotMatch(html, /data-zukan-app-experience="v1"/);
+  assert.match(html, /class="site-nav site-nav-desktop site-core-nav"/);
+  assert.match(html, /class="global-record-launcher"/);
+  assert.match(html, /@media \(min-width: 721px\) and \(max-width: 1160px\) \{[\s\S]*?\.global-record-launcher \{\s*display: grid;\s*\}[\s\S]*?\.site-core-nav \{\s*display: none;\s*\}[\s\S]*?\.site-shell\.has-global-record-launcher \{\s*padding-bottom: calc\(112px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
+  assert.match(html, /@media \(min-width: 1161px\) \{\s*\.site-core-nav \{\s*display: flex;/);
+  assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 5);
 });
 
 test("primary mobile navigation is capture-first and keeps camera separate from the gallery", () => {
