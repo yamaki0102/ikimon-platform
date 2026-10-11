@@ -997,6 +997,59 @@ test("cell and blank map selections are aggregate and safety surfaces", () => {
   assert.doesNotMatch(script, /title: COPY\.cellAggregateTitle, meta: coordLabel/);
 });
 
+test("map comparison uses bounded public previews and excludes restricted area names", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.match(script, /return rendered \+ renderContextComparisonStrip\(context\)/);
+  assert.match(script, /renderDetailVisitReasons\(detailContext\) \+\s+renderContextComparisonStrip\(detailContext\)/);
+  const context = vm.createContext({
+    COPY: {
+      seasonSpring: "春", seasonSummer: "夏", seasonAutumn: "秋", seasonWinter: "冬",
+      comparisonTitle: "周辺を比べる", comparisonAreaLabel: "公開エリア", comparisonRecordLabel: "近くの記録",
+      comparisonSeasonLabel: "見つかった季節", comparisonAreaEmpty: "公開候補なし",
+      comparisonRecordEmpty: "記録なし", comparisonSeasonEmpty: "季節の記録なし",
+      comparisonSafetyNote: "最大5件の公開情報。現地の案内を確認してください。", discoveryFallback: "記録",
+    },
+    nearbyDiscoverableAreaCandidates: () => [
+      { access: "public", feature: { properties: { name: "公開公園" } } },
+      { access: "restricted", feature: { properties: { name: "非公開施設" } } },
+      { access: "school", feature: { properties: { name: "学校" } } },
+    ],
+    nearbyRecordsForContext: () => [
+      { record: { displayName: "春の記録", observedAt: "2026-04-15" } },
+      { record: { displayName: "冬の記録", observedAt: "2025-12-03" } },
+      { record: { displayName: "日付不明", observedAt: null } },
+    ],
+    areaFeatureDisplayName: (feature: any) => feature.properties.name,
+    recordDisplayName: (record: any) => record.displayName,
+    compactNumber: (value: number) => String(value),
+    escapeHtml: (value: unknown) => String(value).replace(/[&<>"']/g, ""),
+  });
+  new vm.Script(bootSection("function seasonKeyFromDate", "function renderDetailRecentFinds")).runInContext(context);
+  const html = context.renderContextComparisonStrip({ lat: 34.7, lng: 137.8 });
+  assert.match(html, /周辺を比べる/);
+  assert.match(html, /公開公園/);
+  assert.doesNotMatch(html, /非公開施設|学校|34\.7|137\.8/);
+  assert.match(html, /data-compare-axis="season"><span>見つかった季節<\/span><strong>2<\/strong><small>春 \/ 冬<\/small>/);
+  assert.match(html, /data-compare-axis="records"><span>近くの記録<\/span><strong>3<\/strong>/);
+  assert.match(html, /最大5件の公開情報/);
+  assert.equal(context.renderContextComparisonStrip({ lat: 34.7, lng: 137.8, record: { isViewerOwned: true } }), "");
+});
+
+test("map empty and comparison guidance is localized across supported languages", () => {
+  const expected = [
+    ["ja", "近くの候補へ", "立入制限", "周辺を比べる"],
+    ["en", "Nearby options", "restricted areas", "Compare nearby"],
+    ["es", "Opciones cercanas", "zonas restringidas", "Comparar cerca"],
+    ["pt-BR", "Opções próximas", "áreas privadas", "Comparar por perto"],
+  ] as const;
+  for (const [lang, emptyTitle, safety, comparison] of expected) {
+    const script = mapExplorerBootScript({ basePath: "", lang });
+    assert.ok(script.includes(emptyTitle), `${lang} empty title`);
+    assert.ok(script.includes(safety), `${lang} access guidance`);
+    assert.ok(script.includes(comparison), `${lang} comparison title`);
+  }
+});
+
 test("area sheet includes local feedback surface", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
 
