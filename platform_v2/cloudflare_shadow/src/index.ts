@@ -29359,6 +29359,15 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
   const detailLang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const canonicalRedirect = rawId !== detail.visitId || url.searchParams.get("subject") || url.searchParams.get("occurrence")
+    ? new Response(null, {
+        status: 302,
+        headers: {
+          location: appendSharedArrivalContext(`/${detailLang}/observations/${encodeURIComponent(detail.visitId)}`, sharedArrivalContext),
+          "cache-control": "private, no-store",
+        },
+      })
+    : null;
   const savedStates = session && !session.banned
     ? await savedRecordStates(env.CORE_DB, session.userId, [detail.visitId]).catch(() => null)
     : null;
@@ -29374,6 +29383,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       return html(renderObservationUnavailableHtml(), 503, { "cache-control": "private, no-store", "retry-after": "30" });
     }
     if (observationFirst.state === "ready") {
+      if (canonicalRedirect) return canonicalRedirect;
       const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
       const recordLang: ObservationRecordLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
       const locale = recordLang === "ja" ? "ja-JP" : recordLang === "pt-br" ? "pt-BR" : recordLang;
@@ -29432,6 +29442,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       });
     }
   }
+  if (canonicalRedirect) return canonicalRedirect;
   const legacyDetailHtml = appendSharedArrivalContextToLocalHrefs(injectLegacyObservationSavedContinuity(
     renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce),
     savedContinuity,

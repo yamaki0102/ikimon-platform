@@ -1,0 +1,158 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import test from "node:test";
+import publicPresentationEntry from "./publicPresentationEntry";
+
+function fixture(options: { cutover?: boolean; visibility?: string; hidden?: number; withdrawn?: boolean; policy?: string; unavailable?: boolean } = {}) {
+  const sqlite = new DatabaseSync(":memory:");
+  for (const migration of [
+    "0001_observation_write_contract.sql", "0004_public_derivative_gate.sql",
+    "0012_public_derivative_binary_verification.sql", "0026_observation_reassessment_requests.sql",
+    "0030_observation_data_rights.sql", "0035_observation_record_ai_reviews.sql",
+    "0049_observation_detail_edit_runtime.sql", "0052_public_area_label_readmodel.sql",
+    "0067_record_observation_foundation.sql",
+  ]) {
+    sqlite.exec(readFileSync(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  sqlite.prepare(`INSERT INTO observations
+    (observation_id, draft_id, owner_user_id, observed_at, public_cell, visibility, emergency_hidden, taxon_label)
+    VALUES ('arrival-record', 'arrival-draft', 'local-fixture-owner', '2026-06-01T00:00:00Z', '34.70,137.70', ?, ?, 'Public fixture record')`)
+    .run(options.visibility ?? "public", options.hidden ?? 0);
+  // Keep a stale public projection so the real reader must enforce canonical visibility/withdrawal.
+  sqlite.exec(`INSERT INTO readmodel_public_observations
+    (observation_id, public_cell, observed_at, taxon_label)
+    VALUES ('arrival-record', '34.70,137.70', '2026-06-01T00:00:00Z', 'Public fixture record')`);
+  sqlite.exec(`INSERT INTO observations
+    (observation_id, draft_id, owner_user_id, observed_at, public_cell, visibility, taxon_label)
+    VALUES ('related-record', 'related-draft', 'local-fixture-owner', '2026-06-02T00:00:00Z', '34.70,137.70', 'public', 'Related public fixture');
+    INSERT INTO readmodel_public_observations
+    (observation_id, public_cell, observed_at, taxon_label)
+    VALUES ('related-record', '34.70,137.70', '2026-06-02T00:00:00Z', 'Related public fixture')`);
+  if (options.withdrawn) sqlite.exec(`INSERT INTO observation_data_rights
+    (visit_id, withdrawal_status) VALUES ('arrival-record', 'withdrawn')`);
+  if (options.policy) sqlite.prepare(`INSERT INTO record_observation_policies
+    (record_runtime, record_id, owner_user_id, visibility)
+    VALUES ('cloudflare_d1', 'arrival-record', 'local-fixture-owner', ?)`)
+    .run(options.policy);
+  if (options.unavailable) sqlite.exec("DROP TABLE record_observation_policies");
+
+  const effects = { dbWrites: 0, coreReads: 0, r2Writes: 0, queueWrites: 0, network: 0 };
+  const forbidden = (kind: "dbWrites" | "r2Writes" | "queueWrites"): never => {
+    effects[kind] += 1;
+    throw new Error(`${kind} forbidden in anonymous arrival fixture`);
+  };
+  const db = {
+    prepare(sql: string) {
+      if (!/^SELECT\b/iu.test(sql.trimStart())) return forbidden("dbWrites");
+      const statement = (values: SQLInputValue[] = []) => ({
+        bind(...next: SQLInputValue[]) { return statement(next); },
+        async first<T>() { return (sqlite.prepare(sql).get(...values) ?? null) as T | null; },
+        async all<T>() { return { results: sqlite.prepare(sql).all(...values) as T[], success: true }; },
+        async run() { return forbidden("dbWrites"); },
+      });
+      return statement();
+    },
+    async batch() { return forbidden("dbWrites"); },
+    async exec() { return forbidden("dbWrites"); },
+  };
+  const env = {
+    ENVIRONMENT: "production",
+    OBSERVATION_READ_CUTOVER_MODE: options.cutover ? "on" : "off",
+    OBS_DB: db,
+    CORE_DB: { prepare() { effects.coreReads += 1; throw new Error("anonymous fixture must not read an account"); } },
+    ASSET_BUCKET: {
+      async get() { return null; },
+      async head() { return null; },
+      async put() { return forbidden("r2Writes"); },
+      async delete() { return forbidden("r2Writes"); },
+    },
+    MEDIA_QUEUE: { async send() { return forbidden("queueWrites"); } },
+  };
+  return { env, effects, close: () => sqlite.close() };
+}
+
+async function withFixture(options: Parameters<typeof fixture>[0], check: (value: ReturnType<typeof fixture>) => Promise<void>) {
+  const value = fixture(options);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { value.effects.network += 1; throw new Error("external network forbidden in arrival fixture"); };
+  try {
+    await check(value);
+    assert.deepEqual(value.effects, { dbWrites: 0, coreReads: 0, r2Writes: 0, queueWrites: 0, network: 0 });
+  } finally {
+    globalThis.fetch = originalFetch;
+    value.close();
+  }
+}
+
+async function get(path: string, env: ReturnType<typeof fixture>["env"], method = "GET") {
+  return publicPresentationEntry.fetch(new Request(`https://zukan.earth${path}`, { method }), env, { waitUntil() {} });
+}
+
+test("public occurrence aliases and obsolete subject links redirect with safe arrival context", async () => {
+  const cases = [
+    ["/ja/observations/occ%3Aarrival-record%3A0?from=LINE&utm_source=Story&subject=old&lat=35.68&redirect=https%3A%2F%2Fevil.example", "/ja/observations/arrival-record?from=line&utm_source=story"],
+    ["/en/observations/arrival-record?occurrence=old&event=walk-day", "/en/observations/arrival-record?event=walk-day"],
+    ["/es/observations/arrival-record?subject=old&source=sns", "/es/observations/arrival-record?source=sns"],
+    ["/pt-br/observations/occ%3Aarrival-record%3A2?invite=event-day", "/pt-br/observations/arrival-record?invite=event-day"],
+    ["/observations/occ%3Aarrival-record%3A0?lang=en&share=timeline-1", "/en/observations/arrival-record?share=timeline-1"],
+  ];
+  for (const cutover of [false, true]) await withFixture({ cutover }, async ({ env }) => {
+    for (const [path, expected] of cases) for (const method of ["GET", "HEAD"]) {
+      const response = await get(path!, env, method);
+      assert.equal(response.status, 302, `${method} ${path}; cutover=${cutover}`);
+      assert.equal(response.headers.get("location"), expected);
+      assert.match(response.headers.get("cache-control") ?? "", /no-store/u);
+      assert.equal(await response.text(), "");
+    }
+    const destination = await get(cases[0]![1]!, env);
+    assert.equal(destination.status, 200, await destination.clone().text());
+    assert.equal(destination.headers.get("location"), null, "canonical destination must not loop");
+    const links = [...(await destination.text()).matchAll(/href="([^"]*)"/gu)]
+      .map((match) => match[1]!.replaceAll("&amp;", "&"));
+    assert.ok(links.some((href) => href.startsWith("/") && href.includes("related-record")
+      && new URL(href, "https://zukan.earth").searchParams.get("from") === "line"
+      && new URL(href, "https://zukan.earth").searchParams.get("utm_source") === "story"),
+    "safe context reaches the rendered related-record link");
+  });
+});
+
+test("canonical observation links keep action state and do not redirect", async () => {
+  for (const cutover of [false, true]) await withFixture({ cutover }, async ({ env }) => {
+    const response = await get("/en/observations/arrival-record?action=updated&from=line", env);
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal(response.headers.get("location"), null);
+    if (cutover) assert.match(await response.text(), /Updated/u);
+  });
+});
+
+test("private, hidden, withdrawn and missing records never reveal a canonical redirect", async () => {
+  for (const options of [{ visibility: "private" }, { visibility: "limited" }, { hidden: 1 }, { withdrawn: true }]) {
+    await withFixture(options, async ({ env }) => {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await get("/ja/observations/occ%3Aarrival-record%3A0?from=line&subject=old", env, method);
+        assert.equal(response.status, 404);
+        assert.equal(response.headers.get("location"), null);
+      }
+    });
+  }
+  await withFixture({}, async ({ env }) => {
+    const response = await get("/ja/observations/occ%3Amissing-record%3A0?from=line", env);
+    assert.equal(response.status, 404);
+    assert.equal(response.headers.get("location"), null);
+  });
+});
+
+test("observation-first forbidden and unavailable readers keep their fail-closed response", async () => {
+  for (const [options, status] of [[{ cutover: true, policy: "private" }, 404], [{ cutover: true, unavailable: true }, 503]] as const) {
+    await withFixture(options, async ({ env }) => {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await get("/ja/observations/occ%3Aarrival-record%3A0?from=line&subject=old", env, method);
+        assert.equal(response.status, status);
+        assert.equal(response.headers.get("location"), null);
+        assert.match(response.headers.get("cache-control") ?? "", /no-store/u);
+        if (status === 503) assert.equal(response.headers.get("retry-after"), "30");
+      }
+    });
+  }
+});
