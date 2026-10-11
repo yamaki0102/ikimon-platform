@@ -75,7 +75,7 @@ function publicProfile(input: PersonPublication | null, publicId: string, editio
   }
   // Privacy default: a pseudonym cannot smuggle a romanized legal name.
   if (input.identityMode !== undefined && input.identityMode !== "real_name") {
-    return { ...input, latinName: "", ...(input.identityMode === "anonymous"
+    return { ...input, latinName: "", slug: "person", ...(input.identityMode === "anonymous"
       ? { name: "匿名", slug: "person", links: [] } : {}) };
   }
   return { ...input, discoverability: input.discoverability ?? "unlisted" };
