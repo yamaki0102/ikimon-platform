@@ -12,6 +12,8 @@ import {
   OBSERVATION_AI_QUALITY_BACKLOG_INSERT_SQL,
   OBSERVATION_AI_QUALITY_BACKLOG_REVALIDATE_SQL,
   OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL,
+  observationAiBatchResultIndexes,
+  observationAiQualityBacklogFailureDisposition,
   observationAiQualityBacklogCapacity,
 } from "./observationAiQualityBacklog";
 
@@ -241,6 +243,35 @@ test("active reservations use atomic 40-active cap and stale CAS cannot requeue"
   assert.equal(observationAiQualityBacklogCapacity(40), 0);
   assert.equal(observationAiQualityBacklogCapacity(60), 0);
   db.close();
+});
+
+test("provider response indexes are compacted after an invalidated row is removed", () => {
+  const claimed = [
+    { observationId: "withdrawn-first", eligible: false },
+    { observationId: "cas-lost", eligible: true },
+    { observationId: "eligible-second", eligible: true },
+  ];
+  const providerRows = claimed.filter((row) => row.eligible);
+  const dispatchRows: Array<{ observationId: string; indexes: ReturnType<typeof observationAiBatchResultIndexes> }> = [];
+  for (const row of providerRows) {
+    if (row.observationId === "cas-lost") continue;
+    dispatchRows.push({ observationId: row.observationId, indexes: observationAiBatchResultIndexes(dispatchRows.length) });
+  }
+  const primaryKeys = dispatchRows.map((row) => row.observationId);
+  const analysisKeys = dispatchRows.flatMap((row) => [row.observationId, row.observationId]);
+  assert.deepEqual(dispatchRows, [{
+    observationId: "eligible-second",
+    indexes: { primaryIndex: 0, censusIndex: 0, environmentIndex: 1 },
+  }]);
+  assert.equal(primaryKeys[dispatchRows[0]!.indexes.primaryIndex], "eligible-second");
+  assert.equal(analysisKeys[dispatchRows[0]!.indexes.censusIndex], "eligible-second");
+  assert.equal(analysisKeys[dispatchRows[0]!.indexes.environmentIndex], "eligible-second");
+});
+
+test("backlog eligibility loss cancels instead of spending retry budget", () => {
+  assert.equal(observationAiQualityBacklogFailureDisposition("public_quality_backlog_no_longer_eligible"), "cancelled");
+  assert.equal(observationAiQualityBacklogFailureDisposition("public_quality_backlog_public_safety_blocked"), "cancelled");
+  assert.equal(observationAiQualityBacklogFailureDisposition("temporary_provider_error"), "failed");
 });
 
 test("backlog payload preserves prior idempotency and human-source fields", () => {

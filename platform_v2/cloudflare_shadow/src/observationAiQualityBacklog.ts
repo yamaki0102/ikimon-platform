@@ -15,6 +15,27 @@ export type ObservationAiQualityBacklogTargetRow = {
   needs_reason: "missing_ai_candidate" | "coarse_taxonomic_rank" | "outdated_ai_result";
 };
 
+export type ObservationAiBatchResultIndexes = {
+  primaryIndex: number;
+  censusIndex: number;
+  environmentIndex: number;
+};
+
+export function observationAiBatchResultIndexes(primaryIndex: number): ObservationAiBatchResultIndexes {
+  return {
+    primaryIndex,
+    censusIndex: primaryIndex * 2,
+    environmentIndex: primaryIndex * 2 + 1,
+  };
+}
+
+export function observationAiQualityBacklogFailureDisposition(errorCode: string): "cancelled" | "failed" {
+  return errorCode === "public_quality_backlog_no_longer_eligible"
+    || errorCode === "public_quality_backlog_public_safety_blocked"
+    ? "cancelled"
+    : "failed";
+}
+
 const COARSE_CANDIDATE_SQL = `(
   COALESCE(candidate_rank, '') IN ('class', 'order', 'lifeform', 'unknown')
   OR COALESCE(candidate_label, '') IN ('鳥', '鳥類', '生きもの', '生物', '動物', '植物', '昆虫', '菌類', '未同定', '同定待ち', '名前待ち')

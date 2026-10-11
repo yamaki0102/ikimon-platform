@@ -53,6 +53,8 @@ import {
   OBSERVATION_AI_QUALITY_BACKLOG_REVALIDATE_SQL,
   OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL,
   observationAiQualityBacklogCapacity,
+  observationAiBatchResultIndexes,
+  observationAiQualityBacklogFailureDisposition,
   type ObservationAiQualityBacklogTargetRow,
 } from "./observationAiQualityBacklog";
 import {
@@ -34460,11 +34462,20 @@ async function updateProcessingGeminiPayload(request: ObservationReassessmentReq
 
 async function failGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
   const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+  const isPublicQualityBacklog = reassessmentPayload(request.source_payload_json).qualityBacklogVersion
+    === GEMINI_QUALITY_BACKLOG_VERSION;
+  const disposition = isPublicQualityBacklog
+    ? observationAiQualityBacklogFailureDisposition(errorCode)
+    : "failed";
+  const terminal = disposition === "cancelled";
   await env.OBS_DB.prepare(
-    `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+    `UPDATE observation_reassessment_requests SET request_state = ?, source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
   ).bind(
-    reassessmentPayloadWithResult(request.source_payload_json, { executionStatus: "failed", errorCode, failedAt: new Date().toISOString() }),
+    disposition,
+    reassessmentPayloadWithResult(request.source_payload_json, terminal
+      ? { executionStatus: "cancelled", errorCode, cancelledAt: new Date().toISOString() }
+      : { executionStatus: "failed", errorCode, failedAt: new Date().toISOString() }),
     request.request_id,
     request.source_payload_json,
   ).run();
@@ -34593,25 +34604,35 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
   }
   if (providerReady.length === 0) return new Set(claimed.map((item) => item.request.request_id));
 
-  const primaryRequests: GeminiBatchRequest[] = providerReady.map((item) => ({
+  const indexedProviderReady: PreparedGeminiObservation[] = [];
+  for (const item of providerReady) {
+    const execution = geminiBatchExecution(item.request.source_payload_json);
+    if (!execution) continue;
+    const indexes = observationAiBatchResultIndexes(indexedProviderReady.length);
+    const persisted = await updateProcessingGeminiPayload(item.request, { ...execution, ...indexes }, env);
+    if (persisted) indexedProviderReady.push(item);
+  }
+  if (indexedProviderReady.length === 0) return new Set(claimed.map((item) => item.request.request_id));
+
+  const primaryRequests: GeminiBatchRequest[] = indexedProviderReady.map((item) => ({
     request: buildGeminiPrimaryRequest(item.request.observation_id, item.record.observed_at, item.images),
     metadata: { key: item.request.observation_id, lane: "primary" },
   }));
-  const analysisRequests: GeminiBatchRequest[] = providerReady.flatMap((item) => [
+  const analysisRequests: GeminiBatchRequest[] = indexedProviderReady.flatMap((item) => [
     { request: buildGeminiCensusRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "census" } },
     { request: buildGeminiEnvironmentRequest(item.request.observation_id, item.images), metadata: { key: item.request.observation_id, lane: "environment" } },
   ]);
   try {
-    const firstExecution = geminiBatchExecution(providerReady[0]!.request.source_payload_json)!;
+    const firstExecution = geminiBatchExecution(indexedProviderReady[0]!.request.source_payload_json)!;
     const primaryJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_PRIMARY_MODEL, firstExecution.primaryDisplayName, primaryRequests);
     const analysisJob = await ensureGeminiBatch(env.GEMINI_API_KEY, GEMINI_ANALYSIS_MODEL, firstExecution.analysisDisplayName, analysisRequests);
-    for (const item of providerReady) {
+    for (const item of indexedProviderReady) {
       const execution = geminiBatchExecution(item.request.source_payload_json)!;
       await updateProcessingGeminiPayload(item.request, { ...execution, primaryJobName: primaryJob.name, analysisJobName: analysisJob.name }, env);
     }
   } catch (error) {
     console.error("[gemini-batch] submit deferred for recovery", error);
-    for (const item of providerReady) {
+    for (const item of indexedProviderReady) {
       const execution = geminiBatchExecution(item.request.source_payload_json)!;
       await updateProcessingGeminiPayload(item.request, execution, env, { lastSubmitError: (error instanceof Error ? error.message : String(error)).slice(0, 180) });
     }
