@@ -720,6 +720,23 @@ test("Japanese record detail suppresses English-only AI prose from reassessment"
   assert.match(rendered, /根系の詳細は確認できません/);
 });
 
+test("Japanese record detail suppresses mixed-language AI prose from reassessment", () => {
+  const mixedLanguageDetail: ObservationFirstRecordDetail = {
+    ...detail,
+    observations: detail.observations.map((card, index) => index === 0 ? {
+      ...card,
+      aiSuggestions: [{ ...card.aiSuggestions[0]!,
+        visualEvidence: ["この鳥は bright blue feathers near the neck が見えます"],
+      }],
+    } : card),
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(mixedLanguageDetail, {
+    lang: "ja", title: "地域の記録", observedLabel: "2026年10月3日", note: null, media: [], actionNonce: "nonce-ja-mixed-language",
+    aiFeedback: "羽の模様は bright blue feathers near the neck のように見えます",
+  });
+  assert.doesNotMatch(rendered, /bright blue feathers/);
+});
+
 const humanAiCard: ObservationFirstRecordDetail["observations"][number] = {
   ...detail.observations[0]!,
   observationId: "person-ai",
