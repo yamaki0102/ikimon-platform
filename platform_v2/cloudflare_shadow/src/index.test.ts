@@ -8257,6 +8257,40 @@ function createConcurrentObservationEnv() {
   };
 }
 
+function stableJsonForIdempotencyTest(value: unknown): string {
+  const sort = (item: unknown): unknown => {
+    if (Array.isArray(item)) return item.map(sort);
+    if (item && typeof item === "object") {
+      return Object.fromEntries(Object.entries(item as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => [key, sort(entry)]));
+    }
+    return item;
+  };
+  return JSON.stringify(sort(value));
+}
+
+function legacyObservationFingerprintForTest(input: Record<string, any>): string {
+  const clientPhotoHashes = Array.isArray(input.sourcePayload?.client_photo_sha256s)
+    ? input.sourcePayload.client_photo_sha256s.filter((value: unknown): value is string => typeof value === "string")
+    : null;
+  const subjects = (input.subjects ?? []).map((subject: Record<string, unknown>) => ({
+    scientificName: typeof subject.scientificName === "string" && subject.scientificName.trim() ? subject.scientificName.trim() : null,
+    vernacularName: typeof subject.vernacularName === "string" && subject.vernacularName.trim() ? subject.vernacularName.trim() : null,
+    rank: typeof subject.rank === "string" && subject.rank.trim() ? subject.rank.trim() : null,
+    isPrimary: Boolean(subject.isPrimary)
+  }));
+  const fingerprintPayload = Object.fromEntries(
+    Object.entries(input).filter(([key]) => key !== "observationId" && key !== "clientSubmissionId" && key !== "sourcePayload")
+  );
+  return createHash("sha256").update(stableJsonForIdempotencyTest({
+    ...fingerprintPayload,
+    clientPhotoHashes,
+    subjects,
+    taxon: input.taxon ?? null
+  })).digest("hex");
+}
+
 // Run the actual Worker idempotency reservation SQL against SQLite. Other
 // observation tables keep the established in-memory fixture.
 class ObservationIdempotencySqliteD1 extends FakeD1 {
@@ -10693,9 +10727,11 @@ test("v1 observation upsert converges concurrent equivalent submissions to one r
   ]);
   const payloads = await Promise.all(responses.map((response) => response.json() as Promise<Record<string, any>>));
   assert.deepEqual(responses.map((response) => response.status).sort(), [200, 201]);
-  assert.deepEqual(new Set(payloads.map((payload) => payload.visitId)), new Set(["capture-race-original"]));
-  assert.equal(obs.observations.has("capture-race-original"), true);
-  assert.equal(obs.observations.has("capture-race-duplicate"), false);
+  assert.equal(new Set(payloads.map((payload) => payload.visitId)).size, 1);
+  const winningVisitId = payloads[0]!.visitId;
+  assert.ok(["capture-race-original", "capture-race-duplicate"].includes(winningVisitId));
+  assert.equal(obs.observations.has(winningVisitId), true);
+  assert.equal(obs.observations.has(winningVisitId === "capture-race-original" ? "capture-race-duplicate" : "capture-race-original"), false);
   assert.equal(obs.observationWriteIdempotency.size, 1);
   assert.equal(obs.observationWriteIdempotency.get("capture-race:photo-001")?.duplicate_count, 1);
 
@@ -10707,6 +10743,190 @@ test("v1 observation upsert converges concurrent equivalent submissions to one r
   assert.equal(conflict.status, 409);
   assert.equal((await conflict.json() as Record<string, unknown>).error, "client_submission_id_conflict");
   assert.equal(obs.observations.size, 1);
+});
+
+test("v1 observation idempotency fingerprints every stored area-watch source field", async (t) => {
+  const base = createEnv();
+  const migrationSql = await readFile(new URL("../migrations/observations/0051_observation_write_idempotency.sql", import.meta.url), "utf8");
+  const obs = new ObservationIdempotencySqliteD1(migrationSql);
+  t.after(() => obs.sqlite.close());
+  const env = { ...base.env, OBS_DB: obs };
+  const materialChanges: Array<{ field: string; initial: unknown; changed: unknown }> = [
+    { field: "region_id", initial: "region-a", changed: "region-b" },
+    { field: "prefecture", initial: "県A", changed: "県B" },
+    { field: "municipality", initial: "市A", changed: "市B" },
+    { field: "field_id", initial: "field-a", changed: "field-b" },
+    { field: "client_photo_sha256s", initial: ["photo-a"], changed: ["photo-b"] },
+    { field: "client_video_selected", initial: false, changed: true },
+    { field: "complete_checklist_flag", initial: false, changed: true },
+    { field: "effort_minutes", initial: 5, changed: 6 },
+    { field: "distance_meters", initial: 100, changed: 200 },
+    { field: "dataRights", initial: { recordConsent: "private" }, changed: { recordConsent: "public_summary" } },
+    { field: "environment_record_draft", initial: { place_type: "woodland" }, changed: { place_type: "urban" } },
+    { field: "placeMemory", initial: { tags: ["quiet_moment"] }, changed: { tags: ["seasonal_change"] } },
+    { field: "risk_lane", initial: "normal", changed: "rare_sensitive" },
+    { field: "event_session_id", initial: "event-a", changed: "event-b" },
+    { field: "team_id", initial: "team-a", changed: "team-b" },
+    { field: "participant_role", initial: "finder", changed: "guide" },
+    { field: "quick_capture_state", initial: "complete", changed: "partial" }
+  ];
+
+  for (const [index, change] of materialChanges.entries()) {
+    const clientSubmissionId = `area-watch-material:${change.field}`;
+    const body = {
+      observationId: `area-watch-material-original-${index}`,
+      clientSubmissionId,
+      userId: "area-watch-material-owner",
+      observedAt: "2026-06-15T02:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "private",
+      sourcePayload: { [change.field]: change.initial }
+    };
+    const first = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body)
+    }), env);
+    assert.equal(first.status, 201, `${change.field} initial write`);
+    const reservation = obs.sqlite.prepare("SELECT request_fingerprint, source_payload FROM observation_write_idempotency WHERE client_submission_id = ?")
+      .get(clientSubmissionId) as { request_fingerprint: string; source_payload: string };
+    assert.match(reservation.request_fingerprint, /^v2:/u);
+    const storedPayload = JSON.parse(reservation.source_payload) as Record<string, any>;
+    assert.equal(storedPayload.source, "cloudflare_observation_write");
+    assert.equal(storedPayload.region_id, change.field === "region_id" ? change.initial : null);
+    assert.equal(Object.hasOwn(storedPayload, "idempotency_material_source"), false);
+    const conflict = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...body,
+        observationId: `area-watch-material-conflict-${index}`,
+        sourcePayload: { [change.field]: change.changed }
+      })
+    }), env);
+    assert.equal(conflict.status, 409, `${change.field} must conflict when changed`);
+    assert.equal((await conflict.json() as Record<string, unknown>).error, "client_submission_id_conflict");
+  }
+  assert.equal(obs.observations.size, materialChanges.length, "conflicting replays must not create duplicate observations");
+});
+
+test("v1 observation SQLite reservation keeps one concurrent first writer", async (t) => {
+  const base = createEnv();
+  const migrationSql = await readFile(new URL("../migrations/observations/0051_observation_write_idempotency.sql", import.meta.url), "utf8");
+  const obs = new ObservationIdempotencySqliteD1(migrationSql);
+  t.after(() => obs.sqlite.close());
+  const env = { ...base.env, OBS_DB: obs };
+  const body = {
+    clientSubmissionId: "area-watch-sqlite-race",
+    userId: "area-watch-sqlite-owner",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    sourcePayload: { region_id: "race-region", effort_minutes: 8 }
+  };
+  const request = (observationId: string) => worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...body, observationId })
+  }), env);
+  const responses = await Promise.all([
+    request("area-watch-sqlite-first"),
+    request("area-watch-sqlite-loser")
+  ]);
+  const payloads = await Promise.all(responses.map((response) => response.json() as Promise<Record<string, any>>));
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 201]);
+  assert.equal(new Set(payloads.map((payload) => payload.visitId)).size, 1);
+  assert.equal(obs.observations.size, 1);
+  assert.equal(obs.sqlite.prepare("SELECT COUNT(*) AS count FROM observation_write_idempotency WHERE client_submission_id = ?")
+    .get(body.clientSubmissionId)?.count, 1);
+});
+
+test("v2 observation idempotency preserves canonical replay and the legacy v1 replay contract", async (t) => {
+  const base = createEnv();
+  const migrationSql = await readFile(new URL("../migrations/observations/0051_observation_write_idempotency.sql", import.meta.url), "utf8");
+  const obs = new ObservationIdempotencySqliteD1(migrationSql);
+  t.after(() => obs.sqlite.close());
+  const env = { ...base.env, OBS_DB: obs };
+  const request = (body: Record<string, unknown>) => worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body)
+  }), env);
+  const canonicalBody = {
+    observationId: "area-watch-canonical-original",
+    clientSubmissionId: "area-watch-canonical-replay",
+    userId: "area-watch-canonical-owner",
+    observedAt: "2026-06-15T02:00:00.000Z",
+    latitude: 34.71234,
+    longitude: 137.81234,
+    visibility: "private",
+    sourcePayload: {
+      municipality: " 市A ",
+      region_id: " region-a ",
+      effort_minutes: 5,
+      dataRights: { recordConsent: "private", request_debug: "first" },
+      environment_record_draft: { place_type: { value: "woodland", confidence: 0.7 }, request_debug: "first" }
+    }
+  };
+  const firstCanonical = await request(canonicalBody);
+  assert.equal(firstCanonical.status, 201);
+  const canonicalReplay = await request({
+    ...canonicalBody,
+    observationId: "area-watch-canonical-retry",
+    sourcePayload: {
+      environment_record_draft: { request_debug: "second", place_type: { confidence: "0.70", value: " woodland " } },
+      dataRights: { request_debug: "second", recordConsent: "private" },
+      effort_minutes: 5,
+      region_id: "region-a",
+      municipality: "市A",
+      capture_debug: "volatile"
+    }
+  });
+  assert.equal(canonicalReplay.status, 200);
+  assert.equal((await canonicalReplay.json() as Record<string, any>).idempotency.reused, true);
+  const ownerMismatch = await request({
+    ...canonicalBody,
+    observationId: "area-watch-canonical-owner-conflict",
+    userId: "different-owner"
+  });
+  assert.equal(ownerMismatch.status, 409, "an existing submission key remains bound to its original owner");
+
+  const legacyBody = {
+    ...canonicalBody,
+    observationId: "area-watch-legacy-original",
+    clientSubmissionId: "area-watch-legacy-replay",
+    sourcePayload: { region_id: "legacy-region", effort_minutes: 12 }
+  };
+  assert.equal((await request(legacyBody)).status, 201);
+  obs.sqlite.prepare("UPDATE observation_write_idempotency SET request_fingerprint = ? WHERE client_submission_id = ?")
+    .run(legacyObservationFingerprintForTest(legacyBody), legacyBody.clientSubmissionId);
+  const legacyReplay = await request({ ...legacyBody, observationId: "area-watch-legacy-retry" });
+  assert.equal(legacyReplay.status, 200, "unchanged completed v1 row remains replayable");
+  assert.equal((await legacyReplay.json() as Record<string, any>).idempotency.reused, true);
+  const legacyHashedFieldConflict = await request({ ...legacyBody, observationId: "area-watch-legacy-conflict", note: "legacy hashed field changed" });
+  assert.equal(legacyHashedFieldConflict.status, 409, "legacy fields already covered by v1 remain conflict-protected");
+
+  const changedLegacyBody = {
+    ...legacyBody,
+    observationId: "area-watch-legacy-changed-original",
+    clientSubmissionId: "area-watch-legacy-changed",
+    sourcePayload: { region_id: "before", effort_minutes: 12 }
+  };
+  assert.equal((await request(changedLegacyBody)).status, 201);
+  obs.sqlite.prepare("UPDATE observation_write_idempotency SET request_fingerprint = ? WHERE client_submission_id = ?")
+    .run(legacyObservationFingerprintForTest(changedLegacyBody), changedLegacyBody.clientSubmissionId);
+  obs.sqlite.prepare("UPDATE observation_write_idempotency SET source_payload = ? WHERE client_submission_id = ?")
+    .run(JSON.stringify({
+      source: "cloudflare_observation_write",
+      observation_id: changedLegacyBody.observationId,
+      client_photo_sha256s: []
+    }), changedLegacyBody.clientSubmissionId);
+  const changedLegacyReplay = await request({
+    ...changedLegacyBody,
+    observationId: "area-watch-legacy-changed-retry",
+    sourcePayload: { region_id: "after", effort_minutes: 12, dataRights: { recordConsent: "public_summary" } }
+  });
+  assert.equal(changedLegacyReplay.status, 200, "legacy v1 rows keep their prior replay contract because stored source semantics are incomplete");
+  assert.equal((await changedLegacyReplay.json() as Record<string, any>).idempotency.reused, true);
+  assert.equal(obs.observations.size, 3);
 });
 
 test("v1 observation upsert releases a failed pre-batch SQLite idempotency reservation for retry", async (t) => {

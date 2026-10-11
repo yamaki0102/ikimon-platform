@@ -31857,6 +31857,67 @@ function legacyObservationAreaWatchPayload(input: LegacyObservationUpsertInput):
   };
 }
 
+function legacyObservationMaterialSourcePayload(input: LegacyObservationUpsertInput): Record<string, unknown> {
+  const sourcePayload = asPlainObject(input.sourcePayload) ?? {};
+  const rights = normalizeObservationDataRightsNative(input.dataRights ?? sourcePayload.dataRights);
+  const environmentRecord = normalizeCompatibleEnvironmentRecordDraft(
+    input.environmentRecordDraft ?? sourcePayload.environment_record_draft,
+    "record_photo_feedback_v1"
+  );
+  const environmentRecordFields = Object.fromEntries(
+    (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[])
+      .filter((field) => typeof environmentRecord[field] === "string")
+      .map((field) => [field, {
+        value: environmentRecord[field],
+        confidence: environmentRecord[`${field}_confidence`] ?? "0.44"
+      }])
+  );
+  const placeMemory = normalizePlaceMemoryInputNative(input.placeMemory ?? sourcePayload.placeMemory);
+  const eventSessionId = normalizeOptionalText(input.eventSessionId)
+    ?? normalizeOptionalText(sourcePayload.eventSessionId)
+    ?? normalizeOptionalText(sourcePayload.event_session_id);
+  const eventCode = normalizeOptionalText(input.eventCode)
+    ?? normalizeOptionalText(sourcePayload.eventCode)
+    ?? normalizeOptionalText(sourcePayload.event_code);
+  const requestedRiskLane = asPlainObject(input.civicContext)
+    ? null
+    : normalizeOptionalText(sourcePayload.risk_lane);
+
+  return {
+    areaWatch: legacyObservationAreaWatchPayload(input),
+    captureState: normalizeOptionalText(sourcePayload.quick_capture_state),
+    dataRights: {
+      recordConsent: rights.recordConsent,
+      researchUseConsent: rights.researchUseConsent,
+      enterpriseReportConsent: rights.enterpriseReportConsent,
+      datasetLicense: rights.datasetLicense,
+      mediaLicense: rights.mediaLicense,
+      externalExportAllowed: rights.externalExportAllowed,
+      withdrawalStatus: rights.withdrawalStatus
+    },
+    environmentRecordDraft: environmentRecordFields,
+    placeMemory: placeMemory?.shouldPersist ? {
+      tags: placeMemory.tags,
+      echoNote: placeMemory.echoNote,
+      privateNote: placeMemory.privateNote,
+      photoEchoEnabled: placeMemory.photoEchoEnabled
+    } : null,
+    event: {
+      sessionId: eventSessionId,
+      code: eventCode,
+      teamId: normalizeOptionalText(input.teamId)
+        ?? normalizeOptionalText(sourcePayload.teamId)
+        ?? normalizeOptionalText(sourcePayload.team_id),
+      participantRole: normalizeOptionalText(input.participantRole)
+        ?? normalizeOptionalText(sourcePayload.participantRole)
+        ?? normalizeOptionalText(sourcePayload.participant_role)
+    },
+    riskLane: requestedRiskLane
+      ? { present: true, value: pickEnum(requestedRiskLane, ["normal", "danger_candidate", "invasive_candidate", "tree_anomaly", "rare_sensitive"], "normal") }
+      : { present: false, value: null }
+  };
+}
+
 function normalizeCompatibleClientSubmissionId(value: unknown): string | null {
   const text = normalizeOptionalText(value);
   if (!text) return null;
@@ -31881,7 +31942,7 @@ function parseLegacyOccurrenceIds(raw: string | null | undefined, fallback: stri
   }
 }
 
-async function legacyObservationRequestFingerprint(input: LegacyObservationUpsertInput): Promise<string> {
+function legacyObservationFingerprintPayload(input: LegacyObservationUpsertInput): Record<string, unknown> {
   const subjects = (input.subjects ?? []).map((subject) => ({
     scientificName: normalizeOptionalText(subject.scientificName),
     vernacularName: normalizeOptionalText(subject.vernacularName),
@@ -31894,12 +31955,24 @@ async function legacyObservationRequestFingerprint(input: LegacyObservationUpser
   const fingerprintPayload = Object.fromEntries(
     Object.entries(input).filter(([key]) => key !== "observationId" && key !== "clientSubmissionId" && key !== "sourcePayload"),
   );
-  return sha256Hex(textToArrayBuffer(stableJson({
+  return {
     ...fingerprintPayload,
     clientPhotoHashes,
     subjects,
     taxon: input.taxon ?? null
-  })));
+  };
+}
+
+async function legacyObservationRequestFingerprintV1(input: LegacyObservationUpsertInput): Promise<string> {
+  return sha256Hex(textToArrayBuffer(stableJson(legacyObservationFingerprintPayload(input))));
+}
+
+async function legacyObservationRequestFingerprint(input: LegacyObservationUpsertInput): Promise<string> {
+  const payload = {
+    ...legacyObservationFingerprintPayload(input),
+    materialSourcePayload: legacyObservationMaterialSourcePayload(input)
+  };
+  return `v2:${await sha256Hex(textToArrayBuffer(stableJson(payload)))}`;
 }
 
 function normalizeSafePublicAreaLabelCandidate(value: unknown): string | null {
@@ -32067,6 +32140,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const idempotencyFingerprint = clientSubmissionId
     ? await legacyObservationRequestFingerprint(input)
     : null;
+  const legacyIdempotencyFingerprint = clientSubmissionId
+    ? await legacyObservationRequestFingerprintV1(input)
+    : null;
   if (clientSubmissionId && idempotencyFingerprint) {
     const readExistingIdempotency = () => env.OBS_DB.prepare(
       `SELECT user_id, visit_id, occurrence_id, occurrence_ids, place_id, request_fingerprint, write_status
@@ -32120,7 +32196,12 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       }, input), 200, await observationEventRegistrationBridgeResponseHeaders(registrationBridge));
     };
     const replayOrRejectExisting = async (initial: LegacyObservationIdempotencyRow): Promise<Response> => {
-      if (initial.user_id !== input.userId || initial.request_fingerprint !== idempotencyFingerprint) {
+      // Existing v1 rows predate a complete persisted source projection. Keep
+      // their established replay contract for offline retries; only v2 rows
+      // carry the stronger source-payload guarantee.
+      const requestFingerprintMatches = initial.request_fingerprint === idempotencyFingerprint
+        || initial.request_fingerprint === legacyIdempotencyFingerprint;
+      if (initial.user_id !== input.userId || !requestFingerprintMatches) {
         return json({ ok: false, error: "client_submission_id_conflict" }, 409);
       }
       const existing = initial.visit_id ? initial : await waitForCompletedIdempotency(initial);
