@@ -26082,7 +26082,12 @@ test("production image target observation details restore photo record controls 
     const arrival = target.id === targets[0]?.id
       ? "&from=Line&source=Instagram&utm_source=Story&share=Timeline-1&invite=event-day&event=bioblitz-2026&redirect=javascript%3Aalert%281%29&lat=35.68&localityNote=home"
       : "";
-    const response = await publicPresentationEntry.fetch(new Request(`https://ikimon.life/observations/${target.id}?subject=occ%3A${target.id}%3A0&lang=ja${arrival}`), productionEnv, { waitUntil() {} });
+    const detailRedirect = await publicPresentationEntry.fetch(new Request(`https://ikimon.life/observations/${target.id}?subject=occ%3A${target.id}%3A0&lang=ja${arrival}`), productionEnv, { waitUntil() {} });
+    assert.equal(detailRedirect.status, 302);
+    const canonicalDetailUrl = new URL(detailRedirect.headers.get("location") ?? "", "https://ikimon.life");
+    assert.equal(canonicalDetailUrl.pathname, `/ja/observations/${target.id}`);
+    assert.equal(canonicalDetailUrl.searchParams.has("subject"), false);
+    const response = await publicPresentationEntry.fetch(new Request(canonicalDetailUrl), productionEnv, { waitUntil() {} });
     const body = await response.text();
     assert.equal(response.status, 200, body);
     assert.match(body, /data-cloudflare-observation-detail="1"/);
