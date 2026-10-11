@@ -24,7 +24,10 @@ async function identity() {
   assert.equal(value.runtime, "cloudflare-worker");
   assert.equal(value.environment, environment);
   assert.equal(value.gitSha, exactSha, "runtime must match the exact source under test");
-  for (const field of ["workerVersionId", "originalUiManifestHash"]) assert.equal(typeof value[field] === "string" && value[field].length > 0, true, `${field} must identify the deployed artifact`);
+  assert.equal(typeof value.workerVersion === "string" && value.workerVersion.length > 0, true, "workerVersion must identify the deployed artifact");
+  assert.equal(typeof value.originalUiManifestHash === "string" && /^[0-9a-f]{64}$/iu.test(value.originalUiManifestHash), true, "originalUiManifestHash must be a SHA-256 digest");
+  // Staging and production omit the shadow-only CF_VERSION_METADATA binding.
+  assert.equal(value.workerVersionId === null || (typeof value.workerVersionId === "string" && value.workerVersionId.length > 0), true, "workerVersionId must be null or a native version ID");
   return { environment: value.environment, gitSha: value.gitSha, workerVersion: value.workerVersion, workerVersionId: value.workerVersionId, originalUiManifestHash: value.originalUiManifestHash };
 }
 
