@@ -111,7 +111,11 @@ function mountLearnCatalog(root: HTMLElement, search: LearnSearch): void {
       input.focus({ preventScroll: true });
     });
     window.addEventListener("popstate", () => controller.apply(search.readState(window.location.search), false));
-    window.addEventListener("pageshow", () => controller.apply(search.readState(window.location.search), false));
+    window.addEventListener("pageshow", (event) => {
+      // Initial mount restores the URL before the form becomes usable. A late
+      // initial pageshow must not overwrite a draft while resources finish loading.
+      if (event.persisted) controller.apply(search.readState(window.location.search), false);
+    });
     controller.apply(search.readState(window.location.search), false);
     form.hidden = false;
     root.dataset.learnReady = "true";
