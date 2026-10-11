@@ -48,5 +48,5 @@ export async function handleWorkOpportunityRequest(request:Request,url:URL,db:Da
  if(!item)return null;
  const back=listingReturnPath(url,prefix);
  const html=renderWorkOpportunityDetail({item,currentPath:url.pathname,returnPath:back});
- return new Response(request.method==="HEAD"?null:html,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"public, max-age=60","x-ikimon-cloudflare-native":"work-opportunity-public-editions"}});
+ return new Response(request.method==="HEAD"?null:html,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-ikimon-cloudflare-native":"work-opportunity-public-editions"}});
 }

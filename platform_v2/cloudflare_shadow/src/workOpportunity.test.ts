@@ -13,7 +13,7 @@ test("listing target resolves through the actual Worker presentation wrapper to 
  const listing=await publicPresentationEntry.fetch(req("/ja/jobs"),env,{waitUntil(){}});
  assert.equal(listing.status,200);const listHtml=await listing.text();assert.match(listHtml,/href="\/ja\/jobs\/opening-1"/);
  const detail=await publicPresentationEntry.fetch(req("/ja/jobs/opening-1"),env,{waitUntil(){}});
- assert.equal(detail.status,200);const html=await detail.text();assert.match(html,/地域資料の整理/);assert.match(html,/data-edition-id="edition-2026-09"/);assert.match(html,/https:\/\/example\.org\/jobs\/1/);assert.doesNotMatch(html,/応募する|応募フォーム/);
+ assert.equal(detail.status,200);assert.equal(detail.headers.get("cache-control"),"no-store");const html=await detail.text();assert.match(html,/地域資料の整理/);assert.match(html,/data-edition-id="edition-2026-09"/);assert.match(html,/https:\/\/example\.org\/jobs\/1/);assert.doesNotMatch(html,/応募する|応募フォーム/);
  assert.equal(database.calls.length,2);assert.match(database.calls[1]!.sql,/publication_state = 'published'/);assert.deepEqual(database.calls[1]!.values,["opening-1"]);
 });
 
