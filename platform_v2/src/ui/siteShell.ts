@@ -6797,7 +6797,7 @@ ${alternateLinks}
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 34px;
+      min-height: 44px;
       padding: 7px 12px;
       border-radius: 999px;
       background: #ecfdf5;
