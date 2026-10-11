@@ -16,6 +16,14 @@ Intended scaling rule: necessary new authorized assessments plus selected change
 
 ## 1. Permitted assessment triggers
 
+### Zero incremental spend, self-service, and email challenge (2026-10-12)
+
+The default guest capture and first municipality self-service flow must function **without billable AI, a staffed reviewer, a paid onboarding workflow or a per-municipality resource**. The owner wants zero user price and preferably zero additional cloud charge; these are different claims. Cloudflare's Workers, D1 and R2 allowances are account-wide, with live allocation and quota enforcement depending on the actual plan. Existing recurring cloud spend, domain, operating labor and evidence review are not zero merely because a marginal request fits the quota.
+
+Keep public guides/static assets on the existing cached/static path. Share one runtime and Record/Rights/Receipt store across Target Profiles and jurisdictions. Avoid per-photo AI, automatic translation, periodic full-table scans, location geocoding on every upload, separate queues, logging of private photos, paid transformations, municipality-specific workspaces backed by distinct physical infrastructure, and unlimited original storage. Use bounded photo size/count with evidence-preserving quality, retention per existing policy, existing abuse protection, and a measurable shared budget. On capacity exhaustion, do not claim persistence, charge silently, or block direct official-contact instructions.
+
+Official mailbox verification is a rare, finite operation per municipal staff session, not an email on every read/report. Prefer a pre-existing lawful outbound route with available free allocation. On Workers Free, Cloudflare Email Service does not allow outbound sending to arbitrary addresses; no free-magic-link assumption is allowed. If an inbound-authenticated challenge or other authorized native verification method is used, prove real ownership and official-domain provenance, use one-time nonce/expiry/rate limits, and distinguish email-holder evidence from legal authority or private record consent. No IKIMON human approval is required for the normal self-service user journey.
+
 A new biosecurity provider call requires both a real task and current rights/authority/capacity. Valid tasks are:
 
 1. a user explicitly requests the biosecurity assessment/capture workflow, including from another peer surface;
