@@ -63,6 +63,12 @@ async function renderCanonicalPaths(): Promise<Map<string, string>> {
       assert.equal(response.statusCode, 200, `canonical renderer: ${path}`);
       rendered.set(path, response.body);
     }
+    const about = await app.inject({
+      method: "GET", url: "/ja/about",
+      headers: { host: "zukan.earth", "x-forwarded-proto": "https", accept: "text/html" },
+    });
+    assert.equal(about.statusCode, 200, "canonical About renderer");
+    rendered.set("/ja/about", about.body);
   } finally {
     await app.close();
   }
@@ -144,6 +150,28 @@ test("the actual public Worker serves the complete Learn materialization project
   assert.equal(f.databaseReads(), 0);
   assert.equal(f.bucket.writes, 0);
   t.diagnostic(JSON.stringify({ scope: "local final-Worker/R2 fixture", articles: catalogue.length, materializedPaths: paths.length, environments: 2, resolvedResponses: paths.length * 2, databaseReads: 0, r2Writes: 0 }));
+});
+
+test("only the rendered Learn catalog keeps the shared native menu; About retains the registered Worker menu selector", async () => {
+  const f = await fixture();
+  const learn = await read("/ja/learn", f.env);
+  const learnHtml = await learn.text();
+  const about = await read("/ja/about", f.env);
+  const aboutHtml = await about.text();
+  assert.equal(learn.status, 200);
+  assert.match(learnHtml, /<section\b[^>]*data-learn-catalog(?:\s|=|>)/u);
+  assert.equal([...learnHtml.matchAll(/<details\b[^>]*class="site-mobile-menu"/gu)].length, 1);
+  assert.match(learnHtml, /<button\b[^>]*data-desktop-side-nav-toggle(?:\s|=|>)/u);
+  assert.match(learnHtml, /<summary\b[^>]*class="site-mobile-menu-toggle"[^>]*aria-label="メニュー"/u);
+  assert.doesNotMatch(learnHtml, /data-cloudflare-header-menu/u);
+  assert.equal(about.status, 200);
+  assert.doesNotMatch(aboutHtml, /<section\b[^>]*data-learn-catalog(?:\s|=|>)/u);
+  assert.equal([...aboutHtml.matchAll(/<details\b[^>]*data-cloudflare-header-menu/gu)].length, 1);
+  assert.match(aboutHtml, /<details class="cf-header-menu" data-cloudflare-header-menu>[\s\S]*?<summary aria-label="メニュー"/u);
+  assert.match(aboutHtml, /<div class="cf-header-menu-panel" role="menu">/u);
+  assert.match(aboutHtml, /\.cf-header-menu summary:focus-visible/u);
+  assert.match(aboutHtml, /<a class="cf-header-menu-item" role="menuitem" href="\/ja\/records">記録を見る<\/a>/u);
+  assert.equal(f.bucket.writes, 0);
 });
 
 test("native GET, HEAD and search URLs retain the same catalogue, nonce-bound scripts and source hash", async () => {
