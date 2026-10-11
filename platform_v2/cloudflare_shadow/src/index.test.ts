@@ -26059,8 +26059,21 @@ test("production image target observation details restore photo record controls 
   }
   const productionEnv = { ...env, ENVIRONMENT: "production" };
 
+  const canonicalRedirect = await publicPresentationEntry.fetch(new Request(
+    "https://www.zukan.earth/observations/record-1781252770584?from=Line&source=Instagram&utm_source=Story&share=Timeline-1&redirect=javascript%3Aalert%281%29&lat=35.68",
+  ), productionEnv, { waitUntil() {} });
+  assert.equal(canonicalRedirect.status, 308);
+  const redirectedUrl = new URL(canonicalRedirect.headers.get("location") ?? "");
+  assert.equal(redirectedUrl.hostname, "zukan.earth");
+  assert.equal(redirectedUrl.searchParams.get("from"), "Line");
+  assert.equal(redirectedUrl.searchParams.get("source"), "Instagram");
+  assert.equal(redirectedUrl.searchParams.get("utm_source"), "Story");
+
   for (const target of targets) {
-    const response = await worker.fetch(new Request(`https://ikimon.life/observations/${target.id}?subject=occ%3A${target.id}%3A0&lang=ja`), productionEnv);
+    const arrival = target.id === targets[0]?.id
+      ? "&from=Line&source=Instagram&utm_source=Story&share=Timeline-1&invite=event-day&event=bioblitz-2026&redirect=javascript%3Aalert%281%29&lat=35.68&localityNote=home"
+      : "";
+    const response = await publicPresentationEntry.fetch(new Request(`https://ikimon.life/observations/${target.id}?subject=occ%3A${target.id}%3A0&lang=ja${arrival}`), productionEnv, { waitUntil() {} });
     const body = await response.text();
     assert.equal(response.status, 200, body);
     assert.match(body, /data-cloudflare-observation-detail="1"/);
@@ -26100,6 +26113,14 @@ test("production image target observation details restore photo record controls 
     assert.match(body, /保存する/);
     assert.match(body, /編集履歴/);
     assert.match(body, /次に見るなら/);
+    if (arrival) {
+      const localHrefs = [...body.matchAll(/\bhref="([^"]*)"/gu)]
+        .map((match) => match[1]!.replaceAll("&amp;", "&"))
+        .filter((href) => href.startsWith("/") && !href.startsWith("//"));
+      assert.ok(localHrefs.some((href) => href.includes("from=line") && href.includes("utm_source=story")), "safe arrival context should reach active Worker follow-up links");
+      assert.ok(localHrefs.some((href) => href.includes("share=timeline-1") && href.includes("invite=event-day") && href.includes("event=bioblitz-2026")), "all allowlisted context keys should reach follow-up links");
+      assert.ok(localHrefs.every((href) => !href.includes("redirect=javascript") && !href.includes("lat=35.68") && !href.includes("localityNote=home")), "unsafe and unknown query fields must not be copied to follow-up links");
+    }
     assert.match(body, /写真/);
     assert.match(body, /動画/);
     assert.doesNotMatch(body, /class="[^"]*obs-hero-video-frame|class="[^"]*obs-video-evidence-frame|この映像で読む対象を切り替える/);

@@ -88,6 +88,7 @@ export type ObservationFirstRecordPresentation = {
   } | null;
   related?: ObservationFirstRelatedPresentation[];
   canonicalUrl?: string;
+  shareUrl?: string;
   actionNonce: string;
   processingMessage?: string | null;
   processingStatusPanel?: string | null;
@@ -495,6 +496,7 @@ export function renderObservationFirstRecordDetailHtml(
   const title = presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title) ? copy.natureRecord : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
   const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
+  const shareUrl = presentation.shareUrl ?? canonicalUrl;
   const prefix = langPrefix(lang);
   const cleanStatus = presentation.processingMessage && !forbiddenEmptyCopy.test(presentation.processingMessage) ? presentation.processingMessage : null;
   const processingStatusPanel = presentation.processingStatusPanel?.trim() ?? "";
@@ -514,7 +516,7 @@ export function renderObservationFirstRecordDetailHtml(
   const management = renderOwnerManagement(detail, { ...presentation, lang }, media, action, copy);
   const capture = renderCaptureInfo(detail, presentation, media, copy);
   const related = renderRelated(presentation.related, lang, copy);
-  const mailto = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(canonicalUrl)}`;
+  const mailto = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(shareUrl)}`;
   const locationProtection = presentation.locationProtectionLabel?.trim()
     || (detail.visibility === "public" ? copy.approximateLocation : copy.exactLocationPrivate);
   const observedLabel = presentation.observedLabel.trim() || (lang === "ja" ? "日時不明" : lang === "es" ? "Fecha desconocida" : lang === "pt-br" ? "Data desconhecida" : "Date unknown");

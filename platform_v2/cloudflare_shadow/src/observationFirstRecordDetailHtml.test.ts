@@ -99,6 +99,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
     environment: { place_type: "grassland_urban_edge", contact_surface: "plant", human_change: "mowing", place_type_source: "derived", environment_record_status: "auto_draft" },
     related: [{ recordId: "related-safe", title: "近くのアゲハ", observedLabel: "2026年7月20日", photoUrl: "https://media.example/related.jpg" }],
     canonicalUrl: "https://ikimon.life/ja/observations/visit-ui-contract",
+    shareUrl: "https://ikimon.life/ja/observations/visit-ui-contract?from=line&utm_source=instagram",
     actionNonce: "nonce-contract",
     processingMessage: "写真を表示できるよう整えています。",
     aiFeedback: "主対象と環境の要素が確認できました。",
@@ -155,6 +156,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /data-owner-delete-script/);
   assert.match(rendered, /data-delete-endpoint="\/api\/v1\/observations\//);
   assert.match(rendered, /href="#of-manage-body"/);
+  assert.match(rendered, /body=https%3A%2F%2Fikimon.life%2Fja%2Fobservations%2Fvisit-ui-contract%3Ffrom%3Dline%26utm_source%3Dinstagram/);
   assert.doesNotMatch(rendered, /latitude|longitude|exact_location|みんなに聞く|提案募集中|確認0件|観察記録|件の対象|名前は未決定|同定の履歴|人から記録された同定候補はまだありません|割り当てられたメディアはありません/i);
 
   const operationIds = [...rendered.matchAll(/name="operation_id" value="([^"]+)"/g)].map((match) => match[1]);
