@@ -32,8 +32,8 @@ export default {
     }
 
     const publicPath = new URL(request.url).pathname;
-    if (publicPath.startsWith("/ja/people/")) {
-      const foundId = /-([a-f0-9]{32})\/?$/u.exec(publicPath)?.[1];
+    if (/^\/ja\/(?:people|organizations)\//u.test(publicPath)) {
+      const foundId = /-([a-f0-9]{32})(?:\/portrait\.webp|\/)?$/u.exec(publicPath)?.[1];
       const database = (env as { CORE_DB?: PersonD1 }).CORE_DB;
       const assetStore = (env as { ASSET_BUCKET?: PersonEditionBlobStore }).ASSET_BUCKET;
       if (foundId && database && !assetStore) {
@@ -43,7 +43,7 @@ export default {
         try {
           const stored = await readPersonEdition(database, assetStore, foundId);
           if (stored.found) {
-            // A withdrawal overrides any source-managed earlier edition.
+            // A withdrawal overrides any source-managed earlier edition, including its portrait.
             const resolved = personPublicationResponse(request, env as { ENVIRONMENT?: string; IKIMON_GIT_SHA?: string },
               stored.profile === null ? [] : [stored.profile]);
             if (resolved !== null) return ensurePublicDesignFoundation(request, resolved);
