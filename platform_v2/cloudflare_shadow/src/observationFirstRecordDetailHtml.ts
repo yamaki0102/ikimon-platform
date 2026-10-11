@@ -178,7 +178,7 @@ const observationName = (card: ObservationFirstCard, copy: ObservationFirstRecor
 };
 
 const japaneseAiProse = /[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}]/u;
-const englishAiProse = /[A-Za-z]{3,}(?:[ -]+[A-Za-z]{3,}){2,}/u;
+const englishAiProse = /\b[A-Za-z]{3,}(?:[ -]+[A-Za-z]{3,}){2,}\b/u;
 
 function aiProseForLang(value: string, lang: ObservationRecordLang): string | null {
   if (lang !== "ja") return value;
