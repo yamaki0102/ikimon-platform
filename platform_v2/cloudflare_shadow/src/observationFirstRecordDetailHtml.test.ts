@@ -591,7 +591,8 @@ test("owner publication return distinguishes Review, eligible destination, and c
   assert.match(rendered, /公開の戻り値/);
   assert.match(rendered, /人によるReview/);
   assert.match(rendered, /Review済み・承認/);
-  assert.match(rendered, /公開可能（未公開）/);
+  assert.match(rendered, /公開の権利条件を確認済み（公開先の掲載は未確認）/);
+  assert.match(rendered, /公開先は設定済み（この記録の掲載は未確認）/);
   assert.match(rendered, /浜松・都田/);
   assert.match(rendered, /production Feed（読み取り専用）/);
   assert.match(rendered, /ポリシー版: public-feed-v1/);
@@ -614,6 +615,41 @@ test("owner publication return distinguishes Review, eligible destination, and c
     viewerAuthenticated: true,
   });
   assert.match(published, /公開確認済み/);
+});
+
+test("owner publication destination uses a localized place label", () => {
+  const publicationReturn: OwnerPublicationReturn = {
+    schema_version: "zukan.publication-return/v1",
+    review: { state: "not_reviewed", source: "none", decidedAt: null },
+    publication: {
+      state: "not_ready",
+      exclusionCode: "review_not_approved",
+      destinations: [{
+        feedKey: "miyakoda-renri-area",
+        label: "浜松・都田",
+        sourceVersion: "public-feed-v1",
+        sourceEnvironment: "production",
+        readOnly: true,
+        status: "excluded",
+        exclusionCode: "review_not_approved",
+      }],
+    },
+  };
+
+  for (const lang of ["en", "es", "pt-br"] as const) {
+    const rendered = renderObservationFirstRecordDetailHtml(detail, {
+      lang,
+      title: "Public record",
+      observedLabel: "September 15, 2026",
+      note: null,
+      media: [],
+      publicationReturn,
+      actionNonce: `nonce-publication-${lang}`,
+      viewerAuthenticated: true,
+    });
+    assert.match(rendered, /Miyakoda, Hamamatsu/);
+    assert.doesNotMatch(rendered, /浜松・都田/);
+  }
 });
 
 test("publication exclusion is owner-only and uses a safe localized reason", () => {
