@@ -2906,7 +2906,7 @@ export const worker = {
 
       const nativePlacePageMatch = nativePathname.match(/^\/places\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && nativePlacePageMatch?.[1]) {
-        return getNativePlaceLandingPage(decodeURIComponent(nativePlacePageMatch[1]), request);
+        return getNativePlaceLandingPage(decodeURIComponent(nativePlacePageMatch[1]), request, env);
       }
 
       const fixedPointStationMatch = nativePathname.match(/^\/places\/([^/]+)\/station$/);
@@ -3598,7 +3598,7 @@ export const worker = {
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && PUBLIC_CUSTOM_HOSTS.has(url.hostname) && !url.pathname.startsWith("/api/")) {
-        return getNativeNotFoundPage(request);
+        return getNativeNotFoundPage(request, env);
       }
 
       return json({ error: "not_found" }, 404);
@@ -18115,10 +18115,10 @@ async function getMunicipalWalkMapPublicDetailPage(walkMapId: string, env: Env):
   return html(renderMunicipalWalkMapPublicDetailHtml(detail), 200, { "cache-control": "public, max-age=60, stale-while-revalidate=300" });
 }
 
-function getNativePlaceLandingPage(slug: string, request: Request): Response {
+function getNativePlaceLandingPage(slug: string, request: Request, env: Env): Response {
   const placeSlug = slug.trim().toLowerCase();
   if (placeSlug !== "hamamatsu") {
-    return getNativeNotFoundPage(request);
+    return getNativeNotFoundPage(request, env);
   }
 
   const spots = SHADOW_MAP_GUIDE_SPOTS
@@ -18185,32 +18185,72 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
   });
 }
 
-function getNativeNotFoundPage(request: Request): Response {
+function getNativeNotFoundPage(request: Request, env: Env): Response {
+  const url = new URL(request.url);
+  const pathLang = publicLangFromPath(url.pathname);
+  const lang = pathLang ?? "ja";
+  const localizedPath = pathLang ? `/${lang}` : "";
+  const copy = {
+    ja: {
+      title: "ページが見つかりません",
+      message: "URLが変わったか、いまは公開されていないページです。地図や散策マップから探せます。",
+      map: "地図へ",
+      walks: "散策マップ",
+      home: "トップ",
+    },
+    en: {
+      title: "Page not found",
+      message: "This page may have moved or may not be public now. Explore the map or walking maps.",
+      map: "Explore the map",
+      walks: "Walking maps",
+      home: "Home",
+    },
+    es: {
+      title: "Página no encontrada",
+      message: "Es posible que esta página se haya movido o ya no sea pública. Explora el mapa o las rutas.",
+      map: "Explorar el mapa",
+      walks: "Rutas a pie",
+      home: "Inicio",
+    },
+    "pt-br": {
+      title: "Página não encontrada",
+      message: "Esta página pode ter mudado ou não estar mais pública. Explore o mapa ou os roteiros a pé.",
+      map: "Explorar o mapa",
+      walks: "Roteiros a pé",
+      home: "Início",
+    },
+  }[lang];
+  const cspNonce = createHtmlCspNonce();
   const body = `<!doctype html>
-<html lang="ja">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ページが見つかりません - ikimon</title>
+<title>${escapeHtml(copy.title)} - ZUKAN</title>
 <style>
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
-.nf{max-width:720px;margin:0 auto;padding:48px 16px 72px;display:grid;gap:14px}
-.nf h1{margin:0;font-size:28px;line-height:1.2;color:#0f172a;letter-spacing:0}
+.nf{max-width:720px;margin:0 auto;padding:24px 16px 72px;display:grid;gap:14px}
+.nf-brand{color:#176b45;font-size:16px;font-weight:900;letter-spacing:.04em;text-decoration:none}
+.nf h1{margin:12px 0 0;font-size:28px;line-height:1.2;color:#0f172a;letter-spacing:0}
 .nf p{margin:0;color:#475569;line-height:1.75}
 .nf-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.nf-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
+.nf-actions a{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
 .nf-actions a:first-child{background:#0f766e;color:#fff;border-color:#0f766e}
-@media(max-width:760px){.nf{padding:34px 12px 56px}.nf h1{font-size:24px}.nf-actions a{width:100%}}
+body[data-zukan-design] .nf-actions a:not([class]):is(:link,:visited){color:#0f766e}
+body[data-zukan-design] .nf-actions a:first-child:not([class]):is(:link,:visited){color:#fff}
+.nf-actions a:focus-visible{outline:3px solid #d8a51d;outline-offset:3px}
+@media(max-width:760px){.nf{padding:24px 16px 56px}.nf h1{font-size:24px}.nf-actions a{width:100%}}
 </style>
 </head>
 <body>
 <main class="nf">
-  <h1>ページが見つかりません</h1>
-  <p>URLが変わったか、いまは公開されていないページです。地図や散策マップから探せます。</p>
-  <nav class="nf-actions" aria-label="移動先">
-    <a href="/map">地図へ</a>
-    <a href="/walk-maps">散策マップ</a>
-    <a href="/">トップ</a>
+  <a class="nf-brand" href="${localizedPath}/" aria-label="ZUKAN">ZUKAN</a>
+  <h1>${escapeHtml(copy.title)}</h1>
+  <p>${escapeHtml(copy.message)}</p>
+  <nav class="nf-actions" aria-label="${lang === "ja" ? "移動先" : "Navigation"}">
+    <a href="${localizedPath}/map">${escapeHtml(copy.map)}</a>
+    <a href="${localizedPath}/walk-maps">${escapeHtml(copy.walks)}</a>
+    <a href="${localizedPath}/">${escapeHtml(copy.home)}</a>
   </nav>
 </main>
 </body>
@@ -18218,6 +18258,7 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
   return new Response(request.method === "HEAD" ? null : body, {
     status: 404,
     headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
       "content-type": "text/html; charset=utf-8",
       "cache-control": "public, max-age=60",
       "x-ikimon-cloudflare-native": "not-found"
