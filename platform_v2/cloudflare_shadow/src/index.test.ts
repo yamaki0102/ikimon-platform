@@ -22985,11 +22985,20 @@ test("production fixed point station page is D1-native without origin fallback",
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "fixed-point-station-readmodel");
     assert.match(body, /谷津山の観察地点/);
+    assert.match(body, /<title>谷津山の観察地点 \| 定点ページ \| ZUKAN<\/title>/);
+    assert.match(body, /<header><a href="\/">ZUKAN<\/a><nav><a href="\/map">地図へ<\/a><\/nav><\/header>/);
     assert.match(body, /ササゴイ/);
     assert.match(body, /水辺のごみを拾った/);
     assert.doesNotMatch(body, /visit-fixed-private/);
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
+
+    const missingStationResponse = await worker.fetch(new Request("https://ikimon.life/places/missing-fixed-field/station"), productionEnv);
+    const missingStationBody = await missingStationResponse.text();
+    assert.equal(missingStationResponse.status, 404);
+    assert.match(missingStationBody, /<title>定点ページ \| ZUKAN<\/title>/);
+    assert.match(missingStationBody, /<h1>定点ページが見つかりません<\/h1>/);
+    assert.doesNotMatch(missingStationBody, /<title>[^<]*ikimon|<header[^>]*>[\s\S]*?ikimon/i);
   } finally {
     globalThis.fetch = originalFetch;
   }

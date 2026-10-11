@@ -25075,7 +25075,7 @@ function buildD1FixedPointYearlyTimeline(visits: D1FixedPointStationVisit[], act
 }
 
 function renderFixedPointStationNotFoundHtml(placeId: string): string {
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ikimon</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ZUKAN</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
 }
 
 function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
@@ -25100,7 +25100,7 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${escapeHtml(station.name)} | 定点ページ | ikimon</title>
+  <title>${escapeHtml(station.name)} | 定点ページ | ZUKAN</title>
   <style>
     :root { color-scheme: light; --ink:#0f172a; --muted:#64748b; --line:rgba(15,23,42,.1); --green:#047857; --shell:min(1100px, calc(100% - 28px)); }
     * { box-sizing: border-box; } body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color:var(--ink); background:#f8fafc; }
@@ -25118,7 +25118,7 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
   </style>
 </head>
 <body>
-<header><a href="/">ikimon</a><nav><a href="/map">地図へ</a></nav></header>
+<header><a href="/">ZUKAN</a><nav><a href="/map">地図へ</a></nav></header>
 <main data-cloudflare-fixed-point-station="1" data-place-id="${escapeHtml(station.placeId)}">
   <section class="fps-hero"><div><span>定点ページ</span><h1>${escapeHtml(station.name)}</h1><p>${escapeHtml(station.locationLabel)}。同じ場所の公開記録と手入れの履歴を年ごとに並べます。</p></div><a href="${escapeHtml(recordHref)}">この場所を記録</a></section>
   <div class="fps-stats"><div class="fps-stat"><strong>${station.visits.length}</strong><span>公開記録</span></div><div class="fps-stat"><strong>${station.yearlyTimeline.length}</strong><span>年</span></div><div class="fps-stat"><strong>${station.actions.length}</strong><span>手入れ</span></div></div>
