@@ -5167,12 +5167,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!context || !Number.isFinite(context.lat) || !Number.isFinite(context.lng)) return [];
     var origin = { lat: context.lat, lng: context.lng };
     return (Array.isArray(state.records) ? state.records : [])
+      .filter(function (record) { return record && !record.isViewerOwned; })
       .map(function (record) {
         var center = recordCellCenter(record);
         return { record: record, center: center, meters: distanceMeters(origin, center) };
       })
       .filter(function (item) {
-        return item.record && item.center && Number.isFinite(item.meters) && item.meters <= maxMeters;
+        return item.center && Number.isFinite(item.meters) && item.meters <= maxMeters;
       })
       .sort(function (a, b) {
         var photoDelta = (b.record.photoUrl ? 1 : 0) - (a.record.photoUrl ? 1 : 0);
