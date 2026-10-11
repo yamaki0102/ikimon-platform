@@ -3,13 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("photo upload, queue, cron, Gemini Batch, and review target form one durable reassessment path", async () => {
-  const [source, dualWrite, geminiBatch, wrangler] = await Promise.all([
+  const [source, dualWrite, geminiBatch, qualityBacklog, wrangler] = await Promise.all([
     readFile(new URL("./index.ts", import.meta.url), "utf8"),
     readFile(new URL("./cloudflareObservationAiDualWrite.ts", import.meta.url), "utf8"),
     readFile(new URL("./geminiObservationBatch.ts", import.meta.url), "utf8"),
+    readFile(new URL("./observationAiQualityBacklog.ts", import.meta.url), "utf8"),
     readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
   ]);
-  const runtime = `${source}\n${dualWrite}\n${geminiBatch}`;
+  const runtime = `${source}\n${dualWrite}\n${geminiBatch}\n${qualityBacklog}`;
 
   assert.match(source, /"observation\.reassess"/);
   assert.match(source, /runScheduledObservationReassessments/);
@@ -58,11 +59,19 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(source, /geminiBatchTerminalFailure\(specialist\)/);
   assert.match(runtime, /generationConfig\([^\n]+, 2048,/);
   assert.match(source, /humanReviewRequired: true/);
-  assert.match(source, /latest_public_record_ai_upgrade_v2/);
-  assert.match(source, /await recentPublicRecordCards\(env, 120\)[\s\S]+Boolean\(item\.photoUrl\)[\s\S]+\.slice\(0, 30\)/);
-  assert.match(source, /FROM observations o\s+LEFT JOIN observation_reassessment_requests/);
-  assert.match(source, /reason: "missing_reassessment_request"/);
-  assert.match(source, /ON CONFLICT\(observation_id, request_kind, actor_user_id\) DO NOTHING/);
+  assert.match(source, /await requeuePublicPhotoAiQualityBacklog\(env\)/);
+  assert.match(source, /function requeuePublicPhotoAiQualityBacklog/);
+  assert.match(source, /OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL/);
+  assert.match(source, /OBSERVATION_AI_QUALITY_BACKLOG_REVALIDATE_SQL/);
+  assert.match(source, /loadObservationAiAssetSelection\(request\.observation_id, env, isPublicQualityBacklog\)/);
+  assert.match(source, /observationAiImageInput\(asset, env, isPublicQualityBacklog\)/);
+  assert.match(source, /requireVerifiedPublicDerivative && !sourceBytes/);
+  assert.match(qualityBacklog, /GEMINI_QUALITY_BACKLOG_MAX_ACTIVE = 40/);
+  assert.match(qualityBacklog, /GEMINI_QUALITY_BACKLOG_MAX_REQUEUE_PER_TICK = 10/);
+  assert.match(qualityBacklog, /json_valid\(source_payload_json\)/);
+  assert.match(qualityBacklog, /qualityBacklogRevision/);
+  assert.match(qualityBacklog, /rights\.withdrawal_status = 'active'/);
+  assert.match(qualityBacklog, /rights\.record_consent IN \('public_summary', 'external_export'\)/);
   assert.match(source, /OBSERVATION_DUAL_WRITE_MODE \?\? "off"/);
   assert.equal((wrangler.match(/"binding": "AI"/g) ?? []).length, 4);
   assert.equal((wrangler.match(/"OBSERVATION_DUAL_WRITE_MODE": "off"/g) ?? []).length, 2);
