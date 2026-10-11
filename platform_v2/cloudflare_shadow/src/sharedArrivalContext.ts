@@ -64,7 +64,7 @@ export function appendSharedArrivalContext(href: string, context: SharedArrivalC
 
   for (const [key, value] of Object.entries(context)) {
     if (!SAFE_SHARED_ARRIVAL_KEYS.has(key) || !isSafeSharedArrivalValue(value)) continue;
-    params.set(key, value.toLowerCase());
+    if (!params.has(key)) params.append(key, value.toLowerCase());
   }
 
   const rewrittenQuery = params.toString();
@@ -75,12 +75,18 @@ export function appendSharedArrivalContextToLocalHrefs(html: string, context: Sh
   if (!Object.keys(context).length) return html;
   return html.split(/(<script\b[\s\S]*?<\/script\s*>)/giu).map((part) => {
     if (/^<script\b/iu.test(part)) return part;
-    return part.replace(/<a\b[^>]*>/giu, (anchor) => anchor.replace(/\bhref=(['"])(.*?)\1/iu, (attribute, quote: string, href: string) => {
-    const path = href.split(/[?#]/u, 1)[0] ?? "";
-    if (!/^\/(?!\/)(?:(?:ja|en|es|pt-br)\/)?(?:observations\/[^/]+|record)(?:\/|$)/u.test(path)) return attribute;
-    const decodedHref = href.replace(/&amp;/giu, "&");
-    const updated = appendSharedArrivalContext(decodedHref, context);
-    return updated === decodedHref ? attribute : `href=${quote}${updated.replaceAll("&", "&amp;")}${quote}`;
-    }));
+    return part.replace(/<a\b[^>]*>/giu, (anchor) => {
+      const classValue = /\bclass=(['"])(.*?)\1/iu.exec(anchor)?.[2] ?? "";
+      const isFollowUpCta = /\bdata-shared-arrival-cta(?:\s|=|>)/iu.test(anchor)
+        || classValue.split(/\s+/u).some((name) => ["obs-action", "obs-nearby-card", "of-related-card"].includes(name));
+      if (!isFollowUpCta) return anchor;
+      return anchor.replace(/\bhref=(['"])(.*?)\1/iu, (attribute, quote: string, href: string) => {
+        const path = href.split(/[?#]/u, 1)[0] ?? "";
+        if (!/^\/(?!\/)(?:(?:ja|en|es|pt-br)\/)?(?:observations\/[^/]+|record)(?:\/|$)/u.test(path)) return attribute;
+        const decodedHref = href.replace(/&amp;/giu, "&");
+        const updated = appendSharedArrivalContext(decodedHref, context);
+        return updated === decodedHref ? attribute : `href=${quote}${updated.replaceAll("&", "&amp;")}${quote}`;
+      });
+    });
   }).join("");
 }

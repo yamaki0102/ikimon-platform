@@ -26119,6 +26119,7 @@ test("production image target observation details restore photo record controls 
         .filter((href) => href.startsWith("/") && !href.startsWith("//"));
       assert.ok(localHrefs.some((href) => href.includes("from=line") && href.includes("utm_source=story")), "safe arrival context should reach active Worker follow-up links");
       assert.ok(localHrefs.some((href) => href.includes("share=timeline-1") && href.includes("invite=event-day") && href.includes("event=bioblitz-2026")), "all allowlisted context keys should reach follow-up links");
+      assert.ok(localHrefs.includes("/ja/map"), "unrelated map navigation must remain unchanged");
       assert.ok(localHrefs.every((href) => !href.includes("redirect=javascript") && !href.includes("lat=35.68") && !href.includes("localityNote=home")), "unsafe and unknown query fields must not be copied to follow-up links");
     }
     assert.match(body, /写真/);

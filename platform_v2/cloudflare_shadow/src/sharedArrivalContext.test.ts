@@ -59,8 +59,7 @@ test("appends safe context to local follow-up links while retaining query, hash 
   assert.equal(appendSharedArrivalContext("https://other.example/record", context), "https://other.example/record");
   assert.equal(appendSharedArrivalContext("//other.example/record", context), "//other.example/record");
   assert.equal(appendSharedArrivalContext("javascript:alert(1)", context), "javascript:alert(1)");
-  assert.equal(
-    appendSharedArrivalContextToLocalHrefs('<a href="/record?start=gallery&amp;view=photo#top">Continue</a><a href="/ja/observations/next?subject=occ%3A1">Related</a><a href="/map">Map</a><a href="https://other.example/">External</a><script>const a = \'<a href="/record">dynamic</a>\';</script>', context),
-    '<a href="/record?start=gallery&amp;view=photo&amp;from=line&amp;utm_source=instagram#top">Continue</a><a href="/ja/observations/next?subject=occ%3A1&amp;from=line&amp;utm_source=instagram">Related</a><a href="/map">Map</a><a href="https://other.example/">External</a><script>const a = \'<a href="/record">dynamic</a>\';</script>',
-  );
+  const localLinks = `<a class="obs-action" href="/record?start=gallery&amp;view=photo&amp;from=observation#top">Continue</a><a class="of-related-card" href="/ja/observations/next?subject=occ%3A1">Related</a><a href="/en/observations/current" lang="en">Language</a><a href="/record">Unmarked</a><a class="obs-action" href="/map">Map</a><a class="obs-nearby-card" href="https://other.example/">External</a><script>const a = '<a class="obs-action" href="/record">dynamic</a>';</script>`;
+  const expectedLinks = `<a class="obs-action" href="/record?start=gallery&amp;view=photo&amp;from=observation&amp;utm_source=instagram#top">Continue</a><a class="of-related-card" href="/ja/observations/next?subject=occ%3A1&amp;from=line&amp;utm_source=instagram">Related</a><a href="/en/observations/current" lang="en">Language</a><a href="/record">Unmarked</a><a class="obs-action" href="/map">Map</a><a class="obs-nearby-card" href="https://other.example/">External</a><script>const a = '<a class="obs-action" href="/record">dynamic</a>';</script>`;
+  assert.equal(appendSharedArrivalContextToLocalHrefs(localLinks, context), expectedLinks);
 });

@@ -38890,7 +38890,7 @@ function renderPublicObservationDetailHtml(
   const relatedLead = polish?.relatedLead ?? "";
   const relatedCountLabel = polish?.relatedCountLabel ?? `${relatedForDisplay.length}件`;
   const actionRailBlock = polish?.actionRailBlock ?? (polish ? `<nav class="obs-action-strip" aria-label="関連操作">
-        <a href="${escapeHtml(recordHref)}">もう一度記録する</a>
+        <a data-shared-arrival-cta href="${escapeHtml(recordHref)}">もう一度記録する</a>
         <a href="${escapeHtml(mapHref)}">地図で見る</a>
       </nav>` : `<div class="obs-action-rail" aria-label="関連操作">
         <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
