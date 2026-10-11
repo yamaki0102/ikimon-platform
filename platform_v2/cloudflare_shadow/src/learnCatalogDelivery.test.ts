@@ -152,7 +152,7 @@ test("the actual public Worker serves the complete Learn materialization project
   t.diagnostic(JSON.stringify({ scope: "local final-Worker/R2 fixture", articles: catalogue.length, materializedPaths: paths.length, environments: 2, resolvedResponses: paths.length * 2, databaseReads: 0, r2Writes: 0 }));
 });
 
-test("only the rendered Learn catalog keeps the shared native menu; About keeps its Worker menu with desktop fallback scoped to the native toggle", async () => {
+test("only the rendered Learn catalog keeps the shared native menu; About retains its Worker fallback and native desktop account controls", async () => {
   const f = await fixture();
   const learn = await read("/ja/learn", f.env);
   const learnHtml = await learn.text();
@@ -169,7 +169,7 @@ test("only the rendered Learn catalog keeps the shared native menu; About keeps 
   assert.match(aboutHtml, /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/u);
   assert.equal([...aboutHtml.matchAll(/<details\b[^>]*data-cloudflare-header-menu/gu)].length, 1);
   assert.match(aboutHtml, /<details class="cf-header-menu" data-cloudflare-header-menu>[\s\S]*?<summary aria-label="メニュー"/u);
-  assert.match(aboutHtml, /@media\s*\(min-width:\s*1161px\)\s*\{\s*\.cf-header-menu\s*\{\s*display:\s*none!important\s*\}\s*\.site-header\s+\.site-header-actions-desktop\s*\{\s*display:\s*flex!important\s*\}\s*\}/u);
+  assert.match(aboutHtml, /class="site-header-actions site-header-actions-desktop"[\s\S]*?data-language-disclosure[\s\S]*?class="site-account-icons"/u);
   assert.match(aboutHtml, /<div class="cf-header-menu-panel" role="menu">/u);
   assert.match(aboutHtml, /\.cf-header-menu summary:focus-visible/u);
   assert.match(aboutHtml, /<a class="cf-header-menu-item" role="menuitem" href="\/ja\/records">記録を見る<\/a>/u);
