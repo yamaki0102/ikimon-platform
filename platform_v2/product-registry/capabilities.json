@@ -305,6 +305,40 @@
         "quality.zukan.operational-summary.free",
         "quality.zukan.raw-record-portability"
       ]
+    },
+    {
+      "domain": "biosecurity",
+      "outcome_ref": "outcome.zukan.collaborative-knowledge",
+      "actors": [
+        "individual",
+        "municipality"
+      ],
+      "outcome": "市民の記録を非公開保存し、公式メールを確認した担当者へ同意された範囲だけ提供する",
+      "capability_refs": [
+        "zukan.biosecurity.guide",
+        "zukan.biosecurity.capture-private",
+        "zukan.biosecurity.receipt",
+        "zukan.biosecurity.share-selected",
+        "zukan.biosecurity.verify-mailbox",
+        "zukan.biosecurity.receive-selected",
+        "zukan.biosecurity.acknowledge-receipt"
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.exif-minimization",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.free-core.boundary"
+      ]
     }
   ],
   "capabilities": [
@@ -430,6 +464,85 @@
       "operation": "read",
       "privacy": "public-filtered",
       "side_effects": []
+    },
+    {
+      "id": "zukan.biosecurity.guide",
+      "title": "見守りと記録方法を確認する",
+      "actor": "visitor_or_municipal_staff",
+      "operation": "read",
+      "privacy": "public",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.biosecurity.capture-private",
+      "title": "会員登録なしで写真を非公開保存する",
+      "actor": "anonymous_owner",
+      "operation": "write",
+      "privacy": "owner-only",
+      "side_effects": [
+        "shared-record-write",
+        "private-media-upload",
+        "bounded-usage-reservation"
+      ],
+      "failure_contract": "認証cookie、入力、media保存、容量・件数上限の失敗を非公開保存成功と表示しない",
+      "retry_contract": "同一credentialとidempotency key、同一payloadで一つのRecordへ収束し、内容の変化は409、部分保存は同じlease境界で再試行する"
+    },
+    {
+      "id": "zukan.biosecurity.receipt",
+      "title": "この端末の非公開記録を確認する",
+      "actor": "anonymous_owner",
+      "operation": "read",
+      "privacy": "owner-only",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.biosecurity.share-selected",
+      "title": "自治体への選択共有を開始・撤回する",
+      "actor": "anonymous_owner",
+      "operation": "write",
+      "privacy": "explicit-recipient-fields",
+      "side_effects": [
+        "consent-record-write",
+        "consent-withdrawal",
+        "private-record-deletion"
+      ],
+      "failure_contract": "宛先、目的、提供項目、必要な保護者確認が欠ける場合は共有しない。撤回・削除失敗時は未確定を完了表示しない",
+      "retry_contract": "共有は同一idempotency keyへ収束し、撤回はversion比較、削除は単独leaseで再試行して別Recordや容量予約を損なわない"
+    },
+    {
+      "id": "zukan.biosecurity.verify-mailbox",
+      "title": "公式メールの所有を確認して受信箱を開く",
+      "actor": "municipal_staff",
+      "operation": "write",
+      "privacy": "mailbox-scoped",
+      "side_effects": [
+        "bounded-official-source-read",
+        "rate-limited-verification-email",
+        "scoped-auth-session-write"
+      ],
+      "failure_contract": "根拠のないドメイン、異なる自治体、送信結果不明、期限切れ、失効、確認回数超過を開設成功にしない",
+      "retry_contract": "公式掲載の根拠は版と期限を保持して再利用し、確認コードは同一ブラウザーで一度だけ消費する。再送は既存上限内で行う"
+    },
+    {
+      "id": "zukan.biosecurity.receive-selected",
+      "title": "同意された提供項目だけを受信箱で見る",
+      "actor": "municipal_staff",
+      "operation": "read",
+      "privacy": "recipient-scoped-private",
+      "side_effects": []
+    },
+    {
+      "id": "zukan.biosecurity.acknowledge-receipt",
+      "title": "担当者が記録を確認した状態を残す",
+      "actor": "municipal_staff",
+      "operation": "write",
+      "privacy": "recipient-scoped-private",
+      "side_effects": [
+        "receipt-status-write",
+        "consent-event-write"
+      ],
+      "failure_contract": "共有撤回、別自治体、期限切れ、session失効を拒否し、確認を正式通報の受理や現地対応と扱わない",
+      "retry_contract": "expected versionを比較し、一度の確認で一つの状態遷移へ収束する。競合時は最新の共有状態を読み直す"
     }
   ]
 }

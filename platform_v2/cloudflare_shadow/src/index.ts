@@ -176,6 +176,8 @@ import {
 } from "./observationMediaDedup";
 import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv } from "./runtimeIdentity";
 import { handleWorkOpportunityRequest } from "./workOpportunity";
+import { handleBiosecurityRequest, expireBiosecurityRecords, MUNICIPAL_INBOX_ROLE } from "./biosecurity";
+import { guestCookieName, readGuestCredential, credentialDigest } from "./guestCredentialNative";
 
 type D1Value = string | number | null;
 
@@ -302,6 +304,9 @@ interface Env {
   ALERT_EMAIL_FROM?: string;
   ALERT_DELIVERY_BATCH_SIZE?: string;
   ALERT_EMAIL_ALLOWED_RECIPIENTS?: string;
+  BIOSECURITY_ENABLED?: string;
+  BIOSECURITY_EMAIL_ENABLED?: string;
+  BIOSECURITY_STORAGE_BUDGET_BYTES?: string;
   OBSERVATION_DB_NAME?: string;
   OBSERVATION_ARCHIVE_TARGET?: string;
   OBSERVATION_DUAL_WRITE_MODE?: string;
@@ -2762,6 +2767,9 @@ export const worker = {
       const accessSessionResponse = await issueStagingAccessSessionIfNeeded(request, url, env, ctx);
       if (accessSessionResponse) return accessSessionResponse;
 
+      const biosecurityResponse = await handleBiosecurityRequest(request, env);
+      if (biosecurityResponse) return biosecurityResponse;
+
       if (request.method === "GET" && (
         nativePathname === "/api/v1/weather/jma-nowcast/times"
         || nativePathname === "/api/v1/map/weather/jma-nowcast/times"
@@ -3618,6 +3626,7 @@ export const worker = {
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(expireBiosecurityRecords(env).catch(() => console.warn("biosecurity_expiry_pending")));
     ctx.waitUntil(runScheduledOutboxDrain(env));
     ctx.waitUntil(recoverLegacyFalsePositiveImageDerivatives(env));
     ctx.waitUntil(runScheduledObservationReassessments(env));
@@ -31216,8 +31225,8 @@ async function readCompatibleSession(request: Request, env: Env, touch = true): 
   const session = await env.CORE_DB.prepare(
     `SELECT token_hash, user_id, display_name, role_name, rank_label, banned, expires_at
      FROM auth_sessions
-     WHERE token_hash = ? AND expires_at > ?`
-  ).bind(tokenHash, new Date().toISOString()).first<{
+     WHERE token_hash = ? AND expires_at > ? AND role_name <> ?`
+  ).bind(tokenHash, new Date().toISOString(), MUNICIPAL_INBOX_ROLE).first<{
     token_hash: string;
     user_id: string;
     display_name: string;
@@ -41268,18 +41277,15 @@ function secureCookieAttribute(env: Env): string {
 }
 
 async function observationEventGuestCookieName(sessionId: string): Promise<string> {
-  const digest = await sha256Hex(textToArrayBuffer(sessionId));
-  return `__Host-ikimon_evt_${digest.slice(0, 16)}`;
+  return guestCookieName(sessionId);
 }
 
 async function readObservationEventGuestCredential(cookieHeader: string | null, sessionId: string): Promise<string | null> {
-  const cookieName = await observationEventGuestCookieName(sessionId);
-  const token = parseCookies(cookieHeader)[cookieName];
-  return token && /^[a-f0-9]{64}$/i.test(token) ? token.toLowerCase() : null;
+  return readGuestCredential(cookieHeader, sessionId);
 }
 
 async function observationEventGuestCredentialDigest(credential: string): Promise<string> {
-  return sha256Hex(textToArrayBuffer(credential));
+  return credentialDigest(credential);
 }
 
 async function buildObservationEventGuestCookie(

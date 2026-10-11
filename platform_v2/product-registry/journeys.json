@@ -827,6 +827,98 @@
         "loading",
         "error"
       ]
+    },
+    {
+      "id": "journey.zukan.guest-biosecurity-to-municipal-inbox",
+      "title": "市民の非公開記録を、公式メールを確認した自治体へ選択共有する",
+      "actor": "citizen_and_municipal_staff",
+      "golden": true,
+      "outcome_refs": [
+        "outcome.zukan.record-integrity",
+        "outcome.zukan.collaborative-knowledge"
+      ],
+      "capability_refs": [
+        "zukan.biosecurity.guide",
+        "zukan.biosecurity.capture-private",
+        "zukan.biosecurity.receipt",
+        "zukan.biosecurity.share-selected",
+        "zukan.biosecurity.verify-mailbox",
+        "zukan.biosecurity.receive-selected",
+        "zukan.biosecurity.acknowledge-receipt"
+      ],
+      "goal": "市民はログインせず写真を残し、提供項目を自分で選ぶ。担当者は運営者へ連絡せず公式メールを確認し、その自治体に同意された情報だけを受け取る",
+      "start_surface": "zukan.biosecurity.guide",
+      "success_surface": "zukan.biosecurity.inbox",
+      "steps": [
+        {
+          "surface": "zukan.biosecurity.guide",
+          "action": "安全な記録方法と非公開保存を確認する"
+        },
+        {
+          "surface": "zukan.biosecurity.capture",
+          "action": "市民が写真と日時、任意の場所を非公開保存する"
+        },
+        {
+          "surface": "zukan.biosecurity.receipt",
+          "action": "本人が保存結果を確認し、宛先と提供項目を明示して共有する"
+        },
+        {
+          "surface": "zukan.biosecurity.mailbox",
+          "action": "別の担当者sessionで、対象自治体の公式メール所有を確認する"
+        },
+        {
+          "surface": "zukan.biosecurity.inbox",
+          "action": "担当者が同意された項目だけを閲覧し、確認した状態を記録する"
+        }
+      ],
+      "requirement_refs": [
+        "quality.zukan.capture.location-optional",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.capture.truthful-status",
+        "quality.zukan.capture.owner-return",
+        "quality.zukan.trust.private-default",
+        "quality.zukan.trust.explicit-publication",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.rights.exif-minimization",
+        "quality.zukan.rights.minor-guardian-consent",
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention",
+        "quality.zukan.free-core.boundary"
+      ],
+      "required_outcomes": [
+        "市民の会員登録、インストール、AI解析を要せず、共通Recordとmediaに非公開保存される",
+        "写真・本文・正確な位置は明示的に選ばれた自治体と提供項目だけに限定される",
+        "通常の自治体開設は人の審査やIKIMONへの問い合わせを条件にしない",
+        "公式メール所有確認と自治体代表権限を区別する",
+        "撤回・失効・保持期限後の再取得を拒否し、実環境の受入はsource実装と別に検証する"
+      ],
+      "recovery": [
+        "保存失敗は同じidempotency keyで再試行し、内容変更を重複記録にしない",
+        "公式出典の根拠不足・確認メール結果不明・確認期限切れは成功を表示せず、現在の状態から再確認する",
+        "端末credential消失時はRecord IDを代用して他人の記録を開かない",
+        "共有撤回・削除・担当者権限失効は本文と画像の双方の再取得を止める"
+      ],
+      "required_states": [
+        "guest",
+        "preview",
+        "submitting",
+        "saved",
+        "shared",
+        "code-requested",
+        "delivery-unconfirmed",
+        "domain-unverified",
+        "verified",
+        "authenticated",
+        "empty",
+        "populated",
+        "acknowledged",
+        "withdrawn",
+        "expired",
+        "denied",
+        "retrying"
+      ]
     }
   ]
 }

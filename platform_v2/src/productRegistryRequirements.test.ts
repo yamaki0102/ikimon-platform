@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+import { SITE_PAGE_DEFINITIONS } from "./siteMap.js";
 import { loadProductRegistry, validateProductRegistry } from "./productRegistry.js";
 import { loadProductRegistryNavigation, validateProductRegistryNavigation } from "./productRegistryNavigation.js";
 
@@ -52,7 +53,7 @@ test("requirements preserve the stable contract and cover the complete product s
 });
 
 test("Outcome to Journey to Capability to Requirement to Surface trace is complete", () => {
-  const errors = validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/observations/:id", "/map", "/home", "/community/events", "/community/events/new", "/community/fields/:fieldId", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) });
+  const errors = validateProductRegistry(registry, { "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)) });
   assert.deepEqual(errors, []);
   const journeyIds = new Set(registry.journeys.map((journey) => journey.id));
   for (const outcome of registry.outcomes) {

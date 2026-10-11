@@ -18,7 +18,7 @@ export interface DiscoveryDatabase {
   batch(statements: DiscoveryStatement[]): Promise<unknown[]>;
 }
 export interface DiscoveryBucket {
-  put(key: string, body: ArrayBuffer, options?: { httpMetadata?: { contentType?: string; cacheControl?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
+  put(key: string, body: ArrayBuffer, options?: { httpMetadata?: { contentType?: string; cacheControl?: string }; customMetadata?: Record<string, string>; sha256?: ArrayBuffer | string }): Promise<unknown>;
   get(key: string): Promise<{ body: ReadableStream | null; httpMetadata?: { contentType?: string } } | null>;
   head(key: string): Promise<{ size?: number; httpMetadata?: { contentType?: string } } | null>;
   delete(key: string): Promise<unknown>;

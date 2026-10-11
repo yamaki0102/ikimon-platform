@@ -21,6 +21,8 @@ test("quiet Home is finite, stable and truthful about supported discovery",()=>{
  assert.equal((html.match(/class="qh-item"/g)||[]).length,3);assert.match(html,/公開された記録を探す/);
  assert.match(html,/文化・歴史・暮らし・活動・自然の記録/);
  assert.match(html,/map\?tab=places/);assert.match(html,/community\/events/);assert.match(html,/records\?view=saved/);
+ assert.match(html, /href="\/ja\/biosecurity" data-biosecurity-entry>外来種の見守り/);
+ assert.doesNotMatch(renderQuietHome({lang:"en",saved:{items:[]},recentHtml:""}), /data-biosecurity-entry/);
  assert.doesNotMatch(html,/infinite|carousel|navigator.geolocation|NOCOSILに保存しました|href="\/ja\/food"|href="\/ja\/jobs"/);
  assert.equal((html.match(/<h1>/g)||[]).length,1);
 });

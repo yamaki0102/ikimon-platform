@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { SITE_PAGE_DEFINITIONS } from "./siteMap.js";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadProductRegistry, validateProductRegistry } from "./productRegistry.js";
@@ -83,7 +84,7 @@ test("M5 remains deferred and no local selector or status authority is introduce
   const navigation = loadProductRegistryNavigation();
   assert.equal(navigation.implementation_tasks.find((item) => item.id === "task.zukan.m5.live-camera-poc")?.state, "deferred");
   assert.equal(registry.product.status_authority.locator, "operations/ai_os/verified_outcome_status_resolver.mjs#resolveStatus");
-  assert.deepEqual(validateProductRegistry(registry, { "site-map": new Set(["/", "/record", "/records", "/observations/:id", "/map", "/home", "/community/events", "/community/events/new", "/community/fields/:fieldId", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) }), []);
+  assert.deepEqual(validateProductRegistry(registry, { "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)) }), []);
   assert.deepEqual(validateProductRegistryNavigation(navigation, new Set(registry.requirements.map((item) => item.id))), []);
 });
 

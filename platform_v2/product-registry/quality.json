@@ -778,6 +778,190 @@
           "status": "candidate"
         }
       ]
+    },
+    {
+      "id": "quality.zukan.biosecurity-guide",
+      "surface": "zukan.biosecurity.guide",
+      "required_states": [
+        "guest",
+        "ready",
+        "unavailable"
+      ],
+      "acceptance": [
+        "種・地域ごとの案内を共通profile設定から表示する",
+        "アプリのインストール、会員登録、AI判定を記録の開始条件にしない",
+        "危険な採取・私有地への立入りを誘導せず、緊急通報先と区別する"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts",
+          "kind": "native-runtime-and-rights",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/ui/biosecurity.test.ts",
+          "kind": "ui-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.biosecurity-capture",
+      "surface": "zukan.biosecurity.capture",
+      "required_states": [
+        "guest",
+        "ready",
+        "preview",
+        "submitting",
+        "saved",
+        "validation-error",
+        "storage-unavailable",
+        "capacity-reached",
+        "retrying",
+        "denied"
+      ],
+      "acceptance": [
+        "日時と1〜6枚の写真から保存でき、位置情報の取得や正確な場所の入力を必須にしない",
+        "ブラウザーとサーバーで写真の位置情報等を除き、公開・AI解析・自治体共有は自動実行しない",
+        "同じ送信意図の再試行は同じRecordとmedia setへ収束し、R2の一部保存や失敗を保存済みと表示しない",
+        "保存件数・写真容量・保持期限の上限を適用し、利用集中時は入力を残して失敗を表示する"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts",
+          "kind": "native-runtime-and-rights",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/ui/biosecurity.test.ts",
+          "kind": "ui-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurityMedia.test.ts",
+          "kind": "binary-metadata-minimization",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.biosecurity-receipt",
+      "surface": "zukan.biosecurity.receipt",
+      "required_states": [
+        "owner",
+        "empty",
+        "saved",
+        "sharing",
+        "shared",
+        "acknowledged",
+        "withdrawn",
+        "deleted",
+        "expired",
+        "denied",
+        "not-found",
+        "error",
+        "retrying"
+      ],
+      "acceptance": [
+        "Record IDや共有URLだけで非公開の本文・写真を閲覧できず、有効な同一端末の匿名credentialを確認する",
+        "市民が明示的に選んだ自治体・目的・項目だけを提供し、正確な位置や写真は独立に選択する",
+        "未成年申告の記録は共有時の保護者確認を必須にする",
+        "共有の利用可能・担当者の確認・公式窓口への通報を区別する",
+        "撤回と削除は受信者の再取得を停止し、90日の保持期限と端末データ削除時の制約を表示する"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts",
+          "kind": "native-runtime-and-rights",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/ui/biosecurity.test.ts",
+          "kind": "ui-contract",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.biosecurity-mailbox",
+      "surface": "zukan.biosecurity.mailbox",
+      "required_states": [
+        "ready",
+        "source-checking",
+        "code-requested",
+        "delivery-unconfirmed",
+        "verifying",
+        "verified",
+        "invalid-code",
+        "expired",
+        "domain-unverified",
+        "capacity-reached",
+        "unavailable",
+        "denied"
+      ],
+      "acceptance": [
+        "全国の公式自治体コードと出典付きサイト一覧から自治体を選び、申請者指定URLや任意suffixを権限根拠にしない",
+        "未掲載の部局ドメインは取得件数・容量・時間を制限して公式サイトの掲載メールを確認し、根拠不足は確認できない状態を返す",
+        "期限と回数上限のある同一ブラウザーの一度限りのメール確認を通して、共通auth_sessions上に担当者限定のsessionを作る",
+        "IKIMONへの連絡、人による審査、課金を通常開設の条件にせず、代表権限・自治体公認・他人の非公開記録は付与しない",
+        "送信結果不明・期限切れ・失効・利用上限を開設成功として表示しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts",
+          "kind": "native-runtime-and-rights",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/ui/biosecurity.test.ts",
+          "kind": "ui-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/services/municipalityDirectory.test.ts",
+          "kind": "official-source-directory",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/municipalDomainEvidence.test.ts",
+          "kind": "bounded-source-authentication",
+          "status": "canonical"
+        }
+      ]
+    },
+    {
+      "id": "quality.zukan.biosecurity-inbox",
+      "surface": "zukan.biosecurity.inbox",
+      "required_states": [
+        "authenticated",
+        "empty",
+        "populated",
+        "loading",
+        "acknowledged",
+        "withdrawn",
+        "expired",
+        "denied",
+        "error"
+      ],
+      "acceptance": [
+        "別の自治体・未同意・撤回済み・期限切れの記録を一覧、本文、画像のいずれにも返さない",
+        "提供項目ごとに本文、写真、正確な位置を制限し、受信者が共有範囲を広げられない",
+        "失効した公式ドメイン、メール所有確認、membership、sessionを拒否する",
+        "担当者による確認は受付状況として記録し、自治体の正式受理・現地対応・種の確定を意味する表示にしない",
+        "空の受信箱は同意済み記録がない状態として表示し、他人の私的な記録を補充しない"
+      ],
+      "tests": [
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts",
+          "kind": "native-runtime-and-rights",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/ui/biosecurity.test.ts",
+          "kind": "ui-contract",
+          "status": "canonical"
+        }
+      ]
     }
   ],
   "negative_property_tests": [
@@ -1402,6 +1586,44 @@
       ],
       "property": "人のReview決定は投稿者本人へ返され、未Reviewをreview済みと表示せず、AI候補をReview結果として表示しない",
       "current_test": "platform_v2/cloudflare_shadow/src/observationFirstRecordDetailHtml.test.ts"
+    },
+    {
+      "id": "prop.biosecurity.anonymous-owner-private-source",
+      "requirements": [
+        "quality.zukan.trust.private-default",
+        "quality.zukan.capture.idempotent-save",
+        "quality.zukan.rights.exif-minimization"
+      ],
+      "property": "会員登録なしの保存でも同一intentは一つのprivate Recordに収束し、他の端末credential・公開projection・AI jobへ流れない",
+      "current_test": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts"
+    },
+    {
+      "id": "prop.biosecurity.recipient-and-fields-bind-consent",
+      "requirements": [
+        "quality.zukan.rights.consent-scope",
+        "quality.zukan.trust.location-minimization",
+        "quality.zukan.rights.minor-guardian-consent"
+      ],
+      "property": "別自治体、未選択の本文・位置・写真、保護者確認のない未成年共有を拒否する",
+      "current_test": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts"
+    },
+    {
+      "id": "prop.biosecurity.official-mail-is-not-representative-authority",
+      "requirements": [
+        "quality.zukan.trust.confirmation-provenance",
+        "quality.zukan.free-core.boundary"
+      ],
+      "property": "公式サイトとメール所有確認は専用受信箱sessionだけを作り、任意suffixや別自治体ドメイン、共有メール、同意のない記録の閲覧権限を与えない",
+      "current_test": "platform_v2/cloudflare_shadow/src/municipalDomainEvidence.test.ts"
+    },
+    {
+      "id": "prop.biosecurity.withdrawal-expiry-stop-retrieval",
+      "requirements": [
+        "quality.zukan.rights.export-withdrawal-deletion",
+        "quality.zukan.rights.retention"
+      ],
+      "property": "撤回・削除・保持期限・担当者失効が取得途中に発生しても本文・画像を新たに返さず、削除retryで別Recordの容量を解放しない",
+      "current_test": "platform_v2/cloudflare_shadow/src/biosecurity.test.ts"
     }
   ],
   "journey_evaluator": {

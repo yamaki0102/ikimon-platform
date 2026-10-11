@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { SITE_PAGE_DEFINITIONS } from "./siteMap.js";
 import { loadProductRegistry, validateProductRegistry } from "./productRegistry.js";
 import { loadProductRegistryNavigation, validateProductRegistryNavigation } from "./productRegistryNavigation.js";
 
@@ -148,7 +149,7 @@ test("M8 design contracts stay separate and close partial, rights and forbidden-
 });
 
 test("M7/M8 design stays traceable without claiming implementation", () => {
-  const routes = { "site-map": new Set(["/", "/record", "/records", "/observations/:id", "/map", "/home", "/community/events", "/community/events/new", "/community/fields/:fieldId", "/community/events/:eventCode/join", "/events/:sessionId/console", "/events/:sessionId/recap"]) };
+  const routes = { "site-map": new Set(SITE_PAGE_DEFINITIONS.map((page) => page.path)) };
   assert.deepEqual(validateProductRegistry(registry, routes), []);
   assert.deepEqual(validateProductRegistryNavigation(loadProductRegistryNavigation(), new Set(registry.requirements.map((item) => item.id))), []);
 });

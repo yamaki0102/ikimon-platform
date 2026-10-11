@@ -434,7 +434,7 @@ ZUKANは原Record、Review、Program、Publicationの正本を維持する。NOC
 
 ## 20. 運用開始前に必要な実値
 
-設計としての既定動作は決めているが、次の実値は未確認のまま捏造しない。
+匿名保存・自治体メール認証・同意済み受信の最初のnative実装範囲、初期上限、保管期間、migrationと否定試験は [PLAN.md](./PLAN.md) を参照する。source実装と実環境での利用成立は別に検証する。次の実値は未確認のまま捏造しない。
 
 - 現行D1 schemaとwriterへの正確な対応、旧private記録の所在と保存方針。
 - guest credential/媒体/下書きの有効期間と既存retention policyの対応。
