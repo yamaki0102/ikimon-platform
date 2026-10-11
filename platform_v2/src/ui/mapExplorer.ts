@@ -93,6 +93,14 @@ export type MapExplorerCopy = {
   emptyActionAreas: string;
   emptyActionWiden: string;
   emptyActionRecord: string;
+  comparisonTitle: string;
+  comparisonAreaLabel: string;
+  comparisonRecordLabel: string;
+  comparisonSeasonLabel: string;
+  comparisonAreaEmpty: string;
+  comparisonRecordEmpty: string;
+  comparisonSeasonEmpty: string;
+  comparisonSafetyNote: string;
   personalPulseTitle: string;
   personalPulseBody: string;
   personalPulseProfile: string;
@@ -298,12 +306,20 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "読み込み中…",
     recordsLoading: "記録を読み込み中…",
     statsLabel: (returned, total) => `${returned.toLocaleString("ja-JP")} / ${total.toLocaleString("ja-JP")} 件`,
-    empty: "記録が少ない場所でも、近くの記録や季節を変えると手がかりが見つかります。",
-    emptyTitle: "近くを探索中",
-    emptyLead: "少し広げると近くの記録や場所が出ます。今いる場所で見えたものも残せます。",
+    empty: "公園・水辺・緑地から見てみましょう。",
+    emptyTitle: "近くの候補へ",
+    emptyLead: "学校・私有地・立入制限は避け、現地の案内を優先してください。",
     emptyActionAreas: "エリア",
     emptyActionWiden: "広げる",
     emptyActionRecord: "記録",
+    comparisonTitle: "周辺を比べる",
+    comparisonAreaLabel: "公開エリア候補",
+    comparisonRecordLabel: "近くの記録",
+    comparisonSeasonLabel: "見つかった季節",
+    comparisonAreaEmpty: "公開候補なし",
+    comparisonRecordEmpty: "記録なし",
+    comparisonSeasonEmpty: "季節の記録なし",
+    comparisonSafetyNote: "読み込み済みの公開記録・公開エリアから最大5件を表示します。立入可否は現地の案内を確認してください。",
     personalPulseTitle: "自分の記録へすぐ戻る",
     personalPulseBody: "投稿したあとは、マイページや自分の記録一覧から開けます。地図には最近の記録も重なります。",
     personalPulseProfile: "マイページ",
@@ -485,12 +501,20 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Loading…",
     recordsLoading: "Loading records…",
     statsLabel: (returned, total) => `${returned.toLocaleString("en-US")} / ${total.toLocaleString("en-US")}`,
-    empty: "Try nearby photos, guides, or another season.",
-    emptyTitle: "Checking nearby",
-    emptyLead: "Nearby public areas or another season may show photos and places.",
+    empty: "Start with parks, watersides, and green spaces.",
+    emptyTitle: "Nearby options",
+    emptyLead: "Avoid schools, private land, and restricted areas; follow on-site guidance.",
     emptyActionAreas: "Areas",
     emptyActionWiden: "Widen",
     emptyActionRecord: "Record a find",
+    comparisonTitle: "Compare nearby",
+    comparisonAreaLabel: "Public area previews",
+    comparisonRecordLabel: "Nearby records",
+    comparisonSeasonLabel: "Seasons found",
+    comparisonAreaEmpty: "No public candidates",
+    comparisonRecordEmpty: "No nearby records",
+    comparisonSeasonEmpty: "No seasonal records",
+    comparisonSafetyNote: "Preview uses up to five loaded public records and areas. Check on-site access rules before visiting.",
     personalPulseTitle: "Return to your records",
     personalPulseBody: "After posting, My page and your record list are one tap away. Recent public finds keep adding life to the map.",
     personalPulseProfile: "My page",
@@ -672,12 +696,20 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Cargando…",
     recordsLoading: "Cargando registros…",
     statsLabel: (returned, total) => `${returned.toLocaleString("es-ES")} / ${total.toLocaleString("es-ES")}`,
-    empty: "Prueba fotos, guías o otra estación cerca.",
-    emptyTitle: "Buscando cerca",
-    emptyLead: "Zonas públicas cercanas u otra estación pueden mostrar fotos y lugares.",
+    empty: "Empieza por parques, orillas y zonas verdes.",
+    emptyTitle: "Opciones cercanas",
+    emptyLead: "Evita escuelas, terrenos privados y zonas restringidas; sigue las indicaciones locales.",
     emptyActionAreas: "Áreas",
     emptyActionWiden: "Ampliar",
     emptyActionRecord: "Registrar hallazgo",
+    comparisonTitle: "Comparar cerca",
+    comparisonAreaLabel: "Áreas públicas cercanas",
+    comparisonRecordLabel: "Registros cercanos",
+    comparisonSeasonLabel: "Estaciones con registros",
+    comparisonAreaEmpty: "Sin candidatas públicas",
+    comparisonRecordEmpty: "Sin registros cercanos",
+    comparisonSeasonEmpty: "Sin registros por estación",
+    comparisonSafetyNote: "La vista previa usa hasta cinco registros y áreas públicas cargadas. Comprueba el acceso antes de visitar.",
     personalPulseTitle: "Volver a tus registros",
     personalPulseBody: "Después de publicar, tu página y tu lista de registros quedan a un toque. Los hallazgos recientes dan vida al mapa.",
     personalPulseProfile: "Mi página",
@@ -859,12 +891,20 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     loading: "Carregando…",
     recordsLoading: "Carregando registros…",
     statsLabel: (returned, total) => `${returned.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`,
-    empty: "Veja fotos, guias ou outra estação por perto.",
-    emptyTitle: "Buscando por perto",
-    emptyLead: "Áreas públicas próximas ou outra estação podem mostrar fotos e lugares.",
+    empty: "Comece por parques, margens d'água e áreas verdes.",
+    emptyTitle: "Opções próximas",
+    emptyLead: "Evite escolas, áreas privadas e restritas; siga as orientações locais.",
     emptyActionAreas: "Áreas",
     emptyActionWiden: "Ampliar",
     emptyActionRecord: "Registrar achado",
+    comparisonTitle: "Comparar por perto",
+    comparisonAreaLabel: "Prévia de áreas públicas",
+    comparisonRecordLabel: "Registros próximos",
+    comparisonSeasonLabel: "Estações com registros",
+    comparisonAreaEmpty: "Sem opções públicas",
+    comparisonRecordEmpty: "Sem registros próximos",
+    comparisonSeasonEmpty: "Sem registros por estação",
+    comparisonSafetyNote: "A prévia usa até cinco registros e áreas públicas carregados. Confira as regras de acesso no local.",
     personalPulseTitle: "Voltar aos seus registros",
     personalPulseBody: "Depois de publicar, sua página e sua lista de registros ficam a um toque. Descobertas recentes dão vida ao mapa.",
     personalPulseProfile: "Minha página",
@@ -1933,6 +1973,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     emptyActionAreas: copy.emptyActionAreas,
     emptyActionWiden: copy.emptyActionWiden,
     emptyActionRecord: copy.emptyActionRecord,
+    comparisonTitle: copy.comparisonTitle,
+    comparisonAreaLabel: copy.comparisonAreaLabel,
+    comparisonRecordLabel: copy.comparisonRecordLabel,
+    comparisonSeasonLabel: copy.comparisonSeasonLabel,
+    comparisonAreaEmpty: copy.comparisonAreaEmpty,
+    comparisonRecordEmpty: copy.comparisonRecordEmpty,
+    comparisonSeasonEmpty: copy.comparisonSeasonEmpty,
+    comparisonSafetyNote: copy.comparisonSafetyNote,
     statsTemplate: "__RETURNED__ / __TOTAL__",
     recentFindsHint: copy.recentFindsHint,
     coverageLegendLow: copy.coverageLegendLow,
@@ -5119,12 +5167,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!context || !Number.isFinite(context.lat) || !Number.isFinite(context.lng)) return [];
     var origin = { lat: context.lat, lng: context.lng };
     return (Array.isArray(state.records) ? state.records : [])
+      .filter(function (record) { return record && !record.isViewerOwned; })
       .map(function (record) {
         var center = recordCellCenter(record);
         return { record: record, center: center, meters: distanceMeters(origin, center) };
       })
       .filter(function (item) {
-        return item.record && item.center && Number.isFinite(item.meters) && item.meters <= maxMeters;
+        return item.center && Number.isFinite(item.meters) && item.meters <= maxMeters;
       })
       .sort(function (a, b) {
         var photoDelta = (b.record.photoUrl ? 1 : 0) - (a.record.photoUrl ? 1 : 0);
@@ -5132,6 +5181,63 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         return a.meters - b.meters || recordTimestamp(b.record) - recordTimestamp(a.record);
       })
       .slice(0, 5);
+  }
+
+  function seasonKeyFromDate(value) {
+    var month = value ? Number(String(value).slice(5, 7)) : 0;
+    if (!Number.isFinite(month) || month < 1 || month > 12) return '';
+    if (month >= 3 && month <= 5) return 'spring';
+    if (month >= 6 && month <= 8) return 'summer';
+    if (month >= 9 && month <= 11) return 'autumn';
+    return 'winter';
+  }
+
+  function seasonLabelForKey(key) {
+    if (key === 'spring') return COPY.seasonSpring;
+    if (key === 'summer') return COPY.seasonSummer;
+    if (key === 'autumn') return COPY.seasonAutumn;
+    if (key === 'winter') return COPY.seasonWinter;
+    return '';
+  }
+
+  function renderContextComparisonStrip(context) {
+    if (!context || !Number.isFinite(context.lat) || !Number.isFinite(context.lng)) return '';
+    if (context.record && context.record.isViewerOwned) return '';
+    var publicAreas = nearbyDiscoverableAreaCandidates({ lat: context.lat, lng: context.lng })
+      .filter(function (item) { return item.access === 'public'; });
+    var publicRecords = nearbyRecordsForContext(context, 650);
+    var seasons = {};
+    publicRecords.forEach(function (item) {
+      var key = seasonKeyFromDate(item && item.record && item.record.observedAt);
+      if (key) seasons[key] = true;
+    });
+    var seasonOrder = ['spring', 'summer', 'autumn', 'winter'];
+    var seasonKeys = seasonOrder.filter(function (key) { return seasons[key]; });
+    var areaDetail = publicAreas.length
+      ? publicAreas.slice(0, 2).map(function (item) { return areaFeatureDisplayName(item.feature); }).filter(Boolean).join(' / ')
+      : COPY.comparisonAreaEmpty;
+    var recordDetail = publicRecords.length
+      ? publicRecords.slice(0, 2).map(function (item) { return recordDisplayName(item.record, COPY.discoveryFallback); }).filter(Boolean).join(' / ')
+      : COPY.comparisonRecordEmpty;
+    var seasonDetail = seasonKeys.length
+      ? seasonKeys.map(seasonLabelForKey).filter(Boolean).join(' / ')
+      : COPY.comparisonSeasonEmpty;
+    var cards = [
+      { axis: 'season', label: COPY.comparisonSeasonLabel, value: compactNumber(seasonKeys.length), detail: seasonDetail },
+      { axis: 'records', label: COPY.comparisonRecordLabel, value: compactNumber(publicRecords.length), detail: recordDetail },
+      { axis: 'areas', label: COPY.comparisonAreaLabel, value: compactNumber(publicAreas.length), detail: areaDetail },
+    ];
+    return '<section class="me-context-comparison me-detail-section" aria-label="' + escapeHtml(COPY.comparisonTitle) + '">' +
+      '<div class="me-context-comparison-head"><span>' + escapeHtml(COPY.comparisonTitle) + '</span></div>' +
+      '<div class="me-context-comparison-grid">' + cards.map(function (card) {
+        return '<div class="me-context-comparison-card" data-compare-axis="' + escapeHtml(card.axis) + '">' +
+          '<span>' + escapeHtml(card.label) + '</span>' +
+          '<strong>' + escapeHtml(card.value) + '</strong>' +
+          '<small>' + escapeHtml(card.detail || '—') + '</small>' +
+        '</div>';
+      }).join('') + '</div>' +
+      '<p class="me-context-comparison-safety">' + escapeHtml(COPY.comparisonSafetyNote) + '</p>' +
+    '</section>';
   }
 
   function renderDetailRecentFinds(context) {
@@ -5261,14 +5367,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function renderPlaceAtlasContent(context, fallbackHtml) {
     var ref = placeAtlasRefForContext(context);
-    if (!ref || !apiPlaceProfile) return fallbackHtml || '';
+    if (!ref || !apiPlaceProfile) return (fallbackHtml || '') + renderContextComparisonStrip(context);
+    var rendered = '';
     if (context.placeAtlasProfile) {
-      return MapPlaceAtlasProfile.render(context.placeAtlasProfile, placeAtlasRenderOptions());
+      rendered = MapPlaceAtlasProfile.render(context.placeAtlasProfile, placeAtlasRenderOptions());
+    } else if (context.placeAtlasStatus === 'error') {
+      rendered = MapPlaceAtlasProfile.error(SEARCH_LANG) + (fallbackHtml || '');
+    } else {
+      rendered = MapPlaceAtlasProfile.loading(SEARCH_LANG, placeAtlasNameForContext(context));
     }
-    if (context.placeAtlasStatus === 'error') {
-      return MapPlaceAtlasProfile.error(SEARCH_LANG) + (fallbackHtml || '');
-    }
-    return MapPlaceAtlasProfile.loading(SEARCH_LANG, placeAtlasNameForContext(context));
+    return rendered + renderContextComparisonStrip(context);
   }
   function bindPlaceAtlasContent(rootEl) {
     MapPlaceAtlasProfile.bind(rootEl || document);
@@ -5434,6 +5542,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           renderDetailHero({ title: COPY.selectedPointName, meta: '', badge: COPY.selectionPlaceLabel }) +
           renderAggregateSafety(COPY.mapPointSafety) +
           renderDetailVisitReasons(context) +
+          renderContextComparisonStrip(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -5476,6 +5585,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           renderAggregateSafety(COPY.cellAggregateSafety) +
           renderGbifAreaSummarySlot(gbifSlotId) +
           renderDetailVisitReasons(context) +
+          renderContextComparisonStrip(context) +
           renderSiteBriefSlot('me-selected-brief-slot', context) +
           renderDetailRecentFinds(context) +
           renderDetailWalkableFinds(context) +
@@ -5511,6 +5621,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           photoUrl: record.photoUrl || '',
         }) +
         renderDetailVisitReasons(context) +
+        renderContextComparisonStrip(context) +
         renderDetailRecentFinds(context) +
         renderDetailWalkableFinds(context) +
         renderDetailActions([
@@ -6565,6 +6676,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           photoUrl: record.photoUrl || '',
         }) +
         renderDetailVisitReasons(detailContext) +
+        renderContextComparisonStrip(detailContext) +
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
         renderDetailActions([
@@ -6679,6 +6791,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         renderDetailHero({ title: COPY.selectedPointName, meta: '', badge: COPY.selectionPlaceLabel }) +
         renderAggregateSafety(COPY.mapPointSafety) +
         renderDetailVisitReasons(detailContext) +
+        renderContextComparisonStrip(detailContext) +
         renderSiteBriefSlot('me-site-brief-slot', detailContext) +
         renderDetailRecentFinds(detailContext) +
         renderDetailWalkableFinds(detailContext) +
@@ -13515,6 +13628,32 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-detail-section-head span { font-size: 13px; line-height: 1.3; font-weight: 950; color: #0f172a; }
   .me-detail-section-head strong { font-size: 10px; line-height: 1.3; font-weight: 900; color: #0f766e; background: rgba(20,184,166,.12); padding: 3px 8px; border-radius: 999px; }
+  .me-context-comparison {
+    display: grid;
+    gap: 9px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(14,165,233,.16);
+  }
+  .me-context-comparison-head span { color: #0f172a; font-size: 13px; line-height: 1.3; font-weight: 900; }
+  .me-context-comparison-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .me-context-comparison-card {
+    min-width: 0;
+    min-height: 84px;
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    gap: 5px;
+    padding: 9px;
+    border-radius: 11px;
+    background: rgba(248,250,252,.94);
+    border: 1px solid rgba(148,163,184,.2);
+    overflow-wrap: anywhere;
+  }
+  .me-context-comparison-card span { color: #475569; font-size: 10px; line-height: 1.3; font-weight: 800; }
+  .me-context-comparison-card strong { color: #0f172a; font-size: 15px; line-height: 1.2; font-weight: 900; }
+  .me-context-comparison-card small { color: #475569; font-size: 10.5px; line-height: 1.4; overflow-wrap: anywhere; }
+  .me-context-comparison-safety { margin: 0; color: #475569; font-size: 10.5px; line-height: 1.45; }
   .me-detail-panel-area {
     gap: 0;
     min-height: 100%;
@@ -13660,6 +13799,8 @@ export const MAP_EXPLORER_STYLES = `
     .me-place-story-grid,
     .me-detail-stats,
     .me-detail-visit { grid-template-columns: 1fr; }
+    .me-context-comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .me-context-comparison-card:last-child { grid-column: 1 / -1; }
     .me-area-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .me-school-albums-grid { grid-template-columns: 1fr; }
     .me-area-guide-actions { grid-template-columns: 1fr; }
