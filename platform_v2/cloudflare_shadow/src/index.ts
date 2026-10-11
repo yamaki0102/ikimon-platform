@@ -27960,6 +27960,7 @@ function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRe
 }
 
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
+  if (html.includes('data-zukan-app-experience="v1"')) return html;
   const menuPath = url.pathname.replace(/^\/(?:ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
   const hasRenderedLearnCatalog = /<section\b(?=[^>]*\bdata-learn-catalog(?:\s|=|>))[^>]*>/i.test(html);
   if (html.includes("data-cloudflare-header-menu")) return html;
