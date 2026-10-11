@@ -24773,7 +24773,48 @@ async function loadAreaRecordContext(fieldId: string, env: Env): Promise<AreaRec
       lat: item.exact_lat,
       lng: item.exact_lng,
     }));
-  return classifyAreaRecordCandidates(fieldId, geometry as UniversalPlaceGeometry, candidates);
+  const context = classifyAreaRecordCandidates(fieldId, geometry as UniversalPlaceGeometry, candidates);
+  const thumbnails = await loadAreaRecordThumbnailUrls(env, [...context.core, ...context.nearby].map((item) => item.visitId))
+    .catch(() => new Map<string, string>());
+  for (const record of [...context.core, ...context.nearby]) {
+    const thumbnailUrl = thumbnails.get(record.visitId);
+    if (thumbnailUrl) record.thumbnailUrl = thumbnailUrl;
+  }
+  return context;
+}
+
+async function loadAreaRecordThumbnailUrls(env: Env, visitIds: string[]): Promise<Map<string, string>> {
+  const thumbnailUrls = new Map<string, string>();
+  const uniqueVisitIds = [...new Set(visitIds.filter((visitId) => isSafeFieldId(visitId)))];
+  // Keep each D1 query below its bound-parameter limit even when the area scan
+  // returns its full 120-row cap.
+  for (let offset = 0; offset < uniqueVisitIds.length; offset += 50) {
+    const batch = uniqueVisitIds.slice(offset, offset + 50);
+    if (batch.length === 0) continue;
+    const placeholders = batch.map(() => "?").join(", ");
+    const rows = await env.OBS_DB.prepare(
+      `SELECT e.visit_id, e.legacy_relative_path, a.mime, a.processing_state,
+              a.public_derivative_key, a.public_derivative_verified_at,
+              a.public_derivative_metadata_json, a.exif_scrub_state, a.public_ready_at
+         FROM production_import_evidence_assets e
+         JOIN asset_ledger a ON a.asset_id = e.asset_id
+        WHERE e.visit_id IN (${placeholders})
+          AND e.asset_role IN ('observation_photo', 'observation_photo_original')
+          AND a.mime LIKE 'image/%'
+          ${presentablePublicPhotoSql("a")}
+        ORDER BY COALESCE(e.captured_at, e.created_at, '') ASC, e.asset_id ASC`
+    ).bind(...batch).all<LegacyThumbDerivativeRow & { visit_id: string; legacy_relative_path: string | null }>();
+    for (const asset of rows.results) {
+      if (thumbnailUrls.has(asset.visit_id)) continue;
+      const prefix = `uploads/v2-observations/${asset.visit_id}/`;
+      if (!asset.legacy_relative_path?.startsWith(prefix)) continue;
+      const filename = asset.legacy_relative_path.slice(prefix.length);
+      if (filename.includes("..") || filename.includes("\\") || !/^[a-zA-Z0-9._-]+$/.test(filename)) continue;
+      if (!asset.mime?.startsWith("image/") || !publicDerivedLedgerAssetIsReady({ ...asset, mime: asset.mime })) continue;
+      thumbnailUrls.set(asset.visit_id, `/thumb/sm/v2-observations/${asset.visit_id}/${filename}`);
+    }
+  }
+  return thumbnailUrls;
 }
 
 function parseFieldDetailPath(pathname: string): { lang: string; fieldId: string } | null {
@@ -38348,6 +38389,7 @@ function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, recor
     .records h2 { font-size: 24px; }
     .record-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
     .record { min-height: 112px; display: grid; gap: 8px; padding: 16px; color: inherit; text-decoration: none; }
+    .record-thumbnail { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; background: #f1f5f9; }
     .record time { color: #64748b; font-size: 14px; font-weight: 750; }
     .growth { display: grid; gap: 10px; margin-top: 18px; padding: 18px; }
     .si-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -38434,6 +38476,7 @@ function renderAreaRecordSections(fieldId: string, records: AreaRecordContext, i
     <section class="records panel">
       <h2>${escapeHtml(title)}</h2>
       <div class="record-list">${items.slice(0, 9).map((item) => `<a class="record panel" href="/observations/${encodeURIComponent(item.visitId)}">
+        ${item.thumbnailUrl ? `<img class="record-thumbnail" src="${escapeHtml(item.thumbnailUrl)}" alt="" loading="lazy" decoding="async">` : ""}
         <strong>${escapeHtml(item.displayName || (isEnglish ? "Record awaiting a name" : "名前は未確認"))}</strong>
         <time datetime="${escapeHtml(item.observedAt ?? "")}">${escapeHtml(formatPublicObservationDate(item.observedAt))}</time>
         <span class="muted">${isEnglish ? "Open this record" : "記録を見る"}</span>
