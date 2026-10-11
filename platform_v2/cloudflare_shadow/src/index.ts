@@ -35444,30 +35444,74 @@ async function finalizeGeminiObservationReassessment(
       candidate,
     })
     : { observationIds: [], mutations: [] };
+  const commitToken = crypto.randomUUID();
+  const completedPayload = reassessmentPayloadWithResult(request.source_payload_json, {
+    executionStatus: "completed",
+    commitToken,
+    providerMode: provider.mode,
+    providerLanes: provider.lanes ?? null,
+    aiRunId,
+    models: interactive
+      ? [GEMINI_PRIMARY_MODEL]
+      : specialistApplied
+        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
+        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+    recordClass: merged.recordClass,
+    informationState: merged.informationState,
+    detectionState: merged.detectionState,
+    genericCandidateOnly: merged.genericCandidateOnly,
+    candidateFusionRuleVersion: merged.candidateFusionRuleVersion,
+    specialistEscalation: merged.specialistEscalation,
+    specialistApplied,
+    mediaDedup: {
+      ruleVersion: prepared.mediaDedup.ruleVersion,
+      sourceImageCount: prepared.sourceAssets.length,
+      representativeImageCount: prepared.assets.length,
+      excludedImageCount: prepared.mediaDedup.excluded.length,
+      unselectedUniqueImageCount: prepared.unselectedUniqueAssetIds.length,
+    },
+    provisionalObservationIds: dualWritePlan.observationIds,
+    completedAt,
+  });
+  const completionGuard = `EXISTS (
+      SELECT 1 FROM observation_reassessment_requests
+       WHERE request_id = ? AND request_state = 'completed' AND source_payload_json = ?
+    )`;
   const statements: D1PreparedStatement[] = [
+    env.OBS_DB.prepare(
+      `UPDATE observation_reassessment_requests SET request_state = 'completed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+    ).bind(completedPayload, request.request_id, request.source_payload_json),
     env.OBS_DB.prepare(
       `INSERT INTO observation_ai_review_targets (
          occurrence_id, ai_assessment_status, scientific_name, vernacular_name, taxon_rank,
          ai_run_id, candidate_id, candidate_scientific_name, candidate_vernacular_name,
          candidate_taxon_rank, ai_recommended_taxon_name, ai_recommended_rank,
          source_payload_json, updated_at
-       ) VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ) SELECT ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+         WHERE ${completionGuard}
        ON CONFLICT(occurrence_id) DO UPDATE SET
          ai_assessment_status = excluded.ai_assessment_status, ai_run_id = excluded.ai_run_id,
          candidate_id = excluded.candidate_id, candidate_scientific_name = excluded.candidate_scientific_name,
          candidate_vernacular_name = excluded.candidate_vernacular_name, candidate_taxon_rank = excluded.candidate_taxon_rank,
          ai_recommended_taxon_name = excluded.ai_recommended_taxon_name, ai_recommended_rank = excluded.ai_recommended_rank,
          source_payload_json = excluded.source_payload_json, updated_at = CURRENT_TIMESTAMP`
-    ).bind(occurrenceId, assessmentStatus, aiRunId, candidateId, candidate.scientificName, candidate.vernacularName, candidate.rank, candidateName, candidate.rank, JSON.stringify(assessmentPayload)),
-    ...dualWritePlan.mutations.map((mutation) => env.OBS_DB.prepare(mutation.sql).bind(...mutation.values)),
+    ).bind(occurrenceId, assessmentStatus, aiRunId, candidateId, candidate.scientificName, candidate.vernacularName, candidate.rank, candidateName, candidate.rank, JSON.stringify(assessmentPayload), request.request_id, completedPayload),
+    ...dualWritePlan.mutations.map((mutation) => {
+      const guarded = guardObservationAiMutation(mutation.sql, mutation.values, completionGuard, request.request_id, completedPayload);
+      return env.OBS_DB.prepare(guarded.sql).bind(...guarded.values);
+    }),
     env.OBS_DB.prepare(
       `INSERT INTO environment_assessments (
          assessment_id, record_runtime, record_id, media_source_runtime, media_id,
          source_kind, assessment_state, assessment_kind, value_json, confidence_score,
          model_provider, model_name, model_version, prompt_version, rule_version, source_key,
          input_provenance_json, observed_at, created_at, updated_at
-       ) VALUES (?, 'cloudflare_d1', ?, 'cloudflare_d1', ?, 'ai', 'provisional', 'visual_environment', ?, ?,
-         'google_gemini_api', ?, '', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ) SELECT ?, 'cloudflare_d1', ?, 'cloudflare_d1', ?, 'ai', 'provisional', 'visual_environment', ?, ?,
+         'google_gemini_api', ?, '', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+         WHERE ${completionGuard}
        ON CONFLICT(source_kind, source_key) DO UPDATE SET
          media_id = excluded.media_id, value_json = excluded.value_json, confidence_score = excluded.confidence_score,
          model_name = excluded.model_name, prompt_version = excluded.prompt_version, rule_version = excluded.rule_version,
@@ -35483,7 +35527,7 @@ async function finalizeGeminiObservationReassessment(
         sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
         mediaDedupRuleVersion: prepared.mediaDedup.ruleVersion,
         source: "record_photo_set",
-      }), prepared.record.observed_at,
+      }), prepared.record.observed_at, request.request_id, completedPayload,
     ),
   ];
 
@@ -35511,48 +35555,37 @@ async function finalizeGeminiObservationReassessment(
         ai_environment_cues_json: JSON.stringify(merged.environment.cues),
       };
       statements.push(env.OBS_DB.prepare(
-        "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
-      ).bind(newId("envrec_ai"), observationId, lat, lng, JSON.stringify(structured)));
+        `INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang)
+         SELECT ?, ?, ?, ?, ?, 'ja' WHERE ${completionGuard}`
+      ).bind(newId("envrec_ai"), observationId, lat, lng, JSON.stringify(structured), request.request_id, completedPayload));
     }
   }
-
-  statements.push(env.OBS_DB.prepare(
-    `UPDATE observation_reassessment_requests SET request_state = 'completed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
-  ).bind(
-    reassessmentPayloadWithResult(request.source_payload_json, {
-      executionStatus: "completed",
-      providerMode: provider.mode,
-      providerLanes: provider.lanes ?? null,
-      aiRunId,
-      models: interactive
-        ? [GEMINI_PRIMARY_MODEL]
-        : specialistApplied
-          ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
-          : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
-      promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
-      ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
-      recordClass: merged.recordClass,
-      informationState: merged.informationState,
-      detectionState: merged.detectionState,
-      genericCandidateOnly: merged.genericCandidateOnly,
-      candidateFusionRuleVersion: merged.candidateFusionRuleVersion,
-      specialistEscalation: merged.specialistEscalation,
-      specialistApplied,
-      mediaDedup: {
-        ruleVersion: prepared.mediaDedup.ruleVersion,
-        sourceImageCount: prepared.sourceAssets.length,
-        representativeImageCount: prepared.assets.length,
-        excludedImageCount: prepared.mediaDedup.excluded.length,
-        unselectedUniqueImageCount: prepared.unselectedUniqueAssetIds.length,
-      },
-      provisionalObservationIds: dualWritePlan.observationIds,
-      completedAt,
-    }),
-    request.request_id,
-    request.source_payload_json,
-  ));
   await env.OBS_DB.batch(statements);
+}
+
+function guardObservationAiMutation<T extends string | number | null>(
+  sql: string,
+  values: T[],
+  guard: string,
+  requestId: string,
+  completedPayload: string,
+): { sql: string; values: T[] } {
+  const guardValues = [requestId, completedPayload] as T[];
+  const insert = /^(\s*INSERT(?:\s+OR\s+IGNORE)?\s+INTO[\s\S]*?\))\s+VALUES\s*\(([\s\S]*)\)(\s+ON\s+CONFLICT[\s\S]*)?$/iu.exec(sql);
+  if (insert) {
+    const suffix = insert[3] ?? "";
+    return {
+      sql: `${insert[1]} SELECT ${insert[2]} WHERE ${guard}${suffix}`,
+      values: [...values, ...guardValues],
+    };
+  }
+  if (/^\s*UPDATE\s/iu.test(sql) && /\sWHERE\s/iu.test(sql)) {
+    return {
+      sql: `${sql} AND ${guard}`,
+      values: [...values, ...guardValues],
+    };
+  }
+  throw new Error("unsupported_observation_ai_dual_write_mutation");
 }
 
 async function refreshPublicReadmodel(observationId: string, env: Env): Promise<void> {
