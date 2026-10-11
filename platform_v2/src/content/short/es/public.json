@@ -174,6 +174,75 @@
       "title": "Mapa de vida | ZUKAN",
       "activeNav": "inicio",
       "footerNote": "Acerca el mapa para ver dónde se reúnen registros, especies, parques y pistas junto al agua."
+    },
+    "lens": {
+      "title": "Observar en el momento | ZUKAN",
+      "activeNav": "inicio",
+      "footerNote": "La IA ofrece posibles nombres y pistas para distinguirlos. La decisión la toma la persona.",
+      "hero": {
+        "eyebrow": "Observar en el momento",
+        "heading": "Observa de cerca eso que te llamó la atención",
+        "lead": "Ya sea durante un paseo o un viaje, apunta la cámara a un ser vivo que te dé curiosidad. La IA puede ofrecer posibles nombres y pistas para distinguirlos. No tienes que decidir aquí. Empieza por guardar lo que encontraste."
+      },
+      "steps": [
+        {
+          "title": "1. Guarda lo que viste",
+          "body": "No pasa nada si aún no sabes qué es. Primero conserva la foto, el lugar, la hora y lo que observaste."
+        },
+        {
+          "title": "2. Comprueba qué debes observar después",
+          "body": "En vez de confiar solo en el nombre sugerido por la IA, usa sus pistas para acotar qué rasgos comprobar."
+        },
+        {
+          "title": "3. Añade tus observaciones a un registro",
+          "body": "Esta página no guarda registros. Añade juntos la foto, el lugar, la hora y tus notas en la página de registro."
+        }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "Cuándo sirve",
+          "title": "Cuando quieres guardar un momento del paseo o del viaje",
+          "body": "Te sirve si prefieres guardar lo que viste y compararlo después, en vez de decidir una respuesta enseguida."
+        },
+        {
+          "eyebrow": "Ten en cuenta",
+          "title": "La IA da pistas; tú decides.",
+          "body": "La IA sugiere posibilidades y pistas para distinguirlas. No decide el nombre por ti."
+        },
+        {
+          "eyebrow": "Siguiente paso",
+          "title": "Guarda la foto y el lugar en un registro",
+          "body": "Esta página no guarda registros. Añade juntos el lugar, la hora y la foto en la página de registro.",
+          "ctaHref": "/record",
+          "ctaLabel": "Crear un registro"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "Dónde quedan tus registros",
+          "title": "Guarda lo que encontraste en tus registros",
+          "body": "En la página de registro, reúne fotos, lugares y notas. Después podrás volver a consultar los registros guardados en tu biblioteca.",
+          "meta": "Un lugar para guardar y otro para volver a consultar.",
+          "ctaHref": "/records?view=mine",
+          "ctaLabel": "Ver mis registros"
+        },
+        {
+          "eyebrow": "Si no sabes por dónde caminar",
+          "title": "Elige primero un lugar en el mapa",
+          "body": "Si quieres elegir por dónde caminar antes de buscar un nombre, abre primero el mapa.",
+          "meta": "Esta página te ayuda a mirar de cerca algo que encontraste; el mapa te ayuda a elegir adónde ir.",
+          "ctaHref": "/map",
+          "ctaLabel": "Abrir el mapa"
+        },
+        {
+          "eyebrow": "Para una guía continua al caminar",
+          "title": "Usa la guía en vivo para registrar de forma continua",
+          "body": "Esta página sirve para revisar un hallazgo cada vez. Para guardar vídeo o audio de manera continua mientras caminas, usa la guía en vivo.",
+          "meta": "Un hallazgo cada vez aquí; registro continuo en la guía en vivo.",
+          "ctaHref": "/guide",
+          "ctaLabel": "Abrir la guía en vivo"
+        }
+      ]
     }
   }
 }

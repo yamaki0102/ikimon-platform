@@ -174,6 +174,75 @@
       "title": "Mapa da vida | ZUKAN",
       "activeNav": "inicio",
       "footerNote": "Aproxime o mapa para ver onde registros, especies, parques e pistas perto da agua se concentram."
+    },
+    "lens": {
+      "title": "Observar na hora | ZUKAN",
+      "activeNav": "inicio",
+      "footerNote": "A IA oferece possibilidades e dicas para comparar. A decisão é da pessoa.",
+      "hero": {
+        "eyebrow": "Observar na hora",
+        "heading": "Olhe de perto o que chamou sua atenção",
+        "lead": "Durante uma caminhada ou viagem, aponte a câmera para um ser vivo que despertou sua curiosidade. A IA pode sugerir nomes possíveis e dicas para diferenciá-los. Você não precisa decidir aqui. Comece guardando o que encontrou."
+      },
+      "steps": [
+        {
+          "title": "1. Guarde o que você viu",
+          "body": "Tudo bem não saber o que é. Primeiro, preserve a foto, o lugar, o horário e o que você percebeu."
+        },
+        {
+          "title": "2. Confira o que observar em seguida",
+          "body": "Em vez de confiar apenas no nome sugerido pela IA, use as dicas para identificar quais características conferir."
+        },
+        {
+          "title": "3. Registre suas observações",
+          "body": "Esta página não salva registros. Reúna a foto, o lugar, o horário e as anotações na página de registro."
+        }
+      ],
+      "guidanceCards": [
+        {
+          "eyebrow": "Quando é útil",
+          "title": "Quando você quer guardar um momento da caminhada ou da viagem",
+          "body": "Use esta página quando preferir guardar o que viu e comparar depois, sem precisar decidir uma resposta na hora."
+        },
+        {
+          "eyebrow": "Tenha em mente",
+          "title": "A IA dá pistas; você decide.",
+          "body": "A IA sugere possibilidades e dicas para diferenciá-las. Ela não decide o nome por você."
+        },
+        {
+          "eyebrow": "Próximo passo",
+          "title": "Guarde a foto e o lugar em um registro",
+          "body": "Esta página não salva registros. Reúna o lugar, o horário e a foto na página de registro.",
+          "ctaHref": "/record",
+          "ctaLabel": "Criar um registro"
+        }
+      ],
+      "followupCards": [
+        {
+          "eyebrow": "Onde ficam seus registros",
+          "title": "Guarde o que encontrou nos seus registros",
+          "body": "Na página de registro, reúna fotos, lugares e anotações. Depois, você pode rever os registros salvos na sua biblioteca.",
+          "meta": "Um lugar para guardar e outro para consultar depois.",
+          "ctaHref": "/records?view=mine",
+          "ctaLabel": "Ver meus registros"
+        },
+        {
+          "eyebrow": "Se você ainda não sabe por onde caminhar",
+          "title": "Escolha primeiro um lugar no mapa",
+          "body": "Se quiser escolher por onde caminhar antes de pesquisar um nome, abra o mapa primeiro.",
+          "meta": "Esta página ajuda você a observar melhor algo que encontrou; o mapa ajuda a escolher para onde ir.",
+          "ctaHref": "/map",
+          "ctaLabel": "Abrir o mapa"
+        },
+        {
+          "eyebrow": "Para uma orientação contínua durante a caminhada",
+          "title": "Use o guia ao vivo para registrar continuamente",
+          "body": "Esta página ajuda a observar um achado por vez. Para registrar vídeo ou áudio de forma contínua durante a caminhada, use o guia ao vivo.",
+          "meta": "Um achado por vez aqui; registro contínuo no guia ao vivo.",
+          "ctaHref": "/guide",
+          "ctaLabel": "Abrir o guia ao vivo"
+        }
+      ]
     }
   }
 }
