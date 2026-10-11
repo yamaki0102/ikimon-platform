@@ -24556,11 +24556,14 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   const corePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_CORE_PATHS");
   const queryVariantPaths = parseArray(workerSource, "ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS");
   const localizablePaths = parseArray(workerSource, "ORIGINAL_UI_HTML_LOCALIZABLE_PATHS");
+  const invasiveMaterializationSource = await readFile(new URL("../../src/services/invasiveSpeciesMaterialization.ts", import.meta.url), "utf8");
 
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_CORE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_QUERY_VARIANT_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_STAGING_QA_SMOKE_PATHS"\)/);
   assert.match(materializerSource, /readWorkerStringArray\("ORIGINAL_UI_HTML_LOCALIZABLE_PATHS"\)/);
+  assert.match(materializerSource, /listInvasiveSpeciesMaterializationPaths\(\)/);
+  assert.match(invasiveMaterializationSource, /listInvasiveSpecies\(\)\.map/);
   assert.match(materializerSource, /pathname\.endsWith\("\.svg"\).*"image\/svg\+xml"/);
   assert.match(materializerSource, /view-needs-id/);
   assert.match(materializerSource, /includes\("\.\.\.ORIGINAL_UI_HTML_CORE_PATHS"\)/);
@@ -24609,6 +24612,7 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   ]) {
     assert.ok(corePaths.includes(path), `${path} should be materialized in core deploy scope`);
   }
+  assert.match(materializerSource, /\.\.\.listInvasiveSpeciesMaterializationPaths\(\)/);
   for (const path of [
     "/records?view=identification_summary",
     "/records?view=needs_id",
@@ -24656,6 +24660,50 @@ test("materialized original UI core entry registry is single-sourced from the Wo
   for (const slug of ["aikan-renri-guide-relay", "hamamatsu-heritage-guide-relay"]) {
     const path = `/guide-programs/${slug}`;
     assert.ok(localizablePaths.includes(path), `${path} should be renderable from ?lang= routes`);
+  }
+});
+
+test("production invasive Learn routes require an exact current manifest entry", async () => {
+  const { env } = createEnv();
+  const manifestHash = "a".repeat(64);
+  const versionPrefix = `original-ui/versions/${manifestHash}`;
+  const pageKey = "html/ja/learn/invasive-species/procyon-lotor.html";
+  const pageHtml = "<!doctype html><title>外来種カタログ</title><main>catalogue detail from manifest</main>";
+  const objectHash = createHash("sha256").update(pageHtml).digest("hex");
+  const productionEnv = { ...env, ENVIRONMENT: "production", IKIMON_UI_MANIFEST_HASH: manifestHash };
+
+  await env.ASSET_BUCKET.put(`${versionPrefix}/${pageKey}`, pageHtml, {
+    httpMetadata: { contentType: "text/html; charset=utf-8" },
+  });
+  await env.ASSET_BUCKET.put(`${versionPrefix}/manifest.json`, JSON.stringify({
+    items: [{ key: pageKey, sha256: objectHash, version_prefix: versionPrefix }],
+  }), { httpMetadata: { contentType: "application/json" } });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/learn/invasive-species/not-real.html", "stale unlisted catalogue page", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" },
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/learn/not-a-registered-article.html", "stale legacy Learn page", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" },
+  });
+
+  const getResponse = await worker.fetch(new Request("https://ikimon.life/ja/learn/invasive-species/procyon-lotor"), productionEnv);
+  assert.equal(getResponse.status, 200);
+  assert.match(await getResponse.text(), /catalogue detail from manifest/);
+  assert.equal(getResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+  assert.equal(getResponse.headers.get("x-ikimon-cloudflare-materialized-sha256"), objectHash);
+
+  const headResponse = await worker.fetch(new Request("https://ikimon.life/ja/learn/invasive-species/procyon-lotor", { method: "HEAD" }), productionEnv);
+  assert.equal(headResponse.status, 200);
+  assert.equal(await headResponse.text(), "");
+  assert.equal(headResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+  assert.equal(headResponse.headers.get("x-ikimon-cloudflare-materialized-sha256"), objectHash);
+
+  for (const path of [
+    "/ja/learn/invasive-species/not-real",
+    "/ja/learn/not-a-registered-article",
+  ]) {
+    const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+    assert.equal(response.status, 404, `${path} must not be admitted from a stale legacy object`);
+    assert.doesNotMatch(await response.text(), /stale unlisted catalogue page|stale legacy Learn page/);
   }
 });
 
@@ -25637,12 +25685,9 @@ test("production original UI html serves whitelisted public reading routes from 
     return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const glossary = await worker.fetch(new Request("https://ikimon.life/ja/learn/glossary"), productionEnv);
-    assert.equal(glossary.status, 200);
-    const glossaryBody = await glossary.text();
-    assert.match(glossaryBody, /<title>用語集 \/ ikimon<\/title>/);
-    assertCspNoncedInlineScript(glossary, glossaryBody, "ikimon-app-outbox-v1");
-    assert.equal(glossary.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    const staleGlossary = await worker.fetch(new Request("https://ikimon.life/ja/learn/glossary"), productionEnv);
+    assert.equal(staleGlossary.status, 404);
+    assert.doesNotMatch(await staleGlossary.text(), /用語集 \/ ikimon/);
 
     const englishLearn = await worker.fetch(new Request("https://ikimon.life/en/learn"), productionEnv);
     assert.equal(englishLearn.status, 200);
@@ -25665,12 +25710,9 @@ test("production original UI html serves whitelisted public reading routes from 
     assertCspNoncedInlineScript(about, aboutBody, "ikimon-app-outbox-v1");
     assert.equal(about.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 
-    const invasiveDetail = await worker.fetch(new Request("https://ikimon.life/ja/learn/invasive-species/procyon-lotor"), productionEnv);
-    assert.equal(invasiveDetail.status, 200);
-    const invasiveDetailBody = await invasiveDetail.text();
-    assert.match(invasiveDetailBody, /<title>Invasive species \/ ikimon<\/title>/);
-    assertCspNoncedInlineScript(invasiveDetail, invasiveDetailBody, "ikimon-app-outbox-v1");
-    assert.equal(invasiveDetail.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    const staleInvasiveDetail = await worker.fetch(new Request("https://ikimon.life/ja/learn/invasive-species/procyon-lotor"), productionEnv);
+    assert.equal(staleInvasiveDetail.status, 404);
+    assert.doesNotMatch(await staleInvasiveDetail.text(), /Invasive species \/ ikimon/);
 
     const englishMap = await worker.fetch(new Request("https://ikimon.life/en/map"), productionEnv);
     assert.equal(englishMap.status, 200);

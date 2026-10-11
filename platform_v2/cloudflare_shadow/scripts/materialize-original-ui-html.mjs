@@ -9,6 +9,7 @@ import {
   listPublicSiteMapMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes.ts";
 import { listLearnMaterializationPaths } from "../../src/learn/materialization.ts";
+import { listInvasiveSpeciesMaterializationPaths } from "../../src/services/invasiveSpeciesMaterialization.ts";
 import {
   gatewayPutSha256,
   selectMaterializationItems,
@@ -441,6 +442,7 @@ async function resolveTargetPaths() {
       ...corePaths,
       ...queryVariantPaths,
       ...listLearnMaterializationPaths(),
+      ...listInvasiveSpeciesMaterializationPaths(),
       ...(targetEnv === "staging" ? stagingOnlyAdminPreviewPaths : []),
     ])];
   }
