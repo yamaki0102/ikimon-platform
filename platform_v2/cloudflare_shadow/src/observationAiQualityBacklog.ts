@@ -29,11 +29,28 @@ export function observationAiBatchResultIndexes(primaryIndex: number): Observati
   };
 }
 
-export function observationAiQualityBacklogFailureDisposition(errorCode: string): "cancelled" | "failed" {
-  return errorCode === "public_quality_backlog_no_longer_eligible"
-    || errorCode === "public_quality_backlog_public_safety_blocked"
-    ? "cancelled"
-    : "failed";
+export function publicQualityBacklogCancellationPayload(
+  previousPayload: string | null,
+  errorCode: string,
+  cancelledAt: string,
+): string | null {
+  if (errorCode !== "public_quality_backlog_no_longer_eligible"
+    && errorCode !== "public_quality_backlog_public_safety_blocked") return null;
+  if (!previousPayload) return null;
+  try {
+    const previous: unknown = JSON.parse(previousPayload);
+    if (!previous || typeof previous !== "object" || Array.isArray(previous)) return null;
+    const payload = previous as Record<string, unknown>;
+    if (payload.qualityBacklogVersion !== GEMINI_QUALITY_BACKLOG_VERSION) return null;
+    return JSON.stringify({
+      ...payload,
+      executionStatus: "cancelled",
+      errorCode,
+      cancelledAt,
+    });
+  } catch {
+    return null;
+  }
 }
 
 const COARSE_CANDIDATE_SQL = `(

@@ -54,7 +54,7 @@ import {
   OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL,
   observationAiQualityBacklogCapacity,
   observationAiBatchResultIndexes,
-  observationAiQualityBacklogFailureDisposition,
+  publicQualityBacklogCancellationPayload,
   type ObservationAiQualityBacklogTargetRow,
 } from "./observationAiQualityBacklog";
 import {
@@ -34462,20 +34462,24 @@ async function updateProcessingGeminiPayload(request: ObservationReassessmentReq
 
 async function failGeminiReassessment(request: ObservationReassessmentRequestRow, error: unknown, env: Env): Promise<void> {
   const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
-  const isPublicQualityBacklog = reassessmentPayload(request.source_payload_json).qualityBacklogVersion
-    === GEMINI_QUALITY_BACKLOG_VERSION;
-  const disposition = isPublicQualityBacklog
-    ? observationAiQualityBacklogFailureDisposition(errorCode)
-    : "failed";
-  const terminal = disposition === "cancelled";
+  const transitionAt = new Date().toISOString();
+  const cancellationPayload = publicQualityBacklogCancellationPayload(
+    request.source_payload_json,
+    errorCode,
+    transitionAt,
+  );
+  const requestState = cancellationPayload ? "cancelled" : "failed";
+  const failurePayload = cancellationPayload ?? reassessmentPayloadWithResult(request.source_payload_json, {
+    executionStatus: "failed",
+    errorCode,
+    failedAt: transitionAt,
+  });
   await env.OBS_DB.prepare(
     `UPDATE observation_reassessment_requests SET request_state = ?, source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
       WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
   ).bind(
-    disposition,
-    reassessmentPayloadWithResult(request.source_payload_json, terminal
-      ? { executionStatus: "cancelled", errorCode, cancelledAt: new Date().toISOString() }
-      : { executionStatus: "failed", errorCode, failedAt: new Date().toISOString() }),
+    requestState,
+    failurePayload,
     request.request_id,
     request.source_payload_json,
   ).run();
@@ -34514,16 +34518,24 @@ async function submitGeminiObservationReassessmentGroup(rows: ObservationReasses
       prepared.push(item);
       inlineBudget += estimatedBytes;
     } catch (error) {
-      const claimPayload = reassessmentPayloadWithResult(request.source_payload_json, {
+      const errorCode = (error instanceof Error ? error.message : String(error)).slice(0, 180);
+      const transitionAt = new Date().toISOString();
+      const cancellationPayload = publicQualityBacklogCancellationPayload(
+        request.source_payload_json,
+        errorCode,
+        transitionAt,
+      );
+      const requestState = cancellationPayload ? "cancelled" : "failed";
+      const claimPayload = cancellationPayload ?? reassessmentPayloadWithResult(request.source_payload_json, {
         executionStatus: "failed",
         attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
-        errorCode: (error instanceof Error ? error.message : String(error)).slice(0, 180),
-        failedAt: new Date().toISOString(),
+        errorCode,
+        failedAt: transitionAt,
       });
       await env.OBS_DB.prepare(
-        `UPDATE observation_reassessment_requests SET request_state = 'failed', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+        `UPDATE observation_reassessment_requests SET request_state = ?, source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
           WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
-      ).bind(claimPayload, request.request_id, request.source_payload_json).run();
+      ).bind(requestState, claimPayload, request.request_id, request.source_payload_json).run();
     }
   }
   if (prepared.length === 0) return new Set();

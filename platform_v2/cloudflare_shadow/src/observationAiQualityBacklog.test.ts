@@ -13,8 +13,8 @@ import {
   OBSERVATION_AI_QUALITY_BACKLOG_REVALIDATE_SQL,
   OBSERVATION_AI_QUALITY_BACKLOG_SELECT_SQL,
   observationAiBatchResultIndexes,
-  observationAiQualityBacklogFailureDisposition,
   observationAiQualityBacklogCapacity,
+  publicQualityBacklogCancellationPayload,
 } from "./observationAiQualityBacklog";
 
 const MIGRATIONS = [
@@ -268,10 +268,40 @@ test("provider response indexes are compacted after an invalidated row is remove
   assert.equal(analysisKeys[dispatchRows[0]!.indexes.environmentIndex], "eligible-second");
 });
 
-test("backlog eligibility loss cancels instead of spending retry budget", () => {
-  assert.equal(observationAiQualityBacklogFailureDisposition("public_quality_backlog_no_longer_eligible"), "cancelled");
-  assert.equal(observationAiQualityBacklogFailureDisposition("public_quality_backlog_public_safety_blocked"), "cancelled");
-  assert.equal(observationAiQualityBacklogFailureDisposition("temporary_provider_error"), "failed");
+test("initial preparation eligibility loss persists cancellation without a retry or provider call", () => {
+  const db = database();
+  const previous = JSON.stringify({
+    qualityBacklogVersion: GEMINI_QUALITY_BACKLOG_VERSION,
+    attemptCount: 2,
+    executionStatus: "pending",
+  });
+  db.prepare(`INSERT INTO observation_reassessment_requests
+    (request_id, observation_id, request_kind, actor_user_id, request_state, source_payload_json)
+    VALUES ('preparation-cancel', 'preparation-cancel-record', 'standard', 'owner', 'pending', ?)`)
+    .run(previous);
+
+  const cancelled = publicQualityBacklogCancellationPayload(
+    previous,
+    "public_quality_backlog_no_longer_eligible",
+    "2026-10-11T00:00:00Z",
+  );
+  assert.ok(cancelled);
+  const update = db.prepare(`UPDATE observation_reassessment_requests
+    SET request_state = ?, source_payload_json = ?
+    WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`);
+  assert.equal(Number(update.run("cancelled", cancelled, "preparation-cancel", previous).changes), 1);
+  const stored = db.prepare("SELECT request_state, source_payload_json FROM observation_reassessment_requests WHERE request_id = 'preparation-cancel'")
+    .get() as { request_state: string; source_payload_json: string };
+  assert.equal(stored.request_state, "cancelled");
+  assert.equal(JSON.parse(stored.source_payload_json).attemptCount, 2);
+  assert.equal(JSON.parse(stored.source_payload_json).executionStatus, "cancelled");
+  assert.equal(publicQualityBacklogCancellationPayload(previous, "temporary_provider_error", "2026-10-11T00:00:00Z"), null);
+  assert.equal(publicQualityBacklogCancellationPayload(
+    JSON.stringify({ attemptCount: 2 }),
+    "public_quality_backlog_no_longer_eligible",
+    "2026-10-11T00:00:00Z",
+  ), null);
+  db.close();
 });
 
 test("backlog payload preserves prior idempotency and human-source fields", () => {

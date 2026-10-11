@@ -66,6 +66,7 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
   assert.match(source, /loadObservationAiAssetSelection\(request\.observation_id, env, isPublicQualityBacklog\)/);
   assert.match(source, /observationAiImageInput\(asset, env, isPublicQualityBacklog\)/);
   assert.match(source, /requireVerifiedPublicDerivative && !sourceBytes/);
+  assert.match(source, /const cancellationPayload = publicQualityBacklogCancellationPayload\([\s\S]+?const requestState = cancellationPayload \? "cancelled" : "failed"/);
   assert.match(qualityBacklog, /GEMINI_QUALITY_BACKLOG_MAX_ACTIVE = 40/);
   assert.match(qualityBacklog, /GEMINI_QUALITY_BACKLOG_MAX_REQUEUE_PER_TICK = 10/);
   assert.match(qualityBacklog, /json_valid\(source_payload_json\)/);
