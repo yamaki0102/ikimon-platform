@@ -619,11 +619,21 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const primaryItems: SideNavPrimaryItem[] = [
     ...(mode === "mobile" ? [{ key: "profile", href: "/profile", match: ["/profile", "/home"] }] : []),
     ...(mode === "mobile" ? [{ key: "notes", href: "/records?view=mine", match: ["/records?view=mine"] }] : []),
-    { key: "home", href: "/", match: ["/"] },
-    { key: "observations", href: "/records", match: ["/records", "/observations"] },
-    { key: "map", href: "/map", match: ["/map"] },
-    { key: "guide", href: "/guide", match: ["/guide"] },
+    ...(mode === "mobile"
+      ? [
+          { key: "home", href: "/", match: ["/"] },
+          { key: "observations", href: "/records", match: ["/records", "/observations"] },
+          { key: "map", href: "/map", match: ["/map"] },
+          { key: "guide", href: "/guide", match: ["/guide"] },
+        ]
+      : []),
   ];
+  const guideRoute = mode === "desktop"
+    ? sideNavPageItems(["start"], lang, 80).find((item) => item.href === "/guide")
+    : undefined;
+  const guideDirectoryItem: SideNavTextItem | undefined = guideRoute
+    ? { ...guideRoute, label: directoryCopy.links.guide, match: [guideRoute.href] }
+    : undefined;
   const personalizedLinksHtml = `<div class="desktop-side-nav-personalized-list" data-side-nav-personalized-list>
           ${renderSideNavTextLinks(basePath, lang, currentPath, normalizedPath, [
             { href: "/map", label: directoryCopy.links.nearbyAreas, match: ["/map"] },
@@ -662,8 +672,9 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
       items: [
         { href: "/records?view=public", label: directoryCopy.links.observations, match: ["/records?view=public"] },
         { href: "/lens", label: directoryCopy.links.lens, match: ["/lens"] },
-        { href: "/community/events", label: directoryCopy.links.events, match: ["/community/events"] },
+        ...(mode === "mobile" ? [{ href: "/community/events", label: directoryCopy.links.events, match: ["/community/events"] }] : []),
         { href: "/jobs", label: directoryCopy.links.jobs, match: ["/jobs"] },
+        ...(guideDirectoryItem ? [guideDirectoryItem] : []),
       ],
     },
     {
@@ -688,11 +699,11 @@ function renderSideNavDirectory(basePath: string, lang: SiteLang, currentPath: s
   const rootClass = mode === "desktop" ? "desktop-side-nav-directory" : "site-mobile-menu-directory";
   const primaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--primary" : "site-mobile-menu-section";
   const secondaryClass = mode === "desktop" ? "desktop-side-nav-section desktop-side-nav-section--secondary" : "site-mobile-menu-section";
-  const primary = `<section class="${primaryClass}">
+  const primary = primaryItems.length ? `<section class="${primaryClass}">
         ${primaryItems
           .map((item) => renderDesktopSideNavLink(basePath, lang, currentPath, normalizedPath, item, copy[item.key] ?? item.key))
           .join("")}
-      </section>`;
+      </section>` : "";
   const secondary = groups
     .map((group) => {
       const linksHtml = group.items.length
@@ -917,7 +928,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
       </div>
     </div>
   </header>
-  <aside class="desktop-side-nav" aria-label="PC primary navigation">
+  <aside class="desktop-side-nav" aria-label="PC navigation directory">
     <nav class="desktop-side-nav-inner">${desktopSideNav}</nav>
   </aside>`;
 }
@@ -7352,6 +7363,7 @@ ${alternateLinks}
         transition: width .18s ease, padding .18s ease, box-shadow .18s ease;
       }
       body.is-desktop-side-nav-collapsed .desktop-side-nav {
+        display: none;
         padding-right: 0;
         box-shadow: 10px 0 26px rgba(15,23,42,.08);
       }
