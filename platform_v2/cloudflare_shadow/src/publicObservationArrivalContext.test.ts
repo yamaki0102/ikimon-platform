@@ -126,6 +126,27 @@ test("canonical observation links keep action state and do not redirect", async 
   });
 });
 
+for (const [name, path, expected] of [
+  ["empty subject", "/ja/observations/arrival-record?subject=&from=LINE", "/ja/observations/arrival-record?from=line"],
+  ["duplicate subject with first value empty", "/en/observations/arrival-record?subject=&subject=old&source=sns", "/en/observations/arrival-record?source=sns"],
+  ["empty occurrence", "/es/observations/arrival-record?occurrence=&from=LINE", "/es/observations/arrival-record?from=line"],
+  ["duplicate occurrence with first value empty", "/pt-br/observations/arrival-record?occurrence=&occurrence=old&event=walk-day", "/pt-br/observations/arrival-record?event=walk-day"],
+] as const) {
+  test(`${name} is removed by the eligible public canonical redirect`, async () => {
+    for (const cutover of [false, true]) await withFixture({ cutover }, async ({ env }) => {
+      for (const method of ["GET", "HEAD"]) {
+        const response = await get(path, env, method);
+        assert.equal(response.status, 302, `${method}; cutover=${cutover}`);
+        assert.equal(response.headers.get("location"), expected);
+        assert.equal(await response.text(), "");
+      }
+      const destination = await get(expected, env);
+      assert.equal(destination.status, 200);
+      assert.equal(destination.headers.get("location"), null, "canonical destination must not loop");
+    });
+  });
+}
+
 test("private, hidden, withdrawn and missing records never reveal a canonical redirect", async () => {
   for (const options of [{ visibility: "private" }, { visibility: "limited" }, { hidden: 1 }, { withdrawn: true }]) {
     await withFixture(options, async ({ env }) => {

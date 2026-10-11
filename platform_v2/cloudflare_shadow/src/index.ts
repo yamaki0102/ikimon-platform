@@ -29359,7 +29359,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
   }
   const detailLang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
-  const canonicalRedirect = rawId !== detail.visitId || url.searchParams.get("subject") || url.searchParams.get("occurrence")
+  const canonicalRedirect = rawId !== detail.visitId || url.searchParams.has("subject") || url.searchParams.has("occurrence")
     ? new Response(null, {
         status: 302,
         headers: {
