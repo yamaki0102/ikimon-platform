@@ -6,6 +6,7 @@ import {
   oauthStartKind,
   type OAuthBoundaryEnv,
 } from "./oauthStartBoundary";
+import { personPublicationResponse } from "./personPublication";
 import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
 import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { ensurePublicDesignFoundation } from "./publicDesignFoundation";
@@ -28,6 +29,9 @@ export default {
     if (!authorizeOAuthStart(request, oauthEnv, oauthKind)) {
       return oauthErrorResponse(request, oauthEnv, oauthKind);
     }
+
+    const publication = personPublicationResponse(request, env as { ENVIRONMENT?: string; IKIMON_GIT_SHA?: string });
+    if (publication !== null) return ensurePublicDesignFoundation(request, publication);
 
     let response: Response;
     try {
