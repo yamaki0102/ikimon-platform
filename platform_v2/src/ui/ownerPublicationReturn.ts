@@ -38,8 +38,8 @@ const LABELS: Record<SiteLang, OwnerPublicationReturnLabels> = {
   ja: {
     title: "公開と確認", review: "確認結果", publication: "公開状態", destinations: "公開先",
     policyVersion: "ポリシー版", notReviewed: "未確認", approved: "確認済み・承認", changesRequested: "修正依頼",
-    held: "保留", rejected: "却下", withdrawn: "撤回", notReady: "公開準備中", eligible: "公開可能（未公開）",
-    published: "公開確認済み", excluded: "公開対象外", configured: "設定済み・未公開", readBack: "公開確認済み",
+    held: "保留", rejected: "却下", withdrawn: "撤回", notReady: "公開準備中", eligible: "公開の権利条件を確認済み（公開先の掲載は未確認）",
+    published: "公開確認済み", excluded: "公開対象外", configured: "公開先は設定済み（この記録の掲載は未確認）", readBack: "公開確認済み",
     unavailable: "公開条件を確認できません", noDestination: "公開先がありません", readonly: "公開先設定（読み取り専用）",
     reason: "理由", fallbackExclusion: "必要な公開条件を満たしていません",
     exclusion: {
@@ -59,8 +59,8 @@ const LABELS: Record<SiteLang, OwnerPublicationReturnLabels> = {
   en: {
     title: "Review and publication", review: "Review status", publication: "Publication status", destinations: "Destinations",
     policyVersion: "Policy version", notReviewed: "Not reviewed", approved: "Reviewed and approved", changesRequested: "Changes requested",
-    held: "On hold", rejected: "Rejected", withdrawn: "Withdrawn", notReady: "Not ready for publication", eligible: "Eligible (not published)",
-    published: "Publication confirmed", excluded: "Excluded from publication", configured: "Configured (not published)", readBack: "Publication confirmed",
+    held: "On hold", rejected: "Rejected", withdrawn: "Withdrawn", notReady: "Not ready for publication", eligible: "Rights allow sharing (feed inclusion unverified)",
+    published: "Publication confirmed", excluded: "Excluded from publication", configured: "Feed configured (this record's inclusion unverified)", readBack: "Publication confirmed",
     unavailable: "Publication conditions could not be checked", noDestination: "No destination is configured", readonly: "Destination settings (read-only)",
     reason: "Reason", fallbackExclusion: "Required publication conditions are not met",
     exclusion: {
@@ -80,8 +80,8 @@ const LABELS: Record<SiteLang, OwnerPublicationReturnLabels> = {
   es: {
     title: "Revisión y publicación", review: "Estado de revisión", publication: "Estado de publicación", destinations: "Destinos",
     policyVersion: "Versión de la política", notReviewed: "Sin revisar", approved: "Revisado y aprobado", changesRequested: "Cambios solicitados",
-    held: "En espera", rejected: "Rechazado", withdrawn: "Retirado", notReady: "Aún no está listo", eligible: "Puede publicarse (aún no publicado)",
-    published: "Publicación confirmada", excluded: "Excluido de la publicación", configured: "Configurado (sin publicar)", readBack: "Publicación confirmada",
+    held: "En espera", rejected: "Rechazado", withdrawn: "Retirado", notReady: "Aún no está listo", eligible: "Los derechos permiten compartirlo (sin confirmar su inclusión en el destino)",
+    published: "Publicación confirmada", excluded: "Excluido de la publicación", configured: "Destino configurado (sin confirmar la inclusión de este registro)", readBack: "Publicación confirmada",
     unavailable: "No se pudieron comprobar las condiciones", noDestination: "No hay un destino configurado", readonly: "Configuración del destino (solo lectura)",
     reason: "Motivo", fallbackExclusion: "No se cumplen las condiciones de publicación",
     exclusion: {
@@ -101,8 +101,8 @@ const LABELS: Record<SiteLang, OwnerPublicationReturnLabels> = {
   "pt-BR": {
     title: "Revisão e publicação", review: "Status da revisão", publication: "Status da publicação", destinations: "Destinos",
     policyVersion: "Versão da política", notReviewed: "Não revisado", approved: "Revisado e aprovado", changesRequested: "Alterações solicitadas",
-    held: "Em espera", rejected: "Rejeitado", withdrawn: "Retirado", notReady: "Ainda não está pronto", eligible: "Pode ser publicado (ainda não publicado)",
-    published: "Publicação confirmada", excluded: "Fora da publicação", configured: "Configurado (não publicado)", readBack: "Publicação confirmada",
+    held: "Em espera", rejected: "Rejeitado", withdrawn: "Retirado", notReady: "Ainda não está pronto", eligible: "Os direitos permitem compartilhar (inclusão no destino não confirmada)",
+    published: "Publicação confirmada", excluded: "Fora da publicação", configured: "Destino configurado (inclusão deste registro não confirmada)", readBack: "Publicação confirmada",
     unavailable: "Não foi possível verificar as condições", noDestination: "Nenhum destino configurado", readonly: "Configuração do destino (somente leitura)",
     reason: "Motivo", fallbackExclusion: "As condições de publicação não foram atendidas",
     exclusion: {

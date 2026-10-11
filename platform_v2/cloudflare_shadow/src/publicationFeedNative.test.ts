@@ -9,6 +9,7 @@ import {
   PUBLICATION_SYNDICATION_POLICY_VERSION,
   PUBLICATION_SYNDICATION_PURPOSE,
 } from "../../src/services/publicationSyndication";
+import { renderOwnerPublicationReturn } from "../../src/ui/ownerPublicationReturn";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
 
 const boundary = JSON.stringify({
@@ -191,6 +192,38 @@ test("keeps AI candidate machine-readable and excludes rights/privacy unsafe row
   const payload = await response.json() as { channels: Array<{ items: Array<{ id: string; classification: { state: string; source: string } }> }> };
   assert.deepEqual(payload.channels[0]?.items.map((item) => item.id), ["living:visit-candidate"]);
   assert.deepEqual(payload.channels[0]?.items[0]?.classification, { state: "candidate", source: "ai", confidence: 0.72 });
+});
+
+test("owner return does not claim feed eligibility when the native feed excludes an out-of-area record", async () => {
+  const outsideBoundary = { ...baseRow, exact_lng: 138.2 } satisfies PublicationFeedNativeRow;
+  const response = await handlePublicationFeedNativeRequest(
+    new Request("https://staging.zukan.earth/api/v1/publication-feeds/miyakoda-renri-area?channel=living"),
+    database([outsideBoundary]),
+  );
+  assert.ok(response);
+  const payload = await response.json() as { channels: Array<{ items: unknown[] }> };
+  assert.deepEqual(payload.channels.map((channel) => channel.items), [[]]);
+
+  const ownerHtml = renderOwnerPublicationReturn({
+    owner: true,
+    recordVisibility: "public",
+    reviewDecision: { state: "approved", source: "human_review" },
+    rights: {
+      recordConsent: baseRow.record_consent,
+      researchUseConsent: baseRow.research_use_consent,
+      datasetLicense: baseRow.dataset_license,
+      mediaLicense: baseRow.media_license,
+      externalExportAllowed: baseRow.external_export_allowed,
+      withdrawalStatus: baseRow.withdrawal_status,
+      sourcePayload: JSON.parse(baseRow.source_payload_json!) as Record<string, unknown>,
+    },
+    now: new Date("2026-09-15T00:00:00.000Z"),
+    lang: "en",
+  });
+  assert.match(ownerHtml, /data-publication-state="eligible"/);
+  assert.match(ownerHtml, /Rights allow sharing \(feed inclusion unverified\)/);
+  assert.match(ownerHtml, /Feed configured \(this record.*inclusion unverified\)/);
+  assert.doesNotMatch(ownerHtml, /Eligible \(not published\)|Configured \(not published\)/);
 });
 
 test("public feed omits both image URLs when derivative metadata is unsafe or unproved", async () => {

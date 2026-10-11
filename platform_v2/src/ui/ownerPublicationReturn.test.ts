@@ -49,12 +49,12 @@ test("publication return is owner-only", () => {
   assert.equal(html, "");
 });
 
-test("eligible publication shows the configured destination policy version without claiming publication", () => {
+test("rights-cleared publication remains feed-readback-unverified until inclusion is confirmed", () => {
   const html = renderOwnerPublicationReturn({ ...base, lang: "ja" });
   assert.match(html, /data-publication-return="owner-only"/);
   assert.match(html, /確認済み・承認/);
-  assert.match(html, /公開可能（未公開）/);
-  assert.match(html, /設定済み・未公開/);
+  assert.match(html, /公開の権利条件を確認済み（公開先の掲載は未確認）/);
+  assert.match(html, /公開先は設定済み（この記録の掲載は未確認）/);
   assert.match(html, /ポリシー版: public-feed-v1/);
   assert.doesNotMatch(html, /公開確認済み/);
 });
@@ -140,8 +140,14 @@ test("rights read failure is presented as unavailable, not as an eligible or unc
 });
 
 test("publication return labels follow each supported UI language", () => {
-  for (const [lang, title] of [["ja", "公開と確認"], ["en", "Review and publication"], ["es", "Revisión y publicación"], ["pt-BR", "Revisão e publicação"]] as const) {
+  for (const [lang, title, unverified] of [
+    ["ja", "公開と確認", "公開先の掲載は未確認"],
+    ["en", "Review and publication", "feed inclusion unverified"],
+    ["es", "Revisión y publicación", "sin confirmar su inclusión en el destino"],
+    ["pt-BR", "Revisão e publicação", "inclusão no destino não confirmada"],
+  ] as const) {
     const html = renderOwnerPublicationReturn({ ...base, lang });
     assert.match(html, new RegExp(title));
+    assert.match(html, new RegExp(unverified));
   }
 });

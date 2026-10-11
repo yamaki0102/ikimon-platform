@@ -591,7 +591,8 @@ test("owner publication return distinguishes Review, eligible destination, and c
   assert.match(rendered, /公開の戻り値/);
   assert.match(rendered, /人によるReview/);
   assert.match(rendered, /Review済み・承認/);
-  assert.match(rendered, /公開可能（未公開）/);
+  assert.match(rendered, /公開の権利条件を確認済み（公開先の掲載は未確認）/);
+  assert.match(rendered, /公開先は設定済み（この記録の掲載は未確認）/);
   assert.match(rendered, /浜松・都田/);
   assert.match(rendered, /production Feed（読み取り専用）/);
   assert.match(rendered, /ポリシー版: public-feed-v1/);
