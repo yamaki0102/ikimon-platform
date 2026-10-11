@@ -169,7 +169,7 @@ test("only the rendered Learn catalog keeps the shared native menu; About keeps 
   assert.match(aboutHtml, /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/u);
   assert.equal([...aboutHtml.matchAll(/<details\b[^>]*data-cloudflare-header-menu/gu)].length, 1);
   assert.match(aboutHtml, /<details class="cf-header-menu" data-cloudflare-header-menu>[\s\S]*?<summary aria-label="メニュー"/u);
-  assert.match(aboutHtml, /@media\s*\(min-width:\s*1161px\)\s*\{\s*\.cf-header-menu\s*\{\s*display:\s*none!important\s*\}\s*\}/u);
+  assert.match(aboutHtml, /@media\s*\(min-width:\s*1161px\)\s*\{\s*\.cf-header-menu\s*\{\s*display:\s*none!important\s*\}\s*\.site-header\s+\.site-header-actions-desktop\s*\{\s*display:\s*flex!important\s*\}\s*\}/u);
   assert.match(aboutHtml, /<div class="cf-header-menu-panel" role="menu">/u);
   assert.match(aboutHtml, /\.cf-header-menu summary:focus-visible/u);
   assert.match(aboutHtml, /<a class="cf-header-menu-item" role="menuitem" href="\/ja\/records">記録を見る<\/a>/u);

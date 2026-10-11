@@ -27999,7 +27999,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
   if (withMenu === html) return html;
   if (withMenu.includes("cf-header-menu-style")) return withMenu;
   const desktopNativeMenuFallbackStyle = hasDesktopSideNavToggle
-    ? "@media (min-width: 1161px){.cf-header-menu{display:none!important}}"
+    ? "@media (min-width: 1161px){.cf-header-menu{display:none!important}.site-header .site-header-actions-desktop{display:flex!important}}"
     : "";
   return withMenu.replace("</head>", `<style id="cf-header-menu-style">
     .site-header .site-header-actions-desktop,.site-header .site-header-actions-mobile{display:none!important}
