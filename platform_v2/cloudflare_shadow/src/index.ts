@@ -27960,14 +27960,14 @@ function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRe
 }
 
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
-  if (html.includes('data-zukan-app-experience="v1"')) return html;
+  const menuPath = url.pathname.replace(/^\/(?:ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
+  const hasRenderedLearnCatalog = /<section\b(?=[^>]*\bdata-learn-catalog(?:\s|=|>))[^>]*>/i.test(html);
   if (html.includes("data-cloudflare-header-menu")) return html;
-  // Materialized shared-shell pages already ship a desktop rail toggle and a
-  // mobile menu. Adding the compatibility menu to those pages creates a
-  // second header control and an extra row in the header grid.
+  // The rendered Learn catalog already ships these shared controls; keep its
+  // native shell only when both navigation controls are present.
   const hasDesktopSideNavToggle = /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/i.test(html);
   const hasMobileSideNavMenu = /<details\b[^>]*\bclass=["'][^"']*\bsite-mobile-menu\b[^"']*["'][^>]*>/i.test(html);
-  if (hasDesktopSideNavToggle && hasMobileSideNavMenu) return html;
+  if (menuPath === "/learn" && hasRenderedLearnCatalog && hasDesktopSideNavToggle && hasMobileSideNavMenu) return html;
   if (!html.includes("site-header-actions")) return html;
   const lang = publicLangFromPath(url.pathname) ?? "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
