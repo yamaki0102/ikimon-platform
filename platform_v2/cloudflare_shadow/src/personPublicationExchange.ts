@@ -38,6 +38,10 @@ export interface PersonD1Statement {
   bind(...values: (string | number | null)[]): PersonD1Statement;
   first<T = Record<string, unknown>>(): Promise<T | null>;
 }
+export interface PersonEditionBlobStore {
+  put(key: string, value: string): Promise<unknown>;
+  get(key: string): Promise<{ text(): Promise<string> } | null>;
+}
 export interface PersonD1 {
   prepare(query: string): PersonD1Statement;
   batch(statements: PersonD1Statement[]): Promise<unknown[]>;
@@ -49,7 +53,7 @@ export interface StoredPersonRow {
   readonly edition_id: string;
   readonly digest: string;
   readonly publication_state: "published" | "withdrawn";
-  readonly public_json: string;
+  readonly content_key: string | null;
 }
 export class PersonExchangeError extends Error {
   constructor(readonly code: string, readonly status: number = 409) { super(code); }
@@ -101,10 +105,13 @@ function assertEnvelope(value: PersonEditionEnvelope, verified: VerifiedPersonIs
   return profile;
 }
 
-export async function receivePersonEdition(db: PersonD1, incoming: PersonEditionEnvelope,
+export async function receivePersonEdition(db: PersonD1, blobs: PersonEditionBlobStore, incoming: PersonEditionEnvelope,
   verified: VerifiedPersonIssuer): Promise<"created" | "updated" | "replayed"> {
   const profile = assertEnvelope(incoming, verified);
   const json = profile === null ? "{}" : JSON.stringify(profile);
+  const contentSha = await digest(json);
+  const contentKey = profile === null ? null
+    : "person-publications/v1/" + incoming.publicId + "/" + incoming.revision + "-" + contentSha + ".json";
   if (new TextEncoder().encode(json).length > 32_000) throw new PersonExchangeError("person_public_profile_too_large", 413);
   const sha = await digest(JSON.stringify({ publicId: incoming.publicId, issuer: incoming.issuerPublicRef,
     revision: incoming.revision, edition: incoming.editionId, action: incoming.action, json }));
@@ -115,19 +122,28 @@ export async function receivePersonEdition(db: PersonD1, incoming: PersonEdition
     throw new PersonExchangeError("person_edition_stale_or_conflicting");
   }
   const state = incoming.action === "withdraw" ? "withdrawn" : "published";
+  // Immutable, content-addressed R2 write first. A failed CAS may leave an
+  // unreferenced blob, but never publishes an unverified or partial edition.
+  if (contentKey !== null) {
+    await blobs.put(contentKey, json);
+    const observed = await blobs.get(contentKey);
+    if (observed === null || await digest(await observed.text()) !== contentSha) {
+      throw new PersonExchangeError("person_blob_readback_unavailable", 503);
+    }
+  }
   await db.batch([
     db.prepare("INSERT INTO zukan_person_publications "
-      + "(public_id, issuer_public_ref, current_revision, edition_id, digest, publication_state, public_json, updated_at) "
+      + "(public_id, issuer_public_ref, current_revision, edition_id, digest, publication_state, content_key, updated_at) "
       + "VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
       + "ON CONFLICT(public_id) DO UPDATE SET "
       + "current_revision=excluded.current_revision, edition_id=excluded.edition_id, digest=excluded.digest, "
-      + "publication_state=excluded.publication_state, public_json=excluded.public_json, updated_at=excluded.updated_at "
+      + "publication_state=excluded.publication_state, content_key=excluded.content_key, updated_at=excluded.updated_at "
       + "WHERE zukan_person_publications.issuer_public_ref=excluded.issuer_public_ref "
       + "AND zukan_person_publications.current_revision < excluded.current_revision")
-      .bind(incoming.publicId, incoming.issuerPublicRef, incoming.revision, incoming.editionId, sha, state, json),
+      .bind(incoming.publicId, incoming.issuerPublicRef, incoming.revision, incoming.editionId, sha, state, contentKey),
     db.prepare("INSERT OR IGNORE INTO zukan_person_publication_editions "
-      + "(public_id, revision, issuer_public_ref, edition_id, digest, publication_state, public_json, published_at) "
-      + "SELECT public_id, current_revision, issuer_public_ref, edition_id, digest, publication_state, public_json, CURRENT_TIMESTAMP "
+      + "(public_id, revision, issuer_public_ref, edition_id, digest, publication_state, content_key, published_at) "
+      + "SELECT public_id, current_revision, issuer_public_ref, edition_id, digest, publication_state, content_key, CURRENT_TIMESTAMP "
       + "FROM zukan_person_publications WHERE public_id=? AND current_revision=? AND digest=?")
       .bind(incoming.publicId, incoming.revision, sha),
   ]);
@@ -140,11 +156,25 @@ export async function receivePersonEdition(db: PersonD1, incoming: PersonEdition
 }
 
 /** Indexed point lookup; withdrawn rows suppress legacy static fallbacks. */
-export async function readPersonEdition(db: PersonD1, publicId: string): Promise<{ found: boolean; profile: PersonPublication | null }> {
+export async function readPersonEdition(db: PersonD1, blobs: PersonEditionBlobStore, publicId: string): Promise<{ found: boolean; profile: PersonPublication | null }> {
   if (!PUBLIC_ID.test(publicId)) return { found: false, profile: null };
   const row = await db.prepare("SELECT * FROM zukan_person_publications WHERE public_id = ?").bind(publicId).first<StoredPersonRow>();
   if (!row) return { found: false, profile: null };
   if (row.publication_state !== "published") return { found: true, profile: null };
-  const parsed: unknown = JSON.parse(row.public_json);
-  return { found: true, profile: publicProfile(parsed as PersonPublication, row.public_id, row.edition_id) };
+  if (row.content_key === null) throw new PersonExchangeError("person_blob_locator_missing", 503);
+  const prefix = "person-publications/v1/" + publicId + "/" + row.current_revision + "-";
+  if (!row.content_key.startsWith(prefix) || !/^[a-f0-9]{64}\.json$/u.test(row.content_key.slice(prefix.length))) {
+    throw new PersonExchangeError("person_blob_locator_invalid", 503);
+  }
+  const blob = await blobs.get(row.content_key);
+  if (blob === null) throw new PersonExchangeError("person_blob_missing", 503);
+  const json = await blob.text();
+  if (await digest(json) !== row.content_key.slice(prefix.length, -5)) {
+    throw new PersonExchangeError("person_blob_digest_mismatch", 503);
+  }
+  let parsed: unknown;
+  try { parsed = JSON.parse(json); } catch { throw new PersonExchangeError("person_blob_payload_invalid", 503); }
+  const profile = publicProfile(parsed as PersonPublication, row.public_id, row.edition_id);
+  if (profile === null) throw new PersonExchangeError("person_blob_payload_invalid", 503);
+  return { found: true, profile };
 }
