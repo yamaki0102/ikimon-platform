@@ -72,7 +72,8 @@ test("alias can be public without exposing legal name or romanized name", async 
   assert.match(html, /浜松の自然案内人/u);
   assert.doesNotMatch(html, /SECRET_LEGAL_NAME/u);
   assert.doesNotMatch(html, /name="robots" content="index,follow"/u);
-  assert.equal(personPublicationPath(alias), "/ja/people/nature-guide-" + alias.publicId);
+  assert.equal(personPublicationPath(alias), "/ja/people/person-" + alias.publicId);
+  assert.equal(personPublicationResponse(req("/ja/people/nature-guide-" + alias.publicId), production, [alias])!.status, 404);
 });
 
 test("anonymous has stable ID-only public locator; never reveals hidden names or outgoing identity links", async () => {
