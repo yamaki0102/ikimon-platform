@@ -9,11 +9,36 @@ import {
   PUBLICATION_SYNDICATION_POLICY_VERSION,
   PUBLICATION_SYNDICATION_PURPOSE,
 } from "../../src/services/publicationSyndication";
+import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
 
 const boundary = JSON.stringify({
   type: "Polygon",
   coordinates: [[[137.732, 34.813], [137.735, 34.813], [137.735, 34.816], [137.732, 34.816], [137.732, 34.813]]],
 });
+
+function publicWebpMetadata(facePrivacy: unknown = { status: "no_faces" }): string {
+  // A structurally parsed RIFF/WEBP inspector fixture, not a decoded image or
+  // evidence that the production writer emits face approval metadata.
+  const bytes = new Uint8Array(24);
+  bytes.set(new TextEncoder().encode("RIFF"), 0);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(4, 16, true);
+  bytes.set(new TextEncoder().encode("WEBP"), 8);
+  bytes.set(new TextEncoder().encode("VP8 "), 12);
+  view.setUint32(16, 3, true);
+  bytes.set([1, 2, 3], 20);
+  const inspection = inspectPublicDerivativeMetadata(bytes.buffer, "image/webp");
+  // The derivative writer adds these fields after binary inspection. Face
+  // approval is the feed's existing independent contract; current writer
+  // metadata does not itself persist it.
+  return JSON.stringify({
+    ...inspection,
+    tool: "cloudflare-images-public-derivative-v1",
+    derivativeFormat: "webp",
+    derivativeBytes: bytes.byteLength,
+    facePrivacy,
+  });
+}
 
 const baseRow = {
   observation_id: "visit-public-1",
@@ -49,11 +74,11 @@ const baseRow = {
   living_derivative_key: "derived/visit-public-1/display.webp",
   living_width: 1600,
   living_height: 1200,
-  living_metadata_json: JSON.stringify({ facePrivacy: { status: "no_faces" } }),
+  living_metadata_json: publicWebpMetadata(),
   community_derivative_key: "derived/visit-public-1/context.webp",
   community_width: 1600,
   community_height: 1200,
-  community_metadata_json: JSON.stringify({ facePrivacy: "no_faces" }),
+  community_metadata_json: publicWebpMetadata("no_faces"),
   ai_assessment_status: null,
   ai_candidate_label: null,
   ai_confidence: null,
@@ -140,13 +165,15 @@ test("keeps AI candidate machine-readable and excludes rights/privacy unsafe row
     ...baseRow,
     observation_id: "visit-face",
     living_derivative_key: "derived/visit-face/display.webp",
-    living_metadata_json: JSON.stringify({ facePrivacy: { hasFace: true } }),
+    living_metadata_json: publicWebpMetadata({ hasFace: true }),
   } satisfies PublicationFeedNativeRow;
+  const uncheckedFaceMetadata = JSON.parse(publicWebpMetadata()) as Record<string, unknown>;
+  delete uncheckedFaceMetadata.facePrivacy;
   const uncheckedFaceRow = {
     ...baseRow,
     observation_id: "visit-face-unchecked",
     living_derivative_key: "derived/visit-face-unchecked/display.webp",
-    living_metadata_json: "{}",
+    living_metadata_json: JSON.stringify(uncheckedFaceMetadata),
   } satisfies PublicationFeedNativeRow;
   const unprovenRiskRow = {
     ...baseRow,
@@ -164,6 +191,47 @@ test("keeps AI candidate machine-readable and excludes rights/privacy unsafe row
   const payload = await response.json() as { channels: Array<{ items: Array<{ id: string; classification: { state: string; source: string } }> }> };
   assert.deepEqual(payload.channels[0]?.items.map((item) => item.id), ["living:visit-candidate"]);
   assert.deepEqual(payload.channels[0]?.items[0]?.classification, { state: "candidate", source: "ai", confidence: 0.72 });
+});
+
+test("public feed omits both image URLs when derivative metadata is unsafe or unproved", async () => {
+  const unsafeMetadata = [
+    ...["gpsExifPresent", "exifPresent", "gpsPresent", "xmpPresent", "exactCoordinateLiteralPresent"].map((flag) => {
+      const metadata = JSON.parse(publicWebpMetadata()) as Record<string, unknown>;
+      metadata[flag] = true;
+      return JSON.stringify(metadata);
+    }),
+    // A contradictory summary must not be hidden by a false detailed flag.
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, gpsExifPresent: true, gpsPresent: false }),
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, contentType: "image/jpeg" }),
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, scannedContainer: "binary" }),
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, scannedContainer: "svg+xml" }),
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, inspectionVersion: "unknown" }),
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, checkedAt: "not-a-timestamp" }),
+    JSON.stringify({ ...JSON.parse(publicWebpMetadata()) as Record<string, unknown>, derivativeBytes: 13 }),
+    (() => {
+      const metadata = JSON.parse(publicWebpMetadata()) as Record<string, unknown>;
+      delete metadata.xmpPresent;
+      return JSON.stringify(metadata);
+    })(),
+    publicWebpMetadata({ status: "no_faces", hasFace: true }),
+    "{malformed-json",
+  ];
+
+  for (const [index, metadata] of unsafeMetadata.entries()) {
+    const row = {
+      ...baseRow,
+      observation_id: `visit-unsafe-image-${index}`,
+      living_metadata_json: metadata,
+      community_metadata_json: metadata,
+    } satisfies PublicationFeedNativeRow;
+    const response = await handlePublicationFeedNativeRequest(
+      new Request("https://staging.zukan.earth/api/v1/publication-feeds/miyakoda-renri-area"),
+      database([row]),
+    );
+    assert.ok(response);
+    const payload = await response.json() as { channels: Array<{ items: Array<{ media: { url: string } }> }> };
+    assert.deepEqual(payload.channels.map((channel) => channel.items), [[], []], `unsafe metadata case ${index}`);
+  }
 });
 
 test("uses the accepted human label and reports a verified identification", async () => {
