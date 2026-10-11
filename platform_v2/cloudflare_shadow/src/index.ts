@@ -1066,8 +1066,29 @@ const VALID_PERSONAL_TAXON_RANKS = new Set(["species", "genus", "family", "order
 const VALID_PERSONAL_TAXON_CHANNELS = new Set(["email", "digest_daily", "digest_weekly", "none"]);
 
 interface LegacyThumbDerivativeRow {
-  public_derivative_key: string;
+  public_derivative_key: string | null;
   mime: string | null;
+  processing_state: string;
+  public_derivative_verified_at: string | null;
+  public_derivative_metadata_json: string | null;
+  exif_scrub_state: string | null;
+  public_ready_at: string | null;
+}
+
+interface LegacyThumbNativeVisibilityRow {
+  visibility: string;
+  emergency_hidden: number;
+}
+
+interface LegacyThumbImportVisibilityRow {
+  public_visibility: string | null;
+  readmodel_visibility: string | null;
+}
+
+interface LegacyThumbPreflight {
+  allowed: boolean;
+  known: boolean;
+  derivative: LegacyThumbDerivativeRow | null;
 }
 
 interface PublicMapSnapshotRow {
@@ -25892,23 +25913,36 @@ function cacheControlForOriginalUiStaticAsset(pathname: string): string {
 }
 
 async function getOriginalUiThumb(request: Request, url: URL, env: Env): Promise<Response> {
+  const legacy = parseLegacyObservationThumbPath(url.pathname);
+  const preflight = legacy ? await legacyObservationThumbPreflight(legacy, env) : null;
+  if (preflight && !preflight.allowed) {
+    return originalUiThumbMiss(request);
+  }
+
   const object = await env.ASSET_BUCKET.get(originalUiThumbKey(url.pathname));
   if (object?.body) {
     return new Response(request.method === "HEAD" ? null : object.body, {
       headers: {
         "content-type": object.httpMetadata?.contentType ?? contentTypeForOriginalUiThumb(url.pathname),
-        "cache-control": "public, max-age=31536000, immutable",
+        "cache-control": preflight?.known ? "private, no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable",
         "x-ikimon-cloudflare-materialized": "original-ui-thumb"
       }
     });
   }
 
-  const nativeThumb = await getLegacyObservationThumbFromDerivative(request, url, env);
+  const nativeThumb = await getLegacyObservationThumbFromDerivative(request, url, env, preflight);
   if (nativeThumb) {
     return nativeThumb;
   }
 
-  return json({ ok: false, error: "thumb_not_materialized" }, 404, { "cache-control": "no-store" });
+  return originalUiThumbMiss(request);
+}
+
+function originalUiThumbMiss(request: Request): Response {
+  const response = json({ ok: false, error: "thumb_not_materialized" }, 404, { "cache-control": "no-store" });
+  return request.method === "HEAD"
+    ? new Response(null, { status: response.status, headers: response.headers })
+    : response;
 }
 
 function isOriginalUiThumbPath(pathname: string): boolean {
@@ -25927,23 +25961,18 @@ function contentTypeForOriginalUiThumb(pathname: string): string {
   return "application/octet-stream";
 }
 
-async function getLegacyObservationThumbFromDerivative(request: Request, url: URL, env: Env): Promise<Response | null> {
+async function getLegacyObservationThumbFromDerivative(
+  request: Request,
+  url: URL,
+  env: Env,
+  preflight: LegacyThumbPreflight | null = null
+): Promise<Response | null> {
   const legacy = parseLegacyObservationThumbPath(url.pathname);
   if (!legacy) return null;
 
-  const row = await env.OBS_DB.prepare(
-    `SELECT a.public_derivative_key, a.mime
-       FROM production_import_evidence_assets e
-       JOIN asset_ledger a ON a.asset_id = e.asset_id
-      WHERE e.visit_id = ?
-        AND e.legacy_relative_path = ?
-        AND a.processing_state = 'uploaded'
-        AND a.exif_scrub_state = 'scrubbed'
-        AND a.public_ready_at IS NOT NULL
-        AND a.public_derivative_key IS NOT NULL
-      ORDER BY a.public_ready_at DESC
-      LIMIT 1`
-  ).bind(legacy.recordId, legacy.legacyRelativePath).first<LegacyThumbDerivativeRow>();
+  const gate = preflight ?? await legacyObservationThumbPreflight(legacy, env);
+  if (!gate.allowed) return null;
+  const row = gate.derivative;
   if (!row?.public_derivative_key) return null;
 
   const object = await env.ASSET_BUCKET.get(row.public_derivative_key);
@@ -25952,10 +25981,84 @@ async function getLegacyObservationThumbFromDerivative(request: Request, url: UR
   return new Response(request.method === "HEAD" ? null : object.body, {
     headers: {
       "content-type": object.httpMetadata?.contentType ?? publicDerivativeContentType(row.public_derivative_key, row.mime),
-      "cache-control": "public, max-age=31536000, immutable",
+      "cache-control": gate.known ? "private, no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable",
       "x-ikimon-cloudflare-native": "thumb-derivative-readmodel"
     }
   });
+}
+
+async function legacyObservationThumbPreflight(
+  legacy: { recordId: string; legacyRelativePath: string },
+  env: Env
+): Promise<LegacyThumbPreflight> {
+  const native = await env.OBS_DB.prepare(
+    `SELECT visibility, emergency_hidden
+       FROM observations
+      WHERE observation_id = ?
+      LIMIT 1`
+  ).bind(legacy.recordId).first<LegacyThumbNativeVisibilityRow>();
+  const imported = await env.OBS_DB.prepare(
+    `SELECT v.public_visibility,
+            p.visibility AS readmodel_visibility
+       FROM production_import_visits v
+       LEFT JOIN production_import_public_readmodel p ON p.visit_id = v.visit_id
+      WHERE v.visit_id = ? OR v.legacy_observation_id = ?
+      LIMIT 1`
+  ).bind(legacy.recordId, legacy.recordId).first<LegacyThumbImportVisibilityRow>();
+  const derivative = await env.OBS_DB.prepare(
+    `SELECT a.public_derivative_key, a.mime, a.processing_state,
+            a.public_derivative_verified_at, a.public_derivative_metadata_json,
+            a.exif_scrub_state, a.public_ready_at
+       FROM production_import_evidence_assets e
+       JOIN asset_ledger a ON a.asset_id = e.asset_id
+      WHERE e.visit_id = ?
+        AND e.legacy_relative_path = ?
+      ORDER BY a.public_ready_at DESC
+      LIMIT 1`
+  ).bind(legacy.recordId, legacy.legacyRelativePath).first<LegacyThumbDerivativeRow>();
+
+  const canonicalKnown = Boolean(native || imported);
+  if (native && (native.visibility !== "public" || Number(native.emergency_hidden) !== 0)) {
+    return { allowed: false, known: true, derivative: derivative ?? null };
+  }
+  const importedVisibility = imported?.public_visibility ?? imported?.readmodel_visibility ?? "public";
+  if (imported && importedVisibility !== "public") {
+    return { allowed: false, known: true, derivative: derivative ?? null };
+  }
+
+  if (derivative) {
+    const ready = canonicalKnown
+      ? publicDerivedLedgerAssetIsReady({ ...derivative, mime: derivative.mime ?? "" })
+      : legacyThumbCompatibilityAssetIsReady(derivative);
+    if (!ready) return { allowed: false, known: true, derivative };
+  }
+  return { allowed: true, known: canonicalKnown || Boolean(derivative), derivative: derivative ?? null };
+}
+
+function legacyThumbCompatibilityAssetIsReady(asset: LegacyThumbDerivativeRow): boolean {
+  // Some historical imports have no canonical visibility row and only the
+  // original GPS inspection result. Keep that narrow legacy shape readable;
+  // records with a current native/import row use the strict current validator.
+  if (
+    asset.processing_state !== "uploaded"
+    || !normalizeOptionalText(asset.public_derivative_key)
+    || !normalizeOptionalText(asset.public_derivative_verified_at)
+    || asset.exif_scrub_state !== "scrubbed"
+    || !normalizeOptionalText(asset.public_ready_at)
+    || !asset.public_derivative_metadata_json
+  ) return false;
+  try {
+    const parsed: unknown = JSON.parse(asset.public_derivative_metadata_json);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+    const metadata = parsed as Record<string, unknown>;
+    if (metadata.gpsExifPresent !== false) return false;
+    return Object.keys(metadata).every((field) =>
+      !["exifPresent", "gpsPresent", "xmpPresent", "exactCoordinateLiteralPresent"].includes(field)
+      || metadata[field] === false
+    );
+  } catch {
+    return false;
+  }
 }
 
 function parseLegacyObservationThumbPath(pathname: string): { recordId: string; legacyRelativePath: string } | null {

@@ -573,6 +573,7 @@ interface ProductionImportPublicReadmodelRow {
   asset_count: number;
   public_ready_asset_count: number;
   unresolved_asset_count: number;
+  visibility?: string | null;
 }
 
 interface ProductionImportVisitRow {
@@ -5384,6 +5385,42 @@ class FakeStatement {
         exif_scrub_state: asset.exif_scrub_state,
         public_ready_at: asset.public_ready_at
       } as T);
+    }
+
+    if (normalized.startsWith("SELECT visibility, emergency_hidden FROM observations")) {
+      const observation = this.db.observations.get(string(v[0]));
+      return observation ? ({
+        visibility: observation.visibility,
+        emergency_hidden: observation.emergency_hidden
+      } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT v.public_visibility, p.visibility AS readmodel_visibility FROM production_import_visits")) {
+      const target = string(v[0]);
+      const visit = [...this.db.productionVisits.values()].find((candidate) =>
+        candidate.visit_id === target || candidate.legacy_observation_id === string(v[1])
+      );
+      if (!visit) return null;
+      return ({
+        public_visibility: visit.public_visibility,
+        readmodel_visibility: this.db.productionPublicReadmodel.get(visit.visit_id)?.visibility ?? null
+      } as T);
+    }
+
+    if (normalized.startsWith("SELECT a.public_derivative_key, a.mime, a.processing_state,")) {
+      const evidence = this.db.productionEvidenceAssets.find((candidate) =>
+        candidate.visit_id === string(v[0]) && candidate.legacy_relative_path === string(v[1])
+      );
+      const asset = evidence ? this.db.assets.get(evidence.asset_id) : null;
+      return asset ? ({
+        public_derivative_key: asset.public_derivative_key,
+        mime: asset.mime,
+        processing_state: asset.processing_state,
+        public_derivative_verified_at: asset.public_derivative_verified_at,
+        public_derivative_metadata_json: asset.public_derivative_metadata_json,
+        exif_scrub_state: asset.exif_scrub_state,
+        public_ready_at: asset.public_ready_at
+      } as T) : null;
     }
 
     if (normalized.startsWith("SELECT role_name, banned FROM auth_users WHERE user_id = ?")) {
@@ -23568,7 +23605,7 @@ test("production public derived image transform negotiates explicit codecs and k
   }
 });
 
-test("production legacy observation thumbnails resolve to public derivatives without origin fallback", async () => {
+test("production legacy thumbnails preserve the unknown-canonical historical fallback", async () => {
   const { env, core } = createEnv();
   const productionEnv = {
     ...env,
@@ -23613,10 +23650,193 @@ test("production legacy observation thumbnails resolve to public derivatives wit
     assert.equal(await response.text(), "webp-bytes");
     assert.equal(response.headers.get("content-type"), "image/webp");
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "thumb-derivative-readmodel");
+    assert.equal(response.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test("production legacy thumbnail visibility denies private imports and hidden native records before R2 hits", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const addReadyImportedAsset = async (recordId: string, assetId: string) => {
+    env.OBS_DB.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: recordId,
+      owner_user_id: `owner-${assetId}`,
+      object_key: `original/${assetId}/photo.jpg`,
+      partition_month: "2026-10",
+      sha256: `${assetId}-source-sha`,
+      mime: "image/jpeg",
+      bytes: 1024,
+      processing_state: "uploaded",
+      public_derivative_key: `derived/${assetId}/display.webp`,
+      public_derivative_sha256: `${assetId}-derivative-sha`,
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z",
+      public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false }),
+      exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z"
+    });
+    env.OBS_DB.productionEvidenceAssets.push({
+      asset_id: assetId,
+      visit_id: recordId,
+      asset_role: "observation_photo",
+      legacy_relative_path: `uploads/v2-observations/${recordId}/photo.jpg`
+    });
+    await env.ASSET_BUCKET.put(`derived/${assetId}/display.webp`, `derivative-${assetId}`, {
+      httpMetadata: { contentType: "image/webp" }
+    });
+  };
+
+  env.OBS_DB.productionVisits.set("private-thumb-record", {
+    visit_id: "private-thumb-record",
+    legacy_observation_id: null,
+    user_id: "private-owner",
+    public_visibility: "private",
+    observed_at: "2026-10-11T00:00:00.000Z"
+  });
+  env.OBS_DB.observations.set("private-thumb-record", {
+    observation_id: "private-thumb-record",
+    draft_id: "public-native-thumb-draft",
+    owner_user_id: "native-owner",
+    observed_at: "2026-10-11T00:00:00.000Z",
+    partition_month: "2026-10",
+    taxon_label: null,
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "complete"
+  });
+  await addReadyImportedAsset("private-thumb-record", "private-thumb-asset");
+  await env.ASSET_BUCKET.put("original-ui/thumb/md/v2-observations/private-thumb-record/photo.jpg", "private-prematerialized", {
+    httpMetadata: { contentType: "image/jpeg" }
+  });
+
+  env.OBS_DB.productionVisits.set("private-fallback-record", {
+    visit_id: "private-fallback-record",
+    legacy_observation_id: null,
+    user_id: "private-owner",
+    public_visibility: "private",
+    observed_at: "2026-10-11T00:00:00.000Z"
+  });
+  await addReadyImportedAsset("private-fallback-record", "private-fallback-asset");
+
+  env.OBS_DB.observations.set("hidden-thumb-record", {
+    observation_id: "hidden-thumb-record",
+    draft_id: "hidden-thumb-draft",
+    owner_user_id: "hidden-thumb-owner",
+    observed_at: "2026-10-11T00:00:00.000Z",
+    partition_month: "2026-10",
+    taxon_label: null,
+    note: null,
+    exact_lat: null,
+    exact_lng: null,
+    location_accuracy_m: null,
+    public_cell: "",
+    visibility: "public",
+    emergency_hidden: 1,
+    processing_state: "complete"
+  });
+  await env.ASSET_BUCKET.put("original-ui/thumb/md/v2-observations/hidden-thumb-record/photo.jpg", "hidden-prematerialized", {
+    httpMetadata: { contentType: "image/jpeg" }
+  });
+
+  for (const recordId of ["private-thumb-record", "private-fallback-record", "hidden-thumb-record"] as const) {
+    const url = `https://ikimon.life/thumb/md/v2-observations/${recordId}/photo.jpg`;
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await worker.fetch(new Request(url, { method }), productionEnv);
+      assert.equal(response.status, 404, `${recordId} ${method} must be denied`);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      if (method === "HEAD") assert.equal(await response.text(), "");
+      else assert.deepEqual(await response.json(), { ok: false, error: "thumb_not_materialized" });
+    }
+  }
+});
+
+test("production known public legacy thumbnails require strict ledger readiness before R2 hits", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const addKnownRecord = async (
+    recordId: string,
+    assetId: string,
+    changes: Partial<AssetRow> = {},
+    visibility: string | null = "public"
+  ) => {
+    env.OBS_DB.productionVisits.set(recordId, {
+      visit_id: recordId,
+      legacy_observation_id: null,
+      user_id: `owner-${recordId}`,
+      public_visibility: visibility,
+      observed_at: "2026-10-11T00:00:00.000Z"
+    });
+    env.OBS_DB.assets.set(assetId, {
+      asset_id: assetId,
+      draft_id: `draft-${assetId}`,
+      observation_id: recordId,
+      owner_user_id: `owner-${recordId}`,
+      object_key: `original/${assetId}/photo.jpg`,
+      partition_month: "2026-10",
+      sha256: `${assetId}-source-sha`,
+      mime: "image/jpeg",
+      bytes: 1024,
+      processing_state: "uploaded",
+      public_derivative_key: `derived/${assetId}/display.webp`,
+      public_derivative_sha256: `${assetId}-derivative-sha`,
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z",
+      public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false }),
+      exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z",
+      ...changes
+    });
+    env.OBS_DB.productionEvidenceAssets.push({
+      asset_id: assetId,
+      visit_id: recordId,
+      asset_role: "observation_photo",
+      legacy_relative_path: `uploads/v2-observations/${recordId}/photo.jpg`
+    });
+    await env.ASSET_BUCKET.put(`original-ui/thumb/md/v2-observations/${recordId}/photo.jpg`, `prematerialized-${assetId}`, {
+      httpMetadata: { contentType: "image/jpeg" }
+    });
+  };
+
+  await addKnownRecord("known-public-thumb", "known-public-asset");
+  const publicResponse = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/known-public-thumb/photo.jpg"), productionEnv);
+  assert.equal(publicResponse.status, 200);
+  assert.equal(await publicResponse.text(), "prematerialized-known-public-asset");
+  assert.equal(publicResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+
+  await addKnownRecord("known-public-fallback-thumb", "known-public-fallback-asset", {}, null);
+  await env.ASSET_BUCKET.delete("original-ui/thumb/md/v2-observations/known-public-fallback-thumb/photo.jpg");
+  await env.ASSET_BUCKET.put("derived/known-public-fallback-asset/display.webp", "verified-public-fallback", {
+    httpMetadata: { contentType: "image/webp" }
+  });
+  const fallbackResponse = await worker.fetch(new Request("https://ikimon.life/thumb/md/v2-observations/known-public-fallback-thumb/photo.jpg"), productionEnv);
+  assert.equal(fallbackResponse.status, 200, "NULL visit visibility retains the COALESCE public contract");
+  assert.equal(await fallbackResponse.text(), "verified-public-fallback");
+  assert.equal(fallbackResponse.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+
+  const invalidLedgerCases: Array<{ name: string; changes: Partial<AssetRow> }> = [
+    { name: "unverified", changes: { public_derivative_verified_at: null } },
+    { name: "unready", changes: { public_ready_at: null } },
+    { name: "malformed-metadata", changes: { public_derivative_metadata_json: "{broken" } },
+    { name: "unsafe-metadata", changes: { public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: true }) } },
+    { name: "not-uploaded", changes: { processing_state: "processing" } }
+  ];
+  for (const testCase of invalidLedgerCases) {
+    const recordId = `known-${testCase.name}-thumb`;
+    await addKnownRecord(recordId, `asset-${testCase.name}`, testCase.changes);
+    for (const method of ["GET", "HEAD"] as const) {
+      const response = await worker.fetch(new Request(`https://ikimon.life/thumb/md/v2-observations/${recordId}/photo.jpg`, { method }), productionEnv);
+      assert.equal(response.status, 404, `${testCase.name} ${method} must fail closed`);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
   }
 });
 
