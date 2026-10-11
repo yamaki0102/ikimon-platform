@@ -18,10 +18,12 @@ const STYLE = `
 `;
 
 export function personPublicationPath(p: Pick<PersonPublication, "slug" | "publicId">): string {
-  return `${PREFIX}${p.slug}-${p.publicId}`;
+  return `${PREFIX}${p.identityMode === "anonymous" ? "person" : p.slug}-${p.publicId}`;
 }
 
 const escapeHtml = (value: string): string => value.replace(/[&<>"']/gu, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+const publicName = (p: PersonPublication): string => p.identityMode === "anonymous" ? "匿名" : p.name;
+const showLatinName = (p: PersonPublication): boolean => (p.identityMode ?? "real_name") === "real_name";
 const safeLink = (href: string): boolean => {
   try { const u = new URL(href); return u.protocol === "https:" && !u.username && !u.password; } catch { return false; }
 };
@@ -29,8 +31,9 @@ const safeLink = (href: string): boolean => {
 /** Render only the public edition's allowlisted fields. No account/source lookup. */
 export function renderPersonPublication(p: PersonPublication, indexable: boolean): string {
   const e = escapeHtml;
-  const links = p.links.filter(link => safeLink(link.href)).map(link => `<a href="${e(link.href)}">${e(link.label)}<span aria-hidden="true">&nbsp;↗</span></a>`).join("");
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="${indexable ? "index,follow" : "noindex,nofollow"}"><title>${e(p.name)} | ZUKAN</title><meta name="description" content="${e(p.summary)}"><link rel="canonical" href="${ORIGIN}${personPublicationPath(p)}"><meta property="og:type" content="profile"><meta property="og:title" content="${e(p.name)} | ZUKAN"><meta property="og:description" content="${e(p.summary)}"><meta property="og:url" content="${ORIGIN}${personPublicationPath(p)}"><style>${STYLE}</style></head><body><a class="person-skip" href="#person-main">本文へ</a><div class="person-page"><nav class="person-nav" aria-label="ZUKAN"><a class="person-brand" href="/ja">ZUKAN</a><span class="person-label">人と活動</span></nav><main id="person-main"><header class="person-hero"><span class="person-label">自己紹介</span><h1>${e(p.name)}</h1><p class="person-latin" lang="en">${e(p.latinName)}</p><p class="person-headline">${e(p.headline)}</p><p class="person-summary">${e(p.summary)}</p></header><section class="person-section person-about" aria-labelledby="person-about"><h2 id="person-about">プロフィール</h2>${p.paragraphs.map(text => `<p>${e(text)}</p>`).join("")}</section><section class="person-section" aria-labelledby="person-activities"><h2 id="person-activities">取り組んでいること</h2><div class="person-activities">${p.activities.map(item => `<div><h3>${e(item.title)}</h3><p>${e(item.text)}</p></div>`).join("")}</div></section><section class="person-section" aria-labelledby="person-links"><h2 id="person-links">関連リンク</h2><div class="person-links">${links}</div></section></main><footer class="person-footer"><span>本人の意思により公開</span><span>更新日 <time datetime="${e(p.updatedOn)}">${e(p.updatedOn.replaceAll("-", "."))}</time></span></footer></div></body></html>`;
+  const name = publicName(p);
+  const links = (p.identityMode === "anonymous" ? [] : p.links).filter(link => safeLink(link.href)).map(link => `<a href="${e(link.href)}">${e(link.label)}<span aria-hidden="true">&nbsp;↗</span></a>`).join("");
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="${indexable ? "index,follow" : "noindex,nofollow"}"><title>${e(name)} | ZUKAN</title><meta name="description" content="${e(p.summary)}"><link rel="canonical" href="${ORIGIN}${personPublicationPath(p)}"><meta property="og:type" content="profile"><meta property="og:title" content="${e(name)} | ZUKAN"><meta property="og:description" content="${e(p.summary)}"><meta property="og:url" content="${ORIGIN}${personPublicationPath(p)}"><style>${STYLE}</style></head><body><a class="person-skip" href="#person-main">本文へ</a><div class="person-page"><nav class="person-nav" aria-label="ZUKAN"><a class="person-brand" href="/ja">ZUKAN</a><span class="person-label">人と活動</span></nav><main id="person-main"><header class="person-hero"><span class="person-label">自己紹介</span><h1>${e(name)}</h1>${showLatinName(p) ? `<p class="person-latin" lang="en">${e(p.latinName)}</p>` : ""}<p class="person-headline">${e(p.headline)}</p><p class="person-summary">${e(p.summary)}</p></header><section class="person-section person-about" aria-labelledby="person-about"><h2 id="person-about">プロフィール</h2>${p.paragraphs.map(text => `<p>${e(text)}</p>`).join("")}</section><section class="person-section" aria-labelledby="person-activities"><h2 id="person-activities">取り組んでいること</h2><div class="person-activities">${p.activities.map(item => `<div><h3>${e(item.title)}</h3><p>${e(item.text)}</p></div>`).join("")}</div></section><section class="person-section" aria-labelledby="person-links"><h2 id="person-links">関連リンク</h2><div class="person-links">${links}</div></section></main><footer class="person-footer"><span>本人の意思により公開</span><span>更新日 <time datetime="${e(p.updatedOn)}">${e(p.updatedOn.replaceAll("-", "."))}</time></span></footer></div></body></html>`;
 }
 
 /** Bounded public route; existing contributor profiles and all other routes delegate unchanged. */
@@ -45,8 +48,11 @@ export function personPublicationResponse(request: Request, env: { ENVIRONMENT?:
   if (!p) return notFound();
   if (!["GET", "HEAD"].includes(request.method)) return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD", "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" } });
   const path = personPublicationPath(p);
-  if (url.pathname !== path) return new Response(null, { status: 308, headers: { location: path, "cache-control": "no-store" } });
-  const indexable = env.ENVIRONMENT === "production" && url.origin === ORIGIN;
+  if (url.pathname !== path) {
+    if (p.identityMode === "anonymous") return notFound(); // Never redirect a name-bearing old URL after anonymity is selected.
+    return new Response(null, { status: 308, headers: { location: path, "cache-control": "no-store" } });
+  }
+  const indexable = env.ENVIRONMENT === "production" && url.origin === ORIGIN && p.discoverability === "indexed";
   return new Response(request.method === "HEAD" ? null : renderPersonPublication(p, indexable), {
     headers: {
       "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-language": "ja",
