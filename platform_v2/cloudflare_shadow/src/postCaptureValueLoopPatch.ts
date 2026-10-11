@@ -423,6 +423,7 @@ const INJECTED_SCRIPT = String.raw`
   var renderPanel = function (status) {
     var panel = ensurePanel();
     if (!panel || !status) return;
+    panel.removeAttribute('data-compact');
     panel.replaceChildren();
 
     var head = document.createElement('div');

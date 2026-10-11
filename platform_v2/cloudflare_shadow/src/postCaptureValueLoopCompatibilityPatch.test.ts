@@ -80,6 +80,17 @@ test("compatibility patch compacts the enhanced status while preserving every de
   assert.match(patched, /body\.appendChild\(result\)/u);
 });
 
+test("a processing-status repaint clears stale compaction before replacing panel children", () => {
+  const patched = applyPostCaptureValueLoopPatch(detailHtml, "test-nonce");
+  const script = patched.match(/<script\b[^>]*data-ikimon-post-capture-value-loop="v1"[^>]*>([\s\S]*?)<\/script>/u)?.[1];
+  assert.ok(script, "the detail renderer is injected");
+
+  const clearMarker = script.indexOf("panel.removeAttribute('data-compact')");
+  const replaceChildren = script.indexOf("panel.replaceChildren()");
+  assert.ok(clearMarker >= 0 && replaceChildren > clearMarker,
+    "repainting a compacted panel must let the compatibility observer compact its fresh children");
+});
+
 test("compatibility patch removes only duplicate processing copy and keeps fail-safe owner cleanup", () => {
   const patched = applyPostCaptureValueLoopCompatibilityPatch(detailHtml);
 
