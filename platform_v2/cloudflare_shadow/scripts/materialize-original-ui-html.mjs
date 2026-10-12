@@ -212,6 +212,7 @@ const staticAssetPaths = [
   "/assets/event-discovery/ryuyo-hero.webp",
   "/assets/event-discovery/ryuyo-discovery.webp",
   "/assets/event-discovery/ryuyo-memories.webp",
+  "/assets/biosecurity/photo-watch.webp",
   "/assets/img/landing/home-community-hero.webp",
   "/assets/img/landing/home-school-learning.webp",
   "/assets/img/landing/home-community-event.webp",
@@ -380,7 +381,8 @@ async function renderStaticAsset(app, pathname) {
   if ([
     "/assets/event-discovery/ryuyo-hero.webp",
     "/assets/event-discovery/ryuyo-discovery.webp",
-    "/assets/event-discovery/ryuyo-memories.webp"
+    "/assets/event-discovery/ryuyo-memories.webp",
+    "/assets/biosecurity/photo-watch.webp"
   ].includes(pathname)) {
     const rawPayload = await readFile(join(repoRoot, "platform_v2", "public", pathname.slice(1)));
     return { statusCode: 200, headers: { "content-type": "image/webp" }, rawPayload };

@@ -697,7 +697,7 @@
       ],
       "transitions": [
         {
-          "action": "写真と場所を残す",
+          "action": "写真を残す",
           "target": "zukan.biosecurity.capture",
           "status": "implemented"
         },
@@ -728,7 +728,7 @@
       "route_source": "site-map",
       "kind": "capture-flow",
       "area": "biosecurity",
-      "purpose": "写真・日時・任意の場所を、登録不要で共通Recordと非公開mediaへ保存する",
+      "purpose": "写真だけで登録不要の非公開記録を残し、写真から読めた日時・位置を確認または訂正する",
       "personas": [
         "visitor"
       ],
@@ -788,7 +788,8 @@
       "known_gaps": [],
       "capabilities": [
         "zukan.biosecurity.receipt",
-        "zukan.biosecurity.share-selected"
+        "zukan.biosecurity.share-selected",
+        "zukan.biosecurity.photo-environment"
       ],
       "entry_points": [
         "external",

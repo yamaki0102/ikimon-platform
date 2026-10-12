@@ -14,6 +14,9 @@
 | 追加メールドメインの公開根拠 | `municipalDomainEvidence.ts`。公式サイト上の完全一致 mailbox のみ |
 | Target Profile | `src/services/biosecurityProfiles.ts`。version付き静的設定。第2対象はfixtureで検証 |
 | 画面 | `src/ui/biosecurity.ts`。既存のデザイントークンと写真準備処理を使用 |
+| 写真内の撮影情報 | `src/services/biosecurityPhotoMetadata.ts`。端末内の厳密な日時/GPS抽出 |
+| 不明・現地時刻の保存 | `cloudflare_shadow/src/biosecurityCaptureContext.ts`。時差・精度・出所を保持 |
+| 任意の環境候補 | `cloudflare_shadow/src/biosecurityPhotoHints.ts`。既存AI bindingのCLEF-flash、固定5項目 |
 | 受入・実装ナビゲーション | `platform_v2/product-registry/`。runtime statusの代替にしない |
 
 市区町村別・種別のWorker、DB、カメラ、認証、AI、専用daemonは追加しない。新規cronも追加せず、既存の期限処理から小さいbatchで削除を再開する。共有は既存Recordとassetへの参照であり、写真・位置・観察日時を複製しない。
@@ -21,8 +24,9 @@
 ## 2. 最初の利用範囲
 
 - `/ja/biosecurity`：公開ガイド。プロフィール別 `/ja/biosecurity/:profileId` と撮影入口へ接続する。
-- `/ja/biosecurity/:profileId/capture`：ログイン不要。写真1〜6枚、日時、任意の地域・目印・位置・メモを確認して非公開保存する。
+- `/ja/biosecurity/:profileId/capture`：ログイン不要。写真1〜6枚だけで非公開保存できる。写真から読めた日時・位置は出所付きで示し、地域・目印・メモと修正は任意にする。
 - `/ja/biosecurity/records` と詳細：同じ端末の有効なcredentialで本人分だけを読む。IDだけでは閲覧できない。共有先・項目の選択、撤回、写真と記録の削除を提供する。
+- 記録詳細の任意操作で、最初の写真から環境候補を求め、訂正・不採用にできる。保存時・画面表示時には実行しない。環境の共有は未選択で始まり、同意時の版を保存する。
 - `/ja/biosecurity/municipalities`：自治体を選択し、公式メール宛の一回限りのコードを元のブラウザーで入力する。IKIMONの人的審査は経路に含めない。
 - `/ja/biosecurity/inbox`：認証済み自治体を宛先とする、期限内・未撤回の共有だけを受信する。写真・位置・メモは選択された項目だけ。確認済み操作は種の同定、自治体の正式受付、処置完了を意味しない。
 
@@ -55,9 +59,11 @@
 
 `BIOSECURITY_ENABLED=on`、有効な `BIOSECURITY_STORAGE_BUDGET_BYTES`、メール用 `BIOSECURITY_EMAIL_ENABLED=on` と既存bindingが揃う操作だけを有効にする。環境のmigrationと実容量・送信能力の確認をrelease evidenceに残す。
 
+写真補助は `BIOSECURITY_PHOTO_HINTS_ENABLED=on` と `BIOSECURITY_PHOTO_HINT_DAILY_TOKENS=60000` の範囲で、保存後の本人操作に限る。1記録1回・写真1枚・固定5項目・8秒以内。1回につき8,000入力tokenを先に予約するので、初期の共通上限は7回/日、guest3回/日、IP5回/日。未確定の呼出しも予約を戻さず、自動再送しない。無料枠の残りはアカウント全体に依存し、追加費用0円の保証にはしない。停止や上限時も写真保存・閲覧・撤回・削除は継続する。
+
 ## 5. Migrationとrelease順序
 
-追加するmigrationはOBSの `0076_biosecurity_selfservice.sql` とCOREの `0021_municipal_mailbox_access.sql` だけ。既存private記録の移送、公開範囲変更、権限一括付与を含めない。
+初期版のmigrationはOBSの `0076_biosecurity_selfservice.sql` とCOREの `0021_municipal_mailbox_access.sql`。写真中心の追加版では、適用済み0076に対してOBSの `0077_biosecurity_photo_context.sql` だけを追加する。既存private記録の移送、共有テーブルの再構築、公開範囲変更、権限一括付与を含めない。
 
 1. productのimmutable source SHA/treeに対するtypecheck、共通writer・認証・UIの重点試験を通す。
 2. 管理正本の登録済みD1 runnerへ対象SQLのdigest、DB identity、必要な前提、schema probeを束縛したlaneを通常PRで登録する。無関係なpending migrationをapply-allしない。
@@ -68,6 +74,8 @@
 
 rollbackは登録済みの直前Worker版への復旧またはfeature停止。追加済みテーブルをdropして回復しない。private R2、保存期限、撤回状態を維持し、写真の削除失敗はleaseと残容量予約から前進回復する。
 
+**0077以後に新しい形式の記録が保存された場合は、上記の旧Workerへの単純復旧を適用しない。** 日時不明の共通draftの読み取りと、新しいcontext項目の削除を維持する必要がある。写真補助の問題では補助flagだけを停止し、その他の不具合は互換性を保つ前進修正を使う。857cff6へ戻すだけでは新しい記録の読み取り・削除契約を満たさない。
+
 ## 6. 必須の否定試験
 
 - guest A/B、自治体 A/B、cookie重複、CSRF、credential消失・失効、通常sessionへの限定role混入。
@@ -76,5 +84,7 @@ rollbackは登録済みの直前Worker版への復旧またはfeature停止。�
 - 同意なし、未選択の位置/写真/メモ、未成年の確認なし、共有回数上限、確認済みと撤回の競合、取得中の失効、削除と期限処理の競合。
 - mailboxコードの期限・試行・再消費、送信結果不明、日/月上限、台帳外・別自治体・失効ドメイン、SSRF/redirect/HTML内の偽mailbox。
 - 320px〜1440px、文字200%、keyboard/focus、画像準備失敗、通信再試行、storage不可、共用端末の終了・履歴復元時のprivate表示消去。
+- EXIFなし・不正日・時差不明・日付だけ・範囲外GPS・複数写真の不一致、修正後の補完、読めない写真でも保存可能。
+- CLEFの本人同意・別guest拒否・単一呼出し・予算0/同時競合・不正応答・遅い結果と本人訂正・取得中の削除・環境共有版の固定。
 
 検証入口は `cloudflare_shadow/src/biosecurity.test.ts`、`biosecurityMedia.test.ts`、`municipalDomainEvidence.test.ts`、`src/services/municipalityDirectory.test.ts`、`src/ui/biosecurity.test.ts` と共通Product Registry / writer tests。

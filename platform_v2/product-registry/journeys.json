@@ -844,7 +844,8 @@
         "zukan.biosecurity.share-selected",
         "zukan.biosecurity.verify-mailbox",
         "zukan.biosecurity.receive-selected",
-        "zukan.biosecurity.acknowledge-receipt"
+        "zukan.biosecurity.acknowledge-receipt",
+        "zukan.biosecurity.photo-environment"
       ],
       "goal": "市民はログインせず写真を残し、提供項目を自分で選ぶ。担当者は運営者へ連絡せず公式メールを確認し、その自治体に同意された情報だけを受け取る",
       "start_surface": "zukan.biosecurity.guide",
@@ -856,7 +857,7 @@
         },
         {
           "surface": "zukan.biosecurity.capture",
-          "action": "市民が写真と日時、任意の場所を非公開保存する"
+          "action": "写真を選び、読めた日時・場所を必要に応じて直して非公開保存する"
         },
         {
           "surface": "zukan.biosecurity.receipt",
@@ -892,7 +893,8 @@
         "写真・本文・正確な位置は明示的に選ばれた自治体と提供項目だけに限定される",
         "通常の自治体開設は人の審査やIKIMONへの問い合わせを条件にしない",
         "公式メール所有確認と自治体代表権限を区別する",
-        "撤回・失効・保持期限後の再取得を拒否し、実環境の受入はsource実装と別に検証する"
+        "撤回・失効・保持期限後の再取得を拒否し、実環境の受入はsource実装と別に検証する",
+        "写真の日時・場所が不明でも保存でき、環境候補は必要な本人だけが求めて訂正・不採用にできる"
       ],
       "recovery": [
         "保存失敗は同じidempotency keyで再試行し、内容変更を重複記録にしない",

@@ -321,7 +321,8 @@
         "zukan.biosecurity.share-selected",
         "zukan.biosecurity.verify-mailbox",
         "zukan.biosecurity.receive-selected",
-        "zukan.biosecurity.acknowledge-receipt"
+        "zukan.biosecurity.acknowledge-receipt",
+        "zukan.biosecurity.photo-environment"
       ],
       "requirement_refs": [
         "quality.zukan.capture.location-optional",
@@ -543,6 +544,20 @@
       ],
       "failure_contract": "共有撤回、別自治体、期限切れ、session失効を拒否し、確認を正式通報の受理や現地対応と扱わない",
       "retry_contract": "expected versionを比較し、一度の確認で一つの状態遷移へ収束する。競合時は最新の共有状態を読み直す"
+    },
+    {
+      "id": "zukan.biosecurity.photo-environment",
+      "title": "写真から環境の候補を求め、自分で直す",
+      "actor": "anonymous_owner",
+      "operation": "write",
+      "privacy": "owner-only",
+      "side_effects": [
+        "explicit-single-photo-model-call",
+        "bounded-token-reservation",
+        "private-environment-candidate-write"
+      ],
+      "failure_contract": "明示同意・有効な本人権限・予算がなければ送信しない。不正応答・失敗を確定値にせず、写真保存を維持する",
+      "retry_contract": "記録と写真・model・質問版に束縛した1回の試行を保持する。未確定でも自動再送せず、本人訂正はversion比較で保護する"
     }
   ]
 }

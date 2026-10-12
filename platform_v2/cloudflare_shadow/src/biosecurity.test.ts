@@ -5,11 +5,12 @@ import test, { type TestContext } from "node:test";
 import {
   BIOSECURITY_LIMITS, BiosecurityError, BiosecurityStore, MUNICIPAL_INBOX_ROLE,
   expireBiosecurityRecords, handleBiosecurityRequest, municipalStaff, parseCapture,
-  type BiosecurityEnv, type CaptureInput,
+  type BiosecurityEnv, type BiosecurityEnvironment, type CaptureInput,
 } from "./biosecurity";
 import { credentialDigest } from "./guestCredentialNative";
 import type { DiscoveryDatabase, DiscoveryStatement, DiscoveryBucket } from "./eventDiscovery";
 import { MUNICIPALITIES, MUNICIPALITY_DIRECTORY_VERSION } from "../../src/services/municipalityDirectory";
+import { BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, BIOSECURITY_PHOTO_HINT_MODEL } from "./biosecurityPhotoHints";
 
 // Real SQLite transactions and local R2/mail substitutes; no provider or account is contacted.
 type Value = string | number | null;
@@ -89,7 +90,7 @@ type Mail = { from: string; to: string; subject: string; text: string };
 
 function fixture(t: TestContext) {
   const core = new SqlDatabase("core", ["0001_core.sql", "0002_auth_session_contract.sql", "0003_auth_user_accounts.sql", "0008_auth_lifecycle_integrity.sql", "0021_municipal_mailbox_access.sql"]);
-  const obs = new SqlDatabase("observations", ["0001_observation_write_contract.sql", "0002_asset_observation_index.sql", "0004_public_derivative_gate.sql", "0076_biosecurity_selfservice.sql"]);
+  const obs = new SqlDatabase("observations", ["0001_observation_write_contract.sql", "0002_asset_observation_index.sql", "0004_public_derivative_gate.sql", "0076_biosecurity_selfservice.sql", "0077_biosecurity_photo_context.sql"]);
   const bucket = new MemoryBucket(); const mail: Mail[] = [];
   const env: BiosecurityEnv = {
     CORE_DB: core, OBS_DB: obs, ASSET_BUCKET: bucket, ENVIRONMENT: "shadow",
@@ -145,6 +146,46 @@ async function capture(state: Fixture, owner: string, key: string, changes: Reco
 }
 function consent(key: string, changes: Record<string, unknown> = {}) {
   return { municipalityCode: MUNICIPALITY.code, consent: true, purpose: "invasive_response", fields: ["observedAt", "spotLabel"], idempotencyKey: "sharing-request-" + key, ...changes };
+}
+function clefFixtureResponse(request: unknown) {
+  const questions = (request as { questions: Record<string, { criteria: Record<string, string> }> }).questions;
+  const answers = Object.fromEntries(Object.entries(questions).map(([field, question]) => {
+    const options = Object.keys(question.criteria);
+    const choice = field === "contact_surface" ? "plant" : field === "surrounding_cover" ? "trees_shrubs" : "unknown";
+    return [field, { type: "choice", choice, probabilities: Object.fromEntries(options.map(option => [option, option === choice ? 0.9 : 0.1 / (options.length - 1)])), confidence: 0.9 }];
+  }));
+  return { model: "clef-flash", answers, usage: { input_tokens: 1600, output_tokens: 100 } };
+}
+function enablePhotoHints(state: Fixture, run: (model: string, input: unknown) => Promise<unknown>) {
+  state.env.BIOSECURITY_PHOTO_HINTS_ENABLED = "on";
+  state.env.BIOSECURITY_PHOTO_HINT_DAILY_TOKENS = "60000";
+  state.env.AI = { run };
+}
+function pause() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
+function photoOnlyForm(key: string) {
+  const form = new FormData();
+  form.set("profile_id", "kubiaka"); form.set("idempotency_key", "capture-request-" + key);
+  form.append("photos", new File([PNG], "photo.png", { type: "image/png" }));
+  return form;
+}
+function metadataPng(text: string) {
+  const payload = Buffer.from("Comment\0" + text), kind = Buffer.from("tEXt");
+  const head = Buffer.alloc(8); head.writeUInt32BE(payload.length); kind.copy(head, 4);
+  let checksum = 0xffffffff;
+  for (const byte of Buffer.concat([kind, payload])) {
+    checksum ^= byte;
+    for (let bit = 0; bit < 8; bit++) checksum = (checksum >>> 1) ^ ((checksum & 1) ? 0xedb88320 : 0);
+  }
+  const crc = Buffer.alloc(4); crc.writeUInt32BE((checksum ^ 0xffffffff) >>> 0);
+  return Uint8Array.from(Buffer.concat([Buffer.from(PNG).subarray(0, 33), head, payload, crc, Buffer.from(PNG).subarray(33)])).buffer;
+}
+type Receipt = Awaited<ReturnType<BiosecurityStore["receipt"]>>;
+function hintUsage(state: Fixture) {
+  return state.obs.native.prepare("SELECT scope,count,bytes FROM biosecurity_usage WHERE scope LIKE 'hint-%' ORDER BY scope").all() as { scope: string; count: number; bytes: number }[];
 }
 async function challenge(state: Fixture, municipality = MUNICIPALITY, label = "fixture") {
   const email = label + "@" + municipality.domains[0]!;
@@ -619,4 +660,250 @@ test("challenge cleanup is bounded and leaves active proofs available", async t 
   await expireBiosecurityRecords(state.env);
   assert.equal(count(state.core, "municipal_email_challenges"), 3);
   assert.ok(state.core.native.prepare("SELECT challenge_id FROM municipal_email_challenges WHERE challenge_id = 'active'").get());
+});
+
+test("a photo alone saves and replays once with unknown time and location, and shares only its selected information", async t => {
+  const state = fixture(t); const guest = await newGuest(state);
+  const first = await request(state, "/records", { cookie: guest.cookie, body: photoOnlyForm("only-photo") });
+  assert.equal(first.status, 201, await first.clone().text());
+  const record = (await first.json() as { record: Receipt }).record;
+  assert.equal(record.status, "saved"); assert.equal(record.observedAt, null); assert.equal(record.exactLocation, null);
+  assert.equal(record.locationSource, "unknown"); assert.equal(record.municipalityCode, null); assert.equal(record.note, null);
+  assert.deepEqual(record.observedTime, { source: "unknown", localDateTime: null, offsetMinutes: null, instant: null, precision: "unknown", photoIndex: null });
+  assert.equal(record.environment.status, "not_requested"); assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 0);
+  const draft = state.obs.native.prepare("SELECT observed_at,exact_lat,exact_lng,visibility,processing_state FROM draft_observations").get();
+  assert.deepEqual({ ...draft }, { observed_at: null, exact_lat: null, exact_lng: null, visibility: "private", processing_state: "finalized" });
+  assert.equal(count(state.obs, "observations"), 0); assert.equal(count(state.obs, "readmodel_public_observations"), 0); assert.equal(count(state.obs, "outbox"), 0);
+  const asset = state.obs.native.prepare("SELECT observation_id,processing_state FROM asset_ledger").get();
+  assert.deepEqual({ ...asset }, { observation_id: null, processing_state: "ready" });
+  const replay = await request(state, "/records", { cookie: guest.cookie, body: photoOnlyForm("only-photo") });
+  assert.equal(replay.status, 201); assert.deepEqual((await replay.json() as { record: Receipt }).record, record);
+  assert.equal(state.bucket.puts, 1); assert.equal(state.bucket.objects.size, 1); assert.equal(count(state.obs, "draft_observations"), 1);
+  assert.deepEqual({ ...usage(state.obs) }, { count: 1, bytes: PNG.byteLength });
+  assert.equal((await state.store.receipt(record.id, guest.owner)).observedAt, null);
+
+  const staff = await verifiedStaff(state);
+  const share = await state.store.share(guest.owner, record.id, consent("only-photo", { fields: ["observedAt", "photos"] }));
+  const item = (await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: Record<string, unknown>[] }).items[0]!;
+  assert.equal(item.id, share.shareId); assert.equal(item.observedAt, null); assert.deepEqual(item.observedTime, record.observedTime);
+  assert.deepEqual(item.fields, ["observedAt", "photos"]);
+  for (const field of ["exactLocation", "locationSource", "spotLabel", "note", "environment", "originalTime", "photoConflicts"]) assert.equal(field in item, false, field);
+  const photo = await request(state, `/inbox/${share.shareId}/photos/${record.photos[0]!.id}`, { cookie: staff.cookie });
+  assert.equal(photo.status, 200); assert.deepEqual(await photo.arrayBuffer(), PNG);
+
+  assert.equal((await request(state, `/records/${record.id}`, { method: "DELETE", cookie: guest.cookie })).status, 200);
+  const deleted = await state.store.context(record.id);
+  assert.equal(deleted?.persistence, "deleted"); assert.equal(deleted?.capture_details_json, null); assert.equal(deleted?.private_note, null); assert.equal(deleted?.environment_json, null);
+  for (const table of ["observations", "draft_observations", "asset_ledger", "biosecurity_photo_hint_attempts"]) assert.equal(count(state.obs, table), 0, table);
+  assert.equal(state.bucket.objects.size, 0); assert.equal((await request(state, `/records/${record.id}`, { cookie: guest.cookie })).status, 404);
+  assert.deepEqual({ ...usage(state.obs) }, { count: 0, bytes: 0 });
+  assert.deepEqual((await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: unknown[] }).items, []);
+  assert.equal(count(state.obs, "biosecurity_share_events"), 2, "the consent and deletion audit survives without the private photo context");
+});
+
+test("a local EXIF time without a timezone remains local-only through save, replay and recipient projection", async t => {
+  const state = fixture(t); const guest = await newGuest(state);
+  const time = { source: "photo_exif", localDateTime: "2026-10-01T09:30:15", offsetMinutes: null, precision: "second", photoIndex: 0 };
+  const changes = { observed_at: "", capture_metadata: JSON.stringify({ version: 1, time, originalTime: time, location: { source: "photo_exif", photoIndex: 0 }, conflicts: { time: false, location: false } }) };
+  const record = await capture(state, guest.owner, "local-only", changes);
+  assert.equal(record.observedAt, null); assert.deepEqual(record.observedTime, { ...time, instant: null });
+  assert.equal(record.locationSource, "photo_exif"); assert.equal(count(state.obs, "observations"), 0);
+  assert.equal((state.obs.native.prepare("SELECT observed_at FROM draft_observations").get() as { observed_at: unknown }).observed_at, null);
+  const stored = JSON.parse((await state.store.context(record.id))!.capture_details_json!);
+  assert.deepEqual(stored.originalTime, { ...time, instant: null });
+  const retry = await capture(state, guest.owner, "local-only", changes);
+  assert.deepEqual(retry.observedTime, record.observedTime); assert.equal(state.bucket.puts, 1);
+  const shared = await state.store.share(guest.owner, record.id, consent("local-only", { fields: ["observedAt", "photos"] }));
+  const staff = await verifiedStaff(state);
+  const item = (await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: Record<string, unknown>[] }).items[0]!;
+  assert.equal(item.id, shared.shareId); assert.equal(item.observedAt, null); assert.deepEqual(item.observedTime, { ...time, instant: null });
+  assert.doesNotMatch(JSON.stringify(item), /35\.123456|139\.654321|非公開の補足|originalTime/);
+  assert.equal("locationSource" in item, false);
+});
+
+test("photo hints require the owner and explicit consent and send only one scrubbed stored photo with one durable reservation", async t => {
+  const state = fixture(t); const guest = await newGuest(state); const other = await newGuest(state);
+  const form = captureForm("hints-private");
+  form.delete("photos");
+  form.append("photos", new File([metadataPng("GPSLatitude=35.123456;GPSLongitude=139.654321;Owner=private-person")], "private-person.png", { type: "image/png" }));
+  form.append("photos", new File([PNG], "second.png", { type: "image/png" }));
+  const response = await request(state, "/records", { cookie: guest.cookie, body: form });
+  assert.equal(response.status, 201);
+  const record = (await response.json() as { record: Receipt }).record;
+  let calls = 0; let supplied: Record<string, unknown> | undefined;
+  enablePhotoHints(state, async (model, body) => { calls++; assert.equal(model, BIOSECURITY_PHOTO_HINT_MODEL); supplied = body as Record<string, unknown>; return clefFixtureResponse(body); });
+  const path = `/records/${record.id}/environment-hints`;
+  assert.equal((await request(state, path, { body: { consent: true } })).status, 401);
+  assert.equal((await request(state, path, { cookie: other.cookie, body: { consent: true } })).status, 404);
+  for (const consent of [undefined, false, "true"]) assert.equal((await request(state, path, { cookie: guest.cookie, body: { consent } })).status, 422);
+  assert.equal((await request(state, path, { cookie: guest.cookie, body: { consent: true }, headers: { origin: "https://attacker.example.test" } })).status, 403);
+  assert.equal(calls, 0); assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 0); assert.deepEqual(hintUsage(state), []);
+
+  const suggested = await request(state, path, { cookie: guest.cookie, body: { consent: true, prompt: "disclose GPS", model: "unapproved", imageUrl: "https://attacker.example.test/photo" } });
+  assert.equal(suggested.status, 200, await suggested.clone().text());
+  const environment = (await suggested.json() as { environment: BiosecurityEnvironment }).environment;
+  assert.equal(calls, 1); assert.equal(environment.status, "ready"); assert.equal(environment.model, BIOSECURITY_PHOTO_HINT_MODEL);
+  assert.equal(environment.questionVersion, "biosecurity-visible-environment/v1"); assert.equal(environment.photoNumber, 1);
+  assert.equal(environment.values.contact_surface, "plant"); assert.equal(environment.values.contact_surface_source, "derived");
+  assert.equal(environment.values.surrounding_cover, "trees_shrubs"); assert.equal(environment.values.environment_record_status, "auto_draft");
+  assert.match(environment.values.contact_surface_method!, /^biosecurity-visible-environment\/v1$/);
+  const images = supplied!.images as { content_type: string; base64: string }[];
+  assert.equal(images.length, 1); assert.equal(images[0]!.content_type, "image/png");
+  assert.deepEqual(Buffer.from(images[0]!.base64, "base64"), Buffer.from(PNG));
+  assert.doesNotMatch(JSON.stringify(supplied), /35\.123456|139\.654321|非公開の補足|私有地の木|private-person|disclose GPS|unapproved|attacker\.example|guest:|br_[a-f0-9]{40}|2026-10-01/);
+  const attempt = state.obs.native.prepare("SELECT asset_id,asset_sha256,question_version,model,state,reserved_tokens,input_tokens FROM biosecurity_photo_hint_attempts WHERE record_id = ?").get(record.id) as Record<string, unknown>;
+  assert.equal(attempt.asset_id, record.photos[0]!.id); assert.equal(attempt.asset_sha256, await credentialDigest(PNG));
+  assert.equal(attempt.question_version, "biosecurity-visible-environment/v1"); assert.equal(attempt.model, BIOSECURITY_PHOTO_HINT_MODEL);
+  assert.equal(attempt.state, "ready"); assert.equal(attempt.reserved_tokens, 8000); assert.equal(attempt.input_tokens, 1600);
+  for (const counter of hintUsage(state)) assert.deepEqual({ count: counter.count, bytes: counter.bytes }, { count: 1, bytes: BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS });
+  assert.equal(hintUsage(state).length, 3);
+  const cached = await request(state, path, { cookie: guest.cookie, body: { consent: true } });
+  assert.deepEqual((await cached.json() as { environment: BiosecurityEnvironment }).environment, environment);
+  assert.equal(calls, 1); assert.equal(state.bucket.puts, 2); assert.equal(count(state.obs, "outbox"), 0);
+  assert.equal(count(state.obs, "readmodel_public_observations"), 0); assert.equal((await state.store.receipt(record.id, guest.owner)).note, "非公開の補足");
+});
+
+test("concurrent hint retries call AI once and retain a user rejection made while AI is in flight", async t => {
+  const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, "hints-race");
+  const entered = pause(), resume = pause(); let calls = 0;
+  enablePhotoHints(state, async (_model, body) => { calls++; entered.resolve(); await resume.promise; return clefFixtureResponse(body); });
+  const first = state.store.photoHints(guest.owner, record.id, state.env, "hint-ip", true);
+  await entered.promise;
+  try {
+    const replay = await state.store.photoHints(guest.owner, record.id, state.env, "hint-ip", true);
+    assert.equal(replay.environment.status, "processing"); assert.equal(calls, 1);
+    const edit = await request(state, `/records/${record.id}/environment`, { cookie: guest.cookie, body: { expectedVersion: 0, values: { contact_surface: "unknown" } } });
+    assert.equal(edit.status, 200, await edit.clone().text());
+    assert.equal((await edit.json() as { environment: BiosecurityEnvironment }).environment.version, 1);
+    const stale = await request(state, `/records/${record.id}/environment`, { cookie: guest.cookie, body: { expectedVersion: 0, values: { contact_surface: "soil" } } });
+    assert.equal(stale.status, 409);
+  } finally { resume.resolve(); }
+  const completed = await first;
+  assert.equal(completed.environment.version, 2); assert.equal(completed.environment.status, "ready");
+  assert.equal(completed.environment.values.contact_surface, "unknown"); assert.equal(completed.environment.values.contact_surface_source, "user");
+  assert.equal(completed.environment.values.surrounding_cover, "trees_shrubs"); assert.equal(completed.environment.values.surrounding_cover_source, "derived");
+  assert.equal(completed.environment.values.environment_record_status, "user_edited");
+  assert.equal(calls, 1); assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 1);
+  assert.deepEqual((await state.store.photoHints(guest.owner, record.id, state.env, "hint-ip", true)).environment, completed.environment);
+  assert.equal(calls, 1); for (const counter of hintUsage(state)) assert.equal(counter.bytes, 8000);
+});
+
+test("photo assistance has a zero-call off state and atomically fits only one of two records into an 8000-token budget", async t => {
+  const state = fixture(t); const guest = await newGuest(state);
+  const first = await capture(state, guest.owner, "budget-first"), second = await capture(state, guest.owner, "budget-second");
+  let calls = 0; enablePhotoHints(state, async (_model, body) => { calls++; return clefFixtureResponse(body); });
+  state.env.BIOSECURITY_PHOTO_HINT_DAILY_TOKENS = "0";
+  assert.equal((await state.store.photoHints(guest.owner, first.id, state.env, "budget-ip", true)).environment.status, "off");
+  assert.equal(calls, 0); assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 0); assert.deepEqual(hintUsage(state), []);
+  state.env.BIOSECURITY_PHOTO_HINT_DAILY_TOKENS = "8000";
+  const results = await Promise.all([first, second].map(record => state.store.photoHints(guest.owner, record.id, state.env, "budget-ip", true)));
+  assert.deepEqual(results.map(result => result.environment.status).sort(), ["budget_reached", "ready"]);
+  assert.equal(calls, 1); assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 1);
+  const daily = hintUsage(state).find(row => row.scope.startsWith("hint-day:"))!;
+  assert.deepEqual({ count: daily.count, bytes: daily.bytes }, { count: 1, bytes: 8000 });
+  for (const record of [first, second]) assert.equal((await state.store.receipt(record.id, guest.owner)).status, "saved");
+  const blocked = [first, second][results.findIndex(result => result.environment.status === "budget_reached")]!;
+  assert.equal((await state.store.photoHints(guest.owner, blocked.id, state.env, "another-ip", true)).environment.status, "budget_reached");
+  assert.equal(calls, 1); assert.equal(state.bucket.objects.size, 2);
+});
+
+test("an uncertain AI outcome is not resent or refunded and the already saved receipt and photo remain usable", async t => {
+  const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, "hints-uncertain");
+  let calls = 0; enablePhotoHints(state, async () => { calls++; throw new Error("provider receipt lost; secret must not escape"); });
+  for (let retry = 0; retry < 3; retry++) {
+    const response = await request(state, `/records/${record.id}/environment-hints`, { cookie: guest.cookie, body: { consent: true } });
+    assert.equal(response.status, 200);
+    const result = await response.json() as { environment: BiosecurityEnvironment };
+    assert.equal(result.environment.status, "unavailable"); assert.deepEqual(result.environment.values, {});
+    assert.equal(result.environment.photoNumber, null);
+    assert.doesNotMatch(JSON.stringify(result), /secret|provider receipt/);
+  }
+  assert.equal(calls, 1); assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 1);
+  const attempt = state.obs.native.prepare("SELECT state,reserved_tokens,input_tokens FROM biosecurity_photo_hint_attempts").get();
+  assert.deepEqual({ ...attempt }, { state: "unavailable", reserved_tokens: 8000, input_tokens: null });
+  for (const counter of hintUsage(state)) assert.equal(counter.bytes, 8000);
+  assert.equal((await state.store.receipt(record.id, guest.owner)).status, "saved");
+  const photo = await request(state, `/records/${record.id}/photos/${record.photos[0]!.id}`, { cookie: guest.cookie });
+  assert.equal(photo.status, 200); assert.deepEqual(await photo.arrayBuffer(), PNG); assert.equal(state.bucket.puts, 1);
+});
+
+test("deletion during stored-photo retrieval stops AI, and deletion during AI cannot restore context or photos", async t => {
+  for (const at of ["r2", "ai"] as const) {
+    const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, "hints-delete-" + at);
+    let calls = 0;
+    const remove = async () => { assert.deepEqual(await state.store.remove(record.id, guest.owner, "withdrawn"), { status: "deleted" }); };
+    enablePhotoHints(state, async (_model, body) => { calls++; if (at === "ai") await remove(); return clefFixtureResponse(body); });
+    if (at === "r2") state.bucket.onGet = async () => { state.bucket.onGet = null; await remove(); };
+    const response = await request(state, `/records/${record.id}/environment-hints`, { cookie: guest.cookie, body: { consent: true } });
+    assert.equal(response.status, 404, await response.clone().text()); assert.equal(calls, at === "ai" ? 1 : 0);
+    const context = await state.store.context(record.id);
+    assert.equal(context?.persistence, "deleted"); assert.equal(context?.capture_details_json, null); assert.equal(context?.private_note, null); assert.equal(context?.environment_json, null);
+    for (const table of ["biosecurity_photo_hint_attempts", "asset_ledger", "observations", "draft_observations"]) assert.equal(count(state.obs, table), 0, at + ":" + table);
+    assert.equal(state.bucket.objects.size, 0); assert.deepEqual({ ...usage(state.obs) }, { count: 0, bytes: 0 });
+    for (const counter of hintUsage(state)) assert.equal(counter.bytes, 8000, "deletion does not replenish an inference allowance");
+    assert.equal((await request(state, `/records/${record.id}/environment-hints`, { cookie: guest.cookie, body: { consent: true } })).status, 404);
+    assert.equal((await request(state, `/records/${record.id}`, { cookie: guest.cookie })).status, 404);
+  }
+});
+
+test("disabled or exhausted photo assistance cannot return an environment deleted during its access check", async t => {
+  for (const branch of ["disabled", "budget"] as const) {
+    const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, branch + "-delete");
+    await state.store.editEnvironment(guest.owner, record.id, { expectedVersion: 0, values: { contact_surface: "plant" } });
+    let calls = 0;
+    if (branch === "budget") {
+      enablePhotoHints(state, async (_model, body) => { calls++; return clefFixtureResponse(body); });
+      state.env.BIOSECURITY_PHOTO_HINT_DAILY_TOKENS = "8000";
+      state.obs.native.prepare("INSERT INTO biosecurity_usage(scope,count,bytes) VALUES (?,1,8000)").run("hint-day:" + new Date().toISOString().slice(0, 10));
+    }
+    let attemptReads = 0;
+    state.obs.afterRead = async query => {
+      if (query.startsWith("SELECT * FROM biosecurity_photo_hint_attempts") && ++attemptReads === (branch === "disabled" ? 1 : 2)) {
+        state.obs.afterRead = null;
+        await state.store.remove(record.id, guest.owner, "withdrawn");
+      }
+    };
+    const response = await request(state, `/records/${record.id}/environment-hints`, { cookie: guest.cookie, body: { consent: true } });
+    assert.equal(response.status, 404, branch + " assistance must not release the deleted private environment");
+    assert.deepEqual(await response.json(), { error: "record_not_found" });
+    assert.equal((await state.store.context(record.id))?.environment_json, null);
+    assert.equal(count(state.obs, "biosecurity_photo_hint_attempts"), 0); assert.equal(calls, 0);
+  }
+});
+
+test("environment sharing snapshots the explicitly reviewed version and preserves old consent replays after a correction", async t => {
+  const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, "environment-consent");
+  enablePhotoHints(state, async (_model, body) => clefFixtureResponse(body));
+  const ready = (await state.store.photoHints(guest.owner, record.id, state.env, "share-ip", true)).environment;
+  assert.equal(ready.version, 1);
+  const staff = await verifiedStaff(state);
+  const shareBody = consent("environment-reviewed", { fields: ["observedAt", "environment"], environmentVersion: ready.version });
+  const shared = await state.store.share(guest.owner, record.id, shareBody);
+  const without = await state.store.share(guest.owner, record.id, consent("environment-omitted", { fields: ["observedAt", "photos"] }));
+  const snapshots = state.obs.native.prepare("SELECT share_id,environment_json FROM biosecurity_shares ORDER BY share_id").all() as { share_id: string; environment_json: string | null }[];
+  assert.deepEqual(JSON.parse(snapshots.find(row => row.share_id === shared.shareId)!.environment_json!), ready);
+  assert.equal(snapshots.find(row => row.share_id === without.shareId)!.environment_json, null);
+  const changed = await state.store.editEnvironment(guest.owner, record.id, { expectedVersion: 1, values: { contact_surface: "unknown" } });
+  assert.equal(changed.environment.version, 2); assert.equal(changed.environment.values.contact_surface_source, "user");
+  assert.deepEqual(await state.store.share(guest.owner, record.id, shareBody), shared, "the same old consent payload remains replayable");
+  const stale = await request(state, `/records/${record.id}/share`, { cookie: guest.cookie, body: { ...shareBody, idempotencyKey: "sharing-request-new-stale-version" } });
+  assert.equal(stale.status, 409); assert.deepEqual(await stale.json(), { error: "environment_version_changed" });
+  const changedReplay = await request(state, `/records/${record.id}/share`, { cookie: guest.cookie, body: { ...shareBody, environmentVersion: 2 } });
+  assert.equal(changedReplay.status, 409); assert.deepEqual(await changedReplay.json(), { error: "idempotency_payload_changed" });
+  const items = (await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: Record<string, unknown>[] }).items;
+  const item = items.find(row => row.id === shared.shareId)!;
+  assert.deepEqual(item.environment, ready); assert.equal("photos" in item, false); assert.equal("note" in item, false); assert.equal("exactLocation" in item, false);
+  const sharedEnvironment = item.environment as BiosecurityEnvironment;
+  assert.equal(sharedEnvironment.model, BIOSECURITY_PHOTO_HINT_MODEL); assert.equal(sharedEnvironment.questionVersion, "biosecurity-visible-environment/v1");
+  assert.equal(sharedEnvironment.photoNumber, 1); assert.equal(sharedEnvironment.values.contact_surface_source, "derived");
+  assert.doesNotMatch(JSON.stringify(item.environment), /ba_[a-f0-9]{40}|[a-f0-9]{64}|35\.123456|139\.654321|非公開の補足/);
+  assert.equal("environment" in items.find(row => row.id === without.shareId)!, false);
+  assert.equal(count(state.obs, "biosecurity_shares"), 2); assert.equal(count(state.obs, "biosecurity_share_events"), 2);
+  await state.store.withdraw(guest.owner, shared.shareId, 1);
+  assert.equal((state.obs.native.prepare("SELECT environment_json FROM biosecurity_shares WHERE share_id = ?").get(shared.shareId) as { environment_json: string | null }).environment_json, null);
+  const replay = await state.store.share(guest.owner, record.id, shareBody);
+  assert.equal(replay.status, "withdrawn"); assert.equal(replay.version, 2);
+  const after = (await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: Record<string, unknown>[] }).items;
+  assert.equal(after.some(row => row.id === shared.shareId), false); assert.equal(after.length, 1);
+  assert.equal((await state.store.receipt(record.id, guest.owner)).environment.values.contact_surface, "unknown");
 });

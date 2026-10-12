@@ -5,6 +5,9 @@ import { BIOSECURITY_PROFILES, biosecurityProfile } from "../../src/services/bio
 import { MUNICIPALITIES, MUNICIPALITY_DIRECTORY_VERSION, findMunicipality, matchMunicipalityEmail } from "../../src/services/municipalityDirectory";
 import { renderBiosecurityPage } from "../../src/ui/biosecurity";
 import { officialMailboxDomain, resolveOfficialMailboxDomain } from "./municipalDomainEvidence";
+import { parseBiosecurityCaptureMetadata, legacyBiosecurityCaptureMetadata, type BiosecurityCaptureMetadata } from "./biosecurityCaptureContext";
+import { ENVIRONMENT_RECORD_FIELDS, mergeAutoEnvironmentRecordValues, mergeUserEnvironmentRecordValues, normalizeEnvironmentRecordValue } from "../../src/services/environmentRecord";
+import { BIOSECURITY_PHOTO_HINT_MODEL, BIOSECURITY_PHOTO_HINT_VERSION, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, generateBiosecurityPhotoHints } from "./biosecurityPhotoHints";
 
 const DAY = 86_400_000;
 const GUEST_SCOPE = "zukan-biosecurity-private-v1";
@@ -24,6 +27,9 @@ export interface BiosecurityEnv {
   BIOSECURITY_ENABLED?: string;
   BIOSECURITY_STORAGE_BUDGET_BYTES?: string;
   BIOSECURITY_EMAIL_ENABLED?: string;
+  BIOSECURITY_PHOTO_HINTS_ENABLED?: string;
+  BIOSECURITY_PHOTO_HINT_DAILY_TOKENS?: string;
+  AI?: { run(model: string, input: unknown): Promise<unknown> };
   ALERT_EMAIL_FROM?: string;
   ALERT_EMAIL?: { send(message: { from: string; to: string; subject: string; text: string }): Promise<unknown> };
 }
@@ -107,9 +113,9 @@ async function initializeGuest(request: Request, env: BiosecurityEnv): Promise<R
 
 export interface CapturePhoto { bytes: ArrayBuffer; mime: string; sha: string }
 export interface CaptureInput {
-  profileId: string; profileVersion: string; observedAt: string; municipalityCode: string | null;
+  profileId: string; profileVersion: string; observedAt: string | null; municipalityCode: string | null;
   spotLabel: string | null; signal: string; note: string | null; exactLat: number | null; exactLng: number | null;
-  isMinor: boolean; key: string; photos: CapturePhoto[]; digest: string;
+  isMinor: boolean; key: string; photos: CapturePhoto[]; digest: string; captureMetadata: BiosecurityCaptureMetadata;
 }
 
 export async function parseCapture(request: Request): Promise<CaptureInput> {
@@ -127,18 +133,20 @@ export async function parseCapture(request: Request): Promise<CaptureInput> {
       photos.push({ ...clean, sha: await credentialDigest(clean.bytes) });
     } catch { fail(422, "photo_format_invalid"); }
   }
-  const rawDate = boundedText(form.get("observed_at"), 40, "observed_at", true);
-  if (!/(?:Z|[+-]\d\d:\d\d)$/.test(rawDate) || !Number.isFinite(Date.parse(rawDate)) || Date.parse(rawDate) > Date.now() + DAY) fail(422, "observed_at_invalid");
+  const rawDate = boundedText(form.get("observed_at"), 40, "observed_at");
   const code = boundedText(form.get("municipality_code"), 6, "municipality_code");
   const municipality = code ? findMunicipality(code) : null; if (code && !municipality) fail(422, "municipality_invalid");
   const lat = form.get("exact_lat"); const lng = form.get("exact_lng");
   const exactLat = lat === null || lat === "" ? null : Number(lat);
   const exactLng = lng === null || lng === "" ? null : Number(lng);
   if ((exactLat === null) !== (exactLng === null) || (exactLat !== null && (!Number.isFinite(exactLat) || Math.abs(exactLat) > 90 || !Number.isFinite(exactLng) || Math.abs(exactLng!) > 180))) fail(422, "location_invalid");
+  let captureMetadata: BiosecurityCaptureMetadata;
+  try { captureMetadata = parseBiosecurityCaptureMetadata(boundedText(form.get("capture_metadata"), 4096, "capture_metadata"), rawDate, photos.length, exactLat !== null); }
+  catch (error) { fail(422, error instanceof Error ? error.message : "capture_metadata_invalid"); }
   const signal = boundedText(form.get("signal"), 40, "signal") || "unknown";
   if (!profile.signals.some(item => item.value === signal)) fail(422, "signal_invalid");
   const input = {
-    profileId: profile.id, profileVersion: profile.version, observedAt: new Date(rawDate).toISOString(), municipalityCode: municipality?.code ?? null,
+    profileId: profile.id, profileVersion: profile.version, observedAt: captureMetadata.time.instant, captureMetadata, municipalityCode: municipality?.code ?? null,
     spotLabel: boundedText(form.get("spot_label"), 160, "spot_label") || null, signal,
     note: boundedText(form.get("note"), 1000, "note") || null, exactLat, exactLng,
     isMinor: ["true", "yes", "1"].includes(String(form.get("is_minor") ?? "")), key: idempotency(form.get("idempotency_key")), photos,
@@ -152,10 +160,13 @@ type CaptureRow = {
   municipality_code: string | null; spot_label: string | null; signal: string; is_minor: number;
   request_digest: string; reserved_bytes: number; selected_count: number; persistence: string;
   lease_token: string | null; lease_until: string | null; created_at: string; expires_at: string;
+  capture_details_json: string | null; private_note: string | null; environment_json: string | null; environment_version: number;
 };
 type AssetRow = { asset_id: string; object_key: string; mime: string; bytes: number; sha256: string; processing_state: string };
-type ObservationRow = { observed_at: string; note: string | null; exact_lat: number | null; exact_lng: number | null };
-type ShareRow = { share_id: string; record_id: string; municipality_code: string; purpose: string; fields_json: string; owner_hash: string; status: string; version: number; created_at: string; acknowledged_at: string | null; request_digest: string };
+type ObservationRow = { observed_at: string | null; note: string | null; exact_lat: number | null; exact_lng: number | null };
+type ShareRow = { share_id: string; record_id: string; municipality_code: string; purpose: string; fields_json: string; owner_hash: string; status: string; version: number; created_at: string; acknowledged_at: string | null; request_digest: string; environment_json: string | null };
+type HintAttempt = { record_id: string; asset_id: string; asset_sha256: string; model: string; question_version: string; state: "reserved" | "ready" | "unavailable"; created_at: string; completed_at: string | null };
+export type BiosecurityEnvironment = { status: "not_requested" | "processing" | "ready" | "unavailable" | "budget_reached" | "off"; version: number; values: Record<string, string>; model: string | null; questionVersion: string | null; photoNumber: number | null; updatedAt: string | null };
 
 export class BiosecurityStore {
   constructor(readonly db: DiscoveryDatabase, readonly bucket: DiscoveryBucket) {}
@@ -168,22 +179,128 @@ export class BiosecurityStore {
     if (!active) fail(404,"record_not_found");
     return row;
   }
+  private metadata(row: CaptureRow, observation: ObservationRow): BiosecurityCaptureMetadata {
+    return row.capture_details_json ? JSON.parse(row.capture_details_json) as BiosecurityCaptureMetadata : legacyBiosecurityCaptureMetadata(observation.observed_at, observation.exact_lat !== null && observation.exact_lng !== null);
+  }
+  private async observation(row: CaptureRow): Promise<ObservationRow> {
+    const observation = await statement(this.db, "SELECT observed_at,note,exact_lat,exact_lng FROM observations WHERE observation_id = ? AND owner_user_id = ? AND visibility = 'private'", row.record_id, "guest:" + row.owner_hash).first<ObservationRow>();
+    if (observation) return observation;
+    // A photo with unknown time is durably saved as a private draft. It does not
+    // become a fabricated dated observation merely to satisfy a NOT NULL column.
+    const metadata = row.capture_details_json ? JSON.parse(row.capture_details_json) as BiosecurityCaptureMetadata : null;
+    if (!metadata || metadata.time.instant !== null) fail(503, "record_storage_unavailable");
+    const draft = await statement(this.db, "SELECT observed_at,exact_lat,exact_lng FROM draft_observations WHERE draft_id = ? AND owner_user_id = ? AND visibility = 'private' AND processing_state = 'finalized' AND observed_at IS NULL", row.draft_id, "guest:" + row.owner_hash).first<Omit<ObservationRow, "note">>();
+    if (!draft) fail(503, "record_storage_unavailable");
+    return { ...draft, note: row.private_note };
+  }
+  async environment(row: CaptureRow): Promise<BiosecurityEnvironment> {
+    const stored = row.environment_json ? JSON.parse(row.environment_json) as Omit<BiosecurityEnvironment, "version"> : null;
+    if (stored) return { ...stored, version: row.environment_version };
+    const attempt = await statement(this.db, "SELECT * FROM biosecurity_photo_hint_attempts WHERE record_id = ?", row.record_id).first<HintAttempt>();
+    return { status: attempt?.state === "reserved" ? (Date.parse(attempt.created_at) > Date.now() - 120_000 ? "processing" : "unavailable") : attempt ? "unavailable" : "not_requested", version: row.environment_version, values: {}, model: attempt?.model ?? null, questionVersion: attempt?.question_version ?? null, photoNumber: null, updatedAt: attempt?.completed_at ?? null };
+  }
+  async editEnvironment(ownerHash: string, id: string, body: Record<string, unknown>) {
+    const row = await this.ownerContext(id, ownerHash);
+    if (row.persistence !== "saved") fail(409, "record_still_saving");
+    if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion !== row.environment_version) fail(409, "environment_version_changed");
+    if (!body.values || typeof body.values !== "object" || Array.isArray(body.values)) fail(422, "environment_values_invalid");
+    const entries = Object.entries(body.values);
+    if (entries.length < 1 || entries.length > ENVIRONMENT_RECORD_FIELDS.length) fail(422, "environment_values_invalid");
+    const values: Record<string, string> = {};
+    for (const [name, value] of entries) {
+      const field = ENVIRONMENT_RECORD_FIELDS.find(item => item.field === name);
+      if (!field || typeof value !== "string") fail(422, "environment_values_invalid");
+      try { values[field.field] = normalizeEnvironmentRecordValue(field.field, value); } catch { fail(422, "environment_values_invalid"); }
+    }
+    const current = await this.environment(row); const now = nowIso();
+    const environment: BiosecurityEnvironment = { ...current, status: "ready", version: row.environment_version + 1, updatedAt: now, values: mergeUserEnvironmentRecordValues(current.values, values, { updatedAt: now, updatedBy: "biosecurity_owner" }) };
+    const result = await statement(this.db, "UPDATE biosecurity_record_contexts SET environment_json = ?, environment_version = environment_version + 1 WHERE record_id = ? AND owner_hash = ? AND environment_version = ? AND persistence = 'saved' AND expires_at > ? AND EXISTS (SELECT 1 FROM biosecurity_guest_sessions WHERE owner_hash = ? AND revoked_at IS NULL AND expires_at > ?)", JSON.stringify(environment), id, ownerHash, row.environment_version, now, ownerHash, now).run();
+    if (!changed(result)) { await this.ownerContext(id, ownerHash); fail(409, "environment_version_changed"); }
+    await this.ownerContext(id, ownerHash);
+    return { environment };
+  }
+  async photoHints(ownerHash: string, id: string, env: BiosecurityEnv, ipHash: string, consent: unknown) {
+    let row = await this.ownerContext(id, ownerHash);
+    if (row.persistence !== "saved") fail(409, "record_still_saving");
+    if (consent !== true) fail(422, "photo_hint_consent_required");
+    const existing = await statement(this.db, "SELECT * FROM biosecurity_photo_hint_attempts WHERE record_id = ?", id).first<HintAttempt>();
+    if (existing) { const environment = await this.environment(row); await this.ownerContext(id, ownerHash); return { environment }; }
+    const budget = Number(env.BIOSECURITY_PHOTO_HINT_DAILY_TOKENS);
+    if (env.BIOSECURITY_PHOTO_HINTS_ENABLED !== "on" || !env.AI || !Number.isSafeInteger(budget) || budget < BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS || budget > 200_000) {
+      const environment = { ...await this.environment(row), status: "off" as const }; await this.ownerContext(id, ownerHash); return { environment };
+    }
+    const asset = (await this.assets(row.draft_id))[0];
+    if (!asset || asset.processing_state !== "ready" || asset.bytes > BIOSECURITY_LIMITS.photoBytes) fail(503, "photo_storage_incomplete");
+    const now = nowIso(), attemptKey = randomCredential();
+    const scopes = [
+      { key: "hint-day:" + now.slice(0, 10), count: BIOSECURITY_LIMITS.dailyRecords, tokens: budget },
+      { key: "hint-guest:" + now.slice(0, 10) + ":" + ownerHash, count: 3, tokens: Number.MAX_SAFE_INTEGER },
+      { key: "hint-ip:" + now.slice(0, 10) + ":" + ipHash, count: 5, tokens: Number.MAX_SAFE_INTEGER },
+    ];
+    const checks = scopes.map(() => "COALESCE((SELECT count FROM biosecurity_usage WHERE scope = ?),0) < ? AND COALESCE((SELECT bytes FROM biosecurity_usage WHERE scope = ?),0) + ? <= ?").join(" AND ");
+    const writes: Statement[] = [statement(this.db, `INSERT OR IGNORE INTO biosecurity_photo_hint_attempts (record_id,attempt_key,asset_id,asset_sha256,model,question_version,state,reserved_tokens,created_at) SELECT ?,?,?,?,?,?,'reserved',?,? WHERE ${checks} AND EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.owner_hash = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?)`, id, attemptKey, asset.asset_id, asset.sha256, BIOSECURITY_PHOTO_HINT_MODEL, BIOSECURITY_PHOTO_HINT_VERSION, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, now, ...scopes.flatMap(scope => [scope.key, scope.count, scope.key, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, scope.tokens]), id, ownerHash, now, now)];
+    for (const scope of scopes) writes.push(statement(this.db, "INSERT INTO biosecurity_usage (scope,count,bytes) SELECT ?,1,? WHERE EXISTS (SELECT 1 FROM biosecurity_photo_hint_attempts WHERE record_id = ? AND attempt_key = ?) ON CONFLICT(scope) DO UPDATE SET count = count + 1, bytes = bytes + excluded.bytes", scope.key, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, id, attemptKey));
+    // Count and token reservations precede the only provider call. Unknown outcomes
+    // retain their reservation and are not automatically resent on retries/reloads.
+    const reserved = await this.db.batch(writes);
+    if (!changed(reserved[0])) {
+      row = await this.ownerContext(id, ownerHash);
+      const raced = await statement(this.db, "SELECT * FROM biosecurity_photo_hint_attempts WHERE record_id = ?", id).first<HintAttempt>();
+      const environment = raced ? await this.environment(row) : { ...await this.environment(row), status: "budget_reached" as const };
+      await this.ownerContext(id, ownerHash);
+      return { environment };
+    }
+    let generated: Awaited<ReturnType<typeof generateBiosecurityPhotoHints>> | null = null;
+    try {
+      const head = await this.bucket.head(asset.object_key);
+      if (!head || head.size !== asset.bytes) fail(503, "photo_storage_unconfirmed");
+      const object = await this.bucket.get(asset.object_key);
+      if (!object?.body) fail(503, "photo_storage_unavailable");
+      const bytes = await new Response(object.body).arrayBuffer();
+      if (bytes.byteLength !== asset.bytes) fail(503, "photo_storage_unconfirmed");
+      await this.ownerContext(id, ownerHash);
+      generated = await generateBiosecurityPhotoHints(env.AI, { bytes, mime: asset.mime, sha256: asset.sha256, assetId: asset.asset_id });
+    } catch (error) {
+      if (error instanceof BiosecurityError && error.status === 404) throw error;
+      // Saving remains complete even when photo assistance is unavailable.
+    }
+    const completedAt = nowIso();
+    // A user can correct fields while inference is in flight. Bounded CAS retries
+    // merge onto those corrections; neither rejected fields nor deleted records return.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      row = await this.ownerContext(id, ownerHash);
+      if (row.persistence !== "saved") fail(404, "record_not_found");
+      const current = await this.environment(row);
+      const values = generated && generated.status !== "unavailable" ? mergeAutoEnvironmentRecordValues(current.values, generated.environmentRecord, { updatedAt: completedAt, updatedBy: "biosecurity_photo_clef_v1" }) : current.values;
+      const environment: BiosecurityEnvironment = { status: (generated && generated.status !== "unavailable") || ENVIRONMENT_RECORD_FIELDS.some(field => values[field.field]) ? "ready" : "unavailable", version: row.environment_version + 1, values, model: BIOSECURITY_PHOTO_HINT_MODEL, questionVersion: BIOSECURITY_PHOTO_HINT_VERSION, photoNumber: generated && generated.status !== "unavailable" ? 1 : null, updatedAt: completedAt };
+      const results = await this.db.batch([
+        statement(this.db, "UPDATE biosecurity_record_contexts SET environment_json = ?, environment_version = environment_version + 1 WHERE record_id = ? AND owner_hash = ? AND persistence = 'saved' AND expires_at > ? AND environment_version = ? AND EXISTS (SELECT 1 FROM biosecurity_guest_sessions WHERE owner_hash = ? AND revoked_at IS NULL AND expires_at > ?)", JSON.stringify(environment), id, ownerHash, completedAt, row.environment_version, ownerHash, completedAt),
+        statement(this.db, "UPDATE biosecurity_photo_hint_attempts SET state = ?,input_tokens = ?,completed_at = ? WHERE record_id = ? AND attempt_key = ? AND changes() = 1", generated && generated.status !== "unavailable" ? "ready" : "unavailable", generated?.inputTokens ?? null, completedAt, id, attemptKey),
+      ]);
+      if (changed(results[0])) { await this.ownerContext(id, ownerHash); return { environment }; }
+    }
+    await statement(this.db, "UPDATE biosecurity_photo_hint_attempts SET state = 'unavailable', completed_at = ? WHERE record_id = ? AND attempt_key = ?", completedAt, id, attemptKey).run();
+    row = await this.ownerContext(id, ownerHash);
+    const environment = await this.environment(row);
+    await this.ownerContext(id, ownerHash);
+    return { environment };
+  }
   async receipt(id: string, ownerHash: string) {
     const row = await this.ownerContext(id, ownerHash);
     if (row.persistence !== "saved") fail(409, "record_still_saving");
-    const observation = await statement(this.db, "SELECT observed_at, note, exact_lat, exact_lng FROM observations WHERE observation_id = ? AND owner_user_id = ? AND visibility = 'private'", id, "guest:" + ownerHash).first<ObservationRow>();
-    if (!observation) fail(503, "record_storage_unavailable");
+    const observation = await this.observation(row); const metadata = this.metadata(row, observation);
     const assets = await this.assets(row.draft_id);
     if (assets.length !== row.selected_count || assets.some(asset => asset.processing_state !== "ready")) fail(503, "photo_storage_incomplete");
     const shares = (await statement(this.db, "SELECT * FROM biosecurity_shares WHERE record_id = ? ORDER BY created_at DESC LIMIT 50", id).all<ShareRow>()).results;
+    const environment = await this.environment(row);
     await this.ownerContext(id,ownerHash);
     return {
-      id, profileId: row.profile_id, observedAt: observation.observed_at, municipalityCode: row.municipality_code,
+      id, profileId: row.profile_id, observedAt: metadata.time.instant, observedTime: metadata.time, locationSource: metadata.location.source, photoConflicts: metadata.conflicts, municipalityCode: row.municipality_code,
       municipalityName: findMunicipality(row.municipality_code ?? "")?.name ?? null,
       officialUrl: findMunicipality(row.municipality_code ?? "")?.website ?? biosecurityProfile(row.profile_id)?.guideUrl,
       spotLabel: row.spot_label, signal: row.signal, note: observation.note, isMinor: Boolean(row.is_minor),
       exactLocation: observation.exact_lat !== null && observation.exact_lng !== null ? { lat: observation.exact_lat, lng: observation.exact_lng } : null,
-      status: "saved", photoCount: assets.length, expiresAt: row.expires_at,
+      status: "saved", photoCount: assets.length, expiresAt: row.expires_at, environment,
       photos: assets.map(asset => ({ id: asset.asset_id, url: `/api/v1/biosecurity/records/${id}/photos/${asset.asset_id}` })),
       shares: shares.map(share => ({ id: share.share_id, municipalityCode: share.municipality_code, municipalityName: findMunicipality(share.municipality_code)?.name, fields: JSON.parse(share.fields_json) as string[], status: share.status, version: share.version, acknowledgedAt: share.acknowledged_at })),
     };
@@ -204,10 +321,10 @@ export class BiosecurityStore {
       const conditions = scopes.map(() => "COALESCE((SELECT count FROM biosecurity_usage WHERE scope = ?), 0) < ? AND COALESCE((SELECT bytes FROM biosecurity_usage WHERE scope = ?), 0) + ? <= ?").join(" AND ");
       const checks = scopes.flatMap(scope => [scope.scope, scope.count, scope.scope, bytes, scope.bytes]);
       const writes: Statement[] = [statement(this.db,
-        `INSERT OR IGNORE INTO biosecurity_record_contexts (record_id,draft_id,owner_hash,profile_id,profile_version,municipality_code,spot_label,signal,is_minor,idempotency_key,request_digest,reserved_bytes,selected_count,persistence,lease_token,lease_until,created_at,expires_at)
-         SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?, 'uploading',?,?,?,? WHERE ${conditions}
+        `INSERT OR IGNORE INTO biosecurity_record_contexts (record_id,draft_id,owner_hash,profile_id,profile_version,municipality_code,spot_label,signal,is_minor,idempotency_key,request_digest,reserved_bytes,selected_count,persistence,lease_token,lease_until,created_at,expires_at,capture_details_json,private_note)
+         SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?, 'uploading',?,?,?,?,?,? WHERE ${conditions}
          AND EXISTS (SELECT 1 FROM biosecurity_guest_sessions WHERE owner_hash = ? AND revoked_at IS NULL AND expires_at > ?)`,
-        recordId,draftId,ownerHash,input.profileId,input.profileVersion,input.municipalityCode,input.spotLabel,input.signal,input.isMinor ? 1 : 0,input.key,input.digest,bytes,input.photos.length,lease,future(5 * 60_000),now,future(BIOSECURITY_RETENTION_DAYS * DAY),...checks,ownerHash,now),
+        recordId,draftId,ownerHash,input.profileId,input.profileVersion,input.municipalityCode,input.spotLabel,input.signal,input.isMinor ? 1 : 0,input.key,input.digest,bytes,input.photos.length,lease,future(5 * 60_000),now,future(BIOSECURITY_RETENTION_DAYS * DAY),JSON.stringify(input.captureMetadata),input.note,...checks,ownerHash,now),
       ];
       for (const scope of scopes) writes.push(statement(this.db,
         `INSERT INTO biosecurity_usage (scope,count,bytes) SELECT ?,1,? WHERE EXISTS (SELECT 1 FROM biosecurity_record_contexts WHERE record_id = ? AND lease_token = ?)
@@ -242,11 +359,11 @@ export class BiosecurityStore {
       }
       const finalize: Statement[] = [statement(this.db,
         `INSERT OR IGNORE INTO observations (observation_id,draft_id,owner_user_id,observed_at,taxon_label,note,exact_lat,exact_lng,public_cell,visibility,processing_state)
-         SELECT ?,?,?,?,NULL,?,?,?,'unknown','private','accepted' WHERE EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.lease_token = ? AND c.persistence = 'uploading' AND g.revoked_at IS NULL AND g.expires_at > ?)`,
-        recordId,draftId,"guest:"+ownerHash,input.observedAt,input.note,input.exactLat,input.exactLng,recordId,lease,nowIso()),
-        statement(this.db,"UPDATE asset_ledger SET observation_id = ?, processing_state = 'ready', uploaded_at = ? WHERE draft_id = ? AND EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)",recordId,nowIso(),draftId,recordId),
-        statement(this.db,"UPDATE draft_observations SET processing_state = 'finalized', finalized_at = ? WHERE draft_id = ? AND EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)",nowIso(),draftId,recordId),
-        statement(this.db,"UPDATE biosecurity_record_contexts SET persistence = 'saved', lease_token = NULL, lease_until = NULL WHERE record_id = ? AND lease_token = ? AND EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)",recordId,lease,recordId),
+         SELECT ?,?,?,?,NULL,?,?,?,'unknown','private','accepted' WHERE ? IS NOT NULL AND EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.lease_token = ? AND c.persistence = 'uploading' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?)`,
+        recordId,draftId,"guest:"+ownerHash,input.observedAt,input.note,input.exactLat,input.exactLng,input.observedAt,recordId,lease,nowIso(),nowIso()),
+        statement(this.db,"UPDATE asset_ledger SET observation_id = (SELECT observation_id FROM observations WHERE observation_id = ?), processing_state = 'ready', uploaded_at = ? WHERE draft_id = ? AND (? IS NULL OR EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)) AND EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.lease_token = ? AND c.persistence = 'uploading' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?)",recordId,nowIso(),draftId,input.observedAt,recordId,recordId,lease,nowIso(),nowIso()),
+        statement(this.db,"UPDATE draft_observations SET processing_state = 'finalized', finalized_at = ? WHERE draft_id = ? AND (? IS NULL OR EXISTS (SELECT 1 FROM observations WHERE observation_id = ?)) AND EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.lease_token = ? AND c.persistence = 'uploading' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?)",nowIso(),draftId,input.observedAt,recordId,recordId,lease,nowIso(),nowIso()),
+        statement(this.db,"UPDATE biosecurity_record_contexts SET persistence = 'saved', lease_token = NULL, lease_until = NULL WHERE record_id = ? AND lease_token = ? AND persistence = 'uploading' AND EXISTS (SELECT 1 FROM draft_observations WHERE draft_id = ? AND processing_state = 'finalized') AND (SELECT COUNT(*) FROM asset_ledger WHERE draft_id = ? AND processing_state = 'ready') = selected_count",recordId,lease,draftId,draftId),
         statement(this.db,"UPDATE biosecurity_guest_sessions SET expires_at = MAX(expires_at, ?) WHERE owner_hash = ? AND revoked_at IS NULL AND EXISTS (SELECT 1 FROM biosecurity_record_contexts WHERE record_id = ? AND persistence = 'saved')",future(BIOSECURITY_RETENTION_DAYS * DAY),ownerHash,recordId),
       ];
       await this.db.batch(finalize);
@@ -268,20 +385,30 @@ export class BiosecurityStore {
     if (!municipality) fail(422, "municipality_invalid");
     if (body.consent !== true || body.purpose !== "invasive_response") fail(422, "explicit_recipient_consent_required");
     if (record.is_minor && body.guardianConsent !== true) fail(422, "guardian_consent_required");
-    const allowed = ["photos", "observedAt", "spotLabel", "note", "exactLocation"];
+    const allowed = ["photos", "observedAt", "spotLabel", "note", "exactLocation", "environment"];
     if (!Array.isArray(body.fields) || body.fields.some(field => typeof field !== "string" || !allowed.includes(field))) fail(422, "share_fields_invalid");
     const fields = [...new Set(body.fields as string[])].sort();
     if (!fields.includes("observedAt") || fields.length < 2) fail(422, "select_information_to_share");
+    if (fields.includes("environment") && (!Number.isSafeInteger(body.environmentVersion) || (body.environmentVersion as number) < 1)) fail(409, "environment_version_changed");
     const key = idempotency(body.idempotencyKey);
-    const digest = await credentialDigest(JSON.stringify([id,municipality.code,fields,body.guardianConsent === true]));
+    const digest = await credentialDigest(JSON.stringify([id,municipality.code,fields,body.guardianConsent === true,...(fields.includes("environment") ? [body.environmentVersion] : [])]));
     const shareId = "bs_" + (await credentialDigest(JSON.stringify([ownerHash,key]))).slice(0,40); const now = nowIso();
+    const previous = await statement(this.db,"SELECT * FROM biosecurity_shares WHERE share_id = ? AND owner_hash = ?",shareId,ownerHash).first<ShareRow>();
+    if (previous) {
+      if (previous.request_digest !== digest) fail(409,"idempotency_payload_changed");
+      await this.ownerContext(id,ownerHash);
+      return { shareId, status: previous.status, version: previous.version };
+    }
+    const environment = fields.includes("environment") ? await this.environment(record) : null;
+    if (environment && (environment.status !== "ready" || !ENVIRONMENT_RECORD_FIELDS.some(field => environment.values[field.field]) || body.environmentVersion !== record.environment_version)) fail(409, "environment_version_changed");
     await this.db.batch([
-      statement(this.db,"INSERT OR IGNORE INTO biosecurity_shares (share_id,record_id,municipality_code,purpose,fields_json,guardian_consent,owner_hash,idempotency_key,request_digest,status,created_at) SELECT ?,?,?,'invasive_response',?,?,?,?,?,'available',? WHERE EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?) AND (SELECT COUNT(*) FROM biosecurity_shares WHERE record_id = ?) < ?",shareId,id,municipality.code,JSON.stringify(fields),body.guardianConsent === true ? 1 : 0,ownerHash,key,digest,now,id,now,now,id,BIOSECURITY_LIMITS.recordShares),
+      statement(this.db,"INSERT OR IGNORE INTO biosecurity_shares (share_id,record_id,municipality_code,purpose,fields_json,guardian_consent,owner_hash,idempotency_key,request_digest,status,created_at,environment_json) SELECT ?,?,?,'invasive_response',?,?,?,?,?,'available',?,? WHERE EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ? AND (? IS NULL OR c.environment_version = ?)) AND (SELECT COUNT(*) FROM biosecurity_shares WHERE record_id = ?) < ?",shareId,id,municipality.code,JSON.stringify(fields),body.guardianConsent === true ? 1 : 0,ownerHash,key,digest,now,environment ? JSON.stringify(environment) : null,id,now,now,environment?.version ?? null,environment?.version ?? null,id,BIOSECURITY_LIMITS.recordShares),
       statement(this.db,"INSERT OR IGNORE INTO biosecurity_share_events (event_id,share_id,event_type,actor_id,version,created_at) SELECT ?,?,'consented',?,1,? WHERE EXISTS (SELECT 1 FROM biosecurity_shares WHERE share_id = ? AND request_digest = ?)","be_"+shareId,shareId,"guest:"+ownerHash,now,shareId,digest),
     ]);
     const stored = await statement(this.db,"SELECT * FROM biosecurity_shares WHERE share_id = ?",shareId).first<ShareRow>();
     if (!stored) {
-      await this.ownerContext(id,ownerHash);
+      const current = await this.ownerContext(id,ownerHash);
+      if (environment && current.environment_version !== environment.version) fail(409, "environment_version_changed");
       fail(429,"share_capacity_reached");
     }
     if (stored.request_digest !== digest) fail(409,"idempotency_payload_changed");
@@ -295,7 +422,7 @@ export class BiosecurityStore {
     if (!Number.isInteger(expectedVersion) || expectedVersion !== row.version) fail(409,"share_version_changed");
     const now = nowIso();
     const results = await this.db.batch([
-      statement(this.db,"UPDATE biosecurity_shares SET status = 'withdrawn', version = version + 1, withdrawn_at = ? WHERE share_id = ? AND owner_hash = ? AND version = ? AND status <> 'withdrawn' AND EXISTS (SELECT 1 FROM biosecurity_guest_sessions WHERE owner_hash = ? AND revoked_at IS NULL AND expires_at > ?)",now,shareId,ownerHash,row.version,ownerHash,now),
+      statement(this.db,"UPDATE biosecurity_shares SET status = 'withdrawn', version = version + 1, withdrawn_at = ?, environment_json = NULL WHERE share_id = ? AND owner_hash = ? AND version = ? AND status <> 'withdrawn' AND EXISTS (SELECT 1 FROM biosecurity_guest_sessions WHERE owner_hash = ? AND revoked_at IS NULL AND expires_at > ?)",now,shareId,ownerHash,row.version,ownerHash,now),
       statement(this.db,"INSERT INTO biosecurity_share_events (event_id,share_id,event_type,actor_id,version,created_at) SELECT ?,?,'withdrawn',?,?,? WHERE changes() = 1","be_"+randomCredential(),shareId,"guest:"+ownerHash,row.version+1,now),
     ]);
     if (!changed(results[0])) fail(409,"share_version_changed");
@@ -306,14 +433,14 @@ export class BiosecurityStore {
     if (share.municipality_code !== municipalityCode || share.status === "withdrawn") fail(404,"share_not_found");
     const record = await this.context(share.record_id);
     if (!record || record.persistence !== "saved" || record.expires_at <= nowIso()) fail(404,"share_not_found");
-    const observation = await statement(this.db,"SELECT observed_at,note,exact_lat,exact_lng FROM observations WHERE observation_id = ? AND visibility = 'private'",record.record_id).first<ObservationRow>();
-    if (!observation) fail(404,"share_not_found");
+    const observation = await this.observation(record); const metadata = this.metadata(record, observation);
     const fields = JSON.parse(share.fields_json) as string[];
     const selected: Record<string, unknown> = { id: share.share_id, shareId: share.share_id, profileId: record.profile_id, status: share.status, version: share.version, fields, sharedAt: share.created_at, acknowledgedAt: share.acknowledged_at, expiresAt: record.expires_at };
-    if (fields.includes("observedAt")) selected.observedAt = observation.observed_at;
+    if (fields.includes("observedAt")) { selected.observedAt = metadata.time.instant; selected.observedTime = metadata.time; }
     if (fields.includes("spotLabel")) selected.spotLabel = record.spot_label;
     if (fields.includes("note")) selected.note = observation.note;
-    if (fields.includes("exactLocation")) selected.exactLocation = observation.exact_lat !== null && observation.exact_lng !== null ? { lat: observation.exact_lat, lng: observation.exact_lng } : null;
+    if (fields.includes("exactLocation")) { selected.exactLocation = observation.exact_lat !== null && observation.exact_lng !== null ? { lat: observation.exact_lat, lng: observation.exact_lng } : null; selected.locationSource = metadata.location.source; }
+    if (fields.includes("environment") && share.environment_json) selected.environment = JSON.parse(share.environment_json) as BiosecurityEnvironment;
     if (fields.includes("photos")) selected.photos = (await this.assets(record.draft_id)).map(asset => ({ id:asset.asset_id, url:`/api/v1/biosecurity/inbox/${share.share_id}/photos/${asset.asset_id}` }));
     const current=await statement(this.db,"SELECT s.version FROM biosecurity_shares s JOIN biosecurity_record_contexts c ON c.record_id = s.record_id WHERE s.share_id = ? AND s.municipality_code = ? AND s.status <> 'withdrawn' AND c.persistence = 'saved' AND c.expires_at > ?",share.share_id,municipalityCode,nowIso()).first<{version:number}>();
     if (!current || current.version !== share.version) fail(404,"share_not_found");
@@ -345,18 +472,19 @@ export class BiosecurityStore {
     const result=await this.db.batch([
       statement(this.db,"UPDATE biosecurity_record_contexts SET persistence = 'deleting',lease_token = ?,lease_until = ?,expires_at = MIN(expires_at,?) WHERE record_id = ? AND persistence <> 'deleted' AND (persistence <> 'deleting' OR lease_until <= ?) AND (persistence <> 'uploading' OR lease_until <= ?)",lease,future(5*60_000),now,id,now,now),
       statement(this.db,"INSERT OR IGNORE INTO biosecurity_share_events (event_id,share_id,event_type,actor_id,version,created_at) SELECT ? || share_id,share_id,?,?,version+1,? FROM biosecurity_shares WHERE record_id = ? AND status <> 'withdrawn' AND EXISTS (SELECT 1 FROM biosecurity_record_contexts WHERE record_id = ? AND lease_token = ? AND persistence = 'deleting')","be_"+lease+":",reason,ownerHash === null ? "expiry" : "guest:"+ownerHash,now,id,id,lease),
-      statement(this.db,"UPDATE biosecurity_shares SET status = 'withdrawn',withdrawn_at = ?,version = version + 1 WHERE record_id = ? AND status <> 'withdrawn' AND EXISTS (SELECT 1 FROM biosecurity_record_contexts WHERE record_id = ? AND lease_token = ? AND persistence = 'deleting')",now,id,id,lease),
+      statement(this.db,"UPDATE biosecurity_shares SET status = 'withdrawn',withdrawn_at = ?,version = version + 1,environment_json = NULL WHERE record_id = ? AND status <> 'withdrawn' AND EXISTS (SELECT 1 FROM biosecurity_record_contexts WHERE record_id = ? AND lease_token = ? AND persistence = 'deleting')",now,id,id,lease),
     ]);
     if (!changed(result[0])) fail(409,"record_deletion_in_progress");
     try {
       for (const asset of await this.assets(row.draft_id)) await this.bucket.delete(asset.object_key);
       const owns="EXISTS (SELECT 1 FROM biosecurity_record_contexts WHERE record_id = ? AND lease_token = ? AND persistence = 'deleting')";
       await this.db.batch([
+        statement(this.db,`DELETE FROM biosecurity_photo_hint_attempts WHERE record_id = ? AND ${owns}`,id,id,lease),
         statement(this.db,`DELETE FROM asset_ledger WHERE draft_id = ? AND ${owns}`,row.draft_id,id,lease),
         statement(this.db,`DELETE FROM observations WHERE observation_id = ? AND owner_user_id = ? AND ${owns}`,id,"guest:"+row.owner_hash,id,lease),
         statement(this.db,`DELETE FROM draft_observations WHERE draft_id = ? AND owner_user_id = ? AND ${owns}`,row.draft_id,"guest:"+row.owner_hash,id,lease),
         statement(this.db,`UPDATE biosecurity_usage SET bytes = MAX(0,bytes - COALESCE((SELECT reserved_bytes FROM biosecurity_record_contexts WHERE record_id = ?),0)),count = MAX(0,count - 1) WHERE scope = 'storage' AND ${owns}`,id,id,lease),
-        statement(this.db,"UPDATE biosecurity_record_contexts SET persistence = 'deleted',spot_label = NULL,municipality_code = NULL,reserved_bytes = 0,lease_token = NULL,lease_until = NULL,deleted_at = ? WHERE record_id = ? AND lease_token = ? AND persistence = 'deleting'",now,id,lease),
+        statement(this.db,"UPDATE biosecurity_record_contexts SET persistence = 'deleted',spot_label = NULL,municipality_code = NULL,capture_details_json = NULL,private_note = NULL,environment_json = NULL,reserved_bytes = 0,lease_token = NULL,lease_until = NULL,deleted_at = ? WHERE record_id = ? AND lease_token = ? AND persistence = 'deleting'",now,id,lease),
       ]);
       const current=await this.context(id); if (current?.persistence !== "deleted") fail(503,"record_deletion_unconfirmed");
       return {status:"deleted"};
@@ -538,11 +666,17 @@ export async function handleBiosecurityRequest(request:Request,env:BiosecurityEn
       const rows = (await statement(env.OBS_DB,"SELECT record_id FROM biosecurity_record_contexts WHERE owner_hash = ? AND persistence = 'saved' AND expires_at > ? ORDER BY created_at DESC,record_id DESC LIMIT 51 OFFSET ?",active.ownerHash,nowIso(),offset).all<{record_id:string}>()).results;
       return json({records:await Promise.all(rows.slice(0,50).map(row=>store.receipt(row.record_id,active.ownerHash))),nextOffset:rows.length>50?offset+50:null});
     }
-    const recordMatch = api.match(/^\/records\/(br_[a-f0-9]{40})(?:\/(share|photos)(?:\/(ba_[a-f0-9]{40}_[0-5]))?)?$/);
+    const recordMatch = api.match(/^\/records\/(br_[a-f0-9]{40})(?:\/(share|photos|environment-hints|environment)(?:\/(ba_[a-f0-9]{40}_[0-5]))?)?$/);
     if (recordMatch) {
       const active = await guest(request,env); const id=recordMatch[1]!;
       if (!recordMatch[2] && request.method === "GET") return json({record:await annotateReceipt(await store.receipt(id,active.ownerHash)),guestExpiresAt:active.expiresAt});
       if (!recordMatch[2] && request.method === "DELETE") return json(await store.remove(id,active.ownerHash,"withdrawn"));
+      if (recordMatch[2] === "environment" && request.method === "POST") return json(await store.editEnvironment(active.ownerHash,id,await bodyJson(request)));
+      if (recordMatch[2] === "environment-hints" && request.method === "POST") {
+        const body = await bodyJson(request);
+        const ipHash = await credentialDigest("biosecurity-hint-ip:" + nowIso().slice(0,10) + ":" + (request.headers.get("cf-connecting-ip") ?? "unknown"));
+        return json(await store.photoHints(active.ownerHash,id,env,ipHash,body.consent));
+      }
       if (recordMatch[2] === "share" && request.method === "POST") {
         const body=await bodyJson(request); const result=await store.share(active.ownerHash,id,body);
         const code=findMunicipality(String(body.municipalityCode??""))!.code;
@@ -601,7 +735,7 @@ export async function expireBiosecurityRecords(env:BiosecurityEnv):Promise<void>
   await statement(env.CORE_DB,"DELETE FROM municipal_email_challenges WHERE challenge_id IN (SELECT challenge_id FROM municipal_email_challenges WHERE expires_at < ? ORDER BY expires_at LIMIT 100)",new Date(Date.now()-DAY).toISOString()).run();
   await statement(env.CORE_DB,"DELETE FROM municipal_domain_evidence WHERE revoked_at IS NULL AND (municipality_code,domain) IN (SELECT municipality_code,domain FROM municipal_domain_evidence WHERE expires_at < ? AND revoked_at IS NULL ORDER BY expires_at LIMIT 100)",new Date(Date.now()-DAY).toISOString()).run();
   const cutoff=new Date(Date.now()-32*DAY).toISOString().slice(0,10);
-  for (const prefix of ["day","guest","ip","guest-issue","guest-issue-ip"]) {
+  for (const prefix of ["day","guest","ip","guest-issue","guest-issue-ip","hint-day","hint-guest","hint-ip"]) {
     await statement(env.OBS_DB,"DELETE FROM biosecurity_usage WHERE scope IN (SELECT scope FROM biosecurity_usage WHERE scope >= ? AND scope < ? ORDER BY scope LIMIT 200)",prefix+":",prefix+":"+cutoff).run();
   }
   for (const prefix of ["day","email","ip","proof-day","proof-ip"]) {
