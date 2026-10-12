@@ -907,3 +907,65 @@ test("environment sharing snapshots the explicitly reviewed version and preserve
   assert.equal(after.some(row => row.id === shared.shareId), false); assert.equal(after.length, 1);
   assert.equal((await state.store.receipt(record.id, guest.owner)).environment.values.contact_surface, "unknown");
 });
+
+test("opt-in multi-taxa estimates independently across saved photos and never automatically enters municipal shares", async t => {
+  const state = fixture(t), guest=await newGuest(state);
+  const form=captureForm("multi-taxonomy");
+  form.append("photos", new File([PNG],"photo-2.png",{type:"image/png"}));
+  const response=await request(state,"/records",{cookie:guest.cookie,body:form});
+  assert.equal(response.status,201);
+  const record=(await response.json() as { record:{id:string;photos:{id:string}[]} }).record;
+  state.env.BIOSECURITY_MULTI_TAXA_ENABLED="on";
+  let environmentCalls=0, taxonCalls=0;
+  enablePhotoHints(state,async (_model, input) => {
+    const req=input as {questions:Record<string,{type:string;criteria?:Record<string,string>}>};
+    if (req.questions.place_type) { environmentCalls++; return clefFixtureResponse(input); }
+    taxonCalls++;
+    const answers=Object.fromEntries(Object.entries(req.questions).map(([key,q]) => {
+      if(q.type==="noul") return [key,{type:"noul",noul:key==="seen_aromia"||key==="seen_cerambycidae"||key==="seen_formicidae"?0.92:0.02}];
+      const options=Object.keys(q.criteria || {}),choice=key==="count_aromia"?"one":"unknown";
+      return [key,{type:"choice",choice,probabilities:Object.fromEntries(options.map(opt=>[opt,opt===choice?0.9:0.1/(options.length-1)])),confidence:0.9}];
+    }));
+    return {model:"clef-flash",answers,usage:{input_tokens:2400,output_tokens:0}};
+  });
+  const {environment}=await state.store.photoHints(guest.owner,record.id,state.env,"multi-ip",true);
+  assert.equal(environment.status,"ready");
+  assert.equal(environmentCalls,1);
+  assert.equal(taxonCalls,4);
+  assert.equal(environment.multiTaxa?.schema,"zukan.photo-multi-taxa/v1");
+  assert.equal(environment.multiTaxa?.photosEvaluated,2);
+  assert.deepEqual(environment.multiTaxa?.candidates.map(x=>x.taxonId).sort(),["aromia","cerambycidae","formicidae"]);
+  const genus=environment.multiTaxa?.candidates.find(x=>x.taxonId==="aromia")!;
+  assert.equal(genus.countAcrossPhotos,"not_deduplicated");
+  assert.deepEqual(genus.observations.map(x=>x.photoNumber),[1,2]);
+  assert.deepEqual(genus.observations.map(x=>x.assetId),record.photos.map(x=>x.id));
+  assert.equal((await state.store.photoHints(guest.owner,record.id,state.env,"multi-ip",true)).environment.version,environment.version);
+  assert.equal(taxonCalls,4);
+  const share=await state.store.share(guest.owner,record.id,consent("multi", {fields:["observedAt","environment"],environmentVersion:environment.version}));
+  const stored=state.obs.native.prepare("SELECT environment_json FROM biosecurity_shares WHERE share_id = ?").get(share.shareId) as {environment_json:string};
+  const shared=JSON.parse(stored.environment_json) as BiosecurityEnvironment;
+  assert.equal(shared.multiTaxa,undefined);
+  assert.deepEqual(shared.values,environment.values);
+  assert.equal(hintUsage(state).find(x=>x.scope.startsWith("hint-day:"))?.bytes,24000);
+});
+
+
+test("private same-label temporal overlap is only returned to the same guest and never claimed as confirmed Place", async t => {
+  const state = fixture(t);
+  const guest = await newGuest(state), outsider = await newGuest(state);
+  const older = await capture(state, guest.owner, "temporal-older", {spot_label:"公園入口の桜"});
+  const latest = await capture(state, guest.owner, "temporal-latest", {spot_label:"公園入口の桜"});
+  const different = await capture(state, guest.owner, "temporal-other", {spot_label:"川沿い"});
+  await capture(state, outsider.owner, "temporal-other-owner", {spot_label:"公園入口の桜"});
+  const previous = (await state.store.receipt(latest.id, guest.owner)).relatedRecords;
+  assert.equal(previous.length,1);
+  assert.deepEqual(previous.map(x=>x.id),[older.id]);
+  assert.equal(previous[0]?.relation,"matching_spot_label_candidate");
+  assert.deepEqual((await state.store.receipt(different.id, guest.owner)).relatedRecords,[]);
+  assert.equal((await request(state,`/records/${latest.id}`,{cookie:outsider.cookie})).status,404);
+  const share=await state.store.share(guest.owner,latest.id,consent("temporal", {fields:["observedAt","spotLabel"]}));
+  const stored=state.obs.native.prepare("SELECT environment_json FROM biosecurity_shares WHERE share_id = ?").get(share.shareId) as {environment_json:string|null};
+  assert.equal(stored.environment_json,null);
+  await state.store.remove(older.id,guest.owner,"withdrawn");
+  assert.deepEqual((await state.store.receipt(latest.id, guest.owner)).relatedRecords,[]);
+});
