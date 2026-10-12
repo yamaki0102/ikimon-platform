@@ -919,7 +919,7 @@ test("opt-in multi-taxa estimates independently across saved photos and never au
   let environmentCalls=0, taxonCalls=0;
   enablePhotoHints(state,async (_model, input) => {
     const req=input as {questions:Record<string,{type:string;criteria?:Record<string,string>}>};
-    if (!req.questions.seen_aromia) { environmentCalls++; return clefFixtureResponse(input); }
+    if (req.questions.place_type) { environmentCalls++; return clefFixtureResponse(input); }
     taxonCalls++;
     const answers=Object.fromEntries(Object.entries(req.questions).map(([key,q]) => {
       if(q.type==="noul") return [key,{type:"noul",noul:key==="seen_aromia"||key==="seen_cerambycidae"||key==="seen_formicidae"?0.92:0.02}];
@@ -931,7 +931,7 @@ test("opt-in multi-taxa estimates independently across saved photos and never au
   const {environment}=await state.store.photoHints(guest.owner,record.id,state.env,"multi-ip",true);
   assert.equal(environment.status,"ready");
   assert.equal(environmentCalls,1);
-  assert.equal(taxonCalls,2);
+  assert.equal(taxonCalls,4);
   assert.equal(environment.multiTaxa?.schema,"zukan.photo-multi-taxa/v1");
   assert.equal(environment.multiTaxa?.photosEvaluated,2);
   assert.deepEqual(environment.multiTaxa?.candidates.map(x=>x.taxonId).sort(),["aromia","cerambycidae","formicidae"]);
@@ -940,11 +940,11 @@ test("opt-in multi-taxa estimates independently across saved photos and never au
   assert.deepEqual(genus.observations.map(x=>x.photoNumber),[1,2]);
   assert.deepEqual(genus.observations.map(x=>x.assetId),record.photos.map(x=>x.id));
   assert.equal((await state.store.photoHints(guest.owner,record.id,state.env,"multi-ip",true)).environment.version,environment.version);
-  assert.equal(taxonCalls,2);
+  assert.equal(taxonCalls,4);
   const share=await state.store.share(guest.owner,record.id,consent("multi", {fields:["observedAt","environment"],environmentVersion:environment.version}));
   const stored=state.obs.native.prepare("SELECT environment_json FROM biosecurity_shares WHERE share_id = ?").get(share.shareId) as {environment_json:string};
   const shared=JSON.parse(stored.environment_json) as BiosecurityEnvironment;
   assert.equal(shared.multiTaxa,undefined);
   assert.deepEqual(shared.values,environment.values);
-  assert.equal(hintUsage(state).find(x=>x.scope.startsWith("hint-day:"))?.bytes,20000);
+  assert.equal(hintUsage(state).find(x=>x.scope.startsWith("hint-day:"))?.bytes,24000);
 });
