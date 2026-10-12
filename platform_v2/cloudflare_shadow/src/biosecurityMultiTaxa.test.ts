@@ -28,15 +28,17 @@ function reply(request: Record<string, unknown>, selected: readonly string[]) {
 test("one photo may contain multiple families and genera, while absent taxa remain unasserted", () => {
   const asset=photo("asset-1"),request=buildMultiTaxaRequest(asset);
   const q=request.questions as Record<string,unknown>;
-  assert.equal(Object.keys(q).length,VISIBLE_TAXA.length*2);
+  assert.equal(Object.keys(q).length,VISIBLE_TAXA.length);
   assert.ok(Object.keys(q).length<=64);
   assert.equal((request.images as {base64:string}[])[0]?.base64,PNG.toString("base64"));
-  const result=parseMultiTaxaResult(reply(request,["cerambycidae","aromia","formicidae"]),asset,1);
+  const raw=reply(request,["cerambycidae","aromia","formicidae"]);
+  const counts=reply(buildMultiTaxaRequest(asset,["cerambycidae","aromia","formicidae"]),["cerambycidae","aromia","formicidae"]);
+  const result=parseMultiTaxaResult(raw,asset,1,counts);
   assert.equal(result.status,"candidates");
   assert.deepEqual(result.candidates.map(x=>x.taxonId).sort(),["aromia","cerambycidae","formicidae"]);
   assert.equal(result.candidates.find(x=>x.taxonId==="aromia")?.parentId,"cerambycidae");
   assert.ok(result.candidates.every(x=>x.verification==="unverified"&&x.countBand==="two_three"));
-  assert.equal(result.inputTokens,2450);
+  assert.equal(result.inputTokens,4900);
 });
 test("one post can contain different taxa across photos; same taxon never gets its individuals summed", () => {
   const a=photo("asset-1"),b=photo("asset-2");
@@ -57,10 +59,10 @@ test("malformed / uncalibrated responses fail closed, and low counts do not beco
   const a=photo("asset-1"),request=buildMultiTaxaRequest(a),valid=reply(request,["aromia"]);
   assert.equal(parseMultiTaxaResult({ ...valid, answers:{...valid.answers, seen_aromia:{type:"noul",noul:2}} },a,1).status,"unavailable");
   assert.equal(parseMultiTaxaResult({ ...valid, answers:{...valid.answers, irrelevant:{type:"noul",noul:1}} },a,1).status,"unavailable");
-  const low=structuredClone(valid) as {answers:Record<string,any>};
+  const low=reply(buildMultiTaxaRequest(a,["aromia"]),["aromia"]) as {answers:Record<string,any>};
   low.answers.count_aromia.choice="unknown";
   low.answers.count_aromia.probabilities={unknown:0.9,one:0.025,two_three:0.025,four_nine:0.025,ten_plus:0.025};
-  assert.equal(parseMultiTaxaResult(low,a,1).candidates.find(x=>x.taxonId==="aromia")?.countBand,"unknown");
+  assert.equal(parseMultiTaxaResult(valid,a,1,low).candidates.find(x=>x.taxonId==="aromia")?.countBand,"unknown");
   const wrong={...a,assetSha256:"0".repeat(64)};
   let calls=0;
   return generateMultiTaxaHints({run:async()=>{calls++;return valid}},wrong,1).then(out=>{
@@ -69,10 +71,11 @@ test("malformed / uncalibrated responses fail closed, and low counts do not beco
 });
 test("live candidate generation keeps private metadata out of the model request", async () => {
   const a={...photo("asset-1"), privateGps:"35.0000", note:"private note"} as BiosecurityPhotoHintAsset;
-  let body: unknown;
-  const result=await generateMultiTaxaHints({run:async (_model,input)=>{body=input;return reply(input,["aromia","formicidae"])}},a,1);
+  const bodies: unknown[]=[];
+  const result=await generateMultiTaxaHints({run:async (_model,input)=>{bodies.push(input);return reply(input,["aromia","formicidae"])}},a,1);
   assert.equal(result.status,"candidates");
   assert.equal(result.candidates.length,2);
-  assert.ok(!JSON.stringify(body).includes("private note"));
-  assert.ok(!JSON.stringify(body).includes("35.0000"));
+  assert.equal(bodies.length,2);
+  assert.ok(!JSON.stringify(bodies).includes("private note"));
+  assert.ok(!JSON.stringify(bodies).includes("35.0000"));
 });
