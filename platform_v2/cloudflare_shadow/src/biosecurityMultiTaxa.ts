@@ -153,11 +153,12 @@ export function parseMultiTaxaResult(
     let countBand:TaxonCountBand="unknown";
     if (isObject(count) && count.type==="choice" && typeof count.choice==="string" &&
       count.choice in COUNT_CRITERIA && isObject(count.probabilities) && prob(count.confidence)) {
-      const v=Object.keys(count.probabilities);
-      if (v.length===Object.keys(COUNT_CRITERIA).length && v.every(k=>k in COUNT_CRITERIA && prob(count.probabilities[k]))
-          && Math.abs(v.reduce((sum,k)=>sum+Number(count.probabilities[k]),0)-1)<0.015
-          && Number(count.probabilities[count.choice])>=Math.max(...Object.values(count.probabilities) as number[])-1e-9
-          && Number(count.probabilities[count.choice])>=0.45) countBand=count.choice as TaxonCountBand;
+      const probabilities = count.probabilities as Record<string, unknown>;
+      const v=Object.keys(probabilities);
+      if (v.length===Object.keys(COUNT_CRITERIA).length && v.every(k=>k in COUNT_CRITERIA && prob(probabilities[k]))
+          && Math.abs(v.reduce((sum,k)=>sum+Number(probabilities[k]),0)-1)<0.015
+          && Number(probabilities[count.choice])>=Math.max(...Object.values(probabilities) as number[])-1e-9
+          && Number(probabilities[count.choice])>=0.45) countBand=count.choice as TaxonCountBand;
     }
     candidates.push({taxonId:taxon.id,rank:taxon.rank,scientificName:taxon.scientificName,
       label:taxon.label,parentId:taxon.parentId,presenceScore:score,countBand,
