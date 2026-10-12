@@ -25,6 +25,7 @@ function scriptJson(value: unknown): string {
 export const BIOSECURITY_STYLES = `
 ${FRONTEND_FOUNDATION_CSS}
 ${ZUKAN_DESIGN_FOUNDATION_STYLES}
+.bio-taxa-candidates{margin-top:18px}.bio-taxa-list{list-style:none;padding:0;margin:12px 0;display:grid;gap:8px}.bio-taxa-list li{border:1px solid var(--zukan-border-decorative);border-radius:12px;padding:12px 14px}.bio-taxa-list li p{margin:6px 0 0;font-size:14px}.bio-taxa-list strong{font-weight:650}
 html{scroll-padding-top:24px}body{margin:0}body [hidden]{display:none!important}
 .bio-header{border-bottom:1px solid var(--zukan-border-decorative)}
 .bio-header>div{max-width:1120px;margin:auto;min-height:72px;padding:12px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
@@ -201,6 +202,26 @@ export const BIOSECURITY_SCRIPT = String.raw`
     return choice && choice.value !== 'unknown' ? [{field:field.field, label:field.label, value:choice.label, source:values[field.field + '_source'] === 'user' ? '自分で入力' : values[field.field + '_source'] === 'derived' ? '1枚目の写真からの候補（AI）' : '記録した内容'}] : [];
   });
   const hasEnvironment = (environment) => environmentEntries(environment).length > 0 || environmentFields.some((field) => environment && environment.values && environment.values[field.field + '_source'] === 'user');
+
+  const countBandText = {unknown:'数は不明', one:'1匹・1個体ほど', two_three:'2〜3個体ほど', four_nine:'4〜9個体ほど', ten_plus:'10個体以上'};
+  const taxonRankText = {class:'綱', order:'目', family:'科', genus:'属'};
+  const taxaDetails = (environment) => {
+    const analysis = environment && environment.multiTaxa;
+    if (!analysis) return '';
+    if (analysis.status === 'unavailable') return '<p class="bio-note">生きものの判定は利用できませんでした。写真は保存されています。</p>';
+    const candidates = Array.isArray(analysis.candidates) ? analysis.candidates : [];
+    if (!candidates.length) return '<p class="bio-note">写真から生きものの分類候補を見つけられませんでした。「いない」と確定した意味ではありません。</p>';
+    return '<section class="bio-taxa-candidates" aria-label="生きものの分類候補"><h3>写真に写る生きものの候補</h3>' +
+      '<p class="bio-note">同じ個体の科と属が両方並ぶことがあります。別の生きものとして数えません。写真をまたいだ個体数は合計しません。</p>' +
+      '<ul class="bio-taxa-list">' + candidates.map((item) => {
+        const observations = Array.isArray(item.observations) ? item.observations : [];
+        const evidence = observations.map((photo) => '写真' + Number(photo.photoNumber) + '：' + (countBandText[photo.countBand] || '数は不明')).join(' ／ ');
+        const strength = Number(item.presenceScore);
+        const caveat = Number.isFinite(strength) && strength < 0.8 ? '（候補の根拠は弱め）' : '';
+        return '<li><strong>' + esc(item.label) + '</strong><span class="bio-note"> ' +
+          esc(taxonRankText[item.rank] || '') + 'の候補 ' + esc(caveat) + '</span><p>' + esc(evidence || '写真から数は不明') + '</p></li>';
+      }).join('') + '</ul><p class="bio-note">自動判定による未確認の記録です。数や分類が違っていても、写真自体の保存・共有範囲は変わりません。</p></section>';
+  };
   const environmentDetails = (environment) => { const entries = environmentEntries(environment); return entries.length ? '<dl class="bio-detail-list bio-environment-values">' + entries.map((item) => '<dt>' + esc(item.label) + '</dt><dd>' + esc(item.value) + '<small class="bio-note">' + esc(item.source) + '</small></dd>').join('') + '</dl>' : ''; };
   const detailText = (record) => [
     'ZUKAN 外来種の記録（虫の名前や被害は未確認）', hasTime(record) && '見つけた日時：' + observedTimeText(record) + (timeSourceText(record.observedTime) ? ' ／' + timeSourceText(record.observedTime) : ''),
@@ -377,9 +398,9 @@ export const BIOSECURITY_SCRIPT = String.raw`
   const environmentSection = (record) => {
     const environment = record.environment || {status:'not_requested', version:0, values:{}}, entries = environmentEntries(environment), values = environment.values || {};
     const state = environment.status || 'not_requested';
-    const text = {not_requested:'写真に写った草や木、地面のようすも残せます。', processing:'写真を調べています。写真と記録は保存できています。', ready:entries.length ? entries.some((entry) => entry.source === '1枚目の写真からの候補（AI）') ? '写真から出した候補は、間違っていることもあります。違っていたら直してください。' : 'わかるところを残しました。内容はいつでも直せます。' : '写真からは、まわりのようすがわかりませんでした。わかることがあれば書き足せます。', unavailable:'今は写真から調べられません。写真と記録は保存されています。', budget_reached:'今日は写真から調べられる回数の上限に達しました。写真と記録は保存されています。', off:'写真から調べる機能は、今はお休みです。わかることを自分で残せます。'}[state] || '写真と記録は保存されています。';
-    return '<section class="bio-section bio-environment" id="bio-environment"><h2>まわりのようす</h2><p role="status">' + esc(text) + '</p>' + environmentDetails(environment) +
-      (state === 'not_requested' || state === 'ready' && environment.model === null ? '<p class="bio-note" id="bio-environment-disclosure">1枚目の写真をCloudflareのAIで調べます。候補は間違うことがあります。虫の名前や被害の有無は判定しません。</p><button type="button" class="bio-action secondary" id="bio-environment-hints" aria-describedby="bio-environment-disclosure">写真から、まわりの様子を調べる</button>' : '') +
+    const text = {not_requested:'写真に写った草や木、地面のようすも残せます。', processing:'写真を調べています。写真と記録は保存できています。', ready:entries.length ? entries.some((entry) => entry.source === '1枚目の写真からの候補（AI）') || Boolean(environment.multiTaxa?.candidates?.length) ? '写真から出した候補は、間違っていることもあります。違っていたら直してください。' : 'わかるところを残しました。内容はいつでも直せます。' : '写真からは、まわりのようすがわかりませんでした。わかることがあれば書き足せます。', unavailable:'今は写真から調べられません。写真と記録は保存されています。', budget_reached:'今日は写真から調べられる回数の上限に達しました。写真と記録は保存されています。', off:'写真から調べる機能は、今はお休みです。わかることを自分で残せます。'}[state] || '写真と記録は保存されています。';
+    return '<section class="bio-section bio-environment" id="bio-environment"><h2>写真から分かったこと</h2><p role="status">' + esc(text) + '</p>' + environmentDetails(environment) + taxaDetails(environment) +
+      (state === 'not_requested' || state === 'ready' && environment.model === null ? '<p class="bio-note" id="bio-environment-disclosure">保存した写真を調べ、まわりの環境や、写っている生きものの分類候補を探します。候補は確定ではなく、外来種の正式な同定や自治体への通報は行いません。</p><button type="button" class="bio-action secondary" id="bio-environment-hints" aria-describedby="bio-environment-disclosure">写真から分かることを調べる</button>' : '') +
       (state === 'processing' || state === 'unavailable' ? '<button type="button" class="bio-action secondary" id="bio-environment-refresh">結果を確認する</button>' : '') +
       '<details><summary>' + (entries.length ? '違うところを直す' : 'わかることを自分で入れる') + '</summary><div><p class="bio-note">わかるところだけで大丈夫です。「わからない・使わない」を選ぶと、その候補を外せます。</p><form id="bio-environment-form" class="bio-form"><fieldset data-controls>' + environmentFields.map((field) => '<div class="bio-field"><label for="bio-environment-' + esc(field.field) + '">' + esc(field.label) + '</label><select id="bio-environment-' + esc(field.field) + '" name="' + esc(field.field) + '">' + field.options.map((option) => '<option value="' + esc(option.value) + '"' + (option.value === (values[field.field] || 'unknown') ? ' selected' : '') + '>' + esc(option.value === 'unknown' ? 'わからない・使わない' : option.label) + '</option>').join('') + '</select></div>').join('') + '<button class="bio-action secondary" type="submit">直した内容を残す</button></fieldset></form></div></details>' +
       ((record.shares || []).some((share) => share.status !== 'withdrawn' && (share.fields || []).includes('environment')) ? '<p class="bio-note">すでに自治体へ送った内容は変わりません。直した内容を送りたいときは、改めて共有してください。</p>' : '') + '</section>';
