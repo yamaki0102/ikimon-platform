@@ -948,3 +948,24 @@ test("opt-in multi-taxa estimates independently across saved photos and never au
   assert.deepEqual(shared.values,environment.values);
   assert.equal(hintUsage(state).find(x=>x.scope.startsWith("hint-day:"))?.bytes,24000);
 });
+
+
+test("private same-label temporal overlap is only returned to the same guest and never claimed as confirmed Place", async t => {
+  const state = fixture(t);
+  const guest = await newGuest(state), outsider = await newGuest(state);
+  const older = await capture(state, guest.owner, "temporal-older", {spot_label:"公園入口の桜"});
+  const latest = await capture(state, guest.owner, "temporal-latest", {spot_label:"公園入口の桜"});
+  const different = await capture(state, guest.owner, "temporal-other", {spot_label:"川沿い"});
+  await capture(state, outsider.owner, "temporal-other-owner", {spot_label:"公園入口の桜"});
+  const previous = (await state.store.receipt(latest.id, guest.owner)).relatedRecords;
+  assert.equal(previous.length,1);
+  assert.deepEqual(previous.map(x=>x.id),[older.id]);
+  assert.equal(previous[0]?.relation,"matching_spot_label_candidate");
+  assert.deepEqual((await state.store.receipt(different.id, guest.owner)).relatedRecords,[]);
+  assert.equal((await request(state,`/records/${latest.id}`,{cookie:outsider.cookie})).status,404);
+  const share=await state.store.share(guest.owner,latest.id,consent("temporal", {fields:["observedAt","spotLabel"]}));
+  const stored=state.obs.native.prepare("SELECT environment_json FROM biosecurity_shares WHERE share_id = ?").get(share.shareId) as {environment_json:string|null};
+  assert.equal(stored.environment_json,null);
+  await state.store.remove(older.id,guest.owner,"withdrawn");
+  assert.deepEqual((await state.store.receipt(latest.id, guest.owner)).relatedRecords,[]);
+});
