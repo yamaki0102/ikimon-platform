@@ -26,7 +26,7 @@ function reply(request: Record<string, unknown>, selected: readonly string[]) {
   return {model:"clef-flash",answers,usage:{input_tokens:2450,output_tokens:0}};
 }
 test("one photo may contain multiple families and genera, while absent taxa remain unasserted", () => {
-  const asset=photo("asset-1"),request=buildMultiTaxaRequest(asset);
+  const asset=photo("asset_1"),request=buildMultiTaxaRequest(asset);
   const q=request.questions as Record<string,unknown>;
   assert.equal(Object.keys(q).length,VISIBLE_TAXA.length);
   assert.ok(Object.keys(q).length<=64);
@@ -41,7 +41,7 @@ test("one photo may contain multiple families and genera, while absent taxa rema
   assert.equal(result.inputTokens,4900);
 });
 test("one post can contain different taxa across photos; same taxon never gets its individuals summed", () => {
-  const a=photo("asset-1"),b=photo("asset-2");
+  const a=photo("asset_1"),b=photo("asset_2");
   const pa=parseMultiTaxaResult(reply(buildMultiTaxaRequest(a),["formicidae","aromia"]),a,1);
   const pb=parseMultiTaxaResult(reply(buildMultiTaxaRequest(b),["formicidae","poaceae"]),b,2);
   const combined=mergeMultiTaxaPhotos([pa,pb]);
@@ -52,11 +52,11 @@ test("one post can contain different taxa across photos; same taxon never gets i
   assert.equal(ant.countAcrossPhotos,"not_deduplicated");
   assert.equal(ant.observations.length,2);
   assert.deepEqual(ant.observations.map(x=>x.photoNumber),[1,2]);
-  assert.deepEqual(ant.observations.map(x=>x.assetId),["asset-1","asset-2"]);
+  assert.deepEqual(ant.observations.map(x=>x.assetId),["asset_1","asset_2"]);
   assert.throws(()=>mergeMultiTaxaPhotos([pa,pa]),/photo_number_invalid/);
 });
 test("malformed / uncalibrated responses fail closed, and low counts do not become exact observations", () => {
-  const a=photo("asset-1"),request=buildMultiTaxaRequest(a),valid=reply(request,["aromia"]);
+  const a=photo("asset_1"),request=buildMultiTaxaRequest(a),valid=reply(request,["aromia"]);
   assert.equal(parseMultiTaxaResult({ ...valid, answers:{...valid.answers, seen_aromia:{type:"noul",noul:2}} },a,1).status,"unavailable");
   assert.equal(parseMultiTaxaResult({ ...valid, answers:{...valid.answers, irrelevant:{type:"noul",noul:1}} },a,1).status,"unavailable");
   const low=reply(buildMultiTaxaRequest(a,["aromia"]),["aromia"]) as {answers:Record<string,any>};
@@ -70,7 +70,7 @@ test("malformed / uncalibrated responses fail closed, and low counts do not beco
   });
 });
 test("live candidate generation keeps private metadata out of the model request", async () => {
-  const a={...photo("asset-1"), privateGps:"35.0000", note:"private note"} as BiosecurityPhotoHintAsset;
+  const a={...photo("asset_1"), privateGps:"35.0000", note:"private note"} as BiosecurityPhotoHintAsset;
   const bodies: unknown[]=[];
   const result=await generateMultiTaxaHints({run:async (_model,input)=>{bodies.push(input);return reply(input,["aromia","formicidae"])}},a,1);
   assert.equal(result.status,"candidates");
