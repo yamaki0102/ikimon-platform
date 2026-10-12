@@ -317,8 +317,22 @@ export class BiosecurityStore {
     if (assets.length !== row.selected_count || assets.some(asset => asset.processing_state !== "ready")) fail(503, "photo_storage_incomplete");
     const shares = (await statement(this.db, "SELECT * FROM biosecurity_shares WHERE record_id = ? ORDER BY created_at DESC LIMIT 50", id).all<ShareRow>()).results;
     const environment = await this.environment(row);
+    // A private, owner-only temporal overlap, never a confirmed Place identity.
+    // A matching free-text spot label alone cannot establish that two locations
+    // or organisms are identical. Return links only to the current guest's
+    // still-active drafts; no map, public feed or municipal inbox projection.
+    const related = row.spot_label && row.municipality_code
+      ? (await statement(this.db,
+          "SELECT record_id, spot_label, created_at FROM biosecurity_record_contexts WHERE owner_hash = ? AND municipality_code = ? AND spot_label = ? AND record_id <> ? AND persistence = 'saved' AND expires_at > ? ORDER BY created_at DESC LIMIT 5",
+          ownerHash, row.municipality_code, row.spot_label, id, nowIso())
+          .all<{ record_id: string; spot_label: string; created_at: string }>()).results
+      : [];
     await this.ownerContext(id,ownerHash);
     return {
+      relatedRecords: related.map(other => ({
+        id: other.record_id, spotLabel: other.spot_label,
+        recordedAt: other.created_at, relation: "matching_spot_label_candidate" as const,
+      })),
       id, profileId: row.profile_id, observedAt: metadata.time.instant, observedTime: metadata.time, locationSource: metadata.location.source, photoConflicts: metadata.conflicts, municipalityCode: row.municipality_code,
       municipalityName: findMunicipality(row.municipality_code ?? "")?.name ?? null,
       officialUrl: findMunicipality(row.municipality_code ?? "")?.website ?? biosecurityProfile(row.profile_id)?.guideUrl,
