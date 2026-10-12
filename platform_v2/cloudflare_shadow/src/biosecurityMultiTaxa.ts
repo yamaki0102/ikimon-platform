@@ -125,8 +125,8 @@ export function buildMultiTaxaRequest(asset: BiosecurityPhotoHintAsset, countFor
 function responseValid(raw: unknown, questions: readonly string[]): raw is Record<string, unknown> & {answers:Record<string, unknown>;usage:Record<string,unknown>} {
   if (!isObject(raw) || !["clef-flash",BIOSECURITY_PHOTO_HINT_MODEL].includes(String(raw.model))
       || !isObject(raw.answers) || !isObject(raw.usage)
-      || !Number.isSafeInteger(raw.usage.input_tokens) || Number(raw.usage.input_tokens)<1
-      || Number(raw.usage.input_tokens)>MULTI_TAXA_MAX_INPUT_TOKENS || !Number.isSafeInteger(raw.usage.output_tokens)
+      || (typeof raw.usage.input_tokens !== "number" || !Number.isSafeInteger(raw.usage.input_tokens)) || Number(raw.usage.input_tokens)<1
+      || Number(raw.usage.input_tokens)>MULTI_TAXA_MAX_INPUT_TOKENS || (typeof raw.usage.output_tokens !== "number" || !Number.isSafeInteger(raw.usage.output_tokens))
       || Object.keys(raw.answers).length!==questions.length || Object.keys(raw.answers).some(k=>!questions.includes(k))) return false;
   return true;
 }
