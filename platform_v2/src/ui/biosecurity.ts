@@ -231,6 +231,14 @@ export const BIOSECURITY_SCRIPT = String.raw`
     ...environmentEntries(record.environment).map((item) => item.label + '：' + item.value + ' ／' + item.source),
     'これは自治体での正式受付を示すものではありません。'
   ].filter(Boolean).join('\n');
+  const relatedRecordsSection = (record) => {
+    const items = Array.isArray(record.relatedRecords) ? record.relatedRecords : [];
+    if (!items.length) return '';
+    return '<section class="bio-section" aria-label="以前の記録"><h2>この目印で残した以前の記録</h2>' +
+      '<p class="bio-note">同じ端末で保存した、地域と場所の目印が一致する記録です。同じ木・生きもの・場所と確認した結果ではありません。</p><ul class="bio-taxa-list">' +
+      items.map(item => '<li><a href="/ja/biosecurity/records/' + encodeURIComponent(item.id) + '">' +
+        esc(item.spotLabel) + ' · ' + esc(dateText(item.recordedAt)) + '</a></li>').join('') + '</ul></section>';
+  };
   const details = (record) => '<dl class="bio-detail-list">' + [
     hasTime(record) && ['見つけた日時', observedTimeText(record) + (timeSourceText(record.observedTime) ? '\n' + timeSourceText(record.observedTime) : '')], record.municipalityName && ['市区町村', record.municipalityName],
     record.spotLabel && ['場所の目印', record.spotLabel], record.signal && record.signal !== 'unknown' && ['気になったこと', signalLabel(record.signal)],
@@ -453,7 +461,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
       }
       const data = await request('/records/' + encodeURIComponent(config.recordId)), record = data.record;
       if (!record || !record.id) throw new Error('record_missing');
-      target.innerHTML = '<p><span class="bio-private">保存済み・非公開</span></p>' + photoGrid(record.photos) + details(record) +
+      target.innerHTML = '<p><span class="bio-private">保存済み・非公開</span></p>' + photoGrid(record.photos) + details(record) + relatedRecordsSection(record) +
         (record.photoConflicts && (record.photoConflicts.time || record.photoConflicts.location) ? '<p class="bio-note">写真ごとに日時や場所の情報が違います。保存前に選んだ内容を表示しています。</p>' : '') + environmentSection(record) +
         '<div class="bio-actions"><button class="bio-action secondary" id="bio-copy-record" type="button">連絡用の文章をコピー</button>' + (safeHttps(record.officialUrl) ? '<a href="' + esc(safeHttps(record.officialUrl)) + '" target="_blank" rel="noopener noreferrer">公式の案内・連絡先を確認（別のタブ）</a>' : '') + '</div><p class="bio-note" style="margin-top:16px">コピーには、この画面の日時・場所・メモなどが入ります。伝えたい情報を選んで、公式窓口への連絡に使えます。</p>' +
         (record.expiresAt ? '<p class="bio-note">閲覧期限：' + esc(dateText(record.expiresAt)) + '。期限後は順次削除します。必要な写真は手元にも保存してください。</p>' : '') +
