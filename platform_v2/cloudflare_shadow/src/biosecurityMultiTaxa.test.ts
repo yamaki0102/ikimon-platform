@@ -6,7 +6,7 @@ import type { BiosecurityPhotoHintAsset } from "./biosecurityPhotoHints";
 
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGPUyLNhYGBgYmBgYGBgAAAJ7gDW/OIFpQAAAABJRU5ErkJggg==", "base64");
 const photo = (id: string): BiosecurityPhotoHintAsset => ({
-  assetId: id, assetSha256: createHash("sha256").update(PNG).digest("hex"),
+  assetId: id, sha256: createHash("sha256").update(PNG).digest("hex"),
   bytes: Uint8Array.from(PNG).buffer, mime: "image/png",
 });
 function reply(request: Record<string, unknown>, selected: readonly string[]) {
