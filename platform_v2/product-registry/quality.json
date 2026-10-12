@@ -821,10 +821,12 @@
         "denied"
       ],
       "acceptance": [
-        "日時と1〜6枚の写真から保存でき、位置情報の取得や正確な場所の入力を必須にしない",
+        "1〜6枚の写真だけで保存でき、日時・位置の取得や正確な場所の入力を必須にしない",
         "ブラウザーとサーバーで写真の位置情報等を除き、公開・AI解析・自治体共有は自動実行しない",
         "同じ送信意図の再試行は同じRecordとmedia setへ収束し、R2の一部保存や失敗を保存済みと表示しない",
-        "保存件数・写真容量・保持期限の上限を適用し、利用集中時は入力を残して失敗を表示する"
+        "保存件数・写真容量・保持期限の上限を適用し、利用集中時は入力を残して失敗を表示する",
+        "撮影日時の不明・日付のみ・時差不明を保持し、現在時刻やファイル更新日時で埋めない",
+        "本人の訂正・不採用を後から写真情報で上書きせず、複数写真の不一致と採用した写真を示す"
       ],
       "tests": [
         {
@@ -840,6 +842,16 @@
         {
           "locator": "platform_v2/cloudflare_shadow/src/biosecurityMedia.test.ts",
           "kind": "binary-metadata-minimization",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/src/services/biosecurityPhotoMetadata.test.ts",
+          "kind": "photo-metadata-provenance",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurityCaptureContext.test.ts",
+          "kind": "nullable-observation-time",
           "status": "canonical"
         }
       ]
@@ -867,7 +879,9 @@
         "市民が明示的に選んだ自治体・目的・項目だけを提供し、正確な位置や写真は独立に選択する",
         "未成年申告の記録は共有時の保護者確認を必須にする",
         "共有の利用可能・担当者の確認・公式窓口への通報を区別する",
-        "撤回と削除は受信者の再取得を停止し、90日の保持期限と端末データ削除時の制約を表示する"
+        "撤回と削除は受信者の再取得を停止し、90日の保持期限と端末データ削除時の制約を表示する",
+        "環境候補は保存後の明示操作だけで最初の写真1枚を送る。再表示・再送・競合で呼出しを増やさない",
+        "環境は未選択の共有項目として追加し、同意した版を固定して後日の訂正で書き換えない"
       ],
       "tests": [
         {
@@ -878,6 +892,11 @@
         {
           "locator": "platform_v2/src/ui/biosecurity.test.ts",
           "kind": "ui-contract",
+          "status": "canonical"
+        },
+        {
+          "locator": "platform_v2/cloudflare_shadow/src/biosecurityPhotoHints.test.ts",
+          "kind": "bounded-clef-decisions",
           "status": "canonical"
         }
       ]

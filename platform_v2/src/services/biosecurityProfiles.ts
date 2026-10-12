@@ -13,7 +13,7 @@ export interface BiosecurityProfile {
 /** Profiles specialize guidance; they never create a separate Record, storage or AI pipeline. */
 export const BIOSECURITY_PROFILES: readonly BiosecurityProfile[] = [{
   id: "kubiaka", version: "1.0.0", title: "クビアカツヤカミキリの見守り",
-  guideHeading: "クビアカツヤカミキリを見つけたかも？",
+  guideHeading: "気になる虫や木を見つけたら",
   summary: "気になる虫や木の変化を、写真1枚から残せます。種類が分からなくても大丈夫です。",
   signals: [
     { value: "adult_insect", label: "気になる虫" },

@@ -1,0 +1,27 @@
+{
+  "generator": "Built-in image_gen.imagegen",
+  "createdAt": "2026-10-12",
+  "purpose": "Original conceptual illustration for the ZUKAN photo-first biosecurity guide, suitable for children and accompanying adults.",
+  "description": "An anonymous child and accompanying adult photograph a tree from a broad safe level park path. Neither person touches the tree or an insect. Warm gouache and paper texture, ivory, forest green, sage, yellow and restrained orange.",
+  "visualQA": "Root inspected the generated illustration at full returned resolution: child and adult remain on the path, one phone, no labels, logos, watermarks, species identification claims or recognizable person.",
+  "usageNote": "Conceptual illustration, not a photograph, evidence of a real sighting, geographic map, official mascot or species identification diagram.",
+  "alt": "安全な小道から、子どもと大人が一緒に木の様子を写真に残すイラスト",
+  "packaging": "Original retained; WebP derivative uses Sharp resizing/encoding only, with no creative alteration.",
+  "assets": [
+    {
+      "file": "photo-watch.webp",
+      "width": 1200,
+      "height": 800,
+      "bytes": 155794,
+      "sha256": "44f6ffede4aeb220ea3977e7d2a94a2d8104ea633ccb3ad39b368fecb416a476"
+    }
+  ],
+  "sourceGeneration": {
+    "width": 1536,
+    "height": 1024,
+    "bytes": 2887556,
+    "sha256": "0e222e9f3db4942c0b71a69a302ed1267299c75abb8683e0ba751a814c62b229",
+    "generationFile": "exec-410783a8-0977-49b6-8f3f-fbc2b59898ac.png",
+    "retention": "Original generation retained separately; this repository deploys the WebP derivative."
+  }
+}
