@@ -25984,6 +25984,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (pathname === "/offline.html" || pathname === "/robots.txt" || pathname === "/app-sw.js") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico" || pathname === "/manifest.webmanifest") return true;
+  if (pathname === "/assets/biosecurity/photo-watch.webp") return true;
   if (/^\/assets\/brand\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/img\/invasive\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/img\/landing\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
