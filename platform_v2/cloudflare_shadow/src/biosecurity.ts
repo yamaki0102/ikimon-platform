@@ -8,6 +8,7 @@ import { officialMailboxDomain, resolveOfficialMailboxDomain } from "./municipal
 import { parseBiosecurityCaptureMetadata, legacyBiosecurityCaptureMetadata, type BiosecurityCaptureMetadata } from "./biosecurityCaptureContext";
 import { ENVIRONMENT_RECORD_FIELDS, mergeAutoEnvironmentRecordValues, mergeUserEnvironmentRecordValues, normalizeEnvironmentRecordValue } from "../../src/services/environmentRecord";
 import { BIOSECURITY_PHOTO_HINT_MODEL, BIOSECURITY_PHOTO_HINT_VERSION, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, generateBiosecurityPhotoHints } from "./biosecurityPhotoHints";
+import { MULTI_TAXA_MAX_INPUT_TOKENS, generateMultiTaxaHints, mergeMultiTaxaPhotos, type PostTaxonResult, type PhotoTaxonResult } from "./biosecurityMultiTaxa";
 
 const DAY = 86_400_000;
 const GUEST_SCOPE = "zukan-biosecurity-private-v1";
@@ -29,6 +30,7 @@ export interface BiosecurityEnv {
   BIOSECURITY_EMAIL_ENABLED?: string;
   BIOSECURITY_PHOTO_HINTS_ENABLED?: string;
   BIOSECURITY_PHOTO_HINT_DAILY_TOKENS?: string;
+  BIOSECURITY_MULTI_TAXA_ENABLED?: string;
   AI?: { run(model: string, input: unknown): Promise<unknown> };
   ALERT_EMAIL_FROM?: string;
   ALERT_EMAIL?: { send(message: { from: string; to: string; subject: string; text: string }): Promise<unknown> };
@@ -166,7 +168,7 @@ type AssetRow = { asset_id: string; object_key: string; mime: string; bytes: num
 type ObservationRow = { observed_at: string | null; note: string | null; exact_lat: number | null; exact_lng: number | null };
 type ShareRow = { share_id: string; record_id: string; municipality_code: string; purpose: string; fields_json: string; owner_hash: string; status: string; version: number; created_at: string; acknowledged_at: string | null; request_digest: string; environment_json: string | null };
 type HintAttempt = { record_id: string; asset_id: string; asset_sha256: string; model: string; question_version: string; state: "reserved" | "ready" | "unavailable"; created_at: string; completed_at: string | null };
-export type BiosecurityEnvironment = { status: "not_requested" | "processing" | "ready" | "unavailable" | "budget_reached" | "off"; version: number; values: Record<string, string>; model: string | null; questionVersion: string | null; photoNumber: number | null; updatedAt: string | null };
+export type BiosecurityEnvironment = { status: "not_requested" | "processing" | "ready" | "unavailable" | "budget_reached" | "off"; version: number; values: Record<string, string>; model: string | null; questionVersion: string | null; photoNumber: number | null; updatedAt: string | null; multiTaxa?: PostTaxonResult };
 
 export class BiosecurityStore {
   constructor(readonly db: DiscoveryDatabase, readonly bucket: DiscoveryBucket) {}
@@ -229,8 +231,11 @@ export class BiosecurityStore {
     if (env.BIOSECURITY_PHOTO_HINTS_ENABLED !== "on" || !env.AI || !Number.isSafeInteger(budget) || budget < BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS || budget > 200_000) {
       const environment = { ...await this.environment(row), status: "off" as const }; await this.ownerContext(id, ownerHash); return { environment };
     }
-    const asset = (await this.assets(row.draft_id))[0];
-    if (!asset || asset.processing_state !== "ready" || asset.bytes > BIOSECURITY_LIMITS.photoBytes) fail(503, "photo_storage_incomplete");
+    const assets = await this.assets(row.draft_id);
+    const asset = assets[0];
+    if (!asset || assets.length !== row.selected_count || assets.some(item => item.processing_state !== "ready" || item.bytes > BIOSECURITY_LIMITS.photoBytes)) fail(503, "photo_storage_incomplete");
+    const multiTaxaEnabled = env.BIOSECURITY_MULTI_TAXA_ENABLED === "on";
+    const reservedTokens = BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS + (multiTaxaEnabled ? assets.length * MULTI_TAXA_MAX_INPUT_TOKENS : 0);
     const now = nowIso(), attemptKey = randomCredential();
     const scopes = [
       { key: "hint-day:" + now.slice(0, 10), count: BIOSECURITY_LIMITS.dailyRecords, tokens: budget },
@@ -238,8 +243,8 @@ export class BiosecurityStore {
       { key: "hint-ip:" + now.slice(0, 10) + ":" + ipHash, count: 5, tokens: Number.MAX_SAFE_INTEGER },
     ];
     const checks = scopes.map(() => "COALESCE((SELECT count FROM biosecurity_usage WHERE scope = ?),0) < ? AND COALESCE((SELECT bytes FROM biosecurity_usage WHERE scope = ?),0) + ? <= ?").join(" AND ");
-    const writes: Statement[] = [statement(this.db, `INSERT OR IGNORE INTO biosecurity_photo_hint_attempts (record_id,attempt_key,asset_id,asset_sha256,model,question_version,state,reserved_tokens,created_at) SELECT ?,?,?,?,?,?,'reserved',?,? WHERE ${checks} AND EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.owner_hash = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?)`, id, attemptKey, asset.asset_id, asset.sha256, BIOSECURITY_PHOTO_HINT_MODEL, BIOSECURITY_PHOTO_HINT_VERSION, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, now, ...scopes.flatMap(scope => [scope.key, scope.count, scope.key, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, scope.tokens]), id, ownerHash, now, now)];
-    for (const scope of scopes) writes.push(statement(this.db, "INSERT INTO biosecurity_usage (scope,count,bytes) SELECT ?,1,? WHERE EXISTS (SELECT 1 FROM biosecurity_photo_hint_attempts WHERE record_id = ? AND attempt_key = ?) ON CONFLICT(scope) DO UPDATE SET count = count + 1, bytes = bytes + excluded.bytes", scope.key, BIOSECURITY_PHOTO_HINT_MAX_INPUT_TOKENS, id, attemptKey));
+    const writes: Statement[] = [statement(this.db, `INSERT OR IGNORE INTO biosecurity_photo_hint_attempts (record_id,attempt_key,asset_id,asset_sha256,model,question_version,state,reserved_tokens,created_at) SELECT ?,?,?,?,?,?,'reserved',?,? WHERE ${checks} AND EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.owner_hash = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ?)`, id, attemptKey, asset.asset_id, asset.sha256, BIOSECURITY_PHOTO_HINT_MODEL, BIOSECURITY_PHOTO_HINT_VERSION, reservedTokens, now, ...scopes.flatMap(scope => [scope.key, scope.count, scope.key, reservedTokens, scope.tokens]), id, ownerHash, now, now)];
+    for (const scope of scopes) writes.push(statement(this.db, "INSERT INTO biosecurity_usage (scope,count,bytes) SELECT ?,1,? WHERE EXISTS (SELECT 1 FROM biosecurity_photo_hint_attempts WHERE record_id = ? AND attempt_key = ?) ON CONFLICT(scope) DO UPDATE SET count = count + 1, bytes = bytes + excluded.bytes", scope.key, reservedTokens, id, attemptKey));
     // Count and token reservations precede the only provider call. Unknown outcomes
     // retain their reservation and are not automatically resent on retries/reloads.
     const reserved = await this.db.batch(writes);
@@ -251,6 +256,7 @@ export class BiosecurityStore {
       return { environment };
     }
     let generated: Awaited<ReturnType<typeof generateBiosecurityPhotoHints>> | null = null;
+    let multiTaxa: PostTaxonResult | null = null;
     try {
       const head = await this.bucket.head(asset.object_key);
       if (!head || head.size !== asset.bytes) fail(503, "photo_storage_unconfirmed");
@@ -260,6 +266,24 @@ export class BiosecurityStore {
       if (bytes.byteLength !== asset.bytes) fail(503, "photo_storage_unconfirmed");
       await this.ownerContext(id, ownerHash);
       generated = await generateBiosecurityPhotoHints(env.AI, { bytes, mime: asset.mime, sha256: asset.sha256, assetId: asset.asset_id });
+      if (multiTaxaEnabled) {
+        const analyzed: PhotoTaxonResult[] = [];
+        for (let index = 0; index < assets.length; index++) {
+          const target = assets[index]!;
+          await this.ownerContext(id, ownerHash); // An owner deletion cancels later inference and prevents resurrection.
+          let image = index === 0 ? bytes : null;
+          if (!image) {
+            const head = await this.bucket.head(target.object_key);
+            if (!head || head.size !== target.bytes) fail(503, "photo_storage_unconfirmed");
+            const saved = await this.bucket.get(target.object_key);
+            if (!saved?.body) fail(503, "photo_storage_unavailable");
+            image = await new Response(saved.body).arrayBuffer();
+          }
+          if (image.byteLength !== target.bytes) fail(503, "photo_storage_unconfirmed");
+          analyzed.push(await generateMultiTaxaHints(env.AI, { bytes: image, mime: target.mime, sha256: target.sha256, assetId: target.asset_id }, index + 1));
+        }
+        multiTaxa = mergeMultiTaxaPhotos(analyzed);
+      }
     } catch (error) {
       if (error instanceof BiosecurityError && error.status === 404) throw error;
       // Saving remains complete even when photo assistance is unavailable.
@@ -272,10 +296,10 @@ export class BiosecurityStore {
       if (row.persistence !== "saved") fail(404, "record_not_found");
       const current = await this.environment(row);
       const values = generated && generated.status !== "unavailable" ? mergeAutoEnvironmentRecordValues(current.values, generated.environmentRecord, { updatedAt: completedAt, updatedBy: "biosecurity_photo_clef_v1" }) : current.values;
-      const environment: BiosecurityEnvironment = { status: (generated && generated.status !== "unavailable") || ENVIRONMENT_RECORD_FIELDS.some(field => values[field.field]) ? "ready" : "unavailable", version: row.environment_version + 1, values, model: BIOSECURITY_PHOTO_HINT_MODEL, questionVersion: BIOSECURITY_PHOTO_HINT_VERSION, photoNumber: generated && generated.status !== "unavailable" ? 1 : null, updatedAt: completedAt };
+      const environment: BiosecurityEnvironment = { status: (generated && generated.status !== "unavailable") || (multiTaxa && multiTaxa.status !== "unavailable") || ENVIRONMENT_RECORD_FIELDS.some(field => values[field.field]) ? "ready" : "unavailable", version: row.environment_version + 1, values, model: BIOSECURITY_PHOTO_HINT_MODEL, questionVersion: BIOSECURITY_PHOTO_HINT_VERSION, photoNumber: generated && generated.status !== "unavailable" ? 1 : null, updatedAt: completedAt, ...(multiTaxa ? { multiTaxa } : {}) };
       const results = await this.db.batch([
         statement(this.db, "UPDATE biosecurity_record_contexts SET environment_json = ?, environment_version = environment_version + 1 WHERE record_id = ? AND owner_hash = ? AND persistence = 'saved' AND expires_at > ? AND environment_version = ? AND EXISTS (SELECT 1 FROM biosecurity_guest_sessions WHERE owner_hash = ? AND revoked_at IS NULL AND expires_at > ?)", JSON.stringify(environment), id, ownerHash, completedAt, row.environment_version, ownerHash, completedAt),
-        statement(this.db, "UPDATE biosecurity_photo_hint_attempts SET state = ?,input_tokens = ?,completed_at = ? WHERE record_id = ? AND attempt_key = ? AND changes() = 1", generated && generated.status !== "unavailable" ? "ready" : "unavailable", generated?.inputTokens ?? null, completedAt, id, attemptKey),
+        statement(this.db, "UPDATE biosecurity_photo_hint_attempts SET state = ?,input_tokens = ?,completed_at = ? WHERE record_id = ? AND attempt_key = ? AND changes() = 1", generated && generated.status !== "unavailable" ? "ready" : "unavailable", generated?.inputTokens !== null && generated?.inputTokens !== undefined && multiTaxa?.inputTokens !== null && multiTaxa?.inputTokens !== undefined ? generated.inputTokens + multiTaxa.inputTokens : multiTaxa ? null : generated?.inputTokens ?? null, completedAt, id, attemptKey),
       ]);
       if (changed(results[0])) { await this.ownerContext(id, ownerHash); return { environment }; }
     }
@@ -402,7 +426,7 @@ export class BiosecurityStore {
     const environment = fields.includes("environment") ? await this.environment(record) : null;
     if (environment && (environment.status !== "ready" || !ENVIRONMENT_RECORD_FIELDS.some(field => environment.values[field.field]) || body.environmentVersion !== record.environment_version)) fail(409, "environment_version_changed");
     await this.db.batch([
-      statement(this.db,"INSERT OR IGNORE INTO biosecurity_shares (share_id,record_id,municipality_code,purpose,fields_json,guardian_consent,owner_hash,idempotency_key,request_digest,status,created_at,environment_json) SELECT ?,?,?,'invasive_response',?,?,?,?,?,'available',?,? WHERE EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ? AND (? IS NULL OR c.environment_version = ?)) AND (SELECT COUNT(*) FROM biosecurity_shares WHERE record_id = ?) < ?",shareId,id,municipality.code,JSON.stringify(fields),body.guardianConsent === true ? 1 : 0,ownerHash,key,digest,now,environment ? JSON.stringify(environment) : null,id,now,now,environment?.version ?? null,environment?.version ?? null,id,BIOSECURITY_LIMITS.recordShares),
+      statement(this.db,"INSERT OR IGNORE INTO biosecurity_shares (share_id,record_id,municipality_code,purpose,fields_json,guardian_consent,owner_hash,idempotency_key,request_digest,status,created_at,environment_json) SELECT ?,?,?,'invasive_response',?,?,?,?,?,'available',?,? WHERE EXISTS (SELECT 1 FROM biosecurity_record_contexts c JOIN biosecurity_guest_sessions g ON g.owner_hash = c.owner_hash WHERE c.record_id = ? AND c.persistence = 'saved' AND c.expires_at > ? AND g.revoked_at IS NULL AND g.expires_at > ? AND (? IS NULL OR c.environment_version = ?)) AND (SELECT COUNT(*) FROM biosecurity_shares WHERE record_id = ?) < ?",shareId,id,municipality.code,JSON.stringify(fields),body.guardianConsent === true ? 1 : 0,ownerHash,key,digest,now,environment ? JSON.stringify({ ...environment, multiTaxa: undefined }) : null,id,now,now,environment?.version ?? null,environment?.version ?? null,id,BIOSECURITY_LIMITS.recordShares),
       statement(this.db,"INSERT OR IGNORE INTO biosecurity_share_events (event_id,share_id,event_type,actor_id,version,created_at) SELECT ?,?,'consented',?,1,? WHERE EXISTS (SELECT 1 FROM biosecurity_shares WHERE share_id = ? AND request_digest = ?)","be_"+shareId,shareId,"guest:"+ownerHash,now,shareId,digest),
     ]);
     const stored = await statement(this.db,"SELECT * FROM biosecurity_shares WHERE share_id = ?",shareId).first<ShareRow>();
