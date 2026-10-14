@@ -22,7 +22,7 @@
     "enabled": true
   },
   "limits": {
-    "cpu_ms": 60000,
+    "cpu_ms": 30000,
     "subrequests": 1000
   },
   "vars": {
@@ -93,7 +93,7 @@
   "env": {
     "shadow": {
       "name": "ikimon-life-cloudflare-shadow-lab",
-      "limits": { "cpu_ms": 60000, "subrequests": 1000 },
+      "limits": { "cpu_ms": 30000, "subrequests": 1000 },
       "workers_dev": true,
       "compatibility_date": "2026-09-09",
       "compatibility_flags": [
@@ -187,7 +187,7 @@
     },
     "staging": {
       "name": "ikimon-life-cloudflare-staging",
-      "limits": { "cpu_ms": 60000, "subrequests": 1000 },
+      "limits": { "cpu_ms": 30000, "subrequests": 1000 },
       "workers_dev": true,
       "compatibility_flags": [
         "nodejs_compat"
@@ -291,7 +291,7 @@
     },
     "production": {
       "name": "ikimon-life-cloudflare-prod",
-      "limits": { "cpu_ms": 60000, "subrequests": 1000 },
+      "limits": { "cpu_ms": 30000, "subrequests": 1000 },
       "workers_dev": true,
       "compatibility_flags": [
         "nodejs_compat"
