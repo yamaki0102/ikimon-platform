@@ -204,6 +204,20 @@ Owner demand: [Issue #1899](https://github.com/yamaki0102/ikimon-platform/issues
 - Existing person publication (`platform_v2/cloudflare_shadow/src/personPublication.ts`) and [PR #1889](https://github.com/yamaki0102/ikimon-platform/pull/1889) may supply an **optional consented public person link**; an interview must not depend on a public person profile, subject identity resolution, hidden legal name, account linking or face recognition. [PR #1499](https://github.com/yamaki0102/ikimon-platform/pull/1499) is separate generic Record persistence work; do not require stale pending migrations to render a valid existing public edition.
 - The `M11` NOCOSIL exchange package is a **separately testable subsequent adapter**, not a prerequisite for rendering an already authorized public edition from another source. Never infer sharing permission from the existence of a NOCOSIL document. Preserve original canonical unless a distinct ZUKAN regional editorial edition has legitimately different content.
 
+### Student-led interviews — 学生が報酬を得る取材モデル（owner direction 2026-10-15）
+
+**核：地域企業に採用してもらうための学生イベントではなく、学生が企業を取材する実際の仕事に公正な報酬を受け取り、自然に地域の仕事を知れる機会をつくる。** 取材は企業に対する広告的成果物にもなり得るが、学生の制作体験・成果物・自己決定を広告効果や採用数へ従属させない。[IKIMON×NOCOSIL×ZUKANの確定方針](https://github.com/yamaki0102/ikimon-business-strategy/blob/main/decisions/2026-09-07-workforce-experience-delivery-v2.md#103-学生に取材の対価を返す地域企業インタビュー--owner-direction-2026-10-15)を、このM10候補に適用する。
+
+- 最初は企業1社と本人同意のある学生1人で、記事または短い動画1件をつくる。取材前に仕事内容（下調べ、質問、現地取材、文字起こし、撮影、編集、確認修正）、納期、学生報酬/実費、振込期日、著作物の利用・公開範囲と中止時の精算条件を明示する。企業から学生への直接支払を第一候補とし、IKIMONの制作・伴走費が必要なら別契約・別内訳とする。ZUKAN/NOCOSILに新しい決済、仲介手数料、制作会社/学生専用ATSを作らない。
+- 既存のNOCOSIL Organization/Project、Guest参加、Work/Action/Receiptで取材依頼・原稿確認・納品・支払確認の必要部分を管理し、ZUKANには承認済みPublicationEditionだけを渡す。実際の支払証憑や学生の個人情報・雇用/学校情報を公開しない。取材者、聞き手、執筆者、撮影者、協賛企業、編集・確認担当は同一人物・同一組織と決めつけず、公開できる範囲で別々に表示する。
+- 企業は事実・機密・本人の肖像/発言・安全について確認する。学生の不都合な質問/表現を一方的に消して独立取材と呼ばない。企業の依頼/出資・掲載内容への関与がある場合は記事/動画の近傍に「企業依頼の有償取材」等を明瞭に表記する。学生のクレジットは実名/ペンネーム/非表示を本人が選ぶ。企業の社員、学生、撮影対象の公開同意と文書・動画・二次利用許諾はそれぞれ確認し、訂正と公開停止を扱う。
+- 取材した学生は採用応募者ではない。記事から見学/別取材/将来の仕事へ進むことは本人の新たな選択であり、撮影・報酬・学校参加と引き換えに応募/登録/個人データ移管を義務化しない。企業が持つNOCOSIL ATSの候補者記録へ取材履歴を自動移送せず、学生向け取材発注をIndeed/GoogleのJobPostingへ機械的に掲載しない。
+- 未成年の場合は学校/保護者の必要な関与、本人の権利、現場の安全、雇用と業務委託の実態、年少者の労務制約を確かめる。授業内の探究活動を事業者の無償制作委託の代用にしない。M9 `children_citizen_editorial` を自動起動せず、許可された既存の取材/公開導線でまず1件を実証する。
+- 公開画面は既存「動画／記事」分類へ `学生による取材` の意味を持つ公開可能なクレジット/属性を追加するだけで、専用メディアや新しいトップナビを設けない。発信者の説明・取材者の表示・PR関係を分離し、SEO/構造化データと本文で矛盾させない。
+- **Doneの分離：** ①学生と企業の取材条件合意、②取材と編集成果物、③本人・企業の公開許諾、④実ZUKAN公開版と匿名閲覧、⑤学生に約束した対価が実際に支払われたこと、⑥希望する次の接点があった場合の本人同意、を独立して確認する。報酬支払だけ、記事公開だけ、閲覧PVだけ、採用応募だけでこの実証を完了扱いしない。実例/契約/支払をまだ取得していない状態はUNKNOWNとする。
+
+再利用資産は[既存「しずおか ものづくり仕事図鑑」](https://github.com/yamaki0102/ikimon-business-strategy/blob/main/projects/shizuoka-wellbeing-pitch-2026/README.md)の学生取材、企業・学校確認、年次更新ルール（当時の金額・学校/企業を今回の実績へ流用しない）。静岡県の[Shizuoka Job Palette](https://www.koyou.pref.shizuoka.jp/jobpalette/)は既存の学生主体企業紹介事業であり、ZUKAN独自の手段は学生への対価還元、継続版/権利・編集・求人/地域への文脈リンクで比較検証する。法令/表示は[公取委フリーランス法](https://www.jftc.go.jp/freelancelaw_2026/index.html)、[消費者庁の広告表示FAQ](https://www.caa.go.jp/policies/policy/representation/fair_labeling/faq/stealth_marketing/)、[厚労省の年少者保護](https://jsite.mhlw.go.jp/osaka-roudoukyoku/yokuaru_goshitsumon/jigyounushi/nensyo.html)を実際の契約類型に応じて確認する。
+
 ### Small sequential slices
 
 1. **S0 — First real source and rights (no production mutation).** Select one consenting issuer/employee interview (愛管 can be the first case without company-specific code); identify the actual original, subject's name/face/voice/quote/use scope, employer/publication authority, edition, image/video rights and correction contact. Confirm current public Publication reader and the M10 activation decision before source changes; a missing real interview yields a truthful empty state, not fabricated production data.
