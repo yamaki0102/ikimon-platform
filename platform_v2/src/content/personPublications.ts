@@ -1,3 +1,18 @@
+/** Public preference labels only. No phone numbers, meeting links or calendar events belong here. */
+export const PERSON_CONTACT_METHODS = ["online", "in_person", "phone", "email", "sns", "discuss"] as const;
+export type PersonContactMethod = typeof PERSON_CONTACT_METHODS[number];
+export interface PersonCollaboration {
+  readonly accepting: boolean;
+  readonly salesAccepted: boolean;
+  readonly interests: readonly string[];
+  /** An authored tendency, not an appointment inventory or promise. */
+  readonly availabilityNote: string;
+  readonly timeZone: string;
+  /** Order expresses preference. Empty means not specified. */
+  readonly firstContact: readonly PersonContactMethod[];
+  readonly locationNote: string;
+}
+
 /** Explicitly approved public editions only. Never populate from private account data. */
 export interface PersonPublication {
   readonly publicId: string;
@@ -6,7 +21,17 @@ export interface PersonPublication {
   readonly locale: "ja";
   readonly state: "published" | "withdrawn";
   readonly authority: "subject_explicit";
+  /** Already consented PUBLIC display name, never the private account/legal name. */
   readonly name: string;
+  readonly subjectKind?: "person" | "organization";
+  readonly appearance?: "earth" | "ink" | "blue";
+  /** Explicitly selected optimized portrait/logo. Anonymous editions never carry a portrait. */
+  readonly portrait?: { readonly dataUrl: string; readonly alt: string };
+  readonly collaboration?: PersonCollaboration;
+  /** The viewer must never infer identity mode from another product account. */
+  readonly identityMode?: "real_name" | "alias" | "anonymous";
+  /** New editions default to unlisted. Existing approved editions must opt in. */
+  readonly discoverability?: "indexed" | "unlisted";
   readonly latinName: string;
   readonly headline: string;
   readonly summary: string;
@@ -27,6 +52,8 @@ export const PERSON_PUBLICATIONS: readonly PersonPublication[] = [
     state: "published",
     authority: "subject_explicit",
     name: "八巻 毅",
+    identityMode: "real_name",
+    discoverability: "indexed",
     latinName: "Takeshi Yamaki",
     headline: "マーケター / FDE",
     summary: "浜松を拠点に、マーケティング・企画・AIやソフトウェアを活用した実行支援に取り組んでいます。",
