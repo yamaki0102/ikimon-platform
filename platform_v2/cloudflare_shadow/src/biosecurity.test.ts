@@ -145,7 +145,10 @@ async function capture(state: Fixture, owner: string, key: string, changes: Reco
   return state.store.capture(owner, await input(key, changes), "fixture-ip", 1024 ** 3);
 }
 function consent(key: string, changes: Record<string, unknown> = {}) {
-  return { municipalityCode: MUNICIPALITY.code, consent: true, purpose: "invasive_response", fields: ["observedAt", "spotLabel"], idempotencyKey: "sharing-request-" + key, ...changes };
+  return { municipalityCode: MUNICIPALITY.code, consent: true, adultConsent: true, recordVersion: 0, purpose: "invasive_response", fields: ["observedAt", "spotLabel"], idempotencyKey: "sharing-request-" + key, ...changes };
+}
+function detailsEdit(key: string, expectedVersion: number, patch: Record<string, unknown>) {
+  return { expectedVersion, idempotencyKey: "details-request-" + key, patch };
 }
 function clefFixtureResponse(request: unknown) {
   const questions = (request as { questions: Record<string, { criteria: Record<string, string> }> }).questions;
@@ -356,7 +359,7 @@ test("consent projects only selected fields to the selected municipality and kee
 
 test("sharing requires explicit recipient/purpose consent and guardian consent for minors", async t => {
   const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, "minor", { is_minor: "yes" });
-  for (const changes of [{ consent: false }, { purpose: "publication" }, { fields: ["observedAt", "owner_hash"] }, { fields: ["observedAt"] }]) {
+  for (const changes of [{ consent: false }, { purpose: "publication" }, { fields: ["observedAt", "owner_hash"] }, { fields: [] }]) {
     await assert.rejects(state.store.share(guest.owner, record.id, consent("invalid-" + JSON.stringify(changes).length, { guardianConsent: true, ...changes })), BiosecurityError);
   }
   await assert.rejects(state.store.share(guest.owner, record.id, consent("minor-without-guardian")), /guardian_consent_required/);
@@ -871,7 +874,7 @@ test("disabled or exhausted photo assistance cannot return an environment delete
   }
 });
 
-test("environment sharing snapshots the explicitly reviewed version and preserves old consent replays after a correction", async t => {
+test("environment correction withdraws only environment shares and old consent replays cannot restore them", async t => {
   const state = fixture(t); const guest = await newGuest(state); const record = await capture(state, guest.owner, "environment-consent");
   enablePhotoHints(state, async (_model, body) => clefFixtureResponse(body));
   const ready = (await state.store.photoHints(guest.owner, record.id, state.env, "share-ip", true)).environment;
@@ -883,22 +886,21 @@ test("environment sharing snapshots the explicitly reviewed version and preserve
   const snapshots = state.obs.native.prepare("SELECT share_id,environment_json FROM biosecurity_shares ORDER BY share_id").all() as { share_id: string; environment_json: string | null }[];
   assert.deepEqual(JSON.parse(snapshots.find(row => row.share_id === shared.shareId)!.environment_json!), ready);
   assert.equal(snapshots.find(row => row.share_id === without.shareId)!.environment_json, null);
+  const before = (await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: Record<string, unknown>[] }).items;
+  const item = before.find(row => row.id === shared.shareId)!;
+  assert.deepEqual(item.environment, ready); assert.equal("photos" in item, false); assert.equal("note" in item, false); assert.equal("exactLocation" in item, false);
+  assert.doesNotMatch(JSON.stringify(item.environment), /ba_[a-f0-9]{40}|[a-f0-9]{64}|35\.123456|139\.654321|非公開の補足/);
   const changed = await state.store.editEnvironment(guest.owner, record.id, { expectedVersion: 1, values: { contact_surface: "unknown" } });
   assert.equal(changed.environment.version, 2); assert.equal(changed.environment.values.contact_surface_source, "user");
-  assert.deepEqual(await state.store.share(guest.owner, record.id, shareBody), shared, "the same old consent payload remains replayable");
+  assert.deepEqual(await state.store.share(guest.owner, record.id, shareBody), { ...shared, status: "withdrawn", version: 2 }, "old consent is retryable without restoring corrected information");
   const stale = await request(state, `/records/${record.id}/share`, { cookie: guest.cookie, body: { ...shareBody, idempotencyKey: "sharing-request-new-stale-version" } });
   assert.equal(stale.status, 409); assert.deepEqual(await stale.json(), { error: "environment_version_changed" });
   const changedReplay = await request(state, `/records/${record.id}/share`, { cookie: guest.cookie, body: { ...shareBody, environmentVersion: 2 } });
   assert.equal(changedReplay.status, 409); assert.deepEqual(await changedReplay.json(), { error: "idempotency_payload_changed" });
   const items = (await (await request(state, "/inbox", { cookie: staff.cookie })).json() as { items: Record<string, unknown>[] }).items;
-  const item = items.find(row => row.id === shared.shareId)!;
-  assert.deepEqual(item.environment, ready); assert.equal("photos" in item, false); assert.equal("note" in item, false); assert.equal("exactLocation" in item, false);
-  const sharedEnvironment = item.environment as BiosecurityEnvironment;
-  assert.equal(sharedEnvironment.model, BIOSECURITY_PHOTO_HINT_MODEL); assert.equal(sharedEnvironment.questionVersion, "biosecurity-visible-environment/v1");
-  assert.equal(sharedEnvironment.photoNumber, 1); assert.equal(sharedEnvironment.values.contact_surface_source, "derived");
-  assert.doesNotMatch(JSON.stringify(item.environment), /ba_[a-f0-9]{40}|[a-f0-9]{64}|35\.123456|139\.654321|非公開の補足/);
+  assert.equal(items.some(row => row.id === shared.shareId), false);
   assert.equal("environment" in items.find(row => row.id === without.shareId)!, false);
-  assert.equal(count(state.obs, "biosecurity_shares"), 2); assert.equal(count(state.obs, "biosecurity_share_events"), 2);
+  assert.equal(count(state.obs, "biosecurity_shares"), 2); assert.equal(count(state.obs, "biosecurity_share_events"), 3);
   await state.store.withdraw(guest.owner, shared.shareId, 1);
   assert.equal((state.obs.native.prepare("SELECT environment_json FROM biosecurity_shares WHERE share_id = ?").get(shared.shareId) as { environment_json: string | null }).environment_json, null);
   const replay = await state.store.share(guest.owner, record.id, shareBody);
@@ -968,4 +970,136 @@ test("private same-label temporal overlap is only returned to the same guest and
   assert.equal(stored.environment_json,null);
   await state.store.remove(older.id,guest.owner,"withdrawn");
   assert.deepEqual((await state.store.receipt(latest.id, guest.owner)).relatedRecords,[]);
+});
+
+
+test("saved photo details can be added and erased in the same private record without new media, dates or storage charges", async t => {
+  const state = fixture(t), guest = await newGuest(state);
+  const original = await parseCapture(new Request(ORIGIN, { method: "POST", body: photoOnlyForm("after-save-edit") }));
+  const record = await state.store.capture(guest.owner, original, "fixture-ip", 1024 ** 3);
+  const originalUsage = { ...usage(state.obs) };
+  assert.equal(record.recordVersion, 0); assert.equal(record.observedTime.source, "unknown");
+  const addition = detailsEdit("add-optional", 0, {
+    observedTime: { localDateTime: "2026-10-01T09:30", offsetMinutes: 540, precision: "minute" },
+    exactLocation: { lat: 35.123456, lng: 139.654321 }, note: "あとから書いた木のようす", spotLabel: "いつもの木", municipalityCode: MUNICIPALITY.code,
+  });
+  const response = await request(state, "/records/" + record.id + "/details", { cookie: guest.cookie, body: addition });
+  assert.equal(response.status, 200, await response.clone().text());
+  const added = (await response.json() as { record: Receipt }).record;
+  assert.equal(added.id, record.id); assert.equal(added.recordVersion, 1);
+  assert.equal(added.observedAt, "2026-10-01T00:30:00.000Z"); assert.equal(added.observedTime.source, "user");
+  assert.equal(added.locationSource, "user"); assert.equal(added.note, "あとから書いた木のようす");
+  assert.equal(added.expiresAt, record.expiresAt); assert.deepEqual(added.photos, record.photos);
+  assert.equal(count(state.obs, "observations"), 1); assert.equal(state.bucket.puts, 1); assert.deepEqual({ ...usage(state.obs) }, originalUsage);
+  assert.equal((await state.store.editDetails(guest.owner, record.id, addition)).record.recordVersion, 1);
+  const cleared = (await state.store.editDetails(guest.owner, record.id, detailsEdit("remove-optional", 1, { observedTime: null, exactLocation: null, note: "", spotLabel: "", municipalityCode: null }))).record;
+  assert.equal(cleared.recordVersion, 2); assert.equal(cleared.observedAt, null); assert.equal(cleared.observedTime.localDateTime, null);
+  assert.equal(cleared.exactLocation, null); assert.equal(cleared.note, null); assert.equal(cleared.spotLabel, null);
+  assert.equal(count(state.obs, "observations"), 0);
+  assert.deepEqual({ ...state.obs.native.prepare("SELECT observed_at,exact_lat,exact_lng FROM draft_observations").get()! }, { observed_at: null, exact_lat: null, exact_lng: null });
+  const context = await state.store.context(record.id);
+  assert.equal(context!.private_note, null); assert.equal(JSON.parse(context!.capture_details_json!).originalTime, null);
+  assert.equal((state.obs.native.prepare("SELECT observation_id FROM asset_ledger").get() as { observation_id: string | null }).observation_id, null);
+  assert.equal((await state.store.capture(guest.owner, original, "fixture-ip", 1024 ** 3)).recordVersion, 2, "a capture retry must not restore initial metadata");
+  assert.deepEqual({ ...usage(state.obs) }, originalUsage); assert.equal(state.bucket.puts, 1);
+  assert.equal(count(state.obs, "outbox"), 0); assert.equal(count(state.obs, "readmodel_public_observations"), 0);
+});
+
+test("editing a saved EXIF time preserves its source on correction and erases the original value on removal", async t => {
+  const state = fixture(t), guest = await newGuest(state);
+  const time = { source: "photo_exif", localDateTime: "2026-10-01T09:30:00", offsetMinutes: 540, precision: "second", photoIndex: 0, instant: "2026-10-01T00:30:00.000Z" };
+  const record = await capture(state, guest.owner, "edit-exif", { capture_metadata: JSON.stringify({ version: 1, time, originalTime: time, location: { source: "photo_exif", photoIndex: 0 }, conflicts: { time: true, location: true } }) });
+  await state.store.editDetails(guest.owner, record.id, detailsEdit("correct-exif", 0, { observedTime: { localDateTime: "2026-10-02T09:30", offsetMinutes: null, precision: "minute" } }));
+  const corrected = JSON.parse((await state.store.context(record.id))!.capture_details_json!);
+  assert.equal(corrected.time.source, "user"); assert.equal(corrected.time.instant, null); assert.equal(corrected.originalTime.source, "photo_exif");
+  assert.equal(corrected.originalTime.localDateTime, time.localDateTime); assert.equal(corrected.location.source, "photo_exif");
+  assert.equal(corrected.conflicts.time, false); assert.equal(corrected.conflicts.location, true);
+  await state.store.editDetails(guest.owner, record.id, detailsEdit("erase-exif", 1, { observedTime: null, exactLocation: null }));
+  const erased = JSON.parse((await state.store.context(record.id))!.capture_details_json!);
+  assert.equal(erased.originalTime, null); assert.equal(erased.time.localDateTime, null); assert.equal(erased.location.photoIndex, null);
+  assert.doesNotMatch(JSON.stringify(erased), /2026-10-01T09:30|2026-10-02T09:30|35\.123456|139\.654321/);
+});
+
+test("sharing has no mandatory field and requires explicit adult or guardian confirmation at the sharing step", async t => {
+  const state = fixture(t), guest = await newGuest(state);
+  const record = await capture(state, guest.owner, "select-any-one");
+  const missingActor = await request(state, "/records/" + record.id + "/share", { cookie: guest.cookie, body: consent("actor-missing", { adultConsent: false }) });
+  assert.equal(missingActor.status, 422); assert.deepEqual(await missingActor.json(), { error: "adult_or_guardian_consent_required" });
+  for (const field of ["photos", "observedAt", "spotLabel", "note", "exactLocation"]) {
+    const shared = await state.store.share(guest.owner, record.id, consent("only-" + field, { fields: [field] }));
+    const row = state.obs.native.prepare("SELECT * FROM biosecurity_shares WHERE share_id = ?").get(shared.shareId)!;
+    const projection = await state.store.recipientRecord(row as Parameters<BiosecurityStore["recipientRecord"]>[0], MUNICIPALITY.code);
+    assert.deepEqual(projection.fields, [field]);
+    for (const other of ["photos", "observedAt", "spotLabel", "note", "exactLocation"]) if (other !== field) assert.equal(other in projection, false);
+  }
+  const empty = await request(state, "/records/" + record.id + "/share", { cookie: guest.cookie, body: consent("empty-selection", { fields: [] }) });
+  assert.equal(empty.status, 422); assert.equal(count(state.obs, "biosecurity_shares"), 5);
+  const minor = await capture(state, guest.owner, "known-minor", { is_minor: "true" });
+  await assert.rejects(state.store.share(guest.owner, minor.id, consent("minor-adult-only", { fields: ["photos"] })), error => error instanceof BiosecurityError && error.message === "guardian_consent_required");
+  assert.equal((await state.store.share(guest.owner, minor.id, consent("minor-guardian", { fields: ["photos"], adultConsent: false, guardianConsent: true }))).status, "available");
+  const declaredAtSharing = await capture(state, guest.owner, "minor-at-sharing");
+  await state.store.share(guest.owner, declaredAtSharing.id, consent("guardian-first", { fields: ["photos"], adultConsent: false, guardianConsent: true }));
+  assert.equal((await state.store.receipt(declaredAtSharing.id, guest.owner)).isMinor, true);
+  await assert.rejects(state.store.share(guest.owner, declaredAtSharing.id, consent("adult-after-guardian", { fields: ["note"] })), error => error instanceof BiosecurityError && error.message === "guardian_consent_required");
+  const raced = await capture(state, guest.owner, "minor-at-write");
+  state.obs.beforeBatch = queries => {
+    if (queries[0]?.startsWith("INSERT OR IGNORE INTO biosecurity_shares")) {
+      state.obs.beforeBatch = null;
+      state.obs.native.prepare("UPDATE biosecurity_record_contexts SET is_minor = 1 WHERE record_id = ?").run(raced.id);
+    }
+  };
+  await assert.rejects(state.store.share(guest.owner, raced.id, consent("adult-raced-guardian", { fields: ["photos"] })), error => error instanceof BiosecurityError && error.message === "guardian_consent_required");
+  assert.equal((await state.store.receipt(raced.id, guest.owner)).shares.length, 0);
+});
+
+test("record corrections withdraw only affected selections and stale consent or replays cannot disclose the new values", async t => {
+  const state = fixture(t), guest = await newGuest(state);
+  const record = await capture(state, guest.owner, "correction-shares");
+  const bodies = [
+    consent("shared-note", { fields: ["note"] }), consent("shared-gps", { fields: ["exactLocation"] }),
+    consent("shared-photo", { fields: ["photos"] }), consent("shared-time", { fields: ["observedAt"] }),
+  ];
+  const shares = await Promise.all(bodies.map(body => state.store.share(guest.owner, record.id, body)));
+  const staleRow = state.obs.native.prepare("SELECT * FROM biosecurity_shares WHERE share_id = ?").get(shares[0]!.shareId)!;
+  const result = await state.store.editDetails(guest.owner, record.id, detailsEdit("correct-shared", 0, { note: "訂正したメモ", exactLocation: null }));
+  assert.equal(result.record.recordVersion, 1);
+  const statuses = new Map(result.record.shares.map(share => [share.id, share.status]));
+  assert.equal(statuses.get(shares[0]!.shareId), "withdrawn"); assert.equal(statuses.get(shares[1]!.shareId), "withdrawn");
+  assert.equal(statuses.get(shares[2]!.shareId), "available"); assert.equal(statuses.get(shares[3]!.shareId), "available");
+  await assert.rejects(state.store.recipientRecord(staleRow as Parameters<BiosecurityStore["recipientRecord"]>[0], MUNICIPALITY.code), BiosecurityError);
+  assert.equal((await state.store.share(guest.owner, record.id, bodies[0]!)).status, "withdrawn");
+  await assert.rejects(state.store.share(guest.owner, record.id, consent("stale-preview", { fields: ["note"] })), error => error instanceof BiosecurityError && error.message === "record_version_changed");
+  assert.equal((await state.store.share(guest.owner, record.id, consent("reviewed-correction", { recordVersion: 1, fields: ["note"] }))).status, "available");
+  assert.equal(count(state.obs, "biosecurity_share_events"), 7);
+});
+
+test("details CAS, failed responses, revocation and deletion cannot overwrite a newer edit or restore a share", async t => {
+  const state = fixture(t), guest = await newGuest(state), other = await newGuest(state);
+  const record = await capture(state, guest.owner, "edit-races");
+  const body = detailsEdit("lost-response", 0, { note: "保存済みの訂正" });
+  state.obs.afterCommit = queries => {
+    if (queries[0]?.startsWith("UPDATE biosecurity_record_contexts SET capture_details_json")) { state.obs.afterCommit = null; throw new Error("committed result lost"); }
+  };
+  await assert.rejects(state.store.editDetails(guest.owner, record.id, body), /committed result lost/);
+  assert.equal((await state.store.editDetails(guest.owner, record.id, body)).record.recordVersion, 1);
+  await assert.rejects(state.store.editDetails(other.owner, record.id, detailsEdit("wrong-owner", 1, { note: "不可" })), BiosecurityError);
+  state.obs.afterRead = async query => {
+    if (query.startsWith("SELECT observed_at,note,exact_lat,exact_lng FROM observations")) {
+      state.obs.afterRead = null;
+      await state.store.editDetails(guest.owner, record.id, detailsEdit("newer-wins", 1, { note: "新しい訂正" }));
+    }
+  };
+  await assert.rejects(state.store.editDetails(guest.owner, record.id, detailsEdit("stale-loses", 1, { note: "古い画面" })), error => error instanceof BiosecurityError && error.message === "record_version_changed");
+  assert.equal((await state.store.receipt(record.id, guest.owner)).note, "新しい訂正");
+  const current = await state.store.receipt(record.id, guest.owner);
+  state.obs.beforeBatch = queries => {
+    if (queries[0]?.startsWith("UPDATE biosecurity_record_contexts SET capture_details_json")) {
+      state.obs.beforeBatch = null; state.obs.native.prepare("UPDATE biosecurity_guest_sessions SET revoked_at = ? WHERE owner_hash = ?").run(PAST, guest.owner);
+    }
+  };
+  await assert.rejects(state.store.editDetails(guest.owner, record.id, detailsEdit("revoked-in-write", current.recordVersion, { note: "復活しない" })), BiosecurityError);
+  assert.equal((await state.store.context(record.id))!.private_note, "新しい訂正");
+  await state.store.remove(record.id, null, "expired");
+  await assert.rejects(state.store.editDetails(guest.owner, record.id, detailsEdit("deleted", current.recordVersion, { note: "復活しない" })), BiosecurityError);
+  assert.equal(state.bucket.objects.size, 0); assert.equal((await state.store.context(record.id))!.capture_details_json, null);
 });
