@@ -13,6 +13,8 @@ export type BiosecurityCaptureMetadata = {
   originalTime: BiosecurityTime | null;
   location: { source: "unknown" | "photo_exif" | "device" | "user"; photoIndex: number | null };
   conflicts: { time: boolean; location: boolean };
+  /** Server-owned revision; capture parsing never accepts a client-supplied edit. */
+  edit?: { version: number; key: string; digest: string; writeToken: string };
 };
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): ObjectValue => {

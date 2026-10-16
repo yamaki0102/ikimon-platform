@@ -53,40 +53,42 @@ html{scroll-padding-top:24px}body{margin:0}body [hidden]{display:none!important}
 .bio-photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.bio-photo{margin:0;min-width:0}.bio-photo img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--zukan-border-decorative);background:var(--zukan-surface-subtle)}.bio-photo figcaption{font-size:.875rem;overflow-wrap:anywhere;padding-top:8px}.bio-photo button,.bio-photo a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:6px 8px;color:var(--zukan-link);background:white;border:0;text-decoration:underline;cursor:pointer;font:inherit}
 .bio-detail-list{display:grid;grid-template-columns:7em minmax(0,1fr);gap:12px 20px;margin:24px 0}.bio-detail-list dt{color:var(--zukan-text-secondary)}.bio-detail-list dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .bio-private{display:inline-flex;border:1px solid var(--zukan-border-decorative);padding:4px 10px;border-radius:4px;font-size:.875rem;color:var(--zukan-text-secondary)}
-.bio-record-item{padding:24px 0;border-bottom:1px solid var(--zukan-border-decorative)}.bio-record-item h2{font-size:1.125rem}.bio-record-item:first-child{padding-top:0}.bio-record-item .bio-actions{margin-top:12px}
+.bio-record-item{padding:24px 0;border-bottom:1px solid var(--zukan-border-decorative)}.bio-record-item h2{font-size:1.125rem}.bio-record-item:first-child{padding-top:0}.bio-record-item .bio-actions{margin-top:12px}.bio-record-preview{display:flex;align-items:flex-start;gap:20px}.bio-record-preview>div{min-width:0;overflow-wrap:anywhere}.bio-record-thumbnail{width:88px;height:88px;flex:0 0 auto;object-fit:cover;border-radius:8px;background:var(--zukan-surface-subtle)}.bio-record-preview h2{margin-bottom:8px}.bio-record-preview p{margin-bottom:8px}
 .bio-main details{border-top:1px solid var(--zukan-border-decorative);padding:20px 0}.bio-main summary{cursor:pointer;display:list-item;align-content:center;min-height:44px;font-weight:700;padding:8px 0}.bio-main details>div{padding-top:16px}
 .bio-minor{padding:16px;background:var(--zukan-surface-subtle);border-radius:8px}.bio-inbox-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}.bio-inbox-top p{margin:0}.bio-inbox-top .bio-field{min-width:140px}
 .bio-contact{margin:8px 0 0!important;overflow-wrap:anywhere}.bio-footer{max-width:1040px;margin:auto;border-top:1px solid var(--zukan-border-decorative);padding:24px;display:flex;flex-wrap:wrap;gap:16px 24px;font-size:.875rem;color:var(--zukan-text-secondary)}.bio-footer a{min-height:44px;display:inline-flex;align-items:center}.bio-footer span{display:flex;align-items:center}.bio-device{margin-top:32px}.bio-device p{font-size:.875rem}
 .bio-hero{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:36px;margin-bottom:40px}.bio-hero .bio-intro{margin:0}.bio-hero-art{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;border-radius:var(--zukan-radius-content)}
 .bio-capture-intro{display:grid;grid-template-columns:minmax(0,1fr) 112px;align-items:center;gap:20px;margin-bottom:24px}.bio-capture-intro h1{margin-top:4px}.bio-capture-intro p:last-child{margin:0}.bio-capture-art{display:block;width:100%;height:auto;border-radius:16px}.bio-capture-intro .bio-eyebrow{font-weight:400}
 .bio-upload{position:relative}.bio-file-input{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0}.bio-photo-chooser{display:flex;align-items:center;justify-content:center;gap:12px;min-height:76px;padding:16px;border:1px solid var(--zukan-action-primary);border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle);color:var(--zukan-action-primary);font-weight:700;cursor:pointer}.bio-photo-chooser>span:first-child{font-size:1.75rem;font-weight:400;line-height:1}.bio-file-input:focus-visible+.bio-photo-chooser{outline:3px solid currentColor;outline-offset:4px}.bio-file-input:disabled+.bio-photo-chooser{opacity:.6;cursor:wait}.bio-upload-help{margin:10px 0 16px!important}.bio-upload .bio-photo-grid{margin-top:20px}.bio-upload .bio-photo-grid:has(figure:only-child),.bio-main[data-view=receipt] .bio-photo-grid:has(figure:only-child){grid-template-columns:1fr;max-width:480px;margin-inline:auto}.bio-upload .bio-photo:only-child img,.bio-main[data-view=receipt] .bio-photo:only-child img{max-height:320px;object-fit:contain;background:var(--zukan-surface-subtle)}
-.bio-capture-details{display:grid;gap:24px}.bio-context{border:1px solid var(--zukan-border-decorative);border-radius:var(--zukan-radius-content);padding:4px 20px}.bio-context-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}.bio-context-row:not(:first-child){border-top:1px solid var(--zukan-border-decorative)}.bio-context-copy{min-width:0}.bio-context-copy h2{font-size:.875rem;color:var(--zukan-text-secondary);margin:0 0 4px}.bio-context-copy p{margin:0;overflow-wrap:anywhere}.bio-context-copy .bio-note{margin-top:4px}.bio-context-editor{padding:0 0 20px}.bio-context-editor .bio-field+.bio-field{margin-top:20px}.bio-context-editor .bio-actions{margin:12px 0}.bio-text-button{background:transparent;color:var(--zukan-link);border:0;font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:4px;min-height:44px;padding:8px 0;flex-shrink:0;max-width:45%}.bio-context-editor .bio-text-button{max-width:none}.bio-context-notice{margin:0 0 16px!important}.bio-more{padding:0!important}.bio-more>div{display:grid;gap:24px}.bio-save-note{margin:0!important}.bio-environment-values{margin-top:16px}.bio-environment-values dd small{display:block;margin-top:4px}.bio-environment .bio-form{gap:20px}.bio-environment .bio-form fieldset[data-controls]{gap:20px}.bio-environment .bio-actions{margin-top:12px}.bio-empty{display:grid;grid-template-columns:128px minmax(0,1fr);align-items:center;gap:24px}.bio-empty img{width:100%;height:auto;border-radius:16px}.bio-empty h2{margin-bottom:12px}.bio-empty p{margin-bottom:16px}
+.bio-capture-details{display:grid;gap:24px}.bio-capture-details>#bio-save{min-height:56px}.bio-context{border:1px solid var(--zukan-border-decorative);border-radius:var(--zukan-radius-content);padding:4px 20px}.bio-context-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}.bio-context-row:not(:first-child){border-top:1px solid var(--zukan-border-decorative)}.bio-context-copy{min-width:0}.bio-context-copy h2{font-size:.875rem;color:var(--zukan-text-secondary);margin:0 0 4px}.bio-context-copy p{margin:0;overflow-wrap:anywhere}.bio-context-copy .bio-note{margin-top:4px}.bio-context-editor{padding:0 0 20px}.bio-context-editor .bio-field+.bio-field{margin-top:20px}.bio-context-editor .bio-actions{margin:12px 0}.bio-text-button{background:transparent;color:var(--zukan-link);border:0;font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:4px;min-height:44px;padding:8px 0;flex-shrink:0;max-width:45%}.bio-context-editor .bio-text-button{max-width:none}.bio-context-notice{margin:0 0 16px!important}.bio-more{padding:0!important}.bio-more>div{display:grid;gap:24px}.bio-save-note{margin:0!important}.bio-environment-values{margin-top:16px}.bio-environment-values dd small{display:block;margin-top:4px}.bio-environment .bio-form{gap:20px}.bio-environment .bio-form fieldset[data-controls]{gap:20px}.bio-environment .bio-actions{margin-top:12px}.bio-empty{display:grid;grid-template-columns:128px minmax(0,1fr);align-items:center;gap:24px}.bio-empty img{width:100%;height:auto;border-radius:16px}.bio-empty h2{margin-bottom:12px}.bio-empty p{margin-bottom:16px}
 @media(max-width:600px){.bio-header>div{padding-inline:20px;gap:12px;min-height:64px}.bio-header nav{gap:12px}.bio-header nav a{font-size:.875rem}.bio-brand img:first-child{display:none}.bio-main{padding:24px 20px 40px}.bio-main h1{text-wrap:initial}.bio-steps{grid-template-columns:1fr;gap:20px}.bio-steps li{padding-top:12px}.bio-pair{grid-template-columns:1fr;gap:24px}.bio-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bio-actions>.bio-action{width:100%}.bio-detail-list{grid-template-columns:1fr;gap:4px}.bio-detail-list dd{margin-bottom:12px}.bio-support{padding:16px}.bio-footer{padding:20px;gap:8px 20px}}
-@media(max-width:700px){.bio-hero{grid-template-columns:1fr;gap:24px}.bio-hero-art{max-width:520px;margin-inline:auto}.bio-hero .bio-intro{order:1}.bio-hero-art{order:2}.bio-capture-intro{grid-template-columns:minmax(0,1fr) 80px;gap:12px}.bio-capture-intro .bio-eyebrow{font-size:.8125rem}.bio-context{padding-inline:16px}.bio-context-row{gap:12px}.bio-empty{grid-template-columns:1fr}.bio-empty img{width:120px}.bio-empty .bio-action{width:100%}}
+@media(max-width:700px){.bio-hero{grid-template-columns:1fr;gap:24px}.bio-hero-art{max-width:520px;margin-inline:auto}.bio-hero .bio-intro{order:1}.bio-hero-art{order:2}.bio-capture-intro{grid-template-columns:minmax(0,1fr) 80px;gap:12px}.bio-capture-intro .bio-eyebrow{font-size:.875rem}.bio-context{padding-inline:16px}.bio-context-row{gap:12px}.bio-empty{grid-template-columns:1fr}.bio-empty img{width:120px}.bio-empty .bio-action{width:100%}}
 `;
-function municipalityPicker(required: boolean): string {
-  return `<div class="bio-field" data-municipality-picker><label for="bio-municipality-query">市区町村を探す${required ? "（必須）" : "（任意）"}</label>
-  <div class="bio-search"><input id="bio-municipality-query" type="search" placeholder="例：浜松市" maxlength="80" autocomplete="off"><button class="bio-action secondary" type="button" data-municipality-search>探す</button></div>
-  <label for="bio-municipality-code" class="bio-note">候補から選択</label><select id="bio-municipality-code" name="municipality_code" ${required ? "required" : ""}><option value="">${required ? "市区町村を選んでください" : "まだ選ばない"}</option></select>
+function municipalityPicker(required: boolean, prefix = "bio"): string {
+  return `<div class="bio-field" data-municipality-picker><label for="${prefix}-municipality-query">市区町村を探す${required ? "（必須）" : "（任意）"}</label>
+  <div class="bio-search"><input id="${prefix}-municipality-query" type="search" placeholder="例：浜松市" maxlength="80" autocomplete="off"><button class="bio-action secondary" type="button" data-municipality-search>探す</button></div>
+  <label for="${prefix}-municipality-code" class="bio-note">候補から選択</label><select id="${prefix}-municipality-code" name="municipality_code" ${required ? "required" : ""}><option value="">${required ? "市区町村を選んでください" : "まだ選ばない"}</option></select>
   <p class="bio-note" data-municipality-state aria-live="polite">市区町村名や都道府県名で検索できます。</p><p class="bio-note bio-contact" data-official-contact hidden></p></div>`;
 }
 function capture(profile: BiosecurityProfile): string {
   return `<a class="bio-back" href="/ja/biosecurity">見守りの案内へ</a><div class="bio-capture-intro"><div><p class="bio-eyebrow">${escape(profile.title)}</p><h1>写真を残そう</h1><p>名前がわからなくても、写真だけで残せます。</p></div><img class="bio-capture-art" src="/assets/event-discovery/ryuyo-memories.webp" width="800" height="800" alt=""></div>
   <div id="bio-status" class="bio-status" role="status" aria-live="polite" hidden></div>
   <form id="bio-capture-form" class="bio-form"><fieldset data-controls>
-  <div class="bio-upload"><input class="bio-file-input" type="file" id="bio-photos" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple aria-describedby="bio-photo-help"><label class="bio-photo-chooser" for="bio-photos"><span aria-hidden="true">＋</span><span id="bio-photo-button-label">写真を選ぶ</span></label><p id="bio-photo-help" class="bio-note bio-upload-help">1〜6枚。今ある写真で大丈夫です。</p><div id="bio-photo-preview" class="bio-photo-grid" aria-live="polite"></div></div>
+  <div class="bio-upload"><input class="bio-file-input" type="file" id="bio-photos" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple aria-describedby="bio-photo-help"><label class="bio-photo-chooser" for="bio-photos"><span aria-hidden="true">＋</span><span id="bio-photo-button-label">写真を撮る・選ぶ</span></label><p id="bio-photo-help" class="bio-note bio-upload-help">1〜6枚。今ある写真で大丈夫です。</p><div id="bio-photo-preview" class="bio-photo-grid" aria-live="polite"></div></div>
   <p class="bio-note bio-save-note">無料・ログイン不要。ネットには公開されません。市役所などに送るかは、保存したあとに選べます。</p>
   <div id="bio-capture-details" class="bio-capture-details" hidden>
+  <button class="bio-action" type="submit" id="bio-save">写真を残す</button>
+  <p id="bio-photo-conflicts" class="bio-note bio-save-note" role="status" hidden></p>
+  <details class="bio-more" id="bio-capture-more"><summary>日時・場所・メモを確かめる・足す（任意）</summary><div>
   <section class="bio-context" aria-label="写真の日時と場所">
     <div class="bio-context-row"><div class="bio-context-copy"><h2>いつ</h2><p id="bio-time-summary">わからない</p><p id="bio-time-source" class="bio-note"></p></div><button class="bio-text-button" type="button" id="bio-time-edit" aria-controls="bio-time-editor" aria-expanded="false">日時を入れる</button></div>
-    <div id="bio-time-editor" class="bio-context-editor" hidden><div class="bio-field"><label for="bio-observed-at">見つけた日時（任意）</label><input id="bio-observed-at" name="observed_at" type="datetime-local" step="1"><small id="bio-time-zone">入力した日時は、この端末の時間帯で残します。</small></div><button class="bio-text-button" type="button" id="bio-time-clear">日時を「わからない」にする</button></div>
+    <div id="bio-time-editor" class="bio-context-editor" hidden><div class="bio-field"><label for="bio-observed-at">見つけた日時（任意）</label><input id="bio-observed-at" name="observed_at" type="datetime-local" step="1"><small id="bio-time-zone">写真の時間帯を引きつぎます。不明な場合は、不明のまま残します。</small><label class="bio-check" id="bio-time-device-choice"><input id="bio-time-device-zone" type="checkbox"><span>この端末の時間帯を使う（<span id="bio-time-device-label">端末の時間帯</span>）</span></label></div><button class="bio-text-button" type="button" id="bio-time-clear">日時を「わからない」にする</button></div>
     <div class="bio-context-row"><div class="bio-context-copy"><h2>どこ</h2><p id="bio-place-summary">わからない</p><p id="bio-place-source" class="bio-note"></p></div><button class="bio-text-button" type="button" id="bio-place-edit" aria-controls="bio-place-editor" aria-expanded="false">場所をつける</button></div>
     <div id="bio-place-editor" class="bio-context-editor" hidden>${municipalityPicker(false)}<div class="bio-field"><label for="bio-spot">場所の目印（任意）</label><input id="bio-spot" name="spot_label" maxlength="160" placeholder="例：公園の入口にあるサクラ"><small>自分の名前や家の住所は書かず、目印だけでも大丈夫です。</small></div><p id="bio-location-value" class="bio-note" style="margin-top:16px" hidden></p><div class="bio-actions"><button class="bio-action secondary" type="button" id="bio-location">今いる場所を使う</button><button class="bio-text-button" type="button" id="bio-location-clear" hidden>位置情報を外す</button></div><p id="bio-location-state" class="bio-note" aria-live="polite">現在地は、ボタンを押したときだけ調べます。</p></div>
-    <p id="bio-metadata-help" class="bio-note bio-context-notice">日時や場所がわからなくても、このまま残せます。</p><p id="bio-photo-conflicts" class="bio-note bio-context-notice" role="status" hidden></p>
+    <p id="bio-metadata-help" class="bio-note bio-context-notice">日時や場所がわからなくても、このまま残せます。</p>
   </section>
-  <details class="bio-more"><summary>メモをつける・くわしく残す</summary><div><div class="bio-field"><label for="bio-signal">何が気になりましたか</label><select id="bio-signal" name="signal">${profile.signals.map((signal) => `<option value="${escape(signal.value)}"${signal.value === "unknown" ? " selected" : ""}>${escape(signal.label)}</option>`).join("")}</select></div><div class="bio-field"><label for="bio-note">気づいたこと（任意）</label><textarea id="bio-note" name="note" maxlength="1000" placeholder="虫や木のようすなど、わかることだけ"></textarea></div></div></details>
-  <label class="bio-check"><input id="bio-is-minor" type="checkbox" name="is_minor"><span>私は18歳未満です <small class="bio-note">（自治体と共有するときに保護者の確認が必要です）</small></span></label>
-  <button class="bio-action" type="submit" id="bio-save">写真を残す</button><p class="bio-note bio-save-note">同じ端末で90日間見返せます。写真と記録は90日で閲覧終了し、その後順次削除します。端末のデータを消すと戻れません。必要な写真は手元にも保存してください。</p>
+  <div class="bio-field"><label for="bio-signal">何が気になりましたか（任意）</label><select id="bio-signal" name="signal">${profile.signals.map((signal) => `<option value="${escape(signal.value)}"${signal.value === "unknown" ? " selected" : ""}>${escape(signal.label)}</option>`).join("")}</select></div><div class="bio-field"><label for="bio-note">気づいたこと（任意）</label><textarea id="bio-note" name="note" maxlength="1000" placeholder="虫や木のようすなど、わかることだけ"></textarea></div></div></details>
+  <p class="bio-note bio-save-note">あとから足したり直したりできます。同じ端末で90日間見返せます。写真と記録は90日で閲覧終了し、その後順次削除します。端末のデータを消すと戻れません。必要な写真は手元にも保存してください。</p>
   </div>${profile.safety.slice(0, 2).map((line) => `<p class="bio-note bio-save-note">${escape(line)}</p>`).join("")}</fieldset></form>`;
 }
 function guide(profile: BiosecurityProfile): string {
@@ -152,7 +154,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
     const location = Object.prototype.hasOwnProperty.call(overrides, 'location') ? overrides.location : first.location ? {...first.location, photoIndex:0} : null;
     const times = photos.map((photo) => photo.metadata && photo.metadata.time).filter((item) => item && item.localDateTime).map((item) => item.instant || item.localDateTime + '|' + item.offsetMinutes);
     const locations = photos.map((photo) => photo.metadata && photo.metadata.location).filter(Boolean).map((item) => Number(item.lat).toFixed(5) + ',' + Number(item.lng).toFixed(5));
-    return {time, originalTime:original, location, conflicts:{time:new Set(times).size > 1, location:new Set(locations).size > 1}};
+    return {time, originalTime:overrides.time && !overrides.time.localDateTime ? null : original, location, conflicts:{time:new Set(times).size > 1, location:new Set(locations).size > 1}};
   };
   const signalLabel = (value) => !value || value === 'unknown' ? '写真の記録' : (config.profile.signals.find((item) => item.value === value) || {}).label || '写真の記録';
   const message = (text, error = false) => { const node = $('#bio-status'); if (!node) return; node.textContent = text; node.hidden = !text; node.setAttribute('role', error ? 'alert' : 'status'); node.dataset.zukanUiState = error ? 'error' : 'info'; if (error && node.scrollIntoView) node.scrollIntoView({block:'nearest'}); };
@@ -244,9 +246,72 @@ export const BIOSECURITY_SCRIPT = String.raw`
     record.spotLabel && ['場所の目印', record.spotLabel], record.signal && record.signal !== 'unknown' && ['気になったこと', signalLabel(record.signal)],
     record.note && ['気づいたこと', record.note], record.exactLocation && ['記録した位置', record.exactLocation.lat + ', ' + record.exactLocation.lng]
   ].filter(Boolean).map((item) => '<dt>' + esc(item[0]) + '</dt><dd>' + esc(item[1]) + '</dd>').join('') + '</dl>';
+  const recordListItem = (record) => {
+    const photo = (record.photos || []).find((item) => privatePhotoUrl(item.url)), url = photo && privatePhotoUrl(photo.url);
+    return '<article class="bio-record-item bio-record-preview">' + (url ? '<img class="bio-record-thumbnail" src="' + esc(url) + '" width="88" height="88" alt="" loading="lazy">' : '') + '<div><p class="bio-note">' + esc(observedTimeText(record)) + '</p><h2><a href="/ja/biosecurity/records/' + encodeURIComponent(record.id) + '">' + esc(record.spotLabel || record.municipalityName || signalLabel(record.signal)) + '</a></h2><p class="bio-note">非公開・写真' + Number(record.photoCount || 0) + '枚</p></div></article>';
+  };
+  const editPickerHtml = ${scriptJson(municipalityPicker(false, "bio-edit"))};
+  const detailEditValues = (record) => ({observedTime:record.observedTime && record.observedTime.localDateTime || '', deviceTimeZone:false, note:record.note || '', spotLabel:record.spotLabel || '', municipalityCode:record.municipalityCode || '', lat:record.exactLocation ? String(record.exactLocation.lat) : '', lng:record.exactLocation ? String(record.exactLocation.lng) : ''});
+  // Device time is a display-only label until the person explicitly chooses it.
+  const deviceTimeZoneLabel = (value) => offsetText(-(value && value.includes('T') ? new Date(value) : new Date()).getTimezoneOffset());
+  const editedTime = (value, previousTime = null, useDeviceTimeZone = false) => {
+    if (!value) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return {source:'user', localDateTime:value, offsetMinutes:previousTime && previousTime.offsetMinutes != null ? previousTime.offsetMinutes : null, precision:'date', photoIndex:null};
+    const date = new Date(value);
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value) || Number.isNaN(date.getTime())) throw Object.assign(new Error('invalid_time'), {detailMessage:'日時を確かめてください。わからないときは、日時を外せます。'});
+    const offsetMinutes = useDeviceTimeZone ? -date.getTimezoneOffset() : previousTime && previousTime.offsetMinutes != null ? previousTime.offsetMinutes : null;
+    return {source:'user', localDateTime:value, offsetMinutes, precision:value.length > 16 ? 'second' : 'minute', photoIndex:null};
+  };
+  const buildDetailsPatch = (record, values, clear = {}, before = detailEditValues(record)) => {
+    const patch = {};
+    if (clear.time || values.observedTime !== before.observedTime || values.deviceTimeZone === true && values.observedTime) patch.observedTime = editedTime(values.observedTime, record.observedTime, values.deviceTimeZone === true);
+    ['note','spotLabel'].forEach((field) => { const value = String(values[field] || '').trim(); if (value !== before[field]) patch[field] = value; });
+    if (values.municipalityCode !== before.municipalityCode) patch.municipalityCode = values.municipalityCode || null;
+    if (clear.location || values.lat !== before.lat || values.lng !== before.lng) {
+      if (!values.lat && !values.lng) patch.exactLocation = null;
+      else {
+        const lat = Number(values.lat), lng = Number(values.lng);
+        if (!values.lat || !values.lng || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) throw Object.assign(new Error('invalid_location'), {detailMessage:'位置は緯度と経度を両方入れるか、両方外してください。'});
+        patch.exactLocation = {lat, lng};
+      }
+    }
+    return patch;
+  };
+  const recordEditForm = (record) => {
+    const values = detailEditValues(record), dateOnly = record.observedTime && record.observedTime.precision === 'date';
+    return '<details id="bio-record-edit"><summary>日時・場所・メモを足す・直す（任意）</summary><div><p class="bio-note">わかるところだけで大丈夫です。日時や位置を外すこともできます。</p><p class="bio-note" id="bio-details-sharing-note">直した内容を含む共有は取り消されます。確認してから、もう一度知らせられます。</p><form id="bio-details-form" class="bio-form"><fieldset data-controls>' +
+      '<div class="bio-field"><label for="bio-edit-time">見つけた' + (dateOnly ? '日付' : '日時') + '（任意）</label><input id="bio-edit-time" type="' + (dateOnly ? 'date' : 'datetime-local') + '" step="1" value="' + esc(values.observedTime) + '"><small>' + (dateOnly ? '写真に入っていた日付だけを表示しています。時刻はわからないまま残します。' : '時間帯は今の記録を引きつぎます。不明な場合は、不明のまま残します。') + '</small>' + (dateOnly ? '' : '<label class="bio-check"><input id="bio-edit-device-zone" type="checkbox"><span>この端末の時間帯を使う（<span id="bio-edit-device-label">' + esc(deviceTimeZoneLabel(values.observedTime)) + '</span>）</span></label>') + '<button class="bio-text-button" id="bio-edit-time-clear" type="button">日時を「わからない」にする</button></div>' +
+      editPickerHtml + '<div class="bio-field"><label for="bio-edit-spot">場所の目印（任意）</label><input id="bio-edit-spot" maxlength="160" value="' + esc(values.spotLabel) + '" placeholder="例：公園の入口にあるサクラ"><small>自分の名前や家の住所は書かず、目印だけでも大丈夫です。</small></div>' +
+      '<details><summary>正確な位置を確かめる・直す（任意）</summary><div><p class="bio-note">わかる場合だけ入れてください。今いる場所を自動では使いません。</p><div class="bio-pair"><div class="bio-field"><label for="bio-edit-lat">緯度</label><input id="bio-edit-lat" type="number" inputmode="decimal" min="-90" max="90" step="any" value="' + esc(values.lat) + '"></div><div class="bio-field"><label for="bio-edit-lng">経度</label><input id="bio-edit-lng" type="number" inputmode="decimal" min="-180" max="180" step="any" value="' + esc(values.lng) + '"></div></div><button class="bio-text-button" id="bio-edit-location-clear" type="button">位置情報を外す</button></div></details>' +
+      '<div class="bio-field"><label for="bio-edit-note">気づいたこと（任意）</label><textarea id="bio-edit-note" maxlength="1000">' + esc(values.note) + '</textarea></div><button class="bio-action secondary" type="submit">直した内容を残す</button></fieldset></form><button id="bio-details-reload" class="bio-action secondary" type="button" hidden>新しい内容を読み直す</button></div></details>';
+  };
+  const setupRecordEdit = (record) => {
+    const form = $('#bio-details-form'); if (!form) return;
+    const time = $('#bio-edit-time', form), timeZone = $('#bio-edit-device-zone', form), lat = $('#bio-edit-lat', form), lng = $('#bio-edit-lng', form), clear = {time:false, location:false};
+    setupPicker(form, record.municipalityCode ? {code:record.municipalityCode, name:record.municipalityName || record.municipalityCode, website:record.officialUrl} : null);
+    const readValues = () => ({observedTime:time.value, deviceTimeZone:!!timeZone && timeZone.checked, lat:lat.value, lng:lng.value, note:$('#bio-edit-note', form).value, spotLabel:$('#bio-edit-spot', form).value, municipalityCode:$('#bio-edit-municipality-code', form).value});
+    const before = readValues();
+    if (timeZone) time.addEventListener('input', () => { $('#bio-edit-device-label', form).textContent = deviceTimeZoneLabel(time.value); if (!time.value) timeZone.checked = false; });
+    $('#bio-edit-time-clear', form).addEventListener('click', () => { time.value = ''; clear.time = true; if (timeZone) timeZone.checked = false; message('日時を外しました。「直した内容を残す」で保存します。'); });
+    $('#bio-edit-location-clear', form).addEventListener('click', () => { lat.value = ''; lng.value = ''; clear.location = true; message('位置情報を外しました。「直した内容を残す」で保存します。'); });
+    $('#bio-details-reload').addEventListener('click', () => loadReceipt());
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); if (form.getAttribute('aria-busy') === 'true' || !form.reportValidity()) return;
+      try {
+        const patch = buildDetailsPatch(record, readValues(), clear, before);
+        if (!Object.keys(patch).length) { message('内容は変わっていません。直したいところだけ変えてください。'); return; }
+        if (!Number.isSafeInteger(record.recordVersion) || record.recordVersion < 0) throw Object.assign(new Error('record_version_missing'), {status:409});
+        busy(form, true);
+        const payload = {expectedVersion:record.recordVersion, patch};
+        payload.idempotencyKey = await stableKey('details.' + record.id, payload);
+        await post('/records/' + encodeURIComponent(record.id) + '/details', payload); dropKey('details.' + record.id);
+        await loadReceipt(); message('直した内容を残しました。その内容を含む共有は取り消されました。確認してから、もう一度知らせられます。');
+      } catch (error) { message(error.detailMessage || errorText(error), true); busy(form, false); if (error.status === 409) $('#bio-details-reload').hidden = false; }
+    });
+  };
   const setupPicker = (root, initial) => {
     const picker = $('[data-municipality-picker]', root); if (!picker) return;
-    const query = $('#bio-municipality-query', picker), select = $('#bio-municipality-code', picker), state = $('[data-municipality-state]', picker), contact = $('[data-official-contact]', picker), button = $('[data-municipality-search]', picker);
+    const query = $('input[type=search]', picker), select = $('select[name=municipality_code]', picker), state = $('[data-municipality-state]', picker), contact = $('[data-official-contact]', picker), button = $('[data-municipality-search]', picker);
     let candidates = initial ? [initial] : [];
     const contactChange = () => {
       const municipality = candidates.find((item) => String(item.code) === select.value), url = municipality && safeHttps(municipality.website);
@@ -299,16 +364,18 @@ export const BIOSECURITY_SCRIPT = String.raw`
   let captureDirty = false;
   const setupCapture = () => {
     const form = $('#bio-capture-form'); if (!form) return;
-    let photos = [], overrides = {}, ready = false, submitting = false, preparing = false, sessionPromise, savedRecordId, locationEpoch = 0;
-    const timeInput = $('#bio-observed-at');
-    const timePayload = (time) => ({source:time.source, localDateTime:time.localDateTime, offsetMinutes:time.offsetMinutes, precision:time.precision, photoIndex:time.photoIndex == null ? null : time.photoIndex});
+    let photos = [], overrides = {}, ready = false, submitting = false, preparing = false, sessionPromise, savedRecordId, locationEpoch = 0, timeOffsetBeforeEdit;
+    const timeInput = $('#bio-observed-at'), timeZone = $('#bio-time-device-zone');
+    const timePayload = (time) => time ? {source:time.source, localDateTime:time.localDateTime, offsetMinutes:time.offsetMinutes, precision:time.precision, photoIndex:time.photoIndex == null ? null : time.photoIndex} : null;
     const renderMetadata = () => {
       const adopted = captureMetadata(photos, overrides), time = adopted.time, exact = adopted.location;
       const municipality = $('#bio-municipality-code'), spot = $('#bio-spot').value.trim();
       $('#bio-time-summary').textContent = localTimeText(time);
       $('#bio-time-source').textContent = timeSourceText(time);
       timeInput.value = time.localDateTime || '';
-      $('#bio-time-zone').textContent = time.precision === 'date' ? '写真には日付だけが入っています。時刻がわからなければ、このままで大丈夫です。入力する場合は、この端末の時間帯で残します。' : '入力した日時は、この端末の時間帯で残します。';
+      $('#bio-time-zone').textContent = time.precision === 'date' ? '写真には日付だけが入っています。時刻がわからなければ、このままで大丈夫です。' : '写真の時間帯を引きつぎます。不明な場合は、不明のまま残します。';
+      $('#bio-time-device-label').textContent = deviceTimeZoneLabel(time.localDateTime);
+      $('#bio-time-device-choice').hidden = time.precision === 'date'; timeZone.disabled = time.precision === 'date';
       $('#bio-time-edit').textContent = !$('#bio-time-editor').hidden ? '閉じる' : time.localDateTime ? '直す' : '日時を入れる';
       $('#bio-place-summary').textContent = spot || (municipality.value ? municipality.options[municipality.selectedIndex].text : exact ? exact.source === 'device' ? '今いる場所' : '写真に記録された場所' : 'わからない');
       $('#bio-place-source').textContent = exact ? exact.source === 'device' ? 'この端末の現在地から' : (exact.photoIndex + 1) + '枚目の写真から' : '';
@@ -328,15 +395,17 @@ export const BIOSECURITY_SCRIPT = String.raw`
     const toggleEditor = (name) => { const editor = $('#bio-' + name + '-editor'), button = $('#bio-' + name + '-edit'); editor.hidden = !editor.hidden; button.setAttribute('aria-expanded', String(!editor.hidden)); renderMetadata(); };
     $('#bio-time-edit').addEventListener('click', () => { toggleEditor('time'); if (!$('#bio-time-editor').hidden) timeInput.focus(); });
     $('#bio-place-edit').addEventListener('click', () => toggleEditor('place'));
-    timeInput.addEventListener('input', () => {
-      const value = timeInput.value, date = value ? new Date(value) : null;
-      overrides.time = value && date && !Number.isNaN(date.getTime()) ? {source:'user', localDateTime:value, offsetMinutes:-date.getTimezoneOffset(), instant:date.toISOString(), precision:value.length > 16 ? 'second' : 'minute', photoIndex:null} : {...unknownTime(), source:'user'};
+    const editCaptureTime = () => {
+      if (timeOffsetBeforeEdit === undefined) timeOffsetBeforeEdit = captureMetadata(photos, overrides).time.offsetMinutes;
+      overrides.time = editedTime(timeInput.value, {offsetMinutes:timeOffsetBeforeEdit}, timeZone.checked) || {...unknownTime(), source:'user'};
+      if (!timeInput.value) timeOffsetBeforeEdit = null;
       captureDirty = true; renderMetadata();
-    });
-    $('#bio-time-clear').addEventListener('click', () => { overrides.time = {...unknownTime(), source:'user'}; captureDirty = true; renderMetadata(); message('日時は「わからない」のまま残します。'); });
+    };
+    timeInput.addEventListener('input', () => { if (!timeInput.value) timeZone.checked = false; editCaptureTime(); }); timeZone.addEventListener('change', editCaptureTime);
+    $('#bio-time-clear').addEventListener('click', () => { overrides.time = {...unknownTime(), source:'user'}; timeOffsetBeforeEdit = null; timeZone.checked = false; captureDirty = true; renderMetadata(); message('日時は「わからない」のまま残します。'); });
     const renderPhotos = () => {
       $('#bio-photo-preview').innerHTML = photos.map((photo, index) => '<figure class="bio-photo"><img src="' + esc(photo.url) + '" alt="選んだ写真 ' + (index + 1) + '"><figcaption>写真 ' + (index + 1) + '</figcaption><button type="button" data-remove-photo="' + index + '" aria-label="写真 ' + (index + 1) + 'を外す">外す</button></figure>').join('');
-      $('#bio-photo-button-label').textContent = photos.length ? '写真を追加する' : '写真を選ぶ';
+      $('#bio-photo-button-label').textContent = photos.length ? '写真を追加する' : '写真を撮る・選ぶ';
       $('#bio-capture-details').hidden = !photos.length;
       $$('[data-remove-photo]', form).forEach((button) => button.addEventListener('click', () => { const removed = photos.splice(Number(button.dataset.removePhoto), 1)[0]; URL.revokeObjectURL(removed.url); captureDirty = true; renderPhotos(); message('写真を外しました。'); }));
       renderMetadata();
@@ -374,7 +443,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
         if (!ready) await ensureSession();
         const adopted = captureMetadata(photos, overrides), exactLocation = adopted.location;
         const metadata = {version:1, time:timePayload(adopted.time), originalTime:timePayload(adopted.originalTime), location:{source:exactLocation ? exactLocation.source : 'unknown', photoIndex:exactLocation && exactLocation.source === 'photo_exif' ? exactLocation.photoIndex : null}, conflicts:adopted.conflicts};
-        const payload = {profile_id:config.profile.id, capture_metadata:JSON.stringify(metadata), municipality_code:$('#bio-municipality-code').value, spot_label:$('#bio-spot').value.trim(), signal:$('#bio-signal').value, note:$('#bio-note').value.trim(), is_minor:$('#bio-is-minor').checked ? 'true':'false'};
+        const payload = {profile_id:config.profile.id, capture_metadata:JSON.stringify(metadata), municipality_code:$('#bio-municipality-code').value, spot_label:$('#bio-spot').value.trim(), signal:$('#bio-signal').value, note:$('#bio-note').value.trim()};
         if (adopted.time.instant && adopted.time.localDateTime && adopted.time.offsetMinutes != null) payload.observed_at = adopted.time.instant;
         if (exactLocation) { payload.exact_lat = String(exactLocation.lat); payload.exact_lng = String(exactLocation.lng); }
         const key = await stableKey('capture', {payload, photos:photos.map((photo) => photo.hash)});
@@ -393,25 +462,55 @@ export const BIOSECURITY_SCRIPT = String.raw`
   const environmentShareField = (record) => hasEnvironment(record.environment) ? '<label class="bio-check"><input type="checkbox" name="share_field" value="environment"><span>まわりのようす（今の内容）</span></label>' : '';
   const shareForm = (record) => '<details id="bio-share-panel"><summary>市役所などに知らせる（任意）</summary><div><p>送り先と、送ってよい情報を選びます。選んだ自治体のZUKAN受信箱に届きます。</p><form id="bio-share-form" class="bio-form"><fieldset data-controls>' + sharePickerHtml +
     '<fieldset class="bio-field"><legend>送ってよい情報を選ぶ</legend><div class="bio-checks">' +
-    '<label class="bio-check"><input type="checkbox" name="share_field" value="observedAt" checked disabled><span>日時（わからない場合はそのまま）</span></label>' +
     '<label class="bio-check"><input type="checkbox" name="share_field" value="photos"><span>写真 ' + Number(record.photoCount || (record.photos || []).length) + '枚</span></label>' +
+    '<label class="bio-check"><input type="checkbox" name="share_field" value="observedAt"><span>日時（わからない場合はそのまま）</span></label>' +
     (record.spotLabel ? '<label class="bio-check"><input type="checkbox" name="share_field" value="spotLabel"><span>場所の目印</span></label>' : '') +
     (record.note ? '<label class="bio-check"><input type="checkbox" name="share_field" value="note"><span>気づいたこと</span></label>' : '') +
     (record.exactLocation ? '<label class="bio-check"><input type="checkbox" name="share_field" value="exactLocation"><span>正確な位置</span></label>' : '') +
     '<div id="bio-environment-share-field">' + environmentShareField(record) + '</div>' +
-    '</div><small>写真か「気づいたこと」のどちらかを含めてください。</small></fieldset>' +
-    (record.isMinor ? '<label class="bio-check bio-minor"><input type="checkbox" id="bio-guardian-consent" required><span>保護者が、選んだ情報を自治体へ提供することを確認しました。</span></label>' : '') +
+    '</div><small>送ってよい項目を、1つ以上選んでください。選んでいない情報は送りません。</small></fieldset>' +
+    '<fieldset class="bio-field"><legend>知らせる前に確認してください</legend><div class="bio-checks">' +
+    (!record.isMinor ? '<label class="bio-check"><input type="radio" name="share_role" value="adult" required><span>私は18歳以上の本人です。</span></label>' : '') +
+    '<label class="bio-check"><input type="radio" name="share_role" value="guardian" required><span>18歳未満です。保護者といっしょに確認します。</span></label></div></fieldset>' +
+    '<label class="bio-check bio-minor" id="bio-guardian-confirmation" hidden><input type="checkbox" id="bio-guardian-consent" disabled><span>保護者が、送る相手と選んだ情報を確認しました。</span></label>' +
     '<p id="bio-share-summary" class="bio-note">共有先と情報を選んでください。</p><label class="bio-check"><input type="checkbox" id="bio-share-consent" required><span>共有先と選んだ情報を確認しました。写真に写る人などの権利にも配慮し、外来種対応のための提供に同意します。</span></label>' +
-    '<button class="bio-action" type="submit">選んだ情報を送る</button><p class="bio-note">自治体での正式受付とは異なります。担当者がまだ受信箱を利用していない場合もあります。急ぐ場合は自治体の公式窓口へ直接連絡してください。</p></fieldset></form></div></details>';
+    '<button class="bio-action" type="submit">自治体に知らせる</button><p class="bio-note">自治体での正式受付とは異なります。担当者がまだ受信箱を利用していない場合もあります。急ぐ場合は自治体の公式窓口へ直接連絡してください。</p></fieldset><button id="bio-share-reload" class="bio-action secondary" type="button" hidden>新しい内容を読み直す</button></form></div></details>';
+  const setupShare = (record) => {
+    const form = $('#bio-share-form'); if (!form) return;
+    setupPicker(form, record.municipalityCode ? {code:record.municipalityCode, name:record.municipalityName || record.municipalityCode, website:record.officialUrl} : null);
+    const selectedFields = () => $$('input[name=share_field]:checked', form).map((input) => input.value);
+    const consent = $('#bio-share-consent', form), guardian = $('#bio-guardian-consent', form);
+    const reload = $('#bio-share-reload', form); if (reload) reload.addEventListener('click', () => loadReceipt());
+    form.addEventListener('change', (event) => {
+      if (event.target !== consent) consent.checked = false;
+      if (event.target !== consent && event.target !== guardian) guardian.checked = false;
+      const role = $('input[name=share_role]:checked', form), isGuardian = !!role && role.value === 'guardian';
+      $('#bio-guardian-confirmation', form).hidden = !isGuardian; guardian.disabled = !isGuardian; guardian.required = isGuardian;
+      const select = $('#bio-municipality-code', form), labels = selectedFields().map((field) => fieldLabels[field]);
+      $('#bio-share-summary', form).textContent = select.value && labels.length ? select.options[select.selectedIndex].text + 'へ：' + labels.join('・') : '共有先と、送ってよい情報を1つ以上選んでください。';
+    });
+    form.dispatchEvent(new Event('change'));
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); if (form.getAttribute('aria-busy') === 'true' || !form.reportValidity()) return;
+      const fields = selectedFields(), role = $('input[name=share_role]:checked', form);
+      if (!fields.length) { message('送ってよい情報を1つ以上選んでください。', true); return; }
+      if (!role || (record.isMinor && role.value !== 'guardian') || (role.value === 'guardian' && !guardian.checked)) { message('18歳未満の方は、保護者といっしょに確認してください。', true); return; }
+      const payload = {municipalityCode:$('#bio-municipality-code', form).value, purpose:'invasive_response', fields, recordVersion:record.recordVersion, consent:consent.checked, adultConsent:role.value === 'adult', guardianConsent:role.value === 'guardian' && guardian.checked};
+      if (fields.includes('environment')) payload.environmentVersion = Number(record.environment.version);
+      busy(form, true); message('選んだ情報を送っています。');
+      try { payload.idempotencyKey = await stableKey('share.' + record.id, payload); await post('/records/' + encodeURIComponent(record.id) + '/share', payload); dropKey('share.' + record.id); await loadReceipt(); message('選んだ情報をZUKANの受信箱に送りました。自治体での正式受付とは異なります。'); }
+      catch (error) { message(errorText(error), true); busy(form, false); if (error.status === 409 && reload) reload.hidden = false; }
+    });
+  };
   const environmentSection = (record) => {
     const environment = record.environment || {status:'not_requested', version:0, values:{}}, entries = environmentEntries(environment), values = environment.values || {};
     const state = environment.status || 'not_requested';
     const text = {not_requested:'写真に写った草や木、地面のようすも残せます。', processing:'写真を調べています。写真と記録は保存できています。', ready:(entries.length || Boolean(environment.multiTaxa?.candidates?.length)) ? entries.some((entry) => entry.source === '写真からの候補') || Boolean(environment.multiTaxa?.candidates?.length) ? '写真から出した候補は、間違っていることもあります。違っていたら直してください。' : 'わかるところを残しました。内容はいつでも直せます。' : '写真からは、まわりのようすがわかりませんでした。わかることがあれば書き足せます。', unavailable:'今は写真から調べられません。写真と記録は保存されています。', budget_reached:'今日は写真から調べられる回数の上限に達しました。写真と記録は保存されています。', off:'写真から調べる機能は、今はお休みです。わかることを自分で残せます。'}[state] || '写真と記録は保存されています。';
-    return '<section class="bio-section bio-environment" id="bio-environment"><h2>写真から分かったこと</h2><p role="status">' + esc(text) + '</p>' + environmentDetails(environment) + taxaDetails(environment) +
-      (state === 'not_requested' || state === 'ready' && environment.model === null ? '<p class="bio-note" id="bio-environment-disclosure">保存した写真を調べ、まわりの環境や、写っている生きものの分類候補を探します。候補は確定ではなく、外来種の正式な同定や自治体への通報は行いません。</p><button type="button" class="bio-action secondary" id="bio-environment-hints" aria-describedby="bio-environment-disclosure">写真から分かることを調べる</button>' : '') +
+    return '<section class="bio-section bio-environment" id="bio-environment"><h2>写真からわかったこと</h2><p role="status">' + esc(text) + '</p>' + environmentDetails(environment) + taxaDetails(environment) +
+      (state === 'not_requested' || state === 'ready' && environment.model === null ? '<p class="bio-note" id="bio-environment-disclosure">ボタンを押すと、保存した写真をCloudflareの画像処理に送ります。日時・場所・メモは送りません。写真に見える、まわりのようすを調べます。候補は間違うこともあり、虫の名前や被害は確定しません。</p><button type="button" class="bio-action secondary" id="bio-environment-hints" aria-describedby="bio-environment-disclosure">写真からまわりのようすを調べる</button>' : '') +
       (state === 'processing' || state === 'unavailable' ? '<button type="button" class="bio-action secondary" id="bio-environment-refresh">結果を確認する</button>' : '') +
       '<details><summary>' + (entries.length ? '違うところを直す' : 'わかることを自分で入れる') + '</summary><div><p class="bio-note">わかるところだけで大丈夫です。「わからない・使わない」を選ぶと、その候補を外せます。</p><form id="bio-environment-form" class="bio-form"><fieldset data-controls>' + environmentFields.map((field) => '<div class="bio-field"><label for="bio-environment-' + esc(field.field) + '">' + esc(field.label) + '</label><select id="bio-environment-' + esc(field.field) + '" name="' + esc(field.field) + '">' + field.options.map((option) => '<option value="' + esc(option.value) + '"' + (option.value === (values[field.field] || 'unknown') ? ' selected' : '') + '>' + esc(option.value === 'unknown' ? 'わからない・使わない' : option.label) + '</option>').join('') + '</select></div>').join('') + '<button class="bio-action secondary" type="submit">直した内容を残す</button></fieldset></form></div></details>' +
-      ((record.shares || []).some((share) => share.status !== 'withdrawn' && (share.fields || []).includes('environment')) ? '<p class="bio-note">すでに自治体へ送った内容は変わりません。直した内容を送りたいときは、改めて共有してください。</p>' : '') + '</section>';
+      ((record.shares || []).some((share) => share.status !== 'withdrawn' && (share.fields || []).includes('environment')) ? '<p class="bio-note">まわりのようすを直すと、その内容を含む共有は取り消されます。確認してから、もう一度知らせられます。</p>' : '') + '</section>';
   };
   const setupEnvironment = (record) => {
     const section = $('#bio-environment'); if (!section) return;
@@ -443,7 +542,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
       if (!changed.size) { message('変えたい項目を選んでください。わからないところは、そのままで大丈夫です。'); return; }
       const values = {}; changed.forEach((field) => { values[field] = $('select[name="' + field + '"]', form).value; });
       begin();
-      try { await post('/records/' + encodeURIComponent(record.id) + '/environment', {expectedVersion:Number(record.environment && record.environment.version || 0), values}); await refresh(); message('直した内容を残しました。自治体へ送る内容は、共有するときに確認してください。'); }
+      try { await post('/records/' + encodeURIComponent(record.id) + '/environment', {expectedVersion:Number(record.environment && record.environment.version || 0), values}); await loadReceipt(); message('直した内容を残しました。その内容を含む共有は取り消されました。確認してから、もう一度知らせられます。'); }
       catch (error) { message(error.status === 409 ? '記録の内容が変わっています。ページを開き直してから、もう一度直してください。' : errorText(error), true); end(); }
     });
   };
@@ -455,13 +554,13 @@ export const BIOSECURITY_SCRIPT = String.raw`
         const data = await request('/records' + (append === true && ownNextOffset != null ? '?offset=' + encodeURIComponent(ownNextOffset) : ''));
         const records = Array.isArray(data) ? data : data.records || data.items || [];
         ownRecords = append === true ? ownRecords.concat(records) : records; ownNextOffset = data.nextOffset == null ? null : data.nextOffset;
-        target.innerHTML = ownRecords.length ? ownRecords.map((record) => '<article class="bio-record-item"><p class="bio-note">' + esc(observedTimeText(record)) + '</p><h2><a href="/ja/biosecurity/records/' + encodeURIComponent(record.id) + '">' + esc(record.spotLabel || record.municipalityName || signalLabel(record.signal)) + '</a></h2><p class="bio-note">非公開・写真' + Number(record.photoCount || 0) + '枚</p></article>').join('') : '<div class="bio-empty"><img src="/assets/event-discovery/ryuyo-memories.webp" width="800" height="800" alt=""><div><h2>まだ写真を残していません</h2><p>写真を残すと、ここから見返せます。別の端末の記録や、保存期限を過ぎた記録は表示されません。</p><a class="bio-action" href="/ja/biosecurity/' + encodeURIComponent(config.profile.id) + '/capture">写真を残す</a></div></div>';
+        target.innerHTML = ownRecords.length ? ownRecords.map(recordListItem).join('') : '<div class="bio-empty"><img src="/assets/event-discovery/ryuyo-memories.webp" width="800" height="800" alt=""><div><h2>まだ写真を残していません</h2><p>写真を残すと、ここから見返せます。別の端末の記録や、保存期限を過ぎた記録は表示されません。</p><a class="bio-action" href="/ja/biosecurity/' + encodeURIComponent(config.profile.id) + '/capture">写真を残す</a></div></div>';
         if (ownNextOffset != null) { target.insertAdjacentHTML('beforeend', '<div class="bio-actions"><button id="bio-records-more" class="bio-action secondary" type="button">続きを読み込む</button></div>'); $('#bio-records-more').addEventListener('click', async () => { $('#bio-records-more').disabled = true; await loadReceipt(true); }); }
         return;
       }
       const data = await request('/records/' + encodeURIComponent(config.recordId)), record = data.record;
       if (!record || !record.id) throw new Error('record_missing');
-      target.innerHTML = '<p><span class="bio-private">保存済み・非公開</span></p>' + photoGrid(record.photos) + details(record) + relatedRecordsSection(record) +
+      target.innerHTML = '<p><span class="bio-private">保存済み・非公開</span></p>' + photoGrid(record.photos) + details(record) + recordEditForm(record) + relatedRecordsSection(record) +
         (record.photoConflicts && (record.photoConflicts.time || record.photoConflicts.location) ? '<p class="bio-note">写真ごとに日時や場所の情報が違います。保存前に選んだ内容を表示しています。</p>' : '') + environmentSection(record) +
         '<div class="bio-actions"><button class="bio-action secondary" id="bio-copy-record" type="button">連絡用の文章をコピー</button>' + (safeHttps(record.officialUrl) ? '<a href="' + esc(safeHttps(record.officialUrl)) + '" target="_blank" rel="noopener noreferrer">公式の案内・連絡先を確認（別のタブ）</a>' : '') + '</div><p class="bio-note" style="margin-top:16px">コピーには、この画面の日時・場所・メモなどが入ります。伝えたい情報を選んで、公式窓口への連絡に使えます。</p>' +
         (record.expiresAt ? '<p class="bio-note">閲覧期限：' + esc(dateText(record.expiresAt)) + '。期限後は順次削除します。必要な写真は手元にも保存してください。</p>' : '') +
@@ -471,7 +570,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
         (share.status !== 'withdrawn' ? '<button class="bio-action secondary" type="button" data-withdraw="' + esc(share.id) + '" data-version="' + Number(share.version) + '">共有を取り消す</button>' : '') + '</article>').join('') : '<p>まだ自治体には送っていません。</p>') +
         '<p class="bio-note">自治体での正式受付とは異なります。共有を取り消すと、この受信箱から新たに閲覧できなくなります。すでに保存された情報は回収できません。</p></section>' + shareForm(record) +
         '<details><summary>この記録を削除する</summary><div><p>写真と記録を削除し、自治体への共有を取り消します。削除は元に戻せません。すでに相手が保存した情報は回収できません。</p><button class="bio-action secondary" id="bio-delete-record" type="button">写真と記録を削除する</button></div></details>';
-      setupEnvironment(record);
+      setupRecordEdit(record); setupEnvironment(record); setupShare(record);
       $('#bio-copy-record').addEventListener('click', async () => { try { await navigator.clipboard.writeText(detailText(record)); message('連絡用の文章をコピーしました。連絡先と内容を確認してからお使いください。'); } catch (_) { message('コピーできませんでした。表示している情報を選択してコピーしてください。', true); } });
       $('#bio-delete-record').addEventListener('click', async () => {
         if (!confirm('この写真と記録を削除し、すべての自治体への共有を取り消します。削除は元に戻せません。削除しますか？')) return;
@@ -488,21 +587,6 @@ export const BIOSECURITY_SCRIPT = String.raw`
         try { await post('/shares/' + encodeURIComponent(button.dataset.withdraw) + '/withdraw', {expectedVersion:Number(button.dataset.version)}); await loadReceipt(); message('共有を取り消しました。写真は自分の記録に残っています。'); }
         catch (error) { await loadReceipt(); message(errorText(error) + ' 共有状態を読み直しました。', true); }
       }));
-      const form = $('#bio-share-form');
-      setupPicker(form, record.municipalityCode ? {code:record.municipalityCode, name:record.municipalityName || record.municipalityCode, website:record.officialUrl} : null);
-      const selectedFields = () => $$('input[name=share_field]:checked', form).map((input) => input.value);
-      form.addEventListener('change', () => { const select = $('#bio-municipality-code', form), labels = selectedFields().map((field) => fieldLabels[field]); $('#bio-share-summary').textContent = select.value ? select.options[select.selectedIndex].text + 'へ：' + labels.join('・') : '共有先と情報を選んでください。'; });
-      form.dispatchEvent(new Event('change'));
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault(); if (form.getAttribute('aria-busy') === 'true' || !form.reportValidity()) return;
-        const fields = selectedFields();
-        if (!fields.includes('photos') && !fields.includes('note')) { message('提供する写真か「気づいたこと」を選んでください。', true); return; }
-        const payload = {municipalityCode:$('#bio-municipality-code', form).value, purpose:'invasive_response', fields, consent:$('#bio-share-consent').checked, guardianConsent:!!$('#bio-guardian-consent') && $('#bio-guardian-consent').checked};
-        if (fields.includes('environment')) payload.environmentVersion = Number(record.environment.version);
-        busy(form, true); message('選んだ情報を送っています。');
-        try { payload.idempotencyKey = await stableKey('share.' + record.id, payload); await post('/records/' + encodeURIComponent(record.id) + '/share', payload); dropKey('share.' + record.id); await loadReceipt(); message('選んだ情報をZUKANの受信箱に送りました。自治体での正式受付とは異なります。'); }
-        catch (error) { message(errorText(error), true); busy(form, false); }
-      });
     } catch (error) {
       if (append === true) { message(errorText(error), true); if ($('#bio-records-more')) $('#bio-records-more').disabled = false; return; }
       if (!config.recordId && error.status === 401) { target.innerHTML = '<div class="bio-empty"><img src="/assets/event-discovery/ryuyo-memories.webp" width="800" height="800" alt=""><div><h2>この端末の記録を見つけられませんでした</h2><p>初めて使う方は、写真を残してみましょう。前の記録は、保存した端末から開いてください。端末のデータを消した場合や期限が過ぎた場合は戻れません。</p><a class="bio-action" href="/ja/biosecurity/' + encodeURIComponent(config.profile.id) + '/capture">写真を残す</a></div></div>'; return; }

@@ -25,7 +25,7 @@
 
 - `/ja/biosecurity`：公開ガイド。プロフィール別 `/ja/biosecurity/:profileId` と撮影入口へ接続する。
 - `/ja/biosecurity/:profileId/capture`：ログイン不要。写真1〜6枚だけで非公開保存できる。写真から読めた日時・位置は出所付きで示し、地域・目印・メモと修正は任意にする。
-- `/ja/biosecurity/records` と詳細：同じ端末の有効なcredentialで本人分だけを読む。IDだけでは閲覧できない。共有先・項目の選択、撤回、写真と記録の削除を提供する。
+- `/ja/biosecurity/records` と詳細：同じ端末の有効なcredentialで本人分だけを読む。IDだけでは閲覧できない。保護された写真の一覧、保存後の任意情報の補足・訂正・削除、共有先・項目の選択、撤回、写真と記録の削除を提供する。
 - 記録詳細の任意操作で、最初の写真から環境候補を求め、訂正・不採用にできる。保存時・画面表示時には実行しない。環境の共有は未選択で始まり、同意時の版を保存する。
 - `/ja/biosecurity/municipalities`：自治体を選択し、公式メール宛の一回限りのコードを元のブラウザーで入力する。IKIMONの人的審査は経路に含めない。
 - `/ja/biosecurity/inbox`：認証済み自治体を宛先とする、期限内・未撤回の共有だけを受信する。写真・位置・メモは選択された項目だけ。確認済み操作は種の同定、自治体の正式受付、処置完了を意味しない。
@@ -41,11 +41,12 @@
 1. 同じactor・要求key・payloadは同じRecordを返す。異なるpayloadは409。D1の容量予約と関連行を一つのbatchで確保し、R2の保存確認後だけ保存済みにする。
 2. JPEG/PNG/WebP以外を保存しない。クライアントで再エンコードし、サーバーでも付加情報を除去する。R2への書込みにはSHA-256 checksumを渡し、実サイズを照合する。圧縮画像を未加工の原画像と称さない。
 3. 選択媒体の一部が失敗した場合は成功を表示せず、同じ要求で再試行できる。全枚数の実保存確認が揃うまでRecordを確定しない。未送信の写真を画面を閉じた後も自動送信すると約束しない。
-4. 提供には宛先、目的、項目と同意が必要。未成年と申告した記録では保護者の確認も必要。activeな共有と撤回履歴の全件を本人のreceiptに残し、古い共有をUIから隠す無制限追加を許さない。
+4. 提供には宛先、目的、1項目以上の選択と同意が必要。日時を含め既定選択はない。毎回成人本人の確認または保護者の確認を求め、既知の未成年記録では保護者確認だけを受け入れる。共有時に未成年として確認した記録も、以後その状態を保持する。activeな共有と撤回履歴の全件を本人のreceiptに残し、古い共有をUIから隠す無制限追加を許さない。
 5. 閲覧権は各要求で再確認する。R2取得や情報projectionの途中で共有撤回・認証失効・記録期限が生じた場合も応答前に拒否する。
 6. 確認コードは8桁、10分、最大5試行、ブラウザーに束縛し、一回だけ消費する。mailbox所有者と自治体を代表する権限は別物。既存の会員accountへメール一致だけで結合しない。
 7. mail送信結果が不明なら自動再送しない。送信試行は上限へ計上し、届いていれば同じコードを入力できる。受信箱への登録をメール配信・正式受付と混同しない。
 8. 削除はまず閲覧と共有を止め、leaseを持つ一つの処理だけが媒体を削除し容量を返す。不明な結果を成功扱いせず、後続の期限処理から再開する。相手が既に取得した外部コピーの回収を保証しない。
+9. 保存後の任意情報は既存`capture_details_json`のserver-owned版でCAS更新する。同じ要求の再試行は重複更新せず、古い画面は409。変更した情報を含む共有の撤回とsource更新を同じD1 batchで行う。共有のINSERTも本人が見たsource版へ束縛する。環境情報の手修正も、その項目を含む共有だけを撤回する。
 
 ## 4. 初期の保管・費用上限
 
@@ -64,6 +65,8 @@
 ## 5. Migrationとrelease順序
 
 初期版のmigrationはOBSの `0076_biosecurity_selfservice.sql` とCOREの `0021_municipal_mailbox_access.sql`。写真中心の追加版では、適用済み0076に対してOBSの `0077_biosecurity_photo_context.sql` だけを追加する。既存private記録の移送、共有テーブルの再構築、公開範囲変更、権限一括付与を含めない。
+
+保存後編集と確認済み共有の追加はmigration不要。既存JSONへのoptionalなserver-owned edit版だけを加える。旧版が新しい共有確認契約を満たすとは限らないため、自動rollbackの可否は保存形式だけでなくguardian・版照合・訂正時撤回も確認する。新しいsecret、IAM、DNS、予算拡大や新規モデルの有効化を含めない。
 
 1. productのimmutable source SHA/treeに対するtypecheck、共通writer・認証・UIの重点試験を通す。
 2. 管理正本の登録済みD1 runnerへ対象SQLのdigest、DB identity、必要な前提、schema probeを束縛したlaneを通常PRで登録する。無関係なpending migrationをapply-allしない。
@@ -86,5 +89,6 @@ rollbackは登録済みの直前Worker版への復旧またはfeature停止。�
 - 320px〜1440px、文字200%、keyboard/focus、画像準備失敗、通信再試行、storage不可、共用端末の終了・履歴復元時のprivate表示消去。
 - EXIFなし・不正日・時差不明・日付だけ・範囲外GPS・複数写真の不一致、修正後の補完、読めない写真でも保存可能。
 - CLEFの本人同意・別guest拒否・単一呼出し・予算0/同時競合・不正応答・遅い結果と本人訂正・取得中の削除・環境共有版の固定。
+- 保存後の不明日時→既知日時→不明日時、原EXIFの明示削除、GPS/noteの保存値削除、同じRecord/Media/容量/期限の維持、訂正と旧同意・CAS競合・応答消失、訂正対象だけの共有撤回。
 
 検証入口は `cloudflare_shadow/src/biosecurity.test.ts`、`biosecurityMedia.test.ts`、`municipalDomainEvidence.test.ts`、`src/services/municipalityDirectory.test.ts`、`src/ui/biosecurity.test.ts` と共通Product Registry / writer tests。
