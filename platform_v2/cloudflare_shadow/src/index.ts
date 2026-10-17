@@ -4487,7 +4487,7 @@ async function handleObservationEventPages(request: Request, url: URL, env: Env)
 }
 
 async function getPublicProgramConfirmationPage(request: Request, url: URL, env: Env): Promise<Response> {
-  const lang = publicLangFromPath(url.pathname) ?? "ja";
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
   let program;
   try {
     program = decodePublicProgramHandoffPayload(url.searchParams.get("payload") ?? "");
@@ -28448,7 +28448,7 @@ function originalUiHtmlKeysForRequest(url: URL): string[] {
   return variant ? [originalUiHtmlVariantKey(pathname, variant), baseKey] : [baseKey];
 }
 
-function langQueryToUrlSegment(value: string | null): string | null {
+function langQueryToUrlSegment(value: string | null): "ja" | "en" | "es" | "pt-br" | null {
   if (!value) return null;
   const normalized = value.trim();
   if (normalized === "ja" || normalized === "en" || normalized === "es") return normalized;

@@ -75,6 +75,7 @@ export function renderPublicProgramConfirmationBody(input: {
     .replace(/\u2028/gu, "\\u2028")
     .replace(/\u2029/gu, "\\u2029");
   const nextSuffix = program.profile === "stamp_rally" ? "rally" : "edit";
+  const nextPrefix = lang === "ja" ? "" : "/" + lang;
   return summary
     + "<section class=\"evt-recap-shell\"><article class=\"evt-card\">"
     + "<button type=\"button\" class=\"evt-btn evt-btn-primary\" data-program-confirm>" + copy.publish + "</button>"
@@ -94,7 +95,7 @@ export function renderPublicProgramConfirmationBody(input: {
     + "if(response.status===401||response.status===403){if(status)status.textContent=copy.expired;if(login)login.hidden=false;return;}"
     + "if(response.status===409){if(status)status.textContent=copy.conflict;return;}"
     + "var result=await response.json();if(!response.ok||result.programId!==program.requestId||result.publicationState!=='public')throw new Error('program_result_unconfirmed');"
-    + "completed=true;window.location.assign('/events/'+encodeURIComponent(result.programId)+'/" + nextSuffix + "');"
+    + "completed=true;window.location.assign('" + nextPrefix + "/events/'+encodeURIComponent(result.programId)+'/" + nextSuffix + "');"
     + "}catch(error){completed=false;if(status)status.textContent=copy.unknown;}finally{clearTimeout(timeout);button.disabled=completed;}"
     + "});})();</script>";
 

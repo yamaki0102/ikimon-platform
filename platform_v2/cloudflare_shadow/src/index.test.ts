@@ -28897,7 +28897,20 @@ test("Program confirmation page carries data only and requires native ZUKAN auth
     const rejected = await worker.fetch(new Request(`https://zukan.earth/${lang}/community/programs/confirm?payload=invalid`), productionEnv);
     assert.equal(rejected.status, 400);
     assert.ok((await rejected.text()).includes(invalid!));
+    const queryUrl = `https://zukan.earth/community/programs/confirm?lang=${lang}&payload=${payload}`;
+    const queryLocalized = await worker.fetch(new Request(queryUrl), productionEnv);
+    const queryHtml = await queryLocalized.text();
+    assert.equal(queryLocalized.status, 200);
+    assert.ok(queryHtml.includes(title!));
+    assert.ok(queryHtml.includes(encodeURIComponent(`/community/programs/confirm?lang=${lang}&payload=${payload}`)), "login returns to the same language and program");
+    const queryRejected = await worker.fetch(new Request(`https://zukan.earth/community/programs/confirm?lang=${lang}&payload=invalid`), productionEnv);
+    assert.equal(queryRejected.status, 400);
+    assert.ok((await queryRejected.text()).includes(invalid!));
   }
+  const pathPriority = await worker.fetch(new Request(`https://zukan.earth/es/community/programs/confirm?lang=en&payload=${payload}`), productionEnv);
+  assert.ok((await pathPriority.text()).includes("Revisar publicación"));
+  const unknownLocale = await worker.fetch(new Request("https://zukan.earth/community/programs/confirm?lang=unknown&payload=invalid"), productionEnv);
+  assert.ok((await unknownLocale.text()).includes("企画候補を読み込めません"));
 });
 
 test("allowlisted observation event applications persist as registered without check-in or duplicate rows", async () => {
