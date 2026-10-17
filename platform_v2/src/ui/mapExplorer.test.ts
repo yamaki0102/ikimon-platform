@@ -11,6 +11,154 @@ function bootSection(start: string, end: string): string {
   return script.slice(from, to);
 }
 
+function startupLocationFixture(permission: string, positionThrows = false) {
+  const calls = { permission: 0, position: 0, flyTo: 0, remember: 0, marker: 0 };
+  const receivePosition: Array<(position: unknown) => void> = [];
+  const positionFailures: Array<() => void> = [];
+  const permissionResolvers: Array<(status: { state: string }) => void> = [];
+  const permissionFailures: Array<(error: Error) => void> = [];
+  const gestures: Record<string, () => void> = {};
+  const navigator: Record<string, unknown> = {
+    geolocation: { getCurrentPosition(success: (position: unknown) => void, failure: () => void) {
+      calls.position += 1;
+      if (positionThrows) throw new Error("fixture geolocation unavailable");
+      receivePosition.push(success);
+      positionFailures.push(failure);
+    } },
+  };
+  if (permission !== "missing") navigator.permissions = permission === "missing-query" ? {} : { query() {
+    calls.permission += 1;
+    if (permission === "throws") throw new Error("fixture Permissions API unavailable");
+    if (permission === "rejects") return Promise.reject(new Error("fixture Permissions API unavailable"));
+    if (permission === "pending") return new Promise<{ state: string }>((resolve, reject) => { permissionResolvers.push(resolve); permissionFailures.push(reject); });
+    return Promise.resolve(permission === "no-status" ? null : { state: permission });
+  } };
+  const state = { _restoredCenter: null as number[] | null, _restoredCellId: null as string | null,
+    startupLocationUserMoved: false, startupLocationRequestActive: false,
+    map: { getZoom: () => 10, flyTo: () => { calls.flyTo += 1; }, on: (name: string, handler: () => void) => { gestures[name] = handler; } } };
+  const context = vm.createContext({ navigator, state, STARTUP_LOCATION_ZOOM: 15,
+    isValidMapLngLat: () => true, rememberLastStartupLocation: () => { calls.remember += 1; },
+    dropMeMarker: () => { calls.marker += 1; } });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const gestureHandlers = [...script.matchAll(/state\.map\.on\('(dragstart|zoomstart)', function \(\) \{\s*if \(state\.startupLocationRequestActive\) state\.startupLocationUserMoved = true;\s*\}\);/g)].map((match) => match[0]);
+  assert.equal(gestureHandlers.length, 2, "exercise the actual drag and zoom guards");
+  new vm.Script(bootSection("function requestStartupCurrentLocation(options)", "function cleanupFailedMapInit()") + gestureHandlers.join("\n")).runInContext(context);
+  return { calls, state, request: (options: object) => context.requestStartupCurrentLocation(options),
+    move: (gesture: string) => gestures[gesture]!(),
+    resolvePermission: (index: number, permission = "granted") => { assert.ok(permissionResolvers[index]); permissionResolvers[index]!({ state: permission }); },
+    rejectPermission: (index: number) => permissionFailures[index]!(new Error("fixture late permission failure")),
+    failPosition: (index: number) => positionFailures[index]!(),
+    resolvePosition: (index = receivePosition.length - 1) => { assert.ok(receivePosition[index]); receivePosition[index]!({ coords: { longitude: 137, latitude: 35, accuracy: 30 } }); } };
+}
+
+test("startup location never requests coordinates unless permission is already granted", async () => {
+  for (const permission of ["rejects", "throws", "no-status", "unknown", "prompt", "denied", "missing", "missing-query", "granted"]) {
+    const value = startupLocationFixture(permission);
+    value.request({ onlyIfGranted: true });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(value.calls.position, permission === "granted" ? 1 : 0, permission);
+    if (permission !== "granted") assert.equal(value.state.startupLocationRequestActive, false, permission);
+  }
+});
+
+test("explicit location keeps its permission fallback while respecting denied and synchronous failures", async () => {
+  for (const permission of ["rejects", "throws", "no-status", "unknown", "prompt", "denied", "missing", "missing-query", "granted"]) {
+    const value = startupLocationFixture(permission);
+    value.request({ force: true });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(value.calls.position, permission === "denied" ? 0 : 1, permission);
+  }
+  const unavailable = startupLocationFixture("granted", true);
+  unavailable.request({ force: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(unavailable.calls.position, 1, "a geolocation exception does not cause a second request");
+  assert.equal(unavailable.state.startupLocationRequestActive, false);
+});
+
+test("startup location preserves restored views and ignores a late position after user movement", async () => {
+  for (const restored of ["center", "cell"]) {
+    const value = startupLocationFixture("granted");
+    if (restored === "center") value.state._restoredCenter = [137, 35];
+    else value.state._restoredCellId = "selected-cell";
+    value.request({ onlyIfGranted: true });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(value.calls.permission, 0);
+    assert.equal(value.calls.position, 0);
+  }
+  const moved = startupLocationFixture("granted");
+  moved.request({ onlyIfGranted: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  moved.state.startupLocationUserMoved = true;
+  moved.resolvePosition();
+  assert.equal(moved.state.startupLocationRequestActive, false);
+  assert.equal(moved.calls.flyTo, 0);
+  assert.equal(moved.calls.remember, 0);
+  assert.equal(moved.calls.marker, 0);
+});
+
+test("pending permission respects pan and an explicit retry resets only the earlier movement", async () => {
+  for (const gesture of ["dragstart", "zoomstart"]) {
+    const value = startupLocationFixture("pending");
+    value.request({ onlyIfGranted: true });
+    assert.equal(value.state.startupLocationRequestActive, true);
+    value.move(gesture);
+    assert.equal(value.state.startupLocationUserMoved, true);
+    value.resolvePermission(0);
+    await new Promise((resolve) => setImmediate(resolve));
+    value.resolvePosition();
+    assert.equal(value.calls.flyTo, 0, "late startup position must not replace the chosen view");
+    assert.equal(value.calls.remember, 0);
+    value.request({ force: true });
+    assert.equal(value.state.startupLocationUserMoved, false, "explicit choice may use the current position again");
+    value.resolvePermission(1);
+    await new Promise((resolve) => setImmediate(resolve));
+    value.resolvePosition();
+    assert.equal(value.calls.flyTo, 1);
+    value.request({ force: true });
+    value.move(gesture);
+    value.resolvePermission(2);
+    await new Promise((resolve) => setImmediate(resolve));
+    value.resolvePosition();
+    assert.equal(value.calls.flyTo, 1, "a new gesture while the forced request is pending still takes priority");
+  }
+});
+
+test("superseded permission and geolocation callbacks cannot settle or move a newer location request", async () => {
+  const value = startupLocationFixture("pending");
+  value.request({ onlyIfGranted: true });
+  value.request({ force: true });
+  value.resolvePermission(0, "denied");
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(value.state.startupLocationRequestActive, true, "old denial cannot clear the newer pending request");
+  assert.equal(value.calls.position, 0);
+  value.resolvePermission(1);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(value.calls.position, 1);
+  value.request({ force: true });
+  value.failPosition(0);
+  value.resolvePosition(0);
+  assert.equal(value.state.startupLocationRequestActive, true, "old success or failure cannot settle the newest request");
+  assert.equal(value.calls.flyTo, 0);
+  value.resolvePermission(2);
+  await new Promise((resolve) => setImmediate(resolve));
+  value.resolvePosition(1);
+  assert.equal(value.calls.flyTo, 1);
+  assert.equal(value.state.startupLocationRequestActive, false);
+  const olderGrant = startupLocationFixture("pending");
+  olderGrant.request({ onlyIfGranted: true });
+  olderGrant.request({ force: true });
+  olderGrant.resolvePermission(0);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(olderGrant.calls.position, 0, "an older permission grant cannot start geolocation");
+  const olderFailure = startupLocationFixture("pending");
+  olderFailure.request({ force: true });
+  olderFailure.request({ force: true });
+  olderFailure.rejectPermission(0);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(olderFailure.calls.position, 0, "an older forced fallback cannot start geolocation");
+  assert.equal(olderFailure.state.startupLocationRequestActive, true);
+});
+
 test("OSM-backed place map credits contributors and links its data licence", () => {
   const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
   assert.match(script, /attribution: 'OpenFreeMap \/ <a href="https:\/\/www\.openstreetmap\.org\/copyright"[^>]*>© OpenStreetMap contributors<\/a>'/);
@@ -614,7 +762,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(script, /function requestStartupCurrentLocation\(options\)/);
   assert.match(script, /var onlyIfGranted = options && options\.onlyIfGranted === true;/);
   assert.match(script, /if \(onlyIfGranted && \(!status \|\| status\.state !== 'granted'\)\)/);
-  assert.match(script, /if \(onlyIfGranted\) return;/);
+  assert.match(script, /if \(onlyIfGranted\) \{ fail\(\); return; \}/);
   assert.match(script, /requestStartupCurrentLocation\(\{ onlyIfGranted: true \}\)/);
   assert.match(script, /navigator\.geolocation\.getCurrentPosition\(applyPosition, fail/);
   assert.match(script, /startPanelLocationEl\.addEventListener\('click'/);
