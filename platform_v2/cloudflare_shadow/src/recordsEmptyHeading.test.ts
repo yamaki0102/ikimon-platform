@@ -7,6 +7,25 @@ import { renderRecordsProductSection } from "./index";
 
 const browserPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath();
 
+test("Records headings, member tabs and search controls use the selected language without changing search context", () => {
+  for (const [lang, mine, community, label, submit] of [
+    ["ja", "自分の記録", "みんなの記録", "記録を検索", "探す"],
+    ["en", "Your records", "Community records", "Search records", "Search"],
+    ["es", "Tus registros", "Registros de la comunidad", "Buscar registros", "Buscar"],
+    ["pt-br", "Seus registros", "Registros da comunidade", "Buscar registros", "Buscar"],
+  ] as const) for (const mode of ["mine", "public"] as const) {
+    const html = renderRecordsProductSection([], new URL(`https://zukan.earth/${lang}/records?view=${mode}&q=ceramics`),
+      mode, { userId: "fixture", banned: false } as never);
+    assert.ok(html.includes(`<h1>${mode === "mine" ? mine : community}</h1>`));
+    assert.ok(html.includes(`>${mine}</a>`) && html.includes(`>${community}</a>`));
+    assert.ok(html.includes(`placeholder="${label}" aria-label="${label}"`));
+    assert.ok(html.includes(`>${submit}</button>`));
+    assert.ok(html.includes(`name="view" value="${mode}"`));
+    assert.ok(html.includes('value="ceramics"'));
+    assert.ok(html.includes(`action="/${lang}/records"`));
+  }
+});
+
 test("long empty-search headings wrap within Records and preserve usable recovery actions", {
   skip: !existsSync(browserPath) && "Playwright Chromium is unavailable",
 }, async () => {
