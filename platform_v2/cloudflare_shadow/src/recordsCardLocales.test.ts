@@ -98,6 +98,29 @@ test("offline Records error and mixed-media cards fit narrow locale layouts and 
       const documentHtml = (body: string) => renderSiteDocument({ basePath: "", currentPath: path, canonicalPath: path,
         lang: lang === "pt-br" ? "pt-BR" : lang, title: "Records fixture", description: "Offline local fixture",
         activeNav: "records", body });
+      const checkControl = async (selector: string, foreground: string, background: string | null) => {
+        const control = page.locator(selector);
+        const style = await control.evaluate(element => {
+          const css = getComputedStyle(element), box = element.getBoundingClientRect();
+          return { foreground: css.color, background: css.backgroundColor, width: box.width, height: box.height,
+            unclassified: element.matches('body[data-zukan-design] a:not([class]),body[data-zukan-app-experience] a:not([class])') };
+        });
+        assert.equal(style.foreground, foreground, `${lang}/${width}/${mode}/${selector}: foreground`);
+        if (background !== null) assert.equal(style.background, background);
+        assert.ok(style.height >= 44 && style.width >= 44);
+        assert.equal(style.unclassified, false, "control must not inherit document-link or visited-link colors");
+        await control.focus();
+        await page.keyboard.press("Tab");
+        await page.keyboard.press("Shift+Tab");
+        assert.ok(await control.evaluate(element => element === document.activeElement && element.matches(":focus-visible")));
+        const focus = await control.evaluate(element => {
+          const css = getComputedStyle(element);
+          return { outline: css.outlineColor, width: css.outlineWidth, shadow: css.boxShadow };
+        });
+        assert.equal(focus.outline, "rgb(0, 0, 0)");
+        assert.equal(focus.width, "2px");
+        assert.ok(focus.shadow.includes("rgb(255, 212, 61)"));
+      };
       const items = [record(), ...mediaKinds.map(mediaKind => record(mediaKind, { visitId: `fixture-${mediaKind}`, isAwaitingId: true, photoUrl: null })),
         record("photo", { visitId: "fixture-private", ownerVisibility: "private" })];
       await page.setContent(documentHtml(render(lang, mode, items)), { waitUntil: "domcontentloaded" });
@@ -113,12 +136,17 @@ test("offline Records error and mixed-media cards fit narrow locale layouts and 
         return [...range.getClientRects()].some(box => box.left < card.left || box.right > card.right + 1);
       }));
       assert.equal(clipped, false, `${lang}/${width}/${mode}: card text clipped`);
+      if (mode === "mine") {
+        await checkControl('.cf-records-native-tabs [aria-current="page"]', "rgb(255, 255, 255)", "rgb(20, 63, 46)");
+        await checkControl('.cf-records-native-tabs a:not([aria-current])', "rgb(20, 63, 46)", "rgb(255, 255, 255)");
+      }
       if (screenshots && ((lang === "es" && width === 375) || (lang === "pt-br" && width === 320))) {
         await page.screenshot({ path: `${screenshots}/${lang}-${width}-${mode}-cards.png`, fullPage: true });
       }
       await page.setContent(documentHtml(render(lang, mode, [], true)), { waitUntil: "domcontentloaded" });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${lang}/${width}/${mode}: error overflow`);
       const retry = page.locator('[role="status"] a');
+      await checkControl('[role="status"] a', "rgb(255, 255, 255)", "rgb(20, 63, 46)");
       const bounds = await retry.boundingBox();
       assert.ok(bounds && bounds.height >= 44 && bounds.width >= 44);
       let reached = false;
@@ -130,6 +158,10 @@ test("offline Records error and mixed-media cards fit narrow locale layouts and 
       if (screenshots && mode === "public" && ((lang === "es" && width === 375) || (lang === "pt-br" && width === 320))) {
         await page.screenshot({ path: `${screenshots}/${lang}-${width}-error.png`, fullPage: true });
       }
+      await page.setContent(documentHtml(render(lang, mode, [])), { waitUntil: "domcontentloaded" });
+      await checkControl('.cf-records-native-empty-action', "rgb(255, 255, 255)", "rgb(20, 63, 46)");
+      await checkControl('.cf-records-native-empty-secondary', "rgb(20, 63, 46)", null);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       assert.deepEqual(errors, []);
       await page.close();
     }
