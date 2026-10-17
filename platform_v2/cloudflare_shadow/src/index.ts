@@ -28225,6 +28225,7 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
         ORDER BY o.observed_at DESC LIMIT ?`
     ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
   }
+  if (Array.isArray(rows?.results) && rows.results.length === 0) return [];
   const mediaKinds = await queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>());
   return rows.results.map((row) => ({
     ...publicMapObservationItem({
