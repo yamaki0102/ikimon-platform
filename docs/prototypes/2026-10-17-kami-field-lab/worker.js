@@ -49,8 +49,8 @@ function uniqueRects(objects){
 async function detectIndividuals(env,image,target){
  const start=Date.now();
  try{
-  const raw=await env.AI.run('@cf/moondream/moondream3.1-9B-A2B',{task:'detect',image:'data:image/jpeg;base64,'+image,target,max_objects:COUNT_MAX});
-  const result=raw?.result||raw,boxes=uniqueRects(result?.objects),metrics=result?.metrics||{};
+  const raw=await env.AI.run('@cf/moondream/moondream3.1-9B-A2B',{task:'detect',image:'data:image/jpeg;base64,'+image,target,max_objects:COUNT_MAX,stream:false});
+  const outer=raw?.result||raw;const result=Array.isArray(outer?.objects)?outer:Array.isArray(outer?.result?.objects)?outer.result:outer;const boxes=uniqueRects(result?.objects),metrics=result?.metrics||{};
   const cost=(Number(metrics.input_tokens)||0)*0.30/1e6+(Number(metrics.output_tokens)||0)*1.00/1e6;
   return {ok:Array.isArray(result?.objects),target,kind:'per_frame_candidate_boxes',count:boxes.length,at_least:boxes.length===COUNT_MAX,boxes,latency_ms:Date.now()-start,model:'@cf/moondream/moondream3.1-9B-A2B',usage:{input_tokens:Number(metrics.input_tokens)||0,output_tokens:Number(metrics.output_tokens)||0},estimated_cost_usd:Number(cost.toFixed(8)),error:Array.isArray(result?.objects)?null:'NO_BOX_OUTPUT'};
  }catch(err){return {ok:false,target,kind:'per_frame_candidate_boxes',count:null,at_least:false,boxes:[],latency_ms:Date.now()-start,model:'@cf/moondream/moondream3.1-9B-A2B',usage:null,estimated_cost_usd:null,error:String(err).slice(0,150)}}
