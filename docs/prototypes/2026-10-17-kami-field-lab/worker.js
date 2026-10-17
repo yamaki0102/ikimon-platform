@@ -25,8 +25,14 @@ async function cmpRun(env,m,image){
 }
 
 
-const ZUKAN_COUNT_V1='zukan-visual-individual-count/v1';
-const COUNT_TARGETS={bird:'bird',insect:'insect',person:'person'};
+const ZUKAN_COUNT_V2='zukan-visible-observations/v2';
+const COUNT_TARGETS=Object.freeze({
+ bird:'bird',insect:'insect',person:'person',
+ building:'building',utility_pole:'utility pole',manhole:'manhole cover',
+ car:'car',bicycle:'bicycle',traffic_sign:'road traffic sign'
+});
+const COUNT_DEFAULT=['bird','insect','person','building','utility_pole','manhole'];
+const COUNT_MORE=['car','bicycle','traffic_sign'];
 const COUNT_MAX=16;
 function sanitizeRect(o){
  const x=Number(o?.x_min),y=Number(o?.y_min),x2=Number(o?.x_max),y2=Number(o?.y_max);
@@ -56,7 +62,22 @@ async function detectIndividuals(env,image,target){
  }catch(err){return {ok:false,target,kind:'per_frame_candidate_boxes',count:null,at_least:false,boxes:[],latency_ms:Date.now()-start,model:'@cf/moondream/moondream3.1-9B-A2B',usage:null,estimated_cost_usd:null,error:String(err).slice(0,150)}}
 }
 function normalizeDetector(value){
- const out={};for(const name of Object.keys(COUNT_TARGETS)){const r=value?.[name];if(!r)continue;const boxes=uniqueRects(r.boxes);out[name]={ok:r.ok===true,kind:'per_frame_candidate_boxes',count:r.ok===true?boxes.length:null,boxes,at_least:r.at_least===true&&boxes.length===COUNT_MAX,model:typeof r.model==='string'?r.model.slice(0,90):null,latency_ms:fixedNumber(r.latency_ms,0,120000),usage:{input_tokens:fixedNumber(r.usage?.input_tokens,0,1e8),output_tokens:fixedNumber(r.usage?.output_tokens,0,1e8)},estimated_cost_usd:fixedNumber(r.estimated_cost_usd,0,100),error:typeof r.error==='string'?r.error.slice(0,150):null}}return out;
+ const out={};
+ for(const name of Object.keys(COUNT_TARGETS)){
+  const r=value?.[name];if(!r||typeof r!=='object')continue;
+  const person=name==='person',boxes=uniqueRects(r.boxes);
+  const count=r.ok===true?(person?fixedNumber(r.count,0,COUNT_MAX)??boxes.length:boxes.length):null;
+  out[name]={ok:r.ok===true,kind:'per_frame_candidate_boxes',count,
+   // Person boxes are only ephemeral presentation in the requesting browser.
+   boxes:person?[]:boxes,
+   at_least:r.at_least===true&&count===COUNT_MAX,
+   model:typeof r.model==='string'?r.model.slice(0,90):null,
+   latency_ms:fixedNumber(r.latency_ms,0,120000),
+   usage:{input_tokens:fixedNumber(r.usage?.input_tokens,0,1e8),output_tokens:fixedNumber(r.usage?.output_tokens,0,1e8)},
+   estimated_cost_usd:fixedNumber(r.estimated_cost_usd,0,100),
+   error:typeof r.error==='string'?r.error.slice(0,150):null};
+ }
+ return out;
 }
 const FIELD_LAB_LOG_V1='zukan.field-lab-private-log/v1';
 const FIELD_PREFIX='field-lab-private/v1';
@@ -74,7 +95,7 @@ function normalizeAnswers(source){const out={};for(const key of F_KEYS){const v=
 function normalizeModels(source){
  const out={};for(const k of F_MODELS){const a=source?.[k];if(!a||typeof a!=='object')continue;const usage=a.usage||{};out[k]={ok:a.ok===true,model:typeof a.model==='string'?a.model.slice(0,80):k,answers:normalizeAnswers(a.answers),latency_ms:fixedNumber(a.latency_ms,0,120000),usage:{input_tokens:fixedNumber(usage.input_tokens,0,1e8),output_tokens:fixedNumber(usage.output_tokens,0,1e8)},estimated_cost_usd:fixedNumber(a.estimated_cost_usd,0,100),error:typeof a.error==='string'?a.error.slice(0,160):null}}return out
 }
-function normalizeObservedCounts(input){const out={};for(const k of ['bird','insect','person']){const n=input?.[k];if(typeof n==='number'&&Number.isInteger(n)&&n>=0&&n<=200)out[k]=n}return out}
+function normalizeObservedCounts(input){const out={};for(const k of Object.keys(COUNT_TARGETS)){const n=input?.[k];if(typeof n==='number'&&Number.isInteger(n)&&n>=0&&n<=200)out[k]=n}return out}
 function safeRecordId(s){return typeof s==='string'&&/^(c-[0-9]{13}|activity-[0-9]{13})(-[a-z0-9]{1,16})?$/.test(s)?s:null}
 function safeDeviceId(s){return typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)?s:null}
 function safeDate(ms){const when=Number(ms);return Number.isFinite(when)&&Math.abs(Date.now()-when)<1000*86400*30?new Date(when):new Date()}
@@ -96,7 +117,7 @@ async function fieldR2Put(env,group,deviceId,recordId,at,content){
 function corsSameOrigin(req,url){return req.headers.get('origin')===url.origin&&!(req.headers.get('sec-fetch-site')==='cross-site')}
 async function logOriginalCompare(env,requestData,results,image,individuals){
  const meta=requestData?.meta||{},device=safeDeviceId(meta.device_id)||crypto.randomUUID(),id=safeRecordId(meta.record_id)||('c-'+Date.now()+'-'+Math.random().toString(36).slice(2,6));
- const record={schema:FIELD_LAB_LOG_V1,origin:'server_inference_verified',source:'zukan-field-lab',received_at:new Date().toISOString(),record_id:id,device_hash:(await keyDigest(device)).slice(0,24),frame_sha256:[...new Uint8Array(await crypto.subtle.digest('SHA-256',Uint8Array.from(atob(image),c=>c.charCodeAt(0))))].map(x=>x.toString(16).padStart(2,'0')).join(''),media_saved:false,position:preparedLocation(meta.location),models:normalizeModels(results),individuals:normalizeDetector(individuals),client_at:typeof meta.at==='string'&&/^\d{4}-\d\d-\d\dT/.test(meta.at)?meta.at.slice(0,28):null};
+ const record={schema:FIELD_LAB_LOG_V1,origin:'server_inference_verified',source:'zukan-field-lab',received_at:new Date().toISOString(),record_id:id,device_hash:(await keyDigest(device)).slice(0,24),frame_sha256:[...new Uint8Array(await crypto.subtle.digest('SHA-256',Uint8Array.from(atob(image),c=>c.charCodeAt(0))))].map(x=>x.toString(16).padStart(2,'0')).join(''),media_saved:false,count_schema:ZUKAN_COUNT_V2,position:preparedLocation(meta.location),models:normalizeModels(results),individuals:normalizeDetector(individuals),client_at:typeof meta.at==='string'&&/^\d{4}-\d\d-\d\dT/.test(meta.at)?meta.at.slice(0,28):null};
  return fieldR2Put(env,'inference',device,id,Date.now(),record);
 }
 async function syncPrevious(req,url,env){
@@ -110,7 +131,7 @@ async function syncPrevious(req,url,env){
   const id=safeRecordId(record?.id);
   if(!id||!['comparison','activity'].includes(record.kind)){results.push({id:String(record?.id||'').slice(0,40),status:'rejected'});continue}
   const truth=record?.ground_truth?.cricket;
-  const normalized={schema:FIELD_LAB_LOG_V1,origin:'client_backfill_unverified',source:'zukan-field-lab',record_id:id,device_hash:(await keyDigest(data.device_id)).slice(0,24),recorded_at:new Date(safeDate(record.at)).toISOString(),kind:record.kind,frame_sha256:typeof record.frame_sha256==='string'&&/^[a-f0-9]{64}$/i.test(record.frame_sha256)?record.frame_sha256:null,media_saved:false,position:preparedLocation(record.location),models:record.kind==='comparison'?normalizeModels(record.results):{},individuals:record.kind==='comparison'?normalizeDetector(record.individuals):{},ground_truth:typeof truth==='boolean'?{cricket:truth}:null,ground_truth_source:typeof truth==='boolean'?'person_visual_confirmation':null,observed_count:normalizeObservedCounts(record.observed_count),activity:record.kind==='activity'?'クリケットの現地活動（利用者記録）':null};
+  const normalized={schema:FIELD_LAB_LOG_V1,origin:'client_backfill_unverified',source:'zukan-field-lab',record_id:id,device_hash:(await keyDigest(data.device_id)).slice(0,24),recorded_at:new Date(safeDate(record.at)).toISOString(),kind:record.kind,frame_sha256:typeof record.frame_sha256==='string'&&/^[a-f0-9]{64}$/i.test(record.frame_sha256)?record.frame_sha256:null,media_saved:false,position:preparedLocation(record.location),count_schema:ZUKAN_COUNT_V2,models:record.kind==='comparison'?normalizeModels(record.results):{},individuals:record.kind==='comparison'?normalizeDetector(record.individuals):{},ground_truth:typeof truth==='boolean'?{cricket:truth}:null,ground_truth_source:typeof truth==='boolean'?'person_visual_confirmation':null,observed_count:normalizeObservedCounts(record.observed_count),activity:record.kind==='activity'?'クリケットの現地活動（利用者記録）':null};
   try{const ack=await fieldR2Put(env,'client-sync',data.device_id,id,record.at,normalized);results.push({id,status:ack.status})}catch(e){results.push({id,status:'failed'})}
  }
  return respond({schema:FIELD_LAB_LOG_V1,results,storage:'private-r2',media_saved:false},results.every(x=>['stored','already_stored'].includes(x.status))?200:207);
@@ -122,14 +143,14 @@ async function compareImage(req,url,env){
  if(typeof d?.image!=='string'||d.image.length<300||d.image.length>350000||!/^[A-Za-z0-9+/=]+$/.test(d.image))return respond({error:'Invalid JPEG frame'},400);
  if(env.SCAN_LIMIT){const rate=await env.SCAN_LIMIT.limit({key:'public-demo-global'});if(!rate.success)return respond({error:'Rate limit (max 6 comparisons / min): retry later'},429);}
  const requested=d.count_individuals===true;
- const labels=requested?(d.count_people===true?['bird','insect','person']:['bird','insect']):[];
+ const labels=requested?COUNT_DEFAULT.filter(key=>key!=='person'||d.count_people!==false).concat(d.count_extra===true?COUNT_MORE:[]):[];
  const [resultEntries,detectEntries]=await Promise.all([
  Promise.all(CMP_MODELS.map(async m=>[m.key,await cmpRun(env,m,d.image)])),
  Promise.all(labels.map(async key=>[key,await detectIndividuals(env,d.image,COUNT_TARGETS[key])] ))
  ]);
  const results=Object.fromEntries(resultEntries),individuals=Object.fromEntries(detectEntries);
  let saved={status:'failed'};try{saved=await logOriginalCompare(env,d,results,d.image,individuals)}catch(e){saved={status:'failed',error:'R2_SAVE_FAILED'}}
- return respond({schema:CMP_SCHEMA,count_schema:ZUKAN_COUNT_V1,at:new Date().toISOString(),results,individuals,saved});
+ return respond({schema:CMP_SCHEMA,count_schema:ZUKAN_COUNT_V2,at:new Date().toISOString(),results,individuals,saved});
 }
 export default {async fetch(request,env){let u=new URL(request.url);if(request.method==='GET'&&u.pathname==='/')return respond(HTML,200,'text/html;charset=utf-8');if(request.method==='GET'&&u.pathname==='/healthz')return respond({status:'ok',name:'zukan-kami-field-lab',rev:'2026-10-17-v1',scopes:['local-storage','geolocation','deviceorientation','audio','jev-image']});if(u.pathname==='/api/compare'&&request.method==='POST')return compareImage(request,u,env);if(u.pathname==='/api/sync'&&request.method==='POST')return syncPrevious(request,u,env);if(u.pathname==='/api/analyze'&&request.method==='POST'){if(request.headers.get('origin')!==u.origin)return respond({error:'同一サイトからのみ送信できます。'},403);const len=Number(request.headers.get('content-length')||0);if(len>220000)return respond({error:'画像が大きすぎます。'},413);let input;try{input=await request.json()}catch(e){return respond({error:'画像の形式を確認してください。'},400)}if(!input||typeof input.image!=='string'||input.image.length<200||input.image.length>210000||!/^[A-Za-z0-9+/=]+$/.test(input.image))return respond({error:'画像の形式を確認してください。'},400);
 try{if(env.SCAN_LIMIT){const lim=await env.SCAN_LIMIT.limit({key:'public-demo-global'});if(!lim.success)return respond({error:'この場所の解析回数上限に達しました。1分後にもう一度試してください。'},429)}const data={state:'Observe only the visible evidence in the image called scene. This is a citizen nature observation prototype at a Japanese urban park, not an official species identification. Avoid treating absence from a photo as absence in nature. Assess visible habitat and broad signs, not inferred species.',assets:{scene:{type:'image',format:'jpeg',data_base64:input.image}},questions:{trees:{type:'noul',instructions:'Are one or more living trees clearly visible in image scene?'},grass:{type:'noul',instructions:'Is managed grass, a lawn, or green herbaceous vegetation visibly present in scene?'},bare:{type:'noul',instructions:'Does scene visibly contain bare soil, dirt, or sand?'},water:{type:'noul',instructions:'Is an open body of water visible in scene?'},birds:{type:'noul',instructions:'Is an actual bird visibly present, not merely expected or inferred, in scene?'},insects:{type:'noul',instructions:'Is an actual insect visibly present in scene, not merely expected or inferred?'}}};const r=await env.AI.run('typesafe/jev-1.14.0',data);const result=r&&r.result?r.result:r;return respond({model:result.model||'typesafe/jev-1.14.0',answers:result.answers||{},usage:result.usage?{input_tokens:result.usage.input_tokens,output_tokens:result.usage.output_tokens}:null});}catch(e){return respond({error:'Jevの画像解析に失敗しました。写真は端末側に保存されている可能性があります。',detail:String(e).slice(0,180)},502)}}
