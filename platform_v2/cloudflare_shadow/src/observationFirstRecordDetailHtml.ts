@@ -260,7 +260,9 @@ function renderIdentificationForm(
   const allowed = card.state === "active" && (detail.owner || detail.proposalPolicy.identification);
   if (!allowed) return "";
   if (!detail.owner && !presentation.viewerAuthenticated) {
-    return `<a class="of-login-proposal" href="${escapeHtml(`${langPrefix(presentation.lang ?? "ja")}/login?redirect=${encodeURIComponent(`/observations/${detail.recordId}`)}`)}">${escapeHtml(copy.loginToPropose)}</a>`;
+    const lang = presentation.lang ?? "ja";
+    const continuation = recordsDiscoveryDetailHref(detail.recordId, lang, presentation.recordsDiscoveryContext ?? null);
+    return `<a class="of-login-proposal" href="${escapeHtml(`${langPrefix(lang)}/login?redirect=${encodeURIComponent(continuation)}`)}">${escapeHtml(copy.loginToPropose)}</a>`;
   }
   const common = hidden("observation_id", card.observationId) + hidden("return_lang", presentation.lang ?? "ja");
   return `<details class="of-propose"><summary>${escapeHtml(copy.proposeName)}</summary><form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "identify")}${hidden("operation_id", `${presentation.actionNonce}-${index}-identify`)}<label>${escapeHtml(copy.proposedName)}<input name="proposed_name" required maxlength="160" autocomplete="off"></label><label>${escapeHtml(copy.proposalNote)}<textarea name="note" rows="2" maxlength="500"></textarea></label><button type="submit">${escapeHtml(copy.saveProposal)}</button></form></details>`;

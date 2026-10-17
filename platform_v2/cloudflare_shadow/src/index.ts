@@ -29496,7 +29496,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
   }
   if (canonicalRedirect) return canonicalRedirect;
   const legacyDetailHtml = appendSharedArrivalContextToLocalHrefs(injectLegacyObservationSavedContinuity(
-    renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce, recordsDiscoveryContext ? recordsDiscoveryListHref(detailLang, recordsDiscoveryContext) : "/records"),
+    renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce, recordsDiscoveryContext ? recordsDiscoveryListHref(detailLang, recordsDiscoveryContext) : null),
     savedContinuity,
   ), sharedArrivalContext);
   return html(applyCspNonceToHtmlScripts(legacyDetailHtml, cspNonce), 200, {
@@ -38957,10 +38957,10 @@ function renderPublicObservationDetailHtml(
   detail: PublicObservationDetail,
   ownerStatus: ObservationProcessingStatus | null = null,
   cspNonce = "",
-  recordsHref = "/records"
+  recordsHref: string | null = null
 ): string {
   const isPrivateRecord = detail.visibility === "private";
-  const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail);
+  const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail, recordsHref ?? undefined);
   const displayName = polish?.displayName ?? detail.displayName;
   const lead = polish?.lead ?? (isPrivateRecord
     ? (detail.isAwaitingId ? "名前はまだ確認待ちの、本人だけに表示している記録です。" : "本人だけに表示している観察記録です。")
@@ -39039,7 +39039,7 @@ function renderPublicObservationDetailHtml(
         <a href="${escapeHtml(mapHref)}">地図で見る</a>
       </nav>` : `<div class="obs-action-rail" aria-label="関連操作">
         <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
-        <a class="obs-action" href="${escapeHtml(recordsHref)}"><span>▦</span><strong>記録一覧</strong></a>
+        <a class="obs-action" href="${escapeHtml(recordsHref ?? "/records")}"><span>▦</span><strong>記録一覧</strong></a>
         <a class="obs-action" href="${escapeHtml(recordHref)}"><span>＋</span><strong>記録する</strong></a>
       </div>`);
   const readProgressLinks = polish?.readProgressLinks ?? (polish ? `
@@ -39097,7 +39097,7 @@ function renderPublicObservationDetailHtml(
   <details class="header-menu">
     <summary aria-label="メニュー" title="メニュー"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
     <nav class="header-menu-panel" aria-label="主要リンク">
-      <a class="header-link" href="${escapeHtml(recordsHref)}">記録を見る</a>
+      <a class="header-link" href="${escapeHtml(recordsHref ?? "/records")}">記録を見る</a>
       <a class="header-link" href="/map">地図へ</a>
     </nav>
   </details>
@@ -39974,10 +39974,10 @@ function buildImageObservationFeedback(
   };
 }
 
-function publicObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish | null {
+function publicObservationDetailPolish(detail: PublicObservationDetail, recordsHref?: string): PublicObservationDetailPolish | null {
   if (detail.visitId !== "record-1778829649026") {
     if (detail.photoAssets.length > 0 && detail.videoAssets.length === 0) {
-      return publicImageObservationDetailPolish(detail);
+      return publicImageObservationDetailPolish(detail, recordsHref);
     }
     return null;
   }
@@ -40235,7 +40235,7 @@ function renderImageEnvironmentQualityBlock(
   </section>`;
 }
 
-function publicImageObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish {
+function publicImageObservationDetailPolish(detail: PublicObservationDetail, recordsHref?: string): PublicObservationDetailPolish {
   const meta = IMAGE_OBSERVATION_DETAIL_TARGET_META[detail.visitId];
   const fallbackDisplayName = detail.displayName && detail.displayName !== "同定待ち" && detail.displayName !== "名前待ち"
     ? detail.displayName
@@ -40383,7 +40383,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     relatedCountLabel: meta?.nearbyCountLabel ?? `${Math.min(3, detail.relatedObservations.length)}件`,
     pageClass: "obs-vps-image-detail",
     bodyClass: "obs-vps-image-detail-body is-reading-surface",
-    headerBlock: renderVpsImageHeader(),
+    headerBlock: renderVpsImageHeader(recordsHref),
     observerBlock: meta
       ? `<a class="obs-hero-observer" href="/ja/profile/user_69bc926c2eca4" aria-label="投稿者 YAMAKI"><span class="obs-hero-avatar" aria-hidden="true">Y</span><span>YAMAKI</span></a>`
       : `<span class="obs-hero-observer" aria-label="投稿者は公開していません"><span class="obs-hero-avatar" aria-hidden="true">i</span><span>公開記録</span></span>`,
@@ -40400,7 +40400,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
   };
 }
 
-function renderVpsImageHeader(): string {
+function renderVpsImageHeader(recordsHref = "/ja/records"): string {
   return `<header class="site-header">
   <div class="site-header-inner">
     <div class="site-brand-cluster">
@@ -40414,7 +40414,7 @@ function renderVpsImageHeader(): string {
         </span>
       </a>
     </div>
-    <nav class="site-nav site-nav-desktop"><a class="site-nav-link" href="/ja/map">地図</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/learn">使い方と考え方</a><a class="site-nav-link" href="/ja/community">みんなで調べる</a></nav>
+    <nav class="site-nav site-nav-desktop"><a class="site-nav-link" href="/ja/map">地図</a><a class="site-nav-link" href="${escapeHtml(recordsHref)}">記録を見る</a><a class="site-nav-link" href="/ja/learn">使い方と考え方</a><a class="site-nav-link" href="/ja/community">みんなで調べる</a></nav>
     <form class="site-search site-search-desktop" role="search" action="/ja/records" method="get" aria-label="地域の記録と場所を検索">
       <span class="site-search-icon" aria-hidden="true">🔍</span>
       <input type="hidden" name="view" value="public">
@@ -40440,7 +40440,7 @@ function renderVpsImageHeader(): string {
             <input type="hidden" name="view" value="public">
             <input class="site-search-input" type="search" name="q" placeholder="地域の記録や場所を探す" value="" aria-label="地域の記録と場所を検索">
           </form>
-          <nav class="site-nav site-nav-mobile"><a class="site-nav-link" href="/ja/">ホーム</a><a class="site-nav-link" href="/ja/record">記録</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/map">マップ</a><a class="site-nav-link" href="/ja/guide">ガイド</a></nav>
+          <nav class="site-nav site-nav-mobile"><a class="site-nav-link" href="/ja/">ホーム</a><a class="site-nav-link" href="/ja/record">記録</a><a class="site-nav-link" href="${escapeHtml(recordsHref)}">記録を見る</a><a class="site-nav-link" href="/ja/map">マップ</a><a class="site-nav-link" href="/ja/guide">ガイド</a></nav>
         </div>
       </details>
     </div>

@@ -5,7 +5,7 @@ import test from "node:test";
 import publicPresentationEntry from "./publicPresentationEntry";
 import { renderRecordsProductSection } from "./index";
 
-function fixture(options: { cutover?: boolean; visibility?: string; hidden?: number; withdrawn?: boolean; policy?: string; unavailable?: boolean } = {}) {
+function fixture(options: { cutover?: boolean; photo?: boolean; visibility?: string; hidden?: number; withdrawn?: boolean; policy?: string; unavailable?: boolean } = {}) {
   const sqlite = new DatabaseSync(":memory:");
   for (const migration of [
     "0001_observation_write_contract.sql", "0004_public_derivative_gate.sql",
@@ -32,6 +32,14 @@ function fixture(options: { cutover?: boolean; visibility?: string; hidden?: num
     VALUES ('related-record', '34.70,137.70', '2026-06-02T00:00:00Z', 'Related public fixture')`);
   if (options.withdrawn) sqlite.exec(`INSERT INTO observation_data_rights
     (visit_id, withdrawal_status) VALUES ('arrival-record', 'withdrawn')`);
+  if (options.photo) sqlite.exec(`INSERT INTO asset_ledger
+    (asset_id, draft_id, observation_id, owner_user_id, object_key, mime, bytes,
+     visibility, processing_state, public_derivative_key, public_derivative_verified_at,
+     public_derivative_metadata_json, exif_scrub_state, public_ready_at)
+    VALUES ('arrival-photo', 'arrival-draft', 'arrival-record', 'local-fixture-owner',
+     'private/original.jpg', 'image/jpeg', 100, 'public', 'uploaded', 'public/arrival.webp',
+     '2026-06-01T00:00:00Z', '{"gpsExifPresent":false,"contentType":"image/webp","scannedContainer":"binary"}',
+     'scrubbed', '2026-06-01T00:00:00Z')`);
   if (options.policy) sqlite.prepare(`INSERT INTO record_observation_policies
     (record_runtime, record_id, owner_user_id, visibility)
     VALUES ('cloudflare_d1', 'arrival-record', 'local-fixture-owner', ?)`)
@@ -128,7 +136,7 @@ test("canonical observation links keep action state and do not redirect", async 
 });
 
 test("final presentation entry preserves records search on detail, alias redirect and protected owner return", async () => {
-  for (const cutover of [false, true]) await withFixture({ cutover }, async ({ env }) => {
+  for (const cutover of [false, true]) for (const photo of [false, true]) await withFixture({ cutover, photo }, async ({ env }) => {
     for (const lang of ["ja", "en", "es", "pt-br"] as const) for (const view of ["public", "mine"] as const) {
       const query = '浜松 & café + "地域"';
       const listUrl = new URL(`https://zukan.earth/${lang}/records`);
@@ -138,6 +146,7 @@ test("final presentation entry preserves records search on detail, alias redirec
       const response = await get(href, env);
       assert.equal(response.status, 200, `${lang}; ${view}; cutover=${cutover}`);
       const html = await response.text();
+      if (photo && !cutover) assert.match(html, /obs-vps-image-detail-body/u, "exercise the public photo-polish reader");
       const links = [...html.matchAll(/href="([^"]+)"/gu)].map((match) => match[1]!.replaceAll("&amp;", "&"));
       const back = links.find((link) => link === `/${lang}/records?${new URLSearchParams({ view, q: query })}`);
       assert.ok(back, `final ${cutover ? "observation-first" : "legacy"} reader must preserve the list context`);
