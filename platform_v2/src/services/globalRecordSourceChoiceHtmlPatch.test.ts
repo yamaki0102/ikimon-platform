@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import Fastify from "fastify";
 import { renderSiteDocument } from "../ui/siteShell.js";
 import { patchGlobalRecordSourceChoiceHtml, registerGlobalRecordSourceChoiceHtmlPatch } from "./globalRecordSourceChoiceHtmlPatch.js";
@@ -139,6 +140,69 @@ test("native camera and photo library both enter the existing immediate-preview 
   const patched = patchGlobalRecordSourceChoiceHtml(shellFixture());
   assert.match(patched, /if \(kind === 'photo' \|\| kind === 'gallery'\)/);
   assert.match(patched, /openSheet\('photo', \{ reviewOnly: true, keepReview: true \}\)/);
+});
+
+test("real input handlers preview gallery files without inference and preserve native, video and close guards", async () => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const patched = patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
+      basePath: "", title: "Source behavior", body: "<main>fixture</main>", lang,
+    }));
+    const start = patched.indexOf("  document.querySelectorAll('[data-global-record-input]').forEach((input) => {");
+    const end = patched.indexOf("  document.querySelectorAll('[data-global-record-camera-close]')", start);
+    assert.ok(start >= 0 && end > start, "execute the real materialized input listener");
+    const listener = patched.slice(start, end);
+    for (const kind of ["gallery", "photo", "video"] as const) {
+      for (const closing of [false, true]) {
+        for (const hasFiles of [false, true]) {
+          const files = hasFiles ? [{ name: "selected.jpg" }, { name: "second.jpg" }] : [];
+          const events: unknown[][] = [];
+          let onChange: (() => Promise<void>) | undefined;
+          const input = {
+            files, value: "selected",
+            getAttribute: (attribute: string) => {
+              assert.equal(attribute, "data-global-record-input");
+              return kind;
+            },
+            addEventListener: (event: string, handler: () => Promise<void>) => {
+              assert.equal(event, "change");
+              onChange = handler;
+            },
+          };
+          const nativeMetadata = { capturedAt: "2026-10-18T00:00:00Z", location: { latitude: 35, longitude: 139 } };
+          runInNewContext(listener, {
+            document: { querySelectorAll: () => [input] },
+            photoPreviewCloseInFlight: closing,
+            photoCaptureSource: "camera",
+            openSheet: (...args: unknown[]) => events.push(["preview", ...args]),
+            buildCaptureMetadata: () => { events.push(["infer"]); return nativeMetadata; },
+            addPhotoDraftFiles: (...args: unknown[]) => events.push(["draft", ...args]),
+            navigateWithDraft: async (...args: unknown[]) => { events.push(["navigate", ...args]); },
+          });
+          assert.ok(onChange);
+          await onChange();
+          // VM-created objects are normalized only for cross-realm assertion; the actual handler runs unchanged.
+          const actual = JSON.parse(JSON.stringify(events));
+          if (!hasFiles || closing) {
+            assert.deepEqual(actual, [], `${lang}/${kind}: rejected selection must not preview, infer or navigate`);
+            assert.equal(input.value, hasFiles ? "" : "selected");
+          } else if (kind === "video") {
+            assert.deepEqual(actual, [["navigate", files, "video"]]);
+            assert.equal(input.value, "selected");
+          } else {
+            const metadata = kind === "gallery"
+              ? { captureSource: "gallery", capturedAt: null, location: null, locationPending: true }
+              : nativeMetadata;
+            assert.deepEqual(actual, [
+              ["preview", "photo", { reviewOnly: true, keepReview: true }],
+              ...(kind === "photo" ? [["infer"]] : []),
+              ["draft", files, metadata],
+            ], `${lang}/${kind}: retain all selected files in immediate preview`);
+            assert.equal(input.value, "");
+          }
+        }
+      }
+    }
+  }
 });
 
 test("native camera is hidden while the shared sheet is in video mode", () => {

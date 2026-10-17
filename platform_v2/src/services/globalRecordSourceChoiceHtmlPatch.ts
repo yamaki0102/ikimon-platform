@@ -29,6 +29,17 @@ const INPUT_HANDLER = `      const kind = input.getAttribute('data-global-record
 const INPUT_HANDLER_WITH_PREVIEW = `      const kind = input.getAttribute('data-global-record-input') || 'gallery';
       if (!files.length) return;
       if (kind === 'photo' || kind === 'gallery') {`;
+const INPUT_HANDLER_WITH_CLOSE_GUARD = `      const kind = input.getAttribute('data-global-record-input') || 'gallery';
+      if (!files.length) return;
+      if (photoPreviewCloseInFlight) {
+        input.value = '';
+        return;
+      }
+      if (kind === 'photo') {`;
+const INPUT_HANDLER_WITH_CLOSE_GUARD_AND_PREVIEW = INPUT_HANDLER_WITH_CLOSE_GUARD.replace(
+  "      if (kind === 'photo') {",
+  "      if (kind === 'photo' || kind === 'gallery') {",
+);
 const GALLERY_METADATA_INPUT = `        const metadata = buildCaptureMetadata();
         addPhotoDraftFiles(files, metadata);`;
 const GALLERY_METADATA_INPUT_WITHOUT_INFERENCE = `        const metadata = kind === 'gallery'
@@ -187,6 +198,9 @@ export function patchGlobalRecordSourceChoiceHtml(html: string): string {
   if (patched.includes(PHOTO_LOCATION_PREFETCH)) patched = patched.replace(PHOTO_LOCATION_PREFETCH, PHOTO_LOCATION_DEFERRED);
   if (patched.includes(AUTO_START_CAMERA)) patched = patched.replace(AUTO_START_CAMERA, PHOTO_MANUAL_START);
   if (patched.includes(INPUT_HANDLER)) patched = patched.replace(INPUT_HANDLER, INPUT_HANDLER_WITH_PREVIEW);
+  if (patched.includes(INPUT_HANDLER_WITH_CLOSE_GUARD)) {
+    patched = patched.replace(INPUT_HANDLER_WITH_CLOSE_GUARD, INPUT_HANDLER_WITH_CLOSE_GUARD_AND_PREVIEW);
+  }
   if (patched.includes(GALLERY_METADATA_INPUT)) {
     patched = patched.replace(GALLERY_METADATA_INPUT, GALLERY_METADATA_INPUT_WITHOUT_INFERENCE);
   }
