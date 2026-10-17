@@ -553,7 +553,7 @@ function nonceAttribute(cspNonce: string): string {
   return nonce ? ` nonce="${escapeAttribute(nonce)}"` : "";
 }
 
-function nonceFromContentSecurityPolicy(value: string | null): string {
+export function nonceFromContentSecurityPolicy(value: string | null): string {
   const match = String(value ?? "").match(/(?:^|;)\s*script-src\s+[^;]*?'nonce-([^'\s;]+)'/iu);
   return match?.[1] ?? "";
 }

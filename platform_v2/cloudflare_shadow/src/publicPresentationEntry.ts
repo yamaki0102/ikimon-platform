@@ -1,5 +1,4 @@
 import baseWorker from "./index";
-import { enforceCameraFirstHomeCta } from "./cameraFirstHomeCta";
 import {
   authorizeOAuthStart,
   oauthErrorResponse,
@@ -7,13 +6,9 @@ import {
   type OAuthBoundaryEnv,
 } from "./oauthStartBoundary";
 import { personPublicationResponse } from "./personPublication";
-import { enforcePostCaptureValueLoopCompatibility } from "./postCaptureValueLoopCompatibilityPatch";
-import { enhancePostCaptureValueLoop } from "./postCaptureValueLoopPatch";
 import { ensurePublicDesignFoundation } from "./publicDesignFoundation";
-import { polishPublicHomeUx } from "./publicHomeUxPolish";
-import { patchPublicHomePresentation } from "./publicPresentationPatch";
+import { applyPublicPresentationPipeline } from "./publicPresentationPipeline";
 import { hardenSvgResponse } from "./svgResponseSecurity";
-import { ensureStateSplitHomeResponsive } from "./stateSplitHomeResponsive";
 
 type DelegatedWorker = Record<string, unknown> & {
   fetch(request: Request, env: unknown, ctx: unknown): Response | Promise<Response>;
@@ -43,12 +38,6 @@ export default {
       throw error;
     }
 
-    const presented = await patchPublicHomePresentation(request, response);
-    const cameraFirst = await enforceCameraFirstHomeCta(request, presented);
-    const polished = await polishPublicHomeUx(request, cameraFirst);
-    const responsive = await ensureStateSplitHomeResponsive(polished);
-    const valueLoop = await enhancePostCaptureValueLoop(request, responsive);
-    const compatible = await enforcePostCaptureValueLoopCompatibility(request, valueLoop);
-    return hardenSvgResponse(await ensurePublicDesignFoundation(request, compatible));
+    return hardenSvgResponse(await applyPublicPresentationPipeline(request, response));
   },
 };

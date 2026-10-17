@@ -15,7 +15,7 @@ function normalizedProductPath(url: URL): string {
   return `/${segments.join("/")}`.replace(/\/+$/u, "") || "/";
 }
 
-function supportsFocusedHomeRedesign(request: Request): boolean {
+export function supportsFocusedHomeRedesign(request: Request): boolean {
   try {
     const firstSegment = new URL(request.url).pathname.split("/").filter(Boolean)[0]?.toLowerCase() ?? "";
     return !firstSegment || firstSegment === "home" || FOCUSED_HOME_LANGUAGE_SEGMENTS.has(firstSegment);
