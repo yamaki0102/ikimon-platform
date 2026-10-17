@@ -32,14 +32,14 @@ test("all supported languages explain the handoff and preserve the login destina
   }
 });
 
-function runtime(responses: Array<{ status: number; body?: unknown }>, pending = false) {
+function runtime(responses: Array<{ status: number; body?: unknown }>, pending = false, lang: "ja" | "en" | "es" | "pt-br" = "ja", value = program) {
   let click: (() => Promise<void>) | undefined;
   let expire: (() => void) | undefined;
   const status = { textContent: "" };
   const login = { hidden: true };
   const button = { disabled: false, addEventListener(_: string, listener: () => Promise<void>) { click = listener; } };
   const bodies: string[] = [], destinations: string[] = [];
-  const html = render();
+  const html = render(lang, true, value);
   const script = html.match(/<script>([\s\S]*?)<\/script>/u)?.[1];
   assert.ok(script);
   runInNewContext(script, {
@@ -79,6 +79,20 @@ test("a 2xx response for a private or different program cannot be shown as publi
     assert.equal(f.destinations.length, 0);
     assert.match(f.status.textContent, /作成結果を確認できません/);
     assert.equal(f.button.disabled, false);
+  }
+});
+
+test("confirmed event and rally destinations retain every supported language", async () => {
+  for (const lang of ["ja", "en", "es", "pt-br"] as const) {
+    for (const profile of ["event", "observation_event", "stamp_rally"] as const) {
+      const f = runtime([{ status: 200, body: { programId: program.requestId, publicationState: "public" } }], false, lang, { ...program, profile });
+      await f.click();
+      const prefix = lang === "ja" ? "" : `/${lang}`;
+      const page = profile === "stamp_rally" ? "rally" : "edit";
+      assert.deepEqual(f.destinations, [`${prefix}/events/${program.requestId}/${page}`]);
+      assert.equal(f.button.disabled, true);
+      assert.equal(JSON.parse(f.bodies[0]!).program.requestId, program.requestId);
+    }
   }
 });
 
