@@ -5,6 +5,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { renderSiteDocument } from "./siteShell.js";
 import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
+import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
 
 // The actual rendered global capture script is exercised. All network writes and
 // device access are fixture-only: no real login, camera, database or upload.
@@ -172,13 +173,13 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
   let deleteFailures = options.deleteFailures ?? 0;
   let pendingCanvasBlob: ((blob: Blob | null) => void) | null = null;
   const sessionStorageValues = new Map<string, string>();
-  const html = patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
+  const html = compactMaterializedCapture(patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
     basePath: "",
     title: "Capture preview",
     body: "<p>Fixture</p>",
     lang: "ja",
     currentPath: pathname,
-  }));
+  })));
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
   assert.ok(script);

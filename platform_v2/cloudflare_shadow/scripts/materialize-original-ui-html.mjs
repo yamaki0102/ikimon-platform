@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, open, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compactMaterializedCapture } from "./compact-materialized-capture.mjs";
 import {
   listPublicSiteMapLocalizableBasePaths,
   listPublicSiteMapMaterializationPaths,
@@ -932,13 +933,14 @@ try {
     }
     const key = originalUiHtmlKeyForPublicPath(pathname);
     const filePath = join(tempDir, key.replaceAll("/", "__"));
-    await writeFile(filePath, response.body, "utf8");
+    const materializedHtml = compactMaterializedCapture(response.body);
+    await writeFile(filePath, materializedHtml, "utf8");
     rendered.push({
       pathname,
       key,
-      bytes: Buffer.byteLength(response.body),
-      sha256: sha256(response.body),
-      identitySha256: stableHtmlSha256(response.body),
+      bytes: Buffer.byteLength(materializedHtml),
+      sha256: sha256(materializedHtml),
+      identitySha256: stableHtmlSha256(materializedHtml),
       filePath,
       contentType: "text/html"
     });

@@ -6,6 +6,7 @@ import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { renderSiteDocument } from "./siteShell.js";
 import { renderPublicContextActions } from "./collaborationContext.js";
 import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
+import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
 
 test("site shell renders the optional public-context handoff slot with its scoped behavior", () => {
   const html = renderSiteDocument({
@@ -1036,7 +1037,7 @@ class CameraTestNode {
 // network, browser permission, upload, or wall-clock timer is used by this fixture.
 function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice = true) {
   const rendered = renderSiteDocument({ basePath: "", title: "Camera", body: "<p>Camera</p>", lang, currentPath: `/${lang}/learn/field-loop` });
-  const html = sourceChoice ? patchGlobalRecordSourceChoiceHtml(patchGlobalRecordSourceChoiceHtml(rendered)) : rendered;
+  const html = compactMaterializedCapture(sourceChoice ? patchGlobalRecordSourceChoiceHtml(patchGlobalRecordSourceChoiceHtml(rendered)) : rendered);
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
   assert.ok(script);
