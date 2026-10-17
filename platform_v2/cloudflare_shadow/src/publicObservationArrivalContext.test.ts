@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import test from "node:test";
 import publicPresentationEntry from "./publicPresentationEntry";
+import { renderRecordsProductSection } from "./index";
 
 function fixture(options: { cutover?: boolean; visibility?: string; hidden?: number; withdrawn?: boolean; policy?: string; unavailable?: boolean } = {}) {
   const sqlite = new DatabaseSync(":memory:");
@@ -126,6 +127,38 @@ test("canonical observation links keep action state and do not redirect", async 
   });
 });
 
+test("final presentation entry preserves records search on detail, alias redirect and protected owner return", async () => {
+  for (const cutover of [false, true]) await withFixture({ cutover }, async ({ env }) => {
+    for (const lang of ["ja", "en", "es", "pt-br"] as const) for (const view of ["public", "mine"] as const) {
+      const query = '浜松 & café + "地域"';
+      const listUrl = new URL(`https://zukan.earth/${lang}/records`);
+      listUrl.search = new URLSearchParams({ view, q: query, token: "excluded-secret", lat: "35.123456" }).toString();
+      const list = renderRecordsProductSection([{ visitId: "arrival-record", displayName: "Public fixture record", observedAt: "2026-06-01", mediaKind: "photo", photoUrl: null }] as never, listUrl, view, null);
+      const href = list.match(/class="cf-records-native-card" href="([^"]+)"/)![1]!.replaceAll("&amp;", "&");
+      const response = await get(href, env);
+      assert.equal(response.status, 200, `${lang}; ${view}; cutover=${cutover}`);
+      const html = await response.text();
+      const links = [...html.matchAll(/href="([^"]+)"/gu)].map((match) => match[1]!.replaceAll("&amp;", "&"));
+      const back = links.find((link) => link === `/${lang}/records?${new URLSearchParams({ view, q: query })}`);
+      assert.ok(back, `final ${cutover ? "observation-first" : "legacy"} reader must preserve the list context`);
+      assert.doesNotMatch(html, /excluded-secret|35\.123456|&amp;amp;/u);
+      for (const link of links.filter((link) => /^(?:mailto:|https?:)/u.test(link))) {
+        assert.doesNotMatch(link, /records_view|records_q|excluded-secret/u, "sharing must not inherit search terms");
+      }
+      const alias = await get(href.replace("arrival-record", "occ%3Aarrival-record%3A0") + "&subject=old&token=excluded-secret&lat=35.123456", env);
+      assert.equal(alias.status, 302);
+      assert.equal(alias.headers.get("location"), href);
+      if (view === "mine") {
+        const returned = await get(back!, env);
+        assert.equal(returned.status, 303, "navigation context does not authorize an owner list");
+        const login = new URL(returned.headers.get("location")!, "https://zukan.earth");
+        assert.equal(login.pathname, `/${lang}/login`);
+        assert.equal(login.searchParams.get("redirect"), back, "sign-in continuation retains the bounded search");
+      }
+    }
+  });
+});
+
 for (const [name, path, expected] of [
   ["empty subject", "/ja/observations/arrival-record?subject=&from=LINE", "/ja/observations/arrival-record?from=line"],
   ["duplicate subject with first value empty", "/en/observations/arrival-record?subject=&subject=old&source=sns", "/en/observations/arrival-record?source=sns"],
@@ -151,7 +184,7 @@ test("private, hidden, withdrawn and missing records never reveal a canonical re
   for (const options of [{ visibility: "private" }, { visibility: "limited" }, { hidden: 1 }, { withdrawn: true }]) {
     await withFixture(options, async ({ env }) => {
       for (const method of ["GET", "HEAD"]) {
-        const response = await get("/ja/observations/occ%3Aarrival-record%3A0?from=line&subject=old", env, method);
+        const response = await get("/ja/observations/occ%3Aarrival-record%3A0?from=line&subject=old&records_view=public&records_q=private", env, method);
         assert.equal(response.status, 404);
         assert.equal(response.headers.get("location"), null);
       }
