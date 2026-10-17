@@ -109,14 +109,21 @@ test("offline Records error and mixed-media cards fit narrow locale layouts and 
         if (background !== null) assert.equal(style.background, background);
         assert.ok(style.height >= 44 && style.width >= 44);
         assert.equal(style.unclassified, false, "control must not inherit document-link or visited-link colors");
-        await control.focus();
-        await page.keyboard.press("Tab");
-        await page.keyboard.press("Shift+Tab");
-        assert.ok(await control.evaluate(element => element === document.activeElement && element.matches(":focus-visible")));
+        let reached = false;
+        for (let tabs = 0; tabs < 40 && !reached; tabs++) {
+          await page.keyboard.press("Tab");
+          reached = await control.evaluate(element => element === document.activeElement);
+        }
+        assert.ok(reached, `${lang}/${width}/${mode}/${selector}: not reached by keyboard Tab`);
         const focus = await control.evaluate(element => {
           const css = getComputedStyle(element);
-          return { outline: css.outlineColor, width: css.outlineWidth, shadow: css.boxShadow };
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return { outline: css.outlineColor, width: css.outlineWidth, shadow: css.boxShadow,
+            focusVisible: element === document.activeElement && element.matches(":focus-visible"),
+            hitTarget: Boolean(hit && element.contains(hit)) };
         });
+        assert.ok(focus.focusVisible && focus.hitTarget, `${lang}/${width}/${mode}/${selector}: focus hidden or covered`);
         assert.equal(focus.outline, "rgb(0, 0, 0)");
         assert.equal(focus.width, "2px");
         assert.ok(focus.shadow.includes("rgb(255, 212, 61)"));
@@ -124,6 +131,7 @@ test("offline Records error and mixed-media cards fit narrow locale layouts and 
       const items = [record(), ...mediaKinds.map(mediaKind => record(mediaKind, { visitId: `fixture-${mediaKind}`, isAwaitingId: true, photoUrl: null })),
         record("photo", { visitId: "fixture-private", ownerVisibility: "private" })];
       await page.setContent(documentHtml(render(lang, mode, items)), { waitUntil: "domcontentloaded" });
+      assert.ok(await page.evaluate(() => document.activeElement === document.body));
       assert.equal(await page.locator(".cf-records-native-card").count(), 6);
       assert.equal(await page.locator(".cf-records-native-card img").count(), mode === "mine" ? 1 : 2);
       for (const image of await page.locator(".cf-records-native-card img").all()) {
@@ -144,21 +152,17 @@ test("offline Records error and mixed-media cards fit narrow locale layouts and 
         await page.screenshot({ path: `${screenshots}/${lang}-${width}-${mode}-cards.png`, fullPage: true });
       }
       await page.setContent(documentHtml(render(lang, mode, [], true)), { waitUntil: "domcontentloaded" });
+      assert.ok(await page.evaluate(() => document.activeElement === document.body));
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${lang}/${width}/${mode}: error overflow`);
       const retry = page.locator('[role="status"] a');
       await checkControl('[role="status"] a', "rgb(255, 255, 255)", "rgb(20, 63, 46)");
       const bounds = await retry.boundingBox();
       assert.ok(bounds && bounds.height >= 44 && bounds.width >= 44);
-      let reached = false;
-      for (let tabs = 0; tabs < 40 && !reached; tabs++) {
-        await page.keyboard.press("Tab");
-        reached = await retry.evaluate(element => element === document.activeElement);
-      }
-      assert.ok(reached && await retry.evaluate(element => element.matches(":focus-visible")), `${lang}/${width}/${mode}: retry keyboard focus`);
       if (screenshots && mode === "public" && ((lang === "es" && width === 375) || (lang === "pt-br" && width === 320))) {
         await page.screenshot({ path: `${screenshots}/${lang}-${width}-error.png`, fullPage: true });
       }
       await page.setContent(documentHtml(render(lang, mode, [])), { waitUntil: "domcontentloaded" });
+      assert.ok(await page.evaluate(() => document.activeElement === document.body));
       await checkControl('.cf-records-native-empty-action', "rgb(255, 255, 255)", "rgb(20, 63, 46)");
       await checkControl('.cf-records-native-empty-secondary', "rgb(20, 63, 46)", null);
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
