@@ -27,6 +27,7 @@ export interface PublicProgramReceiverDependencies {
   body: Record<string, unknown>;
   database: PublicProgramReceiverDatabase;
   loadSession(sessionId: string): Promise<PublicProgramReceiverSession | null>;
+  loadSessionByEventCode(eventCode: string): Promise<PublicProgramReceiverSession | null>;
   loadRally(sessionId: string): Promise<unknown>;
 }
 
@@ -101,8 +102,56 @@ export function decodePublicProgramHandoffPayload(payload: string): PublicProgra
   }
 }
 
-function publicEventCode(program: PublicProgram): string {
-  return ("P" + program.requestId.replace(/-/gu, "").slice(0, 7)).toUpperCase();
+async function publicEventCode(program: PublicProgram, attempt: number): Promise<string> {
+  if (attempt === 0) return ("P" + program.requestId.replace(/-/gu, "").slice(0, 7)).toUpperCase();
+  const digest = await programDigest({ schema: "zukan.public-program-code/v1", requestId: program.requestId, attempt });
+  return "P" + (BigInt("0x" + digest) % (36n ** 7n)).toString(36).padStart(7, "0").toUpperCase();
+}
+
+function isEventCodeUniqueFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const messages = [error.message];
+  // D1 exposes SQLite detail in message and (on older bindings) cause.message.
+  if ((error.message === "D1_ERROR" || error.message.startsWith("D1_ERROR:")) && error.cause instanceof Error) {
+    messages.push(error.cause.message);
+  }
+  return messages.some(message => /^(?:D1_ERROR:\s*)?UNIQUE constraint failed: observation_event_sessions\.event_code(?:: SQLITE_CONSTRAINT(?:_UNIQUE)?)?$/u.test(message.trim()));
+}
+
+async function writeWithAvailableEventCode(
+  dependencies: PublicProgramReceiverDependencies,
+  program: PublicProgram,
+  digest: string,
+  confirmed: boolean,
+  statements: (eventCode: string | null) => PublicProgramReceiverStatement[],
+): Promise<PublicProgramReceiverResult | null> {
+  // Keep established short invite codes. Only a confirmed collision with another
+  // session permits a bounded deterministic alternative; requestId stays canonical.
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const eventCode = confirmed ? await publicEventCode(program, attempt) : null;
+    try {
+      await dependencies.database.batch(statements(eventCode));
+      return null;
+    } catch (error) {
+      const existing = await dependencies.loadSession(program.requestId);
+      if (existing) {
+        if (existing.organizerUserId !== dependencies.actorUserId || !configMatches(existing, program, digest)) {
+          return { status: 409, body: { error: "public_program_idempotency_conflict" } };
+        }
+        if (!confirmed || existing.config.public_listed === true) {
+          return success(dependencies, program, existing, true);
+        }
+      }
+      if (!isEventCodeUniqueFailure(error)) {
+        return { status: 500, body: { error: "public_program_receive_failed" } };
+      }
+      const codeOwner = eventCode ? await dependencies.loadSessionByEventCode(eventCode) : null;
+      if (!codeOwner || codeOwner.sessionId === program.requestId) {
+        return { status: 500, body: { error: "public_program_receive_failed" } };
+      }
+    }
+  }
+  return { status: 500, body: { error: "public_program_event_code_unavailable" } };
 }
 
 export async function receivePublicProgram(
@@ -133,11 +182,12 @@ export async function receivePublicProgram(
     }
     if (confirmPublication && existing.config.public_listed !== true) {
       const confirmedConfig = receiverConfig(program, digest, true);
-      await dependencies.database.batch([
+      const writeFailure = await writeWithAvailableEventCode(dependencies, program, digest, true, (eventCode) => [
         dependencies.database.prepare(
           "UPDATE observation_event_sessions SET event_code = COALESCE(event_code, ?), config_json = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND organizer_user_id = ?"
-        ).bind(publicEventCode(program), JSON.stringify(confirmedConfig), program.requestId, dependencies.actorUserId),
+        ).bind(eventCode, JSON.stringify(confirmedConfig), program.requestId, dependencies.actorUserId),
       ]);
+      if (writeFailure) return writeFailure;
       const promoted = await dependencies.loadSession(program.requestId);
       if (!promoted || promoted.organizerUserId !== dependencies.actorUserId || !configMatches(promoted, program, digest) || promoted.config.public_listed !== true) {
         return { status: 500, body: { error: "public_program_publication_readback_failed" } };
@@ -148,65 +198,56 @@ export async function receivePublicProgram(
   }
 
   const config = receiverConfig(program, digest, confirmPublication);
-  const statements: PublicProgramReceiverStatement[] = [
-    dependencies.database.prepare(
-      "INSERT INTO observation_event_sessions ("
-      + "session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id, "
-      + "plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m, "
-      + "started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id"
-      + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    ).bind(
-      program.requestId, null, confirmPublication ? publicEventCode(program) : null, program.title, dependencies.actorUserId, null,
-      "community", "discovery", JSON.stringify(["discovery"]), null, null, 1000,
-      program.startsAt, program.endsAt || null, JSON.stringify([]), JSON.stringify(config), null, null,
-    ),
-  ];
-
-  if (program.profile === "stamp_rally") {
-    const courseId = "program-rally-" + program.requestId;
-    statements.push(
+  const statements = (eventCode: string | null): PublicProgramReceiverStatement[] => {
+    const result: PublicProgramReceiverStatement[] = [
       dependencies.database.prepare(
-        "INSERT INTO observation_rally_courses "
-        + "(course_id, session_id, title, status, config_json, created_by) "
-        + "VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO observation_event_sessions ("
+        + "session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id, "
+        + "plan, primary_mode, active_modes_json, location_lat, location_lng, location_radius_m, "
+        + "started_at, ended_at, target_species_json, config_json, field_id, template_source_session_id"
+        + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
       ).bind(
-        courseId,
-        program.requestId,
-        program.title,
-        "preflight",
-        JSON.stringify({ source: "nocosil", publicProgramDigest: digest }),
-        dependencies.actorUserId,
+        program.requestId, null, eventCode, program.title, dependencies.actorUserId, null,
+        "community", "discovery", JSON.stringify(["discovery"]), null, null, 1000,
+        program.startsAt, program.endsAt || null, JSON.stringify([]), JSON.stringify(config), null, null,
       ),
-    );
-    for (const [index, station] of program.stations.entries()) {
-      statements.push(
+    ];
+
+    if (program.profile === "stamp_rally") {
+      const courseId = "program-rally-" + program.requestId;
+      result.push(
         dependencies.database.prepare(
-          "INSERT INTO observation_rally_stations ("
-          + "station_id, course_id, field_id, code, name, description, lat, lng, radius_m, "
-          + "polygon_json, route_geojson, is_private, access_note, danger_note, status, sort_order"
-          + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)"
+          "INSERT INTO observation_rally_courses "
+          + "(course_id, session_id, title, status, config_json, created_by) "
+          + "VALUES (?, ?, ?, ?, ?, ?)"
         ).bind(
-          "program-station-" + program.requestId + "-" + station.id,
-          courseId, null, station.id, station.name, "", null, null, null,
-          JSON.stringify(null), JSON.stringify(null), 0, "", "", index,
+          courseId,
+          program.requestId,
+          program.title,
+          "preflight",
+          JSON.stringify({ source: "nocosil", publicProgramDigest: digest }),
+          dependencies.actorUserId,
         ),
       );
+      for (const [index, station] of program.stations.entries()) {
+        result.push(
+          dependencies.database.prepare(
+            "INSERT INTO observation_rally_stations ("
+            + "station_id, course_id, field_id, code, name, description, lat, lng, radius_m, "
+            + "polygon_json, route_geojson, is_private, access_note, danger_note, status, sort_order"
+            + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)"
+          ).bind(
+            "program-station-" + program.requestId + "-" + station.id,
+            courseId, null, station.id, station.name, "", null, null, null,
+            JSON.stringify(null), JSON.stringify(null), 0, "", "", index,
+          ),
+        );
+      }
     }
-  }
-
-  try {
-    await dependencies.database.batch(statements);
-  } catch {
-    const collided = await dependencies.loadSession(program.requestId);
-    if (
-      !collided
-      || collided.organizerUserId !== dependencies.actorUserId
-      || !configMatches(collided, program, digest)
-    ) {
-      return { status: 409, body: { error: "public_program_receive_failed" } };
-    }
-    return success(dependencies, program, collided, true);
-  }
+    return result;
+  };
+  const writeFailure = await writeWithAvailableEventCode(dependencies, program, digest, confirmPublication, statements);
+  if (writeFailure) return writeFailure;
 
   const created = await dependencies.loadSession(program.requestId);
   if (
