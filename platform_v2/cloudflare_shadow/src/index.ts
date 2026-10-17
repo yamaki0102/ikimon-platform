@@ -27416,25 +27416,26 @@ function renderRecordsProductCard(
   mode: "mine" | "public",
   context: RecordsDiscoveryContext
 ): string {
+  const copy = recordsSearchScopeCopy[lang];
   const date = formatHomeRecordObservedAt(item.observedAt, lang);
   const title = item.isAwaitingId
-    ? [homeRecordMediaLabel(item.mediaKind, lang), date].filter(Boolean).join(" · ")
-    : normalizeOptionalText(item.displayName) ?? homeRecordMediaLabel(item.mediaKind, lang);
+    ? [copy.media[item.mediaKind], date].filter(Boolean).join(" · ")
+    : normalizeOptionalText(item.displayName) ?? copy.media[item.mediaKind];
   const location = mode === "public"
-    ? normalizeOptionalText(item.publicAreaLabel) ?? (lang === "ja" ? "位置を保護" : "Location protected")
-    : lang === "ja" ? "自分の記録" : "Your record";
+    ? normalizeOptionalText(item.publicAreaLabel) ?? copy.protectedLocation
+    : copy.ownerRecord;
   const visibility = mode === "mine" && "ownerVisibility" in item
-    ? (item.ownerVisibility === "public" ? (lang === "ja" ? "公開" : "Public") : (lang === "ja" ? "非公開" : "Private"))
+    ? observationFirstRecordDetailCopy(lang).visibility[item.ownerVisibility === "public" ? "public" : "private"]
     : "";
   const photoUrl = mode === "mine" && "ownerVisibility" in item && item.ownerVisibility !== "public"
     ? null
     : item.photoUrl;
   const media = photoUrl
     ? `<img src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async">`
-    : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
+    : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(copy.media[item.mediaKind])}</span>`;
   return `<a class="cf-records-native-card" href="${escapeHtml(recordsDiscoveryDetailHref(item.visitId, lang, context))}">
     <span class="cf-records-native-media">${media}</span>
-    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
+    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${escapeHtml(copy.identificationUnconfirmed)}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
   </a>`;
 }
 
@@ -27442,6 +27443,9 @@ const RECORDS_PRODUCT_LIMIT = 120;
 
 const recordsSearchScopeCopy = {
   ja: {
+    loadErrorTitle: "記録を読み込めませんでした。", loadErrorHint: "通信を確認して、もう一度お試しください。",
+    protectedLocation: "位置を保護", ownerRecord: "自分の記録", identificationUnconfirmed: "名前は未確認",
+    media: { photo: "写真", video: "動画", audio: "音", record: "メモ" },
     titleMine: "自分の記録", titlePublic: "みんなの記録", searchLabel: "記録を検索", searchSubmit: "探す",
     mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
     public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
@@ -27454,6 +27458,9 @@ const recordsSearchScopeCopy = {
     browsePublic: "みんなの記録を見る",
   },
   en: {
+    loadErrorTitle: "Records could not be loaded.", loadErrorHint: "Check the connection and try again.",
+    protectedLocation: "Location protected", ownerRecord: "Your record", identificationUnconfirmed: "Identification unconfirmed",
+    media: { photo: "Photo", video: "Video", audio: "Sound", record: "Memo" },
     titleMine: "Your records", titlePublic: "Community records", searchLabel: "Search records", searchSubmit: "Search",
     mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
     public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
@@ -27466,6 +27473,9 @@ const recordsSearchScopeCopy = {
     browsePublic: "Browse community records",
   },
   es: {
+    loadErrorTitle: "No se pudieron cargar los registros.", loadErrorHint: "Comprueba la conexión e inténtalo de nuevo.",
+    protectedLocation: "Ubicación protegida", ownerRecord: "Tu registro", identificationUnconfirmed: "Nombre sin confirmar",
+    media: { photo: "Foto", video: "Video", audio: "Audio", record: "Nota" },
     titleMine: "Tus registros", titlePublic: "Registros de la comunidad", searchLabel: "Buscar registros", searchSubmit: "Buscar",
     mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
     public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
@@ -27478,6 +27488,9 @@ const recordsSearchScopeCopy = {
     browsePublic: "Ver registros de la comunidad",
   },
   "pt-br": {
+    loadErrorTitle: "Não foi possível carregar os registros.", loadErrorHint: "Verifique a conexão e tente novamente.",
+    protectedLocation: "Localização protegida", ownerRecord: "Seu registro", identificationUnconfirmed: "Nome não confirmado",
+    media: { photo: "Foto", video: "Vídeo", audio: "Áudio", record: "Nota" },
     titleMine: "Seus registros", titlePublic: "Registros da comunidade", searchLabel: "Buscar registros", searchSubmit: "Buscar",
     mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
     public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
@@ -27502,12 +27515,11 @@ export function renderRecordsProductSection(
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const query = recordsSearchQuery(url.searchParams.get("q"));
-  const isJapanese = lang === "ja";
   const scopeCopy = recordsSearchScopeCopy[lang];
   const title = mode === "mine" ? scopeCopy.titleMine : scopeCopy.titlePublic;
   const lead = scopeCopy[mode];
   const cards = unavailable
-    ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
+    ? `<div class="cf-records-native-empty" role="status"><strong>${escapeHtml(scopeCopy.loadErrorTitle)}</strong><p>${escapeHtml(scopeCopy.loadErrorHint)}</p><a href="${escapeHtml(url.pathname + url.search)}">${escapeHtml(quietHomeCopy[lang].retry)}</a></div>`
     : items.length > 0
     ? `<div class="cf-records-native-grid">${items.map((item) => {
           const card = renderRecordsProductCard(item, lang, mode, { view: mode, query });
