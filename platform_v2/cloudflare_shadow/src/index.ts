@@ -3789,6 +3789,7 @@ async function handlePublicProgramReceiverApi(request: Request, url: URL, env: E
   if (sameOriginError) return sameOriginError;
   const auth = await readCompatibleSession(request, env);
   if (!auth) return json({ error: "login required" }, 401, { "cache-control": "no-store" });
+  if (auth.banned) return json({ error: "event_creation_unavailable" }, 403, { "cache-control": "no-store" });
   const body = await readJson<Record<string, unknown>>(request);
   const result = await receivePublicProgram({
     actorUserId: auth.userId,
