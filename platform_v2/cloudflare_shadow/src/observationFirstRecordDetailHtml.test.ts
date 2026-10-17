@@ -4,6 +4,7 @@ import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadMo
 import type { OwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { publicObservationAiFeedback } from "./publicObservationAiPresentation";
+import { recordsDiscoveryDetailHref } from "./recordsDiscoveryContext";
 
 const detail: ObservationFirstRecordDetail = {
   schema: "ikimon.observation-first-record-detail/v1",
@@ -68,6 +69,21 @@ test("authenticated detail can carry the private Saved control without changing 
   assert.match(rendered, /data-zukan-save/);
   assert.match(rendered, /savedContinuityFixture/);
   assert.doesNotMatch(rendered, /予約|応募|参加の申込み/);
+});
+
+test("anonymous proposal sign-in returns to the same language, record and bounded discovery context", () => {
+  const context = { view: "public" as const, query: '浜松 & café + "記録"' };
+  for (const lang of ["ja", "en", "es", "pt-br"] as const) {
+    const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
+      lang, title: "庭の観察", observedLabel: "2026-10-01", note: null, media: [],
+      actionNonce: "proposal-return", viewerAuthenticated: false, recordsDiscoveryContext: context,
+    });
+    const href = rendered.match(/class="of-login-proposal" href="([^"]+)"/)![1]!.replaceAll("&amp;", "&");
+    const login = new URL(href, "https://zukan.earth");
+    assert.equal(login.pathname, `/${lang}/login`);
+    assert.equal(login.searchParams.get("redirect"), recordsDiscoveryDetailHref(detail.recordId, lang, context));
+    assert.doesNotMatch(rendered.match(/href="(mailto:[^"]+)"/)![1]!, /records_view|records_q/u);
+  }
 });
 
 test("generic imported placeholders do not override a durable no-biota result", () => {

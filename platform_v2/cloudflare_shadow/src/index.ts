@@ -134,6 +134,7 @@ import {
 } from "../../src/services/observationProcessingStatus";
 import { PRODUCTION_PUBLIC_ORIGIN, STAGING_PUBLIC_ORIGIN, resolveTrustedRequestOrigin } from "../../src/services/trustedPublicOrigin";
 import { appendSharedArrivalContext, appendSharedArrivalContextToLocalHrefs, collectSharedArrivalContext } from "./sharedArrivalContext";
+import { collectRecordsDiscoveryContext, recordsDiscoveryDetailHref, recordsDiscoveryListHref, recordsSearchQuery, type RecordsDiscoveryContext } from "./recordsDiscoveryContext";
 import {
   normalizePlaceAtlasRef,
   PLACE_ATLAS_PROFILE_VERSION,
@@ -27405,9 +27406,9 @@ function recordsProductItemMatches(item: ReturnType<typeof publicMapObservationI
 
 function renderRecordsProductCard(
   item: ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem,
-  prefix: string,
   lang: "ja" | "en" | "es" | "pt-br",
-  mode: "mine" | "public"
+  mode: "mine" | "public",
+  context: RecordsDiscoveryContext
 ): string {
   const date = formatHomeRecordObservedAt(item.observedAt, lang);
   const title = item.isAwaitingId
@@ -27425,11 +27426,36 @@ function renderRecordsProductCard(
   const media = photoUrl
     ? `<img src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async">`
     : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
-  return `<a class="cf-records-native-card" href="${escapeHtml(`${prefix}/observations/${encodeURIComponent(item.visitId)}`)}">
+  return `<a class="cf-records-native-card" href="${escapeHtml(recordsDiscoveryDetailHref(item.visitId, lang, context))}">
     <span class="cf-records-native-media">${media}</span>
     <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
   </a>`;
 }
+
+const RECORDS_PRODUCT_LIMIT = 120;
+
+const recordsSearchScopeCopy = {
+  ja: {
+    mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    noMatch: (query: string) => `直近の記録に「${query}」に合うものは見つかりませんでした。`,
+  },
+  en: {
+    mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
+    public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
+    noMatch: (query: string) => `No recent records matched “${query}”.`,
+  },
+  es: {
+    mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    noMatch: (query: string) => `No se encontraron registros recientes que coincidan con «${query}».`,
+  },
+  "pt-br": {
+    mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    noMatch: (query: string) => `Nenhum registro recente corresponde a “${query}”.`,
+  },
+} as const;
 
 export function renderRecordsProductSection(
   items: Array<ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem>,
@@ -27441,22 +27467,21 @@ export function renderRecordsProductSection(
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const query = String(url.searchParams.get("q") ?? "").trim().slice(0, 80);
+  const query = recordsSearchQuery(url.searchParams.get("q"));
   const isJapanese = lang === "ja";
   const title = mode === "mine" ? (isJapanese ? "自分の記録" : "Your records") : (isJapanese ? "みんなの記録" : "Community records");
-  const lead = mode === "mine"
-    ? (isJapanese ? "撮った写真やメモを、あとから探して見返せます。" : "Find and revisit your photos and notes.")
-    : (isJapanese ? "公開された写真やメモを、名前や場所から探せます。" : "Find public photos and notes by name or place.");
+  const scopeCopy = recordsSearchScopeCopy[lang];
+  const lead = scopeCopy[mode];
   const cards = unavailable
     ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
     : items.length > 0
     ? `<div class="cf-records-native-grid">${items.map((item) => {
-          const card = renderRecordsProductCard(item, prefix, lang, mode);
+          const card = renderRecordsProductCard(item, lang, mode, { view: mode, query });
           if (!session || savedStates === null) return card;
           return `<div class="zs-card">${card}${renderSavedControl({ kind: "record", objectId: item.visitId, path: `/observations/${item.visitId}`, title: item.isAwaitingId ? quietHomeCopy[lang].record : (normalizeOptionalText(item.displayName) ?? quietHomeCopy[lang].record) }, lang, savedStates.get(item.visitId) ?? null)}</div>`;
         }).join("")}</div>`
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query
-      ? (isJapanese ? `「${query}」に合う記録は見つかりませんでした。` : `No records matched “${query}”.`)
+      ? scopeCopy.noMatch(query)
       : (isJapanese ? "まだ記録はありません。" : "No records yet."))}</strong><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? (isJapanese ? "検索を解除" : "Clear search") : (isJapanese ? "写真から記録する" : "Create a record"))}</a></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
@@ -27475,7 +27500,10 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   if (requestedMode !== "public" && (!session || session.banned)) {
-    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/records?view=${requestedMode}`)}`, { "cache-control": "no-store" });
+    const continuation = requestedMode === "mine"
+      ? recordsDiscoveryListHref(lang, { view: "mine", query: recordsSearchQuery(url.searchParams.get("q")) })
+      : `${prefix}/records?view=${requestedMode}`;
+    return redirect303(`${prefix}/login?redirect=${encodeURIComponent(continuation)}`, { "cache-control": "no-store" });
   }
   let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(new URL(`${url.origin}${prefix}/records`))) {
@@ -27483,10 +27511,10 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     if (object?.body) break;
   }
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
-  const query = recordsProductText(String(url.searchParams.get("q") ?? "").slice(0, 80));
+  const query = recordsProductText(recordsSearchQuery(url.searchParams.get("q")));
   const sourceItems = requestedMode === "saved" ? [] : requestedMode === "mine"
-    ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => null)
-    : await recentPublicRecordCards(env, 120).catch(() => null);
+    ? await ownerHomeRecordCards(session!.userId, env, RECORDS_PRODUCT_LIMIT).catch(() => null)
+    : await recentPublicRecordCards(env, RECORDS_PRODUCT_LIMIT).catch(() => null);
   const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
@@ -29361,6 +29389,7 @@ function injectLegacyObservationSavedContinuity(html: string, saved: { controlHt
 
 async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
   const sharedArrivalContext = collectSharedArrivalContext(url.searchParams);
+  const recordsDiscoveryContext = collectRecordsDiscoveryContext(url.searchParams);
   const session = await readCompatibleSession(request, env).catch(() => null);
   const ownerStatus = session && !session.banned
     ? await loadOwnerObservationProcessingStatusFromD1(env.OBS_DB, {
@@ -29385,7 +29414,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     ? new Response(null, {
         status: 302,
         headers: {
-          location: appendSharedArrivalContext(`/${detailLang}/observations/${encodeURIComponent(detail.visitId)}`, sharedArrivalContext),
+          location: appendSharedArrivalContext(recordsDiscoveryDetailHref(detail.visitId, detailLang, recordsDiscoveryContext), sharedArrivalContext),
           "cache-control": "private, no-store",
         },
       })
@@ -29428,6 +29457,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       const canonicalObservationPath = `/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`;
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
+        recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
@@ -29466,7 +29496,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
   }
   if (canonicalRedirect) return canonicalRedirect;
   const legacyDetailHtml = appendSharedArrivalContextToLocalHrefs(injectLegacyObservationSavedContinuity(
-    renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce),
+    renderPublicObservationDetailHtml(detail, ownerStatus, cspNonce, recordsDiscoveryContext ? recordsDiscoveryListHref(detailLang, recordsDiscoveryContext) : null),
     savedContinuity,
   ), sharedArrivalContext);
   return html(applyCspNonceToHtmlScripts(legacyDetailHtml, cspNonce), 200, {
@@ -38926,10 +38956,11 @@ type PublicObservationDetail = NonNullable<Awaited<ReturnType<typeof buildPublic
 function renderPublicObservationDetailHtml(
   detail: PublicObservationDetail,
   ownerStatus: ObservationProcessingStatus | null = null,
-  cspNonce = ""
+  cspNonce = "",
+  recordsHref: string | null = null
 ): string {
   const isPrivateRecord = detail.visibility === "private";
-  const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail);
+  const polish = isPrivateRecord ? null : publicObservationDetailPolish(detail, recordsHref ?? undefined);
   const displayName = polish?.displayName ?? detail.displayName;
   const lead = polish?.lead ?? (isPrivateRecord
     ? (detail.isAwaitingId ? "名前はまだ確認待ちの、本人だけに表示している記録です。" : "本人だけに表示している観察記録です。")
@@ -39008,7 +39039,7 @@ function renderPublicObservationDetailHtml(
         <a href="${escapeHtml(mapHref)}">地図で見る</a>
       </nav>` : `<div class="obs-action-rail" aria-label="関連操作">
         <a class="obs-action" href="${escapeHtml(mapHref)}"><span>↗</span><strong>地図で見る</strong></a>
-        <a class="obs-action" href="/records"><span>▦</span><strong>記録一覧</strong></a>
+        <a class="obs-action" href="${escapeHtml(recordsHref ?? "/records")}"><span>▦</span><strong>記録一覧</strong></a>
         <a class="obs-action" href="${escapeHtml(recordHref)}"><span>＋</span><strong>記録する</strong></a>
       </div>`);
   const readProgressLinks = polish?.readProgressLinks ?? (polish ? `
@@ -39066,7 +39097,7 @@ function renderPublicObservationDetailHtml(
   <details class="header-menu">
     <summary aria-label="メニュー" title="メニュー"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
     <nav class="header-menu-panel" aria-label="主要リンク">
-      <a class="header-link" href="/records">記録を見る</a>
+      <a class="header-link" href="${escapeHtml(recordsHref ?? "/records")}">記録を見る</a>
       <a class="header-link" href="/map">地図へ</a>
     </nav>
   </details>
@@ -39943,10 +39974,10 @@ function buildImageObservationFeedback(
   };
 }
 
-function publicObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish | null {
+function publicObservationDetailPolish(detail: PublicObservationDetail, recordsHref?: string): PublicObservationDetailPolish | null {
   if (detail.visitId !== "record-1778829649026") {
     if (detail.photoAssets.length > 0 && detail.videoAssets.length === 0) {
-      return publicImageObservationDetailPolish(detail);
+      return publicImageObservationDetailPolish(detail, recordsHref);
     }
     return null;
   }
@@ -40204,7 +40235,7 @@ function renderImageEnvironmentQualityBlock(
   </section>`;
 }
 
-function publicImageObservationDetailPolish(detail: PublicObservationDetail): PublicObservationDetailPolish {
+function publicImageObservationDetailPolish(detail: PublicObservationDetail, recordsHref?: string): PublicObservationDetailPolish {
   const meta = IMAGE_OBSERVATION_DETAIL_TARGET_META[detail.visitId];
   const fallbackDisplayName = detail.displayName && detail.displayName !== "同定待ち" && detail.displayName !== "名前待ち"
     ? detail.displayName
@@ -40352,7 +40383,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
     relatedCountLabel: meta?.nearbyCountLabel ?? `${Math.min(3, detail.relatedObservations.length)}件`,
     pageClass: "obs-vps-image-detail",
     bodyClass: "obs-vps-image-detail-body is-reading-surface",
-    headerBlock: renderVpsImageHeader(),
+    headerBlock: renderVpsImageHeader(recordsHref),
     observerBlock: meta
       ? `<a class="obs-hero-observer" href="/ja/profile/user_69bc926c2eca4" aria-label="投稿者 YAMAKI"><span class="obs-hero-avatar" aria-hidden="true">Y</span><span>YAMAKI</span></a>`
       : `<span class="obs-hero-observer" aria-label="投稿者は公開していません"><span class="obs-hero-avatar" aria-hidden="true">i</span><span>公開記録</span></span>`,
@@ -40369,7 +40400,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail): Pu
   };
 }
 
-function renderVpsImageHeader(): string {
+function renderVpsImageHeader(recordsHref = "/ja/records"): string {
   return `<header class="site-header">
   <div class="site-header-inner">
     <div class="site-brand-cluster">
@@ -40383,7 +40414,7 @@ function renderVpsImageHeader(): string {
         </span>
       </a>
     </div>
-    <nav class="site-nav site-nav-desktop"><a class="site-nav-link" href="/ja/map">地図</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/learn">使い方と考え方</a><a class="site-nav-link" href="/ja/community">みんなで調べる</a></nav>
+    <nav class="site-nav site-nav-desktop"><a class="site-nav-link" href="/ja/map">地図</a><a class="site-nav-link" href="${escapeHtml(recordsHref)}">記録を見る</a><a class="site-nav-link" href="/ja/learn">使い方と考え方</a><a class="site-nav-link" href="/ja/community">みんなで調べる</a></nav>
     <form class="site-search site-search-desktop" role="search" action="/ja/records" method="get" aria-label="地域の記録と場所を検索">
       <span class="site-search-icon" aria-hidden="true">🔍</span>
       <input type="hidden" name="view" value="public">
@@ -40409,7 +40440,7 @@ function renderVpsImageHeader(): string {
             <input type="hidden" name="view" value="public">
             <input class="site-search-input" type="search" name="q" placeholder="地域の記録や場所を探す" value="" aria-label="地域の記録と場所を検索">
           </form>
-          <nav class="site-nav site-nav-mobile"><a class="site-nav-link" href="/ja/">ホーム</a><a class="site-nav-link" href="/ja/record">記録</a><a class="site-nav-link" href="/ja/records">記録を見る</a><a class="site-nav-link" href="/ja/map">マップ</a><a class="site-nav-link" href="/ja/guide">ガイド</a></nav>
+          <nav class="site-nav site-nav-mobile"><a class="site-nav-link" href="/ja/">ホーム</a><a class="site-nav-link" href="/ja/record">記録</a><a class="site-nav-link" href="${escapeHtml(recordsHref)}">記録を見る</a><a class="site-nav-link" href="/ja/map">マップ</a><a class="site-nav-link" href="/ja/guide">ガイド</a></nav>
         </div>
       </details>
     </div>

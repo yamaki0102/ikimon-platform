@@ -28293,7 +28293,7 @@ test("native public empty-search action keeps its foreground contrast on mobile"
   const html = await response.text();
   assert.equal(response.status, 200);
   assert.match(html, /data-cloudflare-records-native/);
-  assert.match(html, /「桜」に合う記録は見つかりませんでした。/);
+  assert.match(html, /直近の記録に「桜」に合うものは見つかりませんでした。/);
   assert.match(html, /class="cf-records-native-empty-action" href="\/ja\/records\?view=public"/);
 
   const browserPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath();
