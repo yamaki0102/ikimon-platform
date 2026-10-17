@@ -53,7 +53,7 @@ async function fieldR2Put(env,group,deviceId,recordId,at,content){
  const sum=await keyDigest(body);
  const old=await env.FIELD_LOGS.head(key);
  if(old?.customMetadata?.sha256===sum)return {status:'already_stored',id:ref.slice(0,24),sha256:sum};
- await env.FIELD_LOGS.put(key,body,{httpMetadata:{contentType:'application/json; charset=utf-8'},customMetadata:{sha256:sum,category:'private_field_lab',format:'1'}});
+ await env.FIELD_LOGS.put(key,body,{httpMetadata:{contentType:'application/octet-stream'},customMetadata:{sha256:sum,category:'private_field_lab',format:'1'}});
  const verified=await env.FIELD_LOGS.head(key);
  if(!verified||verified.customMetadata?.sha256!==sum)throw Error('R2_WRITE_READBACK_MISMATCH');
  return {status:'stored',id:ref.slice(0,24),sha256:sum};
