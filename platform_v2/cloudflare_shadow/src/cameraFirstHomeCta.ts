@@ -1,6 +1,6 @@
 const HOME_PATHS = new Set(["/", "/home", "/ja", "/ja/", "/ja/home", "/en", "/en/", "/en/home"]);
 
-function isFocusedHomeRequest(request: Request): boolean {
+export function isFocusedHomeRequest(request: Request): boolean {
   if (request.method.toUpperCase() !== "GET") return false;
   try {
     const path = new URL(request.url).pathname.replace(/\/+$/u, "") || "/";

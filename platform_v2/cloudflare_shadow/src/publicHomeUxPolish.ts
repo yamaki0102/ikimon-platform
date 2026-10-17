@@ -48,7 +48,7 @@ const UX_STYLE = `<style id="${UX_STYLE_ID}">
   }
 </style>`;
 
-function isFocusedHomeRequest(request: Request): boolean {
+export function isFocusedHomeRequest(request: Request): boolean {
   if (request.method.toUpperCase() !== "GET") return false;
   try {
     const path = new URL(request.url).pathname.replace(/\/+$/u, "") || "/";
@@ -58,7 +58,7 @@ function isFocusedHomeRequest(request: Request): boolean {
   }
 }
 
-function detectHomeLang(request: Request, html: string): HomeLang | null {
+export function detectHomeLang(request: Request, html: string): HomeLang | null {
   try {
     const path = new URL(request.url).pathname.toLowerCase();
     if (path === "/en" || path === "/en/" || path === "/en/home") return "en";

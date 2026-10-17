@@ -119,7 +119,7 @@ import {
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { decodePublicProgramHandoffPayload, receivePublicProgram } from "./publicProgramReceiver";
-import { renderPublicProgramConfirmationBody } from "./publicProgramConfirmation";
+import { publicProgramConfirmationError, publicProgramConfirmationTitle, renderPublicProgramConfirmationBody } from "./publicProgramConfirmation";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import {
@@ -4492,9 +4492,10 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
   try {
     program = decodePublicProgramHandoffPayload(url.searchParams.get("payload") ?? "");
   } catch {
+    const copy = publicProgramConfirmationError(lang);
     return observationEventPageHtml(
-      "公開内容を確認",
-      observationEventEmptyState("企画候補を読み込めません", "NOCOSILからもう一度、公開内容の確認を開いてください。"),
+      publicProgramConfirmationTitle(lang),
+      observationEventEmptyState(copy.heading, copy.body),
       "program-confirmation-invalid",
       400,
       lang,
@@ -4507,8 +4508,9 @@ async function getPublicProgramConfirmationPage(request: Request, url: URL, env:
     program,
     authenticated: Boolean(auth && !auth.banned),
     loginHref: "/auth?redirect=" + encodeURIComponent(redirect),
+    lang,
   });
-  return observationEventPageHtml("公開内容を確認", body, "program-confirmation", 200, lang, Boolean(auth && !auth.banned));
+  return observationEventPageHtml(publicProgramConfirmationTitle(lang), body, "program-confirmation", 200, lang, Boolean(auth && !auth.banned));
 }
 
 const OBSERVATION_EVENT_PUBLIC_LIST_LIMIT = 24;
@@ -26036,22 +26038,29 @@ async function getManifestBoundOriginalUiObject(
   const manifest = await env.ASSET_BUCKET.get(`${manifestVersionPrefix}/manifest.json`);
   if (requiresLearnEntry && !manifest?.body) return null;
   let objectVersionPrefix = manifestVersionPrefix;
+  let manifestSha256 = "";
   if (manifest?.body) {
     try {
-      const parsed = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; version_prefix?: unknown }> };
+      const parsed = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; version_prefix?: unknown; sha256?: unknown }> };
       const entry = parsed.items?.find((item) => String(item?.key ?? "") === relativeKey);
       // New Learn routes are admitted from the exact public content projection,
       // rather than a second article list in this Worker. Unlisted objects stay private.
       if (requiresLearnEntry && !entry) return null;
       const candidate = String(entry?.version_prefix ?? "");
       if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(candidate)) objectVersionPrefix = candidate;
+      const digest = String(entry?.sha256 ?? "").toLowerCase();
+      if (/^[a-f0-9]{64}$/.test(digest)) manifestSha256 = digest;
     } catch {
       // An invalid manifest is handled as a missing versioned object.
       if (requiresLearnEntry) return null;
     }
   }
   const object = await env.ASSET_BUCKET.get(`${objectVersionPrefix}/${relativeKey}`);
-  return await bindMaterializedSourceSha256(env, objectVersionPrefix, relativeKey, object);
+  // Reuse this request's parsed manifest. No cross-request cache: release
+  // changes and publication withdrawal must be visible on the next request.
+  // Selectively reused objects still bind to their own version's manifest.
+  return await bindMaterializedSourceSha256(env, objectVersionPrefix, relativeKey, object,
+    objectVersionPrefix === manifestVersionPrefix ? manifestSha256 : undefined);
 }
 
 async function bindMaterializedSourceSha256(
@@ -26059,11 +26068,12 @@ async function bindMaterializedSourceSha256(
   versionPrefix: string,
   relativeKey: string,
   object: R2ObjectBody | null,
+  knownManifestSha256?: string,
 ): Promise<MaterializedR2ObjectBody | null> {
   if (!object?.body) return object;
-  const manifestSha256 = versionPrefix
+  const manifestSha256 = knownManifestSha256 ?? (versionPrefix
     ? await readMaterializedManifestSha256(env, versionPrefix, relativeKey)
-    : "";
+    : "");
   const sourceSha256 = manifestSha256 || r2Sha256Checksum(object);
   if (sourceSha256) MATERIALIZED_SOURCE_SHA256.set(object, sourceSha256);
   return object;

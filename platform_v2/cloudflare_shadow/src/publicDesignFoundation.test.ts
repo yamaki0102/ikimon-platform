@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ZUKAN_DESIGN_FOUNDATION_STYLES } from "../../src/ui/appExperience";
+import { renderSiteDocument } from "../../src/ui/siteShell";
 import {
   applyPublicDesignFoundation,
   ensurePublicDesignFoundation,
@@ -38,4 +40,19 @@ test("response wrapper marks HTML once and preserves non-HTML responses", async 
 
   const api = await ensurePublicDesignFoundation(new Request("https://zukan.earth/api/v1/records"), Response.json({ ok: true }));
   assert.deepEqual(await api.json(), { ok: true });
+});
+
+test("materialized shells keep one foundation copy at the final cascade position", () => {
+  const source = renderSiteDocument({ basePath: "", title: "Test", body: "<h1>記録</h1>", extraStyles: ".page-rule{color:purple}" });
+  const result = applyPublicDesignFoundation(source);
+  assert.equal(result.split(ZUKAN_DESIGN_FOUNDATION_STYLES).length - 1, 1);
+  assert.ok(result.indexOf(ZUKAN_DESIGN_FOUNDATION_STYLES) > result.indexOf(".page-rule{color:purple}"));
+  assert.ok(Buffer.byteLength(result) < Buffer.byteLength(source) + 100);
+  assert.equal(applyPublicDesignFoundation(result), result);
+});
+
+test("customized page styles are retained beside the canonical foundation", () => {
+  const custom = ZUKAN_DESIGN_FOUNDATION_STYLES.replace("#143f2e", "#123456");
+  const source = publicDocument.replace("</head>", `<style>${custom}</style></head>`);
+  assert.ok(applyPublicDesignFoundation(source).includes(custom));
 });

@@ -82,7 +82,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\/api\/v1\/auth\/session\?optional=1/);
   assert.match(html, /ikimon:auth-session-ready/);
   assert.match(html, /publishAuthSessionReady\(false\)/);
-  assert.match(html, /publishAuthSessionReady\(true\)/);
+  assert.match(html, /publishAuthSessionReady\(true, alertsRequest\)/);
   assert.match(html, /\/api\/v1\/me\/personalized-menu\?limit=8/);
   assert.match(html, /\/api\/v1\/me\/alerts/);
   assert.match(html, /\/api\/v1\/me\/alerts\/read/);

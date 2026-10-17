@@ -318,6 +318,7 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
   if (!root) return;
   const list = root.querySelector('[data-home-watch-updates-list]');
   const status = root.querySelector('[data-home-watch-updates-status]');
+  const retry = root.querySelector('[data-home-watch-updates-retry]');
   if (!list || !status) return;
   const alertsEndpoint = ${JSON.stringify(alertsEndpoint)};
   const observationHrefBase = ${JSON.stringify(observationHrefBase)};
@@ -418,18 +419,33 @@ function renderHomeWatchUpdatesScript(options: LandingHomeStateOptions): string 
       list.appendChild(link);
     });
   };
+  const fetchAlerts = () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    return fetch(alertsEndpoint, { method: 'GET', headers: { accept: 'application/json' }, credentials: 'same-origin', signal: controller.signal })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('alerts_unavailable')))
+      .finally(() => clearTimeout(timeout));
+  };
   let requestStarted = false;
-  const loadAlerts = () => {
+  const loadAlerts = (sharedRequest) => {
     if (requestStarted || document.documentElement.dataset.auth !== 'signed-in') return;
     requestStarted = true;
+    if (retry) retry.hidden = true;
     status.textContent = copy.loading;
-    fetch(alertsEndpoint, { method: 'GET', headers: { accept: 'application/json' }, credentials: 'same-origin' })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('alerts_unavailable')))
+    const request = sharedRequest && typeof sharedRequest.then === 'function'
+      ? sharedRequest
+      : fetchAlerts();
+    request
       .then((payload) => { if (!payload || payload.ok !== true || !Array.isArray(payload.alerts)) throw new Error('alerts_unavailable'); render(payload.alerts); })
-      .catch(() => { status.textContent = copy.error; });
+      .catch(() => {
+        requestStarted = false;
+        status.textContent = copy.error;
+        if (retry) retry.hidden = false;
+      });
   };
+  if (retry) retry.querySelector('button')?.addEventListener('click', () => loadAlerts());
   window.addEventListener('ikimon:auth-session-ready', (event) => {
-    if (event.detail && event.detail.signedIn === true) loadAlerts();
+    if (event.detail && event.detail.signedIn === true) loadAlerts(event.detail.alertsRequest);
   });
   loadAlerts();
 })();
@@ -537,6 +553,7 @@ function renderMember(options: LandingHomeStateOptions, ownItems: LandingObserva
     <section class="home-section home-watch-updates" data-home-watch-updates aria-labelledby="home-watch-updates-heading">
       <div class="home-section-heading"><div><span class="home-product-kicker">AREA WATCH</span><h2 id="home-watch-updates-heading">${escapeHtml(copy.watchUpdatesTitle)}</h2></div></div>
       <p class="home-watch-updates-status" data-home-watch-updates-status aria-live="polite">${escapeHtml(copy.watchUpdatesLoading)}</p>
+      <div data-home-watch-updates-retry hidden><button type="button" class="home-secondary-button ik-ui-action">${escapeHtml(copy.watchUpdatesRetry)}</button></div>
       <div class="home-watch-updates-list" data-home-watch-updates-list></div>
     </section>
     ${renderHomeWatchUpdatesScript(options)}

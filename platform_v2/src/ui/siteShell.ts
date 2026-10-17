@@ -3745,8 +3745,8 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const accountCopy = ${JSON.stringify(accountCopy)};
   let signedIn = false;
   let latestAlerts = [];
-  const publishAuthSessionReady = (isSignedIn) => {
-    window.dispatchEvent(new CustomEvent('ikimon:auth-session-ready', { detail: { signedIn: isSignedIn } }));
+  const publishAuthSessionReady = (isSignedIn, alertsRequest) => {
+    window.dispatchEvent(new CustomEvent('ikimon:auth-session-ready', { detail: { signedIn: isSignedIn, alertsRequest } }));
   };
   const setIconHref = (selector, href, label) => {
     document.querySelectorAll(selector).forEach((link) => {
@@ -3885,14 +3885,22 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     }
   };
   const hydrateAlerts = () => {
-    fetch(alertsEndpoint, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    return fetch(alertsEndpoint, {
       method: 'GET',
       headers: { accept: 'application/json' },
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      signal: controller.signal
     })
       .then((response) => response.ok ? response.json() : null)
-      .then((payload) => renderAlerts(payload && payload.ok ? payload.alerts : []))
-      .catch(() => undefined);
+      .then((payload) => {
+        if (!payload || payload.ok !== true || !Array.isArray(payload.alerts)) return null;
+        renderAlerts(payload.alerts);
+        return payload;
+      })
+      .catch(() => null)
+      .finally(() => clearTimeout(timeout));
   };
   const hydratePersonalizedMenu = () => {
     fetch(personalizedEndpoint, {
@@ -4024,9 +4032,9 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
       button.setAttribute('aria-label', accountCopy.notifications);
       button.setAttribute('title', accountCopy.notifications);
     });
-    hydrateAlerts();
+    const alertsRequest = hydrateAlerts();
     hydratePersonalizedMenu();
-    publishAuthSessionReady(true);
+    publishAuthSessionReady(true, alertsRequest);
   };
   fetch(endpoint, {
     method: 'GET',
@@ -6293,113 +6301,7 @@ ${alternateLinks}
     .onboarding-empty h3 { margin: 0 0 12px; font-size: 22px; font-weight: 800; }
     .onboarding-empty p { margin: 0 0 20px; color: #475569; max-width: 44ch; margin-inline: auto; }
     .ver-tag { font-size: 11px; font-weight: 700; color: #94a3b8; margin-right: 6px; font-family: ui-monospace, monospace; }
-    .site-footer {
-      position: relative;
-      overflow: hidden;
-      margin-top: 42px;
-      border-top: 1px solid rgba(255,255,255,.1);
-      background:
-        linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(255,255,255,.05) 1px, transparent 1px),
-        linear-gradient(116deg, rgba(16,185,129,.28) 0%, rgba(16,185,129,0) 34%),
-        linear-gradient(244deg, rgba(14,165,233,.2) 0%, rgba(14,165,233,0) 30%),
-        linear-gradient(135deg, #052e24 0%, #064e3b 48%, #075985 100%);
-      background-size: 46px 46px, 46px 46px, auto, auto, auto;
-      color: #ecfdf5;
-    }
-    .site-footer::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0) 34%, rgba(0,0,0,.14));
-      pointer-events: none;
-    }
-    .footer-inner {
-      position: relative;
-      z-index: 1;
-      width: min(var(--ikimon-page-max), calc(100% - var(--ikimon-page-inline)));
-      margin: 0 auto;
-      display: grid;
-      gap: 18px;
-      padding: clamp(36px, 6vw, 72px) 0 26px;
-      transition: width .18s ease, margin .18s ease;
-    }
-    .footer-hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(360px, .62fr);
-      gap: 18px;
-      align-items: stretch;
-    }
-    .footer-brand-panel,
-    .footer-mini-map,
-    .footer-directory,
-    .footer-bottom {
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.08);
-      box-shadow: 0 24px 70px rgba(0,0,0,.18);
-      backdrop-filter: blur(18px);
-      border-radius: 8px;
-    }
-    .footer-brand-panel {
-      min-height: 340px;
-      padding: clamp(24px, 4vw, 44px);
-      display: grid;
-      align-content: space-between;
-      gap: 26px;
-    }
-    .site-footer .brand { color: #ffffff; }
-    .site-footer .brand-mark {
-      background: #ecfdf5;
-      box-shadow: 0 12px 30px rgba(0,0,0,.16);
-    }
-    .site-footer .brand small { color: rgba(236,253,245,.76); }
-    .footer-kicker {
-      width: fit-content;
-      min-height: 34px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 20px;
-      padding: 6px 10px;
-      border: 1px solid rgba(167,243,208,.28);
-      border-radius: 999px;
-      background: rgba(16,185,129,.13);
-      color: #a7f3d0;
-      font-size: 12px;
-      font-weight: 950;
-    }
-    .footer-brand-panel h2 {
-      margin: 18px 0 0;
-      max-width: 16ch;
-      color: #ffffff;
-      font-size: clamp(34px, 4.2vw, 58px);
-      line-height: 1.08;
-      letter-spacing: 0;
-      font-weight: 950;
-    }
-    .footer-brand-panel p {
-      margin: 14px 0 0;
-      max-width: 50em;
-      color: rgba(236,253,245,.74);
-      font-size: 14px;
-      font-weight: 650;
-    }
-    .footer-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-    .site-footer .btn-solid {
-      background: #ffffff;
-      color: #064e3b;
-      box-shadow: 0 18px 42px rgba(0,0,0,.18);
-    }
-    .site-footer .btn-ghost-on-dark {
-      background: rgba(255,255,255,.08);
-      color: #ffffff;
-      border-color: rgba(255,255,255,.24);
-    }
+    ${globalRecordNav ? `
     .global-record-launcher {
       position: fixed;
       left: max(8px, env(safe-area-inset-left));
@@ -7127,152 +7029,7 @@ ${alternateLinks}
         grid-template-columns: 1fr;
       }
     }
-    .footer-chip-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .footer-chip-row span {
-      min-height: 32px;
-      display: inline-flex;
-      align-items: center;
-      padding: 6px 10px;
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 999px;
-      background: rgba(255,255,255,.07);
-      color: rgba(236,253,245,.78);
-      font-size: 12px;
-      font-weight: 820;
-    }
-    .footer-mini-map {
-      min-height: 340px;
-      position: relative;
-      overflow: hidden;
-      padding: 22px;
-      display: grid;
-      align-content: end;
-      background:
-        linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px),
-        linear-gradient(0deg, rgba(255,255,255,.08) 1px, transparent 1px),
-        linear-gradient(135deg, rgba(6,78,59,.58), rgba(14,165,233,.42));
-      background-size: 38px 38px, 38px 38px, auto;
-    }
-    .footer-route {
-      position: absolute;
-      inset: 42px 44px 72px 42px;
-      border: 2px solid rgba(167,243,208,.5);
-      border-left-color: transparent;
-      border-bottom-color: rgba(125,211,252,.52);
-      border-radius: 45% 55% 58% 42%;
-      transform: rotate(-9deg);
-    }
-    .footer-pin {
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      border: 4px solid #fff;
-      border-radius: 999px;
-      background: #10b981;
-      box-shadow: 0 10px 24px rgba(0,0,0,.22);
-    }
-    .footer-pin.one { left: 18%; top: 32%; }
-    .footer-pin.two { left: 57%; top: 24%; background: #0ea5e9; }
-    .footer-pin.three { left: 73%; top: 63%; background: #f59e0b; }
-    .footer-pin.four { left: 36%; top: 70%; background: #34d399; }
-    .footer-map-copy {
-      position: relative;
-      z-index: 2;
-      padding: 16px;
-      border: 1px solid rgba(255,255,255,.16);
-      border-radius: 8px;
-      background: rgba(5,46,36,.52);
-      backdrop-filter: blur(14px);
-    }
-    .footer-map-copy span {
-      color: #a7f3d0;
-      font-size: 12px;
-      font-weight: 950;
-    }
-    .footer-map-copy strong {
-      display: block;
-      margin-top: 5px;
-      color: #fff;
-      font-size: 22px;
-      line-height: 1.25;
-      font-weight: 950;
-    }
-    .footer-map-copy p {
-      margin: 8px 0 0;
-      color: rgba(236,253,245,.7);
-      font-size: 12px;
-      font-weight: 650;
-    }
-    .footer-directory {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 1px;
-      overflow: hidden;
-      background: rgba(255,255,255,.12);
-    }
-    .footer-group {
-      min-height: 220px;
-      padding: 22px;
-      background: rgba(5,46,36,.42);
-    }
-    .footer-group strong {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 950;
-      margin-bottom: 14px;
-    }
-    .footer-group strong i {
-      min-width: 26px;
-      height: 26px;
-      display: inline-grid;
-      place-items: center;
-      padding: 0 6px;
-      border-radius: 8px;
-      background: rgba(167,243,208,.14);
-      color: #a7f3d0;
-      font-size: 9px;
-      font-style: normal;
-      font-weight: 950;
-    }
-    .footer-links {
-      display: grid;
-      gap: 8px;
-    }
-    .footer-links a {
-      min-height: 34px;
-      display: inline-flex;
-      align-items: center;
-      width: fit-content;
-      color: rgba(236,253,245,.76);
-      font-weight: 760;
-      transition: color .18s ease, transform .18s ease;
-    }
-    .footer-links a:hover {
-      color: #ffffff;
-      transform: translateX(2px);
-    }
-    .footer-bottom {
-      min-height: 62px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      padding: 14px 18px;
-      color: rgba(236,253,245,.7);
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .footer-bottom a {
-      color: #ffffff;
-      font-weight: 900;
-    }
+    ` : ""}
     @media (min-width: 1161px) {
       :root {
         --ikimon-desktop-sidebar-w: 204px;

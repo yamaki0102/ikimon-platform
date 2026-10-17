@@ -22,6 +22,13 @@ export function applyPublicDesignFoundation(html: string): string {
 
   let patched = html;
   if (!patched.includes(`id="${FOUNDATION_STYLE_ID}"`)) {
+    // The shared renderer already embeds this exact stylesheet. Keep the
+    // final copy (and its cascade position) while dropping the earlier copy.
+    // Never remove a merely similar or customized page stylesheet.
+    patched = patched.replace(/<style\b([^>]*)>([\s\S]*?)<\/style\s*>/giu, (tag, attributes: string, css: string) => {
+      if (!css.includes(ZUKAN_DESIGN_FOUNDATION_STYLES)) return tag;
+      return `<style${attributes}>${css.replace(ZUKAN_DESIGN_FOUNDATION_STYLES, "")}</style>`;
+    });
     const style = `<style id="${FOUNDATION_STYLE_ID}">${ZUKAN_DESIGN_FOUNDATION_STYLES}</style>`;
     patched = patched.replace(/<\/head>/i, `${style}</head>`);
   }
