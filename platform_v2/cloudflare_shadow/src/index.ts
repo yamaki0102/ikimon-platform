@@ -26290,7 +26290,7 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
   return mime?.startsWith("image/") ? mime : "application/octet-stream";
 }
 
-async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<Response> {
+async function getOriginalUiHtml(request: Request, url: URL, env: Env, knownSession?: SessionSnapshot | null): Promise<Response> {
   let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(url)) {
     object = await getVersionedOriginalUiObject(env, key);
@@ -26298,7 +26298,7 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env): Promise<
   }
   if (object?.body) {
     const cspNonce = createHtmlCspNonce();
-    const rawBody = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, request, url, env);
+    const rawBody = request.method === "HEAD" ? null : await originalUiHtmlBodyForRequest(object, request, url, env, knownSession);
     const body = typeof rawBody === "string" ? applyCspNonceToHtmlScripts(rawBody, cspNonce) : rawBody;
     return new Response(body, {
       headers: {
@@ -26384,10 +26384,14 @@ export function rewriteCanonicalPublicOrigins(value: string, env: Env): string {
     .replaceAll("https://staging.ikimon.life", canonicalOrigin);
 }
 
-async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env): Promise<ReadableStream | string | null> {
+async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Request, url: URL, env: Env, knownSession?: SessionSnapshot | null): Promise<ReadableStream | string | null> {
   const text = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   const shouldReadSession = text.includes("site-header-actions") || (isHomeHtmlPath(url.pathname) && text.includes("data-record-feed"));
-  const session = shouldReadSession ? await readCompatibleSession(request, env).catch(() => null) : null;
+  // undefined means unresolved; null is the profile route's already-resolved
+  // anonymous result. Reuse only within this call chain, with no shared cache.
+  const session = shouldReadSession
+    ? knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null)
+    : null;
   if (isHomeHtmlPath(url.pathname)) {
     return injectHomeObservationRecords(text, session, url, env);
   }
@@ -27144,7 +27148,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
 async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env);
   if (!session || session.banned) {
-    return getOriginalUiHtml(request, url, env);
+    return getOriginalUiHtml(request, url, env, session);
   }
 
   const settings = /\/profile\/settings$/.test(url.pathname);
@@ -27152,7 +27156,7 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
     lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
     settings
   };
-  const originalResponse = await getOriginalUiHtml(request, url, env);
+  const originalResponse = await getOriginalUiHtml(request, url, env, session);
   const headers = new Headers(originalResponse.headers);
   headers.set("content-type", "text/html; charset=utf-8");
   headers.set("cache-control", "no-store");
