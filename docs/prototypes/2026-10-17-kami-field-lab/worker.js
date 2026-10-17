@@ -11,7 +11,14 @@ bare:{type:'noul',instructions:'Is bare dirt, soil, or sand visibly present?'},
 water:{type:'noul',instructions:'Is surface water visibly present?'},
 birds:{type:'noul',instructions:'Is an actual bird visibly identifiable, rather than merely expected?'},
 insects:{type:'noul',instructions:'Is an insect visibly identifiable, rather than merely expected?'},
-cricket:{type:'noul',instructions:'Are cricket sporting activities or equipment directly visible, rather than just people in a park?'}
+cricket:{type:'noul',instructions:'Are cricket sporting activities or equipment directly visible, rather than just people in a park?'},
+people:{type:'noul',instructions:'Is a real human person unambiguously visible in the image, not a shadow or an abstract shape?'},
+buildings:{type:'noul',instructions:'Is an actual constructed building visibly identifiable, not just a plain colored region or tree?'},
+poles:{type:'noul',instructions:'Is an actual utility pole for electric or communication cables clearly visible, not a tree trunk or thin line?'},
+manholes:{type:'noul',instructions:'Is an identifiable manhole cover installed in pavement or roadway clearly visible, not simply a circular patch?'},
+cars:{type:'noul',instructions:'Is a real car clearly visible in the image?'},
+bicycles:{type:'noul',instructions:'Is a real bicycle clearly visible in the image?'},
+traffic_signs:{type:'noul',instructions:'Is a road traffic sign clearly visible in the image?'}
 };
 const CMP_MODELS=[{key:'jev',api:'typesafe/jev-1.14.0',sel:null,price:.042},{key:'flash',api:'@cf/cloudflare/clef-flash',sel:'clef-flash',price:.038},{key:'omni',api:'@cf/cloudflare/clef-omni',sel:'clef-omni',price:.15}];
 async function cmpRun(env,m,image){
@@ -61,6 +68,25 @@ async function detectIndividuals(env,image,target){
   return {ok:Array.isArray(result?.objects),target,kind:'per_frame_candidate_boxes',count:boxes.length,at_least:boxes.length===COUNT_MAX,boxes,latency_ms:Date.now()-start,model:'@cf/moondream/moondream3.1-9B-A2B',usage:{input_tokens:Number(metrics.input_tokens)||0,output_tokens:Number(metrics.output_tokens)||0},estimated_cost_usd:Number(cost.toFixed(8)),error:Array.isArray(result?.objects)?null:'NO_BOX_OUTPUT'};
  }catch(err){return {ok:false,target,kind:'per_frame_candidate_boxes',count:null,at_least:false,boxes:[],latency_ms:Date.now()-start,model:'@cf/moondream/moondream3.1-9B-A2B',usage:null,estimated_cost_usd:null,error:String(err).slice(0,150)}}
 }
+const OBSERVATION_EVIDENCE_KEYS={
+ bird:'birds',insect:'insects',person:'people',building:'buildings',
+ utility_pole:'poles',manhole:'manholes',car:'cars',bicycle:'bicycles',traffic_sign:'traffic_signs'
+};
+function assessDetectorEvidence(models,individuals){
+ for(const [kind,result] of Object.entries(individuals||{})){
+  if(!result||typeof result!=='object')continue;
+  const question=OBSERVATION_EVIDENCE_KEYS[kind];
+  const values=Object.values(models||{}).map(m=>m?.answers?.[question]?.noul).filter(v=>typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1);
+  const yes=values.filter(v=>v>=0.55).length;
+  result.verification={
+   source:'decision_model_cross_check',
+   evaluated:values.length,agreeing:yes,
+   mean_probability:values.length?Number((values.reduce((a,b)=>a+b,0)/values.length).toFixed(4)):null,
+   status:!result.ok?'detector_failed':result.count===0?'no_box_detected':yes>=2?'candidate_supported':'candidate_unconfirmed'
+  };
+ }
+ return individuals;
+}
 function normalizeDetector(value){
  const out={};
  for(const name of Object.keys(COUNT_TARGETS)){
@@ -75,7 +101,14 @@ function normalizeDetector(value){
    latency_ms:fixedNumber(r.latency_ms,0,120000),
    usage:{input_tokens:fixedNumber(r.usage?.input_tokens,0,1e8),output_tokens:fixedNumber(r.usage?.output_tokens,0,1e8)},
    estimated_cost_usd:fixedNumber(r.estimated_cost_usd,0,100),
-   error:typeof r.error==='string'?r.error.slice(0,150):null};
+   error:typeof r.error==='string'?r.error.slice(0,150):null,
+   verification:r.verification&&typeof r.verification==='object'?{
+    source:'decision_model_cross_check',
+    evaluated:fixedNumber(r.verification.evaluated,0,3),
+    agreeing:fixedNumber(r.verification.agreeing,0,3),
+    mean_probability:fixedNumber(r.verification.mean_probability,0,1),
+    status:['detector_failed','no_box_detected','candidate_supported','candidate_unconfirmed'].includes(r.verification.status)?r.verification.status:'unknown'
+   }:null};
  }
  return out;
 }
@@ -148,7 +181,7 @@ async function compareImage(req,url,env){
  Promise.all(CMP_MODELS.map(async m=>[m.key,await cmpRun(env,m,d.image)])),
  Promise.all(labels.map(async key=>[key,await detectIndividuals(env,d.image,COUNT_TARGETS[key])] ))
  ]);
- const results=Object.fromEntries(resultEntries),individuals=Object.fromEntries(detectEntries);
+ const results=Object.fromEntries(resultEntries),individuals=assessDetectorEvidence(results,Object.fromEntries(detectEntries));
  let saved={status:'failed'};try{saved=await logOriginalCompare(env,d,results,d.image,individuals)}catch(e){saved={status:'failed',error:'R2_SAVE_FAILED'}}
  return respond({schema:CMP_SCHEMA,count_schema:ZUKAN_COUNT_V2,at:new Date().toISOString(),results,individuals,saved});
 }
