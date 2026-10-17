@@ -28273,6 +28273,69 @@ test("native public Records filters one product list by search query without dup
   assert.doesNotMatch(html, /ニホンアマガエル|data-cloudflare-records-live|最近の投稿/);
 });
 
+test("native empty Records offers a local recovery route without forwarding the search or private context", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
+  const rawToken = "empty-records-session";
+  core.authSessions.set(createHash("sha256").update(rawToken).digest("hex"), {
+    token_hash: createHash("sha256").update(rawToken).digest("hex"), user_id: "empty-records-owner",
+    display_name: "Empty Records Owner", role_name: "Observer", rank_label: null,
+    banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null,
+  });
+  for (const lang of ["ja", "en", "es", "pt-br"]) {
+    await env.ASSET_BUCKET.put(`original-ui/html/${lang}/records.html`, '<!doctype html><html><head></head><body><main id="main-content">legacy</main></body></html>', { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+    for (const mode of ["public", "mine"]) for (const query of ["", '桜 & café + <地域> "長い名前"']) {
+      const params = new URLSearchParams({ view: mode, q: query, lat: "35.123456", token: "excluded-private-context", redirect: "https://other.example" });
+      const request = new Request(`https://staging.zukan.earth/${lang}/records?${params}`, { headers: mode === "mine" ? { cookie: `ikimon_v2_session=${rawToken}` } : {} });
+      const response = await publicPresentationEntry.fetch(request, stagingEnv, { waitUntil() {} });
+      const html = await response.text();
+      assert.equal(response.status, 200, `${lang}/${mode}/${query}`);
+      assert.match(html, /data-zukan-design="v1"/u, "verify the final presentation boundary");
+      const emptyStart = html.indexOf('<div class="cf-records-native-empty">');
+      assert.ok(emptyStart >= 0, "the successful empty state is present");
+      const empty = html.slice(emptyStart, html.indexOf("</section>", emptyStart)).split(/<style>|<script/u)[0]!;
+      const primary = new URL(empty.match(/class="cf-records-native-empty-action" href="([^"]+)"/u)![1]!.replaceAll("&amp;", "&"), request.url);
+      const secondaryAnchor = empty.match(/<a class="cf-records-native-empty-secondary" href="([^"]+)">([^<]+)<\/a>/u);
+      assert.ok(secondaryAnchor, "an empty result offers a contextual browse destination");
+      const secondary = new URL(secondaryAnchor[1]!.replaceAll("&amp;", "&"), request.url);
+      assert.equal(primary.pathname, `/${lang}/${query ? "records" : "record"}`);
+      assert.equal(primary.search, query ? `?view=${mode}` : "");
+      assert.equal(secondary.origin, "https://staging.zukan.earth");
+      assert.equal(secondary.pathname, `/${lang}/${mode === "public" ? "map" : "records"}`);
+      assert.equal(secondary.search, mode === "public" ? "?tab=places" : "?view=public");
+      assert.ok(secondaryAnchor[2]!.trim(), "the native keyboard link has a visible accessible name");
+      assert.equal((empty.match(/<a /gu) ?? []).length, 2);
+      assert.equal(empty.includes('class="cf-records-native-empty-hint"'), Boolean(query));
+      assert.doesNotMatch(empty, /excluded-private-context|35\.123456|other\.example|<地域>|&amp;amp;|onclick=|tabindex="-1"/u);
+      assert.doesNotMatch(empty, /navigator\.geolocation|fetch\(|<script/u);
+    }
+  }
+});
+
+test("unavailable Records retains retry and never presents empty-search recovery as a successful lookup", async () => {
+  const { env, core } = createEnv();
+  const rawToken = "unavailable-records-session";
+  core.authSessions.set(createHash("sha256").update(rawToken).digest("hex"), {
+    token_hash: createHash("sha256").update(rawToken).digest("hex"), user_id: "unavailable-records-owner",
+    display_name: "Unavailable Records Owner", role_name: "Observer", rank_label: null,
+    banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null,
+  });
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", OBS_DB: { prepare() { throw new Error("fixture read unavailable"); } } };
+  for (const lang of ["ja", "en", "es", "pt-br"]) {
+    await env.ASSET_BUCKET.put(`original-ui/html/${lang}/records.html`, '<!doctype html><html><head></head><body><main id="main-content">legacy</main></body></html>', { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+    for (const mode of ["public", "mine"]) {
+      const path = `/${lang}/records?${new URLSearchParams({ view: mode, q: "桜 & café" })}`;
+      const response = await publicPresentationEntry.fetch(new Request(`https://staging.zukan.earth${path}`, { headers: mode === "mine" ? { cookie: `ikimon_v2_session=${rawToken}` } : {} }), stagingEnv, { waitUntil() {} });
+      const html = await response.text();
+      assert.equal(response.status, 200);
+      const status = html.match(/<div class="cf-records-native-empty" role="status">[\s\S]*?<\/div>/u)![0];
+      assert.equal(status.match(/href="([^"]+)"/u)![1]!.replaceAll("&amp;", "&"), path);
+      assert.equal((status.match(/<a /gu) ?? []).length, 1);
+      assert.doesNotMatch(html, /class="cf-records-native-empty-secondary"|class="cf-records-native-empty-hint"/u);
+    }
+  }
+});
+
 test("native public empty-search action keeps its foreground contrast on mobile", { skip: !existsSync(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || chromium.executablePath()) && "Playwright Chromium is unavailable" }, async () => {
   const { env } = createEnv();
   const stagingEnv = { ...env, ENVIRONMENT: "staging" };
@@ -28399,6 +28462,11 @@ test("native member Records shows the owner's private record once", async () => 
   assert.match(html, /非公開/);
   assert.doesNotMatch(html, /derived\/owner-private-records/);
   assert.doesNotMatch(html, /data-cloudflare-records-live|最近の投稿/);
+  const publicList = await publicPresentationEntry.fetch(new Request("https://staging.zukan.earth/ja/records?view=public"), stagingEnv, { waitUntil() {} });
+  const publicHtml = await publicList.text();
+  assert.equal(publicList.status, 200);
+  assert.doesNotMatch(publicHtml, /自分だけの記録|derived\/owner-private-records/u);
+  assert.match(publicHtml, /class="cf-records-native-empty-secondary" href="\/ja\/map\?tab=places"/u);
   const unauthenticatedMedia = await worker.fetch(new Request(`https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/${privateDerivativeKey}`), stagingEnv);
   assert.equal(unauthenticatedMedia.status, 404);
   const ownerMedia = await worker.fetch(new Request(`https://ikimon-life-cloudflare-staging.yamaki0102.workers.dev/${privateDerivativeKey}`, {

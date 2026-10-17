@@ -2695,6 +2695,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     nearbyAreaOrigin: null,
     nearbyAreaLocateMovePending: false,
     startupLocationRequestActive: false,
+    startupLocationRequestSeq: 0,
     startupLocationUserMoved: false,
     suppressViewportSearchUntil: 0,
     suppressNextViewportSearch: false,
@@ -9609,7 +9610,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     var force = options && options.force === true;
     var onlyIfGranted = options && options.onlyIfGranted === true;
     if ((!force && (state._restoredCenter || state._restoredCellId)) || !state.map || !navigator.geolocation) return;
+    // Permission checks are pending work too: gestures and newer requests win.
+    var requestSeq = (state.startupLocationRequestSeq || 0) + 1;
+    state.startupLocationRequestSeq = requestSeq;
+    state.startupLocationRequestActive = true;
+    if (force) state.startupLocationUserMoved = false;
+    var isCurrentRequest = function () { return state.startupLocationRequestSeq === requestSeq; };
     var applyPosition = function (pos) {
+      if (!isCurrentRequest()) return;
       state.startupLocationRequestActive = false;
       if (!state.map || state.startupLocationUserMoved) return;
       var coords = pos && pos.coords ? pos.coords : null;
@@ -9630,31 +9638,41 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       dropMeMarker(lng, lat);
     };
     var fail = function () {
-      state.startupLocationRequestActive = false;
+      if (isCurrentRequest()) state.startupLocationRequestActive = false;
     };
     var run = function () {
-      state.startupLocationRequestActive = true;
-      navigator.geolocation.getCurrentPosition(applyPosition, fail, {
-        enableHighAccuracy: false,
-        maximumAge: 1000 * 60 * 10,
-        timeout: 4500,
-      });
+      if (!isCurrentRequest()) return;
+      try {
+        navigator.geolocation.getCurrentPosition(applyPosition, fail, {
+          enableHighAccuracy: false,
+          maximumAge: 1000 * 60 * 10,
+          timeout: 4500,
+        });
+      } catch (_) { fail(); }
+    };
+    var permissionUnavailable = function () {
+      // Automatic startup must not turn an unknown permission into a prompt.
+      if (onlyIfGranted) fail();
+      else run();
     };
     if (navigator.permissions && typeof navigator.permissions.query === 'function') {
-      navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
-        if (status && status.state === 'denied') {
-          fail();
-          return;
-        }
-        if (onlyIfGranted && (!status || status.state !== 'granted')) {
-          fail();
-          return;
-        }
-        run();
-      }).catch(run);
+      try {
+        navigator.permissions.query({ name: 'geolocation' }).then(function (status) {
+          if (!isCurrentRequest()) return;
+          if (status && status.state === 'denied') {
+            fail();
+            return;
+          }
+          if (onlyIfGranted && (!status || status.state !== 'granted')) {
+            fail();
+            return;
+          }
+          run();
+        }).catch(permissionUnavailable);
+      } catch (_) { permissionUnavailable(); }
       return;
     }
-    if (onlyIfGranted) return;
+    if (onlyIfGranted) { fail(); return; }
     run();
   }
 
