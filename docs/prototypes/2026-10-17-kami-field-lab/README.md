@@ -5,7 +5,7 @@
 - **試用URL:** https://zukan-kami-field-lab-20261017.yamaki0102.workers.dev/
 - **Cloudflare Worker:** `zukan-kami-field-lab-20261017` （アカウント `089a2d3bdee8858689ae8de1e8232899`）
 - **稼働版:** `90a81d59-0071-41cd-8b27-fa8764de656d` / 100% （2026-10-17T01:10:07Z）
-- **GitHub source:** 本ディレクトリの `worker.js`、UTF-8 49,488 bytes、SHA256 `ce5c2883c5c4089b12d2f442f237ac059e59f31bd11607324f8e3140bc321533`。実行Workerとのバイト単位一致は別途照合すること。
+- **GitHub source:** 本ディレクトリの `worker.js`、UTF-8 49,488 bytes、SHA256 `ce5c2883c5c4089b12d2f442f237ac059e59f31bd11607324f8e3140bc321533`。稼働Workerとの全文一致と同じSHA256を2026-10-17に独立read-backで確認済み。
 
 ## 現在の動作
 
