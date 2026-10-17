@@ -23,15 +23,72 @@ async function cmpRun(env,m,image){
   return {ok:!!d?.answers,model:d?.model||m.api,answers:d?.answers||{},usage,latency_ms:Date.now()-start,estimated_cost_usd:Number.isFinite(usage?.input_tokens)?Number((usage.input_tokens*m.price/1e6).toFixed(8)):null};
  }catch(e){return {ok:false,model:m.api,answers:{},latency_ms:Date.now()-start,usage:null,estimated_cost_usd:null,error:String(e).slice(0,140)};}
 }
+
+const FIELD_LAB_LOG_V1='zukan.field-lab-private-log/v1';
+const FIELD_PREFIX='field-lab-private/v1';
+const F_KEYS=['trees','grass','bare','water','birds','insects','cricket'];
+const F_MODELS=['jev','flash','omni'];
+const keyDigest=async(s)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(v=>v.toString(16).padStart(2,'0')).join('');
+function fixedNumber(v,lo,hi){return typeof v==='number'&&Number.isFinite(v)&&v>=lo&&v<=hi?v:null}
+function preparedLocation(x){
+ const loc=x&&typeof x==='object'?x:{};
+ const lat=fixedNumber(loc.lat,-90,90),lng=fixedNumber(loc.lng,-180,180);
+ const orientation=fixedNumber(loc.heading,0,360);
+ return {approx_lat:lat===null?null:Math.round(lat*1000)/1000,approx_lng:lng===null?null:Math.round(lng*1000)/1000,heading_deg:orientation===null?null:Math.round(orientation),accuracy_m:fixedNumber(loc.accuracy_m,0,100000)};
+}
+function normalizeAnswers(source){const out={};for(const key of F_KEYS){const v=source?.[key]?.noul;if(typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=1)out[key]={type:'noul',noul:v}}return out}
+function normalizeModels(source){
+ const out={};for(const k of F_MODELS){const a=source?.[k];if(!a||typeof a!=='object')continue;const usage=a.usage||{};out[k]={ok:a.ok===true,model:typeof a.model==='string'?a.model.slice(0,80):k,answers:normalizeAnswers(a.answers),latency_ms:fixedNumber(a.latency_ms,0,120000),usage:{input_tokens:fixedNumber(usage.input_tokens,0,1e8),output_tokens:fixedNumber(usage.output_tokens,0,1e8)},estimated_cost_usd:fixedNumber(a.estimated_cost_usd,0,100),error:typeof a.error==='string'?a.error.slice(0,160):null}}return out
+}
+function safeRecordId(s){return typeof s==='string'&&/^(c-[0-9]{13}|activity-[0-9]{13})(-[a-z0-9]{1,16})?$/.test(s)?s:null}
+function safeDeviceId(s){return typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)?s:null}
+function safeDate(ms){const when=Number(ms);return Number.isFinite(when)&&Math.abs(Date.now()-when)<1000*86400*30?new Date(when):new Date()}
+async function fieldR2Put(env,group,deviceId,recordId,at,content){
+ if(!env.FIELD_LOGS)throw Error('R2_FIELD_LOGS_BINDING_UNAVAILABLE');
+ const day=safeDate(at).toISOString().slice(0,10);
+ const actor=await keyDigest(deviceId);
+ const ref=await keyDigest(deviceId+'|'+recordId);
+ const key=FIELD_PREFIX+'/'+group+'/'+day+'/'+actor.slice(0,24)+'/'+ref+'.json';
+ const body=JSON.stringify(content);
+ const sum=await keyDigest(body);
+ const old=await env.FIELD_LOGS.head(key);
+ if(old?.customMetadata?.sha256===sum)return {status:'already_stored',id:ref.slice(0,24),sha256:sum};
+ await env.FIELD_LOGS.put(key,body,{httpMetadata:{contentType:'application/json; charset=utf-8'},customMetadata:{sha256:sum,category:'private_field_lab',format:'1'}});
+ const verified=await env.FIELD_LOGS.head(key);
+ if(!verified||verified.customMetadata?.sha256!==sum)throw Error('R2_WRITE_READBACK_MISMATCH');
+ return {status:'stored',id:ref.slice(0,24),sha256:sum};
+}
+function corsSameOrigin(req,url){return req.headers.get('origin')===url.origin&&!(req.headers.get('sec-fetch-site')==='cross-site')}
+async function logOriginalCompare(env,requestData,results,image){
+ const meta=requestData?.meta||{},device=safeDeviceId(meta.device_id)||crypto.randomUUID(),id=safeRecordId(meta.record_id)||('c-'+Date.now()+'-'+Math.random().toString(36).slice(2,6));
+ const record={schema:FIELD_LAB_LOG_V1,origin:'server_inference_verified',source:'zukan-field-lab',received_at:new Date().toISOString(),record_id:id,device_hash:(await keyDigest(device)).slice(0,24),frame_sha256:await keyDigest(atob(image)),media_saved:false,position:preparedLocation(meta.location),models:normalizeModels(results),client_at:typeof meta.at==='string'&&/^\d{4}-\d\d-\d\dT/.test(meta.at)?meta.at.slice(0,28):null};
+ return fieldR2Put(env,'inference',device,id,Date.now(),record);
+}
+async function syncPrevious(req,url,env){
+ if(!corsSameOrigin(req,url))return respond({error:'Origin rejected'},403);
+ if(Number(req.headers.get('content-length')||0)>120000)return respond({error:'Batch too large'},413);
+ let data;try{data=await req.json()}catch(e){return respond({error:'Invalid JSON'},400)}
+ if(!safeDeviceId(data?.device_id)||!Array.isArray(data.records)||data.records.length>12||data.records.length===0)return respond({error:'Invalid batch'},400);
+ if(env.SCAN_LIMIT){const lim=await env.SCAN_LIMIT.limit({key:'sync:'+req.headers.get('cf-connecting-ip')});if(!lim.success)return respond({error:'同期が混み合っています。少し待ってください'},429)}
+ const results=[];
+ for(const record of data.records){
+  const id=safeRecordId(record?.id);
+  if(!id||!['comparison','activity'].includes(record.kind)){results.push({id:String(record?.id||'').slice(0,40),status:'rejected'});continue}
+  const truth=record?.ground_truth?.cricket;
+  const normalized={schema:FIELD_LAB_LOG_V1,origin:'client_backfill_unverified',source:'zukan-field-lab',received_at:new Date().toISOString(),record_id:id,device_hash:(await keyDigest(data.device_id)).slice(0,24),recorded_at:new Date(safeDate(record.at)).toISOString(),kind:record.kind,frame_sha256:typeof record.frame_sha256==='string'&&/^[a-f0-9]{64}$/i.test(record.frame_sha256)?record.frame_sha256:null,media_saved:false,position:preparedLocation(record.location),models:record.kind==='comparison'?normalizeModels(record.results):{},ground_truth:typeof truth==='boolean'?{cricket:truth}:null,ground_truth_source:typeof truth==='boolean'?'person_visual_confirmation':null,activity:record.kind==='activity'?'クリケットの現地活動（利用者記録）':null};
+  try{const ack=await fieldR2Put(env,'client-sync',data.device_id,id,record.at,normalized);results.push({id,status:ack.status})}catch(e){results.push({id,status:'failed'})}
+ }
+ return respond({schema:FIELD_LAB_LOG_V1,results,storage:'private-r2',media_saved:false},results.every(x=>['stored','already_stored'].includes(x.status))?200:207);
+}
 async function compareImage(req,url,env){
- if(req.headers.get('origin')!==url.origin)return respond({error:'Origin not permitted'},403);
+ if(!corsSameOrigin(req,url))return respond({error:'Origin not permitted'},403);
  if(Number(req.headers.get('content-length')||0)>360000)return respond({error:'Image too large'},413);
  let d;try{d=await req.json()}catch(e){return respond({error:'Invalid JSON'},400)}
  if(typeof d?.image!=='string'||d.image.length<300||d.image.length>350000||!/^[A-Za-z0-9+/=]+$/.test(d.image))return respond({error:'Invalid JPEG frame'},400);
  if(env.SCAN_LIMIT){const rate=await env.SCAN_LIMIT.limit({key:'public-demo-global'});if(!rate.success)return respond({error:'Rate limit (max 6 comparisons / min): retry later'},429);}
  const results=Object.fromEntries(await Promise.all(CMP_MODELS.map(async m=>[m.key,await cmpRun(env,m,d.image)])));
- return respond({schema:CMP_SCHEMA,at:new Date().toISOString(),results});
+ let saved={status:'failed'};try{saved=await logOriginalCompare(env,d,results,d.image)}catch(e){saved={status:'failed',error:'R2_SAVE_FAILED'}}return respond({schema:CMP_SCHEMA,at:new Date().toISOString(),results,saved});
 }
-export default {async fetch(request,env){let u=new URL(request.url);if(request.method==='GET'&&u.pathname==='/')return respond(HTML,200,'text/html;charset=utf-8');if(request.method==='GET'&&u.pathname==='/healthz')return respond({status:'ok',name:'zukan-kami-field-lab',rev:'2026-10-17-v1',scopes:['local-storage','geolocation','deviceorientation','audio','jev-image']});if(u.pathname==='/api/compare'&&request.method==='POST')return compareImage(request,u,env);if(u.pathname==='/api/analyze'&&request.method==='POST'){if(request.headers.get('origin')!==u.origin)return respond({error:'同一サイトからのみ送信できます。'},403);const len=Number(request.headers.get('content-length')||0);if(len>220000)return respond({error:'画像が大きすぎます。'},413);let input;try{input=await request.json()}catch(e){return respond({error:'画像の形式を確認してください。'},400)}if(!input||typeof input.image!=='string'||input.image.length<200||input.image.length>210000||!/^[A-Za-z0-9+/=]+$/.test(input.image))return respond({error:'画像の形式を確認してください。'},400);
+export default {async fetch(request,env){let u=new URL(request.url);if(request.method==='GET'&&u.pathname==='/')return respond(HTML,200,'text/html;charset=utf-8');if(request.method==='GET'&&u.pathname==='/healthz')return respond({status:'ok',name:'zukan-kami-field-lab',rev:'2026-10-17-v1',scopes:['local-storage','geolocation','deviceorientation','audio','jev-image']});if(u.pathname==='/api/compare'&&request.method==='POST')return compareImage(request,u,env);if(u.pathname==='/api/sync'&&request.method==='POST')return syncPrevious(request,u,env);if(u.pathname==='/api/analyze'&&request.method==='POST'){if(request.headers.get('origin')!==u.origin)return respond({error:'同一サイトからのみ送信できます。'},403);const len=Number(request.headers.get('content-length')||0);if(len>220000)return respond({error:'画像が大きすぎます。'},413);let input;try{input=await request.json()}catch(e){return respond({error:'画像の形式を確認してください。'},400)}if(!input||typeof input.image!=='string'||input.image.length<200||input.image.length>210000||!/^[A-Za-z0-9+/=]+$/.test(input.image))return respond({error:'画像の形式を確認してください。'},400);
 try{if(env.SCAN_LIMIT){const lim=await env.SCAN_LIMIT.limit({key:'public-demo-global'});if(!lim.success)return respond({error:'この場所の解析回数上限に達しました。1分後にもう一度試してください。'},429)}const data={state:'Observe only the visible evidence in the image called scene. This is a citizen nature observation prototype at a Japanese urban park, not an official species identification. Avoid treating absence from a photo as absence in nature. Assess visible habitat and broad signs, not inferred species.',assets:{scene:{type:'image',format:'jpeg',data_base64:input.image}},questions:{trees:{type:'noul',instructions:'Are one or more living trees clearly visible in image scene?'},grass:{type:'noul',instructions:'Is managed grass, a lawn, or green herbaceous vegetation visibly present in scene?'},bare:{type:'noul',instructions:'Does scene visibly contain bare soil, dirt, or sand?'},water:{type:'noul',instructions:'Is an open body of water visible in scene?'},birds:{type:'noul',instructions:'Is an actual bird visibly present, not merely expected or inferred, in scene?'},insects:{type:'noul',instructions:'Is an actual insect visibly present in scene, not merely expected or inferred?'}}};const r=await env.AI.run('typesafe/jev-1.14.0',data);const result=r&&r.result?r.result:r;return respond({model:result.model||'typesafe/jev-1.14.0',answers:result.answers||{},usage:result.usage?{input_tokens:result.usage.input_tokens,output_tokens:result.usage.output_tokens}:null});}catch(e){return respond({error:'Jevの画像解析に失敗しました。写真は端末側に保存されている可能性があります。',detail:String(e).slice(0,180)},502)}}
 return respond({error:'Not found'},404)}};
