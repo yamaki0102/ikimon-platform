@@ -72,3 +72,51 @@ test("long empty-search headings wrap within Records and preserve usable recover
     }
   } finally { await browser.close(); }
 });
+
+test("natural Tab reveals both empty-search recovery links above the fixed mobile navigation at 720px height", {
+  skip: !existsSync(browserPath) && "Playwright Chromium is unavailable",
+}, async () => {
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true,
+    args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  try {
+    for (const lang of ["ja", "en", "es", "pt-br"] as const) for (const width of [320, 375]) {
+      const page = await browser.newPage({ viewport: { width, height: 720 } });
+      await page.route("**/*", route => route.abort());
+      const path = `/${lang}/records`;
+      const query = `zukan-empty-${"0123456789abcdef".repeat(2)}01234567`;
+      const section = renderRecordsProductSection([], new URL(`https://zukan.earth${path}?view=public&q=${query}`), "public", null);
+      await page.setContent(renderSiteDocument({ basePath: "", currentPath: path, canonicalPath: path,
+        lang: lang === "pt-br" ? "pt-BR" : lang, title: "Records fixture", description: "Local fixture",
+        activeNav: "records", body: section }), { waitUntil: "domcontentloaded" });
+      const reached: string[] = [];
+      for (let tabs = 0; tabs < 80 && reached.length < 2; tabs++) {
+        await page.keyboard.press("Tab");
+        const focused = await page.evaluate(() => {
+          const element = document.activeElement!;
+          const kind = element.classList.contains("cf-records-native-empty-action") ? "clear"
+            : element.classList.contains("cf-records-native-empty-secondary") ? "places" : null;
+          if (!kind) return null;
+          const box = element.getBoundingClientRect();
+          // Same fixed/sticky overlay measurement as the registered read-only probe.
+          const overlays = [...document.querySelectorAll("body *")].filter(node => {
+            if (node.contains(element) || element.contains(node)) return false;
+            const style = getComputedStyle(node), rect = node.getBoundingClientRect();
+            return ["fixed", "sticky"].includes(style.position) && style.visibility !== "hidden"
+              && style.display !== "none" && Number(style.opacity) > 0
+              && rect.width > innerWidth / 2 && rect.bottom >= innerHeight - 1 && rect.top > innerHeight / 2;
+          }).map(node => node.getBoundingClientRect().top);
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return { kind, focusVisible: element.matches(":focus-visible"), hitTarget: Boolean(hit && element.contains(hit)),
+            clearance: Math.min(innerHeight, ...overlays) - box.bottom,
+            inViewport: box.left >= 0 && box.top >= 0 && box.right <= innerWidth + 1 && box.bottom <= innerHeight + 1 };
+        });
+        if (!focused) continue;
+        assert.ok(focused.focusVisible && focused.hitTarget && focused.inViewport && focused.clearance >= 4,
+          `${lang}/${width}/${focused.kind}: ${JSON.stringify(focused)}`);
+        reached.push(focused.kind);
+      }
+      assert.deepEqual(reached, ["clear", "places"], `${lang}/${width}: recovery Tab order`);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+});
