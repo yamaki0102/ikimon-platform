@@ -27432,6 +27432,31 @@ function renderRecordsProductCard(
   </a>`;
 }
 
+const RECORDS_PRODUCT_LIMIT = 120;
+
+const recordsSearchScopeCopy = {
+  ja: {
+    mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    noMatch: (query: string) => `直近の記録に「${query}」に合うものは見つかりませんでした。`,
+  },
+  en: {
+    mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
+    public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
+    noMatch: (query: string) => `No recent records matched “${query}”.`,
+  },
+  es: {
+    mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    noMatch: (query: string) => `No se encontraron registros recientes que coincidan con «${query}».`,
+  },
+  "pt-br": {
+    mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    noMatch: (query: string) => `Nenhum registro recente corresponde a “${query}”.`,
+  },
+} as const;
+
 export function renderRecordsProductSection(
   items: Array<ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem>,
   url: URL,
@@ -27445,9 +27470,8 @@ export function renderRecordsProductSection(
   const query = recordsSearchQuery(url.searchParams.get("q"));
   const isJapanese = lang === "ja";
   const title = mode === "mine" ? (isJapanese ? "自分の記録" : "Your records") : (isJapanese ? "みんなの記録" : "Community records");
-  const lead = mode === "mine"
-    ? (isJapanese ? "撮った写真やメモを、あとから探して見返せます。" : "Find and revisit your photos and notes.")
-    : (isJapanese ? "公開された写真やメモを、名前や場所から探せます。" : "Find public photos and notes by name or place.");
+  const scopeCopy = recordsSearchScopeCopy[lang];
+  const lead = scopeCopy[mode];
   const cards = unavailable
     ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
     : items.length > 0
@@ -27457,7 +27481,7 @@ export function renderRecordsProductSection(
           return `<div class="zs-card">${card}${renderSavedControl({ kind: "record", objectId: item.visitId, path: `/observations/${item.visitId}`, title: item.isAwaitingId ? quietHomeCopy[lang].record : (normalizeOptionalText(item.displayName) ?? quietHomeCopy[lang].record) }, lang, savedStates.get(item.visitId) ?? null)}</div>`;
         }).join("")}</div>`
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query
-      ? (isJapanese ? `「${query}」に合う記録は見つかりませんでした。` : `No records matched “${query}”.`)
+      ? scopeCopy.noMatch(query)
       : (isJapanese ? "まだ記録はありません。" : "No records yet."))}</strong><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? (isJapanese ? "検索を解除" : "Clear search") : (isJapanese ? "写真から記録する" : "Create a record"))}</a></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
@@ -27489,8 +27513,8 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(recordsSearchQuery(url.searchParams.get("q")));
   const sourceItems = requestedMode === "saved" ? [] : requestedMode === "mine"
-    ? await ownerHomeRecordCards(session!.userId, env, 120).catch(() => null)
-    : await recentPublicRecordCards(env, 120).catch(() => null);
+    ? await ownerHomeRecordCards(session!.userId, env, RECORDS_PRODUCT_LIMIT).catch(() => null)
+    : await recentPublicRecordCards(env, RECORDS_PRODUCT_LIMIT).catch(() => null);
   const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
