@@ -3795,6 +3795,7 @@ async function handlePublicProgramReceiverApi(request: Request, url: URL, env: E
     body,
     database: env.OBS_DB,
     loadSession: async (sessionId) => getObservationEventSessionById(env, sessionId),
+    loadSessionByEventCode: async (eventCode) => getObservationEventSessionByEventCode(env, eventCode),
     loadRally: async (sessionId) => getObservationRallySnapshot(env, sessionId),
   });
   return json(result.body, result.status, { "cache-control": "no-store" });
