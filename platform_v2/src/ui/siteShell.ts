@@ -3745,8 +3745,8 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
   const accountCopy = ${JSON.stringify(accountCopy)};
   let signedIn = false;
   let latestAlerts = [];
-  const publishAuthSessionReady = (isSignedIn) => {
-    window.dispatchEvent(new CustomEvent('ikimon:auth-session-ready', { detail: { signedIn: isSignedIn } }));
+  const publishAuthSessionReady = (isSignedIn, alertsRequest) => {
+    window.dispatchEvent(new CustomEvent('ikimon:auth-session-ready', { detail: { signedIn: isSignedIn, alertsRequest } }));
   };
   const setIconHref = (selector, href, label) => {
     document.querySelectorAll(selector).forEach((link) => {
@@ -3885,14 +3885,22 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     }
   };
   const hydrateAlerts = () => {
-    fetch(alertsEndpoint, {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
+    return fetch(alertsEndpoint, {
       method: 'GET',
       headers: { accept: 'application/json' },
-      credentials: 'same-origin'
+      credentials: 'same-origin',
+      signal: controller.signal
     })
       .then((response) => response.ok ? response.json() : null)
-      .then((payload) => renderAlerts(payload && payload.ok ? payload.alerts : []))
-      .catch(() => undefined);
+      .then((payload) => {
+        if (!payload || payload.ok !== true || !Array.isArray(payload.alerts)) return null;
+        renderAlerts(payload.alerts);
+        return payload;
+      })
+      .catch(() => null)
+      .finally(() => clearTimeout(timeout));
   };
   const hydratePersonalizedMenu = () => {
     fetch(personalizedEndpoint, {
@@ -4024,9 +4032,9 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
       button.setAttribute('aria-label', accountCopy.notifications);
       button.setAttribute('title', accountCopy.notifications);
     });
-    hydrateAlerts();
+    const alertsRequest = hydrateAlerts();
     hydratePersonalizedMenu();
-    publishAuthSessionReady(true);
+    publishAuthSessionReady(true, alertsRequest);
   };
   fetch(endpoint, {
     method: 'GET',

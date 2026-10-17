@@ -48,6 +48,7 @@ export type LandingStrings = {
       watchUpdatesLoading: string;
       watchUpdatesEmpty: string;
       watchUpdatesError: string;
+      watchUpdatesRetry: string;
       watchUpdatesReason: string;
       watchUpdatesUnread: string;
       watchUpdatesObserved: string;

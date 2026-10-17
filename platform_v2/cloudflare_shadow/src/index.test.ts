@@ -28881,6 +28881,23 @@ test("Program confirmation page carries data only and requires native ZUKAN auth
   assert.match(signedHtml, /confirmPublication:true/);
   assert.match(signedHtml, /\/api\/v1\/programs\/receive/);
   assert.doesNotMatch(signedHtml, /NOCOSIL.*(cookie|token|role)/iu);
+
+  for (const [lang, title, login, invalid] of [
+    ["en", "Review publication", "Sign in to ZUKAN and review", "Could not load the program"],
+    ["es", "Revisar publicación", "Iniciar sesión en ZUKAN y revisar", "No se pudo cargar el programa"],
+    ["pt-br", "Revisar publicação", "Entrar no ZUKAN e revisar", "Não foi possível carregar o programa"],
+  ]) {
+    const localized = await worker.fetch(new Request(`https://zukan.earth/${lang}/community/programs/confirm?payload=${payload}`), productionEnv);
+    const html = await localized.text();
+    assert.equal(localized.status, 200);
+    assert.ok(html.includes(title!));
+    assert.ok(html.includes(login!));
+    assert.match(html, /Asia\/Tokyo/);
+    assert.doesNotMatch(html, /NOCOSILのログイン状態|ZUKANにログインして確認する/);
+    const rejected = await worker.fetch(new Request(`https://zukan.earth/${lang}/community/programs/confirm?payload=invalid`), productionEnv);
+    assert.equal(rejected.status, 400);
+    assert.ok((await rejected.text()).includes(invalid!));
+  }
 });
 
 test("allowlisted observation event applications persist as registered without check-in or duplicate rows", async () => {

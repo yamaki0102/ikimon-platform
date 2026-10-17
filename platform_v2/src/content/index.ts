@@ -407,7 +407,7 @@ function validateLandingCopy(value: unknown, path: string): asserts value is Jso
     "actionTitle", "actionLead", "primaryCta", "continuationTitle", "continuationBody",
     "continuationCta", "memoryEyebrow", "memoryLead", "memoryCta", "activeEyebrow",
     "activeLead", "activeCta", "watchUpdatesTitle", "watchUpdatesLoading", "watchUpdatesEmpty",
-    "watchUpdatesError", "watchUpdatesReason", "watchUpdatesUnread", "watchUpdatesObserved",
+    "watchUpdatesError", "watchUpdatesRetry", "watchUpdatesReason", "watchUpdatesUnread", "watchUpdatesObserved",
     "watchUpdatesUpdated", "watchUpdatesVerified", "watchSignalChecklist", "watchSignalEffort",
     "watchSignalPhoto", "watchSignalRecord", "recentTitle", "recentCta", "placesTitle", "placesCta",
     "nextTitle", "emptyTitle", "emptyBody", "galleryCta", "emptyPlaceCta", "routesTitle",
