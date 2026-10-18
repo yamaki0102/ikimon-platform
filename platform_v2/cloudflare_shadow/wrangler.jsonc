@@ -194,6 +194,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "staging",
+        "NOCOSIL_REVISION_RECEIVER_ENABLED": "true",
         "BIOSECURITY_ENABLED": "on",
         "BIOSECURITY_STORAGE_BUDGET_BYTES": "268435456",
         "BIOSECURITY_EMAIL_ENABLED": "on",
