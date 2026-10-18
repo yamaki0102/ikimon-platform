@@ -23,6 +23,7 @@ interface ReceiverStatement {
   bind(...values: (string | number)[]): ReceiverStatement;
   first<T = unknown>(): Promise<T | null>;
   run(): Promise<unknown>;
+  all?<T = unknown>(): Promise<{ results: T[] }>;
 }
 export interface ReceiverDatabase {
   prepare(sql: string): ReceiverStatement;
