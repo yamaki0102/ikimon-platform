@@ -1,4 +1,5 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
@@ -292,6 +293,7 @@ interface WorkersAiBinding {
 interface Env {
   JOURNEY_SESSION_HMAC_SECRET?: string;
   NOCOSIL_REVISION_RECEIVER_ENABLED?: string;
+  NOCOSIL_PUBLIC_RECEIVER_ENABLED?: string;
   NOCOSIL_INTEGRATION_HMAC_SECRET?: string;
   ZUKAN_QUIET_HOME_MODE?: string;
   CORE_DB: D1Database;
@@ -3430,6 +3432,11 @@ export const worker = {
       const nocosilRevisionResponse = await handleNocosilRevisionReceiverApi(request, url, env);
       if (nocosilRevisionResponse) {
         return nocosilRevisionResponse;
+      }
+
+      const publicParticipationResponse = await handleZukanPublicParticipationReceiver(request, url, env);
+      if (publicParticipationResponse) {
+        return publicParticipationResponse;
       }
 
       const observationEventResponse = await handleObservationEventApi(request, url, env);
