@@ -26,6 +26,13 @@ export function pointerText(body) {
   return `${JSON.stringify(body, null, 2)}\n`;
 }
 
+function pointerEquals(parsed, body) {
+  return Boolean(parsed)
+    && parsed.manifest_hash === body.manifest_hash
+    && parsed.version_prefix === body.version_prefix
+    && parsed.source_sha === body.source_sha;
+}
+
 function normalizePriorItem(item, fallbackVersionPrefix) {
   const key = stripPrefix(item?.key);
   const versionPrefix = String(item?.version_prefix ?? fallbackVersionPrefix);
@@ -93,14 +100,20 @@ export function planReuse(allItems, prior, versionPrefix) {
   };
 }
 
-async function pointerReferences(io, pointerKey, expected) {
+async function readPrior(io, manifestKey, { targetEnv, scope }) {
   try {
-    const parsed = JSON.parse(await io.readText(await io.get(pointerKey, "current-pointer-prior.json")));
-    return parsed.manifest_hash === expected.manifest_hash
-      && parsed.version_prefix === expected.version_prefix
-      && parsed.source_sha === expected.source_sha;
+    const prior = parsePriorManifest(await io.readText(await io.get(manifestKey, "prior-materialize-manifest.json")), { targetEnv, scope });
+    return { prior, error: null };
+  } catch (error) {
+    return { prior: null, error: `prior_manifest_unavailable:${error?.message ?? "unknown"}` };
+  }
+}
+
+async function readPointer(io, pointerKey) {
+  try {
+    return JSON.parse(await io.readText(await io.get(pointerKey, "current-pointer-prior.json")));
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -114,8 +127,28 @@ function pendingPointer({ pointerKey, body, manifestSha256 }) {
   };
 }
 
-// io: { put(key, filePath, contentType), get(key, name) -> filePath (throws if absent),
-//       readText(filePath), writeText(name, text) -> filePath }
+// Groups entries by content type (wrangler bulk put takes one --content-type per call) and uploads
+// each group with one bulk call. Falls back to per-object puts for a group if the bulk call fails.
+async function uploadGroups(entries, { io, concurrency, summary }) {
+  const byType = new Map();
+  for (const entry of entries) {
+    const contentType = entry.contentType || "application/octet-stream";
+    if (!byType.has(contentType)) byType.set(contentType, []);
+    byType.get(contentType).push(entry);
+  }
+  for (const [contentType, group] of byType) {
+    try {
+      await io.bulkPut(group.map(({ key, filePath }) => ({ key, filePath })), { contentType, concurrency });
+    } catch {
+      summary.bulkFallbacks = (summary.bulkFallbacks ?? 0) + 1;
+      await runPool(group, concurrency, (entry) => io.put(entry.key, entry.filePath, contentType));
+    }
+  }
+  return entries.length;
+}
+
+// io: { put(key, filePath, contentType), bulkPut(entries, {contentType, concurrency}) (throws on failure),
+//       get(key, name) -> filePath (throws if absent), readText(filePath), writeText(name, text) -> filePath }
 export async function runDirectR2Sync(input) {
   const {
     allItems, selection, selectiveManifestItems = null, skipIfUnchanged, targetEnv, scope,
@@ -128,13 +161,16 @@ export async function runDirectR2Sync(input) {
   let skipped = selection.skippedCount;
   let plan = null;
   let prior = null;
+  let pointerParsed = null;
 
   if (skipIfUnchanged) {
-    try {
-      prior = parsePriorManifest(await io.readText(await io.get(manifestKey, "prior-materialize-manifest.json")), { targetEnv, scope });
-    } catch (error) {
-      reason = `prior_manifest_unavailable:${error?.message ?? "unknown"}`;
-    }
+    // Prior mutable manifest and current pointer are independent reads: issue them concurrently.
+    const [priorRead, pointerRead] = await Promise.all([
+      readPrior(io, manifestKey, { targetEnv, scope }),
+      noPointer ? null : readPointer(io, pointerKey),
+    ]);
+    prior = priorRead.prior;
+    pointerParsed = pointerRead;
     if (prior) {
       plan = planReuse(allItems, prior, versionPrefix);
       uploadItems = plan.uploadItems;
@@ -144,6 +180,7 @@ export async function runDirectR2Sync(input) {
     } else {
       uploadItems = allItems;
       mode = "FULL";
+      reason = priorRead.error;
       skipped = 0;
     }
   }
@@ -151,23 +188,28 @@ export async function runDirectR2Sync(input) {
   summary.reused = plan ? plan.reusedCount : 0;
   summary.uiR2PutCount = uploadItems.length;
 
-  if (plan?.unchanged && await pointerReferences(io, pointerKey, pointerBody({
-    bundleHash: prior.bundleHash, versionPrefix: prior.versionPrefix, sourceSha,
-  }))) {
-    const body = pointerBody({ bundleHash: prior.bundleHash, versionPrefix: prior.versionPrefix, sourceSha });
-    return {
-      ok: true, status: "SKIPPED_UNCHANGED", skipped: true, reason: "identity_unchanged_pointer_current",
-      key: manifestKey, sha256: null, versionPrefix: prior.versionPrefix, pointerKey, transport: "wrangler-r2",
-      uiR2PutCount: 0, uploaded: 0, reused: plan.reusedCount, selectionMode: mode, selectionReason: reason,
-      pending_pointer: noPointer ? pendingPointer({ pointerKey, body, manifestSha256: null }) : null,
+  // Same source as the prior run and nothing changed: the prior versioned manifest is already valid.
+  // Only the pointer may need (re)writing, and never when --no-pointer is set.
+  if (plan?.unchanged && prior.sourceSha === sourceSha) {
+    const reuseBody = pointerBody({ bundleHash: prior.bundleHash, versionPrefix: prior.versionPrefix, sourceSha });
+    const pending = pendingPointer({ pointerKey, body: reuseBody, manifestSha256: null });
+    const base = {
+      ok: true, skipped: true, key: manifestKey, sha256: null, versionPrefix: prior.versionPrefix, pointerKey,
+      transport: "wrangler-r2", uiR2PutCount: 0, uploaded: 0, reused: plan.reusedCount,
+      selectionMode: mode, selectionReason: reason,
     };
+    if (noPointer) return { ...base, status: "SKIPPED_UNCHANGED", pending_pointer: pending };
+    if (pointerEquals(pointerParsed, reuseBody)) return { ...base, status: "SKIPPED_UNCHANGED", pending_pointer: null };
+    const pointerPath = await io.writeText(`current-${targetEnv}.json`, pending.text);
+    await io.put(pointerKey, pointerPath, "application/json");
+    return { ...base, skipped: false, status: "POINTER_ONLY_WRITTEN", pending_pointer: null };
   }
 
-  await runPool(uploadItems, concurrency, async (item) => {
-    await io.put(`${versionPrefix}/${stripPrefix(item.key)}`, item.filePath, item.contentType);
-    summary.uploaded += 1;
-    summary.updated += 1;
-  });
+  const uploaded = await uploadGroups(uploadItems.map((item) => ({
+    key: `${versionPrefix}/${stripPrefix(item.key)}`, filePath: item.filePath, contentType: item.contentType,
+  })), { io, concurrency, summary });
+  summary.uploaded += uploaded;
+  summary.updated += uploaded;
 
   const manifestItems = plan ? plan.manifestItems
     : (mode === "SELECTIVE_REBUILD" && selectiveManifestItems) ? await selectiveManifestItems()
@@ -185,9 +227,12 @@ export async function runDirectR2Sync(input) {
     items: manifestItems,
   };
   const manifestPayload = `${JSON.stringify(manifest, null, 2)}\n`;
+  // Manifests are written only after every object they reference has been uploaded.
   const manifestPath = await io.writeText("materialize-manifest.json", manifestPayload);
-  await io.put(`${versionPrefix}/manifest.json`, manifestPath, "application/json");
-  await io.put(manifestKey, manifestPath, "application/json");
+  await uploadGroups([
+    { key: `${versionPrefix}/manifest.json`, filePath: manifestPath, contentType: "application/json" },
+    { key: manifestKey, filePath: manifestPath, contentType: "application/json" },
+  ], { io, concurrency, summary });
 
   const body = pointerBody({ bundleHash, versionPrefix, sourceSha });
   const pending = pendingPointer({ pointerKey, body, manifestSha256: sha256(manifestPayload) });
