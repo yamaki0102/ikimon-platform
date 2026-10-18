@@ -17,6 +17,12 @@ import {
   stableHtmlSha256,
   validateMaterializationImpactReceipt,
 } from "./release_fast_path_materialization.mjs";
+import {
+  noPointerEvidenceSchema,
+  runDirectR2Sync,
+  runPointerOnly,
+  runPool,
+} from "./materialize-direct-r2-reuse.mjs";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -39,7 +45,10 @@ const allowedArgs = new Set([
   "--phase-result",
   "--impact-receipt",
   "--direct-staging-r2",
-  "--direct-production-r2"
+  "--direct-production-r2",
+  "--no-pointer",
+  "--pointer-only",
+  "--from-evidence"
 ]);
 const args = new Map();
 const explicitPaths = [];
@@ -62,6 +71,8 @@ for (let index = 2; index < process.argv.length; index += 1) {
   if (value && !value.startsWith("--")) index += 1;
 }
 
+const runStartedAt = Date.now();
+const spawnLog = [];
 const execute = args.get("--execute") === "true";
 const approval = args.get("--approval") ?? process.env.IKIMON_CF_PRODUCTION_DEPLOY_APPROVAL ?? "";
 const targetEnv = args.get("--target-env") ?? "production";
@@ -81,12 +92,19 @@ const scope = args.get("--scope") ?? "core";
 const bucket = args.get("--bucket") ?? (targetEnv === "staging" ? stagingBucket : productionBucket);
 const outputPath = args.get("--output") ?? "";
 const emitPhaseResult = args.get("--phase-result") === "true";
-const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 8);
+const concurrency = clampInteger(Number(args.get("--concurrency") ?? "4"), 1, 16);
 const skipIfUnchanged = args.get("--skip-if-unchanged") === "true";
 const impactReceiptPath = args.get("--impact-receipt") ?? "";
 const directStagingR2 = args.get("--direct-staging-r2") === "true";
 const directProductionR2 = args.get("--direct-production-r2") === "true";
 const directR2 = directStagingR2 || directProductionR2;
+const noPointer = args.get("--no-pointer") === "true";
+const pointerOnly = args.get("--pointer-only") === "true";
+const fromEvidencePath = args.get("--from-evidence") ?? "";
+if ((noPointer || pointerOnly) && !directR2) throw new Error("--no-pointer and --pointer-only require a direct R2 transport.");
+if (noPointer && pointerOnly) throw new Error("--no-pointer and --pointer-only are mutually exclusive.");
+if (pointerOnly && !fromEvidencePath) throw new Error("--pointer-only requires --from-evidence <file>.");
+if (fromEvidencePath && !pointerOnly) throw new Error("--from-evidence requires --pointer-only.");
 const checkpointInterval = 25;
 const materializationJobId = String(process.env.IKIMON_OPS_JOB_ID || "");
 const materializationSourceSha = String(process.env.IKIMON_EXPECTED_GIT_SHA || "");
@@ -168,6 +186,22 @@ const events = [];
 const gatewayMaxAttempts = 5;
 
 process.env.LEGACY_PUBLIC_ROOT ||= join(repoRoot, "upload_package", "public_html");
+
+const pointerKey = targetEnv === "production" ? "original-ui/current/production.json" : stagingPointerKey;
+
+if (pointerOnly) {
+  const evidence = JSON.parse(await readFile(fromEvidencePath, "utf8"));
+  const pointerDir = await mkdtemp(join(tmpdir(), "ikimon-pointer-only-"));
+  try {
+    const pointerResult = await runPointerOnly({
+      evidence, targetEnv, pointerKey, sourceSha: materializationSourceSha, execute, io: wranglerIo(bucket, pointerDir),
+    });
+    console.log(JSON.stringify({ ok: true, mode: execute ? "execute" : "dry-run", bucket, targetEnv, ...pointerResult }, null, 2));
+  } finally {
+    await rm(pointerDir, { recursive: true, force: true });
+  }
+  process.exit(0);
+}
 
 const stagingOnlyAdminPreviewPaths = [];
 const corePaths = await readWorkerStringArray("ORIGINAL_UI_HTML_CORE_PATHS");
@@ -618,51 +652,12 @@ function validateStagingPrewriteResponse(response, expectedPointer) {
   return { runId: receipt.run_id, receiptSha256: response.receipt_sha256 };
 }
 
-function wranglerR2Put(bucketName, key, filePath, contentType) {
+// Every wrangler spawn is recorded in spawnLog (args summary + wall ms) for the output JSON.
+function runWranglerCli(commandArgs, summary) {
   const wranglerCliPath = join(scriptDir, "..", "node_modules", "wrangler", "bin", "wrangler.js");
-  const objectPath = `${bucketName}/${normalizeR2ObjectKey(key)}`;
-  const commandArgs = [
-    wranglerCliPath,
-    "r2",
-    "object",
-    "put",
-    objectPath,
-    "--file",
-    filePath,
-    "--content-type",
-    contentType,
-    "--cache-control",
-    uploadCacheControl,
-    "--remote",
-    "--force"
-  ];
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
-    const child = spawn(process.execPath, commandArgs, {
-      cwd: join(scriptDir, ".."),
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
-    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
-    child.on("close", (exitCode) => {
-      if (exitCode === 0) {
-        resolve({ key, exitCode, durationMs: Date.now() - startedAt });
-        return;
-      }
-      reject(new Error(`wrangler r2 object put failed for ${key}: exit=${exitCode} ${stderr || stdout}`));
-    });
-  });
-}
-
-function wranglerR2Get(bucketName, key, filePath) {
-  const wranglerCliPath = join(scriptDir, "..", "node_modules", "wrangler", "bin", "wrangler.js");
-  const objectPath = `${bucketName}/${normalizeR2ObjectKey(key)}`;
-  const commandArgs = [wranglerCliPath, "r2", "object", "get", objectPath, "--file", filePath, "--remote"];
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, commandArgs, {
+    const child = spawn(process.execPath, [wranglerCliPath, ...commandArgs], {
       cwd: join(scriptDir, ".."), stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
     });
     let stdout = "";
@@ -670,10 +665,33 @@ function wranglerR2Get(bucketName, key, filePath) {
     child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
     child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
     child.on("close", (exitCode) => {
-      if (exitCode === 0) return resolve({ key, exitCode });
-      reject(new Error(`wrangler r2 object get failed for ${key}: exit=${exitCode} ${stderr || stdout}`));
+      const ms = Date.now() - startedAt;
+      spawnLog.push({ args: summary, ms, exitCode });
+      if (exitCode === 0) return resolve({ exitCode, durationMs: ms });
+      reject(new Error(`wrangler ${summary} failed: exit=${exitCode} ${(stderr || stdout).slice(0, 2000)}`));
     });
   });
+}
+
+function wranglerR2Put(bucketName, key, filePath, contentType) {
+  const objectPath = `${bucketName}/${normalizeR2ObjectKey(key)}`;
+  return runWranglerCli([
+    "r2", "object", "put", objectPath, "--file", filePath, "--content-type", contentType,
+    "--cache-control", uploadCacheControl, "--remote", "--force",
+  ], `r2 object put ${key} ct=${contentType}`).then((result) => ({ key, ...result }));
+}
+
+function wranglerR2BulkPut(bucketName, listPath, contentType, concurrency, count) {
+  return runWranglerCli([
+    "r2", "bulk", "put", bucketName, "--filename", listPath, "--content-type", contentType,
+    "--cache-control", uploadCacheControl, "--concurrency", String(concurrency), "--remote", "--force",
+  ], `r2 bulk put n=${count} ct=${contentType} c=${concurrency}`);
+}
+
+function wranglerR2Get(bucketName, key, filePath) {
+  const objectPath = `${bucketName}/${normalizeR2ObjectKey(key)}`;
+  return runWranglerCli(["r2", "object", "get", objectPath, "--file", filePath, "--remote"],
+    `r2 object get ${key}`).then(() => ({ key, exitCode: 0 }));
 }
 
 function normalizeManifestItem(item, fallbackVersionPrefix) {
@@ -735,61 +753,54 @@ function buildSelectiveManifestItems(allItems, selectedItems, priorManifest, ver
   return [...merged.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
-async function directR2Sync(allItems, tempDirPath, bucketName, receipt = null) {
-  const versionPrefix = `original-ui/versions/${bundleHash}`;
-  const selected = selectMaterializationItems(allItems, receipt);
-  uploadSummary.skipped += selected.skippedCount;
-  uploadSummary.uiR2PutCount = selected.uiR2PutCount;
-  await runPool(selected.items, concurrency, async (item) => {
-    const relativeKey = item.key.replace(/^original-ui\//, "");
-    await wranglerR2Put(bucketName, `${versionPrefix}/${relativeKey}`, item.filePath, item.contentType);
-    uploadSummary.updated += 1;
-  });
+function wranglerIo(bucketName, dirPath) {
+  let bulkSeq = 0;
+  return {
+    put: (key, filePath, contentType) => wranglerR2Put(bucketName, key, filePath, contentType),
+    bulkPut: async (entries, { contentType, concurrency: limit }) => {
+      bulkSeq += 1;
+      const listPath = join(dirPath, `bulk-${bulkSeq}.json`);
+      await writeFile(listPath, JSON.stringify(entries.map((entry) => ({
+        key: normalizeR2ObjectKey(entry.key), file: entry.filePath,
+      }))), "utf8");
+      await wranglerR2BulkPut(bucketName, listPath, contentType, limit, entries.length);
+    },
+    get: async (key, name) => {
+      const filePath = join(dirPath, name);
+      await wranglerR2Get(bucketName, key, filePath);
+      return filePath;
+    },
+    readText: (filePath) => readFile(filePath, "utf8"),
+    writeText: async (name, text) => {
+      const filePath = join(dirPath, name);
+      await writeFile(filePath, text, "utf8");
+      return filePath;
+    },
+  };
+}
 
-  const manifestItems = selected.mode === "SELECTIVE_REBUILD"
-    ? buildSelectiveManifestItems(allItems, selected.items,
-      await readPriorMaterializationManifest(bucketName, receipt.prior_artifact_provenance, tempDirPath), versionPrefix)
-    : allItems.map((item) => ({
-      key: item.key.replace(/^original-ui\//u, ""), bytes: item.bytes, sha256: item.sha256,
-      identitySha256: item.identitySha256, contentType: item.contentType, version_prefix: versionPrefix,
-    }));
-  const manifest = {
-    schemaVersion: materializeManifestSchemaVersion,
-    sourceSha: materializationSourceSha,
+async function directR2Sync(allItems, tempDirPath, bucketName, receipt = null) {
+  const selection = selectMaterializationItems(allItems, receipt);
+  return runDirectR2Sync({
+    allItems,
+    selection,
+    selectiveManifestItems: selection.mode === "SELECTIVE_REBUILD"
+      ? async () => buildSelectiveManifestItems(allItems, selection.items,
+        await readPriorMaterializationManifest(bucketName, receipt.prior_artifact_provenance, tempDirPath),
+        `original-ui/versions/${bundleHash}`)
+      : null,
+    skipIfUnchanged,
     targetEnv,
     scope,
-    bundleHash,
-    versionPrefix,
-    items: manifestItems
-  };
-  const manifestPayload = `${JSON.stringify(manifest, null, 2)}\n`;
-  const manifestPath = join(tempDirPath, "materialize-manifest.json");
-  await writeFile(manifestPath, manifestPayload, "utf8");
-  await wranglerR2Put(bucketName, `${versionPrefix}/manifest.json`, manifestPath, "application/json");
-  await wranglerR2Put(bucketName, manifestKey, manifestPath, "application/json");
-
-  const pointerKey = targetEnv === "production"
-    ? "original-ui/current/production.json"
-    : "original-ui/current/staging.json";
-  const pointerPath = join(tempDirPath, `current-${targetEnv}.json`);
-  await writeFile(pointerPath, `${JSON.stringify({
-    manifest_hash: bundleHash,
-    version_prefix: versionPrefix,
-    source_sha: materializationSourceSha
-  }, null, 2)}\n`, "utf8");
-  await wranglerR2Put(bucketName, pointerKey, pointerPath, "application/json");
-
-  return {
-    ok: true,
-    key: manifestKey,
-    sha256: sha256(manifestPayload),
-    versionPrefix,
+    manifestKey,
     pointerKey,
-    transport: "wrangler-r2",
-    uiR2PutCount: selected.uiR2PutCount,
-    selectionMode: selected.mode,
-    selectionReason: selected.reason,
-  };
+    bundleHash,
+    sourceSha: materializationSourceSha,
+    concurrency,
+    noPointer,
+    io: wranglerIo(bucketName, tempDirPath),
+    summary: uploadSummary,
+  });
 }
 
 function buildBundleEntry(item) {
@@ -830,17 +841,6 @@ function auditAnonymousHtmlShell(pathname, body) {
   }
 }
 
-async function runPool(items, limit, worker) {
-  const queue = [...items];
-  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
-    while (queue.length > 0) {
-      const item = queue.shift();
-      if (item) await worker(item);
-    }
-  });
-  await Promise.all(workers);
-}
-
 async function writeProductionPhaseResult(manifestUpload) {
   if (!emitPhaseResult) return;
   if (!execute || targetEnv !== "production") throw new Error("production_materialization_phase_result_requires_execute");
@@ -876,7 +876,7 @@ let materializeSkipped = false;
 let skipReason = execute ? "not_requested" : "dry_run";
 let previousManifestSummary = null;
 let manifestUpload = { ok: false, key: manifestKey, skipped: true, reason: "not_executed" };
-const uploadSummary = { updated: 0, skipped: 0, failed: 0, resumed: 0, checkpoints: 0, durationMs: 0, uiR2PutCount: 0 };
+const uploadSummary = { updated: 0, uploaded: 0, reused: 0, skipped: 0, failed: 0, resumed: 0, checkpoints: 0, durationMs: 0, uiR2PutCount: 0, bulkFallbacks: 0 };
 
 if (execute && directR2 && impactReceipt?.reuse_decision === "REUSE_EXACT") {
   const provenance = impactReceipt.prior_artifact_provenance;
@@ -989,7 +989,8 @@ try {
     const allItems = [...rendered, ...renderedStatic];
     if (directR2) {
       manifestUpload = await directR2Sync(allItems, tempDir, bucket, impactReceipt);
-      skipReason = `direct_${targetEnv}_r2`;
+      materializeSkipped = manifestUpload.status === "SKIPPED_UNCHANGED";
+      skipReason = materializeSkipped ? "identity_unchanged" : `direct_${targetEnv}_r2`;
     } else {
       const state = await gatewayRequest({ op: "state" });
       let stagingPrewrite = null;
@@ -1134,9 +1135,15 @@ try {
 }
 
 const result = {
+  ...(noPointer ? { schema: noPointerEvidenceSchema } : {}),
   ok: true,
   sourceSha: materializationSourceSha,
   mode: execute ? "execute" : "dry-run",
+  wallMs: Date.now() - runStartedAt,
+  spawnCount: spawnLog.length,
+  spawnLog,
+  status: manifestUpload?.status ?? (materializeSkipped ? "SKIPPED" : null),
+  pending_pointer: manifestUpload?.pending_pointer ?? null,
   r2WritesRequested: execute,
   r2WritesExecuted: execute && !materializeSkipped,
   bucket,
