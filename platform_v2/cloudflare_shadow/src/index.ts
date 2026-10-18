@@ -181,6 +181,8 @@ import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv }
 import { handleWorkOpportunityRequest } from "./workOpportunity";
 import { handleBiosecurityRequest, expireBiosecurityRecords, MUNICIPAL_INBOX_ROLE } from "./biosecurity";
 import { guestCookieName, readGuestCredential, credentialDigest } from "./guestCredentialNative";
+import { handleGenrePortalRequest } from "./genrePortal";
+import { createD1PublicParticipationSource } from "./genrePortalD1";
 
 type D1Value = string | number | null;
 
@@ -291,6 +293,7 @@ interface WorkersAiBinding {
 }
 
 interface Env {
+  GENRE_PORTALS_ENABLED?: string;
   JOURNEY_SESSION_HMAC_SECRET?: string;
   NOCOSIL_REVISION_RECEIVER_ENABLED?: string;
   NOCOSIL_PUBLIC_RECEIVER_ENABLED?: string;
@@ -2742,6 +2745,9 @@ export const worker = {
       if (syntheticRenriBrowserQaResponse) return syntheticRenriBrowserQaResponse;
       const canonicalRedirect = canonicalPublicHostRedirect(request, url, env);
       if (canonicalRedirect) return canonicalRedirect;
+
+      const genrePortalResponse = await handleGenrePortalRequest(request, env, createD1PublicParticipationSource(env.CORE_DB));
+      if (genrePortalResponse) return genrePortalResponse;
 
       if (request.method === "GET" && url.pathname === "/health") {
         return json({ ok: true, environment: env.ENVIRONMENT });
