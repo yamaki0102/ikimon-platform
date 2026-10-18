@@ -8,7 +8,8 @@
   ],
   "$defs": {
     "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$" },
-    "dateTime": { "type": "string", "format": "date-time" },
+    "dateTime": { "type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$" },
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]{1,64}$" },
     "consent": {
       "type": "object",
       "additionalProperties": false,
@@ -39,6 +40,13 @@
         "kind": { "enum": ["event", "site", "record"] },
         "id": { "$ref": "#/$defs/id" },
         "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "genre": { "$ref": "#/$defs/slug" },
+        "region": { "$ref": "#/$defs/slug" },
+        "description": { "type": "string", "maxLength": 2000 },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://", "maxLength": 2048 },
+        "startsAt": { "$ref": "#/$defs/dateTime" },
+        "locationName": { "type": "string", "maxLength": 240 },
+        "publisherName": { "type": "string", "maxLength": 240 },
         "organizer_approval": {
           "type": "object",
           "additionalProperties": false,

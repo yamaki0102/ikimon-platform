@@ -25,3 +25,15 @@ test("withdrawal hides the record", async t => { const { env, db } = fixture(t);
 test("replayed publish and withdrawal requests are idempotent", async t => { const { env, sqlite } = fixture(t); const request = () => signed(PUBLIC_PARTICIPATION_PATH, publish); const first = await receive(request(), env), replay = await receive(request(), env); assert.equal(first.status, 201); assert.equal(replay.status, 200); assert.equal(await first.text(), await replay.text()); assert.equal(sqlite.prepare("SELECT COUNT(*) count FROM zukan_public_participations").get()?.count, 1); assert.equal(sqlite.prepare("SELECT COUNT(*) count FROM zukan_public_participation_photos").get()?.count, 2); const withdrawal = () => signed(PUBLIC_PARTICIPATION_WITHDRAWAL_PATH, { schema: PUBLIC_PARTICIPATION_SCHEMA, idempotencyKey: publish.idempotencyKey }); assert.equal((await receive(withdrawal(), env)).status, 201); assert.equal((await receive(withdrawal(), env)).status, 200); assert.equal(sqlite.prepare("SELECT COUNT(*) count FROM zukan_public_participation_receipts").get()?.count, 2); });
 test("feature flag defaults off and does nothing", async t => { const { env, sqlite } = fixture(t); for (const flag of [undefined, "false", "TRUE"]) { const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, publish), { ...env, NOCOSIL_PUBLIC_RECEIVER_ENABLED: flag }); assert.equal(result.status, 404); } assert.equal(sqlite.prepare("SELECT COUNT(*) count FROM zukan_public_participation_receipts").get()?.count, 0); });
 test("bad HMAC signature returns 401", async t => { const { env } = fixture(t); const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, publish, "wrong"), env); assert.equal(result.status, 401); assert.deepEqual(await result.json(), { error: "signature_invalid" }); });
+test("publish accepts and stores all optional public display fields", async t => {
+  const { env, sqlite } = fixture(t);
+  const input = { ...publish, genre: "nature-walk", region: "shizuoka", description: "  春の自然観察会  ", url: "https://example.test/events/1", startsAt: "2026-10-20T09:30:00.000Z", locationName: "竜洋海洋公園", publisherName: "地域の会" };
+  const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, input), env);
+  assert.equal(result.status, 201);
+  const row = sqlite.prepare("SELECT payload_json FROM zukan_public_participations WHERE idempotency_key = ?").get(input.idempotencyKey) as { payload_json: string };
+  const payload = JSON.parse(row.payload_json);
+  assert.equal(payload.genre, "nature-walk");
+  assert.equal(payload.description, "春の自然観察会");
+});
+test("invalid genre returns 422", async t => { const { env } = fixture(t); const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, { ...publish, genre: "Nature Walk" }), env); assert.equal(result.status, 422); });
+test("unknown publish field is still rejected", async t => { const { env } = fixture(t); const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, { ...publish, unexpected: true }), env); assert.equal(result.status, 422); });

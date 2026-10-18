@@ -13,16 +13,30 @@ type Photo = { photoId: string; url: string; consent: { public_display: boolean;
 export interface PublicParticipation {
   schema: typeof PUBLIC_PARTICIPATION_SCHEMA; idempotencyKey: string; kind: "event" | "site" | "record";
   id: string; title: string; organizer_approval: { approverId: string; approvedAt: string }; photos: Photo[];
+  genre?: string; region?: string; description?: string; url?: string; startsAt?: string; locationName?: string; publisherName?: string;
 }
 class ParticipationError extends Error { constructor(readonly code: string) { super(code); } }
 const fail = (code: string): never => { throw new ParticipationError(code); };
-function object(value: unknown, keys: string[]): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(k => !keys.includes(k)) || keys.some(k => !Object.hasOwn(value, k))) fail("shape_invalid");
+function object(value: unknown, required: string[], optional: string[] = []): asserts value is Record<string, unknown> {
+  const allowed = [...required, ...optional];
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(k => !allowed.includes(k)) || required.some(k => !Object.hasOwn(value, k))) fail("shape_invalid");
 }
 function id(value: unknown): string { if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$/u.test(value)) return fail("identity_invalid"); return value; }
 function time(value: unknown): string { if (typeof value !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/u.test(value) || new Date(value).toISOString() !== value) return fail("time_invalid"); return value; }
+function slug(value: unknown): string { if (typeof value !== "string" || !/^[a-z0-9-]{1,64}$/u.test(value)) return fail("slug_invalid"); return value; }
+function optionalText(value: unknown, maximum: number, code: string, trim = false): string {
+  if (typeof value !== "string") return fail(code);
+  const parsed = trim ? value.trim() : value;
+  if (parsed.length > maximum) return fail(code);
+  return parsed;
+}
+function httpsUrl(value: unknown): string {
+  if (typeof value !== "string" || value.length > 2048) return fail("url_invalid");
+  try { if (new URL(value).protocol !== "https:") fail("url_invalid"); } catch { fail("url_invalid"); }
+  return value;
+}
 export function parsePublicParticipation(value: unknown): PublicParticipation {
-  object(value, ["schema", "idempotencyKey", "kind", "id", "title", "organizer_approval", "photos"]);
+  object(value, ["schema", "idempotencyKey", "kind", "id", "title", "organizer_approval", "photos"], ["genre", "region", "description", "url", "startsAt", "locationName", "publisherName"]);
   const input = value as any;
   if (input.schema !== PUBLIC_PARTICIPATION_SCHEMA) fail("schema_invalid");
   if (!( ["event", "site", "record"] as unknown[]).includes(input.kind)) fail("kind_invalid");
@@ -35,7 +49,17 @@ export function parsePublicParticipation(value: unknown): PublicParticipation {
     if (typeof consent.public_display !== "boolean" || typeof consent.rights_holder !== "string" || !consent.rights_holder.trim()) fail("consent_invalid");
     return { photoId: id(photoInput.photoId), url: photoInput.url, consent: { public_display: consent.public_display, rights_holder: consent.rights_holder.trim(), consent_at: time(consent.consent_at) } };
   });
-  return { schema: PUBLIC_PARTICIPATION_SCHEMA, idempotencyKey: id(input.idempotencyKey), kind: input.kind as PublicParticipation["kind"], id: id(input.id), title: input.title.trim(), organizer_approval: { approverId: id(input.organizer_approval.approverId), approvedAt: time(input.organizer_approval.approvedAt) }, photos };
+  return {
+    schema: PUBLIC_PARTICIPATION_SCHEMA, idempotencyKey: id(input.idempotencyKey), kind: input.kind as PublicParticipation["kind"], id: id(input.id), title: input.title.trim(),
+    organizer_approval: { approverId: id(input.organizer_approval.approverId), approvedAt: time(input.organizer_approval.approvedAt) }, photos,
+    ...(Object.hasOwn(input, "genre") && { genre: slug(input.genre) }),
+    ...(Object.hasOwn(input, "region") && { region: slug(input.region) }),
+    ...(Object.hasOwn(input, "description") && { description: optionalText(input.description, 2000, "description_invalid", true) }),
+    ...(Object.hasOwn(input, "url") && { url: httpsUrl(input.url) }),
+    ...(Object.hasOwn(input, "startsAt") && { startsAt: time(input.startsAt) }),
+    ...(Object.hasOwn(input, "locationName") && { locationName: optionalText(input.locationName, 240, "location_name_invalid") }),
+    ...(Object.hasOwn(input, "publisherName") && { publisherName: optionalText(input.publisherName, 240, "publisher_name_invalid") }),
+  };
 }
 const encoder = new TextEncoder();
 const hex = (buffer: ArrayBuffer) => Array.from(new Uint8Array(buffer), b => b.toString(16).padStart(2, "0")).join("");
