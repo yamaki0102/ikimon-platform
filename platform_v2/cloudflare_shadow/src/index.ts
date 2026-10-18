@@ -27437,25 +27437,26 @@ function renderRecordsProductCard(
   mode: "mine" | "public",
   context: RecordsDiscoveryContext
 ): string {
+  const copy = recordsSearchScopeCopy[lang];
   const date = formatHomeRecordObservedAt(item.observedAt, lang);
   const title = item.isAwaitingId
-    ? [homeRecordMediaLabel(item.mediaKind, lang), date].filter(Boolean).join(" · ")
-    : normalizeOptionalText(item.displayName) ?? homeRecordMediaLabel(item.mediaKind, lang);
+    ? [copy.media[item.mediaKind], date].filter(Boolean).join(" · ")
+    : normalizeOptionalText(item.displayName) ?? copy.media[item.mediaKind];
   const location = mode === "public"
-    ? normalizeOptionalText(item.publicAreaLabel) ?? (lang === "ja" ? "位置を保護" : "Location protected")
-    : lang === "ja" ? "自分の記録" : "Your record";
+    ? normalizeOptionalText(item.publicAreaLabel) ?? copy.protectedLocation
+    : copy.ownerRecord;
   const visibility = mode === "mine" && "ownerVisibility" in item
-    ? (item.ownerVisibility === "public" ? (lang === "ja" ? "公開" : "Public") : (lang === "ja" ? "非公開" : "Private"))
+    ? observationFirstRecordDetailCopy(lang).visibility[item.ownerVisibility === "public" ? "public" : "private"]
     : "";
   const photoUrl = mode === "mine" && "ownerVisibility" in item && item.ownerVisibility !== "public"
     ? null
     : item.photoUrl;
   const media = photoUrl
     ? `<img src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async">`
-    : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
+    : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(copy.media[item.mediaKind])}</span>`;
   return `<a class="cf-records-native-card" href="${escapeHtml(recordsDiscoveryDetailHref(item.visitId, lang, context))}">
     <span class="cf-records-native-media">${media}</span>
-    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
+    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${escapeHtml(copy.identificationUnconfirmed)}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
   </a>`;
 }
 
@@ -27463,6 +27464,9 @@ const RECORDS_PRODUCT_LIMIT = 120;
 
 const recordsSearchScopeCopy = {
   ja: {
+    loadErrorTitle: "記録を読み込めませんでした。", loadErrorHint: "通信を確認して、もう一度お試しください。",
+    protectedLocation: "位置を保護", ownerRecord: "自分の記録", identificationUnconfirmed: "名前は未確認",
+    media: { photo: "写真", video: "動画", audio: "音", record: "メモ" },
     titleMine: "自分の記録", titlePublic: "みんなの記録", searchLabel: "記録を検索", searchSubmit: "探す",
     mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
     public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
@@ -27475,6 +27479,9 @@ const recordsSearchScopeCopy = {
     browsePublic: "みんなの記録を見る",
   },
   en: {
+    loadErrorTitle: "Records could not be loaded.", loadErrorHint: "Check the connection and try again.",
+    protectedLocation: "Location protected", ownerRecord: "Your record", identificationUnconfirmed: "Identification unconfirmed",
+    media: { photo: "Photo", video: "Video", audio: "Sound", record: "Memo" },
     titleMine: "Your records", titlePublic: "Community records", searchLabel: "Search records", searchSubmit: "Search",
     mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
     public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
@@ -27487,6 +27494,9 @@ const recordsSearchScopeCopy = {
     browsePublic: "Browse community records",
   },
   es: {
+    loadErrorTitle: "No se pudieron cargar los registros.", loadErrorHint: "Comprueba la conexión e inténtalo de nuevo.",
+    protectedLocation: "Ubicación protegida", ownerRecord: "Tu registro", identificationUnconfirmed: "Nombre sin confirmar",
+    media: { photo: "Foto", video: "Video", audio: "Audio", record: "Nota" },
     titleMine: "Tus registros", titlePublic: "Registros de la comunidad", searchLabel: "Buscar registros", searchSubmit: "Buscar",
     mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
     public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
@@ -27499,6 +27509,9 @@ const recordsSearchScopeCopy = {
     browsePublic: "Ver registros de la comunidad",
   },
   "pt-br": {
+    loadErrorTitle: "Não foi possível carregar os registros.", loadErrorHint: "Verifique a conexão e tente novamente.",
+    protectedLocation: "Localização protegida", ownerRecord: "Seu registro", identificationUnconfirmed: "Nome não confirmado",
+    media: { photo: "Foto", video: "Vídeo", audio: "Áudio", record: "Nota" },
     titleMine: "Seus registros", titlePublic: "Registros da comunidade", searchLabel: "Buscar registros", searchSubmit: "Buscar",
     mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
     public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
@@ -27523,12 +27536,11 @@ export function renderRecordsProductSection(
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const query = recordsSearchQuery(url.searchParams.get("q"));
-  const isJapanese = lang === "ja";
   const scopeCopy = recordsSearchScopeCopy[lang];
   const title = mode === "mine" ? scopeCopy.titleMine : scopeCopy.titlePublic;
   const lead = scopeCopy[mode];
   const cards = unavailable
-    ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
+    ? `<div class="cf-records-native-empty" role="status"><strong>${escapeHtml(scopeCopy.loadErrorTitle)}</strong><p>${escapeHtml(scopeCopy.loadErrorHint)}</p><a class="cf-records-native-retry" href="${escapeHtml(url.pathname + url.search)}">${escapeHtml(quietHomeCopy[lang].retry)}</a></div>`
     : items.length > 0
     ? `<div class="cf-records-native-grid">${items.map((item) => {
           const card = renderRecordsProductCard(item, lang, mode, { view: mode, query });
@@ -27540,7 +27552,7 @@ export function renderRecordsProductSection(
     <style>
       .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#143f2e;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#143f2e;background:#143f2e;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#143f2e;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;height:104px;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#143f2e;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#143f2e;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#143f2e;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     </style>
-    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
+    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${session && savedStates !== null ? `<a class="qh-entrances" href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a>` : ""}
     ${cards}
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>${renderSavedItemsScript(lang)}` : ""}
