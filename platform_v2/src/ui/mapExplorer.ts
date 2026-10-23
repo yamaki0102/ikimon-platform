@@ -11058,7 +11058,7 @@ export const MAP_EXPLORER_STYLES = `
     box-shadow: 0 1px 4px rgba(15,23,42,.05);
   }
   .me-tabs { display: inline-flex; gap: 2px; padding: 2px; border-radius: 11px; background: rgba(15,23,42,.04); }
-  .me-tab { min-height: 34px; padding: 3px 12px; border-radius: 9px; border: 0; background: transparent; font-weight: 800; font-size: 12px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
+  .me-tab { min-height: 44px; padding: 3px 12px; border-radius: 9px; border: 0; background: transparent; font-weight: 800; font-size: 14px; color: #475569; cursor: pointer; transition: background .15s ease, color .15s ease; white-space: nowrap; }
   .me-tab-short { display: none; }
   .me-tab.is-active { background: #fff; color: #0f172a; box-shadow: 0 4px 10px rgba(15,23,42,.08); }
   .me-filter-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -11534,13 +11534,13 @@ export const MAP_EXPLORER_STYLES = `
     white-space: nowrap;
   }
   .me-rain-toggle {
-    min-height: 32px;
+    min-height: 44px;
     border: 1px solid rgba(14,165,233,.30);
     border-radius: 8px;
     padding: 6px 11px;
     background: rgba(14,165,233,.10);
     color: #075985;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 950;
     cursor: pointer;
   }
@@ -11555,12 +11555,12 @@ export const MAP_EXPLORER_STYLES = `
     gap: 4px;
   }
   .me-rain-time {
-    min-height: 28px;
+    min-height: 44px;
     border: 1px solid rgba(148,163,184,.28);
     border-radius: 7px;
     background: rgba(248,250,252,.92);
     color: #475569;
-    font-size: 11px;
+    font-size: 14px;
     line-height: 1.1;
     font-weight: 900;
     cursor: pointer;
@@ -11576,12 +11576,12 @@ export const MAP_EXPLORER_STYLES = `
     gap: 6px;
   }
   .me-rain-actions button {
-    min-height: 32px;
+    min-height: 44px;
     border: 1px solid rgba(15,23,42,.10);
     border-radius: 8px;
     background: #fff;
     color: #0f172a;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 900;
     cursor: pointer;
   }
@@ -12475,6 +12475,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-search-results.is-open { display: block; }
   .me-search-row {
     display: flex; flex-direction: column; gap: 2px;
+    min-height: 44px;
     width: 100%; text-align: left; border: 0; background: transparent;
     padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(15,23,42,.05);
   }
@@ -12497,8 +12498,8 @@ export const MAP_EXPLORER_STYLES = `
   }
   .me-search-row .me-search-badge-species { background: rgba(16,185,129,.14); color: #065f46; }
   .me-search-row .me-search-badge-place { background: rgba(14,165,233,.12); color: #075985; }
-  .me-search-row strong { font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
-  .me-search-row span { font-size: 11px; color: #64748b; }
+  .me-search-row strong { font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: -.01em; }
+  .me-search-row span { font-size: 14px; color: #64748b; }
   .me-search-empty { padding: 14px; font-size: 12px; color: #64748b; }
   .me-search-recovery { font-size: 14px; line-height: 1.6; color: #334155; }
   .me-search-recovery p { margin: 0 0 8px; }
@@ -14349,10 +14350,10 @@ export const MAP_EXPLORER_STYLES = `
     .me-tabs::-webkit-scrollbar { display: none; }
     .me-tab {
       min-width: 0;
-      min-height: 34px;
+      min-height: 44px;
       padding: 4px 3px;
-      font-size: 10.5px;
-      line-height: 1.15;
+      font-size: 14px;
+      line-height: 1.2;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -14360,10 +14361,10 @@ export const MAP_EXPLORER_STYLES = `
     .me-tab-short { display: inline; }
     .me-rain-mode .me-tab {
       flex: 0 0 auto;
-      min-height: 29px;
+      min-height: 44px;
       padding: 3px 6px;
       border-radius: 8px;
-      font-size: 11.5px;
+      font-size: 14px;
     }
     .me-filter-drawer { flex: 0 0 auto; }
     .me-filter-toggle {
@@ -14539,14 +14540,14 @@ export const MAP_EXPLORER_STYLES = `
       justify-self: start;
     }
     .me-rain-toggle {
-      min-height: 28px;
+      min-height: 44px;
       padding: 5px 9px;
       border-radius: 999px;
-      font-size: 11px;
+      font-size: 14px;
     }
     .me-rain-mode .me-rain-toggle {
       grid-area: update;
-      min-height: 29px;
+      min-height: 44px;
       padding: 4px 9px;
       justify-self: end;
     }
@@ -14572,7 +14573,8 @@ export const MAP_EXPLORER_STYLES = `
     .me-rain-time {
       flex: 0 0 auto;
       min-width: 58px;
-      min-height: 30px;
+      min-height: 44px;
+      font-size: 14px;
       border-radius: 999px;
     }
     .me-rain-actions { gap: 7px; }
@@ -14583,13 +14585,13 @@ export const MAP_EXPLORER_STYLES = `
       min-width: 0;
     }
     .me-rain-actions button {
-      min-height: 34px;
+      min-height: 44px;
       border-radius: 999px;
     }
     .me-rain-mode .me-rain-actions button {
-      min-height: 30px;
+      min-height: 44px;
       padding: 5px 9px;
-      font-size: 12px;
+      font-size: 14px;
     }
     .me-rain-status {
       max-height: 18px;
@@ -14704,14 +14706,14 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-positive-record strong { color: #10251a; font-size: 11px; line-height: 1.3; font-weight: 900; overflow-wrap: anywhere; }
   .me-area-positive-record small { color: #64748b; font-size: 9.5px; line-height: 1.25; font-weight: 750; overflow-wrap: anywhere; }
   .me-area-positive-actions { display: flex; flex-wrap: wrap; gap: 7px; }
-  .me-area-positive-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 7px 10px; border-radius: 999px; background: #10251a; color: #fff; font-size: 11px; line-height: 1.2; font-weight: 900; text-decoration: none; }
+  .me-area-positive-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 7px 10px; border-radius: 999px; background: #10251a; color: #fff; font-size: 14px; line-height: 1.2; font-weight: 900; text-decoration: none; }
   .me-area-positive-actions a:nth-child(n+2) { background: rgba(255,255,255,.9); color: #0f766e; border: 1px solid rgba(16,185,129,.18); }
   .me-area-guide-stop { display: grid; gap: 10px; margin: 0 0 12px; padding: 12px; border-radius: 14px; background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(12,74,110,.94)); border: 1px solid rgba(56,189,248,.28); box-shadow: 0 12px 28px rgba(15,23,42,.14); color: #f8fafc; }
   .me-area-guide-head { display: grid; gap: 3px; }
   .me-area-guide-head span { color: #7dd3fc; font-size: 10px; line-height: 1.2; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
   .me-area-guide-head strong { font-size: 15px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
   .me-area-guide-langs { display: flex; flex-wrap: wrap; gap: 6px; }
-  .me-area-guide-langs button { min-height: 30px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); padding: 5px 9px; background: rgba(255,255,255,.08); color: rgba(224,242,254,.86); font-size: 11px; line-height: 1.1; font-weight: 900; cursor: pointer; }
+  .me-area-guide-langs button { min-height: 44px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); padding: 5px 9px; background: rgba(255,255,255,.08); color: rgba(224,242,254,.86); font-size: 14px; line-height: 1.2; font-weight: 900; cursor: pointer; }
   .me-area-guide-langs button.is-active { background: #f8fafc; border-color: #f8fafc; color: #0f172a; }
   .me-area-guide-lead { margin: 0; color: rgba(248,250,252,.86); font-size: 12px; line-height: 1.65; font-weight: 760; }
   .me-area-guide-points { display: grid; gap: 5px; margin: 0; padding-left: 18px; color: rgba(224,242,254,.94); font-size: 11.5px; line-height: 1.55; font-weight: 760; }
@@ -14719,7 +14721,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-guide-status span { font-size: 12px; line-height: 1.35; font-weight: 950; color: #f8fafc; }
   .me-area-guide-status small { font-size: 10.5px; line-height: 1.35; font-weight: 780; color: rgba(224,242,254,.82); }
   .me-area-guide-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .me-area-guide-actions button { min-height: 40px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); padding: 9px 10px; font-size: 12px; line-height: 1.2; font-weight: 950; cursor: pointer; }
+  .me-area-guide-actions button { min-height: 44px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); padding: 9px 10px; font-size: 14px; line-height: 1.2; font-weight: 950; cursor: pointer; }
   .me-area-guide-locate { background: rgba(255,255,255,.12); color: #f8fafc; }
   .me-area-guide-play { background: #f8fafc; color: #0f172a; }
   .me-area-guide-play[disabled] { opacity: .46; cursor: not-allowed; }
@@ -14757,7 +14759,7 @@ export const MAP_EXPLORER_STYLES = `
   .me-area-next-step-head strong { color: #0f172a; font-size: 14px; line-height: 1.35; font-weight: 950; overflow-wrap: anywhere; }
   .me-area-next-step ul { display: grid; gap: 6px; margin: 0; padding-left: 18px; color: #334155; font-size: 12px; line-height: 1.5; font-weight: 760; }
   .me-area-next-step li { padding-left: 1px; }
-  .me-area-next-step-cta { justify-self: start; display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 8px 12px; border-radius: 10px; background: #0f766e; color: #fff !important; font-size: 12px; line-height: 1.2; font-weight: 950; text-decoration: none; box-shadow: 0 7px 16px rgba(15,118,110,.22); }
+  .me-area-next-step-cta { justify-self: start; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 12px; border-radius: 10px; background: #0f766e; color: #fff !important; font-size: 14px; line-height: 1.2; font-weight: 950; text-decoration: none; box-shadow: 0 7px 16px rgba(15,118,110,.22); }
   .me-area-next-step-cta:hover { filter: brightness(1.05); }
   .me-area-follow-btn { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 2px 0 12px; border-radius: 14px; border: 1px solid rgba(15,118,110,.22); background: #f0fdfa; color: #0f172a; cursor: pointer; text-align: left; box-shadow: 0 6px 16px rgba(15,23,42,.06); transition: background .15s ease, border-color .15s ease, transform .15s ease; }
   .me-area-follow-btn:hover { transform: translateY(-1px); background: #ecfdf5; border-color: rgba(5,150,105,.34); }

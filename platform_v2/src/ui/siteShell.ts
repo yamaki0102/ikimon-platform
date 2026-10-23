@@ -4959,7 +4959,7 @@ ${alternateLinks}
       background: transparent;
       color: #334155;
       font: inherit;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 800;
       text-decoration: none;
       white-space: nowrap;
@@ -4981,8 +4981,8 @@ ${alternateLinks}
       box-shadow: 0 8px 20px rgba(15,23,42,.05);
     }
     .site-account-icon {
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -5504,8 +5504,8 @@ ${alternateLinks}
       background: #ffffff;
     }
     .site-mobile-account-actions .site-account-icon {
-      width: 34px;
-      height: 34px;
+      width: 44px;
+      height: 44px;
     }
     .site-mobile-account-actions .site-notification-panel {
       right: -6px;
@@ -5545,14 +5545,14 @@ ${alternateLinks}
       align-items: center;
       justify-content: center;
       gap: 0;
-      width: 42px;
-      min-height: 40px;
+      width: 44px;
+      min-height: 44px;
       padding: 0;
       border-radius: 999px;
       border: 1px solid rgba(148,163,184,.28);
       background: rgba(255,255,255,.94);
       color: #0f172a;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 800;
       cursor: pointer;
       user-select: none;
@@ -6329,7 +6329,7 @@ ${alternateLinks}
       border-radius: 17px;
       background: rgba(248,250,252,.92);
       color: #0f172a;
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 950;
       line-height: 1.2;
       text-decoration: none;
@@ -6445,14 +6445,14 @@ ${alternateLinks}
     }
     .global-record-camera-modes button {
       min-width: 64px;
-      min-height: 36px;
+      min-height: 44px;
       padding: 6px 12px;
       border: 0;
       border-radius: 999px;
       background: transparent;
       color: #475569;
       font: inherit;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 850;
       cursor: pointer;
     }
@@ -6466,9 +6466,9 @@ ${alternateLinks}
       top: calc(max(18px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
       right: calc(18px + var(--global-record-visual-right, 0px));
       z-index: 133;
-      width: 38px;
-      height: 38px;
-      flex: 0 0 38px;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
       display: grid;
       place-items: center;
       border: 0;

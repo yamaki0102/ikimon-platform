@@ -188,8 +188,8 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
  body[data-zukan-app-experience] .site-header-inner,.zukan-app-header>div{height:64px;padding:0 16px}
  body[data-zukan-app-experience] .site-core-nav,.zukan-app-nav.is-header{display:none!important}
  body[data-zukan-app-experience] .global-record-launcher,.zukan-app-nav.is-bottom{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;z-index:85;left:0;right:0;bottom:0;width:100%;max-width:none;transform:none;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));border:0;border-top:1px solid var(--zukan-line);border-radius:0;background:#fff;box-shadow:none}
- .zukan-app-nav.is-bottom a{flex-direction:column;gap:3px;font-size:12px;min-height:56px;padding:6px 0}
- body[data-zukan-app-experience] .global-record-choice{min-height:56px;padding:5px 0;border-radius:8px;font-size:12px}
+ .zukan-app-nav.is-bottom a{flex-direction:column;gap:3px;font-size:14px;min-height:56px;padding:6px 0}
+ body[data-zukan-app-experience] .global-record-choice{min-height:56px;padding:5px 0;border-radius:8px;font-size:14px}
  body[data-zukan-app-experience] .site-shell.has-global-record-launcher{padding-bottom:calc(112px + max(0px, env(safe-area-inset-bottom)))}
  body[data-zukan-app-experience] .home-recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  body[data-zukan-app-experience] .of-media-column{top:80px}

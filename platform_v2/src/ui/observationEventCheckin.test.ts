@@ -34,6 +34,7 @@ test("solo micro checkin reads as a participant action and opens the live field 
   assert.match(html, />参加受付</);
   assert.match(html, /参加に必要な情報を確認して、受付を完了します/);
   assert.match(html, /受付して参加する/);
+  assert.match(html, /<label>表示名\s*<input type="text" name="display_name"/);
   assert.match(html, /開催範囲の補助として現在地を使う/);
   assert.doesNotMatch(html, /「発見」モード|努力量|AI クエスト/);
   assert.doesNotMatch(html, /班を選ぶ|班分けなし/);
@@ -59,6 +60,11 @@ test("team checkin keeps the actual team choice and one participant CTA", () => 
 
   assert.match(html, /班を選ぶ/);
   assert.match(html, /name="team_id" value="team-1"/);
+  assert.match(html, /<legend class="evt-checkin-team-legend">班を選ぶ<\/legend>/);
+  assert.match(html, /class="evt-sr-only" type="radio"/);
+  assert.doesNotMatch(html, /type="radio"[^>]*display:none/);
+  assert.match(html, /<h2 class="evt-heading"/);
+  assert.doesNotMatch(html, /<h1/);
   assert.match(html, /ゲスト参加の記録とふり返り/);
   assert.equal((html.match(/受付して参加する/g) ?? []).length, 1);
 });

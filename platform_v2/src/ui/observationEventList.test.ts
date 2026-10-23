@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getObservationEventStrings } from "../i18n/observationEventStrings.js";
 import type { ObservationEventSessionRow } from "../services/observationEventModeManager.js";
+import { OBSERVATION_EVENT_STYLES } from "./observationEventStyles.js";
 import {
   renderEventListBody,
   renderObservationEventJoinBody,
@@ -182,6 +183,19 @@ test("join detail hands off to an external provider and returns to the participa
   assert.match(html, /自分の記録へ戻る/);
   assert.match(html, /\/ja\/record\?event=INVITE1&amp;eventSessionId=session-1&amp;participantRole=participant/);
   assert.doesNotMatch(html, /data-evt-checkin-form|観察を始める/);
+});
+
+test("join detail with checkin has one page heading and a keyboard-accessible team fieldset", () => {
+  const html = renderObservationEventJoinBody(session, getObservationEventStrings("ja"), "ja", {
+    showCheckin: true,
+    teams: [{ teamId: "team-1", name: "A班", color: "#123456", memberCount: 3 }],
+  });
+  assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
+  assert.match(html, /<h1>[^<]+<\/h1>/);
+  assert.match(html, /<legend class="evt-checkin-team-legend">班を選ぶ<\/legend>/);
+  assert.match(html, /class="evt-sr-only" type="radio"/);
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-checkin-team-card:focus-within/);
+  assert.match(OBSERVATION_EVENT_STYLES, /\.evt-checkin-team-legend\s*\{[^}]*font-size:\s*14px/);
 });
 
 test("join detail renders role-specific terms before the entry facts without changing the handoff", () => {

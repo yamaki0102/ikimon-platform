@@ -40,11 +40,11 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
            <p class="evt-lead" style="margin-top:4px;">班の指定はありません。必要な場合は主催者から案内されます。</p>
          </div>`
       : `<fieldset style="border:0; padding:0; margin:0; display:grid; gap:6px;">
-           <span class="evt-eyebrow">班を選ぶ</span>
+           <legend class="evt-checkin-team-legend">班を選ぶ</legend>
            <div class="evt-checkin-team-grid">
              ${teams.map((t) => `
                <label class="evt-checkin-team-card" data-team-card>
-                 <input type="radio" name="team_id" value="${escapeHtml(t.teamId)}" style="display:none;" />
+                 <input class="evt-sr-only" type="radio" name="team_id" value="${escapeHtml(t.teamId)}" />
                  <span style="display:flex; align-items:center; gap:8px;">
                    <span class="evt-team-color" style="background:${escapeHtml(t.color)};"></span>
                    <strong>${escapeHtml(t.name)}</strong>
@@ -62,7 +62,7 @@ export function renderCheckinBody(args: RenderCheckinArgs): string {
 <section class="evt-checkin-shell" data-session-id="${escapeHtml(session.sessionId)}" data-event-code="${escapeHtml(session.eventCode ?? "")}" data-solo-observation="${isSolo ? "true" : "false"}">
   <header>
     <span class="evt-eyebrow">参加受付</span>
-    <h1 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "企画に参加")}</h1>
+    <h2 class="evt-heading" style="margin-top:6px; font-size:clamp(22px, 4vw, 30px);">${escapeHtml(session.title || "企画に参加")}</h2>
     <p class="evt-lead">参加に必要な情報を確認して、受付を完了します。</p>
     ${targetSummary}
   </header>

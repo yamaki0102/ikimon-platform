@@ -766,6 +766,11 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 .evt-checkin-team-grid {
   display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
+.evt-checkin-team-legend {
+  display: block; width: 100%; margin: 0 0 4px; padding: 0;
+  color: var(--evt-ink); font-size: 14px; line-height: 1.4;
+  letter-spacing: normal; text-transform: none;
+}
 .evt-checkin-team-card {
   display: flex; flex-direction: column; gap: 4px;
   padding: 12px 14px; min-height: 76px;
@@ -776,6 +781,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   transition: transform var(--evt-motion-fast), border-color var(--evt-motion-fast);
 }
 .evt-checkin-team-card:hover { transform: translateY(-1px); }
+.evt-checkin-team-card:focus-within { outline: 3px solid #000; outline-offset: 3px; box-shadow: 0 0 0 6px var(--zukan-focus-yellow-300, #FFD43D); }
 .evt-checkin-team-card.is-selected {
   border-color: var(--evt-accent-discovery);
   box-shadow: 0 0 0 3px rgba(16,185,129,.18);

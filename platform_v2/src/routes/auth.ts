@@ -105,11 +105,11 @@ const AUTH_STYLES = `
   .auth-panel h2 { margin: 6px 0 4px; font-size: 28px; line-height: 1.25; color: #0f172a; }
   .auth-panel p, .auth-note p { color: #64748b; line-height: 1.75; }
   .auth-tabs { display: inline-flex; gap: 6px; padding: 4px; border-radius: 999px; background: #f1f5f9; margin-bottom: 18px; }
-  .auth-tab { min-height: 38px; padding: 8px 14px; border-radius: 999px; font-weight: 850; font-size: 13px; color: #475569; }
+  .auth-tab { min-height: 44px; padding: 8px 14px; border-radius: 999px; font-weight: 850; font-size: 14px; color: #475569; }
   .auth-tab.is-active { background: #fff; color: #047857; box-shadow: 0 5px 12px rgba(15,23,42,.06); }
   .auth-form { display: grid; gap: 14px; margin-top: 18px; }
   .auth-field { display: grid; gap: 7px; }
-  .auth-field span { font-weight: 850; color: #0f172a; font-size: 13px; }
+  .auth-field span { font-weight: 850; color: #0f172a; font-size: 14px; }
   .auth-field input { width: 100%; min-height: 48px; border-radius: 14px; border: 1px solid rgba(15,23,42,.12); padding: 0 14px; font: inherit; background: #fff; }
   .auth-status { min-height: 22px; color: #b91c1c; font-weight: 800; font-size: 13px; }
   .auth-submit { width: 100%; justify-content: center; }
