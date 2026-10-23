@@ -29,3 +29,25 @@ export async function assertObservationOwnedByUser(observationId: string, userId
     throw new Error("observation_not_owned");
   }
 }
+
+/** Lock a visit during its upsert and reject a different owner before any rows are changed. */
+export async function assertVisitUpsertOwner(
+  visitId: string,
+  userId: string,
+  query: (statement: string, values: unknown[]) => Promise<{ rows: Array<{ user_id: string | null }> }>,
+): Promise<void> {
+  // PostgreSQL does not lock a missing row with FOR UPDATE. Serialize first
+  // inserts for this visit ID too, so concurrent owners cannot race the check.
+  await query(
+    "select pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [visitId],
+  );
+  const result = await query(
+    "select user_id from visits where visit_id = $1 for update",
+    [visitId],
+  );
+  const existing = result.rows[0];
+  if (existing && existing.user_id !== userId) {
+    throw new Error("observation_not_owned");
+  }
+}

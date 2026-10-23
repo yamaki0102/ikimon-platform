@@ -63,6 +63,7 @@ import { queuePublicMapSnapshotRefresh } from "./publicMapSnapshotScheduler.js";
 import { resolveAdminLocalityForPoint } from "./adminLocalityResolver.js";
 import { CONTINUOUS_VISIT_GAP_INTERVAL_SQL } from "./visitWindows.js";
 import { encodeJisMeshCodes } from "./jisMesh.js";
+import { assertVisitUpsertOwner } from "./writeGuardsPg.js";
 
 type ObservationPhotoInput = {
   path: string;
@@ -673,6 +674,12 @@ export async function upsertObservation(input: ObservationUpsertInput): Promise<
 
   try {
     await client.query("begin");
+
+    // The caller may choose a stable visit ID for retries, but must never transfer
+    // an existing visit by supplying an ID owned by another account.
+    await assertVisitUpsertOwner(visitId, input.userId, (statement, values) =>
+      client.query(statement, values) as Promise<{ rows: Array<{ user_id: string | null }> }>,
+    );
 
     const userExists = await client.query<{ exists: boolean }>(
       "select exists(select 1 from users where user_id = $1) as exists",

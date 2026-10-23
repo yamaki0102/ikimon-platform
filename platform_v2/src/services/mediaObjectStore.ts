@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { access, lstat, mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export type MediaObjectVisibility = "public" | "private";
@@ -79,20 +79,82 @@ export class LocalMediaObjectStore implements MediaObjectStore {
     };
   }
 
+  private async checkedAbsolutePath(visibility: MediaObjectVisibility, storagePath: string): Promise<string> {
+    const absolutePath = this.absolutePathFor(visibility, storagePath);
+    const root = await realpath(path.resolve(this.rootForVisibility(visibility)));
+    try {
+      if ((await lstat(absolutePath)).isSymbolicLink()) {
+        throw new Error("media_object_path_escape");
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    let resolvedPath: string;
+    try {
+      resolvedPath = await realpath(absolutePath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      // For a new leaf, resolve the existing parent so an in-root symlink
+      // cannot redirect writes or make a private read escape its root.
+      const resolvedParent = await realpath(path.dirname(absolutePath));
+      resolvedPath = path.join(resolvedParent, path.basename(absolutePath));
+    }
+    if (!resolvedPath.startsWith(root + path.sep) && resolvedPath !== root) {
+      throw new Error("media_object_path_escape");
+    }
+    return absolutePath;
+  }
+
+  private async ensureSafeParentDirectory(visibility: MediaObjectVisibility, storagePath: string): Promise<void> {
+    const absolutePath = this.absolutePathFor(visibility, storagePath);
+    const rootPath = path.resolve(this.rootForVisibility(visibility));
+    await mkdir(rootPath, { recursive: true });
+    const canonicalRoot = await realpath(rootPath);
+    const relativeParent = path.relative(rootPath, path.dirname(absolutePath));
+    let currentPath = rootPath;
+    for (const segment of relativeParent.split(path.sep).filter(Boolean)) {
+      currentPath = path.join(currentPath, segment);
+      try {
+        const entry = await lstat(currentPath);
+        if (entry.isSymbolicLink() || !entry.isDirectory()) {
+          throw new Error("media_object_path_escape");
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        try {
+          await mkdir(currentPath);
+        } catch (mkdirError) {
+          if ((mkdirError as NodeJS.ErrnoException).code !== "EEXIST") throw mkdirError;
+          // Another writer may have created this directory after our lstat.
+          // Revalidate it so a symlink race cannot turn the retry into traversal.
+          const racedEntry = await lstat(currentPath);
+          if (racedEntry.isSymbolicLink() || !racedEntry.isDirectory()) {
+            throw new Error("media_object_path_escape");
+          }
+        }
+      }
+      const canonicalCurrent = await realpath(currentPath);
+      if (!canonicalCurrent.startsWith(canonicalRoot + path.sep) && canonicalCurrent !== canonicalRoot) {
+        throw new Error("media_object_path_escape");
+      }
+    }
+  }
+
   async write(input: WriteMediaObjectInput): Promise<StoredMediaObject> {
     const absolutePath = this.absolutePathFor(input.visibility, input.storagePath);
-    await mkdir(path.dirname(absolutePath), { recursive: true });
+    await this.ensureSafeParentDirectory(input.visibility, input.storagePath);
+    await this.checkedAbsolutePath(input.visibility, input.storagePath);
     await writeFile(absolutePath, input.buffer);
     return this.reference(input);
   }
 
   async read(input: ReadMediaObjectInput): Promise<Buffer> {
-    return readFile(this.absolutePathFor(input.visibility, input.storagePath));
+    return readFile(await this.checkedAbsolutePath(input.visibility, input.storagePath));
   }
 
   async exists(input: ExistsMediaObjectInput): Promise<boolean> {
     try {
-      await access(this.absolutePathFor(input.visibility, input.storagePath));
+      await access(await this.checkedAbsolutePath(input.visibility, input.storagePath));
       return true;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
@@ -103,7 +165,7 @@ export class LocalMediaObjectStore implements MediaObjectStore {
 
   async delete(input: DeleteMediaObjectInput): Promise<void> {
     try {
-      await unlink(this.absolutePathFor(input.visibility, input.storagePath));
+      await unlink(await this.checkedAbsolutePath(input.visibility, input.storagePath));
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code !== "ENOENT") {

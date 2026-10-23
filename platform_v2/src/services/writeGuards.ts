@@ -5,6 +5,9 @@ import type { SessionSnapshot } from "./authSession.js";
 import { getReviewerAccessContext, isAdminOrAnalystRole } from "./reviewerAuthorities.js";
 
 function readBearerToken(headerValue: string | string[] | undefined): string | null {
+  if (Array.isArray(headerValue) && headerValue.length !== 1) {
+    return null;
+  }
   const raw = Array.isArray(headerValue) ? headerValue[0] : headerValue;
   if (!raw) {
     return null;
@@ -22,6 +25,9 @@ function readBearerToken(headerValue: string | string[] | undefined): string | n
 function readPrivilegedWriteToken(request: FastifyRequest): string | null {
   for (const headerName of ["x-ikimon-write-key", "x-v2-privileged-write-api-key", "x-api-key"]) {
     const headerValue = request.headers[headerName];
+    if (Array.isArray(headerValue) && headerValue.length !== 1) {
+      return null;
+    }
     const direct = Array.isArray(headerValue) ? headerValue[0] : headerValue;
     if (typeof direct === "string" && direct.trim() !== "") {
       return direct.trim();

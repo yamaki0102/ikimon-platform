@@ -19,3 +19,13 @@ test("local extension compatibility is explicit and localhost-only", () => {
   assert.match(source, /create_hypertable/);
   assert.match(source, /USING\\s\+ivfflat/);
 });
+
+test("migration runs serialize before reading applied state and release the session lock", () => {
+  const runLocked = source.indexOf("withMigrationLock(pool, async (client)");
+  const ensureTable = source.indexOf("ensureSchemaMigrationsTable(client)");
+  const loadApplied = source.indexOf("loadAppliedMigrations(client)");
+
+  assert.ok(runLocked >= 0, "runner must execute migrations inside the lock callback");
+  assert.ok(ensureTable > runLocked, "schema migration metadata must be accessed after acquiring the lock");
+  assert.ok(loadApplied > ensureTable, "applied state must be read after acquiring the lock");
+});

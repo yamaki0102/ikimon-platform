@@ -62,7 +62,12 @@ function parseCookies(headerValue: string | undefined): Record<string, string> {
       }
       const name = part.slice(0, separatorIndex).trim();
       const value = part.slice(separatorIndex + 1).trim();
-      accumulator[name] = decodeURIComponent(value);
+      try {
+        accumulator[name] = decodeURIComponent(value);
+      } catch {
+        // An invalid cookie must not make unrelated request cookies fail auth.
+        // Treat only this entry as absent; continue parsing later cookie pairs.
+      }
       return accumulator;
     }, {});
 }

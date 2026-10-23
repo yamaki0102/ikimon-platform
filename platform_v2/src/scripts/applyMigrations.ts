@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { withMigrationLock, type MigrationLockClient } from "./migrationLock.js";
 
 type MigrationRecord = {
   filename: string;
@@ -111,9 +112,8 @@ function isOwnerPrivilegeError(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "42501");
 }
 
-async function ensureSchemaMigrationsTable() {
-  const pool = getPool();
-  await pool.query(`
+async function ensureSchemaMigrationsTable(client: MigrationLockClient) {
+  await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename TEXT PRIMARY KEY,
       checksum TEXT NOT NULL,
@@ -122,13 +122,12 @@ async function ensureSchemaMigrationsTable() {
   `);
 }
 
-async function loadAppliedMigrations(): Promise<Map<string, MigrationRecord>> {
-  const pool = getPool();
-  const result = await pool.query<MigrationRecord>(
+async function loadAppliedMigrations(client: MigrationLockClient): Promise<Map<string, MigrationRecord>> {
+  const result = await client.query(
     "select filename, checksum from schema_migrations order by filename",
   );
 
-  return new Map(result.rows.map((row: MigrationRecord) => [row.filename, row]));
+  return new Map((result.rows as MigrationRecord[]).map((row) => [row.filename, row]));
 }
 
 async function main() {
@@ -136,70 +135,70 @@ async function main() {
   if (options.localExtensionCompat) {
     assertLocalExtensionCompatAllowed();
   }
-  await ensureSchemaMigrationsTable();
-
   const pool = getPool();
-  const currentFile = fileURLToPath(import.meta.url);
-  const currentDir = path.dirname(currentFile);
-  const migrationsDir = path.resolve(currentDir, "../../db/migrations");
-  const migrationFiles = (await readdir(migrationsDir))
-    .filter((filename) => filename.endsWith(".sql"))
-    .sort();
+  try {
+    await withMigrationLock(pool, async (client) => {
+      await ensureSchemaMigrationsTable(client);
+      const currentFile = fileURLToPath(import.meta.url);
+      const currentDir = path.dirname(currentFile);
+      const migrationsDir = path.resolve(currentDir, "../../db/migrations");
+      const migrationFiles = (await readdir(migrationsDir))
+        .filter((filename) => filename.endsWith(".sql"))
+        .sort();
 
-  const applied = await loadAppliedMigrations();
+      const applied = await loadAppliedMigrations(client);
 
-  for (const filename of migrationFiles) {
-    const fullPath = path.join(migrationsDir, filename);
-    const rawSql = await readFile(fullPath, "utf8");
-    const checksum = checksumFor(rawSql);
-    const sql = options.localExtensionCompat ? applyLocalExtensionCompat(rawSql) : rawSql;
-    const appliedMigration = applied.get(filename);
+      for (const filename of migrationFiles) {
+        const fullPath = path.join(migrationsDir, filename);
+        const rawSql = await readFile(fullPath, "utf8");
+        const checksum = checksumFor(rawSql);
+        const sql = options.localExtensionCompat ? applyLocalExtensionCompat(rawSql) : rawSql;
+        const appliedMigration = applied.get(filename);
 
-    if (appliedMigration) {
-      if (appliedMigration.checksum !== checksum) {
-        if (options.repairChecksums.has(filename)) {
-          await pool.query("update schema_migrations set checksum = $1 where filename = $2", [
-            checksum,
-            filename,
-          ]);
-          console.warn(`repair checksum ${filename}`);
+        if (appliedMigration) {
+          if (appliedMigration.checksum !== checksum) {
+            if (options.repairChecksums.has(filename)) {
+              await client.query("update schema_migrations set checksum = $1 where filename = $2", [
+                checksum,
+                filename,
+              ]);
+              console.warn(`repair checksum ${filename}`);
+              continue;
+            }
+            throw new Error(`Migration checksum mismatch for ${filename}`);
+          }
+          console.log(`skip ${filename}`);
           continue;
         }
-        throw new Error(`Migration checksum mismatch for ${filename}`);
-      }
-      console.log(`skip ${filename}`);
-      continue;
-    }
 
-    assertSafeMigration(filename, sql, options);
+        assertSafeMigration(filename, sql, options);
 
-    const client = await pool.connect();
-    try {
-      await client.query("begin");
-      await client.query(sql);
-      await client.query(
-        "insert into schema_migrations (filename, checksum) values ($1, $2)",
-        [filename, checksum],
-      );
-      await client.query("commit");
-      console.log(`apply ${filename}`);
-    } catch (error) {
-      await client.query("rollback");
-      if (OWNER_SENSITIVE_APPROVAL.test(sql) && isOwnerPrivilegeError(error)) {
-        await pool.query(
-          "insert into schema_migrations (filename, checksum) values ($1, $2) on conflict (filename) do nothing",
-          [filename, checksum],
-        );
-        console.warn(`skip owner-sensitive migration ${filename}: database role does not own the target object`);
-        continue;
+        try {
+          await client.query("begin");
+          await client.query(sql);
+          await client.query(
+            "insert into schema_migrations (filename, checksum) values ($1, $2)",
+            [filename, checksum],
+          );
+          await client.query("commit");
+          console.log(`apply ${filename}`);
+        } catch (error) {
+          await client.query("rollback");
+          if (OWNER_SENSITIVE_APPROVAL.test(sql) && isOwnerPrivilegeError(error)) {
+            await client.query(
+              "insert into schema_migrations (filename, checksum) values ($1, $2) on conflict (filename) do nothing",
+              [filename, checksum],
+            );
+            console.warn(`skip owner-sensitive migration ${filename}: database role does not own the target object`);
+            continue;
+          }
+          throw error;
+        }
       }
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
+  } finally {
+    await pool.end();
   }
-
-  await pool.end();
 }
 
 void main();

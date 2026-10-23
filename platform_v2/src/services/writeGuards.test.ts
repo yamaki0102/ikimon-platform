@@ -3,7 +3,8 @@ import type { FastifyRequest } from "fastify";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { assertPrivilegedWriteAccess } from "./writeGuards.js";
+import { assertPrivilegedWriteAccess, assertSessionUser } from "./writeGuards.js";
+import type { SessionSnapshot } from "./authSession.js";
 
 async function withEnv(overrides: Record<string, string | undefined>, run: () => Promise<void> | void): Promise<void> {
   const previous = new Map<string, string | undefined>();
@@ -40,6 +41,43 @@ test("privileged write guard rejects missing and mismatched keys", async () => {
     assert.throws(() => assertPrivilegedWriteAccess(requestWithHeaders({})), /forbidden_privileged_write/);
     assert.throws(() => assertPrivilegedWriteAccess(requestWithHeaders({ "x-api-key": "wrong-key" })), /forbidden_privileged_write/);
   });
+});
+
+test("privileged write guard rejects ambiguous duplicate API-key headers", async () => {
+  await withEnv({ V2_PRIVILEGED_WRITE_API_KEY: "test-write-key" }, () => {
+    assert.throws(() => assertPrivilegedWriteAccess({
+      headers: { "x-api-key": ["test-write-key", "attacker-key"] },
+    } as unknown as FastifyRequest), /forbidden_privileged_write/);
+  });
+});
+
+test("privileged write guard rejects ambiguous duplicate Authorization headers", async () => {
+  await withEnv({ V2_PRIVILEGED_WRITE_API_KEY: "test-write-key" }, () => {
+    assert.throws(() => assertPrivilegedWriteAccess({
+      headers: { authorization: ["Bearer test-write-key", "Bearer attacker-key"] },
+    } as unknown as FastifyRequest), /forbidden_privileged_write/);
+  });
+});
+
+test("privileged write guard rejects joined duplicate credentials and never falls back from an ambiguous header", async () => {
+  await withEnv({ V2_PRIVILEGED_WRITE_API_KEY: "test-write-key" }, () => {
+    assert.throws(() => assertPrivilegedWriteAccess(requestWithHeaders({ "x-api-key": "test-write-key, attacker-key" })), /forbidden_privileged_write/);
+    assert.throws(() => assertPrivilegedWriteAccess(requestWithHeaders({
+      "x-ikimon-write-key": ["test-write-key", "attacker-key"],
+      "x-api-key": "test-write-key",
+    } as unknown as Record<string, string>)), /forbidden_privileged_write/);
+  });
+});
+
+test("session write guard denies absent, disabled, and mismatched actors", () => {
+  const session = {
+    userId: "owner-1",
+    banned: false,
+  } as SessionSnapshot;
+  assert.throws(() => assertSessionUser(null, "owner-1"), /session_required/);
+  assert.throws(() => assertSessionUser({ ...session, banned: true }, "owner-1"), /account_disabled/);
+  assert.throws(() => assertSessionUser(session, "owner-2"), /forbidden_user_mismatch/);
+  assert.equal(assertSessionUser(session, "owner-1"), session);
 });
 
 test("observation ownership guard keeps owner check while allowing occurrence-to-visit fallback", () => {
