@@ -4,9 +4,15 @@ const args = new Map(process.argv.slice(2).map((arg) => {
 }));
 
 const url = args.get("url") ?? "http://127.0.0.1:8787";
+const target = new URL(url);
 const records = Number(args.get("records") ?? "10000");
 const mediaPerRecord = Number(args.get("media") ?? "3");
 const concurrency = Number(args.get("concurrency") ?? "20");
+const sessionCookie = process.env.ZUKAN_SESSION_COOKIE?.trim();
+const userId = process.env.ZUKAN_USER_ID?.trim();
+if (!sessionCookie || !userId) {
+  throw new Error("Set ZUKAN_SESSION_COOKIE and ZUKAN_USER_ID to an existing authorized test account before running the v0 load test.");
+}
 
 let next = 0;
 let ok = 0;
@@ -18,7 +24,7 @@ async function worker() {
     const index = next++;
     try {
       const draft = await postJson(`${url}/api/v0/draft-observations`, {
-        userId: `load-user-${index % 100}`,
+        userId,
         observedAt: new Date().toISOString(),
         exactLat: 34.7 + ((index % 100) / 1000),
         exactLng: 137.7 + ((index % 100) / 1000),
@@ -58,7 +64,11 @@ console.log(JSON.stringify({
 async function postJson(endpoint, body) {
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      origin: target.origin,
+      cookie: sessionCookie
+    },
     body: JSON.stringify(body)
   });
   if (!response.ok) {

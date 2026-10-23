@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { makeGuideLiveTokenRouteHandler } from "./guideApi.js";
 
 const guideApiPath = fileURLToPath(new URL("./guideApi.ts", import.meta.url));
 
@@ -57,4 +58,46 @@ test("guide scene analysis auto-saves only after the field-observation quality g
   assert.match(source, /seenState: "dismissed"/);
   assert.doesNotMatch(source, /absenceState: "confirmed_absence"/);
   assert.doesNotMatch(source, /停車後/);
+});
+
+test("guide live token rejects banned sessions before token creation", async () => {
+  let tokenCalls = 0;
+  let statusCode = 200;
+  const handler = makeGuideLiveTokenRouteHandler({
+    getSession: async () => ({
+      userId: "banned-guide-user", displayName: "Banned", roleName: "Observer",
+      rankLabel: null, banned: true, expiresAt: "2099-01-01T00:00:00.000Z", tokenHash: "test",
+    }),
+    createToken: async () => { tokenCalls += 1; return { token: "test-only", model: "test-model", expiresAt: "2099-01-01T00:00:00.000Z", newSessionExpiresAt: "2099-01-01T00:00:00.000Z" }; },
+  });
+  const reply = {
+    status(code: number) { statusCode = code; return this; },
+    send(payload: unknown) { return payload; },
+  };
+
+  const response = await handler({ headers: { cookie: "session=test" }, body: {} } as never, reply as never);
+  assert.equal(statusCode, 403);
+  assert.deepEqual(response, { error: "account unavailable" });
+  assert.equal(tokenCalls, 0);
+});
+
+test("guide live token still mints for an active authenticated session", async () => {
+  let tokenCalls = 0;
+  let statusCode = 200;
+  const handler = makeGuideLiveTokenRouteHandler({
+    getSession: async () => ({
+      userId: "active-guide-user", displayName: "Active", roleName: "Observer",
+      rankLabel: null, banned: false, expiresAt: "2099-01-01T00:00:00.000Z", tokenHash: "test",
+    }),
+    createToken: async () => { tokenCalls += 1; return { token: "test-only", model: "test-model", expiresAt: "2099-01-01T00:00:00.000Z", newSessionExpiresAt: "2099-01-01T00:00:00.000Z" }; },
+  });
+  const reply = {
+    status(code: number) { statusCode = code; return this; },
+    send(payload: unknown) { return payload; },
+  };
+
+  const response = await handler({ headers: { cookie: "session=test" }, body: {} } as never, reply as never);
+  assert.equal(statusCode, 200);
+  assert.deepEqual(response, { token: "test-only", model: "test-model", expiresAt: "2099-01-01T00:00:00.000Z", newSessionExpiresAt: "2099-01-01T00:00:00.000Z" });
+  assert.equal(tokenCalls, 1);
 });

@@ -106,7 +106,8 @@ object MobileFieldSessionClient {
 
     fun end(context: Context, sessionId: String): MobileSessionRecap? {
         return try {
-            val json = post(context, "${MobileApiConfig.fieldSessionApiBase(context)}/${sessionId}/end", JSONObject())
+            val body = JSONObject().put("install_id", InstallIdentityManager.getOrCreateInstallId(context))
+            val json = post(context, "${MobileApiConfig.fieldSessionApiBase(context)}/${sessionId}/end", body)
             parseRecap(json.optJSONObject("recap"))
         } catch (_: Exception) {
             null

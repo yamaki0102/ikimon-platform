@@ -67,20 +67,24 @@ export async function registerMobileFieldSessionsApiRoutes(app: FastifyInstance)
     },
   );
 
-  app.post<{ Params: { sessionId: string } }>(
+  app.post<{ Params: { sessionId: string }; Body: { install_id?: unknown; installId?: unknown } }>(
     "/api/v1/mobile/field-sessions/:sessionId/end",
-    async (request) => {
+    async (request, reply) => {
       const session = await getSessionFromMobileAuth(request).catch(() => null);
-      const recap = await getMobileFieldSessionRecap(request.params.sessionId, session?.userId ?? null);
+      const body = request.body as { install_id?: unknown; installId?: unknown } | undefined;
+      const installId = typeof body?.install_id === "string" ? body.install_id : typeof body?.installId === "string" ? body.installId : null;
+      const recap = await getMobileFieldSessionRecap(request.params.sessionId, session?.userId ?? null, installId);
+      reply.header("Cache-Control", "private, no-store");
       return { ok: true, recap };
     },
   );
 
-  app.get<{ Params: { sessionId: string } }>(
+  app.get<{ Params: { sessionId: string }; Querystring: { install_id?: string } }>(
     "/api/v1/mobile/field-sessions/:sessionId/recap",
-    async (request) => {
+    async (request, reply) => {
       const session = await getSessionFromMobileAuth(request).catch(() => null);
-      const recap = await getMobileFieldSessionRecap(request.params.sessionId, session?.userId ?? null);
+      const recap = await getMobileFieldSessionRecap(request.params.sessionId, session?.userId ?? null, request.query.install_id ?? null);
+      reply.header("Cache-Control", "private, no-store");
       return { ok: true, recap };
     },
   );

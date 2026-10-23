@@ -14,7 +14,20 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
-import { worker } from "./index";
+import { worker as runtimeWorker } from "./index";
+
+// Cloudflare injects this trusted header at the edge; reproduce it in local fixtures.
+const worker: typeof runtimeWorker = {
+  ...runtimeWorker,
+  fetch(request, env, ctx) {
+    if (!request.headers.has("cf-connecting-ip")) {
+      const headers = new Headers(request.headers);
+      headers.set("cf-connecting-ip", "203.0.113.1");
+      request = new Request(request, { headers });
+    }
+    return runtimeWorker.fetch(request, env, ctx);
+  },
+};
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -1833,6 +1846,7 @@ class FakeD1 {
   parityMetrics: ParityMetricRow[] = [];
   operationAudit: OperationAuditRow[] = [];
   authSessions = new Map<string, AuthSessionRow>();
+  durableRateLimits = new Map<string, { count: number; reset_at_ms: number }>();
   contactSubmissions = new Map<string, ContactSubmissionRow>();
   contactProofNonces = new Map<string, ContactProofNonceRow>();
   userProfiles = new Map<string, UserProfileRow>();
@@ -1951,6 +1965,12 @@ class FakeStatement {
   async run(): Promise<unknown> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("DELETE FROM durable_rate_limits")) {
+      const cutoff = number(v[0]);
+      for (const [key, row] of this.db.durableRateLimits) if (row.reset_at_ms <= cutoff) this.db.durableRateLimits.delete(key);
+      return { meta: { changes: 0 } };
+    }
 
     if (normalized.startsWith("INSERT OR IGNORE INTO observation_event_guest_media")) {
       const submissionId = string(v[0]);
@@ -5097,6 +5117,25 @@ class FakeStatement {
 
     const v = this.values;
 
+    if (normalized.startsWith("SELECT reset_at_ms FROM durable_rate_limits")) {
+      const row = this.db.durableRateLimits.get(string(v[0]));
+      return row ? ({ reset_at_ms: row.reset_at_ms } as T) : null;
+    }
+
+    if (normalized.startsWith("INSERT INTO durable_rate_limits")) {
+      const key = string(v[0]);
+      const proposedReset = number(v[1]);
+      const now = number(v[2]);
+      const limit = number(v[5]);
+      const existing = this.db.durableRateLimits.get(key);
+      if (existing && existing.reset_at_ms > now && existing.count >= limit) return null;
+      const row = existing && existing.reset_at_ms > now
+        ? { count: existing.count + 1, reset_at_ms: existing.reset_at_ms }
+        : { count: 1, reset_at_ms: proposedReset };
+      this.db.durableRateLimits.set(key, row);
+      return ({ reset_at_ms: row.reset_at_ms } as T);
+    }
+
     if (normalized.startsWith("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256")) {
       const row = normalized.includes("WHERE session_id = ? AND participant_id = ? AND idempotency_key = ?")
         ? [...this.db.observationEventGuestMedia.values()].find((item) => item.session_id === string(v[0]) && item.participant_id === string(v[1]) && item.idempotency_key === string(v[2]))
@@ -5302,9 +5341,18 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT object_key, mime, bytes FROM asset_ledger")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset ? ({ object_key: asset.object_key, mime: asset.mime, bytes: asset.bytes } as T) : null;
+    }
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
+    }
+
+    if (normalized.startsWith("SELECT object_key, mime, bytes, owner_user_id, observation_id FROM asset_ledger")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset ? ({ object_key: asset.object_key, mime: asset.mime, bytes: asset.bytes, owner_user_id: asset.owner_user_id, observation_id: asset.observation_id } as T) : null;
     }
 
     if (normalized.startsWith("SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state FROM asset_ledger")) {
@@ -6820,17 +6868,19 @@ class FakeStatement {
       return { results: [...this.db.authorityRecommendationEvidence].sort((a, b) => b.created_at.localeCompare(a.created_at)) as T[] };
     }
     if (normalized.startsWith("SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng, storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json FROM fieldscan_audio_segments WHERE session_id = ?")) {
+      const userId = string(v[1]);
       const rows = [...this.db.fieldscanAudioSegments.values()]
-        .filter((row) => row.session_id === string(v[0]))
+        .filter((row) => row.session_id === string(v[0]) && row.user_id === userId)
         .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at) || a.segment_id.localeCompare(b.segment_id));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT d.segment_id, d.detected_taxon, d.confidence, d.provider, d.dual_agree FROM fieldscan_audio_detections")) {
       const sessionId = string(v[0]);
+      const userId = string(v[1]);
       const rows = this.db.fieldscanAudioDetections
         .filter((row) => {
           const segment = this.db.fieldscanAudioSegments.get(row.segment_id);
-          return segment?.session_id === sessionId && segment.privacy_status === "clean";
+          return segment?.session_id === sessionId && segment.user_id === userId && segment.privacy_status === "clean";
         })
         .map((row) => ({
           segment_id: row.segment_id,
@@ -6928,8 +6978,15 @@ class FakeStatement {
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT scene_digest, payload_json, created_at FROM mobile_field_scene_receipts")) {
+      const userId = nullableString(v[1]);
+      const installId = nullableString(v[4]);
       const rows = [...this.db.mobileFieldSceneReceipts.values()]
-        .filter((row) => row.session_id === string(v[0]))
+        .filter((row) => {
+          if (row.session_id !== string(v[0])) return false;
+          const guideRecord = this.db.guideRecords.get(row.guide_record_id);
+          if (userId) return guideRecord?.user_id === userId;
+          return Boolean(installId && row.install_id === installId && (!row.guide_record_id || guideRecord?.user_id == null));
+        })
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .slice(0, 50)
         .map((row) => ({ scene_digest: row.scene_digest, payload_json: row.payload_json, created_at: row.created_at }));
@@ -8547,12 +8604,15 @@ test("finalize preserves canonical row and pending outbox when queue dispatch fa
   assert.equal(observation?.public_cell, "34.71,137.81");
 });
 
-test("synthetic 10k daily profile creates one durable observation and three media ledger rows per record", async () => {
+test("synthetic 10k daily profile creates one durable observation and three media ledger rows per record", async (t) => {
+  // Model the stated daily workload, rather than compressing a day into one rate window.
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
   const { env, obs, queue } = createEnv();
   const records = 10_000;
   const mediaPerRecord = 3;
 
   for (let i = 0; i < records; i++) {
+    t.mock.timers.tick(86_400_000 / records);
     const draft = await post("/api/v0/draft-observations", env, {
       userId: `load-user-${i % 100}`,
       observedAt: "2026-06-15T00:00:00.000Z",
@@ -8602,10 +8662,7 @@ test("r2 inventory is limited to shadow environment and bounded prefixes", async
     userId: "r2-user",
     media: [{ mime: "text/plain", bytes: 6, sha256: "r2" }]
   });
-  await worker.fetch(new Request(`https://shadow.test${draft.assets[0].uploadUrl}`, {
-    method: "PUT",
-    body: "sample"
-  }), env);
+  await putV0Asset(draft.assets[0].uploadUrl, env, "sample");
 
   const response = await worker.fetch(internalRequest("/internal/r2-inventory?prefix=original/&limit=10"), env);
   const payload = await response.json() as any;
@@ -8622,21 +8679,42 @@ test("r2 inventory is limited to shadow environment and bounded prefixes", async
   assert.equal(productionResponse.status, 404);
 });
 
+test("v0 asset body PUT rejects bytes or containers inconsistent with its declared contract", async () => {
+  const { env, obs } = createEnv();
+  const draft = await post("/api/v0/draft-observations", env, {
+    userId: "asset-upload-validation-user",
+    media: [
+      { mime: "text/plain", bytes: 4, sha256: "size-mismatch" },
+      { mime: "image/jpeg", bytes: 8, sha256: "type-mismatch" },
+      { mime: "text/plain", bytes: 4, sha256: "valid-text" },
+    ],
+  });
+  const put = (index: number, body: string) => putV0Asset(draft.assets[index].uploadUrl, env, body);
+  const wrongLength = await put(0, "too many bytes");
+  assert.equal(wrongLength.status, 413);
+  assert.equal(env.ASSET_BUCKET.objects.size, 0);
+  const wrongType = await put(1, "not jpeg");
+  assert.equal(wrongType.status, 400);
+  assert.equal(env.ASSET_BUCKET.objects.size, 0);
+  const accepted = await put(2, "text");
+  assert.equal(accepted.status, 200);
+  assert.equal(env.ASSET_BUCKET.objects.size, 1);
+  assert.equal([...obs.assets.values()].filter((asset) => asset.processing_state === "uploaded").length, 1);
+});
+
 test("public read model waits until uploaded media has scrubbed public derivatives", async () => {
   const { env, obs } = createEnv();
+  const sourcePng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=", "base64");
   const draft = await post("/api/v0/draft-observations", env, {
     userId: "public-user",
     observedAt: "2026-06-15T00:00:00.000Z",
     exactLat: 34.71234,
     exactLng: 137.81234,
     visibility: "public",
-    media: [{ mime: "image/jpeg", bytes: 1200, sha256: "asset-sha" }]
+    media: [{ mime: "image/png", bytes: sourcePng.byteLength, sha256: "asset-sha" }]
   });
 
-  await worker.fetch(new Request(`https://shadow.test${draft.assets[0].uploadUrl}`, {
-    method: "PUT",
-    body: "sample"
-  }), env);
+  await putV0Asset(draft.assets[0].uploadUrl, env, sourcePng);
   const finalized = await post("/api/v0/observations/finalize", env, {
     draftId: draft.draftId,
     taxonLabel: "public gated"
@@ -11023,6 +11101,7 @@ test("v1 observation upsert converges concurrent equivalent submissions to one r
 });
 
 test("v1 observation idempotency fingerprints every stored area-watch source field", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
   const base = createEnv();
   const migrationSql = await readFile(new URL("../migrations/observations/0051_observation_write_idempotency.sql", import.meta.url), "utf8");
   const obs = new ObservationIdempotencySqliteD1(migrationSql);
@@ -11049,6 +11128,7 @@ test("v1 observation idempotency fingerprints every stored area-watch source fie
   ];
 
   for (const [index, change] of materialChanges.entries()) {
+    t.mock.timers.tick(600_001);
     const clientSubmissionId = `area-watch-material:${change.field}`;
     const body = {
       observationId: `area-watch-material-original-${index}`,
@@ -13304,6 +13384,27 @@ test("v1 auth login keeps original form contract with Cloudflare-native sessions
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
 });
 
+test("v1 auth login rate limits by IP plus normalized email and returns 429 after the cap", async () => {
+  const { env } = createEnv();
+  const headers = (ip: string) => ({
+    "content-type": "application/json",
+    origin: "https://shadow.test",
+    "sec-fetch-site": "same-origin",
+    "cf-connecting-ip": ip,
+  });
+  const attempt = (ip: string, email: string) => worker.fetch(new Request("https://shadow.test/api/v1/auth/login", {
+    method: "POST", headers: headers(ip), body: JSON.stringify({ email, password: "wrong" }),
+  }), env);
+  for (let index = 0; index < 8; index += 1) {
+    assert.equal((await attempt("203.0.113.41", "VICTIM@example.test")).status, 401);
+  }
+  const limited = await attempt("203.0.113.41", "victim@example.test");
+  assert.equal(limited.status, 429);
+  assert.equal(limited.headers.has("retry-after"), true);
+  // A caller on another IP cannot lock the account's email bucket for the victim.
+  assert.equal((await attempt("203.0.113.42", "victim@example.test")).status, 401);
+});
+
 test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
   const { env } = createEnv();
   const passwordHash = (await bcrypt.hash("legacy-password", 10)).replace("$2b$", "$2y$");
@@ -14876,6 +14977,48 @@ test("production guide outcome runtime uses Cloudflare D1 without origin fallbac
     const mobileRecapPayload = await mobileRecap.json() as any;
     assert.equal(mobileRecapPayload.recap.sceneCount, 1);
     assert.equal(mobileRecapPayload.recap.latestDigest, "道路沿いの樹木と草地が続く");
+    const otherMobileToken = "other-mobile-user-token";
+    const otherMobileTokenHash = createHash("sha256").update(otherMobileToken).digest("hex");
+    core.authSessions.set(otherMobileTokenHash, {
+      token_hash: otherMobileTokenHash,
+      user_id: "other-mobile-user",
+      display_name: "Other User",
+      role_name: "Observer",
+      rank_label: null,
+      banned: 0,
+      expires_at: "2099-01-01T00:00:00.000Z",
+      last_used_at: null
+    });
+    const otherMobileRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/recap", {
+      headers: { cookie: `ikimon_v2_session=${otherMobileToken}` }
+    }), productionEnv);
+    assert.equal((await otherMobileRecap.json() as any).recap.sceneCount, 0);
+
+    const anonymousMobileRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/mobile-session-1/recap"), productionEnv);
+    const anonymousMobileRecapPayload = await anonymousMobileRecap.json() as any;
+    assert.equal(anonymousMobileRecap.status, 200);
+    assert.equal(anonymousMobileRecapPayload.recap.sceneCount, 0);
+    assert.equal(anonymousMobileRecapPayload.recap.latestDigest, "");
+
+    const anonymousDigest = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/anonymous-mobile-session/scene-digest", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        install_id: "anonymous-install-1",
+        client_scene_id: "anonymous-scene-1",
+        lat: 34.7,
+        lng: 137.7,
+        scene_digest: "匿名端末の草地記録",
+        area_resolution_signals: ["草地"]
+      })
+    }), productionEnv);
+    assert.equal(anonymousDigest.status, 200, await anonymousDigest.text());
+    const anonymousOwnRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/anonymous-mobile-session/recap?install_id=anonymous-install-1"), productionEnv);
+    const anonymousOwnRecapPayload = await anonymousOwnRecap.json() as any;
+    assert.equal(anonymousOwnRecapPayload.recap.sceneCount, 1);
+    assert.equal(anonymousOwnRecapPayload.recap.latestDigest, "匿名端末の草地記録");
+    const anonymousWrongInstallRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/mobile/field-sessions/anonymous-mobile-session/recap?install_id=other-install"), productionEnv);
+    assert.equal((await anonymousWrongInstallRecap.json() as any).recap.sceneCount, 0);
 
     const outcomes = await worker.fetch(new Request("https://ikimon.life/guide/outcomes", {
       headers: { cookie: `ikimon_v2_session=${rawToken}` }
@@ -14988,7 +15131,7 @@ test("production passive audio ingest rejects non-privileged or invalid events b
 });
 
 test("production fieldscan audio runtime stores private R2 audio, detection callbacks, playback, and recap without origin fallback", async () => {
-  const { env } = createEnv();
+  const { env, core } = createEnv();
   const productionEnv = {
     ...env,
     ENVIRONMENT: "production",
@@ -15083,6 +15226,22 @@ test("production fieldscan audio runtime stores private R2 audio, detection call
     assert.equal(recapPayload.recap.cleanSegmentCount, 1);
     assert.equal(recapPayload.recap.uniqueTaxa[0].taxon, "ヒヨドリ");
     assert.equal(recapPayload.recap.soundBundles[0].representativeAudioUrl, `/api/v1/fieldscan/audio/segment/${encodeURIComponent(submitPayload.segmentId)}`);
+    assert.equal(recap.headers.get("cache-control"), "private, no-store");
+
+    const anonymousRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/session/fieldscan-session-1/recap"), productionEnv);
+    assert.equal(anonymousRecap.status, 401);
+    assert.deepEqual(await anonymousRecap.json(), { ok: false, error: "unauthorized" });
+    const otherUserIssue = await worker.fetch(new Request("https://ikimon-life-cloudflare-prod.yamaki0102.workers.dev/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({ userId: "fieldscan-other-user", ttlHours: 1 })
+    }), productionEnv);
+    const otherUserCookie = otherUserIssue.headers.get("set-cookie") ?? "";
+    const otherUserRecap = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/session/fieldscan-session-1/recap", {
+      headers: { cookie: otherUserCookie }
+    }), productionEnv);
+    assert.equal(otherUserRecap.status, 404);
+    assert.deepEqual(await otherUserRecap.json(), { ok: false, error: "fieldscan_session_not_found" });
 
     const speechSubmit = await worker.fetch(new Request("https://ikimon.life/api/v1/fieldscan/audio/submit", {
       method: "POST",
@@ -15786,6 +15945,7 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
   const stagingEnv = {
     ...env,
     ENVIRONMENT: "staging",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key",
   };
   await env.ASSET_BUCKET.put("original-ui/html/demo/place-feeling-tags.html", "<!doctype html><title>ひとことタグ デモ</title><main>実データではありません place_feeling_tags</main>", {
     httpMetadata: { contentType: "text/html; charset=utf-8" }
@@ -15805,7 +15965,7 @@ test("staging runtime uses Cloudflare app shell without exposing shadow diagnost
 
   const issueSession = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
     body: JSON.stringify({ userId: "staging-user", displayName: "Staging User" })
   }), stagingEnv);
   assert.equal(issueSession.status, 200);
@@ -18858,6 +19018,105 @@ test("production workers.dev compatible session issue requires privileged write 
   assert.equal(payload.session.userId, "workers-dev-session-user");
   assert.match(allowed.headers.get("set-cookie") ?? "", /^ikimon_v2_session=.*HttpOnly; SameSite=Lax; Secure;/);
   assert.equal(core.authSessions.size, 1);
+});
+
+test("staging compatible session issue rejects caller-selected identity without privileged write key", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
+  const response = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "attacker", roleName: "Admin", ttlHours: 1 })
+  }), stagingEnv);
+
+  assert.equal(response.status, 403);
+  assert.equal(core.authSessions.size, 0);
+  assert.deepEqual(await response.json(), { ok: false, error: "forbidden" });
+
+  const authorized = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ userId: "authorized-test-user", displayName: "Authorized Test User", ttlHours: 1 })
+  }), { ...stagingEnv, V2_PRIVILEGED_WRITE_API_KEY: "write-key" });
+  const payload = await authorized.json() as any;
+  assert.equal(authorized.status, 200, JSON.stringify(payload));
+  assert.equal(payload.session.userId, "authorized-test-user");
+  assert.equal(core.authSessions.size, 1);
+});
+
+test("staging observation upsert and photo upload require same-origin owner session", async () => {
+  const { env, core, obs } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging", V2_PRIVILEGED_WRITE_API_KEY: "write-key" };
+  const issueCookie = async (userId: string): Promise<string> => {
+    const response = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+      body: JSON.stringify({ userId, ttlHours: 1 })
+    }), stagingEnv);
+    assert.equal(response.status, 200, await response.clone().text());
+    return response.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issueCookie("staging-record-owner");
+  const otherCookie = await issueCookie("staging-record-other");
+  const observationId = "staging-record-authz-contract";
+  const recordBody = {
+    observationId,
+    userId: "staging-record-owner",
+    observedAt: "2026-10-23T00:00:00.000Z",
+    latitude: 34.7,
+    longitude: 137.7,
+    visibility: "private",
+    sourcePayload: { source: "staging-authz-contract" }
+  };
+  const upsert = (headers: Record<string, string>, body = recordBody) => worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify(body)
+  }), stagingEnv);
+
+  const anonymousUpsert = await upsert({});
+  assert.equal(anonymousUpsert.status, 401);
+  assert.equal(obs.observations.has(observationId), false);
+
+  const crossUserUpsert = await upsert({ cookie: ownerCookie }, { ...recordBody, observationId: `${observationId}-cross-user`, userId: "staging-record-other" });
+  assert.equal(crossUserUpsert.status, 403);
+  assert.equal(obs.observations.has(`${observationId}-cross-user`), false);
+
+  const crossOriginUpsert = await upsert({ cookie: ownerCookie, origin: "https://attacker.example" });
+  assert.equal(crossOriginUpsert.status, 403);
+  assert.equal(obs.observations.has(observationId), false);
+
+  const ownerUpsert = await upsert({ cookie: ownerCookie });
+  assert.equal(ownerUpsert.status, 201, await ownerUpsert.text());
+  assert.equal(obs.observations.get(observationId)?.owner_user_id, "staging-record-owner");
+
+  const photoUrl = `https://staging.ikimon.life/api/v1/observations/${observationId}/photos/upload`;
+  const photoBody = JSON.stringify({ filename: "owner.png", mimeType: "image/png", base64Data: tinyPngBase64() });
+  const upload = (headers: Record<string, string>) => worker.fetch(new Request(photoUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: photoBody
+  }), stagingEnv);
+  const assetsBeforeUpload = obs.assets.size;
+
+  const anonymousPhoto = await upload({});
+  assert.equal(anonymousPhoto.status, 401);
+  const crossUserPhoto = await upload({ cookie: otherCookie });
+  assert.equal(crossUserPhoto.status, 403);
+  const crossOriginPhoto = await upload({ cookie: ownerCookie, origin: "https://attacker.example" });
+  assert.equal(crossOriginPhoto.status, 403);
+  assert.equal(obs.assets.size, assetsBeforeUpload);
+
+  const ownerPhoto = await upload({ cookie: ownerCookie });
+  assert.equal(ownerPhoto.status, 200, await ownerPhoto.text());
+  assert.equal(obs.assets.size, assetsBeforeUpload + 1);
+  assert.equal([...obs.assets.values()].some((asset: any) => asset.observation_id === observationId && asset.owner_user_id === "staging-record-owner"), true);
+  assert.ok(core.authSessions.size >= 2);
+  for (const session of core.authSessions.values()) {
+    if (session.user_id === "staging-record-owner") session.banned = 1;
+  }
+  assert.equal((await upsert({ cookie: ownerCookie })).status, 403);
+  assert.equal((await upload({ cookie: ownerCookie })).status, 403);
 });
 
 test("production public cloudflare-native mode rejects custom-domain session issue", async () => {
@@ -25348,6 +25607,7 @@ test("staging audio upload route creates a real public audio home card state", a
   const stagingEnv = {
     ...env,
     ENVIRONMENT: "staging",
+    V2_PRIVILEGED_WRITE_API_KEY: "write-key",
   };
   await env.ASSET_BUCKET.put("original-ui/html/ja.html", [
     "<!doctype html><head></head><body>",
@@ -25357,9 +25617,18 @@ test("staging audio upload route creates a real public audio home card state", a
     "</body>"
   ].join(""), { httpMetadata: { contentType: "text/html; charset=utf-8" } });
 
+  const sessionResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-ikimon-write-key": "write-key" },
+    body: JSON.stringify({ userId: "staging-audio-user", displayName: "Staging Audio User", ttlHours: 1 })
+  }), stagingEnv);
+  assert.equal(sessionResponse.status, 200, await sessionResponse.text());
+  const cookie = sessionResponse.headers.get("set-cookie") ?? "";
+  assert.match(cookie, /ikimon_v2_session=/);
+
   const recordResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/upsert", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
       observationId: "staging-clean-audio-card",
       clientSubmissionId: "staging-clean-audio-card-test",
@@ -25374,15 +25643,6 @@ test("staging audio upload route creates a real public audio home card state", a
     })
   }), stagingEnv);
   assert.equal(recordResponse.status, 201, await recordResponse.text());
-
-  const sessionResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/auth/session/issue", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ userId: "staging-audio-user", displayName: "Staging Audio User", ttlHours: 1 })
-  }), stagingEnv);
-  assert.equal(sessionResponse.status, 200, await sessionResponse.text());
-  const cookie = sessionResponse.headers.get("set-cookie") ?? "";
-  assert.match(cookie, /ikimon_v2_session=/);
 
   const audioResponse = await worker.fetch(new Request("https://staging.ikimon.life/api/v1/observations/staging-clean-audio-card/audio/upload", {
     method: "POST",
@@ -28574,20 +28834,122 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
   }
 });
 
+const v0SessionCookies = new WeakMap<object, Map<string, string>>();
+const v0DraftOwners = new WeakMap<object, Map<string, string>>();
+const v0AssetOwners = new WeakMap<object, Map<string, string>>();
+
+async function v0TestCookie(env: ReturnType<typeof createEnv>["env"], userId: string): Promise<string> {
+  let sessions = v0SessionCookies.get(env);
+  if (!sessions) { sessions = new Map(); v0SessionCookies.set(env, sessions); }
+  const cached = sessions.get(userId);
+  if (cached) return cached;
+  const response = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId, ttlHours: 48 })
+  }), env);
+  const cookie = response.headers.get("set-cookie")?.split(";", 1)[0];
+  assert.equal(response.status, 200);
+  assert.ok(cookie);
+  sessions.set(userId, cookie);
+  return cookie;
+}
+
 async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {
+  let cookie: string | undefined;
+  let clientIp = "203.0.113.1";
+  if (path === "/api/v0/draft-observations") {
+    const userId = (body as { userId?: unknown })?.userId;
+    if (typeof userId === "string") {
+      cookie = await v0TestCookie(env, userId);
+      const client = /^load-user-(\d+)$/.exec(userId);
+      if (client) clientIp = `198.18.0.${Number(client[1]) + 1}`;
+    }
+  } else if (path === "/api/v0/observations/finalize") {
+    const draftId = (body as { draftId?: unknown })?.draftId;
+    const owner = typeof draftId === "string" ? v0DraftOwners.get(env)?.get(draftId) : undefined;
+    if (owner) {
+      cookie = await v0TestCookie(env, owner);
+      const client = /^load-user-(\d+)$/.exec(owner);
+      if (client) clientIp = `198.18.0.${Number(client[1]) + 1}`;
+    }
+  }
   const response = await worker.fetch(new Request(`https://shadow.test${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: "https://shadow.test", "cf-connecting-ip": clientIp, ...(cookie ? { cookie } : {}) },
     body: JSON.stringify(body)
   }), env);
   const payload = await response.json() as any;
   assert.equal(response.ok, true, JSON.stringify(payload));
+  if (path === "/api/v0/draft-observations" && typeof payload.draftId === "string") {
+    const owner = (body as { userId: string }).userId;
+    let drafts = v0DraftOwners.get(env);
+    if (!drafts) { drafts = new Map(); v0DraftOwners.set(env, drafts); }
+    drafts.set(payload.draftId, owner);
+    let assets = v0AssetOwners.get(env);
+    if (!assets) { assets = new Map(); v0AssetOwners.set(env, assets); }
+    for (const asset of payload.assets ?? []) assets.set(asset.assetId, owner);
+  }
   return payload;
+}
+
+async function putV0Asset(path: string, env: ReturnType<typeof createEnv>["env"], body: BodyInit): Promise<Response> {
+  const assetId = decodeURIComponent(path.split("/").at(-2) ?? "");
+  const owner = v0AssetOwners.get(env)?.get(assetId);
+  const cookie = owner ? await v0TestCookie(env, owner) : undefined;
+  return worker.fetch(new Request(`https://shadow.test${path}`, {
+    method: "PUT", headers: { origin: "https://shadow.test", ...(cookie ? { cookie } : {}) }, body
+  }), env);
 }
 
 function normalize(query: string): string {
   return query.replace(/\s+/g, " ").trim();
 }
+
+test("v0 observation draft, upload and finalize routes enforce same-origin owner sessions", async () => {
+  const { env, obs } = createEnv();
+  const issue = async (userId: string) => {
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, ttlHours: 1 })
+    }), env);
+    assert.equal(response.status, 200);
+    return response.headers.get("set-cookie")!.split(";", 1)[0]!;
+  };
+  const send = async (path: string, method: string, body: unknown, cookie?: string, origin = "https://shadow.test") => worker.fetch(new Request(`https://shadow.test${path}`, {
+    method,
+    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}), ...(origin ? { origin } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  }), env);
+  const victimCookie = await issue("v0-victim");
+  const attackerCookie = await issue("v0-attacker");
+  const bannedCookie = await issue("v0-banned");
+  const bannedToken = bannedCookie.slice(bannedCookie.indexOf("=") + 1);
+  const bannedHash = createHash("sha256").update(bannedToken).digest("hex");
+  env.CORE_DB.authSessions.get(bannedHash)!.banned = 1;
+  const anonymousDraft = await send("/api/v0/draft-observations", "POST", { userId: "v0-victim", visibility: "public" });
+  assert.equal(anonymousDraft.status, 401);
+  const crossUserDraft = await send("/api/v0/draft-observations", "POST", { userId: "v0-victim", visibility: "public" }, attackerCookie);
+  assert.equal(crossUserDraft.status, 403);
+  assert.equal((await send("/api/v0/draft-observations", "POST", { userId: "v0-banned" }, bannedCookie)).status, 403);
+  const ownDraftResponse = await send("/api/v0/draft-observations", "POST", { userId: "v0-victim", visibility: "private", media: [{ mime: "text/plain", bytes: JSON.stringify("upload bytes").length }] }, victimCookie);
+  assert.equal(ownDraftResponse.status, 200);
+  const ownDraft = await ownDraftResponse.json() as any;
+  const assetId = ownDraft.assets[0].assetId as string;
+  assert.equal((await send(ownDraft.assets[0].uploadUrl, "PUT", "upload bytes")).status, 401);
+  const attackerUpload = await send(ownDraft.assets[0].uploadUrl, "PUT", undefined, attackerCookie);
+  assert.equal(attackerUpload.status, 403);
+  const ownerUpload = await send(ownDraft.assets[0].uploadUrl, "PUT", "upload bytes", victimCookie);
+  assert.equal(ownerUpload.status, 200);
+  const attackerFinalize = await send("/api/v0/observations/finalize", "POST", { draftId: ownDraft.draftId }, attackerCookie);
+  assert.equal(attackerFinalize.status, 403);
+  const ownerFinalize = await send("/api/v0/observations/finalize", "POST", { draftId: ownDraft.draftId }, victimCookie);
+  assert.equal(ownerFinalize.status, 201, await ownerFinalize.clone().text());
+  assert.equal([...obs.observations.values()][0]?.owner_user_id, "v0-victim");
+  assert.equal([...obs.assets.values()][0]?.asset_id, assetId);
+  assert.equal((await send(ownDraft.assets[0].uploadUrl, "PUT", "tampering bytes", victimCookie)).status, 409);
+  assert.equal((await send("/api/v0/observations/finalize", "POST", { draftId: ownDraft.draftId })).status, 401);
+  assert.equal((await send("/api/v0/observations/finalize", "POST", { draftId: ownDraft.draftId }, victimCookie, "https://attacker.test")).status, 403);
+});
 
 function renriFixtureFakeRows(db: FakeD1, table: string): Array<Record<string, unknown>> {
   const mapRows = (map: Map<string, unknown>) => [...map.values()] as Array<Record<string, unknown>>;

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { loadConfig } from "../config.js";
 import { getPool } from "../db.js";
 import { createLegacyMediaObjectStore } from "./mediaObjectStore.js";
@@ -1108,7 +1108,20 @@ export async function recordAudioDetections(input: AudioDetectionCallbackInput):
 }
 
 export async function getSessionRecap(sessionId: string, viewerUserId?: string | null): Promise<SessionRecap> {
-  const pool = getPool();
+  return getSessionRecapWithPool(getPool(), sessionId, viewerUserId);
+}
+
+async function getSessionRecapWithPool(pool: Pool, sessionId: string, viewerUserId?: string | null): Promise<SessionRecap> {
+  if (!viewerUserId) {
+    throw new Error("fieldscan_session_not_found");
+  }
+  const ownership = await pool.query(
+    `select 1 from audio_segments where session_id = $1 and user_id = $2 limit 1`,
+    [sessionId, viewerUserId],
+  );
+  if (ownership.rows.length === 0) {
+    throw new Error("fieldscan_session_not_found");
+  }
   const seg = await pool.query<{
     segment_count: string;
     clean_segment_count: string;
@@ -1132,8 +1145,8 @@ export async function getSessionRecap(sessionId: string, viewerUserId?: string |
             min(lng) filter (where privacy_status = 'clean') as min_lng,
             max(lng) filter (where privacy_status = 'clean') as max_lng
        from audio_segments
-      where session_id = $1`,
-    [sessionId],
+      where session_id = $1 and user_id = $2`,
+    [sessionId, viewerUserId],
   );
   const segStat = seg.rows[0] ?? {
     segment_count: "0",
@@ -1159,12 +1172,12 @@ export async function getSessionRecap(sessionId: string, viewerUserId?: string |
             (array_agg(d.provider order by d.confidence desc))[1] as provider
        from audio_detections d
        join audio_segments s on s.segment_id = d.segment_id
-      where s.session_id = $1
+      where s.session_id = $1 and s.user_id = $2
         and s.privacy_status = 'clean'
       group by d.detected_taxon
       order by max(d.confidence) desc
       limit 50`,
-    [sessionId],
+    [sessionId, viewerUserId],
   );
 
   const bundleRows = await pool.query<{
@@ -1183,9 +1196,9 @@ export async function getSessionRecap(sessionId: string, viewerUserId?: string |
             last_recorded_at::text as last_recorded_at,
             representative_segment_id, candidate_taxon, best_confidence, dual_agree
        from sound_bundles
-      where session_id = $1
+      where session_id = $1 and user_id = $2
       order by first_recorded_at asc nulls last, bundle_id asc`,
-    [sessionId],
+    [sessionId, viewerUserId],
   );
 
   const bbox = segStat.min_lat != null && segStat.max_lat != null && segStat.min_lng != null && segStat.max_lng != null
@@ -1225,6 +1238,8 @@ export async function getSessionRecap(sessionId: string, viewerUserId?: string |
     })),
   };
 }
+
+export const __test__ = { getSessionRecapWithPool };
 
 export async function loadAudioSegmentForPlayback(segmentId: string, userId: string): Promise<{ mimeType: string; data: Buffer } | null> {
   const pool = getPool();

@@ -197,10 +197,19 @@ export async function registerFieldscanApiRoutes(app: FastifyInstance): Promise<
     async (request, reply) => {
       try {
         const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-        const recap = await getSessionRecap(request.params.id, session?.userId ?? null);
+        if (!session?.userId || session.banned) {
+          reply.code(401).header("Cache-Control", "private, no-store");
+          return { ok: false, error: "unauthorized" };
+        }
+        const recap = await getSessionRecap(request.params.id, session.userId);
+        reply.header("Cache-Control", "private, no-store");
         return { ok: true, recap };
       } catch (error) {
-        reply.code(500);
+        if (error instanceof Error && error.message === "fieldscan_session_not_found") {
+          reply.code(404).header("Cache-Control", "private, no-store");
+          return { ok: false, error: error.message };
+        }
+        reply.code(500).header("Cache-Control", "private, no-store");
         return { ok: false, error: error instanceof Error ? error.message : "recap_failed" };
       }
     },

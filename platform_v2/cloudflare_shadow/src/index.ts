@@ -1,6 +1,7 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
+import { consumeDurableRateLimit, trustedClientIp } from "./durableRateLimit";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
@@ -38,6 +39,7 @@ import {
 } from "./recordRecoveryHtml";
 import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
+import { readAndValidateAssetUploadBody } from "./assetUploadValidation";
 import { screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
 import {
   OBSERVATION_AI_PROMPT_VERSION,
@@ -18595,10 +18597,10 @@ async function handleFieldscanAudioRuntime(request: Request, url: URL, env: Env)
     return null;
   } catch (error) {
     if (error instanceof HttpError) {
-      return json({ ok: false, error: error.message }, error.status, nativeGuideHeaders("fieldscan-audio-runtime"));
+      return json({ ok: false, error: error.message }, error.status, { ...nativeGuideHeaders("fieldscan-audio-runtime"), "cache-control": "private, no-store" });
     }
     console.error("[fieldscan-audio] native runtime failed", error);
-    return json({ ok: false, error: error instanceof Error ? error.message : "fieldscan_audio_runtime_failed" }, 500, nativeGuideHeaders("fieldscan-audio-runtime"));
+    return json({ ok: false, error: error instanceof Error ? error.message : "fieldscan_audio_runtime_failed" }, 500, { ...nativeGuideHeaders("fieldscan-audio-runtime"), "cache-control": "private, no-store" });
   }
 }
 
@@ -18701,7 +18703,7 @@ async function submitFieldscanAudioNative(request: Request, env: Env): Promise<R
     segmentId: finalSegmentId,
     created: !existing,
     privacyStatus: privacy.decision
-  }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+  }, 200, { ...nativeGuideHeaders("fieldscan-audio-runtime"), "cache-control": "private, no-store" });
 }
 
 async function recordFieldscanAudioDetectionsNative(request: Request, env: Env): Promise<Response> {
@@ -18834,21 +18836,23 @@ async function getFieldscanAudioPlaybackNative(request: Request, env: Env, segme
 
 async function getFieldscanAudioSessionRecapNative(request: Request, env: Env, sessionId: string): Promise<Response> {
   const session = await readCompatibleSession(request, env);
+  if (!session?.userId || session.banned) throw new HttpError(401, "unauthorized");
   const rows = (await env.OBS_DB.prepare(
     `SELECT segment_id, external_id, session_id, user_id, visit_id, place_id, recorded_at, duration_sec, lat, lng,
             storage_key, mime_type, bytes, privacy_status, fingerprint_json, meta_json
        FROM fieldscan_audio_segments
-      WHERE session_id = ?
+      WHERE session_id = ? AND user_id = ?
       ORDER BY recorded_at ASC, segment_id ASC`
-  ).bind(sessionId).all<FieldscanAudioSegmentRow>()).results;
+  ).bind(sessionId, session.userId).all<FieldscanAudioSegmentRow>()).results;
+  if (rows.length === 0) throw new HttpError(404, "fieldscan_session_not_found");
   const cleanRows = rows.filter((row) => row.privacy_status === "clean");
   const detectionRows = (await env.OBS_DB.prepare(
     `SELECT d.segment_id, d.detected_taxon, d.confidence, d.provider, d.dual_agree
        FROM fieldscan_audio_detections d
        JOIN fieldscan_audio_segments s ON s.segment_id = d.segment_id
-      WHERE s.session_id = ?
+      WHERE s.session_id = ? AND s.user_id = ?
         AND s.privacy_status = 'clean'`
-  ).bind(sessionId).all<{ segment_id: string; detected_taxon: string; confidence: number; provider: string; dual_agree: number }>()).results;
+  ).bind(sessionId, session.userId).all<{ segment_id: string; detected_taxon: string; confidence: number; provider: string; dual_agree: number }>()).results;
   const byTaxon = new Map<string, { count: number; bestConfidence: number; provider: string }>();
   for (const row of detectionRows) {
     const current = byTaxon.get(row.detected_taxon) ?? { count: 0, bestConfidence: 0, provider: row.provider };
@@ -18902,7 +18906,7 @@ async function getFieldscanAudioSessionRecapNative(request: Request, env: Env, s
         : null,
       soundBundles: bundles
     }
-  }, 200, nativeGuideHeaders("fieldscan-audio-runtime"));
+  }, 200, { ...nativeGuideHeaders("fieldscan-audio-runtime"), "cache-control": "private, no-store" });
 }
 
 async function findFieldscanAudioSegment(env: Env, input: Record<string, unknown>): Promise<FieldscanAudioSegmentRow | null> {
@@ -20632,13 +20636,29 @@ async function acceptMobileAudioEventsNative(request: Request, sessionId: string
 
 async function getMobileFieldSessionRecapNative(request: Request, sessionId: string, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env);
+  const requestUrl = new URL(request.url);
+  let body: Record<string, unknown> = {};
+  if (request.method === "POST") body = await readJson<Record<string, unknown>>(request).catch(() => ({}));
+  const installId = normalizeOptionalText(body.install_id ?? body.installId ?? requestUrl.searchParams.get("install_id"));
   const rows = await env.OBS_DB.prepare(
     `SELECT scene_digest, payload_json, created_at
-       FROM mobile_field_scene_receipts
-      WHERE session_id = ?
+       FROM mobile_field_scene_receipts r
+      WHERE r.session_id = ?
+        AND (
+          (? IS NOT NULL AND EXISTS (
+            SELECT 1 FROM guide_records gr
+             WHERE gr.guide_record_id = r.guide_record_id AND gr.user_id = ?
+          ))
+          OR (? IS NULL AND ? IS NOT NULL AND r.install_id = ? AND (
+            r.guide_record_id IS NULL OR EXISTS (
+              SELECT 1 FROM guide_records gr
+               WHERE gr.guide_record_id = r.guide_record_id AND gr.user_id IS NULL
+            )
+          ))
+        )
       ORDER BY created_at DESC
       LIMIT 50`
-  ).bind(sessionId).all<Record<string, D1Value>>();
+  ).bind(sessionId, session?.userId ?? null, session?.userId ?? null, session?.userId ?? null, installId, installId).all<Record<string, D1Value>>();
   const digests = rows.results.map((row) => String(row.scene_digest ?? "")).filter(Boolean);
   const nextLook = Array.from(new Set(rows.results.flatMap((row) => {
     const payload = parseGuideJson(String(row.payload_json ?? "{}"));
@@ -20654,7 +20674,7 @@ async function getMobileFieldSessionRecapNative(request: Request, sessionId: str
       nextLook
     },
     userAuthState: session ? "logged_in" : "anonymous"
-  }, 200, nativeGuideHeaders("mobile-field-session-recap-api"));
+  }, 200, { ...nativeGuideHeaders("mobile-field-session-recap-api"), "cache-control": "private, no-store" });
 }
 
 function renderGuideOutcomesHtml(summaries: Array<Record<string, D1Value>>): string {
@@ -30154,9 +30174,28 @@ async function readLatestPublicObservationEnvironmentRecord(env: Env, visitId: s
   }
 }
 
+async function requireV0ObservationOwner(request: Request, env: Env, expectedUserId?: string): Promise<SessionSnapshot | Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session) return json({ error: "session_required" }, 401, { "cache-control": "no-store" });
+  if (session.banned) return json({ error: "account_unavailable" }, 403, { "cache-control": "no-store" });
+  if (expectedUserId && session.userId !== expectedUserId) {
+    return json({ error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
+  return session;
+}
+
 async function createDraftObservation(request: Request, env: Env): Promise<Response> {
+  const originError = assertSameOriginRequest(request, true);
+  if (originError) return originError;
   const input = await readJson<DraftObservationInput>(request);
   assertNonEmpty(input.userId, "userId");
+  const auth = await requireV0ObservationOwner(request, env, input.userId);
+  if (auth instanceof Response) return auth;
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "record-draft-ip", key: "ip", limit: 30, windowMs: 600_000 },
+    { scope: "record-draft-user", key: input.userId, limit: 30, windowMs: 600_000 },
+  ]);
+  if (limited) return limited;
 
   const media = input.media ?? [];
   if (media.length > MAX_MEDIA_PER_DRAFT) {
@@ -30280,10 +30319,10 @@ async function issueCompatibleSession(request: Request, env: Env): Promise<Respo
 }
 
 function assertCompatibleSessionIssueAccess(request: Request, env: Env): true | Response {
-  if (env.ENVIRONMENT !== "production") return true;
-  if (PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname)) {
+  if (env.ENVIRONMENT === "production" && PUBLIC_CUSTOM_HOSTS.has(new URL(request.url).hostname)) {
     return json({ ok: false, error: "not_available" }, 404, { "cache-control": "no-store" });
   }
+  if (env.ENVIRONMENT !== "production" && env.ENVIRONMENT !== "staging") return true;
   return assertPrivilegedWriteAccessNative(request, env);
 }
 
@@ -30576,6 +30615,32 @@ async function cleanupBrowserRunStagingAccountNative(request: Request, env: Env)
   });
 }
 
+type DurableLimitSpec = { scope: string; key: "ip" | string; limit: number; windowMs: number; combineIp?: boolean };
+
+async function enforceDurableRateLimits(env: Env, request: Request, limits: DurableLimitSpec[]): Promise<Response | null> {
+  const hostname = new URL(request.url).hostname;
+  const localRuntime = env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "development";
+  const ip = trustedClientIp(request) ?? (localRuntime && ["shadow.test", "localhost", "127.0.0.1"].includes(hostname) ? "local" : null);
+  if (!ip) return json({ ok: false, error: "rate_limit_unavailable" }, 503, { "cache-control": "no-store" });
+  try {
+    for (const limit of limits) {
+      const result = await consumeDurableRateLimit(env.CORE_DB, {
+        scope: limit.scope,
+        key: limit.key === "ip" ? ip : limit.combineIp ? `${ip}\0${limit.key}` : limit.key,
+        limit: limit.limit,
+        windowMs: limit.windowMs,
+      });
+      if (!result.allowed) {
+        const retryAfter = Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000));
+        return json({ ok: false, error: "rate_limited" }, 429, { "cache-control": "no-store", "retry-after": String(retryAfter) });
+      }
+    }
+  } catch {
+    return json({ ok: false, error: "rate_limit_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+  return null;
+}
+
 async function registerWithPasswordNative(request: Request, env: Env): Promise<Response> {
   const sameOriginError = assertSameOriginRequest(request);
   if (sameOriginError) return sameOriginError;
@@ -30584,6 +30649,11 @@ async function registerWithPasswordNative(request: Request, env: Env): Promise<R
   const displayName = typeof input.displayName === "string" ? input.displayName.trim() : "";
   const email = normalizeEmail(input.email);
   const password = typeof input.password === "string" ? input.password : "";
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "auth-register-ip", key: "ip", limit: 20, windowMs: 10 * 60 * 1000 },
+    { scope: "auth-register-email", key: email || "blank", combineIp: true, limit: 5, windowMs: 10 * 60 * 1000 },
+  ]);
+  if (limited) return limited;
   if (displayName.length < 1) return json({ ok: false, error: "display_name_required" }, 400, { "cache-control": "no-store" });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
   if (password.length < 8) return json({ ok: false, error: "password_too_short" }, 400, { "cache-control": "no-store" });
@@ -30651,6 +30721,11 @@ async function loginWithPassword(request: Request, env: Env): Promise<Response> 
   const input = await readJson<AuthLoginInput>(request);
   const email = normalizeEmail(input.email);
   const password = typeof input.password === "string" ? input.password : "";
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "auth-login-ip", key: "ip", limit: 30, windowMs: 10 * 60 * 1000 },
+    { scope: "auth-login-email", key: email || "blank", combineIp: true, limit: 8, windowMs: 10 * 60 * 1000 },
+  ]);
+  if (limited) return limited;
   let user: AuthUserRow | null = null;
   try {
     user = email && password ? await findAuthUserByEmail(email, env) : null;
@@ -32637,13 +32712,16 @@ async function recordObservationEventRegistrationBridgeMetric(
 }
 
 async function upsertLegacyCompatibleObservation(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
   const input = await readJson<LegacyObservationUpsertInput>(request);
   let authenticatedSession: SessionSnapshot | null = null;
-  if (env.ENVIRONMENT === "production") {
+  if (env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging") {
     authenticatedSession = await readCompatibleSession(request, env);
     if (!authenticatedSession) {
       return json({ ok: false, error: "session_required" }, 401);
     }
+    if (authenticatedSession.banned) return json({ ok: false, error: "account_unavailable" }, 403);
     assertNonEmpty(input.userId, "userId");
     if (authenticatedSession.userId !== input.userId) {
       return json({ ok: false, error: "forbidden" }, 403);
@@ -32652,6 +32730,11 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     assertNonEmpty(input.userId, "userId");
     authenticatedSession = await readCompatibleSession(request, env).catch(() => null);
   }
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "record-upsert-ip", key: "ip", limit: 30, windowMs: 600_000 },
+    { scope: "record-upsert-user", key: input.userId, limit: 30, windowMs: 600_000 },
+  ]);
+  if (limited) return limited;
   if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
     throw new HttpError(400, "missing_location");
   }
@@ -33684,12 +33767,15 @@ function buildNativeObservationEventQuestCandidates(
 
 async function uploadLegacyCompatiblePhoto(observationId: string, request: Request, env: Env): Promise<Response> {
   assertNonEmpty(observationId, "observationId");
-  const productionSession = env.ENVIRONMENT === "production"
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const ownerSession = env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging"
     ? await readCompatibleSession(request, env)
     : null;
-  if (env.ENVIRONMENT === "production" && !productionSession) {
+  if ((env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging") && !ownerSession) {
     return json({ ok: false, error: "session_required" }, 401);
   }
+  if (ownerSession?.banned) return json({ ok: false, error: "account_unavailable" }, 403);
 
   const observation = await env.OBS_DB.prepare(
     `SELECT draft_id, owner_user_id, partition_month
@@ -33699,9 +33785,14 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   if (!observation) {
     return json({ ok: false, error: `observation not found: ${observationId}` }, 404);
   }
-  if (productionSession && productionSession.userId !== observation.owner_user_id) {
+  if (ownerSession && ownerSession.userId !== observation.owner_user_id) {
     return json({ ok: false, error: "forbidden" }, 403);
   }
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "record-photo-ip", key: "ip", limit: 12, windowMs: 600_000 },
+    { scope: "record-photo-user", key: observation.owner_user_id, limit: 12, windowMs: 600_000 },
+  ]);
+  if (limited) return limited;
 
   const input = await readJson<LegacyPhotoUploadInput>(request);
   const mimeType = (normalizeOptionalText(input.mimeType) ?? "image/jpeg").split(";", 1)[0]!.trim().toLowerCase();
@@ -34223,13 +34314,32 @@ function pickNullableEnum(value: unknown, allowed: string[]): string | null {
 
 async function putAssetBody(assetId: string, request: Request, env: Env): Promise<Response> {
   assertNonEmpty(assetId, "assetId");
-  const asset = await env.OBS_DB.prepare("SELECT object_key, mime FROM asset_ledger WHERE asset_id = ?")
+  const originError = assertSameOriginRequest(request, true);
+  if (originError) return originError;
+  const session = await requireV0ObservationOwner(request, env);
+  if (session instanceof Response) return session;
+  const asset = await env.OBS_DB.prepare("SELECT object_key, mime, bytes, owner_user_id, observation_id FROM asset_ledger WHERE asset_id = ?")
     .bind(assetId)
-    .first<{ object_key: string; mime: string }>();
+    .first<{ object_key: string; mime: string; bytes: number; owner_user_id: string; observation_id: string | null }>();
   if (!asset) return json({ error: "asset_not_found" }, 404);
+  if (asset.owner_user_id !== session.userId) return json({ error: "forbidden" }, 403, { "cache-control": "no-store" });
+  if (asset.observation_id) return json({ error: "asset_already_finalized" }, 409, { "cache-control": "no-store" });
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "record-asset-ip", key: "ip", limit: 60, windowMs: 600_000 },
+    { scope: "record-asset-user", key: session.userId, limit: 60, windowMs: 600_000 },
+  ]);
+  if (limited) return limited;
   if (!request.body) return json({ error: "missing_body" }, 400);
 
-  await env.ASSET_BUCKET.put(asset.object_key, request.body, { httpMetadata: { contentType: asset.mime } });
+  let bytes: Uint8Array<ArrayBuffer>;
+  try {
+    bytes = await readAndValidateAssetUploadBody(request.body, asset.mime, Number(asset.bytes));
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "invalid_media_upload";
+    const status = reason === "uploaded_media_too_large" ? 413 : 400;
+    return json({ error: reason }, status, { "cache-control": "no-store" });
+  }
+  await env.ASSET_BUCKET.put(asset.object_key, bytes.buffer, { httpMetadata: { contentType: asset.mime } });
   await env.OBS_DB.prepare(
     "UPDATE asset_ledger SET processing_state = 'uploaded', uploaded_at = CURRENT_TIMESTAMP WHERE asset_id = ?"
   ).bind(assetId).run();
@@ -34238,6 +34348,10 @@ async function putAssetBody(assetId: string, request: Request, env: Env): Promis
 }
 
 async function finalizeObservation(request: Request, env: Env): Promise<Response> {
+  const originError = assertSameOriginRequest(request, true);
+  if (originError) return originError;
+  const session = await requireV0ObservationOwner(request, env);
+  if (session instanceof Response) return session;
   const input = await readJson<FinalizeObservationInput>(request);
   assertNonEmpty(input.draftId, "draftId");
 
@@ -34245,6 +34359,7 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     .bind(input.draftId)
     .first<Record<string, D1Value>>();
   if (!draft) return json({ error: "draft_not_found" }, 404);
+  if (stringValue(draft.owner_user_id) !== session.userId) return json({ error: "forbidden" }, 403, { "cache-control": "no-store" });
 
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
@@ -34258,6 +34373,11 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
   const visibility = stringValue(draft.visibility) === "public" ? "public" : "private";
 
   if (!ownerUserId) return json({ error: "draft_missing_owner" }, 500);
+  const limited = await enforceDurableRateLimits(env, request, [
+    { scope: "record-finalize-ip", key: "ip", limit: 30, windowMs: 600_000 },
+    { scope: "record-finalize-user", key: ownerUserId, limit: 30, windowMs: 600_000 },
+  ]);
+  if (limited) return limited;
 
   const ownerDualWritePlan = observationDualWriteEnabled(env)
     ? await buildOwnerObservationUpsertPlan({

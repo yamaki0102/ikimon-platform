@@ -215,7 +215,7 @@ export async function saveMobileSceneDigest(input: MobileSceneDigestInput): Prom
   return { guideRecordId, duplicate: false };
 }
 
-export async function getMobileFieldSessionRecap(sessionId: string, userId?: string | null): Promise<{
+export async function getMobileFieldSessionRecap(sessionId: string, userId?: string | null, installId?: string | null): Promise<{
   sessionId: string;
   sceneCount: number;
   latestDigest: string;
@@ -233,10 +233,24 @@ export async function getMobileFieldSessionRecap(sessionId: string, userId?: str
        from mobile_field_scene_receipts r
        left join lateral jsonb_array_elements_text(r.payload->'areaResolutionSignals') as signals(signal) on true
       where r.session_id = $1
-        and ($2::text is null or exists (
-          select 1 from guide_records gr where gr.guide_record_id::text = r.guide_record_id::text and gr.user_id::text = $2::text
-        ))`,
-    [sessionId, userId ?? null],
+        and (
+          ($2::text is not null and exists (
+            select 1 from guide_records gr
+             where gr.guide_record_id::text = r.guide_record_id::text
+               and gr.user_id::text = $2::text
+          ))
+          or ($2::text is null and $3::text is not null
+              and r.install_id = $3
+              and (
+                r.guide_record_id is null
+                or exists (
+                  select 1 from guide_records gr
+                   where gr.guide_record_id::text = r.guide_record_id::text
+                     and gr.user_id is null
+                )
+              ))
+        )`,
+    [sessionId, userId ?? null, installId ?? null],
   );
   const row = result.rows[0];
   return {

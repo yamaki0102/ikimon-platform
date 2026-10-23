@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
-import { getSessionFromCookie } from "../services/authSession.js";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { getSessionFromCookie, type SessionSnapshot } from "../services/authSession.js";
 import { assertAuthRateLimit, assertSameOriginRequest } from "../services/authSecurity.js";
 import { decideGuideAutoSave, type GuideAutoSaveDecision } from "../services/guideAutoSave.js";
 import { upsertGuideEnvironmentMeshFromRecord } from "../services/guideEnvironmentMesh.js";
@@ -565,6 +565,37 @@ async function applyGuideAutoSave(input: {
   }
 }
 
+type GuideLiveTokenHandlerDependencies = {
+  getSession: (cookie: string | undefined) => Promise<SessionSnapshot | null>;
+  createToken: typeof createGuideLiveToken;
+};
+
+export function makeGuideLiveTokenRouteHandler(
+  dependencies: GuideLiveTokenHandlerDependencies = {
+    getSession: getSessionFromCookie,
+    createToken: createGuideLiveToken,
+  },
+) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const session = await dependencies.getSession(request.headers.cookie ?? "").catch(() => null);
+    if (!session) return reply.status(401).send({ error: "login required" });
+    if (session.banned) return reply.status(403).send({ error: "account unavailable" });
+
+    try {
+      const body = request.body as Record<string, unknown> | undefined;
+      const token = await dependencies.createToken({
+        model: typeof body?.model === "string" ? body.model : undefined,
+        lang: parseLang(body?.lang),
+      });
+      return reply.send(token);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "live_token_failed";
+      const status = message.includes("GEMINI_API_KEY") ? 503 : 500;
+      return reply.status(status).send({ error: message });
+    }
+  };
+}
+
 export function registerGuideApiRoutes(app: FastifyInstance): void {
   app.get("/api/v1/guides/unlocks", async (request, reply) => {
     try {
@@ -907,23 +938,7 @@ export function registerGuideApiRoutes(app: FastifyInstance): void {
     });
   });
 
-  app.post("/api/v1/guide/live-token", async (request, reply) => {
-    const session = await getSessionFromCookie(request.headers.cookie ?? "").catch(() => null);
-    if (!session) return reply.status(401).send({ error: "login required" });
-
-    try {
-      const body = request.body as Record<string, unknown> | undefined;
-      const token = await createGuideLiveToken({
-        model: typeof body?.model === "string" ? body.model : undefined,
-        lang: parseLang(body?.lang),
-      });
-      return reply.send(token);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "live_token_failed";
-      const status = message.includes("GEMINI_API_KEY") ? 503 : 500;
-      return reply.status(status).send({ error: message });
-    }
-  });
+  app.post("/api/v1/guide/live-token", makeGuideLiveTokenRouteHandler());
 
   /**
    * POST /api/v1/guide/tts
