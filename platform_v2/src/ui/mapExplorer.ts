@@ -1819,7 +1819,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <button type="button" class="me-layer-hint-jump" id="me-layer-hint-jump">${escapeHtml(copy.layerHintJump)}</button>
           <button type="button" class="me-layer-hint-close" id="me-layer-hint-close" aria-label="${escapeHtml(copy.layerHintDismiss)}">×</button>
         </div>
-        <div class="me-bottom-sheet" id="me-bottom-sheet" aria-hidden="true">
+        <div class="me-bottom-sheet" id="me-bottom-sheet" role="dialog" aria-label="${escapeHtml(copy.selectedPointName)}" aria-hidden="true" inert>
           <button type="button" class="me-bottom-close" id="me-bottom-close" aria-label="${escapeHtml(copy.bottomSheetCloseLabel)}">×</button>
           <button type="button" class="me-bottom-grip" id="me-bottom-grip" aria-label="${escapeHtml(copy.bottomSheetExpandLabel)}"></button>
           <div class="me-bottom-inner" id="me-bottom-inner"></div>
@@ -1880,6 +1880,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var sheetInnerEl = document.getElementById('me-bottom-inner');
   var sheetCloseEl = document.getElementById('me-bottom-close');
   var sheetGripEl = document.getElementById('me-bottom-grip');
+  var sheetReturnFocusEl = null;
+  var sheetFocusPending = false;
   var sideStatusEl = document.getElementById('me-side-status');
   var resultsListEl = document.getElementById('me-results-list');
   var selectedCardEl = document.getElementById('me-map-selection-card');
@@ -4969,6 +4971,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         sheetEl.classList.remove('me-bottom-sheet--detail');
         sheetEl.removeAttribute('data-snap');
         sheetEl.setAttribute('aria-hidden', 'true');
+        sheetEl.setAttribute('inert', '');
       }
       setSideRailMode(false);
       renderSelectedCard();
@@ -6440,6 +6443,18 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.contains('me-bottom-sheet--area')
     ));
   }
+  function rememberSheetOpener() {
+    if (!sheetEl || sheetEl.classList.contains('is-open')) return;
+    var active = document.activeElement;
+    if (active && sheetEl && !sheetEl.contains(active)) sheetReturnFocusEl = active;
+    sheetFocusPending = true;
+  }
+  function activateSheetFocus() {
+    if (!sheetEl) return;
+    sheetEl.removeAttribute('inert');
+    if (sheetFocusPending && sheetCloseEl && typeof sheetCloseEl.focus === 'function') sheetCloseEl.focus();
+    sheetFocusPending = false;
+  }
   function setSheetSnap(snap) {
     if (!sheetSupportsSnap()) return;
     var next = snap === 'full' ? 'full' : 'peek';
@@ -6474,11 +6489,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       return;
     }
+    rememberSheetOpener();
     dismissPurposeHint();
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--area');
     sheetEl.classList.add('me-bottom-sheet--detail');
     sheetEl.classList.add('is-open');
+    activateSheetFocus();
     setDetailSheetSnap('peek');
     syncRainUi();
     if (sheetInnerEl) sheetInnerEl.scrollTop = 0;
@@ -6491,11 +6508,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       closeBottomSheet();
       return;
     }
+    rememberSheetOpener();
     dismissPurposeHint();
     sheetEl.setAttribute('aria-hidden', 'false');
     sheetEl.classList.remove('me-bottom-sheet--detail');
     sheetEl.classList.add('me-bottom-sheet--area');
     sheetEl.classList.add('is-open');
+    activateSheetFocus();
     setAreaSheetSnap('peek');
     syncRainUi();
     try { sheetEl.scrollTop = 0; } catch (_) {}
@@ -6985,6 +7004,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.remove('me-bottom-sheet--detail');
       sheetEl.removeAttribute('data-snap');
       sheetEl.setAttribute('aria-hidden', 'true');
+      sheetEl.setAttribute('inert', '');
       setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
@@ -7026,6 +7046,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       sheetEl.classList.remove('me-bottom-sheet--detail');
       sheetEl.removeAttribute('data-snap');
       sheetEl.setAttribute('aria-hidden', 'true');
+      sheetEl.setAttribute('inert', '');
       setSideRailMode(false);
       renderSelectedCard();
       renderSidePanels();
@@ -7069,6 +7090,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function closeBottomSheet() {
     if (!sheetEl) return;
+    var returnFocus = sheetReturnFocusEl;
+    sheetReturnFocusEl = null;
+    sheetFocusPending = false;
     resetAreaGuideStopSession();
     sheetEl.classList.remove('is-open');
     sheetEl.classList.remove('is-dragging');
@@ -7077,9 +7101,16 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sheetEl.style.removeProperty('--me-sheet-drag-height');
     sheetEl.removeAttribute('data-snap');
     sheetEl.setAttribute('aria-hidden', 'true');
+    sheetEl.setAttribute('inert', '');
     setSelectedAreaPolygonFilter('__none__');
     syncRainUi();
+    if (returnFocus && returnFocus.isConnected !== false && typeof returnFocus.focus === 'function') returnFocus.focus();
   }
+  if (sheetEl) sheetEl.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape' || sheetEl.getAttribute('aria-hidden') === 'true') return;
+    event.preventDefault();
+    closeBottomSheet();
+  });
   if (sheetCloseEl) sheetCloseEl.addEventListener('click', closeBottomSheet);
   if (sheetGripEl) {
     var sheetDragState = null;

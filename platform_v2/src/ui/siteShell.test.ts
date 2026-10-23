@@ -649,7 +649,7 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #087a4d;[^}]*color: #fff;/);
   assert.match(html, /data-global-record-gallery-select[^>]*>端末の写真から選ぶ<\/button>/);
   assert.match(html, /カメラを開けませんでした/);
-  assert.match(html, /data-global-record-camera-retry[^>]*>カメラの利用を許可する<\/button>/);
+  assert.match(html, /data-global-record-camera-retry[^>]*>カメラを再試行<\/button>/);
   assert.match(html, /data-global-record-camera-cancel[^>]*>キャンセル<\/button>/);
   assert.match(html, /document\.addEventListener\('visibilitychange'/);
   assert.match(html, /capture_nav_tap/);

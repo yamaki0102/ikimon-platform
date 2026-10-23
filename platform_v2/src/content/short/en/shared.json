@@ -94,7 +94,8 @@
     "errorTitle": "Could not open the camera",
     "errorBody": "Allow camera access or choose a photo from your device.",
     "permissionBody": "Allow camera access in your browser or device settings, then try again.",
-    "retry": "Allow camera access",
+    "permissionRetry": "Retry after changing settings",
+    "retry": "Retry camera",
     "gallery": "Choose from device",
     "cancel": "Cancel"
   },

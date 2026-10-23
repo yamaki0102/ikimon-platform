@@ -1161,6 +1161,7 @@ type GlobalRecordEntryCopy = {
   errorTitle: string;
   errorBody: string;
   permissionBody: string;
+  permissionRetry: string;
   startErrors: Record<"no_device" | "device_busy" | "constraints_unsupported" | "focus_unsupported" | "timeout", string>;
   retry: string;
   cancel: string;
@@ -1171,7 +1172,7 @@ type GlobalRecordEntryCopy = {
 };
 
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
-  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "home" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "events" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
+  type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "home" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "events" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "permissionRetry" | "retry" | "cancel">;
   const copy: Record<SiteLang, LegacyCopy> = {
     ja: {
       video: "動画",
@@ -1310,6 +1311,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
     errorTitle: string;
     errorBody: string;
     permissionBody: string;
+    permissionRetry: string;
     retry: string;
     gallery: string;
     cancel: string;
@@ -1330,6 +1332,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
     errorTitle: cameraCapture.errorTitle,
     errorBody: cameraCapture.errorBody,
     permissionBody: cameraCapture.permissionBody,
+    permissionRetry: cameraCapture.permissionRetry,
     retry: cameraCapture.retry,
     cancel: cameraCapture.cancel,
   };
@@ -2024,6 +2027,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
   const showCameraError = (permissionDenied) => {
     stopActiveStream();
     if (cameraErrorBody) cameraErrorBody.textContent = permissionDenied ? CAMERA_COPY.permissionBody : CAMERA_COPY.errorBody;
+    if (cameraRetryButton) cameraRetryButton.textContent = permissionDenied ? CAMERA_COPY.permissionRetry : CAMERA_COPY.retry;
     if (cameraError) cameraError.hidden = false;
     if (sheet) sheet.setAttribute('data-camera-error', 'true');
     if (startButton) {

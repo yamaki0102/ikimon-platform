@@ -10913,8 +10913,8 @@ function selfHubCopy(lang: SiteLang): SelfHubCopy {
       visibilityTitle: "公開範囲と位置情報",
       visibilityBody: "記録ごとの公開範囲と、場所の見え方を確認します。",
       participationEyebrow: "つながり",
-      participationTitle: "参加とフォロー",
-      participationBody: "関わっている場所や、次に参加する活動へ戻れます。",
+      participationTitle: "参加できる企画",
+      participationBody: "参加できる地域の企画を探します。",
     },
     en: {
       profileEyebrow: "You",
@@ -10932,8 +10932,8 @@ function selfHubCopy(lang: SiteLang): SelfHubCopy {
       visibilityTitle: "Visibility and location",
       visibilityBody: "Review who can see each record and how its place is shown.",
       participationEyebrow: "Connections",
-      participationTitle: "Participation and follows",
-      participationBody: "Return to places and activities you are involved with.",
+      participationTitle: "Activities to join",
+      participationBody: "Find local activities that are open to participation.",
     },
     es: {
       profileEyebrow: "Tú",
@@ -10951,8 +10951,8 @@ function selfHubCopy(lang: SiteLang): SelfHubCopy {
       visibilityTitle: "Visibilidad y ubicación",
       visibilityBody: "Revisa quién puede ver cada registro y cómo se muestra su lugar.",
       participationEyebrow: "Conexiones",
-      participationTitle: "Participación y seguimiento",
-      participationBody: "Vuelve a lugares y actividades con los que participas.",
+      participationTitle: "Actividades para participar",
+      participationBody: "Encuentra actividades locales abiertas a la participación.",
     },
     "pt-BR": {
       profileEyebrow: "Você",
@@ -10970,8 +10970,8 @@ function selfHubCopy(lang: SiteLang): SelfHubCopy {
       visibilityTitle: "Visibilidade e localização",
       visibilityBody: "Revise quem pode ver cada registro e como o lugar aparece.",
       participationEyebrow: "Conexões",
-      participationTitle: "Participação e seguidores",
-      participationBody: "Volte aos lugares e atividades com que você participa.",
+      participationTitle: "Atividades para participar",
+      participationBody: "Encontre atividades locais abertas à participação.",
     },
   };
   return copies[lang];
@@ -10996,7 +10996,7 @@ export function renderSelfProfileHub(
   const recordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
   const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
   const privacyHref = appendLangToHref(withBasePath(basePath, "/records?view=mine&source=self_privacy"), lang);
-  const participationHref = appendLangToHref(withBasePath(basePath, "/map?tab=places&source=self_participation"), lang);
+  const participationHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
   const recordCount = formatProfileNumber(snapshot.stats.totalObservations);
   const placeCount = formatProfileNumber(snapshot.stats.placeCount);
   return `<section class="section self-control-hub" data-testid="self-control-hub">

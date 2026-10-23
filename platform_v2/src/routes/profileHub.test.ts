@@ -114,7 +114,7 @@ test("self profile hub is an identity and control surface, not a duplicate recor
   assert.match(html, /data-testid="self-control-hub"/);
   assert.match(html, /プロフィールと公開ページ/);
   assert.match(html, /公開範囲と位置情報/);
-  assert.match(html, /参加とフォロー/);
+  assert.match(html, /参加できる企画/);
   assert.match(html, /アカウント設定/);
   assert.doesNotMatch(html, /data-testid="profile-channel"/);
   assert.doesNotMatch(html, /data-testid="profile-summary"/);

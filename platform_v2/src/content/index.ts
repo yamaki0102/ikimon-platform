@@ -174,6 +174,7 @@ type JsonSharedCopy = {
     errorTitle: string;
     errorBody: string;
     permissionBody: string;
+    permissionRetry: string;
     retry: string;
     gallery: string;
     cancel: string;
