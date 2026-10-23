@@ -809,6 +809,24 @@ test("observation detail route has a saved fallback for public map records still
   assert.match(readRoute, /escapeHtml\(record\.displayName\)/);
 });
 
+test("multi-subject observation detail reuses the visit snapshot instead of reloading each sibling snapshot", async () => {
+  const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
+  const observationRoute = readRoute.slice(
+    readRoute.indexOf('app.get<{ Params: { id: string }; Querystring: { subject?: string; occurrence?: string } }>("/observations/:id"'),
+    readRoute.indexOf("// ===== Layer 0: ヒーロー ====="),
+  );
+  const siblingLookup = observationRoute.slice(observationRoute.indexOf("bundle.subjects.map(async (subject)"));
+
+  assert.match(observationRoute, /getObservationDetailSnapshot\(bundle\.canonicalSubjectId, \{ viewerUserId \}\)\.catch/);
+  assert.doesNotMatch(siblingLookup, /getObservationDetailSnapshot\(subject\.occurrenceId/);
+  assert.match(siblingLookup, /getIdentificationConsensus\(subject\.occurrenceId\)/);
+  assert.match(siblingLookup, /listReferenceCandidatesForIdentification\(\{ userId: viewerUserId, occurrenceId: subject\.occurrenceId \}\)/);
+  assert.match(siblingLookup, /buildObservationIdentifyPanelSnapshot/);
+  assert.match(observationRoute, /const siblingSubjects = bundle\.subjects\.filter\(\(subject\) => subject\.occurrenceId !== snapshot\.occurrenceId\)/);
+  assert.match(observationRoute, /siblingSubjects\.length > 0/);
+  assert.match(siblingLookup, /identifications: subject\.identifications\.slice\(0, 8\)/);
+});
+
 test("public observation detail links do not serialize a record location cell into URLs", async () => {
   const readRoute = await readFile(path.join(process.cwd(), "src", "routes", "read.ts"), "utf8");
 

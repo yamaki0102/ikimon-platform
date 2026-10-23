@@ -61,16 +61,46 @@ type MutableInjectResponse = {
 type MaterializationHtmlPatch = (html: string, urlValue: string) => string;
 
 function removePassiveIdentificationPressure(html: string): string {
-  return html
-    .replace(/\s*<div class="obs-card-species[^"]*\bis-awaiting\b[^"]*">[\s\S]*?<\/div>/g, "")
-    .replace(/\s*<span class="obs-card-sketch-name">(?:名前待ち|同定待ち|Awaiting ID)<\/span>/gi, "")
-    .replace(/\s*<a href="[^"]*#identify[^"]*">(?:名前を手伝う|Identify)<\/a>/gi, "")
-    .replace(/\s*<strong>(?:名前待ち|同定待ち|Awaiting ID)<\/strong>/gi, "")
-    .replace(/\s*<span[^>]*>(?:名前待ちの(?:写真|動画|音|記録)|Awaiting ID(?: photo| video| sound| record)?)<\/span>/gi, "")
-    .replace(/\s*<span><strong>\d+<\/strong><small>(?:名前確認中|Names in review)<\/small><\/span>/gi, "")
-    .replace(/\s*<span>(?:名前は後で確かめる|Confirm names later)<\/span>/gi, "")
-    .replace(/\s*<div class="obs-card-actions">\s*<\/div>/g, "");
+  let patched = html;
+  const expressions = [
+    /<div class="obs-card-species[^"]*\bis-awaiting\b[^"]*">[\s\S]*?<\/div>/g,
+    /<span class="obs-card-sketch-name">(?:名前待ち|同定待ち|Awaiting ID)<\/span>/gi,
+    /<a href="[^"]*#identify[^"]*">(?:名前を手伝う|Identify)<\/a>/gi,
+    /<strong>(?:名前待ち|同定待ち|Awaiting ID)<\/strong>/gi,
+    /<span[^>]*>(?:名前待ちの(?:写真|動画|音|記録)|Awaiting ID(?: photo| video| sound| record)?)<\/span>/gi,
+    /<span><strong>\d+<\/strong><small>(?:名前確認中|Names in review)<\/small><\/span>/gi,
+    /<span>(?:名前は後で確かめる|Confirm names later)<\/span>/gi,
+    /<div class="obs-card-actions">\s*<\/div>/g,
+  ];
+  for (const expression of expressions) {
+    patched = removeMatchAndLeadingWhitespace(patched, expression);
+  }
+  return patched;
 }
+
+/**
+ * Remove matched markup together with whitespace immediately before it.
+ * Keeping that whitespace out of the global regex avoids rescanning every
+ * leading whitespace suffix when large SSR documents contain no target tags.
+ */
+function removeMatchAndLeadingWhitespace(html: string, expression: RegExp): string {
+  let cursor = 0;
+  const parts: string[] = [];
+  expression.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = expression.exec(html)) !== null) {
+    let prefixEnd = match.index;
+    while (prefixEnd > cursor && HTML_WHITESPACE.test(html[prefixEnd - 1]!)) prefixEnd -= 1;
+    parts.push(html.slice(cursor, prefixEnd));
+    cursor = match.index + match[0].length;
+  }
+  expression.lastIndex = 0;
+  if (cursor === 0) return html;
+  parts.push(html.slice(cursor));
+  return parts.join("");
+}
+
+const HTML_WHITESPACE = /\s/;
 
 function normalizeProductPath(pathname: string): string {
   const segments = pathname.split("/").filter(Boolean);
@@ -123,6 +153,9 @@ function patchInjectedHtmlResponse(value: unknown, urlValue: string, patchHtml: 
   const response = value as MutableInjectResponse;
   const contentType = String(response.headers?.["content-type"] ?? response.headers?.["Content-Type"] ?? "").toLowerCase();
   if (!contentType.includes("text/html") || typeof response.body !== "string") return value;
+  const contentEncoding = String(response.headers?.["content-encoding"] ?? response.headers?.["Content-Encoding"] ?? "identity").trim().toLowerCase();
+  // Encoded bodies are binary. Decoding them as UTF-8 and patching would corrupt delivery.
+  if (contentEncoding && contentEncoding !== "identity") return value;
 
   const patched = patchHtml(response.body, urlValue);
   if (patched === response.body) return value;
@@ -184,8 +217,9 @@ export function patchLightPostingHtml(html: string, options: LightPostingPatchOp
     .replace(OLD_UPSERT_COORDINATES, NEW_UPSERT_COORDINATES)
     .replace(OLD_PHOTO_SUBMIT_LABEL, NEW_PHOTO_SUBMIT_LABEL)
     .replace(OLD_SUCCESS_MESSAGE, NEW_SUCCESS_MESSAGE)
-    .replaceAll(OLD_PHOTO_TRAY_HELP, NEW_PHOTO_TRAY_HELP)
-    .replace(/\s*<div class="obs-card-place">\s*<\/div>/g, "");
+    .replaceAll(OLD_PHOTO_TRAY_HELP, NEW_PHOTO_TRAY_HELP);
+
+  patched = removeMatchAndLeadingWhitespace(patched, /<div class="obs-card-place">\s*<\/div>/g);
 
   if (options.suppressPassiveIdentification !== false) {
     patched = removePassiveIdentificationPressure(patched);

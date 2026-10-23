@@ -99,6 +99,32 @@ test("light posting patch removes passive labels from the materialized root feed
   assert.match(patched, /prototype-record-feed-card/);
 });
 
+test("light posting patch preserves whitespace semantics around removed passive markup", () => {
+  const html = [
+    "before",
+    " \t\r\n<div class=\"obs-card-place\"> \t\r\n</div>",
+    " \n<span class=\"obs-card-sketch-name\">名前待ち</span>",
+    " \t<strong>名前待ち</strong>",
+    " \n<div class=\"obs-card-actions\"> \t\r\n</div>",
+    " \tkeep whitespace after markup",
+  ].join("");
+
+  assert.equal(
+    patchLightPostingHtml(html),
+    "before \tkeep whitespace after markup",
+  );
+});
+
+test("light posting patch handles long non-matching whitespace without quadratic scans", () => {
+  const html = `${" ".repeat(24_000)}<p>ordinary content</p>`;
+  const startedAt = performance.now();
+  const patched = patchLightPostingHtml(html);
+  const elapsedMs = performance.now() - startedAt;
+
+  assert.equal(patched, html);
+  assert.ok(elapsedMs < 1_000, `24k leading spaces took ${elapsedMs.toFixed(1)}ms`);
+});
+
 test("light posting patch preserves identification cues when the caller keeps the dedicated lane", () => {
   const html = `<article class="obs-card">
     <div class="obs-card-species is-awaiting"><span>名前待ち</span></div>

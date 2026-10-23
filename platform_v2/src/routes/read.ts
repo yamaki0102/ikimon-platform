@@ -79,6 +79,11 @@ import {
 } from "../services/civicNatureContext.js";
 import { getObservationDetailHeavy, type NearbyObservation, type SiblingSubject } from "../services/observationDetailHeavy.js";
 import {
+  buildObservationIdentifyPanelSnapshot,
+  getObservationIdentifyPanelDisputes,
+  type ObservationIdentifyPanelSnapshot,
+} from "../services/observationIdentifyPanel.js";
+import {
   confidenceLabel,
   invasiveActionLabel,
   mhlwCategoryLabel,
@@ -7176,7 +7181,7 @@ function renderIdentificationReferenceChips(references: ObservationVisitSubject[
 function renderIdentificationParticipation(options: {
   basePath: string;
   lang: SiteLang;
-  snapshot: NonNullable<Awaited<ReturnType<typeof getObservationDetailSnapshot>>>;
+  snapshot: ObservationIdentifyPanelSnapshot;
   subject?: ObservationVisitSubject;
   bundle?: ObservationVisitBundle;
   mediaContext?: ObservationMediaCopyContext;
@@ -17588,16 +17593,32 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
       canEditPolicy: Boolean(viewerUserId && snapshot.placeId),
       placeId: snapshot.placeId,
     };
-    const subjectIdentifyEntries = await Promise.all(
-      bundle.subjects.map(async (subject) => {
+    const siblingSubjects = bundle.subjects.filter((subject) => subject.occurrenceId !== snapshot.occurrenceId);
+    const panelDisputes = siblingSubjects.length > 0
+      ? await getObservationIdentifyPanelDisputes(siblingSubjects.map((subject) => subject.occurrenceId)).catch(() => new Map())
+      : new Map<string, ObservationIdentifyPanelSnapshot["disputes"]>();
+    const subjectIdentifyEntries = await Promise.all(bundle.subjects.map(async (subject) => {
         if (subject.occurrenceId === snapshot.occurrenceId) {
           const referenceCandidates = viewerUserId
             ? await listReferenceCandidatesForIdentification({ userId: viewerUserId, occurrenceId: subject.occurrenceId }).catch(() => [])
             : [];
-          return [subject.occurrenceId, { snapshot, consensus, referenceCandidates }] as const;
+          return [subject.occurrenceId, {
+            snapshot: buildObservationIdentifyPanelSnapshot({
+              occurrenceId: snapshot.occurrenceId,
+              visitId: snapshot.visitId,
+              displayName: snapshot.displayName,
+              scientificName: snapshot.scientificName,
+              vernacularName: snapshot.vernacularName,
+              aiAssessmentStatus: snapshot.aiAssessmentStatus,
+              aiReviewAgreeCount: snapshot.aiReviewAgreeCount,
+              aiReviewDisagreeCount: snapshot.aiReviewDisagreeCount,
+              identifications: snapshot.identifications,
+            }, snapshot.disputes),
+            consensus,
+            referenceCandidates,
+          }] as const;
         }
-        const [subjectSnapshot, subjectConsensus, referenceCandidates] = await Promise.all([
-          getObservationDetailSnapshot(subject.occurrenceId, { viewerUserId }).catch(() => null),
+        const [subjectConsensus, referenceCandidates] = await Promise.all([
           getIdentificationConsensus(subject.occurrenceId).catch(() => null),
           viewerUserId
             ? listReferenceCandidatesForIdentification({ userId: viewerUserId, occurrenceId: subject.occurrenceId }).catch(() => [])
@@ -17606,23 +17627,22 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
         return [
           subject.occurrenceId,
           {
-            snapshot: subjectSnapshot ?? {
-              ...snapshot,
+            snapshot: buildObservationIdentifyPanelSnapshot({
               occurrenceId: subject.occurrenceId,
+              visitId: subject.visitId,
               displayName: subject.displayName,
               scientificName: subject.scientificName,
               vernacularName: subject.vernacularName,
-              identifications: subject.identifications,
-              disputes: [],
-              visualEvidence: snapshot.visualEvidence,
-              nextCaptureSuggestions: snapshot.nextCaptureSuggestions,
-            },
+              aiAssessmentStatus: subject.aiAssessmentStatus,
+              aiReviewAgreeCount: subject.aiReviewAgreeCount,
+              aiReviewDisagreeCount: subject.aiReviewDisagreeCount,
+              identifications: subject.identifications.slice(0, 8),
+            }, panelDisputes.get(subject.occurrenceId) ?? []),
             consensus: subjectConsensus,
             referenceCandidates,
           },
         ] as const;
-      }),
-    );
+      }));
     const subjectIdentifyMap = new Map(subjectIdentifyEntries);
 
     // ===== Layer 0: ヒーロー =====

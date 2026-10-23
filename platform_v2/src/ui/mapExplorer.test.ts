@@ -11,6 +11,24 @@ function bootSection(start: string, end: string): string {
   return script.slice(from, to);
 }
 
+test("map markup cache keeps mount path, locale, and year-list variants separate", () => {
+  const rootJapanese = renderMapExplorer({ basePath: "", lang: "ja", years: [2026, 2025] });
+  const mountedJapanese = renderMapExplorer({ basePath: "/preview", lang: "ja", years: [2024] });
+  const rootEnglish = renderMapExplorer({ basePath: "", lang: "en", years: [2026, 2025] });
+  const rootJapaneseScript = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const mountedJapaneseScript = mapExplorerBootScript({ basePath: "/preview", lang: "ja" });
+  const rootEnglishScript = mapExplorerBootScript({ basePath: "", lang: "en" });
+
+  assert.match(rootJapanese, /data-year-values="\[2025,2026\]"/);
+  assert.match(mountedJapanese, /data-year-values="\[2024\]"/);
+  assert.match(rootJapanese, /href="\/ja\/map\?tab=places/);
+  assert.match(mountedJapanese, /href="\/ja\/preview\/map\?tab=places/);
+  assert.match(rootEnglish, /<span class="me-filter-label">Area type<\/span>/);
+  assert.match(rootJapaneseScript, /var RECORD_HREF = "\/ja\/record"/);
+  assert.match(mountedJapaneseScript, /var RECORD_HREF = "\/ja\/preview\/record"/);
+  assert.match(rootEnglishScript, /var RECORD_HREF = "\/en\/record"/);
+});
+
 function startupLocationFixture(permission: string, positionThrows = false) {
   const calls = { permission: 0, position: 0, flyTo: 0, remember: 0, marker: 0 };
   const receivePosition: Array<(position: unknown) => void> = [];

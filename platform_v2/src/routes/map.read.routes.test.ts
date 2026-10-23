@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { gunzipSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildApp } from "../app.js";
@@ -109,6 +110,57 @@ test("map route keeps share-state plumbing in the shell", async () => {
     assert.match(html, /observation-cell-bloom/);
     assert.match(html, /observation-centroids/);
     assert.match(html, /dominantTaxonGroup/);
+  } finally {
+    await app.close();
+  }
+});
+
+test("map route negotiates gzip while preserving the rendered page and varying on Accept-Encoding", async () => {
+  const app = buildApp();
+  try {
+    const [plain, compressed] = await Promise.all([
+      app.inject({ method: "GET", url: "/map?lang=ja" }),
+      app.inject({ method: "GET", url: "/map?lang=ja", headers: { "accept-encoding": "br, gzip" } }),
+    ]);
+
+    assert.equal(plain.statusCode, 200);
+    assert.equal(compressed.statusCode, 200);
+    assert.equal(plain.headers["content-encoding"], undefined);
+    assert.equal(compressed.headers["content-encoding"], "gzip");
+    assert.equal(Number(compressed.headers["content-length"]), compressed.rawPayload.byteLength);
+    assert.match(String(plain.headers.vary), /(?:^|,\s*)Accept-Encoding(?:,|$)/i);
+    assert.match(String(compressed.headers.vary), /(?:^|,\s*)Accept-Encoding(?:,|$)/i);
+
+    const decoded = gunzipSync(compressed.rawPayload).toString("utf8");
+    const normalizeNonce = (html: string) => html.replace(/nonce="[^"]+"/g, 'nonce="__NONCE__"');
+    assert.equal(normalizeNonce(decoded), normalizeNonce(plain.body));
+    assert.match(decoded, /id="map-explorer"/);
+    assert.match(decoded, /MapExplorerStateHelpers/);
+    assert.ok(compressed.rawPayload.byteLength < Buffer.byteLength(plain.body) * 0.5);
+  } finally {
+    await app.close();
+  }
+});
+
+test("map route respects explicit gzip exclusions and wildcard negotiation", async () => {
+  const app = buildApp();
+  try {
+    for (const [acceptEncoding, shouldCompress] of [
+      ["br", false],
+      ["gzip;q=0, *;q=1", false],
+      ["*;q=1", true],
+      ["gzip;q=0.5", true],
+    ] as const) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/map?lang=en",
+        headers: { "accept-encoding": acceptEncoding },
+      });
+      assert.equal(response.headers["content-encoding"] === "gzip", shouldCompress, acceptEncoding);
+      assert.match(String(response.headers.vary), /(?:^|,\s*)Accept-Encoding(?:,|$)/i, acceptEncoding);
+      if (shouldCompress) assert.match(gunzipSync(response.rawPayload).toString("utf8"), /id="map-explorer"/);
+      else assert.match(response.body, /id="map-explorer"/);
+    }
   } finally {
     await app.close();
   }

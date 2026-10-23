@@ -1021,6 +1021,27 @@ export type MapExplorerProps = {
   years: number[];
 };
 
+const MAP_RENDER_CACHE_LIMIT = 8;
+const mapExplorerHtmlCache = new Map<string, string>();
+const mapExplorerBootScriptCache = new Map<string, string>();
+
+function cachedMapMarkup(cache: Map<string, string>, key: string, render: () => string): string {
+  const cached = cache.get(key);
+  if (cached !== undefined) {
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached;
+  }
+
+  const rendered = render();
+  if (cache.size >= MAP_RENDER_CACHE_LIMIT) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey !== undefined) cache.delete(oldestKey);
+  }
+  cache.set(key, rendered);
+  return rendered;
+}
+
 export type MapItem =
   | { type: "observation"; occurrenceId: string; displayName: string; photoUrl?: string | null }
   | { type: "guide"; guideRecordId: string; displayName: string; photoUrl?: string | null }
@@ -1156,6 +1177,11 @@ function actorPanelLabels(lang: SiteLang): {
 }
 
 export function renderMapExplorer(props: MapExplorerProps): string {
+  const cacheKey = JSON.stringify([props.basePath, props.lang, props.years]);
+  return cachedMapMarkup(mapExplorerHtmlCache, cacheKey, () => renderMapExplorerMarkup(props));
+}
+
+function renderMapExplorerMarkup(props: MapExplorerProps): string {
   const lang = props.lang;
   const copy = MAP_EXPLORER_COPY[lang];
   const ambientLabels = ambientPanelLabels(lang);
@@ -1830,6 +1856,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
 }
 
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
+  const cacheKey = JSON.stringify([props.basePath, props.lang]);
+  return cachedMapMarkup(mapExplorerBootScriptCache, cacheKey, () => renderMapExplorerBootScript(props));
+}
+
+function renderMapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const copy = MAP_EXPLORER_COPY[props.lang];
   const gbifTaxonGroupLabels = props.lang === "ja"
     ? { insect: "昆虫類", bird: "鳥類", plant: "植物", amphibian_reptile: "両生類・爬虫類", mammal: "哺乳類", fungi: "菌類", other: "その他の生物" }
