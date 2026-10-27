@@ -198,6 +198,50 @@ test("takedown removes both public files and an old initial publish cannot resur
   assert.equal((await result(await receive(statusRequest(), env))).status, "retracted");
 });
 
+test("status recovers a lost takedown receipt without mutation and exposes no retracted edition", async t => {
+  const { env, getSuccessfulWrites, sqlite } = fixture(t);
+  assert.equal((await receive(publishRequest(), env)).status, 200);
+
+  await receive(takedownRequest("op_takedown_lost", "op_1"), env); // Deliberately discard the successful response.
+  const writesAfterTakedown = getSuccessfulWrites();
+  assert.equal(writesAfterTakedown, 2);
+
+  const status = await receive(statusRequest(), env);
+  assert.equal(status.status, 200);
+  assert.deepEqual(await result(status), {
+    schema: "zukan.hp-site-result/v1",
+    publicationId,
+    scopeDigest,
+    siteId,
+    status: "retracted",
+    lastOperationId: "op_takedown_lost",
+    activeEditionId: null,
+    htmlSha256: null,
+    cssSha256: null,
+    publicUrl: null,
+    updatedAt: new Date(nowMs).toISOString(),
+  });
+  assert.equal(getSuccessfulWrites(), writesAfterTakedown);
+
+  for (const mutationFields of [
+    { operationId: "op_status" },
+    { expectedOperationId: "op_takedown_lost" },
+    { issuedAt: "2026-10-26T23:59:00.000Z" },
+    { actorDigest: sha("status actor") },
+    { verifiedAt: "2026-10-26T23:59:30.000Z" },
+    { edition },
+  ]) {
+    await expectError(signedRequest({ ...payload("status"), ...mutationFields }), env, 400, "invalid_payload");
+  }
+  assert.equal(getSuccessfulWrites(), writesAfterTakedown);
+  assert.equal(sqlite.prepare("SELECT state, last_operation_id FROM nocosil_hp_sites").get()?.last_operation_id, "op_takedown_lost");
+
+  for (const url of [publicUrl, publicUrl + "assets/site.css"]) {
+    assert.equal((await throughPublicEntry(new Request(url), env)).status, 410);
+  }
+  assert.equal(getSuccessfulWrites(), writesAfterTakedown);
+});
+
 test("an initial takedown creates a tombstone that rejects a late first publish", async t => {
   const { env, sqlite } = fixture(t);
   const initialTakedown = await receive(takedownRequest("op_tombstone", null), env);
