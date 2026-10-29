@@ -23,6 +23,7 @@ import {
   runPointerOnly,
   runPool,
 } from "./materialize-direct-r2-reuse.mjs";
+import { selectCoreMaterializationPaths } from "./materialization-target-selection.mjs";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -475,13 +476,14 @@ async function readAllOriginalUiStaticPaths() {
 async function resolveTargetPaths() {
   if (explicitPaths.length > 0) return [...new Set(explicitPaths)];
   if (scope === "core") {
-    return [...new Set([
-      ...corePaths,
-      ...queryVariantPaths,
-      ...listLearnMaterializationPaths(),
-      ...listInvasiveSpeciesMaterializationPaths(),
-      ...(targetEnv === "staging" ? stagingOnlyAdminPreviewPaths : []),
-    ])];
+    return selectCoreMaterializationPaths({
+      corePaths,
+      queryVariantPaths,
+      learnPaths: listLearnMaterializationPaths(),
+      invasiveSpeciesPaths: listInvasiveSpeciesMaterializationPaths(),
+      siteMapPaths: siteMapPublicMaterializationPaths,
+      stagingOnlyPaths: targetEnv === "staging" ? stagingOnlyAdminPreviewPaths : [],
+    });
   }
   if (scope === "staging-qa") {
     if (targetEnv !== "staging") {
