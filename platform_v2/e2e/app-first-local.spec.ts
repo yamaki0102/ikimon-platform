@@ -6,27 +6,60 @@ async function triggerSyntheticInstallPrompt(page: import("@playwright/test").Pa
       prompt: () => Promise<void>;
       userChoice: Promise<{ outcome: string; platform: string }>;
     };
-    event.prompt = () => Promise.resolve();
+    event.prompt = () => {
+      (window as any).__installPromptCalls = ((window as any).__installPromptCalls ?? 0) + 1;
+      return Promise.resolve();
+    };
     event.userChoice = Promise.resolve({ outcome: "accepted", platform: "web" });
     window.dispatchEvent(event);
   });
 }
 
 test.describe("app-first mobile shell", () => {
-  test("Android width shows install prompt and app runtime hooks", async ({ page }) => {
-    await page.setViewportSize({ width: 412, height: 915 });
-    await page.goto("/en/", { waitUntil: "domcontentloaded" });
-    await triggerSyntheticInstallPrompt(page);
+  test.use({ viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true });
 
+  test("root is excluded while home and locale home show the install prompt", async ({ page }) => {
+    for (const path of ["/", "/ja/", "/en/", "/es/", "/pt-br/"]) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      await triggerSyntheticInstallPrompt(page);
+      await expect(page.locator("[data-app-install-prompt]"), `${path} must remain prompt-free`).toBeHidden();
+    }
+
+    await page.goto("/home", { waitUntil: "domcontentloaded" });
+    await triggerSyntheticInstallPrompt(page);
+    await expect(page.locator("[data-app-install-prompt]")).toBeVisible();
+
+    await page.goto("/en/home", { waitUntil: "domcontentloaded" });
+    await triggerSyntheticInstallPrompt(page);
     await expect(page.locator("[data-app-install-prompt]")).toBeVisible();
     await expect(page.locator("[data-app-install-action]")).toBeVisible();
     await expect(page.locator("link[rel='manifest']")).toHaveAttribute("href", "/manifest.webmanifest?lang=en");
     await expect.poll(() => page.evaluate(() => typeof (window as any).ikimonAppOutbox?.enqueue)).toBe("function");
   });
 
-  test("iPhone width keeps the install prompt inside the viewport", async ({ page }) => {
+  test("Add invokes the deferred prompt once", async ({ page }) => {
+    await page.goto("/home", { waitUntil: "domcontentloaded" });
+    await triggerSyntheticInstallPrompt(page);
+    await page.locator("[data-app-install-action]").click();
+    await expect.poll(() => page.evaluate(() => (window as any).__installPromptCalls ?? 0)).toBe(1);
+    await expect(page.locator("[data-app-install-prompt]")).toBeHidden();
+  });
+
+  test("dismissal persists across navigation and another install event", async ({ page }) => {
+    await page.goto("/home", { waitUntil: "domcontentloaded" });
+    await triggerSyntheticInstallPrompt(page);
+    await page.locator("[data-app-install-dismiss]").click();
+    await expect(page.locator("[data-app-install-prompt]")).toBeHidden();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await triggerSyntheticInstallPrompt(page);
+    await expect(page.locator("[data-app-install-prompt]")).toBeHidden();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("ikimon:install-dismissed-v1"))).toBe("1");
+  });
+
+  test("install prompt stays inside the mobile viewport", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/ja/", { waitUntil: "domcontentloaded" });
+    await page.goto("/ja/home", { waitUntil: "domcontentloaded" });
     await triggerSyntheticInstallPrompt(page);
 
     const prompt = page.locator("[data-app-install-prompt]");
@@ -40,7 +73,6 @@ test.describe("app-first mobile shell", () => {
   test("service worker returns the offline app fallback for uncached field routes", async ({ page, context, browserName }) => {
     test.skip(browserName !== "chromium", "service worker offline fallback is verified in Chromium");
 
-    await page.setViewportSize({ width: 412, height: 915 });
     await page.goto("/en/", { waitUntil: "networkidle" });
     await page.evaluate(async () => navigator.serviceWorker.ready);
     const hasController = await page.evaluate(() => Boolean(navigator.serviceWorker.controller));
@@ -59,7 +91,6 @@ test.describe("app-first mobile shell", () => {
   });
 
   test("app outbox debug page shows queued local items", async ({ page }) => {
-    await page.setViewportSize({ width: 412, height: 915 });
     await page.goto("/ja/", { waitUntil: "domcontentloaded" });
     await page.evaluate(async () => {
       await (window as any).ikimonAppOutbox.enqueue({

@@ -382,7 +382,7 @@ test("app install prompt stores beforeinstallprompt without immediate display", 
   assert.doesNotMatch(listener, /promptEl\.hidden = false;/);
 });
 
-test("app install prompt only allows mobile return-value surfaces", () => {
+test("app install prompt excludes root while preserving localized return-value surfaces and mobile defense", () => {
   const html = renderSiteDocument({
     basePath: "",
     title: "Records",
@@ -396,12 +396,14 @@ test("app install prompt only allows mobile return-value surfaces", () => {
 
   assert.ok(routeLogic.includes("replace(/"));
   assert.ok(routeLogic.includes("+$/, '')"));
-  assert.match(routeLogic, /pathname === '\/'/);
+  assert.doesNotMatch(routeLogic, /pathname === '\/'(?:\s|\|)/);
   assert.match(routeLogic, /pathname === '\/home'/);
   assert.match(routeLogic, /pathname === '\/records'/);
   assert.match(routeLogic, /pathname === '\/map'/);
   assert.match(routeLogic, /pathname === '\/profile'/);
   assert.doesNotMatch(routeLogic, /pathname === '\/record'/);
+  assert.match(html, /\['ja', 'en', 'es', 'pt-br'\]\.includes\(segments\[0\]\.toLowerCase\(\)\)/);
+  assert.match(html, /segments\.shift\(\);/);
   assert.match(html, /function isMobileInstallSurface\(\) \{\s+return window\.matchMedia\('\(max-width: 900px\) and \(pointer: coarse\)'\)\.matches;\s+\}/);
   assert.match(html, /if \(!promptEl \|\| !deferredPrompt \|\| isStandalone\(\) \|\| !isMobileInstallSurface\(\) \|\| !isReturnValueInstallSurface\(\)\) return;/);
 });

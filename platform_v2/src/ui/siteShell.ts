@@ -4546,7 +4546,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   }
   function isReturnValueInstallSurface() {
     const pathname = normalizedInstallPath().replace(/\\/+$/, '') || '/';
-    return pathname === '/' || pathname === '/home' || pathname === '/records' || pathname === '/map' || pathname === '/profile';
+    return pathname === '/home' || pathname === '/records' || pathname === '/map' || pathname === '/profile';
   }
   function showInstallPrompt() {
     if (!promptEl || !deferredPrompt || isStandalone() || !isMobileInstallSurface() || !isReturnValueInstallSurface()) return;
@@ -7586,6 +7586,9 @@ ${alternateLinks}
       }
     }
     @media (max-width: 1160px) {
+      .app-install-prompt {
+        bottom: calc(max(6px, env(safe-area-inset-bottom)) + 96px);
+      }
       .has-language-suggestion .language-suggestion {
         bottom: calc(max(14px, env(safe-area-inset-bottom)) + 88px);
       }
