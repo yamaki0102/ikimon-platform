@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { validateHtmlPage } from "./targeted_candidate_smoke_checks.mjs";
 
 function parseArgs(argv) {
   const options = {
@@ -75,8 +76,18 @@ const checks = [
   },
   { name: "explore", path: "/explore", parse: "text", validate: () => null },
   { name: "map", path: "/map", parse: "text", validate: () => null },
-  { name: "learn", path: "/learn", parse: "text", validate: () => null },
-  { name: "contact", path: "/contact", parse: "text", validate: () => null },
+  {
+    name: "learn",
+    path: "/learn",
+    parse: "text",
+    validate: (payload) => validateHtmlPage(payload, { bodyMarker: "読みもの索引" }),
+  },
+  {
+    name: "ja/contact",
+    path: "/ja/contact",
+    parse: "text",
+    validate: (payload) => validateHtmlPage(payload, { bodyMarker: "お問い合わせ" }),
+  },
 ];
 
 async function runCheck(baseUrl, check) {
@@ -85,6 +96,9 @@ async function runCheck(baseUrl, check) {
   });
   if (!response.ok) {
     return { name: check.name, path: check.path, ok: false, error: `HTTP ${response.status}` };
+  }
+  if (check.parse === "text" && !String(response.headers.get("content-type") ?? "").toLowerCase().includes("text/html")) {
+    return { name: check.name, path: check.path, ok: false, error: "content-type is not text/html" };
   }
   const payload = check.parse === "json" ? await response.json() : await response.text();
   const error = check.validate(payload);
