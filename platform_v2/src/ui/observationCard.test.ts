@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderObservationCard } from "./observationCard.js";
+import { OBSERVATION_CARD_STYLES, renderObservationCard } from "./observationCard.js";
 
 const observation = {
   occurrenceId: "occ-1",
@@ -178,4 +178,26 @@ test("renderObservationCard keeps missing dates unknown and image alt independen
   assert.match(html, /日時不明/);
   assert.doesNotMatch(html, /1970[.\/-]01/);
   assert.match(html, /alt="記録の画像"/);
+});
+
+test("renderObservationCard keeps an explicit accessible AI candidate label", () => {
+  const html = renderObservationCard("", "ja", {
+    ...observation,
+    displayName: null as unknown as string,
+    vernacularName: null,
+    scientificName: null,
+    aiCandidateName: "モンシロチョウ",
+    isAiCandidate: true,
+  }, { compact: true });
+
+  assert.match(html, /class="obs-card-species-ai-badge" aria-label="AI候補">AI候補<\/span>/);
+  assert.match(html, /class="obs-card-species-label">モンシロチョウ<\/span>/);
+});
+
+test("compact image dimensions are mobile-only and cover every media rendering", () => {
+  assert.match(OBSERVATION_CARD_STYLES, /@media \(max-width: 640px\)/);
+  assert.match(OBSERVATION_CARD_STYLES, /\.obs-card\.is-compact \.obs-card-media \{[\s\S]*?width: 112px;[\s\S]*?height: 112px;/);
+  assert.match(OBSERVATION_CARD_STYLES, /\.obs-card\.is-compact \.obs-card-photo \{[\s\S]*?width: 112px;[\s\S]*?height: 112px;/);
+  assert.match(OBSERVATION_CARD_STYLES, /\.obs-card\.is-compact \.obs-card-photo\.is-sketch/);
+  assert.match(OBSERVATION_CARD_STYLES, /\.obs-card\.is-compact \.obs-card-meta/);
 });

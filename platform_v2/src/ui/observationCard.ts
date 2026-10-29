@@ -196,8 +196,8 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card-sketch-icon { font-size: 28px; opacity: .68; }
   .obs-card-sketch-name { font-size: 13px; font-weight: 800; line-height: 1.3; max-width: 90%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .obs-card-sketch-note { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #94a3b8; }
-  .obs-card-photo-fallback { display: none; }
-  .obs-card-photo-fallback.is-visible { display: flex; }
+  .obs-card-photo.is-sketch.obs-card-photo-fallback { display: none; }
+  .obs-card-photo.is-sketch.obs-card-photo-fallback.is-visible { display: flex; }
   .obs-card-video-mark {
     position: absolute; inset: 0; margin: auto;
     width: 54px; height: 54px; border-radius: 999px;
@@ -263,4 +263,34 @@ export const OBSERVATION_CARD_STYLES = `
   .obs-card.is-identification .obs-card-kind { background: linear-gradient(135deg, rgba(224,242,254,.96), rgba(236,253,245,.96)); color: #0369a1; }
   .obs-card.is-identification .obs-card-species { background: rgba(14,165,233,.86); }
   .obs-card.is-identification .obs-card-photo.is-empty { background: linear-gradient(135deg, #e0f2fe, #f0fdf4); color: #0369a1; }
+  @media (max-width: 640px) {
+    .obs-card.is-compact {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      align-items: stretch;
+    }
+    .obs-card.is-compact .obs-card-media {
+      width: 112px;
+      height: 112px;
+      aspect-ratio: auto;
+      align-self: start;
+    }
+    .obs-card.is-compact .obs-card-photo {
+      width: 112px;
+      height: 112px;
+    }
+    .obs-card.is-compact .obs-card-photo.is-sketch { padding: 10px; }
+    .obs-card.is-compact .obs-card-photo.is-sketch::before { inset: 7px; }
+    .obs-card.is-compact .obs-card-sketch-icon { font-size: 22px; }
+    .obs-card.is-compact .obs-card-sketch-name { font-size: 11px; }
+    .obs-card.is-compact .obs-card-sketch-note { font-size: 9px; }
+    .obs-card.is-compact .obs-card-kind { left: 6px; top: 6px; padding: 3px 7px; font-size: 9px; }
+    .obs-card.is-compact .obs-card-tier { right: 6px; top: 6px; }
+    .obs-card.is-compact .obs-card-species { left: 6px; bottom: 6px; max-width: calc(100% - 12px); padding: 4px 7px; font-size: 10px; gap: 4px; }
+    .obs-card.is-compact .obs-card-species-ai-badge { padding: 2px 5px; font-size: 9px; }
+    .obs-card.is-compact .obs-card-meta { min-width: 0; border-top: 0; border-left: 2px solid #10b981; }
+    .obs-card.is-compact .obs-card-who { flex-wrap: wrap; gap: 6px; }
+    .obs-card.is-compact .obs-card-avatar { width: 28px; height: 28px; }
+    .obs-card.is-compact .obs-card-when { width: 100%; padding-left: 34px; }
+  }
 `;
