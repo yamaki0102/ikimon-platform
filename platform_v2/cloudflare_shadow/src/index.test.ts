@@ -10251,6 +10251,15 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(jsonPayload.observation.visitId, "visit-detail-contract");
   assert.equal(jsonPayload.observation.occurrenceId, "occ:visit-detail-contract:0");
   assert.equal(jsonPayload.observation.displayName, "詳細テスト植物");
+  assert.equal(jsonPayload.observation.note, "public detail note");
+  for (const canary of ["090-5550-0142", "canary-leak@example.invalid"]) {
+    obs.observations.get("visit-detail-contract")!.note = canary;
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/observations/visit-detail-contract/public-detail"), env);
+    const payload = await response.json() as any;
+    assert.equal(payload.observation.note, null);
+    assert.doesNotMatch(JSON.stringify(payload), /090-5550-0142|canary-leak@example\.invalid/);
+  }
+  obs.observations.get("visit-detail-contract")!.note = "public detail note";
   assert.deepEqual(jsonPayload.observation.publicLocation, { label: "位置をぼかしています" });
   assert.equal(jsonResponse.headers.get("cache-control"), "no-store");
   assert.equal(jsonPayload.observation.privacy.exactLocationExposed, false);
@@ -10951,6 +10960,15 @@ test("research export APIs read Cloudflare D1 canonical import without origin fa
   assert.equal(listResponse.headers.get("x-ikimon-cloudflare-native"), "research-export-runtime");
   assert.equal(listPayload.totalReturned, 1);
   assert.equal(listPayload.records[0].occurrenceID, "occ-research-1");
+  assert.equal(listPayload.records[0].recordedBy, "Anonymous");
+  for (const path of ["occurrences", "darwin-core.csv", "export-qa-report", "media-role-summary"]) {
+    const lowTier = await worker.fetch(new Request(`https://ikimon.life/api/v1/research/${path}?tier_gte=1`), env);
+    assert.equal(lowTier.status, 400);
+  }
+  for (const [offset, expected] of [["Infinity", 0], ["1.9", 1], ["999999999", 10000]]) {
+    const bounded = await worker.fetch(new Request(`https://ikimon.life/api/v1/research/occurrences?offset=${offset}&limit=999999`), env);
+    assert.equal((await bounded.json() as any).offset, expected);
+  }
   assert.equal(listPayload.records[0].associatedMedia, "legacy/photos/research.jpg");
   assert.equal(listPayload.records[0].compatibility.source, "cloudflare_research_export_runtime");
   assert.equal(listPayload.records[0].compatibility.fullLegacyResearchParity, false);
@@ -10964,6 +10982,8 @@ test("research export APIs read Cloudflare D1 canonical import without origin fa
   assert.equal(csvResponse.headers.get("x-ikimon-cloudflare-native"), "research-export-runtime");
   assert.match(csv, /occurrenceID,eventID,scientificName/);
   assert.match(csv, /occ-research-1,visit-research-1,Papilio xuthus/);
+  assert.match(csv, /Anonymous/);
+  assert.doesNotMatch(csv, /Researcher One/);
 
   const summaryResponse = await worker.fetch(
     new Request("https://ikimon.life/api/v1/research/media-role-summary"),

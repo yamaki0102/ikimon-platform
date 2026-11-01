@@ -2,6 +2,7 @@ import type { ObservationFirstAiCandidateInsight } from "./observationFirstRecor
 
 const genericCandidate = /^(?:鳥|鳥類|小鳥|動物|生きもの|生物|植物|写っているもの|unknown|unidentified|unclassified)$/iu;
 const privateLocation = /(?:\b(?:lat|lng|latitude|longitude|coordinate|geohash|h3)\b|[-+]?\d{1,2}\.\d{4,}\s*[,/]\s*[-+]?\d{2,3}\.\d{4,})/iu;
+const privateContact = /(?:\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|(?<!\d)(?:\+?81[-\s]?)?0\d{1,4}[-\s]?\d{1,4}[-\s]?\d{3,4}(?!\d))/iu;
 const humanSubjectName = /^(?:homo sapiens(?: sapiens)?|humans?|persons?|people|人|人間|人物|ヒト|personas?|pessoas?|humanos?|ser(?:es)? humanos?)$/iu;
 
 const normalizedSubjectName = (value: unknown): string => typeof value === "string"
@@ -67,7 +68,7 @@ export function isPublicObservationAiSubjectEligible(
 function safeText(value: unknown, maxLength = 220): string | null {
   if (typeof value !== "string") return null;
   const text = value.replace(/\s+/gu, " ").trim();
-  if (!text || text.length > maxLength || privateLocation.test(text)) return null;
+  if (!text || text.length > maxLength || privateLocation.test(text) || privateContact.test(text)) return null;
   return text;
 }
 

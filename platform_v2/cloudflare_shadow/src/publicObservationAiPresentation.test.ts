@@ -46,6 +46,30 @@ test("public AI presentation rejects malformed, generic, and exact-location-bear
   })), []);
 });
 
+test("public AI presentation omits phone numbers and email addresses from all text fields", () => {
+  const result = publicObservationAiCandidateInsights(JSON.stringify({
+    topCandidates: [{
+      name: "イソヒヨドリ",
+      supportingFeatures: ["連絡先 090-5550-0142", "canary-leak@example.invalid", "青い羽が見えます"],
+    }],
+  }));
+  assert.deepEqual(result, [{
+    name: "イソヒヨドリ",
+    scientificName: null,
+    supportingFeatures: ["青い羽が見えます"],
+    missingFeatures: [],
+    contradictions: [],
+  }]);
+  const feedback = publicObservationAiFeedback(JSON.stringify({
+    summary: { observer_feedback: "連絡先 090-5550-0142", subject_explanations: [
+      { next_photo: "canary-leak@example.invalid" },
+    ] },
+  }));
+  assert.deepEqual(feedback, { feedback: null, nextPhoto: null });
+  assert.equal(JSON.stringify({ result, feedback }).includes("canary-leak@example.invalid"), false);
+  assert.equal(JSON.stringify({ result, feedback }).includes("090-5550-0142"), false);
+});
+
 test("public AI presentation exposes bounded feedback and next-photo guidance", () => {
   const feedback = publicObservationAiFeedback(JSON.stringify({
     summary: {
