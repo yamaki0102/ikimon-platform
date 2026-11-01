@@ -4,6 +4,7 @@ import {
   ProgramInputError,
   type PublicProgram,
 } from "../../src/services/publicProgram";
+import { containsDiscoveryPersonalInformation } from "./eventDiscoveryPrivacy";
 
 export const PUBLIC_PROGRAM_RECEIVER_SCHEMA = "zukan.public-program-receiver/v1" as const;
 
@@ -32,7 +33,7 @@ export interface PublicProgramReceiverDependencies {
 }
 
 export type PublicProgramReceiverResult = {
-  readonly status: 200 | 201 | 400 | 409 | 500;
+  readonly status: 200 | 201 | 400 | 409 | 422 | 500;
   readonly body: Record<string, unknown>;
 };
 
@@ -168,6 +169,10 @@ export async function receivePublicProgram(
         field: error instanceof ProgramInputError ? error.field : "program",
       },
     };
+  }
+  if ([program.title, program.placeLabel, program.description, program.conditions, ...program.stations.map((station) => station.name)]
+    .some(containsDiscoveryPersonalInformation)) {
+    return { status: 422, body: { error: "public_program_personal_information" } };
   }
 
   const digest = await programDigest(program);

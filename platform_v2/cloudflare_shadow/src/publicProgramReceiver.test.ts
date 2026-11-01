@@ -67,6 +67,19 @@ function fixture() {
   };
 }
 
+test("public program rejects phone and email canaries before writing", async () => {
+  for (const field of ["title", "placeLabel", "description", "conditions"] as const) {
+    const f = fixture();
+    try {
+      const result = await f.receive({ ...first, [field]: field === "title" ? "会場 090-5550-0142" : "canary-leak@example.invalid" });
+      assert.equal(result.status, 422);
+      assert.equal(result.body.error, "public_program_personal_information");
+      assert.equal(f.rows().length, 0);
+      assert.equal(f.counts.batches, 0);
+    } finally { f.sqlite.close(); }
+  }
+});
+
 test("distinct UUIDs with the same seven-digit prefix both persist and keep their invite codes on replay", async () => {
   const f = fixture();
   try {

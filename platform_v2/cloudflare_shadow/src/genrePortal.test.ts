@@ -46,6 +46,15 @@ test("listing filters through the source and escapes item names", async () => {
   assert.doesNotMatch(body, /高原の記録|地域資料館|森の観察会 <春>/);
 });
 
+test("portal rejects legacy phone and email canaries before rendering HTML or JSON-LD", async () => {
+  for (const value of ["森の観察会 090-5550-0142", "canary-leak@example.invalid"]) {
+    const source = fixtureSource([{ ...items[0]!, description: value }]);
+    const response = await get("/portal/nature/shizuoka", "true", source);
+    assert.equal(response.status, 422);
+    assert.doesNotMatch(await response.text(), /090-5550-0142|canary-leak@example\.invalid/u);
+  }
+});
+
 test("JSON-LD parses with Event, Organization and ItemList nodes", async () => {
   const body = await (await get("/portal/nature/shizuoka")).text();
   const raw = body.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1];

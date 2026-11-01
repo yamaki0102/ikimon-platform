@@ -38,7 +38,7 @@ import {
 } from "./recordRecoveryHtml";
 import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
-import { screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
+import { containsDiscoveryPersonalInformation, screenDiscoveryPhoto } from "./eventDiscoveryPrivacy";
 import {
   OBSERVATION_AI_PROMPT_VERSION,
   OBSERVATION_AI_RULE_VERSION,
@@ -14492,10 +14492,11 @@ async function verifyContactProofNative(proof: string, env: Env): Promise<Verifi
 }
 
 function contactProofSecret(env: Env): string {
-  return normalizeOptionalText(env.CONTACT_FORM_SECRET)
+  const secret = normalizeOptionalText(env.CONTACT_FORM_SECRET)
     ?? normalizeOptionalText(env.V2_OAUTH_STATE_SECRET)
-    ?? normalizeOptionalText(env.V2_PRIVILEGED_WRITE_API_KEY)
-    ?? "local";
+    ?? normalizeOptionalText(env.V2_PRIVILEGED_WRITE_API_KEY);
+  if (!secret) throw new Error("contact_form_secret_unset");
+  return secret;
 }
 
 async function hmacSha256Base64Url(secret: string, payload: string): Promise<string> {
@@ -14870,6 +14871,12 @@ function fallbackRoutePattern(pathname: string): string {
 
 async function handleResearchExportApi(request: Request, url: URL, env: Env): Promise<Response | null> {
   if (request.method !== "GET") return null;
+  if (url.pathname.startsWith("/api/v1/research/") && url.searchParams.has("tier_gte")) {
+    const requestedTier = Number(url.searchParams.get("tier_gte"));
+    if (!Number.isInteger(requestedTier) || requestedTier < 3 || requestedTier > 4) {
+      return json({ error: "invalid_tier_gte" }, 400);
+    }
+  }
   if (url.pathname === "/api/v1/research/occurrences") {
     const { records, offset } = await queryResearchExportRecords(url, env, { defaultTier: 3 });
     return json({
@@ -14892,7 +14899,7 @@ async function handleResearchExportApi(request: Request, url: URL, env: Env): Pr
     });
   }
   if (url.pathname === "/api/v1/research/export-qa-report") {
-    const { records, offset, exportReadyOnly } = await queryResearchExportRecords(url, env, { defaultTier: 1 });
+    const { records, offset, exportReadyOnly } = await queryResearchExportRecords(url, env, { defaultTier: 3 });
     const exportReadyCount = records.filter((record) => record.readiness.exportReady).length;
     return json({
       offset,
@@ -14910,7 +14917,7 @@ async function handleResearchExportApi(request: Request, url: URL, env: Env): Pr
     }, 200, researchExportHeaders("json"));
   }
   if (url.pathname === "/api/v1/research/media-role-summary") {
-    const tierGte = clampInteger(Number(url.searchParams.get("tier_gte") ?? "1"), 1, 4);
+    const tierGte = clampInteger(Number(url.searchParams.get("tier_gte") ?? "3"), 3, 4);
     const rows = await env.OBS_DB.prepare(
       `SELECT COALESCE(asset_role, 'unknown') AS media_role,
               COALESCE(asset_role, 'unknown') AS asset_role,
@@ -14958,7 +14965,7 @@ async function queryResearchExportRecords(
 ): Promise<{ records: ResearchExportRecord[]; offset: number; exportReadyOnly: boolean }> {
   const tierGte = clampInteger(Number(url.searchParams.get("tier_gte") ?? String(options.defaultTier)), 1, 4);
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "100"), 1, 1000);
-  const offset = Math.max(0, Number(url.searchParams.get("offset") ?? "0"));
+  const offset = clampInteger(Number(url.searchParams.get("offset") ?? "0"), 0, 10000);
   const exportReadyOnly = Boolean(options.exportReadyOnly || url.searchParams.get("export_ready_only") === "1" || url.searchParams.get("export_ready_only") === "true");
   const placeId = normalizeOptionalText(url.searchParams.get("place_id"));
   const taxon = normalizeOptionalText(url.searchParams.get("taxon"));
@@ -14993,7 +15000,7 @@ async function queryResearchExportRecords(
             o.quality_grade,
             v.observed_at,
             v.place_id,
-            COALESCE(u.display_name, 'Anonymous') AS observer_name,
+            'Anonymous' AS observer_name,
             COALESCE(v.public_visibility, 'public') AS public_visibility,
             (
               SELECT COALESCE(ea.legacy_relative_path, ea.asset_id)
@@ -15011,7 +15018,6 @@ async function queryResearchExportRecords(
             ) AS media_role
        FROM production_import_occurrences o
        LEFT JOIN production_import_visits v ON v.visit_id = o.visit_id
-       LEFT JOIN production_import_users u ON u.user_id = v.user_id
       WHERE ${where.join(" AND ")}
       ORDER BY COALESCE(v.observed_at, o.created_at, '') DESC, o.occurrence_id ASC
       LIMIT ? OFFSET ?`
@@ -15037,7 +15043,7 @@ function toResearchExportRecord(row: ResearchExportD1Row): ResearchExportRecord 
     taxonRank: row.taxon_rank,
     evidenceTier,
     eventDate: row.observed_at,
-    recordedBy: row.observer_name ?? "Anonymous",
+    recordedBy: "Anonymous",
     associatedMedia: row.media_ref,
     associatedMediaRole: row.media_role,
     basisOfRecord: "HumanObservation",
@@ -30031,7 +30037,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
     observedAt: row.observed_at,
-    note: row.note,
+    note: row.note && containsDiscoveryPersonalInformation(row.note) ? null : row.note,
     placeName: "位置をぼかしています",
     municipality: null,
     publicLocation: {
@@ -39741,14 +39747,14 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
         badge: "草地",
         badgeKind: "plant",
         reason: "足元の環境と比べて見られます。",
-        meta: "YAMAKI · 5月17日",
+        meta: "公開記録 · 5月17日",
         href: "/ja/observations/record-1779005636197?subject=occ%3Arecord-1779005636197%3A1"
       },
       {
         title: "名前待ち",
         badge: "名前待ち",
         reason: "この場所で、まだ名前が決まっていない写り込みです。",
-        meta: "YAMAKI · 5月17日",
+        meta: "公開記録 · 5月17日",
         href: "/ja/observations/record-1779005636197?subject=occ%3Arecord-1779005636197%3A0",
         imageSrc: "/thumb/sm/v2-observations/record-1779005636197/ikimon-photo-1779005589177-a2b46533bedd.jpg",
         imageAlt: "名前待ち"
@@ -39795,14 +39801,14 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
         title: "ヒメイワダレソウ",
         badge: "同エリア",
         reason: "同じエリアの別の場面として続けて見られます。",
-        meta: "YAMAKI · 6月9日",
+        meta: "公開記録 · 6月9日",
         href: "/ja/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A1"
       },
       {
         title: "名前待ち",
         badge: "名前待ち",
         reason: "この場所で、まだ名前が決まっていない写り込みです。",
-        meta: "YAMAKI · 6月9日",
+        meta: "公開記録 · 6月9日",
         href: "/ja/observations/record-1780970378665?subject=occ%3Arecord-1780970378665%3A0",
         imageSrc: "/thumb/sm/v2-observations/record-1780970378665/ikimon-photo-1780970363543-cbb7b0c7dabc.jpg",
         imageAlt: "名前待ち"
@@ -39850,14 +39856,14 @@ const IMAGE_OBSERVATION_DETAIL_TARGET_META: Record<string, ImageObservationTarge
         badge: "草地",
         badgeKind: "plant",
         reason: "足元の環境と比べて見られます。",
-        meta: "YAMAKI · 6月9日",
+        meta: "公開記録 · 6月9日",
         href: "/ja/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A2"
       },
       {
         title: "名前待ち",
         badge: "名前待ち",
         reason: "この場所で、まだ名前が決まっていない写り込みです。",
-        meta: "YAMAKI · 6月9日",
+        meta: "公開記録 · 6月9日",
         href: "/ja/observations/record-1780982506049?subject=occ%3Arecord-1780982506049%3A0",
         imageSrc: "/thumb/sm/v2-observations/record-1780982506049/ikimon-photo-1780982481796-b8dd5185edb9.jpg",
         imageAlt: "名前待ち"
@@ -40438,9 +40444,7 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail, rec
     pageClass: "obs-vps-image-detail",
     bodyClass: "obs-vps-image-detail-body is-reading-surface",
     headerBlock: renderVpsImageHeader(recordsHref),
-    observerBlock: meta
-      ? `<a class="obs-hero-observer" href="/ja/profile/user_69bc926c2eca4" aria-label="投稿者 YAMAKI"><span class="obs-hero-avatar" aria-hidden="true">Y</span><span>YAMAKI</span></a>`
-      : `<span class="obs-hero-observer" aria-label="投稿者は公開していません"><span class="obs-hero-avatar" aria-hidden="true">i</span><span>公開記録</span></span>`,
+    observerBlock: `<span class="obs-hero-observer" aria-label="投稿者は公開していません"><span class="obs-hero-avatar" aria-hidden="true">i</span><span>公開記録</span></span>`,
     actionRailBlock: "",
     readProgressLinks: `
   <a href="#photos">写真</a>
@@ -40938,7 +40942,7 @@ function authorizeInternalRequest(request: Request, env: Env): Response | null {
 }
 
 function html(body: string, status = 200, headers?: Record<string, string>): Response {
-  return new Response(body, {
+  return new Response(body.replace(/<head([^>]*)>/i, '<head$1><meta name="format-detection" content="telephone=no">'), {
     status,
     headers: { "content-type": "text/html; charset=utf-8", ...(headers ?? {}) }
   });

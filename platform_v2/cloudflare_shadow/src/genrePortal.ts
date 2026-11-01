@@ -1,3 +1,5 @@
+import { containsDiscoveryPersonalInformation } from "./eventDiscoveryPrivacy";
+
 export type PublicParticipationKind = "event" | "site" | "record";
 
 export interface PublicParticipation {
@@ -41,7 +43,7 @@ function response(body: string, status = 200): Response {
 
 function page(input: { title: string; description: string; canonical: string; heading: string; breadcrumbs: Array<{ label: string; href?: string }>; body: string; structuredData: unknown[] }): string {
   const breadcrumbs = input.breadcrumbs.map((crumb) => `<li>${crumb.href ? `<a href="${escapeHtml(crumb.href)}">${escapeHtml(crumb.label)}</a>` : escapeHtml(crumb.label)}</li>`).join("");
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(input.title)}</title><meta name="description" content="${escapeHtml(input.description)}"><link rel="canonical" href="${escapeHtml(input.canonical)}"><meta property="og:type" content="website"><meta property="og:site_name" content="ZUKAN"><meta property="og:title" content="${escapeHtml(input.title)}"><meta property="og:description" content="${escapeHtml(input.description)}"><meta property="og:url" content="${escapeHtml(input.canonical)}"><script type="application/ld+json">${safeJson(input.structuredData)}</script><style>
+  return `<!doctype html><html lang="ja"><head><meta name="format-detection" content="telephone=no"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(input.title)}</title><meta name="description" content="${escapeHtml(input.description)}"><link rel="canonical" href="${escapeHtml(input.canonical)}"><meta property="og:type" content="website"><meta property="og:site_name" content="ZUKAN"><meta property="og:title" content="${escapeHtml(input.title)}"><meta property="og:description" content="${escapeHtml(input.description)}"><meta property="og:url" content="${escapeHtml(input.canonical)}"><script type="application/ld+json">${safeJson(input.structuredData)}</script><style>
 *{box-sizing:border-box}body{margin:0;color:#17352b;background:#f7faf7;font-family:"Noto Sans JP",system-ui,sans-serif;font-size:16px;line-height:1.75}a{color:#17664c;text-underline-offset:.2em}header,main,footer{width:min(100%,72rem);margin:auto;padding:16px}.brand{font-size:1.25rem;font-weight:700;text-decoration:none}.breadcrumbs{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:16px 0 0;margin:0}.breadcrumbs li+li:before{content:"/";margin-right:8px;color:#728078}h1{font-size:clamp(1.875rem,7vw,3rem);line-height:1.35;margin:24px 0 8px}h2{font-size:1.375rem;line-height:1.45}.lead{max-width:44rem;margin:0 0 32px;color:#465a52}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:16px;padding:0;list-style:none}.card{height:100%;padding:24px;background:#fff;border:1px solid #dbe5df;border-radius:8px}.card h2{margin:0 0 8px}.meta{margin:8px 0;color:#53675f}.kind{font-weight:700;color:#17664c}.empty{padding:32px 24px;background:#fff;border:1px solid #dbe5df;border-radius:8px}footer{margin-top:40px;border-top:1px solid #dbe5df}@media(min-width:48rem){header,main,footer{padding-left:28px;padding-right:28px}}@media(min-width:72rem){header,main,footer{padding-left:40px;padding-right:40px}}
 </style></head><body><header><a class="brand" href="/">ZUKAN</a></header><main><nav aria-label="パンくず"><ol class="breadcrumbs">${breadcrumbs}</ol></nav><h1>${escapeHtml(input.heading)}</h1>${input.body}</main><footer><small>地域の記録を、みんなで育てる。</small></footer></body></html>`;
 }
@@ -67,6 +69,9 @@ export async function handleGenrePortalRequest(request: Request, env: GenrePorta
   const genre = segments[1];
   const region = segments[2];
   const items = await source.listPublic({ ...(genre ? { genre } : {}), ...(region ? { region } : {}) });
+  if (items.some((item) => [item.name, item.description, item.location, item.publisher].some((value) => typeof value === "string" && containsDiscoveryPersonalInformation(value)))) {
+    return response("Unprocessable Content", 422);
+  }
   let html: string;
   if (!genre) {
     const genres = [...new Set(items.map((item) => item.genre).filter((value) => SLUG.test(value)))].sort();

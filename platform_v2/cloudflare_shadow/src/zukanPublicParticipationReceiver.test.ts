@@ -37,3 +37,14 @@ test("publish accepts and stores all optional public display fields", async t =>
 });
 test("invalid genre returns 422", async t => { const { env } = fixture(t); const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, { ...publish, genre: "Nature Walk" }), env); assert.equal(result.status, 422); });
 test("unknown publish field is still rejected", async t => { const { env } = fixture(t); const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, { ...publish, unexpected: true }), env); assert.equal(result.status, 422); });
+test("public participation rejects phone and email canaries before receipt or publication", async t => {
+  for (const field of ["title", "description", "locationName", "publisherName"] as const) {
+    const { env, sqlite, db } = fixture(t);
+    const input = { ...publish, [field]: field === "title" ? "地域の催し 090-5550-0142" : "canary-leak@example.invalid" };
+    const result = await receive(signed(PUBLIC_PARTICIPATION_PATH, input), env);
+    assert.equal(result.status, 422);
+    assert.deepEqual(await result.json(), { error: "personal_information_rejected" });
+    assert.equal(sqlite.prepare("SELECT COUNT(*) count FROM zukan_public_participation_receipts").get()?.count, 0);
+    assert.deepEqual(await listPublicParticipations(db), []);
+  }
+});

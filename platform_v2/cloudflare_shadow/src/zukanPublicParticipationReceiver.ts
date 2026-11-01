@@ -1,4 +1,5 @@
 import { canonicalJson, type ReceiverDatabase } from "./nocosilRevisionReceiver";
+import { containsDiscoveryPersonalInformation } from "./eventDiscoveryPrivacy";
 
 export const PUBLIC_PARTICIPATION_PATH = "/api/v1/integrations/nocosil/public-participations";
 export const PUBLIC_PARTICIPATION_WITHDRAWAL_PATH = PUBLIC_PARTICIPATION_PATH + "/withdrawals";
@@ -39,6 +40,9 @@ export function parsePublicParticipation(value: unknown): PublicParticipation {
   object(value, ["schema", "idempotencyKey", "kind", "id", "title", "organizer_approval", "photos"], ["genre", "region", "description", "url", "startsAt", "locationName", "publisherName"]);
   const input = value as any;
   if (input.schema !== PUBLIC_PARTICIPATION_SCHEMA) fail("schema_invalid");
+  for (const field of ["title", "description", "locationName", "publisherName"] as const) {
+    if (Object.hasOwn(input, field) && typeof input[field] === "string" && containsDiscoveryPersonalInformation(input[field])) fail("personal_information_rejected");
+  }
   if (!( ["event", "site", "record"] as unknown[]).includes(input.kind)) fail("kind_invalid");
   if (typeof input.title !== "string" || !input.title.trim() || input.title.length > 240) fail("title_invalid");
   object(input.organizer_approval, ["approverId", "approvedAt"]);
