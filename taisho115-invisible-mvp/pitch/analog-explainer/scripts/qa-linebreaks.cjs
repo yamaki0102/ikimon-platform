@@ -7,6 +7,12 @@ const url = process.env.DECK_URL || "http://127.0.0.1:5178/";
 const outDir = process.env.QA_OUT_DIR ? path.resolve(process.env.QA_OUT_DIR) : path.resolve(__dirname, "..", ".runtime", "linebreak-review");
 fs.mkdirSync(outDir, { recursive: true });
 
+async function openDeck(page) {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForSelector(".slide.active", { state: "visible", timeout: 15000 });
+  await page.waitForTimeout(250);
+}
+
 const viewports = [
   { name: "desktop", width: 1366, height: 768, maxTitleLines: 3, maxHeadlineLines: 3 },
   { name: "mobile", width: 390, height: 844, maxTitleLines: 3, maxHeadlineLines: 4 }
@@ -26,7 +32,7 @@ function safeName(index) {
 
   for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.goto(url, { waitUntil: "networkidle" });
+    await openDeck(page);
 
     for (let index = 0; index < slides.length; index += 1) {
       if (index > 0) await page.getByLabel("次のスライド").click();
