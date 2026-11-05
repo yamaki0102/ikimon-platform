@@ -28,6 +28,12 @@ test("capture navigation uses its dedicated orange action with white text", () =
   assert.match(styles, /\.zukan-app-nav a\.is-capture:active\{background:var\(--zukan-action-capture-active\)\}/);
 });
 
+test("guest Home capture action uses the capture color while the secondary action stays neutral", () => {
+  assert.match(styles, /\.home-state-view\.is-guest \.home-primary-button\{background:var\(--zukan-action-capture\);color:#fff\}/);
+  assert.match(styles, /\.home-state-view\.is-guest \.home-primary-button:hover\{background:var\(--zukan-action-capture-hover\)\}/);
+  assert.match(styles, /\.home-state-view\.is-guest \.home-secondary-button\{[^}]*background:var\(--zukan-surface-base\)/);
+});
+
 test("dark semantic roles are explicit opt-in and preserve readable focus treatment", () => {
   assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /:root\[data-zukan-theme="dark"\]\{[\s\S]*?--zukan-text-primary:#f2f8f3;[\s\S]*?--zukan-surface-base:#111a14;[\s\S]*?--zukan-status-error:#ff8b82;[\s\S]*?--zukan-focus-outline:#66e6f2/);
   assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /\[data-zukan-theme="dark"\] :is\(\.zukan-app-brand img,\.brand-lockup-img\)\{content:url\("\/assets\/brand\/zukan-lockup-dark\.svg"\)\}/);

@@ -644,9 +644,9 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
   assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/" aria-current="page"/);
-  assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #087a4d;/);
-  assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;/);
-  assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #087a4d;[^}]*color: #fff;/);
+  assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #b94f18;[^}]*color: #fff;/);
+  assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;[^}]*background: #b94f18;[^}]*color: #fff;/);
+  assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #963f13;[^}]*color: #fff;/);
   assert.match(html, /data-global-record-gallery-select[^>]*>端末の写真から選ぶ<\/button>/);
   assert.match(html, /カメラを開けませんでした/);
   assert.match(html, /data-global-record-camera-retry[^>]*>カメラの利用を許可する<\/button>/);
