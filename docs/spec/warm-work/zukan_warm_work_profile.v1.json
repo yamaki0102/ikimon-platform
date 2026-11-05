@@ -1,0 +1,78 @@
+{
+  "schema": "zukan.warm-work-profile/v1",
+  "status": "CANDIDATE",
+  "shared_contract": "nexus.work-fabric.warm-work/v1",
+  "shared_receipt_schema": "nexus.work-fabric.warm-work-receipt/v1",
+  "canonical_product_contract": "docs/spec/zukan-product-architecture/SPEC.md",
+  "runtime_path": "platform_v2",
+  "context_authorities": [
+    "docs/spec/zukan-product-architecture/SPEC.md",
+    "docs/START_HERE.md",
+    "platform_v2/AGENTS.md"
+  ],
+  "cache_layers": [
+    "SOURCE_DELTA",
+    "CONTEXT_PACK",
+    "DEPENDENCY_BUILD",
+    "EXECUTOR_SNAPSHOT",
+    "EVIDENCE_REUSE"
+  ],
+  "default_scope": "PROJECT",
+  "initial_warm_targets": [
+    "platform_v2 dependency and toolchain state",
+    "browser and UI test toolchain",
+    "product and Domain Pack Context Packs",
+    "changed-path to affected-test impact map",
+    "repeated UI/publication/import-export implementation patterns"
+  ],
+  "impact_categories": {
+    "UI_COMPONENT_STYLE": {
+      "minimum_obligations": ["targeted_unit_or_component_tests", "applicable_browser_checks"]
+    },
+    "ROUTE_API_CONTRACT": {
+      "minimum_obligations": ["contract_tests", "affected_service_tests"]
+    },
+    "AUTHENTICATION_AUTHORIZATION": {
+      "minimum_obligations": ["fresh_security_boundary_tests", "negative_authorization_tests"],
+      "evidence_reuse_default": false
+    },
+    "KNOWLEDGE_RIGHTS_REVIEW": {
+      "minimum_obligations": ["product_contract_tests", "rights_review_safety_tests"],
+      "evidence_reuse_default": false
+    },
+    "DOMAIN_PACK": {
+      "minimum_obligations": ["domain_pack_contract_tests", "affected_workflow_tests"]
+    },
+    "PERSISTENCE_SCHEMA_MIGRATION": {
+      "minimum_obligations": ["fresh_migration_tests", "rollback_or_compensation_checks"],
+      "evidence_reuse_default": false
+    },
+    "PUBLICATION_EXPORT": {
+      "minimum_obligations": ["publication_or_export_contract_tests", "rights_visibility_checks"]
+    },
+    "RELEASE_RUNTIME_CONFIG": {
+      "minimum_obligations": ["fresh_release_preflight", "runtime_readback"],
+      "evidence_reuse_default": false
+    }
+  },
+  "invalidation": {
+    "fail_closed": true,
+    "dimensions": [
+      "canonical_source_digest",
+      "relevant_content_digest",
+      "context_compiler_version",
+      "product_policy_safety_digest",
+      "dependency_lock_digest",
+      "toolchain_runtime_digest",
+      "validator_fixture_version",
+      "fresh_external_state_requirement"
+    ]
+  },
+  "boundaries": {
+    "warm_work_evidence_is_domain_evidence": false,
+    "artifacts_ref_is_release_source": false,
+    "cache_is_release_authority": false,
+    "canonical_release_source": "EXACT_GITHUB_COMMIT_AFTER_PROMOTION",
+    "release_authority": "RELEASE_COMMANDER"
+  }
+}
