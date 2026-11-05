@@ -22,7 +22,9 @@ Live Guide data must move through this explicit state machine:
 The guide offline queue may contain scene frame blobs, audio blobs, exact lat/lng,
 and telemetry points. It is therefore private, temporary storage.
 
-Required behavior:
+### Current runtime contract
+
+The following describes the current implementation before the Survey Mode Phase 0 migration:
 
 - Media-bearing queue items expire after 72 hours.
 - Telemetry-only queue items expire after 24 hours.
@@ -30,7 +32,38 @@ Required behavior:
 - Replay requires both capture-time consent and current consent.
 - If audio consent is off at replay time, scene replay must drop `audioBlob`.
 - Standalone audio replay must not upload without current and captured audio consent.
-- Logout or consent reset must purge the queue.
+- Logout or consent reset purges the queue.
+
+The current runtime has known defects documented in the ZUKAN Survey Mode review:
+
+- current consent is incorrectly coupled to `running`
+- final telemetry may be captured after `running=false` and become unreplayable
+- reload-time drain can be blocked while no survey is running
+- queue scans may load all media-bearing records repeatedly
+- sync resumption is tied to the Guide page runtime
+
+These are implementation facts, not acceptable target behavior.
+
+### Target Survey Mode contract
+
+The target contract is defined by:
+
+- `docs/adr/zukan-survey-offline-lifecycle-contract-v1_2026-07-29.md`
+- `docs/spec/zukan-survey-mode-canonical-v2_2026-07-29.md`
+
+After Phase 0 is implemented and verified, the required behavior becomes:
+
+- Media-bearing and telemetry-only raw queue items expire after 72 hours.
+- A lightweight SurveyLedger checkpoint is stored separately from raw media in the existing app-outbox IndexedDB database.
+- Replay requires capture-time consent, persistent current consent, and a matching owner/install boundary; it does not require `running=true`.
+- Ordinary logout or authentication expiry quarantines unsent items as `blocked_auth`; it does not silently erase the SurveyLedger.
+- Explicit consent withdrawal purges raw media/telemetry and leaves only a redacted local tombstone unless the user requests full local deletion.
+- A blocked, deferred, expired, or consent-mismatched item must not stop later eligible items from syncing.
+- Queue expiry, drop, and authentication blocking are recorded distinctly and are never shown as successful upload.
+- Sync resumption is app-wide and must not depend on `/guide` being open.
+- Replay is idempotent at session/item/install receipt boundaries.
+
+Until the corresponding Phase 0 code and tests land, the target section is a migration contract and must not be cited as current runtime evidence.
 
 ## Audio Policy
 
@@ -77,3 +110,5 @@ delete or anonymize these records as one operation:
 
 Aggregate mesh summaries may remain only if they are irreversible and cannot be
 linked back to a user, install id, exact route, or deleted guide record.
+
+For Survey Mode aggregates, the internal system must retain enough non-public provenance to exclude withdrawn contributions from recomputable counts without exposing contributor identity in public aggregate payloads.
