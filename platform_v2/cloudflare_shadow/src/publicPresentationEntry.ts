@@ -13,7 +13,7 @@ import { handleZukanHpSiteReceiver, type ZukanHpReceiverEnv } from "./zukanHpSit
 
 const isZukanHpSiteReceiverPath = (pathname: string): boolean =>
   pathname === "/api/v1/integrations/nocosil/sites" ||
-  /^\/sites\/hp_[a-f0-9]{64}\/(?:assets\/site\.css)?$/.test(pathname);
+  /^\/sites\/hp_[a-f0-9]{64}\/(?:assets\/site\.css|assets\/[a-f0-9]{64}\.webp)?$/.test(pathname);
 
 type DelegatedWorker = Record<string, unknown> & {
   fetch(request: Request, env: unknown, ctx: unknown): Response | Promise<Response>;
