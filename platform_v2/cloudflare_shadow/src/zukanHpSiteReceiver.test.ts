@@ -36,13 +36,14 @@ const edition = {
 function fixture(t: TestContext) {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec(readFileSync(new URL("../migrations/core/0024_nocosil_hp_sites.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../migrations/core/0025_nocosil_hp_site_assets.sql", import.meta.url), "utf8"));
   t.after(() => sqlite.close());
   let successfulWrites = 0;
   const db = {
     prepare(sql: string) {
       const statement = sqlite.prepare(sql);
       const query = (values: SQLInputValue[] = []): any => ({
-        bind: (...bound: SQLInputValue[]) => query(bound),
+        bind: (...bound: unknown[]) => query(bound.map(value => value instanceof ArrayBuffer ? new Uint8Array(value) : value) as SQLInputValue[]),
         first: async <T>() => (statement.get(...values) ?? null) as T | null,
         all: async <T>() => ({ results: statement.all(...values) as T[] }),
         run: async () => {
@@ -369,4 +370,189 @@ test("mismatched stored binding and corrupted read-back cannot report success", 
     };
   } } };
   await expectError(publishRequest(), faulty, 503, "readback_failed");
+});
+
+const imagesEnv = (env: any) => ({ ...env, ZUKAN_HP_IMAGES_ENABLED: "true" });
+const riff = (chunks: Buffer[]) => { const body = Buffer.concat([Buffer.from("WEBP"), ...chunks]); const head = Buffer.alloc(8); head.write("RIFF"); head.writeUInt32LE(body.length, 4); return Buffer.concat([head, body]); };
+const chunk = (kind: string, payload: Buffer) => { const head = Buffer.alloc(8); head.write(kind); head.writeUInt32LE(payload.length, 4); return Buffer.concat([head, payload, payload.length % 2 ? Buffer.alloc(1) : Buffer.alloc(0)]); };
+const webp = (seed: string, size = 400) => riff([chunk("VP8L", Buffer.concat([Buffer.from([0x2f]), Buffer.from(seed.repeat(Math.ceil(size / seed.length))).subarray(0, size)]))]);
+type Img = { bytes: Buffer; alt: string; sha: string };
+const img = (seed: string, alt = "森の入口", size = 400): Img => { const bytes = webp(seed, size); return { bytes, alt, sha: createHash("sha256").update(bytes).digest("hex") }; };
+const figure = (image: Img, id = "photo." + image.sha.slice(0, 6)) => `<figure data-component-id="${id}"><img src="assets/${image.sha}.webp" alt="${image.alt}" loading="lazy" decoding="async" referrerpolicy="no-referrer"></figure>`;
+function editionV3(images: Img[], options: { draft?: string; htmlImages?: Img[]; tamper?: (list: any[]) => any[]; text?: string } = {}) {
+  const draftRevisionId = options.draft ?? "draft_img_1";
+  const body = html.replace("</section>", (options.htmlImages ?? images).map(image => figure(image)).join("") + "</section>").replace("地域の紹介です。", options.text ?? "地域の紹介です。");
+  const pageFiles = [{ ...files[0]!, body, sha256: sha(body) }, files[1]!];
+  const list = images.map(image => ({ path: `assets/${image.sha}.webp`, contentType: "image/webp", sha256: image.sha, size: image.bytes.length, alt: image.alt }));
+  const editionId = "hp_" + sha(JSON.stringify({ siteId, draftRevisionId, title: "地域の場所", sourceDigest, files: pageFiles, images: list }));
+  const wireImages = images.map((image, index) => ({ ...list[index]!, bodyBase64: image.bytes.toString("base64") }));
+  return { schema: "nocosil.hp-static-edition/v3", siteId, editionId, draftRevisionId, title: "地域の場所", sourceDigest, files: pageFiles,
+    pages: edition.pages, forms: edition.forms, images: options.tamper ? options.tamper(wireImages) : wireImages, html: body };
+}
+function v3Request(editionValue: any, operationId = "op_1", expectedOperationId: string | null = null, options: { header?: boolean } = {}) {
+  const { html: _html, ...wire } = editionValue;
+  const body = JSON.stringify({ ...payload("publish", { operationId, expectedOperationId, edition: wire }), schema: "nocosil.hp-zukan-handoff/v3" });
+  const signature = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+  return new Request(new URL(route, "https://zukan.earth"), { method: "POST", body, headers: {
+    "content-type": "application/json", "x-nocosil-timestamp": timestamp, "x-nocosil-signature": "v1=" + signature,
+    ...(options.header === false ? {} : { "x-nocosil-contract": "3" }),
+  } });
+}
+const assetCount = (sqlite: DatabaseSync) => Number(sqlite.prepare("SELECT COUNT(*) AS count FROM nocosil_hp_site_assets").get()?.count);
+const rowCount = (sqlite: DatabaseSync) => Number(sqlite.prepare("SELECT COUNT(*) AS count FROM nocosil_hp_sites").get()?.count);
+const assetUrl = (image: Img) => `${publicUrl}assets/${image.sha}.webp`;
+const withHtml = (source: any, mutate: (body: string) => string) => {
+  const body = mutate(source.html);
+  const pageFiles = [{ ...files[0]!, body, sha256: sha(body) }, files[1]!];
+  const list = source.images.map(({ bodyBase64: _b, ...rest }: any) => rest);
+  return { ...source, html: body, files: pageFiles, editionId: "hp_" + sha(JSON.stringify({ siteId, draftRevisionId: source.draftRevisionId, title: "地域の場所", sourceDigest, files: pageFiles, images: list })) };
+};
+
+test("v3 images are off by default: v3 is refused, v2 behavior and status shape are unchanged", async t => {
+  const { env, sqlite } = fixture(t);
+  const photo = img("a");
+  await expectError(v3Request(editionV3([photo])), env, 400, "contract_unsupported");
+  assert.equal(rowCount(sqlite), 0);
+  assert.equal((await receive(publishRequest(), env)).status, 200);
+  assert.equal("contract" in await result(await receive(statusRequest(), env)), false);
+  assert.equal((await receive(new Request(assetUrl(photo)), env)).status, 404);
+});
+
+test("a v3 edition publishes images that are served byte-for-byte without metadata and referenced only by hashed paths", async t => {
+  const { env, sqlite } = fixture(t);
+  const e = imagesEnv(env);
+  const photos = [img("a", "森の入口"), img("b", "川辺の様子", 900)];
+  const ed = editionV3(photos);
+  const response = await receive(v3Request(ed), e);
+  assert.equal(response.status, 200);
+  const data = await result(response);
+  assert.equal(data.status, "published");
+  assert.equal(data.activeEditionId, ed.editionId);
+  assert.equal(data.htmlSha256, sha(ed.html));
+  assert.deepEqual(data.imageSha256s, photos.map(p => p.sha));
+  assert.deepEqual(data.contract.versions, [2, 3]);
+  assert.equal(data.contract.images.maxCount, 8);
+  for (const photo of photos) {
+    const served = await throughPublicEntry(new Request(assetUrl(photo)), e);
+    assert.equal(served.status, 200);
+    assert.equal(served.headers.get("content-type"), "image/webp");
+    assert.equal(served.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    assert.equal(served.headers.get("x-content-type-options"), "nosniff");
+    const bytes = Buffer.from(await served.arrayBuffer());
+    assert.ok(bytes.equals(photo.bytes));
+    assert.equal(createHash("sha256").update(bytes).digest("hex"), photo.sha);
+    assert.equal(bytes.includes("EXIF"), false);
+    assert.equal(bytes.includes("XMP "), false);
+    const head = await throughPublicEntry(new Request(assetUrl(photo), { method: "HEAD" }), e);
+    assert.equal(head.status, 200);
+    assert.equal(await head.text(), "");
+  }
+  const page = await throughPublicEntry(new Request(publicUrl), e);
+  assert.equal(await page.text(), ed.html);
+  assert.ok((page.headers.get("content-security-policy") ?? "").includes("img-src 'self'"));
+  assert.ok(((await throughPublicEntry(new Request(publicUrl + "assets/site.css"), e)).headers.get("content-security-policy") ?? "").includes("img-src 'none'"));
+  assert.equal((await receive(new Request(`${publicUrl}assets/${"0".repeat(64)}.webp`), e)).status, 404);
+  assert.equal(assetCount(sqlite), 2);
+  assert.equal((await receive(v3Request(ed), e, nowMs + 5000)).status, 200);
+  assert.equal(assetCount(sqlite), 2);
+  sqlite.prepare("UPDATE nocosil_hp_site_assets SET bytes = ? WHERE sha256 = ?").run(Buffer.from("tampered"), photos[0]!.sha);
+  await expectError(v3Request(ed), e, 503, "readback_failed");
+});
+
+test("v3 editions with bad images are rejected and leave no row or asset", async t => {
+  const { env, sqlite } = fixture(t);
+  const e = imagesEnv(env);
+  const good = img("a");
+  const bad = async (label: string, request: Request, status = 400, code = "invalid_edition") => {
+    await expectError(request, e, status, code);
+    assert.equal(rowCount(sqlite), 0, label);
+    assert.equal(assetCount(sqlite), 0, label);
+  };
+  await bad("oversized image", v3Request(editionV3([img("o", "大きな写真", 1_500_001)])));
+  await bad("total over 6MB", v3Request(editionV3([0, 1, 2, 3, 4].map(n => img("h" + n, "写真" + n, 1_400_000)))));
+  await bad("too many images", v3Request(editionV3(Array.from({ length: 9 }, (_, n) => img("m" + n, "写真" + n)))));
+  await bad("wrong content type", v3Request(editionV3([good], { tamper: list => list.map(item => ({ ...item, contentType: "image/png" })) })));
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(64)]);
+  await bad("png bytes", v3Request(editionV3([{ bytes: png, alt: "PNG", sha: sha(png.toString("latin1")) === "" ? "" : createHash("sha256").update(png).digest("hex") }])));
+  await bad("hash mismatch", v3Request(editionV3([good], { tamper: list => list.map(item => ({ ...item, bodyBase64: webp("z", 400).toString("base64") })) })));
+  await bad("size mismatch", v3Request(editionV3([good], { tamper: list => list.map(item => ({ ...item, size: item.size + 1 })) })));
+  await bad("bad base64", v3Request(editionV3([good], { tamper: list => list.map(item => ({ ...item, bodyBase64: "***" + item.bodyBase64.slice(3) })) })));
+  await bad("missing alt in list", v3Request(editionV3([img("a", "")])));
+  await bad("whitespace alt", v3Request(editionV3([img("a", "  ")])));
+  await bad("missing alt attribute", v3Request(withHtml(editionV3([good]), body => body.replace(' alt="森の入口"', ""))));
+  await bad("image listed but not referenced", v3Request(editionV3([good], { htmlImages: [] })));
+  await bad("html references unlisted image", v3Request(editionV3([], { htmlImages: [good] })));
+  const exifBytes = riff([chunk("VP8L", Buffer.from([0x2f, 1, 2, 3])), chunk("EXIF", Buffer.from("Exif00GPS secret"))]);
+  await bad("exif chunk", v3Request(editionV3([{ bytes: exifBytes, alt: "EXIF付き", sha: createHash("sha256").update(exifBytes).digest("hex") }])));
+  const flagged = riff([chunk("VP8X", Buffer.from([0x08, 0, 0, 0, 0, 0, 0, 0, 0, 0])), chunk("VP8L", Buffer.from([0x2f, 1, 2, 3]))]);
+  await bad("vp8x exif flag", v3Request(editionV3([{ bytes: flagged, alt: "EXIFフラグ", sha: createHash("sha256").update(flagged).digest("hex") }])));
+  await bad("external image url", v3Request(withHtml(editionV3([good]), body => body.replace(`assets/${good.sha}.webp`, "https://evil.example/a.webp"))));
+  await bad("v3 body without the contract header is capped at 64KiB", v3Request(editionV3([img("c", "写真", 100_000)]), "op_1", null, { header: false }), 413, "body_too_large");
+  const huge = JSON.stringify({ pad: "x".repeat(9 * 1024 * 1024 + 1) });
+  const hugeSig = createHmac("sha256", secret).update(`${timestamp}.${huge}`).digest("hex");
+  await bad("body over 9MiB", new Request(new URL(route, "https://zukan.earth"), { method: "POST", body: huge, headers: {
+    "content-type": "application/json", "x-nocosil-timestamp": timestamp, "x-nocosil-signature": "v1=" + hugeSig, "x-nocosil-contract": "3" } }), 413, "body_too_large");
+  await bad("v2 edition may not carry images", publishRequest("op_v2img", null, { ...edition, images: [] }));
+  await bad("v3 handoff with v1 edition", signedRequest({ ...payload("publish"), schema: "nocosil.hp-zukan-handoff/v3" }));
+});
+
+test("takedown withdraws html, css and every image; an old edition cannot be replayed afterwards", async t => {
+  const { env, sqlite } = fixture(t);
+  const e = imagesEnv(env);
+  const photos = [img("a"), img("b", "別の写真")];
+  const ed = editionV3(photos);
+  assert.equal((await receive(v3Request(ed), e)).status, 200);
+  for (const photo of photos) assert.equal((await receive(new Request(assetUrl(photo)), e)).status, 200);
+  const takedown = await receive(takedownRequest("op_2", "op_1"), e);
+  assert.equal(takedown.status, 200);
+  assert.equal((await result(takedown)).status, "retracted");
+  for (const url of [publicUrl, publicUrl + "assets/site.css", ...photos.map(assetUrl)]) {
+    assert.equal((await throughPublicEntry(new Request(url), e)).status, 410, url);
+    assert.equal((await throughPublicEntry(new Request(url, { method: "HEAD" }), e)).status, 410, url);
+  }
+  assert.equal(assetCount(sqlite), 0);
+  assert.equal((await receive(takedownRequest("op_2", "op_1"), e)).status, 200);
+  await expectError(v3Request(ed, "op_replay", "op_1"), e, 409, "stale_operation");
+  await expectError(v3Request(ed, "op_replay0", null), e, 409, "stale_operation");
+  assert.equal(assetCount(sqlite), 0);
+  assert.equal((await receive(new Request(assetUrl(photos[0]!)), e)).status, 410);
+});
+
+test("a takedown still works and clears images if the images flag is switched off afterwards", async t => {
+  const { env, sqlite } = fixture(t);
+  const photo = img("a");
+  assert.equal((await receive(v3Request(editionV3([photo])), imagesEnv(env))).status, 200);
+  assert.equal((await receive(takedownRequest("op_2", "op_1"), env)).status, 200);
+  assert.equal(assetCount(sqlite), 0);
+  assert.equal((await receive(new Request(assetUrl(photo)), env)).status, 410);
+});
+
+test("a new edition replaces the image set and v2 text editions still publish while images are enabled", async t => {
+  const { env, sqlite } = fixture(t);
+  const e = imagesEnv(env);
+  const first = img("a"); const second = img("b", "新しい写真");
+  assert.equal((await receive(v3Request(editionV3([first])), e)).status, 200);
+  assert.equal((await receive(v3Request(editionV3([second], { draft: "draft_img_2", text: "更新しました。" }), "op_2", "op_1"), e)).status, 200);
+  assert.equal(assetCount(sqlite), 1);
+  assert.equal((await receive(new Request(assetUrl(first)), e)).status, 404);
+  assert.equal((await receive(new Request(assetUrl(second)), e)).status, 200);
+  const textEdition = editionForHtml(html.replace("地域の紹介です。", "文章だけに戻しました。"), "draft_text_3");
+  const back = await receive(publishRequest("op_3", "op_2", textEdition), e);
+  assert.equal(back.status, 200);
+  assert.deepEqual((await result(back)).imageSha256s, []);
+  assert.equal(assetCount(sqlite), 0);
+  assert.equal((await receive(new Request(assetUrl(second)), e)).status, 404);
+  assert.equal((await receive(new Request(publicUrl), e)).status, 200);
+});
+
+test("the same image under two publications is stored and withdrawn independently", async t => {
+  const { env, sqlite } = fixture(t);
+  const e = imagesEnv(env);
+  const photo = img("a");
+  assert.equal((await receive(v3Request(editionV3([photo])), e)).status, 200);
+  sqlite.prepare("INSERT INTO nocosil_hp_site_assets (publication_id,sha256,content_type,size,alt,bytes,created_at) VALUES (?,?,?,?,?,?,?)")
+    .run("hp_" + "1".repeat(64), photo.sha, "image/webp", photo.bytes.length, "他", photo.bytes, "2026-10-27T00:00:00.000Z");
+  assert.equal((await receive(takedownRequest("op_2", "op_1"), e)).status, 200);
+  assert.equal(assetCount(sqlite), 1);
+  assert.equal(sqlite.prepare("SELECT publication_id FROM nocosil_hp_site_assets").get()?.publication_id, "hp_" + "1".repeat(64));
 });
