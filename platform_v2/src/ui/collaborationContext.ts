@@ -149,10 +149,10 @@ export const PUBLIC_CONTEXT_STYLES = `
   align-items: center;
   justify-content: center;
   padding: 8px 14px;
-  border: 1px solid var(--zukan-action-primary, #143f2e);
+  border: 1px solid var(--zukan-action-primary, #245c3a);
   border-radius: 999px;
   background: var(--zukan-surface-base, #fff);
-  color: var(--zukan-action-primary, #143f2e);
+  color: var(--zukan-action-primary, #245c3a);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
@@ -162,7 +162,7 @@ export const PUBLIC_CONTEXT_STYLES = `
 }
 .zukan-public-context-link.is-copy,
 .zukan-public-context-link.is-handoff {
-  background: var(--zukan-action-primary, #143f2e);
+  background: var(--zukan-action-primary, #245c3a);
   color: #fff;
 }
 .zukan-public-context-link:focus-visible {

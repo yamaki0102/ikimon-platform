@@ -6,7 +6,7 @@ import sharp from "sharp";
 const REPOSITORY_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const BRAND_DIR = resolve(REPOSITORY_ROOT, "upload_package/public_html/assets/brand");
 const PUBLIC_ROOT = resolve(REPOSITORY_ROOT, "upload_package/public_html");
-const BRAND_BACKGROUND = { r: 20, g: 63, b: 46, alpha: 1 };
+const BRAND_BACKGROUND = { r: 36, g: 92, b: 58, alpha: 1 };
 const OGP_BACKGROUND = { r: 247, g: 247, b: 243, alpha: 1 };
 const MASKABLE_SOURCE_SIZE = 1024;
 const MASKABLE_ARTBOARD_SIZE = 720;

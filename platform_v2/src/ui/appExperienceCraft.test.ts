@@ -20,6 +20,25 @@ test("guest controls reuse canonical shape and touch targets", () => {
   assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /prefers-reduced-motion:reduce/);
 });
 
+test("capture navigation uses its dedicated orange action with white text", () => {
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /--zukan-action-primary:#245c3a/);
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /--zukan-action-capture:#b94f18/);
+  assert.match(styles, /\.zukan-app-nav a\.is-capture\{background:var\(--zukan-action-capture\);color:#fff\}/);
+  assert.match(styles, /\.zukan-app-nav a\.is-capture:hover\{background:var\(--zukan-action-capture-hover\)\}/);
+  assert.match(styles, /\.zukan-app-nav a\.is-capture:active\{background:var\(--zukan-action-capture-active\)\}/);
+});
+
+test("dark semantic roles are explicit opt-in and preserve readable focus treatment", () => {
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /:root\[data-zukan-theme="dark"\]\{[\s\S]*?--zukan-text-primary:#f2f8f3;[\s\S]*?--zukan-surface-base:#111a14;[\s\S]*?--zukan-status-error:#ff8b82;[\s\S]*?--zukan-focus-outline:#66e6f2/);
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /\[data-zukan-theme="dark"\] :is\(\.zukan-app-brand img,\.brand-lockup-img\)\{content:url\("\/assets\/brand\/zukan-lockup-dark\.svg"\)\}/);
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /\[data-zukan-theme="dark"\] :is\(\.site-header,\.zukan-app-header\)\{background:var\(--zukan-surface-base\)!important\}/);
+  assert.doesNotMatch(ZUKAN_DESIGN_FOUNDATION_STYLES, /prefers-color-scheme:\s*dark/);
+});
+
+test("app header uses the outlined brand lockup at its compact shell size", () => {
+  assert.match(renderAppExperienceHeader("ja", 0), /zukan-lockup\.svg" alt="" width="132" height="32"/);
+});
+
 test("member thumbnails and navigation breakpoint are not redesigned", () => {
   assert.match(styles, /\.home-recent-card \.home-card-media\{aspect-ratio:4\/3(?:;|\})/);
   assert.match(styles, /\.home-recent-card \.home-card-media\{aspect-ratio:1\}/);

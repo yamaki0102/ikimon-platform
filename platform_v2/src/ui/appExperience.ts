@@ -30,7 +30,7 @@ export function renderAppExperienceHeader(lang: string, active: number, member =
   const language = lang.toLowerCase() as keyof typeof labels;
   const copy = labels[language] ?? labels.ja;
   const prefix = `/${labels[language] ? language : "ja"}`;
-  return `<a class="zukan-app-skip" href="#${mainId}">${copy[6]}</a><header class="zukan-app-header"><div><a class="zukan-app-brand" href="${prefix}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-app-icon-192.png" alt="" width="32" height="32"><img src="/assets/brand/zukan-wordmark.svg" alt="" width="92" height="29"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a></div></header>`;
+  return `<a class="zukan-app-skip" href="#${mainId}">${copy[6]}</a><header class="zukan-app-header"><div><a class="zukan-app-brand" href="${prefix}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-lockup.svg" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a></div></header>`;
 }
 
 /**
@@ -41,23 +41,27 @@ export function renderAppExperienceHeader(lang: string, active: number, member =
 export const ZUKAN_DESIGN_FOUNDATION_STYLES = `
 :root{
   color-scheme:light;
-  --zukan-action-primary:#143f2e;
-  --zukan-action-hover:#0f3023;
-  --zukan-action-active:#0a241a;
-  --zukan-text-primary:#17211b;
-  --zukan-text-secondary:#55615a;
-  --zukan-surface-base:#ffffff;
-  --zukan-surface-subtle:#f7f7f3;
-  --zukan-border-control:#68746c;
+  --zukan-action-primary:#245c3a;
+  --zukan-action-hover:#1c492e;
+  --zukan-action-active:#153923;
+  --zukan-action-capture:#b94f18;
+  --zukan-action-capture-hover:#963f13;
+  --zukan-action-capture-active:#78320f;
+  --zukan-on-action-primary:#ffffff;
+  --zukan-text-primary:#17251b;
+  --zukan-text-secondary:#40564a;
+  --zukan-surface-base:#fff9ec;
+  --zukan-surface-subtle:#fff9ec;
+  --zukan-border-control:#52685a;
   --zukan-border-decorative:#dde2dc;
-  --zukan-link:#0055ad;
+  --zukan-link:#245c3a;
   --zukan-link-visited:#663399;
   --zukan-status-success:#146c43;
   --zukan-status-warning:#8a4b00;
   --zukan-status-error:#b42318;
   --zukan-status-info:#0055ad;
-  --zukan-focus-yellow-300:#FFD43D;
-  --zukan-focus-outline:#000000;
+  --zukan-focus-yellow-300:#ffffff;
+  --zukan-focus-outline:#087f7c;
   --zukan-font-sans:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --zukan-space-1:4px;
   --zukan-space-2:8px;
@@ -72,6 +76,32 @@ export const ZUKAN_DESIGN_FOUNDATION_STYLES = `
   --zukan-control-min:44px;
   --zukan-content-max:1200px;
 }
+:root[data-zukan-theme="dark"]{
+  color-scheme:dark;
+  --zukan-action-primary:#86d9a2;
+  --zukan-action-hover:#66e6f2;
+  --zukan-action-active:#66e6f2;
+  --zukan-action-capture:#b94f18;
+  --zukan-action-capture-hover:#963f13;
+  --zukan-action-capture-active:#78320f;
+  --zukan-on-action-primary:#082014;
+  --zukan-text-primary:#f2f8f3;
+  --zukan-text-secondary:#c3d5c7;
+  --zukan-surface-base:#111a14;
+  --zukan-surface-subtle:#1b261e;
+  --zukan-border-control:#91a096;
+  --zukan-border-decorative:#39463d;
+  --zukan-link:#a7f3c0;
+  --zukan-link-visited:#a7f3c0;
+  --zukan-status-success:#69d09a;
+  --zukan-status-warning:#ffc36b;
+  --zukan-status-error:#ff8b82;
+  --zukan-status-info:#8abfff;
+  --zukan-focus-yellow-300:#111a14;
+  --zukan-focus-outline:#66e6f2;
+}
+[data-zukan-theme="dark"] :is(.zukan-app-brand img,.brand-lockup-img){content:url("/assets/brand/zukan-lockup-dark.svg")}
+[data-zukan-theme="dark"] :is(.site-header,.zukan-app-header){background:var(--zukan-surface-base)!important}
 body[data-zukan-design],body[data-zukan-app-experience]{
   background:var(--zukan-surface-base);
   color:var(--zukan-text-primary);
@@ -103,7 +133,7 @@ body[data-zukan-app-experience] h1{letter-spacing:-.025em}
 body[data-zukan-app-experience] [hidden]{display:none!important}
 body[data-zukan-app-experience] .site-shell{padding-left:0;padding-right:0}
 body[data-zukan-app-experience] .site-shell>.shell{margin-left:auto;margin-right:auto;width:100%;max-width:1200px}
-body[data-zukan-app-experience] .site-header{position:sticky;top:0;z-index:80;background:#fff;border-bottom:1px solid var(--zukan-line);backdrop-filter:none}
+body[data-zukan-app-experience] .site-header{position:sticky;top:0;z-index:80;background:var(--zukan-surface-base);border-bottom:1px solid var(--zukan-line);backdrop-filter:none}
 body[data-zukan-app-experience] .site-header-inner{display:flex!important;align-items:center;justify-content:space-between;height:72px;max-width:1248px;margin:auto;padding:0 24px;gap:24px}
 body[data-zukan-app-experience] .home-header-actions.is-member{display:none}
 body[data-zukan-app-experience] .home-header-login{min-height:var(--zukan-control-min);display:inline-flex;align-items:center;justify-content:center;padding-inline:12px}
@@ -117,12 +147,12 @@ body[data-zukan-app-experience] .site-brand-cluster{flex:0 0 auto;width:auto;min
 body[data-zukan-app-experience] .site-core-nav{display:flex;margin:auto;gap:6px}
 body[data-zukan-app-experience] .site-core-nav-link{min-height:44px;padding:10px 16px;font-size:15px;font-weight:650;color:var(--zukan-muted);border-radius:8px}
 body[data-zukan-app-experience] .site-core-nav-link[aria-current=page]{color:var(--zukan-green);background:#edf3ee}
-body[data-zukan-app-experience] .site-core-nav-link.is-capture{color:#fff;background:var(--zukan-green)}
-.zukan-app-header{position:sticky;top:0;z-index:80;background:#fff;border-bottom:1px solid var(--zukan-line)}
+body[data-zukan-app-experience] .site-core-nav-link.is-capture{color:#fff;background:var(--zukan-action-capture)}
+.zukan-app-header{position:sticky;top:0;z-index:80;background:var(--zukan-surface-base);border-bottom:1px solid var(--zukan-line)}
 .zukan-app-header>div{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1248px;height:72px;margin:auto;padding:0 24px}
 .zukan-app-brand{display:inline-flex;align-items:center;gap:8px;min-height:44px;flex-shrink:0}.zukan-app-brand img{object-fit:contain}
 .zukan-app-account{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 12px;color:var(--zukan-green);font-size:14px;text-decoration:none}
-.zukan-app-nav{display:flex;gap:6px}.zukan-app-nav a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;text-decoration:none;color:var(--zukan-muted);font-size:15px;font-weight:650;border-radius:8px}.zukan-app-nav a[aria-current=page]{color:var(--zukan-green);background:#edf3ee}.zukan-app-nav a.is-capture{background:var(--zukan-green);color:#fff}.zukan-app-nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;flex-shrink:0}.zukan-app-nav.is-header svg{display:none}.zukan-app-nav.is-bottom{display:none}
+.zukan-app-nav{display:flex;gap:6px}.zukan-app-nav a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;text-decoration:none;color:var(--zukan-muted);font-size:15px;font-weight:650;border-radius:8px}.zukan-app-nav a[aria-current=page]{color:var(--zukan-green);background:#edf3ee}.zukan-app-nav a.is-capture{background:var(--zukan-action-capture);color:#fff}.zukan-app-nav a.is-capture:hover{background:var(--zukan-action-capture-hover)}.zukan-app-nav a.is-capture:active{background:var(--zukan-action-capture-active)}.zukan-app-nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;flex-shrink:0}.zukan-app-nav.is-header svg{display:none}.zukan-app-nav.is-bottom{display:none}
 .zukan-app-skip{position:fixed;top:-120px;left:16px;z-index:200;padding:12px 20px;background:#fff;color:var(--zukan-green)}.zukan-app-skip:focus{top:8px}
 body[data-zukan-app-experience] .home-state-view{gap:56px;padding-top:32px}
 /* Guest Home is composed independently from the member workspace.
@@ -165,11 +195,11 @@ body[data-zukan-app-experience] .home-recent-grid{display:grid;grid-auto-flow:ro
 body[data-zukan-app-experience] .home-recent-card .home-card-media{aspect-ratio:4/3;min-height:0}
 body[data-zukan-app-experience] .cf-record-shell{max-width:680px;margin-block:32px 64px}
 body[data-zukan-app-experience] :is(.cf-record-form,.cf-record-pick){box-shadow:none;border-color:var(--zukan-line);border-radius:12px}
-body[data-zukan-app-experience] .cf-record-submit button{background:var(--zukan-green)}
+body[data-zukan-app-experience] .cf-record-submit button{background:var(--zukan-green);color:var(--zukan-on-action-primary)}
 body[data-zukan-app-experience] .cf-record-coordinates{background:var(--zukan-paper)}
 body[data-zukan-app-experience] .cf-record-status{color:var(--zukan-green);font-weight:600}
 body[data-zukan-app-experience] .cf-recovery-card{background:#fff;border:1px solid var(--zukan-line);border-radius:12px;box-shadow:none}
-body[data-zukan-app-experience] .cf-recovery-actions .primary{background:var(--zukan-green)}
+body[data-zukan-app-experience] .cf-recovery-actions .primary{background:var(--zukan-green);color:var(--zukan-on-action-primary)}
 body[data-zukan-app-experience] .of-header{position:static;border:0;max-width:1160px;margin:auto;height:auto;padding:12px 24px}
 body[data-zukan-app-experience] .of-page{max-width:1160px;margin:0 auto}
 body[data-zukan-app-experience] .of-layout{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}

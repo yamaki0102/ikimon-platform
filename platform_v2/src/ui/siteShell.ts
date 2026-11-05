@@ -817,8 +817,7 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
 function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
-  const brandMarkSrc = BRAND_ASSETS.mark192;
-  const brandWordmarkSrc = BRAND_ASSETS.wordmarkBlack;
+  const brandLockupSrc = BRAND_ASSETS.lockupBlack;
   const navLinks = renderHeaderCoreNavigation(basePath, lang, currentPath, homeChrome);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop", currentPath);
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile", currentPath);
@@ -844,7 +843,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     <div class="site-header-inner">
       <div class="site-brand-cluster">
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span><span class="brand-wordmark" aria-label="ZUKAN"><img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" /></span></span>
+          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="106" height="23" /></span>
         </a>
       </div>
       ${navLinks}
@@ -860,12 +859,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     <div class="site-header-inner">
       <div class="site-brand-cluster">
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup">
-            <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ZUKAN">
-              <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
-            </span>
-          </span>
+          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="106" height="23" /></span>
         </a>
       </div>
       ${navLinks}
@@ -890,12 +884,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
           <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
         </button>
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup">
-            <span class="brand-mark"><img src="${escapeHtml(brandMarkSrc)}" alt="" /></span>
-            <span class="brand-wordmark" aria-label="ZUKAN">
-              <img class="brand-wordmark-img" src="${escapeHtml(brandWordmarkSrc)}" alt="" />
-            </span>
-          </span>
+          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="106" height="23" /></span>
         </a>
       </div>
       ${navLinks}
@@ -4909,6 +4898,7 @@ ${alternateLinks}
       padding: 0;
       box-shadow: 0 7px 16px rgba(15,23,42,.10);
     }
+    .brand-lockup-img { display: block; width: 106px; height: 23px; object-fit: contain; }
     .brand-wordmark {
       display: inline-flex;
       align-items: center;
@@ -7497,6 +7487,7 @@ ${alternateLinks}
         padding-right: 6px;
       }
       .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
+      .brand-lockup-img { width: 95px; height: 21px; }
       .brand-wordmark {
         width: auto;
         height: 15px;

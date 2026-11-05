@@ -17,7 +17,8 @@ test("public design foundation covers representative user-facing Worker document
   const rendered = applyPublicDesignFoundation(publicDocument);
   assert.match(rendered, /id="zukan-design-foundation-v1"/);
   assert.match(rendered, /<body data-zukan-design="v1">/);
-  assert.match(rendered, /--zukan-focus-yellow-300:#FFD43D/);
+  assert.match(rendered, /--zukan-focus-outline:#087f7c/);
+  assert.match(rendered, /box-shadow:0 0 0 4px var\(--zukan-focus-yellow-300\)/);
   assert.match(rendered, /--zukan-control-min:44px/);
   assert.match(rendered, /@media\(prefers-reduced-motion:reduce\)/);
 });
@@ -52,7 +53,7 @@ test("materialized shells keep one foundation copy at the final cascade position
 });
 
 test("customized page styles are retained beside the canonical foundation", () => {
-  const custom = ZUKAN_DESIGN_FOUNDATION_STYLES.replace("#143f2e", "#123456");
+  const custom = ZUKAN_DESIGN_FOUNDATION_STYLES.replace("#245c3a", "#123456");
   const source = publicDocument.replace("</head>", `<style>${custom}</style></head>`);
   assert.ok(applyPublicDesignFoundation(source).includes(custom));
 });
