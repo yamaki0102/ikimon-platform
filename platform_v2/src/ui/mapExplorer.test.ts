@@ -661,7 +661,7 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
   assert.match(styles, /\.me-bottom-sheet--detail\.is-dragging,\s+\.me-bottom-sheet--area\.is-dragging \{[\s\S]*height: var\(--me-sheet-drag-height\);/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-bottom-sheet \{[\s\S]*position: fixed;/);
   assert.match(styles, /\.me-bottom-sheet--detail\[data-snap="peek"\]\s*\{\s*height: 34vh;\s*max-height: 34vh;\s*height: min\(34dvh, 300px\);/);
-  assert.match(styles, /--me-mobile-sheet-clearance: 14px;/);
+  assert.match(styles, /--me-mobile-sheet-clearance: 48px;/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\s*\{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="peek"\]\s*\{\s*height: 44vh;\s*max-height: 44vh;\s*height: min\(44dvh, calc\(100dvh - var\(--me-header-h\) - 112px\), 380px\);/);
   assert.match(styles, /\.me-bottom-sheet\.me-bottom-sheet--area\[data-snap="full"\]\s*\{\s*height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);\s*max-height: calc\(100% - 8px\);\s*max-height: calc\(100dvh - var\(--me-header-h\) - var\(--me-mobile-action-space\) - var\(--me-mobile-sheet-clearance\)\);/);
@@ -1735,7 +1735,9 @@ test("map explorer restores the quick record launcher on mobile only", () => {
   assert.match(styles, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: none;\s*\}/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*bottom: max\(8px, env\(safe-area-inset-bottom\)\);/);
   assert.match(styles, /--me-mobile-action-space: calc\(92px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map \.maplibregl-ctrl-bottom-right \{\s*bottom: calc\(var\(--me-mobile-action-space\) \+ 4px\);\s*\}/);
+  assert.match(styles, /\.me-map \.maplibregl-ctrl-attrib \{[\s\S]*background: rgba\(255,255,255,\.96\);[\s\S]*color: #334155;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map \.maplibregl-ctrl-bottom-right \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);/);
+  assert.match(styles, /--me-mobile-sheet-clearance: 48px;/);
 });
 
 test("mobile map filters open from the thumb zone above the record launcher", () => {
