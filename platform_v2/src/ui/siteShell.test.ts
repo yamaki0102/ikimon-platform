@@ -38,7 +38,7 @@ test("site shell applies the shared design foundation once to both product and a
   for (const currentPath of ["/ja/", "/ja/learn/field-loop"]) {
     const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
     assert.match(html, /<body data-zukan-design="v1"/);
-    assert.equal((html.match(/--zukan-action-primary:#143f2e/g) ?? []).length, 1);
+    assert.equal((html.match(/--zukan-action-primary:#245c3a/g) ?? []).length, 1);
     assert.match(html, /--ikimon-page-max: var\(--zukan-content-max\);/);
     assert.match(html, /box-shadow: 0 0 0 4px var\(--zukan-focus-yellow-300\);/);
   }
@@ -105,7 +105,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /updateViaCache: 'none'/);
   assert.match(html, /registration\.update\(\)/);
   assert.match(html, /data-app-install-prompt/);
-  assert.match(html, /<meta name="theme-color" content="#143f2e" \/>/);
+  assert.match(html, /<meta name="theme-color" content="#245c3a" \/>/);
   assert.match(html, /data-app-launch-screen/);
   assert.match(html, /ikimon:app-launch-screen-shown-v1/);
   assert.match(html, /is-app-launch-screen-eligible/);
@@ -178,12 +178,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
-  assert.match(html, /<span class="brand-wordmark" aria-label="ZUKAN">/);
-  assert.match(html, /<img class="brand-wordmark-img" src="\/assets\/brand\/zukan-wordmark\.svg" alt="" \/>/);
-  assert.match(html, /<span class="brand-mark"><img src="\/assets\/brand\/zukan-app-icon-192\.png" alt="" \/><\/span>/);
+  assert.match(html, /<span class="brand-logo-lockup"><img class="brand-lockup-img" src="\/assets\/brand\/zukan-lockup\.svg" alt="ZUKAN" width="150" height="32" \/><\/span>/);
+  assert.equal((html.match(/class="brand-lockup-img"/g) ?? []).length, 1);
   assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
-  assert.match(html, /\.brand-wordmark \{[\s\S]*flex: 0 0 auto;[\s\S]*width: auto;[\s\S]*height: 16px;[\s\S]*aspect-ratio: 711 \/ 222;/);
-  assert.match(html, /\.brand-wordmark-img \{[\s\S]*width: auto;[\s\S]*height: 100%;[\s\S]*max-width: none;/);
+  assert.match(html, /\.brand-lockup-img \{ display: block; width: 150px; height: 32px; object-fit: contain; \}/);
   assert.match(html, /--ikimon-header-brand-w: max\(var\(--ikimon-desktop-sidebar-w\), 154px\);/);
   assert.match(html, /body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-header-brand-w: 154px;/);
   assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) minmax\(0, 1fr\);/);
@@ -191,7 +189,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\.site-header-actions-desktop \{[\s\S]*grid-column: 3;[\s\S]*justify-self: end;/);
   assert.match(html, /@media \(min-width: 1161px\) \{[\s\S]*\.site-header-actions-mobile \{[\s\S]*display: none !important;/);
   assert.match(html, /@media \(max-width: 1160px\) \{[\s\S]*\.desktop-side-nav-toggle \{[\s\S]*display: none !important;/);
-  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-wordmark \{[\s\S]*width: auto;[\s\S]*height: 15px;[\s\S]*aspect-ratio: 711 \/ 222;/);
+  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-lockup-img \{ width: 131px; height: 28px; \}/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ZUKAN" \/>/);
@@ -646,9 +644,9 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
   assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/" aria-current="page"/);
-  assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #087a4d;/);
-  assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;/);
-  assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #087a4d;[^}]*color: #fff;/);
+  assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #b94f18;[^}]*color: #fff;/);
+  assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;[^}]*background: #b94f18;[^}]*color: #fff;/);
+  assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #963f13;[^}]*color: #fff;/);
   assert.match(html, /data-global-record-gallery-select[^>]*>端末の写真から選ぶ<\/button>/);
   assert.match(html, /カメラを開けませんでした/);
   assert.match(html, /data-global-record-camera-retry[^>]*>カメラの利用を許可する<\/button>/);

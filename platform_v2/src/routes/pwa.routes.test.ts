@@ -28,8 +28,8 @@ test("manifest is app-first and localized from device or query language", async 
     assert.equal(manifest.short_name, "ZUKAN");
     assert.equal(manifest.start_url, "/en/?source=pwa");
     assert.equal(manifest.display, "standalone");
-    assert.equal(manifest.background_color, "#f7f7f3");
-    assert.equal(manifest.theme_color, "#143f2e");
+    assert.equal(manifest.background_color, "#fff9ec");
+    assert.equal(manifest.theme_color, "#245c3a");
     assert.deepEqual(
       manifest.shortcuts.map((shortcut) => shortcut.url),
       ["/en/record", "/en/community/events", "/en/map?tab=places", "/en/records?view=mine"],

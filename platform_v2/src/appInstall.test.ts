@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { BRAND_ASSETS } from "./brandAssets.js";
-import { buildAppServiceWorker, buildOfflineHtml } from "./appInstall.js";
+import { APP_LAUNCH_BACKGROUND_COLOR, APP_THEME_COLOR, buildAppServiceWorker, buildOfflineHtml, buildWebManifest } from "./appInstall.js";
 
 test("offline shell identifies its existing public design foundation stylesheet", () => {
+  assert.equal(APP_THEME_COLOR, "#245c3a");
+  assert.equal(APP_LAUNCH_BACKGROUND_COLOR, "#fff9ec");
+  assert.equal(buildWebManifest("ja").theme_color, "#245c3a");
   const html = buildOfflineHtml("ja");
   assert.equal((html.match(/<style\b[^>]*id="zukan-design-foundation-v1"/g) ?? []).length, 1);
   assert.match(html, /<style\b[^>]*id="zukan-design-foundation-v1"[^>]*>[\s\S]*?--zukan-font-sans:/);

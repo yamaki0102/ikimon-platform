@@ -52,22 +52,39 @@ test("generated ZUKAN raster assets are deterministic PNGs with declared dimensi
   assert.equal(ogp.hasAlpha, false);
 });
 
-test("ZUKAN vector assets keep smooth curves and circular record markers", async () => {
+test("ZUKAN vector assets use the C2 book mark and outlined Nunito wordmark", async () => {
   const symbol = await readFile(path.join(brandDir, "zukan-symbol.svg"), "utf8");
   const wordmark = await readFile(path.join(brandDir, "zukan-wordmark.svg"), "utf8");
   const lockup = await readFile(path.join(brandDir, "zukan-lockup.svg"), "utf8");
+  const darkWordmark = await readFile(path.join(brandDir, "zukan-wordmark-dark.svg"), "utf8");
+  const darkLockup = await readFile(path.join(brandDir, "zukan-lockup-dark.svg"), "utf8");
   const appIcon = await readFile(path.join(brandDir, "zukan-app-icon.svg"), "utf8");
   const maskableIcon = await readFile(path.join(brandDir, "zukan-app-icon-maskable.svg"), "utf8");
 
-  for (const [name, asset] of Object.entries({ symbol, lockup, appIcon, maskableIcon })) {
-    assert.match(asset, /\sC-?\d/, `${name} must use Bezier curves`);
-    assert.match(asset, /stroke-linecap="round"/, `${name} must keep rounded stroke ends`);
-    assert.equal((asset.match(/<circle\b/g) ?? []).length, 4, `${name} must keep four circular records`);
-    assert.doesNotMatch(asset, /M171 23 L169 22/, `${name} must not restore the pixel-traced outline`);
+  assert.match(symbol, /M48 24h4v16h-4z/);
+  assert.match(symbol, /M47\.5 46C38 40 25 38 13 41/);
+  assert.match(symbol, /M52\.5 46C62 40 75 38 87 41/);
+  assert.equal((symbol.match(/<ellipse\b/g) ?? []).length, 2);
+  assert.equal((wordmark.match(/<path\b/g) ?? []).length, 5, "Nunito 800 glyphs are embedded as outlines");
+  assert.doesNotMatch(wordmark, /<text\b|font-family=/, "wordmark must not depend on a client font");
+  const outlinePaths = (asset: string) => [...asset.matchAll(/<path\b(?=[^>]*\bd="([^"]+)")(?=[^>]*\btransform="([^"]+)")[^>]*\/>/g)]
+    .map((match) => ({ d: match[1], transform: match[2] }));
+  assert.deepEqual(outlinePaths(wordmark), outlinePaths(lockup).slice(-5), "light lockup must reuse the outlined wordmark");
+  assert.deepEqual(outlinePaths(wordmark), outlinePaths(darkWordmark), "dark wordmark must preserve the same glyph outlines");
+  assert.deepEqual(outlinePaths(wordmark), outlinePaths(darkLockup).slice(-5), "dark lockup must preserve the same glyph outlines");
+  for (const [name, asset] of Object.entries({ wordmark, lockup, darkWordmark, darkLockup })) {
+    assert.doesNotMatch(asset, /NaN|Infinity/, `${name} must contain finite glyph coordinates`);
   }
-
-  assert.match(wordmark, /\sC-?\d/, "wordmark U must keep a smooth bowl");
-  assert.doesNotMatch(wordmark, /M341 27 L340 28/, "wordmark must not restore the pixel-traced outline");
+  assert.match(lockup, /stroke-width="4" stroke-linecap="round"/, "lockup must include the rounded divider");
+  assert.match(darkLockup, /stroke-width="4" stroke-linecap="round"/);
+  assert.doesNotMatch(lockup, /<rect\b|fill="#F7F7F3"/, "lockup artwork must have a transparent background");
+  assert.doesNotMatch(darkLockup, /<rect\b|fill="#183B2A"/, "dark lockup artwork must have a transparent background");
+  for (const [name, asset] of Object.entries({ lockup, darkLockup, appIcon, maskableIcon })) {
+    assert.match(asset, /M47\.5 46C38 40 25 38 13 41/, `${name} must retain C2 geometry`);
+  }
+  assert.match(darkWordmark, /fill="#FFFFFF"/);
+  assert.match(appIcon, /fill="#FFF9EC"/);
+  assert.match(maskableIcon, /translate\(10 10\) scale\(0\.8\)/);
 });
 
 test("ZUKAN SVG materialization uses gateway-compatible XML metadata", async () => {
@@ -84,6 +101,8 @@ test("ZUKAN SVG materialization uses gateway-compatible XML metadata", async () 
     materializer,
     /content_type: materializationGatewayContentType\(item\.contentType\)/,
   );
+  assert.match(materializer, /"\/assets\/brand\/zukan-lockup-dark\.svg"/);
+  assert.match(materializer, /"\/assets\/brand\/zukan-wordmark-dark\.svg"/);
 });
 
 test("manifest, runtime paths, MIME types, ICO payload, and maskable safe zone agree", async () => {
@@ -130,9 +149,9 @@ test("manifest, runtime paths, MIME types, ICO payload, and maskable safe zone a
     for (let x = 0; x < info.width; x += 1) {
       const offset = (y * info.width + x) * 4;
       const colorDistance =
-        Math.abs((data[offset] ?? 20) - 20)
-        + Math.abs((data[offset + 1] ?? 63) - 63)
-        + Math.abs((data[offset + 2] ?? 46) - 46);
+        Math.abs((data[offset] ?? 36) - 36)
+        + Math.abs((data[offset + 1] ?? 92) - 92)
+        + Math.abs((data[offset + 2] ?? 58) - 58);
       if (colorDistance > 24) {
         furthestForeground = Math.max(furthestForeground, Math.hypot(x - center, y - center));
       }

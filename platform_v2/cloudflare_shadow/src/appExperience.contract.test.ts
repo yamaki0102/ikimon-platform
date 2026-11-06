@@ -6,9 +6,13 @@ import { ZUKAN_DESIGN_FOUNDATION_STYLES, isAppExperiencePath, renderAppExperienc
 
 test("shared design foundation keeps semantic visual roles and accessibility invariants", () => {
   for (const token of [
-    "--zukan-action-primary:#143f2e",
-    "--zukan-text-primary:#17211b",
-    "--zukan-link:#0055ad",
+    "--zukan-action-primary:#245c3a",
+    "--zukan-action-capture:#b94f18",
+    "--zukan-text-primary:#17251b",
+    "--zukan-text-secondary:#40564a",
+    "--zukan-surface-base:#fff9ec",
+    "--zukan-border-control:#52685a",
+    "--zukan-link:#245c3a",
     "--zukan-status-error:#b42318",
     "--zukan-control-min:44px",
     "--zukan-radius-control:4px",
@@ -55,8 +59,8 @@ test("unavailable records are not reported as an empty collection", () => {
 
 test("native capture has no fabricated coordinates and its browser script parses", () => {
   const html = renderCloudflareRecordHtml({ userId: "fixture", displayName: "fixture" } as never, new URL("https://zukan.earth/ja/record"), "fixture");
-  assert.match(html, /--zukan-action-primary:#143f2e/);
-  assert.match(html, /--zukan-focus-yellow-300:#FFD43D/);
+  assert.match(html, /--zukan-action-primary:#245c3a/);
+  assert.match(html, /--zukan-focus-outline:#087f7c/);
   assert.match(html, /--ink:var\(--zukan-text-primary\)/);
   assert.match(html, /box-shadow:0 0 0 4px var\(--zukan-focus-yellow-300\)/);
   assert.match(html, /name="latitude"[^>]*value=""/);

@@ -458,7 +458,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-status {
   display: block;
   margin-bottom: 4px;
-  color: #143f2e;
+  color: #245c3a;
   font-size: 12px;
   font-weight: 800;
 }
@@ -511,14 +511,14 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   text-decoration: none;
 }
 .zukan-participation-action {
-  border: 1px solid #143f2e;
-  background: #143f2e;
+  border: 1px solid #245c3a;
+  background: #245c3a;
   color: #fff;
 }
 .zukan-participation-secondary-action {
   border: 1px solid #bfc8c1;
   background: #fff;
-  color: #143f2e;
+  color: #245c3a;
 }
 .zukan-participation-action:focus-visible,
 .zukan-participation-secondary-action:focus-visible,
@@ -533,7 +533,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   line-height: 1.7;
 }
 .zukan-participation-empty a {
-  color: #143f2e;
+  color: #245c3a;
   font-weight: 800;
 }
 .zukan-participation-tz-note {
@@ -567,7 +567,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   justify-content: space-between;
   gap: 12px;
   cursor: pointer;
-  color: #143f2e;
+  color: #245c3a;
   font-weight: 800;
   list-style: none;
 }

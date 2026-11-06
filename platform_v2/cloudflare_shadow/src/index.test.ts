@@ -26400,7 +26400,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
         assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
         assert.match(body, /<title>(?:自分|プロフィール設定) — ZUKAN<\/title>/, check.path);
-        assert.match(body, /--action:#143F2E/);
+        assert.match(body, /--action:#245C3A/);
         assert.match(body, /--soft:#F7F7F3/);
         assert.match(body, /--ink:#17211B/);
         assert.match(body, /--muted:#55615A/);
