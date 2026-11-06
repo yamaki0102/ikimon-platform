@@ -151,3 +151,65 @@ test("mobile map bottom surfaces do not cover each other", async ({ browser }) =
   expect(overlaps, JSON.stringify(visibleRects, null, 2)).toEqual([]);
   await context.close();
 });
+
+for (const width of [320, 375, 390, 1280]) {
+  test(`map attribution stays visible and clear of bottom UI at ${width}px`, async ({ browser }) => {
+    const mobile = width < 900;
+    const context = await browser.newContext({
+      baseURL: process.env.STAGING_BASE_URL ?? "http://127.0.0.1:4322",
+      serviceWorkers: "block",
+      viewport: { width, height: mobile ? 844 : 800 },
+      isMobile: mobile,
+      hasTouch: mobile,
+    });
+    const page = await context.newPage();
+    await installMapLibreStubForSmoke(page);
+    await suppressMapLibreForSmoke(page);
+
+    await page.goto("/ja/map", { waitUntil: "domcontentloaded" });
+    await page.locator("#me-map").evaluate((map) => {
+      const position = document.createElement("div");
+      position.className = "maplibregl-ctrl-bottom-right";
+      Object.assign(position.style, { position: "absolute", right: "0", bottom: "0" });
+      const attribution = document.createElement("div");
+      attribution.className = "maplibregl-ctrl maplibregl-ctrl-attrib";
+      attribution.innerHTML = '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>';
+      position.appendChild(attribution);
+      map.appendChild(position);
+    });
+
+    const attribution = page.locator(".maplibregl-ctrl-attrib");
+    await expect(attribution).toBeVisible();
+    await expect(attribution).toContainText("OpenStreetMap contributors");
+    const attributionBox = await attribution.boundingBox();
+    expect(attributionBox).not.toBeNull();
+    expect(attributionBox!.x).toBeGreaterThanOrEqual(0);
+    expect(attributionBox!.x + attributionBox!.width).toBeLessThanOrEqual(width);
+
+    const launcher = page.locator(".global-record-launcher:visible");
+    if (await launcher.count()) {
+      const launcherBox = await launcher.boundingBox();
+      expect(launcherBox).not.toBeNull();
+      const attributionRect = { label: "attribution", selector: ".maplibregl-ctrl-attrib", ...attributionBox!, right: attributionBox!.x + attributionBox!.width, bottom: attributionBox!.y + attributionBox!.height, visible: true };
+      const launcherRect = { label: "launcher", selector: ".global-record-launcher", ...launcherBox!, right: launcherBox!.x + launcherBox!.width, bottom: launcherBox!.y + launcherBox!.height, visible: true };
+      expect(intersectionArea(attributionRect, launcherRect)).toBe(0);
+    }
+    if (mobile) {
+      const sheet = page.locator(".me-bottom-sheet").first();
+      await sheet.evaluate((element) => {
+        element.classList.remove("is-hidden");
+        element.classList.add("is-open");
+        element.setAttribute("aria-hidden", "false");
+      });
+      await expect(sheet).toBeVisible();
+      const sheetBox = await sheet.boundingBox();
+      const currentAttributionBox = await attribution.boundingBox();
+      expect(sheetBox).not.toBeNull();
+      expect(currentAttributionBox).not.toBeNull();
+      const attributionRect = { label: "attribution", selector: ".maplibregl-ctrl-attrib", ...currentAttributionBox!, right: currentAttributionBox!.x + currentAttributionBox!.width, bottom: currentAttributionBox!.y + currentAttributionBox!.height, visible: true };
+      const sheetRect = { label: "bottom sheet", selector: ".me-bottom-sheet", ...sheetBox!, right: sheetBox!.x + sheetBox!.width, bottom: sheetBox!.y + sheetBox!.height, visible: true };
+      expect(intersectionArea(attributionRect, sheetRect)).toBe(0);
+    }
+    await context.close();
+  });
+}
