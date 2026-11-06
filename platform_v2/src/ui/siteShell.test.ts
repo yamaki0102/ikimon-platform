@@ -178,10 +178,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
-  assert.match(html, /<span class="brand-logo-lockup"><img class="brand-lockup-img" src="\/assets\/brand\/zukan-lockup\.svg" alt="ZUKAN" width="106" height="23" \/><\/span>/);
+  assert.match(html, /<span class="brand-logo-lockup"><img class="brand-lockup-img" src="\/assets\/brand\/zukan-lockup\.svg" alt="ZUKAN" width="150" height="32" \/><\/span>/);
   assert.equal((html.match(/class="brand-lockup-img"/g) ?? []).length, 1);
   assert.match(html, /\.brand-logo-lockup \{[\s\S]*align-items: center;[\s\S]*gap: 7px;/);
-  assert.match(html, /\.brand-lockup-img \{ display: block; width: 106px; height: 23px; object-fit: contain; \}/);
+  assert.match(html, /\.brand-lockup-img \{ display: block; width: 150px; height: 32px; object-fit: contain; \}/);
   assert.match(html, /--ikimon-header-brand-w: max\(var\(--ikimon-desktop-sidebar-w\), 154px\);/);
   assert.match(html, /body\.is-desktop-side-nav-collapsed \{[\s\S]*--ikimon-header-brand-w: 154px;/);
   assert.match(html, /grid-template-columns: var\(--ikimon-header-brand-w\) minmax\(280px, 640px\) minmax\(0, 1fr\);/);
@@ -189,7 +189,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /\.site-header-actions-desktop \{[\s\S]*grid-column: 3;[\s\S]*justify-self: end;/);
   assert.match(html, /@media \(min-width: 1161px\) \{[\s\S]*\.site-header-actions-mobile \{[\s\S]*display: none !important;/);
   assert.match(html, /@media \(max-width: 1160px\) \{[\s\S]*\.desktop-side-nav-toggle \{[\s\S]*display: none !important;/);
-  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-lockup-img \{ width: 95px; height: 21px; \}/);
+  assert.match(html, /@media \(max-width: 430px\) \{[\s\S]*\.brand-logo-lockup \{[\s\S]*gap: 6px;[\s\S]*\.brand-lockup-img \{ width: 131px; height: 28px; \}/);
   assert.doesNotMatch(html, /<span class="brand-name">ikimon<\/span>/);
   assert.doesNotMatch(html, /class="brand-domain">\.life/);
   assert.match(html, /<meta name="application-name" content="ZUKAN" \/>/);

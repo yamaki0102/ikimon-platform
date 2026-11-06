@@ -843,7 +843,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     <div class="site-header-inner">
       <div class="site-brand-cluster">
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="106" height="23" /></span>
+          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="150" height="32" /></span>
         </a>
       </div>
       ${navLinks}
@@ -859,7 +859,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
     <div class="site-header-inner">
       <div class="site-brand-cluster">
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="106" height="23" /></span>
+          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="150" height="32" /></span>
         </a>
       </div>
       ${navLinks}
@@ -884,7 +884,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
           <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
         </button>
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="106" height="23" /></span>
+          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="150" height="32" /></span>
         </a>
       </div>
       ${navLinks}
@@ -4898,7 +4898,7 @@ ${alternateLinks}
       padding: 0;
       box-shadow: 0 7px 16px rgba(15,23,42,.10);
     }
-    .brand-lockup-img { display: block; width: 106px; height: 23px; object-fit: contain; }
+    .brand-lockup-img { display: block; width: 150px; height: 32px; object-fit: contain; }
     .brand-wordmark {
       display: inline-flex;
       align-items: center;
@@ -7487,7 +7487,7 @@ ${alternateLinks}
         padding-right: 6px;
       }
       .brand-logo-lockup .brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
-      .brand-lockup-img { width: 95px; height: 21px; }
+      .brand-lockup-img { width: 131px; height: 28px; }
       .brand-wordmark {
         width: auto;
         height: 15px;
