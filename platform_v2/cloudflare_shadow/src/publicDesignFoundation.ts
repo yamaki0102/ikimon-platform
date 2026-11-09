@@ -1,4 +1,4 @@
-import { ZUKAN_DESIGN_FOUNDATION_STYLES } from "../../src/ui/appExperience";
+import { ZUKAN_DESIGN_FOUNDATION_STYLES } from "../../src/ui/frontendFoundation";
 
 const FOUNDATION_STYLE_ID = "zukan-design-foundation-v1";
 const INTERNAL_PATH = /^\/(?:admin|api|debug|ops|internal|smoke|synthetic)(?:\/|$)|^\/(?:__|_)/i;
