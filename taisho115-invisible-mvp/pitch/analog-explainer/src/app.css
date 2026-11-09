@@ -220,6 +220,10 @@ img {
   cursor: pointer;
 }
 
+.mobile-entry-summary {
+  display: none;
+}
+
 .mobile-fullscreen-prompt span {
   display: inline-flex;
   align-items: center;
@@ -3361,7 +3365,7 @@ h2 {
 
 @media (max-width: 560px) and (orientation: portrait) {
   .deck-shell.portrait-preview-mode {
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto auto auto;
     align-content: start;
     gap: 6px;
     padding: 6px;
@@ -3370,7 +3374,7 @@ h2 {
 
   .deck-shell.portrait-preview-mode .deck-toolbar {
     display: grid;
-    grid-template-columns: 40px minmax(58px, 1fr) 40px 54px 70px;
+    grid-template-columns: 44px minmax(70px, 1fr) 44px 64px;
     gap: 5px;
     align-items: center;
     width: calc(100vw - 12px);
@@ -3398,27 +3402,22 @@ h2 {
   .deck-shell.portrait-preview-mode .slide-counter,
   .deck-shell.portrait-preview-mode .icon-button,
   .deck-shell.portrait-preview-mode .control-button {
-    min-height: 36px;
-    height: 36px;
+    min-height: 44px;
+    height: 44px;
     border-radius: 6px;
   }
 
   .deck-shell.portrait-preview-mode .icon-button {
-    width: 40px;
+    width: 44px;
   }
 
   .deck-shell.portrait-preview-mode .control-button:not(.fullscreen-button) {
-    min-width: 54px;
+    min-width: 64px;
     padding: 0 8px;
   }
 
   .deck-shell.portrait-preview-mode .fullscreen-button {
-    min-width: 70px;
-    padding: 0 8px;
-  }
-
-  .deck-shell.portrait-preview-mode .fullscreen-button span {
-    font-size: 12px;
+    display: none;
   }
 
   .deck-shell.portrait-preview-mode .slide-counter {
@@ -3441,8 +3440,8 @@ h2 {
 
   .deck-shell.portrait-preview-mode .mobile-fullscreen-prompt {
     width: calc(100vw - 12px);
-    min-height: 42px;
-    padding: 7px 10px;
+    min-height: 48px;
+    padding: 9px 12px;
     border-radius: 7px;
   }
 
@@ -3454,6 +3453,39 @@ h2 {
 
   .deck-shell.portrait-preview-mode .mobile-fullscreen-prompt small {
     display: none;
+  }
+
+  .deck-shell.portrait-preview-mode .mobile-entry-summary {
+    display: grid;
+    width: calc(100vw - 12px);
+    gap: 5px;
+    padding: 10px 12px;
+    border: 1px solid rgba(230, 234, 220, 0.18);
+    border-radius: 8px;
+    background: rgba(13, 16, 12, 0.94);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .deck-shell.portrait-preview-mode .mobile-entry-summary strong {
+    color: var(--mint);
+    font-size: 14px;
+    line-height: 1.25;
+  }
+
+  .deck-shell.portrait-preview-mode .mobile-entry-summary p {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 8px;
+    margin: 0;
+    color: var(--paper);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.4;
+  }
+
+  .deck-shell.portrait-preview-mode .mobile-entry-summary span {
+    color: var(--gold);
+    white-space: nowrap;
   }
 
   .deck-shell.portrait-preview-mode .slides-viewport {
@@ -3942,7 +3974,7 @@ h2 {
     left: 6px;
     right: 6px;
     width: auto;
-    min-height: 40px;
+    min-height: 48px;
     margin: 0;
     padding: 2px;
     flex-wrap: nowrap;
@@ -3983,11 +4015,13 @@ h2 {
     max-width: 150px;
     padding-inline: 9px;
     white-space: nowrap;
+    min-height: 44px;
   }
 
   .presentation-mode .slide-counter,
   .fullscreen-active .slide-counter {
     min-width: 52px;
+    min-height: 44px;
   }
 
   .presentation-mode .volume-control,
@@ -3999,20 +4033,36 @@ h2 {
 
   .presentation-mode .icon-button,
   .fullscreen-active .icon-button {
-    width: 34px;
-    min-height: 34px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .presentation-mode .control-button,
   .fullscreen-active .control-button {
-    min-width: 70px;
-    min-height: 34px;
+    min-width: 72px;
+    min-height: 44px;
     padding-inline: 9px;
   }
 
   .presentation-mode .fullscreen-button,
   .fullscreen-active .fullscreen-button {
-    min-width: 76px;
+    min-width: 84px;
+  }
+
+  .presentation-mode .icon-button[aria-label="現在スライドの音声"],
+  .fullscreen-active .icon-button[aria-label="現在スライドの音声"],
+  .presentation-mode .icon-button[aria-label="BGMをオン"],
+  .presentation-mode .icon-button[aria-label="BGMをオフ"],
+  .fullscreen-active .icon-button[aria-label="BGMをオン"],
+  .fullscreen-active .icon-button[aria-label="BGMをオフ"],
+  .presentation-mode .icon-button[aria-label="字幕を開く"],
+  .fullscreen-active .icon-button[aria-label="字幕を開く"],
+  .presentation-mode .icon-button[aria-label="共有"],
+  .fullscreen-active .icon-button[aria-label="共有"],
+  .presentation-mode .icon-button[aria-label="PDF出力"],
+  .fullscreen-active .icon-button[aria-label="PDF出力"] {
+    display: none;
   }
 
   .presentation-mode .slides-viewport,
@@ -4022,6 +4072,11 @@ h2 {
     display: grid;
     place-items: center;
     padding: 4px;
+  }
+
+  .presentation-mode.presentation-chrome-visible .slides-viewport,
+  .fullscreen-active.presentation-chrome-visible .slides-viewport {
+    padding: 56px 4px 4px;
   }
 
   .presentation-mode .slides-viewport::before,
@@ -4038,6 +4093,12 @@ h2 {
     grid-template-columns: minmax(0, 1.03fr) minmax(0, 0.97fr);
     gap: 0;
     border-radius: 6px;
+  }
+
+  .presentation-mode.presentation-chrome-visible .slide,
+  .fullscreen-active.presentation-chrome-visible .slide {
+    width: min(calc(100vw - 8px), calc((100svh - 60px) * 16 / 9));
+    height: min(calc(100svh - 60px), calc((100vw - 8px) * 9 / 16));
   }
 
   .presentation-mode.demo-deck .slide,
