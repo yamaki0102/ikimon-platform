@@ -14261,6 +14261,14 @@ export const MAP_EXPLORER_STYLES = `
     .me-map-panel-selection { width: clamp(260px, 30vw, 320px); }
   }
 
+  @media (max-width: 1160px) {
+    .me-map .maplibregl-ctrl-bottom-right {
+      bottom: calc(88px + max(0px, env(safe-area-inset-bottom)));
+      z-index: 90;
+    }
+    .me-locate-fab { bottom: calc(132px + max(0px, env(safe-area-inset-bottom))); }
+  }
+
   @media (max-width: 900px) {
     .site-shell.is-map-surface .global-record-launcher {
       display: grid;
@@ -14624,7 +14632,7 @@ export const MAP_EXPLORER_STYLES = `
       top: auto;
       max-width: calc(100% - 96px);
     }
-    .me-locate-fab { bottom: calc(var(--me-mobile-action-space) + 8px); }
+    .me-locate-fab { bottom: calc(var(--me-mobile-action-space) + 44px); }
     .me-rain-mode.me-sheet-open .me-locate-fab {
       opacity: 0;
       pointer-events: none;

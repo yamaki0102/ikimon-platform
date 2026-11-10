@@ -1736,6 +1736,7 @@ test("map explorer restores the quick record launcher on mobile only", () => {
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*bottom: max\(8px, env\(safe-area-inset-bottom\)\);/);
   assert.match(styles, /--me-mobile-action-space: calc\(92px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map \.maplibregl-ctrl-bottom-right \{\s*bottom: calc\(var\(--me-mobile-action-space\) \+ 4px\);\s*\}/);
+  assert.match(styles, /@media \(max-width: 1160px\) \{\s*\.me-map \.maplibregl-ctrl-bottom-right \{\s*bottom: calc\(88px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);\s*z-index: 90;\s*\}\s*\.me-locate-fab \{ bottom: calc\(132px \+ max\(0px, env\(safe-area-inset-bottom\)\)\); \}/);
 });
 
 test("mobile map filters open from the thumb zone above the record launcher", () => {
@@ -1745,7 +1746,7 @@ test("mobile map filters open from the thumb zone above the record launcher", ()
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-filter-panel \{[\s\S]*position: fixed;[\s\S]*top: auto;[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);[\s\S]*z-index: 80;/);
   assert.match(styles, /\.me-filter-panel \{[\s\S]*backdrop-filter: blur\(12px\);/);
   assert.match(styles, /\.me-bottom-sheet \{[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ var\(--me-mobile-sheet-clearance\)\);/);
-  assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\); \}/);
+  assert.match(styles, /\.me-locate-fab \{ bottom: calc\(var\(--me-mobile-action-space\) \+ 44px\); \}/);
   assert.match(styles, /\.me-filter-toggle \{[\s\S]*?min-height: 44px; min-width: 86px;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.me-filter-toggle \{\s*min-width: 96px;\s*min-height: 44px;/);
   assert.match(script, /document\.querySelectorAll\('\.me-filter-tab-chip'\)\.forEach/);
