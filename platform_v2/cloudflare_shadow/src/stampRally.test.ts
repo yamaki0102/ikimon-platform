@@ -180,7 +180,7 @@ test("upsert validation: prize mode, spots, colors, logo, area geometry, period"
   const ok = await organizer(env, body("upsert", {
     prizeMode: "offline", prizeInstructions: "本部テントで係の人に画面を見せてください。", expectedParticipants: 300,
     startsAt: "2026-11-01T00:00:00.000Z", endsAt: "2026-12-01T00:00:00.000Z",
-    theme: { logoUrl: "https://example.com/logo.png", primaryColor: "#112233", backgroundColor: "#FFFFFF" },
+    theme: { logoUrl: "https://zukan.earth/logo.png", primaryColor: "#112233", backgroundColor: "#FFFFFF" },
     spots: [{ spotKey: "a", name: "A" }, { spotKey: "area1", name: "広場", spotKind: "area", areaCenter: { lat: 34.7, lng: 137.7 }, radiusM: 80 }],
   }));
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
@@ -432,14 +432,14 @@ test("organizer logo and colors render only after validation; html is escaped", 
   const { env } = fixture(t);
   const rally = await openRally(env, {
     title: "<script>alert(1)</script>祭り",
-    theme: { logoUrl: "https://assets.example.com/logo.png?x=1", primaryColor: "#ffffff", backgroundColor: "#101010" },
+    theme: { logoUrl: "https://zukan.earth/assets/logo.png?x=1", primaryColor: "#ffffff", backgroundColor: "#101010" },
   });
   const response = await get(env, `/stamp/${codeOf(rally.spots[0]!.stampUrl)}`);
   const html = await response.text();
   assert.doesNotMatch(html, /<script>alert/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;祭り/);
-  assert.match(html, /<img class="logo" src="https:\/\/assets\.example\.com\/logo\.png\?x=1" alt="">/);
-  assert.match(response.headers.get("content-security-policy") ?? "", /img-src 'self' data: https:\/\/assets\.example\.com;/);
+  assert.match(html, /<img class="logo" src="https:\/\/zukan\.earth\/assets\/logo\.png\?x=1" alt="">/);
+  assert.match(response.headers.get("content-security-policy") ?? "", /img-src 'self' data: https:\/\/zukan\.earth;/);
   assert.match(html, /background:#101010/);
   assert.match(html, /\.btn\{[^}]*background:#ffffff;color:#1d1d1f/);
 });
@@ -507,4 +507,68 @@ test("retention does nothing while the flag is off and never throws from the sch
   await runStampRallyRetention(off.env, nowMs);
   const broken: any = { ENVIRONMENT: environment, ZUKAN_STAMP_RALLY_ENABLED: "true", CORE_DB: { prepare() { throw new Error("db down"); } } };
   await assert.doesNotReject(runStampRallyRetention(broken, nowMs));
+});
+
+test("board link/unlink/delete forms post to the rally path", async t => {
+  const { env, sqlite } = fixture(t);
+  const rally = await openRally(env);
+  const { cookie } = await stampAll(env, [codeOf(rally.spots[0]!.stampUrl)]);
+  addSession(sqlite, "tok-form", "user_1");
+  const withSession = `${cookie}; ikimon_v2_session=tok-form`;
+  const before = await (await get(env, `/stamp/r/${rallyId}`, withSession)).text();
+  assert.ok(before.includes(`action="/stamp/r/${rallyId}/link"`));
+  await post(env, `/stamp/r/${rallyId}/link`, { cookie: withSession, form: { consent: "1" } });
+  const after = await (await get(env, `/stamp/r/${rallyId}`, withSession)).text();
+  assert.equal(after.split(`action="/stamp/r/${rallyId}/unlink"`).length - 1, 2);
+  assert.doesNotMatch(after, /=>/);
+});
+
+test("device id is salted per rally", async t => {
+  const { env, sqlite } = fixture(t);
+  const first = await openRally(env);
+  const otherScope = sha("salt-scope");
+  const otherRallyId = "sr_" + sha(JSON.stringify(["nocosil-stamp-rally", environment, otherScope, "second"])).slice(0, 32);
+  const second = await organizer(env, { ...body("upsert"), scopeDigest: otherScope, sourceRallyId: "second", rallyId: otherRallyId });
+  assert.equal(second.status, 200);
+  const { cookie } = await stampAll(env, [codeOf(first.spots[0]!.stampUrl)]);
+  await stampAll(env, [codeOf(second.data.spots[0].stampUrl)], cookie);
+  const ids = (sqlite.prepare("SELECT DISTINCT device_id FROM stamp_rally_devices").all() as any[]).map(r => r.device_id);
+  assert.equal(ids.length, 2);
+});
+
+test("external logo urls are dropped and never reach the CSP", async t => {
+  const { env } = fixture(t);
+  const rally = await openRally(env, { theme: { logoUrl: "https://tracker.example.com/logo.png", primaryColor: "#112233" } });
+  const response = await get(env, `/stamp/${codeOf(rally.spots[0]!.stampUrl)}`);
+  const html = await response.text();
+  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /tracker\.example\.com/);
+  assert.match(response.headers.get("content-security-policy") ?? "", /img-src 'self' data:;/);
+});
+
+test("retention deletes rallies without an end date after 90 idle days", async t => {
+  const { env } = fixture(t);
+  await openRally(env);
+  const day = 24 * 3600 * 1000;
+  assert.deepEqual(await sweepExpiredStampRallies(env, nowMs + 89 * day), { rallies: 0, stamps: 0, devices: 0, spots: 0 });
+  const swept = await sweepExpiredStampRallies(env, nowMs + 91 * day);
+  assert.equal(swept.rallies, 1);
+});
+
+test("a one-byte body change with the same signature is rejected", async t => {
+  const { env } = fixture(t);
+  const raw = JSON.stringify(body("upsert"));
+  const ts = String(Math.floor(nowMs / 1000));
+  const signature = createHmac("sha256", secret).update(`${ts}.${raw}`).digest("hex");
+  const tampered = raw.replace("LIFE SPIRAL UP", "LIFE SPIRAL UQ");
+  const response = await call(env, new Request(new URL(route, "https://staging.zukan.earth"), { method: "POST", body: tampered, headers: {
+    "content-type": "application/json", "x-nocosil-timestamp": ts, "x-nocosil-signature": "v1=" + signature,
+  } }));
+  assert.equal(response.status, 401);
+});
+
+test("flag off: scheduled cleanup returns 0 without touching the database", async () => {
+  const touching: any = { ENVIRONMENT: environment, CORE_DB: new Proxy({}, { get() { throw new Error("db touched"); } }) };
+  assert.deepEqual(await sweepExpiredStampRallies(touching, nowMs), { rallies: 0, stamps: 0, devices: 0, spots: 0 });
+  await assert.doesNotReject(runStampRallyRetention(touching, nowMs));
 });

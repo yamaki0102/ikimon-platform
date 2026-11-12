@@ -14,6 +14,8 @@ export interface StampRallyEnv {
   NOCOSIL_INTEGRATION_HMAC_SECRET?: string;
   ENVIRONMENT: string;
   ZUKAN_STAMP_RALLY_ENABLED?: string;
+  ZUKAN_PUBLIC_ORIGIN?: string;
+  NOCOSIL_PUBLIC_ORIGIN?: string;
 }
 
 export const STAMP_RALLY_ORGANIZER_PATH = "/api/v1/integrations/nocosil/stamp-rallies";
@@ -78,7 +80,19 @@ function randomCode(): string {
 const rallyIdFor = async (env: StampRallyEnv, scopeDigest: string, sourceRallyId: string) =>
   `sr_${(await sha256Text(JSON.stringify(["nocosil-stamp-rally", env.ENVIRONMENT, scopeDigest, sourceRallyId]))).slice(0, 32)}`;
 const spotIdFor = async (rallyId: string, spotKey: string) => `sp_${(await sha256Text(JSON.stringify([rallyId, spotKey]))).slice(0, 32)}`;
-const deviceIdFor = (raw: string) => sha256Text(`zukan-stamp-device|${raw}`);
+const deviceIdFor = (rallyId: string, raw: string) => sha256Text(`zukan-stamp-device|${rallyId}|${raw}`);
+function logoOriginsOf(env: Pick<StampRallyEnv, "ZUKAN_PUBLIC_ORIGIN" | "NOCOSIL_PUBLIC_ORIGIN">): Set<string> {
+  const origins = new Set(["https://zukan.earth", "https://nocosil.com"]);
+  for (const value of [env.ZUKAN_PUBLIC_ORIGIN, env.NOCOSIL_PUBLIC_ORIGIN]) {
+    if (!value) continue;
+    try { const parsed = new URL(value); if (parsed.protocol === "https:") origins.add(parsed.origin); } catch { /* ignore */ }
+  }
+  return origins;
+}
+function managedLogo(url: string | null | undefined, env: StampRallyEnv): string | null {
+  if (!url) return null;
+  try { return logoOriginsOf(env).has(new URL(url).origin) ? url : null; } catch { return null; }
+}
 
 function cookieValue(request: Request, name: string): string | null {
   const header = request.headers.get("cookie");
@@ -157,14 +171,14 @@ function parseSpots(value: unknown): SpotInput[] | null {
   }
   return spots;
 }
-function parseTheme(value: unknown): { logoUrl: string | null; primary: string | null; background: string | null } | null {
+function parseTheme(value: unknown, env: StampRallyEnv): { logoUrl: string | null; primary: string | null; background: string | null } | null {
   if (value === undefined || value === null) return { logoUrl: null, primary: null, background: null };
   if (!isObj(value) || !keysOnly(value, ["logoUrl", "primaryColor", "backgroundColor"])) return null;
   let logoUrl: string | null = null;
   if (value.logoUrl !== undefined && value.logoUrl !== null) {
     if (typeof value.logoUrl !== "string" || value.logoUrl.length > 300 || /[\s"'<>\\]/.test(value.logoUrl)) return null;
     try { const parsed = new URL(value.logoUrl); if (parsed.protocol !== "https:" || parsed.username || parsed.password) return null; } catch { return null; }
-    logoUrl = value.logoUrl;
+    logoUrl = managedLogo(value.logoUrl, env);
   }
   const color = (v: unknown): string | null | undefined => v === undefined || v === null ? null : typeof v === "string" && colorPattern.test(v) ? v.toLowerCase() : undefined;
   const primary = color(value.primaryColor); const background = color(value.backgroundColor);
@@ -222,7 +236,7 @@ async function handleOrganizer(request: Request, env: StampRallyEnv, now: number
     if (action === "upsert") {
       const title = plainText(body.title, 1, 80);
       const startsAt = optionalInstant(body.startsAt); const endsAt = optionalInstant(body.endsAt);
-      const theme = parseTheme(body.theme); const spots = parseSpots(body.spots);
+      const theme = parseTheme(body.theme, env); const spots = parseSpots(body.spots);
       const prizeMode = body.prizeMode;
       if (!title || startsAt === undefined || endsAt === undefined || !theme || !spots || (prizeMode !== "none" && prizeMode !== "offline")) return apiError("invalid_rally", 400);
       if (startsAt && endsAt && Date.parse(startsAt) >= Date.parse(endsAt)) return apiError("invalid_rally", 400);
@@ -297,10 +311,10 @@ function jst(iso: string): string {
 }
 
 type Theme = { primary: string | null; background: string | null; logoUrl: string | null };
-const themeOf = (rally: RallyRow | null): Theme => ({
+const themeOf = (rally: RallyRow | null, env?: StampRallyEnv): Theme => ({
   primary: rally?.theme_primary && colorPattern.test(rally.theme_primary) ? rally.theme_primary : null,
   background: rally?.theme_background && colorPattern.test(rally.theme_background) ? rally.theme_background : null,
-  logoUrl: rally?.logo_url ?? null,
+  logoUrl: env ? managedLogo(rally?.logo_url, env) : null,
 });
 
 function pageResponse(status: number, title: string, main: string, theme: Theme, extraHeaders: Record<string, string> = {}, headOnly = false): Response {
@@ -329,6 +343,8 @@ function windowState(rally: RallyRow, now: number): "open" | "closed" | "not_sta
 const windowMessage = (state: "closed" | "not_started" | "ended") =>
   state === "not_started" ? "このスタンプラリーはまだ始まっていません。開始後にもう一度お試しください。" : "このスタンプラリーは終了しました。ご参加ありがとうございました。";
 
+const board = (rallyId: string) => `/stamp/r/${rallyId}`;
+
 function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
   return origin !== null && origin === new URL(request.url).origin;
@@ -355,11 +371,11 @@ async function handleSpotPage(request: Request, env: StampRallyEnv, code: string
   if (!spot) return messagePage(404, "QRコードが見つかりません", "このQRコードは使えません。会場の案内をご確認ください。", themeOf(null), head);
   const rally = await loadRally(env, spot.rally_id);
   if (!rally) return messagePage(404, "QRコードが見つかりません", "このQRコードは使えません。会場の案内をご確認ください。", themeOf(null), head);
-  const theme = themeOf(rally);
+  const theme = themeOf(rally, env);
   if (spot.state === "removed") return messagePage(410, rally.title, "このスタンプ地点は取りやめになりました。", theme, head);
   const spots = (await loadSpots(env, rally.rally_id)).filter(s => s.state === "active");
   const raw = cookieValue(request, STAMP_DEVICE_COOKIE);
-  const deviceId = raw && spotCodePattern.test(raw) ? await deviceIdFor(raw) : null;
+  const deviceId = raw && spotCodePattern.test(raw) ? await deviceIdFor(rally.rally_id, raw) : null;
   const stamped = deviceId ? await stampedSpotIds(env, rally.rally_id, deviceId) : new Set<string>();
   const progress = spots.filter(s => stamped.has(s.spot_id)).length;
   const board = `/stamp/r/${rally.rally_id}`;
@@ -377,14 +393,14 @@ async function handleSpotStamp(request: Request, env: StampRallyEnv, code: strin
   const spot = await env.CORE_DB.prepare(`SELECT ${SPOT_COLUMNS} FROM stamp_rally_spots WHERE code=?`).bind(code).first<SpotRow>();
   const rally = spot ? await loadRally(env, spot.rally_id) : null;
   if (!spot || !rally) return messagePage(404, "QRコードが見つかりません", "このQRコードは使えません。会場の案内をご確認ください。");
-  const theme = themeOf(rally);
+  const theme = themeOf(rally, env);
   if (spot.state === "removed") return messagePage(410, rally.title, "このスタンプ地点は取りやめになりました。", theme);
   const state = windowState(rally, now);
   if (state !== "open") return messagePage(403, rally.title, windowMessage(state), theme);
   if (spot.spot_kind !== "qr") return messagePage(400, rally.title, "この地点は位置情報でのチェックインです。QRコードのスタンプは押せません。", theme);
   const existing = cookieValue(request, STAMP_DEVICE_COOKIE);
   const raw = existing && spotCodePattern.test(existing) ? existing : randomCode();
-  const deviceId = await deviceIdFor(raw);
+  const deviceId = await deviceIdFor(rally.rally_id, raw);
   const nowIso = new Date(now).toISOString();
   try {
     await env.CORE_DB.prepare("INSERT OR IGNORE INTO stamp_rally_devices (rally_id,device_id,created_at) VALUES (?,?,?)").bind(rally.rally_id, deviceId, nowIso).run();
@@ -405,10 +421,10 @@ async function handleBoard(request: Request, env: StampRallyEnv, rallyId: string
   const head = request.method === "HEAD";
   const rally = await loadRally(env, rallyId);
   if (!rally) return messagePage(404, "スタンプ台紙が見つかりません", "このアドレスは使えません。会場の案内をご確認ください。", themeOf(null), head);
-  const theme = themeOf(rally);
+  const theme = themeOf(rally, env);
   const spots = (await loadSpots(env, rallyId)).filter(s => s.state === "active");
   const raw = cookieValue(request, STAMP_DEVICE_COOKIE);
-  const deviceId = raw && spotCodePattern.test(raw) ? await deviceIdFor(raw) : null;
+  const deviceId = raw && spotCodePattern.test(raw) ? await deviceIdFor(rallyId, raw) : null;
   const stamped = deviceId ? await stampedSpotIds(env, rallyId, deviceId) : new Set<string>();
   const device = deviceId ? await env.CORE_DB.prepare("SELECT completed_at FROM stamp_rally_devices WHERE rally_id=? AND device_id=?").bind(rallyId, deviceId).first<{ completed_at: string | null }>() : null;
   const progress = spots.filter(s => stamped.has(s.spot_id)).length;
@@ -423,29 +439,29 @@ async function handleBoard(request: Request, env: StampRallyEnv, rallyId: string
   const state = windowState(rally, now);
   if (state !== "open") main += `<p class="note">${escapeHtml(windowMessage(state))}</p>`;
 
+  const path = board(rallyId);
   const userId = progress > 0 && deviceId ? await readLoggedInUserId(request, env, now) : null;
   if (userId && deviceId) {
     const link = await env.CORE_DB.prepare("SELECT user_id,notify_opt_in,revoked_at FROM stamp_account_links WHERE rally_id=? AND device_id=?").bind(rallyId, deviceId).first<{ user_id: string; notify_opt_in: number; revoked_at: string | null }>();
     if (link && !link.revoked_at && link.user_id === userId) {
       main += `<div class="card"><h2>アカウントとのひも付け</h2><p>この参加記録は、ログイン中のアカウントにひも付いています。${link.notify_opt_in ? "主催者からのお知らせの受け取りに同意しています。" : "お知らせは受け取らない設定です。"}</p>`
-        + `<form method="post" action="${board}/unlink"><input type="hidden" name="mode" value="revoke"><button class="btn sub" type="submit">ひも付けとお知らせの同意をやめる</button></form>`
-        + `<form method="post" action="${board}/unlink"><input type="hidden" name="mode" value="delete"><button class="btn sub" type="submit">この同意の記録を削除する</button></form></div>`;
+        + `<form method="post" action="${path}/unlink"><input type="hidden" name="mode" value="revoke"><button class="btn sub" type="submit">ひも付けとお知らせの同意をやめる</button></form>`
+        + `<form method="post" action="${path}/unlink"><input type="hidden" name="mode" value="delete"><button class="btn sub" type="submit">この同意の記録を削除する</button></form></div>`;
     } else if (!link || link.revoked_at || link.user_id === userId) {
       main += `<div class="card"><h2>アカウントにひも付ける（任意）</h2><p>ログイン中のアカウントに、この端末のスタンプ記録をひも付けます。主催者に、あなたの名前・メールアドレス・アカウントは渡りません（人数のみ）。いつでもやめられます。</p>`
-        + `<form method="post" action="${board}/link"><label><input type="checkbox" name="consent" value="1" required> 記録をアカウントにひも付けることに同意します</label>`
+        + `<form method="post" action="${path}/link"><label><input type="checkbox" name="consent" value="1" required> 記録をアカウントにひも付けることに同意します</label>`
         + `<label><input type="checkbox" name="notify" value="1"> 主催者からのお知らせ（ZUKAN経由・宛先は主催者に渡りません）を受け取る</label>`
         + `<button class="btn" type="submit">同意してひも付ける</button></form></div>`;
     }
   }
   return pageResponse(200, "スタンプ台紙", main, theme, {}, head);
 }
-const board = (rallyId: string) => `/stamp/r/${rallyId}`;
 
 async function handleLink(request: Request, env: StampRallyEnv, rallyId: string, now: number): Promise<Response> {
   if (!sameOrigin(request)) return messagePage(403, "送信できませんでした", "このページからもう一度お試しください。");
   const rally = await loadRally(env, rallyId);
   if (!rally) return messagePage(404, "スタンプ台紙が見つかりません", "このアドレスは使えません。");
-  const theme = themeOf(rally);
+  const theme = themeOf(rally, env);
   const raw = cookieValue(request, STAMP_DEVICE_COOKIE);
   if (!raw || !spotCodePattern.test(raw)) return messagePage(400, "ひも付けできませんでした", "この端末のスタンプ記録が見つかりません。", theme);
   const userId = await readLoggedInUserId(request, env, now);
@@ -453,7 +469,7 @@ async function handleLink(request: Request, env: StampRallyEnv, rallyId: string,
   let form: FormData;
   try { form = await request.formData(); } catch { return messagePage(400, "送信できませんでした", "もう一度お試しください。", theme); }
   if (form.get("consent") !== "1") return messagePage(400, "同意が必要です", "ひも付けるには同意にチェックを入れてください。", theme);
-  const deviceId = await deviceIdFor(raw);
+  const deviceId = await deviceIdFor(rallyId, raw);
   const stampCount = await count(env, "SELECT COUNT(*) AS n FROM stamp_rally_stamps WHERE rally_id=? AND device_id=?", rallyId, deviceId);
   if (stampCount < 1) return messagePage(400, "ひも付けできませんでした", "この端末のスタンプ記録が見つかりません。", theme);
   const existing = await env.CORE_DB.prepare("SELECT user_id,revoked_at FROM stamp_account_links WHERE rally_id=? AND device_id=?").bind(rallyId, deviceId).first<{ user_id: string; revoked_at: string | null }>();
@@ -477,7 +493,7 @@ async function handleUnlink(request: Request, env: StampRallyEnv, rallyId: strin
   try { form = await request.formData(); } catch { return messagePage(400, "送信できませんでした", "もう一度お試しください。"); }
   const mode = form.get("mode");
   if (mode !== "revoke" && mode !== "delete") return messagePage(400, "送信できませんでした", "もう一度お試しください。");
-  const deviceId = await deviceIdFor(raw);
+  const deviceId = await deviceIdFor(rallyId, raw);
   try {
     if (mode === "revoke") await env.CORE_DB.prepare("UPDATE stamp_account_links SET revoked_at=?,notify_opt_in=0 WHERE rally_id=? AND device_id=? AND user_id=? AND revoked_at IS NULL").bind(new Date(now).toISOString(), rallyId, deviceId, userId).run();
     else await env.CORE_DB.prepare("DELETE FROM stamp_account_links WHERE rally_id=? AND device_id=? AND user_id=?").bind(rallyId, deviceId, userId).run();
@@ -516,8 +532,8 @@ export async function sweepExpiredStampRallies(env: StampRallyEnv, now = Date.no
   if (!isEnabled(env)) return totals;
   const cutoff = new Date(now - STAMP_RALLY_RETENTION_DAYS * DAY_MS).toISOString();
   const due = (await env.CORE_DB.prepare(
-    "SELECT rally_id FROM stamp_rallies WHERE MIN(COALESCE(ends_at,closed_at),COALESCE(closed_at,ends_at))<? ORDER BY rally_id LIMIT ?",
-  ).bind(cutoff, limit).all<{ rally_id: string }>()).results;
+    "SELECT rally_id FROM stamp_rallies WHERE MIN(COALESCE(ends_at,closed_at),COALESCE(closed_at,ends_at))<? OR (ends_at IS NULL AND closed_at IS NULL AND COALESCE((SELECT MAX(st.stamped_at) FROM stamp_rally_stamps st WHERE st.rally_id=stamp_rallies.rally_id),created_at)<?) ORDER BY rally_id LIMIT ?",
+  ).bind(cutoff, cutoff, limit).all<{ rally_id: string }>()).results;
   const changes = (result: { meta?: { changes?: number } }) => Number(result.meta?.changes ?? 0);
   for (const { rally_id } of due) {
     totals.stamps += changes(await env.CORE_DB.prepare("DELETE FROM stamp_rally_stamps WHERE rally_id=?").bind(rally_id).run());
