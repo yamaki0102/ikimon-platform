@@ -3186,7 +3186,8 @@ export function canonicalPublicHostRedirect(request: Request, url: URL, env: Env
   }
   const redirectMode = String(env.LEGACY_HOST_REDIRECT_MODE ?? "disabled").trim().toLowerCase();
   const excludedPath = /^\/(?:api(?:\/|$)|auth(?:\/|$)|oauth_callback\.php(?:\/|$)|app_oauth_start\.php(?:\/|$)|webhooks?(?:\/|$)|media(?:\/|$)|uploads?(?:\/|$)|__preview-media(?:\/|$)|ops(?:\/|$)|admin(?:\/|$))/iu;
-  const sessionBoundUiPath = isHomeHtmlPath(url.pathname) || isNonPublicOriginalUiHtmlPath(url.pathname);
+  const anonymousHomePath = (url.pathname === "/" || url.pathname === "/ja/") && !request.headers.has("cookie");
+  const sessionBoundUiPath = (isHomeHtmlPath(url.pathname) && !anonymousHomePath) || isNonPublicOriginalUiHtmlPath(url.pathname);
   if (!isCanonicalWww && redirectMode === "enabled" && (excludedPath.test(url.pathname) || sessionBoundUiPath)) {
     return null;
   }

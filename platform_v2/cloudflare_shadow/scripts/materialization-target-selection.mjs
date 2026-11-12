@@ -3,16 +3,15 @@ export function selectCoreMaterializationPaths({
   queryVariantPaths,
   learnPaths,
   invasiveSpeciesPaths,
-  siteMapPaths,
+  sitemapStaticPaths = [],
   stagingOnlyPaths = [],
 }) {
-  const siteMapCorePaths = siteMapPaths.filter((path) => path === "/ja/contact");
   return [...new Set([
     ...corePaths,
     ...queryVariantPaths,
     ...learnPaths,
     "/learn",
-    ...siteMapCorePaths,
+    ...sitemapStaticPaths,
     ...invasiveSpeciesPaths,
     ...stagingOnlyPaths,
   ])];

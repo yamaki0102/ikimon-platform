@@ -1,5 +1,14 @@
 import { appendLangToHref } from "../i18n.js";
-import { SITE_PAGE_DEFINITIONS, localizedPageLangs } from "../siteMap.js";
+import { SITE_PAGE_DEFINITIONS, localizedPageLangs, xmlSitemapPages } from "../siteMap.js";
+
+export const LIVE_ORIGIN_SITEMAP_PATHS: readonly string[] = ["/ja/walk-maps", "/ja/biosecurity", "/ja/community/events"];
+
+export function listSitemapStaticMaterializationPaths(): string[] {
+  const liveOrigin = new Set(LIVE_ORIGIN_SITEMAP_PATHS);
+  return [...new Set(
+    xmlSitemapPages().map((page) => appendLangToHref(page.path, "ja")).filter((path) => !liveOrigin.has(path)),
+  )];
+}
 
 function publicFastifySiteMapPages() {
   return SITE_PAGE_DEFINITIONS.filter((page) =>
