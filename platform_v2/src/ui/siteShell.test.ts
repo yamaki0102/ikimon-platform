@@ -1331,3 +1331,19 @@ test("camera startup failures expose localized recovery text and a stable reason
   }
 });
 
+
+test("privacy and terms render the operator statement; other pages do not", () => {
+  for (const path of ["/ja/privacy", "/ja/terms", "/en/privacy"]) {
+    const html = renderSiteDocument({ basePath: "", title: "t", body: "<p>b</p>", lang: path.startsWith("/en") ? "en" : "ja", currentPath: path });
+    assert.match(html, /<p class="footer-operator">(ZUKANはIKIMON株式会社が運営しています|ZUKAN is operated by IKIMON Inc\.)/);
+  }
+  const other = renderSiteDocument({ basePath: "", title: "t", body: "<p>b</p>", lang: "ja", currentPath: "/ja/faq" });
+  assert.doesNotMatch(other, /footer-operator">/);
+});
+
+test("privacy longform links to /ja/contact", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const md = await readFile(new URL("../content/longform/ja/privacy.md", import.meta.url), "utf8");
+  assert.doesNotMatch(md, /\]\(\/contact\)/);
+  assert.equal((md.match(/\]\(\/ja\/contact\)/g) ?? []).length, 2);
+});
