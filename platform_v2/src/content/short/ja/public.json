@@ -892,7 +892,7 @@
       "emailHint": "入力すると受付自動返信が届きます（任意）"
     },
     "submit": "送信する",
-    "noscript": "JavaScript を有効にして送信してください。無効の場合は contact@ikimon.life へ直接メールでご連絡をお願いします。",
+    "noscript": "このお問い合わせフォームは JavaScript を有効にしてご利用ください。",
     "status": {
       "loading": "送信中…",
       "successPrefix": "送信しました。受付番号: ",

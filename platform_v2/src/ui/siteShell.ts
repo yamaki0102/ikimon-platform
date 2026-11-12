@@ -968,6 +968,10 @@ function operatorStatement(lang: SiteLang): string {
   return copy[lang];
 }
 
+function isLegalOperatorPath(currentPath: string): boolean {
+  return /^\/(?:(?:ja|en|es|pt-br)\/)?(?:privacy|terms)\/?$/i.test(normalizePathname(currentPath));
+}
+
 function footer(basePath: string, lang: SiteLang, _footerNote?: string): string {
   const copy = shellCopyFor(lang);
   const startPages = footerGroupPages(["start"], 5);
@@ -7608,7 +7612,7 @@ ${alternateLinks}
       ${options.publicContextHtml ?? ""}
       ${options.body}
     </main>
-    ${shouldRenderFooter ? footer(options.basePath, lang, options.footerNote) : ""}
+    ${shouldRenderFooter ? footer(options.basePath, lang, options.footerNote) : isLegalOperatorPath(currentPath) ? `<footer class="site-footer-legal"><p class="footer-operator">${escapeHtml(operatorStatement(lang))}</p></footer>` : ""}
     ${globalRecordNav}
   </div>
   ${legacyServiceWorkerCleanupScript}
