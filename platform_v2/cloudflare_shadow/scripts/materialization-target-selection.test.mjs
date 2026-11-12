@@ -39,3 +39,16 @@ test("core selection remains bounded and deduplicated", () => {
   assert.equal(selected.filter((path) => path === "/ja/contact").length, 1);
   assert.equal(selected.includes("/unrelated-site-map-page"), false);
 });
+
+test("core materialization includes legal pages and no other SiteMap pages", () => {
+  const siteMapPaths = listPublicSiteMapMaterializationPaths();
+  assert.ok(siteMapPaths.includes("/ja/privacy"));
+  assert.ok(siteMapPaths.includes("/ja/terms"));
+  const selected = targets({ siteMapPaths });
+  assert.ok(selected.includes("/ja/privacy"));
+  assert.ok(selected.includes("/ja/terms"));
+  assert.equal(selected.includes("/ja/faq"), false);
+  assert.equal(selected.includes("/en/privacy"), false);
+  const bare = selectCoreMaterializationPaths({ corePaths: [], queryVariantPaths: [], learnPaths: [], invasiveSpeciesPaths: [], siteMapPaths });
+  assert.deepEqual([...bare].sort(), ["/ja/contact", "/ja/privacy", "/ja/terms", "/learn"]);
+});

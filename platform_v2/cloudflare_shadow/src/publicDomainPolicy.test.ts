@@ -74,7 +74,7 @@ test("enabled legacy redirect preserves path/query and excludes protected routes
   }
 
   for (const path of [
-    "/", "/ja/", "/home", "/ja/home", "/record", "/ja/record?draft=1", "/profile",
+    "/home", "/ja/home", "/record", "/ja/record?draft=1", "/profile",
     "/ja/profile/settings", "/my-guides", "/ja/my-guides",
   ]) {
     assert.equal(
@@ -85,6 +85,26 @@ test("enabled legacy redirect preserves path/query and excludes protected routes
       ),
       null,
       path,
+    );
+  }
+
+  for (const path of ["/", "/ja/", "/?utm=x", "/ja/?from=legacy"]) {
+    const anonymousHome = canonicalPublicHostRedirect(
+      new Request(`https://ikimon.life${path}`),
+      new URL(`https://ikimon.life${path}`),
+      env("enabled"),
+    );
+    assert.ok(anonymousHome, path);
+    assert.equal(anonymousHome.status, 308, path);
+    assert.equal(anonymousHome.headers.get("location"), `https://zukan.earth${path}`, path);
+    assert.equal(
+      canonicalPublicHostRedirect(
+        new Request(`https://ikimon.life${path}`, { headers: { cookie: "session=1" } }),
+        new URL(`https://ikimon.life${path}`),
+        env("enabled"),
+      ),
+      null,
+      `${path} with cookie`,
     );
   }
 
