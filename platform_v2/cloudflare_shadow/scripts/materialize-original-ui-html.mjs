@@ -8,6 +8,7 @@ import { compactMaterializedCapture } from "./compact-materialized-capture.mjs";
 import {
   listPublicSiteMapLocalizableBasePaths,
   listPublicSiteMapMaterializationPaths,
+  listSitemapStaticMaterializationPaths,
 } from "../../src/services/originalUiMaterializationRoutes.ts";
 import { listLearnMaterializationPaths } from "../../src/learn/materialization.ts";
 import { listInvasiveSpeciesMaterializationPaths } from "../../src/services/invasiveSpeciesMaterialization.ts";
@@ -483,7 +484,7 @@ async function resolveTargetPaths() {
       queryVariantPaths,
       learnPaths: listLearnMaterializationPaths(),
       invasiveSpeciesPaths: listInvasiveSpeciesMaterializationPaths(),
-      siteMapPaths: siteMapPublicMaterializationPaths,
+      sitemapStaticPaths: listSitemapStaticMaterializationPaths(),
       stagingOnlyPaths: targetEnv === "staging" ? stagingOnlyAdminPreviewPaths : [],
     });
   }
