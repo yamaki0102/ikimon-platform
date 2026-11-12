@@ -183,180 +183,11 @@ import { handleBiosecurityRequest, expireBiosecurityRecords, MUNICIPAL_INBOX_ROL
 import { guestCookieName, readGuestCredential, credentialDigest } from "./guestCredentialNative";
 import { handleGenrePortalRequest } from "./genrePortal";
 import { createD1PublicParticipationSource } from "./genrePortalD1";
-
-type D1Value = string | number | null;
-
-interface D1PreparedStatement {
-  bind(...values: D1Value[]): D1PreparedStatement;
-  first<T = unknown>(): Promise<T | null>;
-  all<T = unknown>(): Promise<{ results: T[] }>;
-  run(): Promise<unknown>;
-}
-
-interface D1Database {
-  prepare(query: string): D1PreparedStatement;
-  batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
-}
-
-interface R2Bucket {
-  put(key: string, value: ReadableStream | ArrayBuffer | string, options?: { httpMetadata?: { contentType?: string; cacheControl?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
-  get(key: string): Promise<R2ObjectBody | null>;
-  head(key: string): Promise<R2Object | null>;
-  delete(key: string): Promise<unknown>;
-  list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<R2ListResult>;
-}
-
-interface R2Object {
-  size?: number;
-  httpMetadata?: { contentType?: string };
-}
-
-interface R2ObjectBody {
-  body: ReadableStream | null;
-  httpMetadata?: { contentType?: string };
-  checksums?: { sha256?: string | ArrayBuffer };
-}
+import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
+import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 
 type MaterializedR2ObjectBody = R2ObjectBody;
 const MATERIALIZED_SOURCE_SHA256 = new WeakMap<MaterializedR2ObjectBody, string>();
-
-interface R2ListResult {
-  objects: R2ObjectSummary[];
-  truncated?: boolean;
-  cursor?: string;
-}
-
-interface R2ObjectSummary {
-  key: string;
-  size: number;
-  etag?: string;
-  uploaded?: Date | string;
-  checksums?: Record<string, string>;
-}
-
-interface Queue<T = unknown> {
-  send(message: T): Promise<void>;
-}
-
-interface SendEmailBinding {
-  send(message: {
-    from: string | { name: string; email: string };
-    to: string | { name: string; email: string } | Array<string | { name: string; email: string }>;
-    subject: string;
-    text?: string;
-    html?: string;
-    headers?: Record<string, string>;
-  }): Promise<unknown>;
-}
-
-interface ExecutionContext {
-  waitUntil(promise: Promise<unknown>): void;
-  readonly access?: {
-    readonly aud: string;
-    getIdentity(): Promise<{
-      email?: string;
-      name?: string;
-      user_uuid?: string;
-      [key: string]: unknown;
-    } | undefined>;
-  };
-}
-
-interface ScheduledController {
-  cron?: string;
-  scheduledTime?: number;
-}
-
-interface ImagesInfo {
-  format?: string;
-  fileSize?: number;
-  width?: number;
-  height?: number;
-}
-
-interface ImagesOutput {
-  response(): Response;
-}
-
-interface ImagesTransformation {
-  transform(options: Record<string, unknown>): ImagesTransformation;
-  output(options: { format: string; quality?: number | string; anim?: boolean }): Promise<ImagesOutput>;
-}
-
-interface ImagesBinding {
-  input(stream: ReadableStream): ImagesTransformation;
-  info(stream: ReadableStream): Promise<ImagesInfo>;
-}
-
-interface WorkersAiBinding {
-  run(model: string, input: Record<string, unknown>): Promise<unknown>;
-}
-
-interface Env {
-  GENRE_PORTALS_ENABLED?: string;
-  JOURNEY_SESSION_HMAC_SECRET?: string;
-  NOCOSIL_REVISION_RECEIVER_ENABLED?: string;
-  NOCOSIL_PUBLIC_RECEIVER_ENABLED?: string;
-  NOCOSIL_INTEGRATION_HMAC_SECRET?: string;
-  ZUKAN_QUIET_HOME_MODE?: string;
-  CORE_DB: D1Database;
-  OBS_DB: D1Database;
-  ASSET_BUCKET: R2Bucket;
-  IMAGES?: ImagesBinding;
-  AI?: WorkersAiBinding;
-  MEDIA_QUEUE: Queue<MediaJob>;
-  ALERT_QUEUE?: Queue<AlertDeliveryJob>;
-  ALERT_EMAIL?: SendEmailBinding;
-  ENVIRONMENT: string;
-  PUBLIC_LOCATION_CELL_PRECISION: string;
-  INTERNAL_AUTH_TOKEN?: string;
-  ALERT_EMAIL_FROM?: string;
-  ALERT_DELIVERY_BATCH_SIZE?: string;
-  ALERT_EMAIL_ALLOWED_RECIPIENTS?: string;
-  BIOSECURITY_ENABLED?: string;
-  BIOSECURITY_EMAIL_ENABLED?: string;
-  BIOSECURITY_STORAGE_BUDGET_BYTES?: string;
-  BIOSECURITY_PHOTO_HINTS_ENABLED?: string;
-  BIOSECURITY_PHOTO_HINT_DAILY_TOKENS?: string;
-  OBSERVATION_DB_NAME?: string;
-  OBSERVATION_ARCHIVE_TARGET?: string;
-  OBSERVATION_DUAL_WRITE_MODE?: string;
-  OBSERVATION_READ_CUTOVER_MODE?: string;
-  OBSERVATION_EVENT_APPLICATION_CODES?: string;
-  OBSERVATION_EVENT_GUEST_MEDIA_CODES?: string;
-  ZUKAN_FOUNDATION_V2_SHADOW_READ_MODE?: string;
-  ZUKAN_FOUNDATION_V2_DUAL_WRITE_MODE?: string;
-  ZUKAN_FOUNDATION_V2_WRITE_KILL_SWITCH?: string;
-  ZUKAN_FOUNDATION_V2_ALLOWED_TENANTS?: string;
-  ZUKAN_FOUNDATION_V2_ALLOWED_OPERATIONS?: string;
-  ZUKAN_FOUNDATION_V2_MAX_ENTITIES?: string;
-  LEGACY_HOST_REDIRECT_MODE?: string;
-  PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE?: string;
-  V2_PRIVILEGED_WRITE_API_KEY?: string;
-  GEMINI_API_KEY?: string;
-  CONTACT_FORM_SECRET?: string;
-  CONTACT_ADMIN_TO?: string;
-  GOOGLE_CLIENT_ID?: string;
-  GOOGLE_CLIENT_SECRET?: string;
-  TWITTER_CLIENT_ID?: string;
-  TWITTER_CLIENT_SECRET?: string;
-  V2_OAUTH_STATE_SECRET?: string;
-  CLOUDFLARE_STREAM_WEBHOOK_SECRET?: string;
-  MPC_DISABLED?: string;
-  MPC_STAC_API_URL?: string;
-  MPC_DATA_API_URL?: string;
-  SENTINEL_ENVIRONMENT_BATCH_SIZE?: string;
-  SENTINEL_ENVIRONMENT_DAYS_BACK?: string;
-  SENTINEL_ENVIRONMENT_MAX_CLOUD?: string;
-  OVERPASS_API_URL?: string;
-  IKIMON_GIT_SHA?: string;
-  GITHUB_SHA?: string;
-  IKIMON_WORKER_VERSION?: string;
-  IKIMON_UI_BUNDLE_HASH?: string;
-  IKIMON_UI_MANIFEST_HASH?: string;
-  IKIMON_DEPLOYED_AT?: string;
-  CF_VERSION_METADATA?: RuntimeIdentityEnv["CF_VERSION_METADATA"];
-}
 
 function isAppRuntime(env: Env): boolean {
   return env.ENVIRONMENT === "shadow" || env.ENVIRONMENT === "staging" || env.ENVIRONMENT === "production";
@@ -969,12 +800,6 @@ interface AlertDeliveryCandidateRow {
   user_email_enabled: number | null;
 }
 
-interface AlertDeliveryJob {
-  topic: "alert_delivery.drain";
-  source: "cron" | "manual" | "queue";
-  limit?: number;
-}
-
 interface VideoDirectUploadInput {
   clientUploadKey?: string | null;
   maxDurationSeconds?: number | null;
@@ -1010,12 +835,6 @@ interface VideoStreamWebhookInput {
     errReasonText?: unknown;
   } | null;
   result?: unknown;
-}
-
-interface MediaJob {
-  outboxId: string;
-  topic: "media.process" | "readmodel.refresh" | "observation.reassess";
-  targetId: string;
 }
 
 interface UploadedAssetRow {
@@ -31241,32 +31060,6 @@ function normalizeLegacyBcryptHash(hash: string): string {
   return hash.startsWith("$2y$") ? `$2b$${hash.slice(4)}` : hash;
 }
 
-function assertSameOriginRequest(request: Request, requireOrigin = false): Response | null {
-  const secFetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
-  if (secFetchSite && secFetchSite !== "same-origin" && secFetchSite !== "none") {
-    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
-  }
-
-  const origin = request.headers.get("origin")?.trim();
-  if (!origin) {
-    return requireOrigin
-      ? json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" })
-      : null;
-  }
-
-  const url = new URL(request.url);
-  let parsedOrigin: URL;
-  try {
-    parsedOrigin = new URL(origin);
-  } catch {
-    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
-  }
-  if (parsedOrigin.protocol !== url.protocol || parsedOrigin.host !== url.host) {
-    return json({ ok: false, error: "same_origin_required" }, 403, { "cache-control": "no-store" });
-  }
-  return null;
-}
-
 function normalizeEmail(value: unknown): string {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -36467,10 +36260,6 @@ async function deleteRenriFixtureRows(
   );
 }
 
-function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
-}
-
 const SHADOW_VALID_JPEG_BASE64 = "/9j/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAACAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAABgf/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCcgKKCP//Z";
 
 async function shadowTakedownProof(url: URL, env: Env): Promise<Response> {
@@ -38507,10 +38296,6 @@ function taxonGroupForLabel(label: string | null): string {
   if (/蛙|蛇|爬虫|amphibian|reptile/i.test(text)) return "amphibian_reptile";
   if (/獣|哺乳|mammal/i.test(text)) return "mammal";
   return "other";
-}
-
-function clampInteger(value: number, min: number, max: number): number {
-  return Number.isFinite(value) ? Math.min(Math.max(Math.trunc(value), min), max) : min;
 }
 
 function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, records: AreaRecordContext = { core: [], nearby: [] }): string {
@@ -40759,37 +40544,6 @@ function renderFramePreviewScript(): string {
 </script>`;
 }
 
-function formatPublicObservationDate(value: string | null | undefined): string {
-  if (!value) return "日時不明";
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return value;
-  return `${match[1]}-${match[2]}-${match[3]}`;
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-async function readJson<T>(request: Request): Promise<T> {
-  try {
-    return await request.json() as T;
-  } catch {
-    throw new HttpError(400, "invalid_json");
-  }
-}
-
-function json(body: unknown, status = 200, headers?: Record<string, string>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", ...(headers ?? {}) }
-  });
-}
-
 function releaseIdentityHeaders(env: Env): Record<string, string> {
   return runtimeIdentityHeaders(buildRuntimeIdentity(env, ""));
 }
@@ -40941,81 +40695,6 @@ function authorizeInternalRequest(request: Request, env: Env): Response | null {
   return null;
 }
 
-function html(body: string, status = 200, headers?: Record<string, string>): Response {
-  return new Response(body.replace(/<head([^>]*)>/i, '<head$1><meta name="format-detection" content="telephone=no">'), {
-    status,
-    headers: { "content-type": "text/html; charset=utf-8", ...(headers ?? {}) }
-  });
-}
-
-function assertNonEmpty(value: unknown, field: string): asserts value is string {
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new HttpError(400, `missing_${field}`);
-  }
-}
-
-function numberOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function stringValue(value: D1Value | undefined): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function stringFromUnknown(value: unknown): string {
-  return typeof value === "string" ? value : String(value ?? "");
-}
-
-function stringOrNullFromUnknown(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function numberOrNullFromUnknown(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function stableJson(value: unknown): string {
-  return JSON.stringify(sortJsonValue(value));
-}
-
-function sortJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => sortJsonValue(item));
-  }
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, item]) => [key, sortJsonValue(item)])
-    );
-  }
-  return value;
-}
-
-function normalizeOptionalText(value: unknown): string | null {
-  return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
-}
-
-function finiteNumberOrNull(value: unknown): number | null {
-  const numberValue = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(numberValue) ? numberValue : null;
-}
-
-function integerOrNull(value: unknown): number | null {
-  const numberValue = finiteNumberOrNull(value);
-  return numberValue == null ? null : Math.trunc(numberValue);
-}
-
-function integerOrZero(value: unknown): number {
-  return integerOrNull(value) ?? 0;
-}
-
-function normalizeOptionalId(value: unknown): string | null {
-  const text = normalizeOptionalText(value);
-  if (!text) return null;
-  return /^[A-Za-z0-9._:-]+$/.test(text) ? text : null;
-}
-
 function resolveLegacyTaxonLabel(input: LegacyObservationUpsertInput): string | null {
   const primary = (input.subjects ?? []).find((subject) => subject.isPrimary) ?? input.subjects?.[0];
   return normalizeOptionalText(primary?.vernacularName)
@@ -41106,10 +40785,6 @@ function buildLegacyRecordFeedbackLoopReady(
   };
 }
 
-function sanitizeFileName(value: string): string {
-  return value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "upload.jpg";
-}
-
 function clampVideoDuration(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.min(Math.max(Math.round(value), MIN_VIDEO_DURATION_SECONDS), MAX_VIDEO_DURATION_SECONDS)
@@ -41173,54 +40848,6 @@ function buildShadowVideoWatchUrl(uid: string): string {
   return `/shadow/stream/${encodeURIComponent(uid)}`;
 }
 
-function base64ToArrayBuffer(value: string): ArrayBuffer {
-  const normalized = value.includes(",") ? value.split(",").pop() ?? "" : value;
-  const binary = atob(normalized);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes.buffer;
-}
-
-function textToArrayBuffer(value: string): ArrayBuffer {
-  return new TextEncoder().encode(value).buffer;
-}
-
-function arrayBufferToText(value: ArrayBuffer): string {
-  return new TextDecoder().decode(value);
-}
-
-function arrayBufferToBase64Url(value: ArrayBuffer): string {
-  const bytes = new Uint8Array(value);
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function base64UrlToArrayBuffer(value: string): ArrayBuffer {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "=");
-  return base64ToArrayBuffer(padded);
-}
-
-function base64UrlEncodeText(value: string): string {
-  return arrayBufferToBase64Url(textToArrayBuffer(value));
-}
-
-function constantTimeStringEqual(a: string, b: string): boolean {
-  const aBytes = new TextEncoder().encode(a);
-  const bBytes = new TextEncoder().encode(b);
-  let diff = aBytes.length ^ bBytes.length;
-  const max = Math.max(aBytes.length, bBytes.length);
-  for (let index = 0; index < max; index += 1) {
-    diff |= (aBytes[index] ?? 0) ^ (bBytes[index] ?? 0);
-  }
-  return diff === 0;
-}
-
 function normalizeCompatibleStreamWebhookPayload(payload: VideoStreamWebhookInput): VideoStreamWebhookInput {
   const result = payload.result;
   if (result && typeof result === "object") {
@@ -41250,33 +40877,6 @@ function parseWebhookSignatureHeader(value: string): { time: string; sig1: strin
       .filter((pair): pair is [string, string] => pair.length === 2 && Boolean(pair[0]) && Boolean(pair[1]))
   );
   return parts.time && parts.sig1 ? { time: parts.time, sig1: parts.sig1 } : null;
-}
-
-function concatBytes(...parts: Array<ArrayBuffer | Uint8Array>): ArrayBuffer {
-  const chunks = parts.map((part) => part instanceof Uint8Array ? part : new Uint8Array(part));
-  const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
-  const output = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    output.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return output.buffer.slice(output.byteOffset, output.byteOffset + output.byteLength) as ArrayBuffer;
-}
-
-function arrayBufferToHex(value: ArrayBuffer): string {
-  return [...new Uint8Array(value)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-async function hmacSha256Hex(secret: string, value: ArrayBuffer): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    textToArrayBuffer(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  return arrayBufferToHex(await crypto.subtle.sign("HMAC", key, value));
 }
 
 async function verifyCompatibleStreamWebhookSignature(rawBody: ArrayBuffer, signatureHeader: string, secret: string | undefined): Promise<boolean> {
@@ -41317,45 +40917,9 @@ function shadowSafeJpegPosterBytes(): ArrayBuffer {
   ]).buffer;
 }
 
-function sanitizeIdPart(value: string): string {
-  const normalized = value.trim().replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return normalized || crypto.randomUUID();
-}
-
-async function sha256Hex(value: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", value);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 function normalizeFacePrivacy(value: unknown): string {
   const text = normalizeOptionalText(value);
   return text && ["pending", "redacted", "no_faces", "unavailable"].includes(text) ? text : "pending";
-}
-
-function parseCookies(headerValue: string | null): Record<string, string> {
-  if (!headerValue) return {};
-  return headerValue.split(";").map((part) => part.trim()).filter(Boolean).reduce<Record<string, string>>((cookies, part) => {
-    const separatorIndex = part.indexOf("=");
-    if (separatorIndex <= 0) return cookies;
-    const name = part.slice(0, separatorIndex).trim();
-    const value = part.slice(separatorIndex + 1).trim();
-    cookies[name] = decodeURIComponent(value);
-    return cookies;
-  }, {});
-}
-
-function headerFirst(value: string | null): string {
-  return value?.split(",")[0]?.trim() ?? "";
-}
-
-function redirect303(location: string, headers?: Record<string, string>): Response {
-  return new Response(null, {
-    status: 303,
-    headers: {
-      location,
-      ...(headers ?? {})
-    }
-  });
 }
 
 function readSessionTokenFromCookie(headerValue: string | null): string | null {
@@ -41372,10 +40936,6 @@ function buildSessionCookie(rawToken: string, expiresAt: string, env: Env, ttlSe
 function buildClearedSessionCookie(env: Env): string {
   const secure = secureCookieAttribute(env);
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-}
-
-function secureCookieAttribute(env: Env): string {
-  return env.ENVIRONMENT === "production" || env.ENVIRONMENT === "staging" ? " Secure;" : "";
 }
 
 async function observationEventGuestCookieName(sessionId: string): Promise<string> {
@@ -41406,20 +40966,4 @@ async function buildObservationEventGuestCookie(
 async function buildClearedObservationEventGuestCookie(sessionId: string): Promise<string> {
   const cookieName = await observationEventGuestCookieName(sessionId);
   return `${cookieName}=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-}
-
-function randomToken(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function newId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID()}`;
-}
-
-class HttpError extends Error {
-  constructor(readonly status: number, message: string) {
-    super(message);
-  }
 }
