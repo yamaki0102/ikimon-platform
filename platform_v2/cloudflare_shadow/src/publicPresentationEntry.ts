@@ -9,6 +9,7 @@ import { personPublicationResponse } from "./personPublication";
 import { ensurePublicDesignFoundation } from "./publicDesignFoundation";
 import { applyPublicPresentationPipeline } from "./publicPresentationPipeline";
 import { hardenSvgResponse } from "./svgResponseSecurity";
+import { handleStampRally, isStampRallyPath, runStampRallyRetention, type StampRallyEnv } from "./stampRally";
 import { handleZukanHpSiteReceiver, type ZukanHpReceiverEnv } from "./zukanHpSiteReceiver";
 
 const isZukanHpSiteReceiverPath = (pathname: string): boolean =>
@@ -27,6 +28,9 @@ export default {
     const receiverEnv = env as ZukanHpReceiverEnv;
     if (isZukanHpSiteReceiverPath(new URL(request.url).pathname)) {
       return handleZukanHpSiteReceiver(request, receiverEnv);
+    }
+    if (isStampRallyPath(new URL(request.url).pathname)) {
+      return handleStampRally(request, env as StampRallyEnv);
     }
 
     const oauthEnv = env as OAuthBoundaryEnv;
@@ -49,5 +53,11 @@ export default {
     }
 
     return hardenSvgResponse(await applyPublicPresentationPipeline(request, response));
+  },
+
+  async scheduled(controller: unknown, env: unknown, ctx: { waitUntil(promise: Promise<unknown>): void }): Promise<void> {
+    ctx.waitUntil(runStampRallyRetention(env as StampRallyEnv));
+    const scheduled = delegatedWorker.scheduled as ((controller: unknown, env: unknown, ctx: unknown) => Promise<void>) | undefined;
+    if (scheduled) await scheduled.call(delegatedWorker, controller, env, ctx);
   },
 };
