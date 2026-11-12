@@ -25,7 +25,7 @@ export type ContactSubmitResult = {
 };
 
 const ADMIN_TO = "yamaki0102@gmail.com";
-const NOREPLY_FROM = "ikimon <noreply@ikimon.life>";
+const NOREPLY_FROM = "ZUKAN <noreply@ikimon.life>";
 const CONTACT_PROOF_VERSION = "v1";
 const CONTACT_PROOF_MIN_AGE_MS = 2_500;
 const CONTACT_PROOF_MAX_AGE_MS = 2 * 60 * 60 * 1000;
