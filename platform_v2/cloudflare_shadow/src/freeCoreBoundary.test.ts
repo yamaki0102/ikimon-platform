@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { renderObservationEventRecapPage } from "./index.js";
 
@@ -16,7 +16,7 @@ test("free Event recap keeps operational counts but omits taxon aggregation", ()
 });
 
 test("native free activity and report surfaces keep the derived-output boundary explicit", () => {
-  const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  const source = ["./index.ts", "./core/shared.ts", ...readdirSync(new URL("./programs/", import.meta.url)).sort().map((name) => `./programs/${name}`)].map((file) => readFileSync(new URL(file, import.meta.url), "utf8")).join("\n");
   const live = source.slice(source.indexOf("function renderObservationEventLivePage"), source.indexOf("function renderObservationEventConsolePage"));
   const report = source.slice(source.indexOf("async function buildObservationEventOfficialReport"), source.indexOf("function csvCell"));
   assert.doesNotMatch(live, /uniqueTaxaCount|targetTaxaHtml|targetSpecies/);
