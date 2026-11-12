@@ -32,16 +32,16 @@ const isObj = (v: unknown): v is Obj => !!v && typeof v === "object" && !Array.i
 const keysOnly = (v: Obj, keys: string[]) => Object.keys(v).every(k => keys.includes(k));
 const hashPattern = /^[a-f0-9]{64}$/;
 const hex = (buffer: ArrayBuffer) => Array.from(new Uint8Array(buffer), n => n.toString(16).padStart(2, "0")).join("");
-const sha256Text = async (s: string) => hex(await crypto.subtle.digest("SHA-256", encoder.encode(s)));
+export const sha256Text = async (s: string) => hex(await crypto.subtle.digest("SHA-256", encoder.encode(s)));
 const operationIdPattern = /^[A-Za-z0-9_-]{1,180}$/;
-function validInstant(value: unknown): value is string {
+export function validInstant(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(value)) return false;
   const time = Date.parse(value);
   if (!Number.isFinite(time)) return false;
   const canonical = value.replace(/(?:\.(\d{1,3}))?Z$/, (_match, fraction: string | undefined) => `.${(fraction ?? "").padEnd(3, "0")}Z`);
   return new Date(time).toISOString() === canonical;
 }
-function canonicalJson(value: unknown): string {
+export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (isObj(value)) return `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonicalJson(value[k])}`).join(",")}}`;
   return JSON.stringify(value);
@@ -71,7 +71,7 @@ async function result(row: Row | null, publicationId: string, scopeDigest: strin
   };
 }
 
-async function readBoundedBody(request: Request): Promise<Uint8Array | null> {
+export async function readBoundedBody(request: Request): Promise<Uint8Array | null> {
   const length = request.headers.get("content-length");
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > MAX_BODY_BYTES)) return null;
   if (!request.body) return new Uint8Array();
@@ -93,7 +93,7 @@ async function readBoundedBody(request: Request): Promise<Uint8Array | null> {
   return bytes;
 }
 
-async function authenticate(request: Request, raw: Uint8Array, secret: string, now: number): Promise<boolean> {
+export async function authenticate(request: Request, raw: Uint8Array, secret: string, now: number): Promise<boolean> {
   const timestamp = request.headers.get("X-NOCOSIL-Timestamp");
   const signature = request.headers.get("X-NOCOSIL-Signature");
   if (!timestamp || !/^\d{10}$/.test(timestamp) || !signature || !/^v1=[a-f0-9]{64}$/.test(signature)) return false;

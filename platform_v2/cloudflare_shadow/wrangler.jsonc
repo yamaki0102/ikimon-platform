@@ -195,6 +195,7 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "NOCOSIL_REVISION_RECEIVER_ENABLED": "true",
+        "ZUKAN_STAMP_RALLY_ENABLED": "false",
         "BIOSECURITY_ENABLED": "on",
         "BIOSECURITY_STORAGE_BUDGET_BYTES": "268435456",
         "BIOSECURITY_EMAIL_ENABLED": "on",
@@ -304,6 +305,7 @@
       ],
       "vars": {
         "ENVIRONMENT": "production",
+        "ZUKAN_STAMP_RALLY_ENABLED": "false",
         "BIOSECURITY_ENABLED": "on",
         "BIOSECURITY_STORAGE_BUDGET_BYTES": "268435456",
         "BIOSECURITY_EMAIL_ENABLED": "on",
