@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import worker,{ injectStateSplitHome,renderRecordsProductSection,withAiContentPolicy } from "./index";
 import { renderQuietHome,renderSavedPage,renderSavedControl } from "./quietHome";
@@ -12,7 +12,7 @@ function fixtureDatabase(){
  const sqlite=new DatabaseSync(":memory:");sqlite.exec(readFileSync(new URL("../migrations/core/0019_private_saved_items.sql",import.meta.url),"utf8"));
  sqlite.exec(`CREATE TABLE auth_sessions(token_hash TEXT PRIMARY KEY,user_id TEXT,display_name TEXT,role_name TEXT,rank_label TEXT,banned INTEGER,expires_at TEXT,last_used_at TEXT)`);
  const db={prepare(sql:string){const query=(values:unknown[]=[])=>({bind:(...args:unknown[])=>query(args),first:async()=>sqlite.prepare(sql).get(...values as never[])??null,all:async()=>({results:sqlite.prepare(sql).all(...values as never[])}),run:async()=>{const r=sqlite.prepare(sql).run(...values as never[]);return {success:true,meta:{changes:Number(r.changes)}};}});return query();}} as unknown as SavedDatabase;
- const source=readFileSync(new URL("./index.ts",import.meta.url),"utf8");const cookieName=source.match(/const SESSION_COOKIE_NAME = "([^"]+)"/)?.[1];assert.ok(cookieName);
+ const source=["./index.ts", "./core/shared.ts", ...readdirSync(new URL("./programs/", import.meta.url)).sort().map((name) => `./programs/${name}`)].map((file) => readFileSync(new URL(file, import.meta.url), "utf8")).join("\n");const cookieName=source.match(/const SESSION_COOKIE_NAME = "([^"]+)"/)?.[1];assert.ok(cookieName);
  for(const user of ["one","two"]){sqlite.prepare("INSERT INTO auth_sessions VALUES(?,?,?,?,?,?,?,NULL)").run(createHash("sha256").update(`fixture-token-${user}`).digest("hex"),user,user,"Observer",null,0,"2099-01-01T00:00:00.000Z");}
  return {db,sqlite,cookie:(user:string)=>`${cookieName}=fixture-token-${user}`};
 }
