@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
-const workerSource = readFileSync(path.join(process.cwd(), "src/index.ts"), "utf8");
+const workerSource = ["src/index.ts", "src/core/shared.ts", ...readdirSync(path.join(process.cwd(), "src/programs")).sort().map((name) => `src/programs/${name}`)].map((file) => readFileSync(path.join(process.cwd(), file), "utf8")).join("\n");
 const boundarySource = readFileSync(path.join(process.cwd(), "scripts/d1-migration-boundary-report.mjs"), "utf8");
 const migrationSource = readFileSync(
   path.join(process.cwd(), "migrations/observations/0065_observation_rally_submission_idempotency.sql"),
