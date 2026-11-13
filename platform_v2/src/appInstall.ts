@@ -157,10 +157,10 @@ export function buildOfflineHtml(lang: SiteLang): string {
       <a href="${prefix}/map?tab=places">${copy.offlinePlaces}</a>
       <a href="${prefix}/records?view=mine">${copy.offlineRecords}</a>
       <a href="${prefix}/profile">${copy.offlineSelf}</a>
-      <button class="retry" type="button" onclick="location.reload()">${copy.retry}</button>
+      <button class="retry" type="button" data-offline-retry>${copy.retry}</button>
     </div>
   </main>
-  <script>window.addEventListener('online',()=>location.reload(),{once:true});</script>
+  <script>window.addEventListener('online',()=>location.reload(),{once:true});document.querySelector('[data-offline-retry]')?.addEventListener('click',()=>location.reload());</script>
 </body>
 </html>`;
 }

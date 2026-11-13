@@ -251,6 +251,7 @@ test("contact page renders bot traps and a signed contact proof", async () => {
     assert.match(response.body, /name="website"/);
     assert.match(response.body, /name="spamTrap"/);
     assert.match(response.body, /name="contactProof" type="hidden" value="v1\./);
+    assert.doesNotMatch(response.body, /\son[a-z]+\s*=/i, "contact HTML must not contain inline on*= event handlers");
   } finally {
     await app.close();
   }

@@ -20369,8 +20369,18 @@ test("public participation list distinguishes empty and failed loads in the requ
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(html, new RegExp(`<html lang="${item.prefix}"`));
-    assert.ok(html.includes(`<title>${item.title} — ZUKAN</title>`));
+    assert.ok(html.includes(`<title>${item.title} | ZUKAN</title>`));
     assert.ok(main.includes(item.empty));
+    if (item.prefix === "ja") {
+      const visibleText = html
+        .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/giu, " ")
+        .replace(/<!--[\s\S]*?-->/gu, " ")
+        .replace(/<[^>]*>/gu, " ")
+        .replace(/&nbsp;/gu, " ")
+        .replace(/\s+/gu, " ")
+        .trim();
+      assert.ok(visibleText.length >= 500, `expected /ja/community/events visible text >= 500 chars, got ${visibleText.length}`);
+    }
     assert.equal((html.match(/<main\b/g) ?? []).length, 1);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
     assert.ok(main.includes(`href="/${item.prefix}/records?view=public"`));
@@ -20745,7 +20755,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventListPage.status, 200);
     assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(eventListPageText, /D1観察会/);
-    assert.match(eventListPageText, /<title>参加 — ZUKAN<\/title>/);
+    assert.match(eventListPageText, /<title>参加 \| ZUKAN<\/title>/);
     assert.doesNotMatch(eventListPageText, /<title>[^<]*ikimon\.life/u);
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
@@ -26517,8 +26527,21 @@ test("municipal walk map HTML pages are Worker-native and admin pages require se
     const listBody = await listResponse.text();
     assert.equal(listResponse.status, 200);
     assert.equal(listResponse.headers.get("x-ikimon-cloudflare-native"), "municipal-walk-map-list");
+    assert.ok(listResponse.headers.get("content-security-policy"), "walk-maps should include CSP header");
+    assert.match(listBody, /<title>散策マップ \| ZUKAN<\/title>/);
+    assert.doesNotMatch(listBody, /<title>[^<]*ikimon/i);
+    assert.match(listBody, /class="site-header"/);
+    assert.match(listBody, /class="site-nav\b/);
     assert.match(listBody, /散策マップ/);
     assert.doesNotMatch(listBody, /見返せる|少し厚くなる/);
+    const walkMapsVisibleText = listBody
+      .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/giu, " ")
+      .replace(/<!--[\s\S]*?-->/gu, " ")
+      .replace(/<[^>]*>/gu, " ")
+      .replace(/&nbsp;/gu, " ")
+      .replace(/\s+/gu, " ")
+      .trim();
+    assert.ok(walkMapsVisibleText.length >= 500, `expected /ja/walk-maps visible text >= 500 chars, got ${walkMapsVisibleText.length}`);
     assert.equal(fallbackCalls, 0);
 
     const templateResponse = await worker.fetch(new Request(

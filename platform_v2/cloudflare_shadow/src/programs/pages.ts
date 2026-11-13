@@ -1058,7 +1058,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${escapeHtml(title)}${standalone ? "" : " — ZUKAN"}</title>
+    <title>${escapeHtml(title)}${standalone ? "" : " | ZUKAN"}</title>
   <style>
     body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7faf8;color:#17231b}
     main{max-width:980px;margin:0 auto;padding:24px 18px 48px}
