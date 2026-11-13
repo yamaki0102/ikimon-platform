@@ -7,6 +7,7 @@ import { LEARN_CATALOG_STYLES, renderLearnCatalog } from "../learn/view.js";
 import { createContactProof } from "../services/contactSubmit.js";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../services/trustedPublicOrigin.js";
 import { escapeHtml, renderSiteDocument } from "../ui/siteShell.js";
+import { getCspNonce } from "../services/cspNonce.js";
 import {
   legacyRedirectEntries,
   listMarketingPages,
@@ -126,6 +127,8 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
     .map((category) => `<option value="${escapeHtml(category.value)}">${escapeHtml(category.label)}</option>`)
     .join("");
 
+  const cspNonce = getCspNonce();
+  const scriptNonceAttr = cspNonce ? ` nonce="${escapeHtml(cspNonce)}"` : "";
   return `<section class="section">
     <style>
       .cf-form { display: grid; gap: 14px; max-width: var(--ikimon-form-max); margin: 0 auto 24px; padding: 24px; border-radius: 22px; background: linear-gradient(180deg, #ffffff, #f8fafc); border: 1px solid rgba(15,23,42,.08); }
@@ -142,7 +145,7 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
       .cf-form .cf-status.cf-ok { color: #16a34a; font-weight: 700; }
       .cf-form .cf-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
     </style>
-    <form class="cf-form" id="cf-form" onsubmit="return false;">
+    <form class="cf-form" id="cf-form">
       <div class="cf-trap" aria-hidden="true">
         <label>Website <input name="website" type="text" tabindex="-1" autocomplete="off" /></label>
         <label>Leave this empty <input name="spamTrap" type="text" tabindex="-1" autocomplete="off" /></label>
@@ -171,7 +174,7 @@ function renderContactForm(basePath: string, lang: SiteLang): string {
       </div>
       <noscript><p class="cf-status cf-err">${escapeHtml(copy.noscript)}</p></noscript>
     </form>
-    <script>
+    <script${scriptNonceAttr}>
       (function(){
         var form = document.getElementById('cf-form');
         if (!form) return;

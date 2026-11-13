@@ -433,7 +433,7 @@ export async function registerObservationEventPagesRoutes(app: FastifyInstance):
     const strings = getStrings(lang).observationEvent;
     const html = pageDocument({
       basePath: "",
-      title: `${strings.listHeroHeading} — ZUKAN`,
+      title: `${strings.listHeroHeading} | ZUKAN`,
       description: strings.listHeroLead,
       currentPath: currentPathOf(request),
       body: renderEventListBody(sessions, strings, lang, {

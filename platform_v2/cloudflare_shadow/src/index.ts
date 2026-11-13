@@ -164,6 +164,8 @@ import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, a
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
+import { renderSiteDocument } from "../../src/ui/siteShell";
+import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, claimObservationEventGuestParticipant, findObservationEventParticipant, generateNativeObservationEventQuests, getObservationEventSessionById, mapObservationEventSession, observationEventGuestCredentialDigest, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventServerFunnelMetric, type ObservationEventSessionD1Row } from "./programs/runtime";
 export { observationEventPageHtml, renderObservationEventCreatePage, renderObservationEventRecapPage } from "./programs/pages";
@@ -12150,7 +12152,71 @@ body[data-zukan-design] .nf-actions a:first-child:not([class]):is(:link,:visited
   });
 }
 
-function renderMunicipalWalkMapListHtml(summaries: unknown[]): string {
+function renderMunicipalWalkMapListHtml(
+  summaries: unknown[],
+  urlLang: "ja" | "en" | "es" | "pt-br" = "ja",
+): string {
+  const siteLang: SiteLang = urlLang === "pt-br" ? "pt-BR" : urlLang;
+  const prefix = `/${urlLang}`;
+  const copy = {
+    ja: {
+      title: "散策マップ | ZUKAN",
+      heading: "散策マップ",
+      description: "公開範囲を歩きながら、写真やメモで身近な自然の季節変化を残せる散策マップの一覧です。",
+      introPrimary: "公開範囲を歩きながら、写真やメモで身近な植物・鳥・虫や季節の変化を残せる散策マップの一覧です。",
+      introSecondary: "各マップを開くと、対象エリアの概要、歩き方の目安、出典情報、その場から記録を始める入口を確認できます。",
+      cardSubtitle: "公開範囲の散策候補",
+      emptyHeading: "公開中の散策マップはまだありません",
+      emptyBody: "近くの観察記録や地図から、いま歩ける場所や季節の発見を探すこともできます。",
+      mapLink: "地図を見る",
+      recordsLink: "公開記録を見る",
+      eventsLink: "参加できる企画を見る",
+      recordLink: "記録する",
+    },
+    en: {
+      title: "Walk maps | ZUKAN",
+      heading: "Walk maps",
+      description: "Public walk-map routes where you can explore local areas and record seasonal nature observations.",
+      introPrimary: "Browse public walk-map routes where you can walk at your own pace and note local plants, birds, insects, and seasonal changes.",
+      introSecondary: "Open a route card to check the area overview, walking notes, source references, and a direct link to start recording.",
+      cardSubtitle: "Public walk route",
+      emptyHeading: "No public walk maps are listed yet",
+      emptyBody: "You can still explore nearby observations on the map, browse public records, or join a local observation event.",
+      mapLink: "Explore map",
+      recordsLink: "Browse public records",
+      eventsLink: "Browse participation",
+      recordLink: "Record",
+    },
+    es: {
+      title: "Mapas de paseo | ZUKAN",
+      heading: "Mapas de paseo",
+      description: "Rutas públicas para caminar y registrar observaciones locales de naturaleza y cambios estacionales.",
+      introPrimary: "Explora rutas públicas para caminar a tu ritmo y anotar plantas, aves, insectos y cambios de estación cercanos.",
+      introSecondary: "Abre cada mapa para ver la zona, indicaciones básicas, fuentes de referencia y el acceso para empezar a registrar.",
+      cardSubtitle: "Ruta pública de paseo",
+      emptyHeading: "Todavía no hay mapas de paseo publicados",
+      emptyBody: "También puedes explorar observaciones cercanas en el mapa, ver registros públicos o revisar actividades abiertas.",
+      mapLink: "Ver mapa",
+      recordsLink: "Ver registros públicos",
+      eventsLink: "Ver participación",
+      recordLink: "Registrar",
+    },
+    "pt-br": {
+      title: "Roteiros a pé | ZUKAN",
+      heading: "Roteiros a pé",
+      description: "Rotas públicas para caminhar e registrar observações locais da natureza e mudanças sazonais.",
+      introPrimary: "Explore rotas públicas para caminhar no seu ritmo e anotar plantas, aves, insetos e mudanças sazonais por perto.",
+      introSecondary: "Abra cada roteiro para conferir a área, orientações de caminhada, referências de origem e o atalho para registrar.",
+      cardSubtitle: "Rota pública de caminhada",
+      emptyHeading: "Ainda não há roteiros públicos publicados",
+      emptyBody: "Você também pode explorar observações próximas no mapa, ver registros públicos ou conferir atividades abertas.",
+      mapLink: "Ver mapa",
+      recordsLink: "Ver registros públicos",
+      eventsLink: "Ver participação",
+      recordLink: "Registrar",
+    },
+  }[urlLang];
+
   const cards = summaries
     .map((raw) => recordOrEmpty(raw))
     .map((summary) => {
@@ -12160,27 +12226,43 @@ function renderMunicipalWalkMapListHtml(summaries: unknown[]): string {
       const areaLabel = normalizeOptionalText(areaHint.label) ?? municipality;
       const title = municipalWalkMapPublicTitle(walkMapId, normalizeOptionalText(summary.title), areaLabel || "この周辺");
       const description = municipalWalkMapPublicSummary(normalizeOptionalText(summary.summary), areaLabel || "この周辺");
-      const href = walkMapId ? `/walk-maps/${encodeURIComponent(walkMapId)}` : "/walk-maps";
+      const href = walkMapId ? `${prefix}/walk-maps/${encodeURIComponent(walkMapId)}` : `${prefix}/walk-maps`;
       return `<article class="wm-list-card">
         <a href="${escapeHtml(href)}">
           <span>${escapeHtml(municipality)}</span>
           <strong>${escapeHtml(title)}</strong>
-          <small>${escapeHtml(areaLabel)} / 公開範囲の散策候補</small>
+          <small>${escapeHtml(areaLabel)} / ${escapeHtml(copy.cardSubtitle)}</small>
           <p>${escapeHtml(description)}</p>
         </a>
       </article>`;
     })
     .join("");
-  return `<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>散策マップ - ikimon</title>
-<style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
+
+  const emptyStateHtml = `<div class="wm-list-empty" data-walk-maps-empty>
+    <h2>${escapeHtml(copy.emptyHeading)}</h2>
+    <p>${escapeHtml(copy.emptyBody)}</p>
+    <div class="wm-list-empty-actions">
+      <a class="wm-list-action-primary" href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.mapLink)}</a>
+      <a class="wm-list-action-secondary" href="${escapeHtml(`${prefix}/records?view=public`)}">${escapeHtml(copy.recordsLink)}</a>
+      <a class="wm-list-action-secondary" href="${escapeHtml(`${prefix}/community/events`)}">${escapeHtml(copy.eventsLink)}</a>
+      <a class="wm-list-action-secondary" href="${escapeHtml(`${prefix}/record`)}">${escapeHtml(copy.recordLink)}</a>
+    </div>
+  </div>`;
+
+  const body = `<section class="wm-list">
+  <header class="wm-list-head">
+    <h1>${escapeHtml(copy.heading)}</h1>
+    <p>${escapeHtml(copy.introPrimary)}</p>
+    <p>${escapeHtml(copy.introSecondary)}</p>
+  </header>
+  ${cards
+    ? `<section class="wm-list-grid" aria-label="${escapeHtml(copy.heading)}">${cards}</section>`
+    : emptyStateHtml}
+</section>`;
+
+  const extraStyles = `
 .wm-list{max-width:1120px;margin:0 auto;padding:24px 16px 72px}
-.wm-list-head{display:grid;gap:8px;margin-bottom:16px}
+.wm-list-head{display:grid;gap:8px;margin-bottom:20px}
 .wm-list-head h1{margin:0;font-size:30px;line-height:1.18;letter-spacing:0}
 .wm-list-head p{margin:0;color:#475569;line-height:1.7}
 .wm-list-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
@@ -12189,26 +12271,36 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 .wm-list-card strong{font-size:18px;color:#0f172a}
 .wm-list-card small{color:#64748b;font-weight:800}
 .wm-list-card p{margin:0;color:#475569;line-height:1.65}
-@media(max-width:760px){.wm-list{padding:18px 12px 56px}.wm-list-head h1{font-size:26px}}
-</style>
-</head>
-<body>
-<main class="wm-list">
-  <header class="wm-list-head">
-    <h1>散策マップ</h1>
-    <p>公開範囲を歩きながら、写真、メモ、気づいた季節を残せる場所です。</p>
-  </header>
-  <section class="wm-list-grid">${cards || "<p>公開中の散策マップはまだありません。</p>"}</section>
-</main>
-</body>
-</html>`;
+.wm-list-empty{display:grid;gap:12px;padding:20px;border:1px solid #dbe7e2;border-radius:12px;background:#fff}
+.wm-list-empty h2{margin:0;font-size:20px;color:#0f172a}
+.wm-list-empty p{margin:0;color:#475569;line-height:1.7}
+.wm-list-empty-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.wm-list-action-primary,.wm-list-action-secondary{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:999px;font-size:14px;font-weight:800;text-decoration:none}
+.wm-list-action-primary{background:#0f766e;color:#fff;border:1px solid #0f766e}
+.wm-list-action-secondary{background:#fff;color:#0f766e;border:1px solid #b7d8d0}
+@media(max-width:760px){.wm-list{padding:18px 12px 56px}.wm-list-head h1{font-size:26px}}`;
+
+  return renderSiteDocument({
+    basePath: "",
+    lang: siteLang,
+    title: copy.title,
+    description: copy.description,
+    currentPath: `${prefix}/walk-maps`,
+    canonicalPath: `${prefix}/walk-maps`,
+    body,
+    extraStyles,
+  });
 }
 
 async function getMunicipalWalkMapListPage(url: URL, env: Env): Promise<Response> {
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "12"), 1, 24);
   const summaries = await getMunicipalWalkMapSummariesFromD1(env, null, false, limit)
     ?? STATIC_MUNICIPAL_WALK_MAP_SUMMARIES.slice(0, limit);
-  return html(renderMunicipalWalkMapListHtml(summaries), 200, {
+  const urlLang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  const cspNonce = createHtmlCspNonce();
+  const body = applyCspNonceToHtmlScripts(renderMunicipalWalkMapListHtml(summaries, urlLang), cspNonce);
+  return html(body, 200, {
+    ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "municipal-walk-map-list"
   });

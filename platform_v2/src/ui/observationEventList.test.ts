@@ -351,3 +351,16 @@ test("load failure keeps already-loaded rows visible above the retry notice", ()
   assert.ok(noticeIndex >= 0 && rowIndex >= 0);
   assert.ok(noticeIndex < rowIndex, "retry notice should precede the preserved rows");
 });
+
+test("participation list includes substantive guide copy above the sitemap body-length threshold", () => {
+  const html = renderEventListBody([], getObservationEventStrings("ja"), "ja");
+  const visibleText = html
+    .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/giu, " ")
+    .replace(/<[^>]*>/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  assert.ok(visibleText.length >= 500, `expected >= 500 chars, got ${visibleText.length}`);
+  assert.match(html, /href="\/ja\/map"/);
+  assert.match(html, /href="\/ja\/walk-maps"/);
+  assert.match(html, /href="\/ja\/record"/);
+});

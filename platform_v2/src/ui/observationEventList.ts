@@ -750,6 +750,54 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 @media (max-width: 390px) {
   .zukan-participation-facts { grid-template-columns: 1fr; }
 }
+.zukan-participation-guide {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+  padding: 18px 20px;
+  border: 1px solid var(--zukan-border-subtle, #dbe5de);
+  border-radius: var(--zukan-radius-content, 12px);
+  background: var(--zukan-surface-base, #fff);
+}
+.zukan-participation-guide h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--zukan-text-primary, #18231c);
+}
+.zukan-participation-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.zukan-participation-guide-item h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--zukan-text-primary, #18231c);
+}
+.zukan-participation-guide-item p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--zukan-text-secondary, #5a675f);
+}
+.zukan-participation-guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+.zukan-participation-guide-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--zukan-border-control, #cbd9d0);
+  color: var(--zukan-action-primary, #245c3a);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
 `;
 
 export interface EventListRenderOptions {
@@ -811,6 +859,95 @@ function groupSessions(sessions: ObservationEventSessionRow[], nowMs: number): G
   });
 
   return { actionable, upcoming, history };
+}
+
+function renderParticipationGuideSection(lang: SiteLang): string {
+  const copy = {
+    ja: {
+      heading: "ZUKANでの参加について",
+      whatTitle: "地域の観察企画とは",
+      whatBody: "自治体や地域の団体、案内役が季節や場所に合わせて開く観察会・フィールド企画を掲載しています。同じ場所で集めた記録は、地域の自然のいまを確かめる手がかりになり、公開範囲も自分で選べます。",
+      howTitle: "参加の流れ",
+      howBody: "掲載中の企画から詳細を開き、開催場所・日時・参加方法や当日の注意事項を確認してチェックインします。案内コードや共有リンクを受け取っている場合は、当日そのまま参加画面へ進めます。",
+      soloTitle: "企画がないときも参加できます",
+      soloBody: "公開中の観察会がないときでも、普段の散歩や身近な自然で気づいた生きものを自分のペースで記録したり、公開されている地図や散策マップから地域の記録をたどったりすることができます。",
+      links: [
+        { href: "/records?view=public", label: "公開記録を見る" },
+        { href: "/map", label: "地図から探す" },
+        { href: "/walk-maps", label: "散策マップを見る" },
+        { href: "/record", label: "自分のペースで記録する" },
+      ],
+    },
+    en: {
+      heading: "About participating on ZUKAN",
+      whatTitle: "What local programs are",
+      whatBody: "This page lists observation events and seasonal field programs hosted by local groups, municipalities, or organizers. Records gathered together help build a clearer picture of local nature.",
+      howTitle: "How to join",
+      howBody: "Open a listed program to check its date, location, and participation method before checking in. If you received a shared event link or code, you can go straight to the check-in page on the day.",
+      soloTitle: "Participate anytime at your own pace",
+      soloBody: "Even when no scheduled programs are listed, you can record everyday observations on your own or browse public records, maps, and walk routes across nearby areas.",
+      links: [
+        { href: "/records?view=public", label: "Browse public records" },
+        { href: "/map", label: "Explore the map" },
+        { href: "/walk-maps", label: "Browse walk maps" },
+        { href: "/record", label: "Record an observation" },
+      ],
+    },
+    es: {
+      heading: "Sobre participar en ZUKAN",
+      whatTitle: "Qué son las actividades locales",
+      whatBody: "Aquí se publican encuentros de observación y recorridos locales organizados por grupos, municipios o responsables. Los registros compartidos ayudan a conocer mejor la naturaleza del lugar.",
+      howTitle: "Cómo participar",
+      howBody: "Abre una actividad publicada para revisar la fecha, el lugar y la forma de participación antes de registrarte. Si recibiste un enlace o código, puedes entrar directamente el día de la actividad.",
+      soloTitle: "Participa también a tu ritmo",
+      soloBody: "Aunque no haya actividades programadas en este momento, puedes registrar tus propios hallazgos o explorar registros públicos, el mapa y las rutas de paseo.",
+      links: [
+        { href: "/records?view=public", label: "Ver registros públicos" },
+        { href: "/map", label: "Explorar el mapa" },
+        { href: "/walk-maps", label: "Ver mapas de paseo" },
+        { href: "/record", label: "Registrar una observación" },
+      ],
+    },
+    "pt-BR": {
+      heading: "Sobre participar no ZUKAN",
+      whatTitle: "O que são as atividades locais",
+      whatBody: "Esta página reúne encontros de observação e caminhadas locais organizados por grupos, municípios ou responsáveis. Os registros feitos juntos ajudam a acompanhar a natureza da região.",
+      howTitle: "Como participar",
+      howBody: "Abra uma atividade listada para conferir data, local e forma de participação antes de fazer check-in. Se você recebeu um link ou código, pode acessar direto no dia.",
+      soloTitle: "Participe também no seu ritmo",
+      soloBody: "Mesmo quando não houver atividades programadas, você pode registrar suas próprias observações ou explorar registros públicos, o mapa e os roteiros a pé.",
+      links: [
+        { href: "/records?view=public", label: "Ver registros públicos" },
+        { href: "/map", label: "Explorar o mapa" },
+        { href: "/walk-maps", label: "Ver roteiros a pé" },
+        { href: "/record", label: "Registrar uma observação" },
+      ],
+    },
+  }[lang];
+
+  const linksHtml = copy.links
+    .map((item) => `<a href="${escapeHtml(appendLangToHref(item.href, lang))}">${escapeHtml(item.label)}</a>`)
+    .join("");
+
+  return `
+  <section class="zukan-participation-guide" aria-labelledby="participation-guide-heading">
+    <h2 id="participation-guide-heading">${escapeHtml(copy.heading)}</h2>
+    <div class="zukan-participation-guide-grid">
+      <div class="zukan-participation-guide-item">
+        <h3>${escapeHtml(copy.whatTitle)}</h3>
+        <p>${escapeHtml(copy.whatBody)}</p>
+      </div>
+      <div class="zukan-participation-guide-item">
+        <h3>${escapeHtml(copy.howTitle)}</h3>
+        <p>${escapeHtml(copy.howBody)}</p>
+      </div>
+      <div class="zukan-participation-guide-item">
+        <h3>${escapeHtml(copy.soloTitle)}</h3>
+        <p>${escapeHtml(copy.soloBody)}</p>
+      </div>
+    </div>
+    <nav class="zukan-participation-guide-links" aria-label="${escapeHtml(copy.heading)}">${linksHtml}</nav>
+  </section>`;
 }
 
 export function renderEventListBody(
@@ -944,6 +1081,8 @@ export function renderEventListBody(
     ? `<p class="zukan-participation-tz-note">${escapeHtml(d.timezoneNote)}</p>`
     : "";
 
+  const guideSection = renderParticipationGuideSection(lang);
+
   return `
 <div class="zukan-participation-shell">
   <header class="zukan-participation-header">
@@ -955,6 +1094,7 @@ export function renderEventListBody(
 ${failureBanner}
 ${partialBanner}
 ${discoveryBody}
+${guideSection}
   <aside class="zukan-participation-organizer" data-organizer-entry>
     <h2>${escapeHtml(strings.listOrganizerHeading)}</h2>
     <p>${escapeHtml(strings.listOrganizerLead)}</p>
