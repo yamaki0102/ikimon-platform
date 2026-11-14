@@ -7,12 +7,14 @@ import {
   MAP_PREFETCHED_GLYPH_URLS,
   MAP_STANDARD_FONT_STACK,
   MAP_STANDARD_GLYPHS_TEMPLATE,
+  MAP_STANDARD_STYLE_URL,
   mapExplorerBootBundle,
   mapExplorerBootScript,
   mapExplorerBootScriptSource,
   mapExplorerCriticalScriptSource,
   mapExplorerDeferredBundle,
   mapExplorerDeferredStylesAsset,
+  mapExplorerHeadPrefetchScript,
   mapExplorerHeadPreloadHtml,
   renderMapExplorer,
 } from "./mapExplorer.js";
@@ -2097,3 +2099,139 @@ test("MapLibre preload with fetchpriority=high is in the head and map-explorer i
   assert.ok(bootHtml.includes(deferredCssAsset.path));
 });
 test("glyph prefetch reuse keys MapLibre's unencoded fontstack URL", () => { const src = mapExplorerCriticalScriptSource(); const glyphKey = new Function(`${src.match(/function glyphKey\(u\) \{[^\n]*\}/)![0]}; return glyphKey;`)() as (u: string) => string; for (const url of MAP_PREFETCHED_GLYPH_URLS) assert.equal(glyphKey(decodeURI(url)), glyphKey(url)); for (const re of [/prefetchedGlyphs\[glyphKey\(gUrl\)\]/, /gMap\[glyphKey\(url\)\]/, /gMap\[glyphKey\(realUrl\)\]/]) assert.match(src, re); });
+
+test("head prefetch script is tiny, ordered after MapLibre preload, shares glyphKey, and is reused by critical script with fallback", async () => {
+  const headHtml = mapExplorerHeadPreloadHtml("");
+  const scriptTag = mapExplorerHeadPrefetchScript();
+  assert.ok(Buffer.byteLength(scriptTag, "utf8") < 1024, `head prefetch script must be under 1 KB, got ${Buffer.byteLength(scriptTag, "utf8")}`);
+  const preloadIdx = headHtml.indexOf('rel="preload" as="script"');
+  const prefetchScriptIdx = headHtml.indexOf("__zukanMapPrefetch");
+  assert.ok(preloadIdx > 0 && prefetchScriptIdx > preloadIdx, "MapLibre preload link must precede head prefetch script");
+
+  const inlineBody = scriptTag.replace(/^<script>/, "").replace(/<\/script>$/, "");
+  assert.doesNotThrow(() => new vm.Script(inlineBody));
+
+  const critical = mapExplorerCriticalScriptSource();
+  const glyphKeyRe = /function glyphKey\(u\) \{ try \{ return encodeURI\(decodeURI\(String\(u\)\)\); \} catch \(_\) \{ return String\(u\); \} \}/;
+  const headGlyphKeySrc = inlineBody.match(glyphKeyRe)?.[0];
+  const criticalGlyphKeySrc = critical.match(glyphKeyRe)?.[0];
+  assert.ok(headGlyphKeySrc && criticalGlyphKeySrc);
+  assert.equal(headGlyphKeySrc, criticalGlyphKeySrc, "head and critical scripts must share the exact glyphKey source");
+  const headGlyphKey = new Function(`${headGlyphKeySrc}; return glyphKey;`)() as (u: string) => string;
+  const criticalGlyphKey = new Function(`${criticalGlyphKeySrc}; return glyphKey;`)() as (u: string) => string;
+  for (const url of MAP_PREFETCHED_GLYPH_URLS) {
+    assert.equal(headGlyphKey(url), criticalGlyphKey(url));
+    assert.equal(headGlyphKey(decodeURI(url)), criticalGlyphKey(decodeURI(url)));
+    assert.equal(headGlyphKey(decodeURI(url)), headGlyphKey(url));
+  }
+
+  const runCriticalWithPrefetch = async (withHeadPrefetch: boolean) => {
+    const fetched: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const protocols: Record<string, (params: { url: string; type?: string }, abort?: AbortController) => Promise<{ data: unknown }>> = {};
+    const planetPayload = { tiles: ["https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf"], minzoom: 0, maxzoom: 14 };
+    const glyphBytes = new Uint8Array([1, 2, 3, 4]).buffer;
+    const mockFetch = async (url: string, init?: RequestInit) => {
+      fetched.push({ url, init });
+      if (url === MAP_STANDARD_STYLE_URL) {
+        return { ok: true, json: async () => planetPayload };
+      }
+      return { ok: true, arrayBuffer: async () => glyphBytes };
+    };
+    const noopEl = () => ({
+      addEventListener() {},
+      removeEventListener() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {},
+      getAttribute() { return null; },
+      querySelectorAll() { return []; },
+      querySelector() { return null; },
+      style: {},
+      dataset: {},
+    });
+    let appendedScript: any = null;
+    const fakeDoc = {
+      getElementById(id: string) { return id === "map-explorer" ? noopEl() : null; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      createElement(tag: string) {
+        const el = noopEl();
+        if (tag === "script") appendedScript = el;
+        return el;
+      },
+      head: { appendChild() {} },
+      body: { appendChild() {} },
+    };
+    let mapOptions: any = null;
+    const mockMaplibre = {
+      addProtocol(name: string, fn: any) { protocols[name] = fn; },
+      Map: function MockMap(this: any, opts: any) {
+        mapOptions = opts;
+        this.once = () => {};
+        this.on = () => {};
+        this.addControl = () => {};
+        this.getCenter = () => ({ lng: 138, lat: 34.7 });
+        this.getZoom = () => 10;
+      },
+      AttributionControl: function MockAttrib(this: any) {},
+      NavigationControl: function MockNav(this: any) {},
+    };
+    const fakeWin: any = {
+      fetch: mockFetch,
+      location: { search: "", href: "https://zukan.earth/ja/map", pathname: "/ja/map" },
+      history: { replaceState() {} },
+      navigator: {},
+      document: fakeDoc,
+      URL,
+      URLSearchParams,
+      console,
+      setTimeout,
+      clearTimeout,
+      maplibregl: withHeadPrefetch ? mockMaplibre : undefined,
+    };
+    fakeWin.window = fakeWin;
+    fakeWin.self = fakeWin;
+    const ctx = vm.createContext(fakeWin);
+    if (withHeadPrefetch) {
+      vm.runInContext(inlineBody, ctx);
+      assert.equal(fetched.length, 3, "head script must start 1 planet + 2 glyph fetches");
+      for (const call of fetched) {
+        assert.equal(call.init?.mode, "cors");
+        assert.equal(call.init?.credentials, "same-origin");
+      }
+      for (const url of MAP_PREFETCHED_GLYPH_URLS) {
+        assert.ok(fakeWin.__zukanMapPrefetch.glyphs[criticalGlyphKey(decodeURI(url))]);
+      }
+    }
+    const fetchCountBeforeCritical = fetched.length;
+    vm.runInContext(critical, ctx);
+    if (!withHeadPrefetch) {
+      assert.ok(appendedScript && typeof appendedScript.onload === "function", "critical script must load MapLibre script when absent");
+      fakeWin.maplibregl = mockMaplibre;
+      appendedScript.onload();
+    }
+    assert.ok(protocols.zukanprefetch, "zukanprefetch protocol must be registered");
+    assert.ok(mapOptions && typeof mapOptions.transformRequest === "function");
+
+    const transformedPlanet = mapOptions.transformRequest(MAP_STANDARD_STYLE_URL);
+    assert.equal(transformedPlanet.url, `zukanprefetch://${MAP_STANDARD_STYLE_URL}`);
+    const planetRes = await protocols.zukanprefetch({ url: transformedPlanet.url, type: "json" });
+    assert.deepEqual(planetRes.data, planetPayload);
+
+    for (const url of MAP_PREFETCHED_GLYPH_URLS) {
+      const unencoded = decodeURI(url);
+      const transformedGlyph = mapOptions.transformRequest(unencoded);
+      assert.equal(transformedGlyph.url, `zukanprefetch://${unencoded}`);
+      const glyphRes = await protocols.zukanprefetch({ url: transformedGlyph.url, type: "arrayBuffer" });
+      assert.equal((glyphRes.data as ArrayBuffer).byteLength, 4);
+    }
+
+    if (withHeadPrefetch) {
+      assert.equal(fetched.length, fetchCountBeforeCritical, "critical script must reuse head prefetch without re-fetching");
+    } else {
+      assert.equal(fetched.length, 3, "critical script must fall back to its own fetches when head prefetch is absent");
+    }
+  };
+
+  await runCriticalWithPrefetch(true);
+  await runCriticalWithPrefetch(false);
+});
