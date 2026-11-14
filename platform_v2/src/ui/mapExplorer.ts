@@ -6,6 +6,8 @@ import { overlaysForLang, type LocalizedOverlay } from "../services/layerCatalog
 import {
   MAP_GLYPH_SUBSET_ASSETS,
   MAP_GLYPH_SUBSET_RANGES,
+  MAP_STATIC_BASEMAP_ASSET,
+  MAP_STATIC_BASEMAP_META,
   MAPLIBRE_CSS_SRI,
   MAPLIBRE_JS_SRI,
   MAPLIBRE_SELF_HOSTED_CSS,
@@ -57,6 +59,54 @@ export function mapPrefetchedGlyphSubsetMap(basePath = ""): Record<string, strin
   return map;
 }
 const GLYPH_KEY_FN_SOURCE = "function glyphKey(u) { try { return encodeURI(decodeURI(String(u))); } catch (_) { return String(u); } }";
+
+export const MAP_DEFAULT_CENTER = [138.383, 34.975] as const;
+export const MAP_DEFAULT_ZOOM = 13.6;
+export const MAP_STARTUP_LOCATION_ZOOM = 15.0;
+export const MAP_LAST_LOCATION_STORAGE_KEY = "ikimon-map-last-startup-location-v1";
+export const MAP_STATE_STORAGE_KEY = "ikimon-map-state-v1";
+export const MAP_LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
+
+export const MAP_STARTUP_DECISION_FN_SOURCE =
+  "function resolveMapStartupDecision(search,hash,savedStateRaw,lastLocRaw,nowMs,defCenter,defZoom,locZoom,maxAgeMs,validBasemaps){" +
+  "var bm='standard',rc=null,rz=null,hasStateViewport=false;" +
+  "try{" +
+  "var raw=search||hash||'';" +
+  "var cleaned=String(raw||'').replace(/^[?#]/,'');" +
+  "var hasUrl=!!cleaned;" +
+  "if(!cleaned&&savedStateRaw)cleaned=String(savedStateRaw);" +
+  "if(cleaned){" +
+  "var p={};" +
+  "new URLSearchParams(cleaned).forEach(function(v,k){p[k]=v});" +
+  "if(p.bm&&validBasemaps&&validBasemaps[p.bm])bm=p.bm;" +
+  "if(p.lng&&p.lat&&p.z){" +
+  "var lng2=parseFloat(p.lng),lat2=parseFloat(p.lat),z2=parseFloat(p.z);" +
+  "if(isFinite(lng2)&&isFinite(lat2)&&isFinite(z2)&&lng2>=-180&&lng2<=180&&lat2>=-85&&lat2<=85&&z2>=0&&z2<=22){" +
+  "if(hasUrl){rc=[lng2,lat2];rz=z2;}else{hasStateViewport=true;}" +
+  "}" +
+  "}" +
+  "}" +
+  "}catch(_){}" +
+  "if(rc&&rc.length>=2){return{center:rc,zoom:rz!=null?rz:defZoom,source:'explicit_viewport',basemap:bm,restoredCenter:rc,restoredZoom:rz,showStaticBasemap:false};}" +
+  "try{" +
+  "if(lastLocRaw){" +
+  "var d=JSON.parse(lastLocRaw);" +
+  "var lng=Number(d&&d.lng),lat=Number(d&&d.lat),at=Number(d&&d.capturedAt);" +
+  "if(Number.isFinite(lng)&&Number.isFinite(lat)&&lng>=-180&&lng<=180&&lat>=-85&&lat<=85&&Number.isFinite(at)&&nowMs-at<=maxAgeMs){" +
+  "return{center:[lng,lat],zoom:Math.max(defZoom,Math.min(16.5,Number(d.zoom)||locZoom)),source:'last_location',basemap:bm,restoredCenter:null,restoredZoom:null,showStaticBasemap:false};" +
+  "}" +
+  "}" +
+  "}catch(_){}" +
+  "return{center:defCenter,zoom:defZoom,source:'regional_default',basemap:bm,restoredCenter:null,restoredZoom:null,showStaticBasemap:(bm==='standard'&&!hasStateViewport)};" +
+  "}";
+
+export function mapExplorerStaticBasemapInlineScript(basePath = ""): string {
+  const staticSrc = withBasePath(basePath, MAP_STATIC_BASEMAP_ASSET.path);
+  const { cssWidth, cssHeight } = MAP_STATIC_BASEMAP_META;
+  const halfW = -(cssWidth / 2);
+  const halfH = -(cssHeight / 2);
+  return `<script>(function(){try{var r=document.getElementById('map-explorer');if(!r)return;${MAP_STARTUP_DECISION_FN_SOURCE}var s='',l='';try{s=String(localStorage.getItem(${JSON.stringify(MAP_STATE_STORAGE_KEY)})||'')}catch(_){}try{l=String(localStorage.getItem(${JSON.stringify(MAP_LAST_LOCATION_STORAGE_KEY)})||'')}catch(_){}var d=resolveMapStartupDecision(window.location.search,window.location.hash,s,l,Date.now(),${JSON.stringify(MAP_DEFAULT_CENTER)},${MAP_DEFAULT_ZOOM},${MAP_STARTUP_LOCATION_ZOOM},${MAP_LAST_LOCATION_MAX_AGE_MS},{standard:1,gsi:1,esri:1});if(!d.showStaticBasemap)return;r.setAttribute('data-static-basemap-active','1');var img=document.createElement('img');img.id='me-static-basemap';img.className='me-static-basemap';img.alt='';img.setAttribute('aria-hidden','true');img.decoding='async';img.setAttribute('fetchpriority','high');img.width=${cssWidth};img.height=${cssHeight};img.style.cssText='position:absolute;left:50%;top:50%;width:${cssWidth}px;height:${cssHeight}px;max-width:none;max-height:none;margin:${halfH}px 0 0 ${halfW}px;pointer-events:none;user-select:none;z-index:0;';img.src=${JSON.stringify(staticSrc)};r.appendChild(img);}catch(_){}})()</script>`;
+}
 
 export function mapExplorerHeadPrefetchScript(basePath = ""): string {
   const pairs = MAP_PREFETCHED_GLYPH_RANGES.map((range, i) => [
@@ -1786,6 +1836,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
       </aside>
       <div class="me-map-wrap">
         <div id="map-explorer" class="me-map" data-results-pending="0" data-api-cells="${escapeHtml(apiCells)}" data-api-observations="${escapeHtml(apiObservations)}" data-api-place-profile="${escapeHtml(apiPlaceProfile)}" data-api-place-search="${escapeHtml(apiPlaceSearch)}" data-api-my-observations="${escapeHtml(apiMyObservations)}" data-api-site-brief="${escapeHtml(apiSiteBrief)}" data-api-traces="${escapeHtml(apiTraces)}" data-api-frontier="${escapeHtml(apiFrontier)}" data-api-effort-summary="${escapeHtml(apiEffortSummary)}" data-api-area-polygons="${escapeHtml(apiAreaPolygons)}" data-api-guide-spots="${escapeHtml(apiGuideSpots)}" data-api-gbif-area-summary="${escapeHtml(apiGbifAreaSummary)}" data-api-jma-nowcast-times="${escapeHtml(apiJmaNowcastTimes)}" data-api-area-snapshot="${escapeHtml(apiAreaSnapshotTemplate)}" data-api-area-follow="${escapeHtml(apiAreaFollow)}" data-api-walk-map-candidates="${escapeHtml(apiWalkMapCandidates)}"></div>
+        ${mapExplorerStaticBasemapInlineScript(props.basePath)}
         ${startPanelHtml}
         <section class="me-purpose-hint" id="me-purpose-hint" data-testid="map-purpose-hint" aria-label="${escapeHtml(copy.purposeHintTitle)}" aria-hidden="true" hidden>
           <button type="button" class="me-purpose-hint-close" id="me-purpose-hint-close" aria-label="${escapeHtml(copy.purposeHintDismiss)}">×</button>
@@ -2571,10 +2622,10 @@ export function mapExplorerCriticalScriptSource(): string {
 
 ${MAP_EXPLORER_BASEMAPS_JS}
 
-  var DEFAULT_MAP_CENTER = [138.383, 34.975];
-  var DEFAULT_MAP_ZOOM = 13.6;
+  var DEFAULT_MAP_CENTER = [${MAP_DEFAULT_CENTER[0]}, ${MAP_DEFAULT_CENTER[1]}];
+  var DEFAULT_MAP_ZOOM = ${MAP_DEFAULT_ZOOM};
   var STARTUP_LOCATION_ZOOM = 15.0;
-  var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-startup-location-v1';
+  var LAST_LOCATION_STORAGE_KEY = ${JSON.stringify(MAP_LAST_LOCATION_STORAGE_KEY)};
   var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
   var MAP_STYLE_URL = ${JSON.stringify(MAP_STANDARD_STYLE_URL)};
   var MAP_PREFETCH_GLYPH_URLS = ${JSON.stringify(MAP_PREFETCHED_GLYPH_URLS)};
@@ -2670,24 +2721,18 @@ ${MAP_EXPLORER_BASEMAPS_JS}
     return Number.isFinite(lng) && Number.isFinite(lat) && lng >= -180 && lng <= 180 && lat >= -85 && lat <= 85;
   }
 
+  ${MAP_STARTUP_DECISION_FN_SOURCE}
+
+  function readSafeStorageItem(key) {
+    try { return String(localStorage.getItem(key) || ''); } catch (_) { return ''; }
+  }
+
   function readLastStartupLocation() {
-    try {
-      var raw = localStorage.getItem(LAST_LOCATION_STORAGE_KEY);
-      if (!raw) return null;
-      var parsed = JSON.parse(raw);
-      var lng = Number(parsed && parsed.lng);
-      var lat = Number(parsed && parsed.lat);
-      var capturedAt = Number(parsed && parsed.capturedAt);
-      if (!isValidMapLngLat(lng, lat)) return null;
-      if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > LAST_LOCATION_MAX_AGE_MS) return null;
-      return {
-        center: [lng, lat],
-        zoom: Math.max(DEFAULT_MAP_ZOOM, Math.min(16.5, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
-        source: 'last_location',
-      };
-    } catch (_) {
-      return null;
+    var d = resolveMapStartupDecision('', '', '', readSafeStorageItem(LAST_LOCATION_STORAGE_KEY), Date.now(), DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, STARTUP_LOCATION_ZOOM, LAST_LOCATION_MAX_AGE_MS, BASEMAPS);
+    if (d.source === 'last_location') {
+      return { center: d.center, zoom: d.zoom, source: 'last_location' };
     }
+    return null;
   }
 
   function initialStartupViewport() {
@@ -2698,31 +2743,17 @@ ${MAP_EXPLORER_BASEMAPS_JS}
         source: 'explicit_viewport',
       };
     }
-    var last = readLastStartupLocation();
-    if (last) return last;
-    return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, source: 'regional_default' };
+    var d = resolveMapStartupDecision('', '', '', readSafeStorageItem(LAST_LOCATION_STORAGE_KEY), Date.now(), DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, STARTUP_LOCATION_ZOOM, LAST_LOCATION_MAX_AGE_MS, BASEMAPS);
+    return { center: d.center, zoom: d.zoom, source: d.source };
   }
 
   (function () {
     try {
-      var raw = window.location.search || window.location.hash || '';
-      var cleaned = String(raw || '').replace(/^[?#]/, '');
-      var hasUrlParams = !!cleaned;
-      if (!cleaned) {
-        try { cleaned = String(localStorage.getItem('ikimon-map-state-v1') || ''); } catch (_) {}
-      }
-      if (!cleaned) return;
-      var params = {};
-      new URLSearchParams(cleaned).forEach(function (value, key) { params[key] = value; });
-      if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
-      if (hasUrlParams && params.lng && params.lat && params.z) {
-        var lng2 = parseFloat(params.lng);
-        var lat2 = parseFloat(params.lat);
-        var z2 = parseFloat(params.z);
-        if (isFinite(lng2) && isFinite(lat2) && isFinite(z2) && lng2 >= -180 && lng2 <= 180 && lat2 >= -85 && lat2 <= 85 && z2 >= 0 && z2 <= 22) {
-          state._restoredCenter = [lng2, lat2];
-          state._restoredZoom = z2;
-        }
+      var d = resolveMapStartupDecision(window.location.search, window.location.hash, readSafeStorageItem(${JSON.stringify(MAP_STATE_STORAGE_KEY)}), '', Date.now(), DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, STARTUP_LOCATION_ZOOM, LAST_LOCATION_MAX_AGE_MS, BASEMAPS);
+      if (d.basemap && BASEMAPS[d.basemap]) state.basemap = d.basemap;
+      if (d.restoredCenter && d.restoredZoom != null) {
+        state._restoredCenter = d.restoredCenter;
+        state._restoredZoom = d.restoredZoom;
       }
     } catch (_) {}
   })();
@@ -2737,7 +2768,23 @@ ${MAP_EXPLORER_BASEMAPS_JS}
   var prefetchedGlyphs = {};
   ${GLYPH_KEY_FN_SOURCE}
 
+  function removeStaticBasemapImmediately() {
+    if (root) {
+      try { root.removeAttribute('data-static-basemap-active'); } catch (_) {}
+      var cc = root.querySelector('.maplibregl-canvas-container');
+      if (cc) {
+        cc.style.transition = '';
+        cc.style.opacity = '';
+      }
+    }
+    var sImg = document.getElementById('me-static-basemap');
+    if (sImg && sImg.parentNode) {
+      try { sImg.parentNode.removeChild(sImg); } catch (_) {}
+    }
+  }
+
   function cleanupFailedMapInit() {
+    if (typeof removeStaticBasemapImmediately === 'function') removeStaticBasemapImmediately();
     try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
     state.map = null;
     if (!root) return;
@@ -2866,6 +2913,57 @@ ${MAP_EXPLORER_BASEMAPS_JS}
       }
     }
     enableMapInteractions();
+    var staticImg = typeof document !== 'undefined' ? document.getElementById('me-static-basemap') : null;
+    if (staticImg && root && root.getAttribute('data-static-basemap-active') === '1') {
+      var staticSwapDone = false;
+      var cancelStaticImmediately = function () {
+        if (staticSwapDone) return;
+        staticSwapDone = true;
+        removeStaticBasemapImmediately();
+      };
+      var fadeInOverStatic = function () {
+        if (staticSwapDone) return;
+        staticSwapDone = true;
+        var cc = root ? root.querySelector('.maplibregl-canvas-container') : null;
+        var sImg = document.getElementById('me-static-basemap');
+        if (!cc || !sImg || !sImg.parentNode) {
+          removeStaticBasemapImmediately();
+          return;
+        }
+        cc.style.opacity = '0';
+        cc.style.transition = 'opacity 150ms ease';
+        void cc.offsetWidth;
+        try { root.removeAttribute('data-static-basemap-active'); } catch (_) {}
+        cc.style.opacity = '1';
+        var cleaned = false;
+        var finishFade = function () {
+          if (cleaned) return;
+          cleaned = true;
+          cc.style.transition = '';
+          cc.style.opacity = '';
+          if (sImg && sImg.parentNode) {
+            try { sImg.parentNode.removeChild(sImg); } catch (_) {}
+          }
+        };
+        cc.addEventListener('transitionend', finishFade, { once: true });
+        setTimeout(finishFade, 220);
+      };
+      if (typeof state.map.once === 'function') {
+        state.map.once('idle', fadeInOverStatic);
+        state.map.once('dragstart', cancelStaticImmediately);
+        state.map.once('zoomstart', cancelStaticImmediately);
+        state.map.once('rotatestart', cancelStaticImmediately);
+        state.map.once('pitchstart', cancelStaticImmediately);
+      }
+      if (typeof state.map.on === 'function') {
+        state.map.on('movestart', function (ev) {
+          if (ev && ev.originalEvent) cancelStaticImmediately();
+        });
+        state.map.on('error', function (ev) {
+          if (ev && ev.error) cancelStaticImmediately();
+        });
+      }
+    }
     if (window.maplibregl.AttributionControl) {
       state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     }
@@ -2879,6 +2977,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
   }
 
   function showMapLoadFailure() {
+    if (typeof removeStaticBasemapImmediately === 'function') removeStaticBasemapImmediately();
     if (typeof setStatus === 'function') setStatus('—');
     else {
       var sEl = document.getElementById('me-map-status');
@@ -11707,7 +11806,8 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     box-shadow: none;
     transition: width .25s ease, margin .25s ease;
   }
-  .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; }
+  .me-map { position: relative; width: 100%; height: var(--me-map-height); min-height: 0; overflow: hidden; }
+  .me-map[data-static-basemap-active="1"] .maplibregl-canvas-container { opacity: 0; }
   .me-start-panel {
     position: absolute;
     top: 10px;

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
 import { buildApp } from "../app.js";
-import { MAP_GLYPH_SUBSET_ASSET_LIST } from "../ui/mapExplorerAssets.js";
+import { MAP_GLYPH_SUBSET_ASSET_LIST, MAP_STATIC_BASEMAP_ASSET } from "../ui/mapExplorerAssets.js";
 
 async function withEnv(
   overrides: Record<string, string | undefined>,
@@ -316,6 +316,27 @@ test("self-hosted CJK glyph subset PBFs are served with immutable caching and pr
       });
       assert.equal(notModified.statusCode, 304);
     }
+  } finally {
+    await app.close();
+  }
+});
+
+test("static basemap WebP is served with immutable caching and image/webp content type", async () => {
+  const app = buildApp();
+  try {
+    const res = await app.inject({ method: "GET", url: MAP_STATIC_BASEMAP_ASSET.path });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["content-type"], "image/webp");
+    assert.equal(res.headers["cache-control"], "public, max-age=31536000, immutable");
+    assert.equal(res.headers.etag, MAP_STATIC_BASEMAP_ASSET.etag);
+    assert.equal(Buffer.compare(res.rawPayload, MAP_STATIC_BASEMAP_ASSET.content), 0);
+
+    const notModified = await app.inject({
+      method: "GET",
+      url: MAP_STATIC_BASEMAP_ASSET.path,
+      headers: { "if-none-match": MAP_STATIC_BASEMAP_ASSET.etag },
+    });
+    assert.equal(notModified.statusCode, 304);
   } finally {
     await app.close();
   }

@@ -1,0 +1,15 @@
+{
+  "path": "/assets/map/static-basemap.319c0cd5058b.webp",
+  "hash": "319c0cd5058b",
+  "center": [
+    138.383,
+    34.975
+  ],
+  "zoom": 13.6,
+  "cssWidth": 460,
+  "cssHeight": 840,
+  "pixelRatio": 2,
+  "quality": 0.72,
+  "byteLength": 13020,
+  "styleDigest": "3b7da0679f90240e"
+}

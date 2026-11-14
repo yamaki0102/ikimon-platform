@@ -1,19 +1,27 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import test from "node:test";
 import vm from "node:vm";
 import {
   MAP_GLYPH_SUBSET_ASSETS,
   MAP_GLYPH_SUBSET_ASSET_LIST,
+  MAP_STATIC_BASEMAP_ASSET,
+  MAP_STATIC_BASEMAP_META,
 } from "./mapExplorerAssets.js";
 import {
+  MAP_DEFAULT_CENTER,
+  MAP_DEFAULT_ZOOM,
   MAP_EXPLORER_STYLES,
+  MAP_LAST_LOCATION_MAX_AGE_MS,
   MAP_PREFETCHED_GLYPH_RANGES,
   MAP_PREFETCHED_GLYPH_SUBSET_URLS,
   MAP_PREFETCHED_GLYPH_URLS,
   MAP_STANDARD_FONT_STACK,
   MAP_STANDARD_GLYPHS_TEMPLATE,
   MAP_STANDARD_STYLE_URL,
+  MAP_STARTUP_DECISION_FN_SOURCE,
+  MAP_STARTUP_LOCATION_ZOOM,
   mapExplorerBootBundle,
   mapExplorerBootScript,
   mapExplorerBootScriptSource,
@@ -22,9 +30,12 @@ import {
   mapExplorerDeferredStylesAsset,
   mapExplorerHeadPrefetchScript,
   mapExplorerHeadPreloadHtml,
+  mapExplorerStaticBasemapInlineScript,
   mapPrefetchedGlyphSubsetMap,
   renderMapExplorer,
 } from "./mapExplorer.js";
+import { runWithCspNonce } from "../services/cspNonce.js";
+import { renderSiteDocument } from "./siteShell.js";
 import {
   MAPLIBRE_LOCAL_GLYPH_RE,
   parseGlyphsPbf,
@@ -2414,4 +2425,114 @@ test("head and critical glyph prefetches use self-hosted subset URLs, keep other
   await runScenario({ withHead: true, failSubsets: true });
   await runScenario({ withHead: false, failSubsets: false });
   await runScenario({ withHead: false, failSubsets: true });
+});
+
+test("static basemap startup condition matches initialStartupViewport across all startup sources", () => {
+  const sandbox: Record<string, unknown> = { URLSearchParams };
+  vm.runInNewContext(MAP_STARTUP_DECISION_FN_SOURCE, sandbox);
+  const resolve = sandbox.resolveMapStartupDecision as (
+    search: string,
+    hash: string,
+    savedStateRaw: string,
+    lastLocRaw: string,
+    nowMs: number,
+    defCenter: readonly [number, number],
+    defZoom: number,
+    locZoom: number,
+    maxAgeMs: number,
+    validBasemaps: Record<string, number>,
+  ) => { source: string; basemap: string; showStaticBasemap: boolean; center: number[]; zoom: number };
+
+  const now = 1_700_000_000_000;
+  const basemaps = { standard: 1, gsi: 1, esri: 1 };
+  const call = (search = "", hash = "", savedState = "", lastLoc = "") =>
+    resolve(
+      search,
+      hash,
+      savedState,
+      lastLoc,
+      now,
+      MAP_DEFAULT_CENTER,
+      MAP_DEFAULT_ZOOM,
+      MAP_STARTUP_LOCATION_ZOOM,
+      MAP_LAST_LOCATION_MAX_AGE_MS,
+      basemaps,
+    );
+
+  // regional_default + standard -> show static basemap
+  const def = call();
+  assert.equal(def.source, "regional_default");
+  assert.equal(def.basemap, "standard");
+  assert.equal(def.showStaticBasemap, true);
+  assert.deepEqual(def.center, [...MAP_DEFAULT_CENTER]);
+  assert.equal(def.zoom, MAP_DEFAULT_ZOOM);
+
+  // explicit_viewport via URL -> do not show static basemap
+  const urlVp = call("?lng=138.41&lat=34.99&z=14.2");
+  assert.equal(urlVp.source, "explicit_viewport");
+  assert.equal(urlVp.showStaticBasemap, false);
+
+  // last_location within 30 days -> do not show static basemap
+  const lastLoc = call("", "", "", JSON.stringify({ lng: 138.45, lat: 35.01, zoom: 15, capturedAt: now - 1000 }));
+  assert.equal(lastLoc.source, "last_location");
+  assert.equal(lastLoc.showStaticBasemap, false);
+
+  // expired last_location -> regional_default -> show static basemap
+  const expiredLoc = call("", "", "", JSON.stringify({ lng: 138.45, lat: 35.01, zoom: 15, capturedAt: now - MAP_LAST_LOCATION_MAX_AGE_MS - 1 }));
+  assert.equal(expiredLoc.source, "regional_default");
+  assert.equal(expiredLoc.showStaticBasemap, true);
+
+  // saved state viewport -> do not show static basemap
+  const savedVp = call("", "", "lng=138.4&lat=35.0&z=14");
+  assert.equal(savedVp.showStaticBasemap, false);
+
+  // non-standard basemap via URL or saved state -> do not show static basemap
+  assert.equal(call("?bm=gsi").showStaticBasemap, false);
+  assert.equal(call("", "", "bm=esri").showStaticBasemap, false);
+  assert.equal(call("?bm=standard").showStaticBasemap, true);
+});
+
+test("static basemap metadata matches DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, standard style digest, and stays under 60 KB", () => {
+  assert.deepEqual(MAP_STATIC_BASEMAP_META.center, [...MAP_DEFAULT_CENTER]);
+  assert.equal(MAP_STATIC_BASEMAP_META.zoom, MAP_DEFAULT_ZOOM);
+  assert.match(MAP_STATIC_BASEMAP_ASSET.path, /^\/assets\/map\/static-basemap\.[a-f0-9]{12}\.webp$/);
+  assert.equal(MAP_STATIC_BASEMAP_ASSET.contentType, "image/webp");
+  assert.ok(MAP_STATIC_BASEMAP_ASSET.content.byteLength < 60_000, `WebP size ${MAP_STATIC_BASEMAP_ASSET.content.byteLength} must stay under 60 KB`);
+
+  const critical = mapExplorerCriticalScriptSource();
+  const startIdx = critical.indexOf("  var SIMPLE_MID_LANDMARK_CLASSES =");
+  const endIdx = critical.indexOf("  var STARTUP_LOCATION_ZOOM =");
+  assert.ok(startIdx >= 0 && endIdx > startIdx);
+  const sandbox: { BASEMAPS?: { standard: { layers: Array<{ type: string }> } } } = {};
+  vm.runInNewContext(critical.slice(startIdx, endIdx), sandbox);
+  const standard = sandbox.BASEMAPS!.standard;
+  const staticStyle = {
+    ...standard,
+    layers: standard.layers.filter((layer) => layer.type !== "symbol"),
+  };
+  const expectedDigest = createHash("sha256")
+    .update(JSON.stringify({ center: [...MAP_DEFAULT_CENTER], zoom: MAP_DEFAULT_ZOOM, style: staticStyle }))
+    .digest("hex")
+    .slice(0, 16);
+  assert.equal(MAP_STATIC_BASEMAP_META.styleDigest, expectedDigest);
+});
+
+test("renderMapExplorer places the static basemap inline script right after #map-explorer and receives CSP nonce", () => {
+  const inline = mapExplorerStaticBasemapInlineScript();
+  assert.ok(inline.includes(MAP_STATIC_BASEMAP_ASSET.path));
+  assert.ok(inline.includes("resolveMapStartupDecision"));
+
+  const fragment = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  assert.match(fragment, /<div id="map-explorer"[^>]*><\/div>\s*<script>\(function\(\)\{[\s\S]*?me-static-basemap/);
+
+  const doc = runWithCspNonce("nonce-static-map-test", () =>
+    renderSiteDocument({
+      title: "Map",
+      body: fragment,
+      lang: "ja",
+      basePath: "",
+      currentPath: "/map",
+    }),
+  );
+  assert.match(doc, /<script nonce="nonce-static-map-test">\(function\(\)\{try\{var r=document\.getElementById\('map-explorer'\)/);
 });

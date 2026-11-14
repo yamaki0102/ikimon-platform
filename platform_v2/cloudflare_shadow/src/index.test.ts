@@ -23256,6 +23256,16 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(glyphPbf.headers.get("content-type"), "application/x-protobuf");
     assert.equal(glyphPbf.headers.get("cache-control"), "public, max-age=31536000, immutable");
 
+    await env.ASSET_BUCKET.put("original-ui/static/assets/map/static-basemap.0123456789ab.webp", "webp-static-basemap", {
+      httpMetadata: { contentType: "image/webp" }
+    });
+
+    const staticBasemap = await worker.fetch(new Request("https://zukan.earth/assets/map/static-basemap.0123456789ab.webp"), productionEnv);
+    assert.equal(staticBasemap.status, 200);
+    assert.equal(await staticBasemap.text(), "webp-static-basemap");
+    assert.equal(staticBasemap.headers.get("content-type"), "image/webp");
+    assert.equal(staticBasemap.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
