@@ -19897,6 +19897,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (/^\/assets\/map\/map-explorer(?:-deferred)?\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
   if (/^\/assets\/ui\/global-record-entry\.[a-f0-9]{12}\.js$/.test(pathname)) return true;
   if (/^\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
+  if (/^\/assets\/fonts\/noto-sans-regular\/\d{1,5}-\d{1,5}\.[a-f0-9]{12}\.pbf$/.test(pathname)) return true;
   return false;
 }
 
