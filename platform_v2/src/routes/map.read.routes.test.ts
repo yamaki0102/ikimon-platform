@@ -258,3 +258,37 @@ test("guide relay program pages expose public detail and private progress", () =
   assert.match(source, /任意/);
   assert.match(source, /進捗は本人用です。正確な記録位置は公開しません。/);
 });
+
+test("map HTML head includes the nonce-protected prefetch script before map-explorer and other pages do not", async () => {
+  const app = buildApp();
+  try {
+    const mapRes = await app.inject({
+      method: "GET",
+      url: "/map?lang=ja",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(mapRes.statusCode, 200);
+    const mapHtml = mapRes.body;
+    const headEnd = mapHtml.indexOf("</head>");
+    const preloadIdx = mapHtml.indexOf('rel="preload" as="script"');
+    const prefetchIdx = mapHtml.indexOf("window.__zukanMapPrefetch");
+    const explorerScriptIdx = mapHtml.indexOf("map-explorer.");
+    assert.ok(headEnd > 0);
+    assert.ok(preloadIdx > 0 && prefetchIdx > preloadIdx && prefetchIdx < headEnd, "prefetch script must be in <head> after MapLibre preload");
+    assert.ok(explorerScriptIdx > headEnd && prefetchIdx < explorerScriptIdx, "prefetch script must precede map-explorer script");
+    const csp = String(mapRes.headers["content-security-policy"] ?? "");
+    const nonce = csp.match(/script-src[^;]*'nonce-([^']+)'/)?.[1];
+    assert.ok(nonce, "CSP must include a script nonce");
+    assert.ok(mapHtml.includes(`<script nonce="${nonce}">(function(){if(typeof fetch!=='function')return;`));
+
+    const otherRes = await app.inject({
+      method: "GET",
+      url: "/guide-programs?lang=ja",
+      headers: { accept: "text/html" },
+    });
+    assert.equal(otherRes.statusCode, 200);
+    assert.doesNotMatch(otherRes.body, /__zukanMapPrefetch/);
+  } finally {
+    await app.close();
+  }
+});

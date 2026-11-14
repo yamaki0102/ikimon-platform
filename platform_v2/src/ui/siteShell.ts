@@ -4690,7 +4690,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
 <html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />${options.extraHeadHtml ? `\n  ${options.extraHeadHtml}` : ""}
   <meta name="theme-color" content="${APP_THEME_COLOR}" />
   <meta name="application-name" content="ZUKAN" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -4713,7 +4713,7 @@ ${alternateLinks}
   <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />${ogImageMeta}${twitterCardMeta}
   <meta name="twitter:title" content="${escapeHtml(pageTitle)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />${twitterImageMeta}
-  ${structuredDataHtml}${options.extraHeadHtml ? `\n  ${options.extraHeadHtml}` : ""}
+  ${structuredDataHtml}
   ${appLaunchHeadScript}
   ${appOutboxHeadScript}
   ${analyticsHeadScript}

@@ -41,10 +41,16 @@ export const MAP_PREFETCHED_GLYPH_URLS = MAP_PREFETCHED_GLYPH_RANGES.map((range)
     .replace("{fontstack}", encodeURIComponent(MAP_STANDARD_FONT_STACK))
     .replace("{range}", range),
 );
+const GLYPH_KEY_FN_SOURCE = "function glyphKey(u) { try { return encodeURI(decodeURI(String(u))); } catch (_) { return String(u); } }";
+
+export function mapExplorerHeadPrefetchScript(): string {
+  return `<script>(function(){if(typeof fetch!=='function')return;var o={mode:'cors',credentials:'same-origin'},g={};${GLYPH_KEY_FN_SOURCE}var u=${JSON.stringify(MAP_PREFETCHED_GLYPH_URLS)};for(var i=0;i<u.length;i++){g[glyphKey(u[i])]=fetch(u[i],o).then(function(r){return r&&r.ok?r.arrayBuffer():null}).catch(function(){return null})}window.__zukanMapPrefetch={planet:fetch(${JSON.stringify(MAP_STANDARD_STYLE_URL)},o).then(function(r){return r&&r.ok?r.json():null}).catch(function(){return null}),glyphs:g}})()</script>`;
+}
 
 export function mapExplorerHeadPreloadHtml(basePath: string): string {
   return `<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
   <link rel="preload" as="script" href="${escapeHtml(withBasePath(basePath, MAPLIBRE_SELF_HOSTED_JS.path))}" fetchpriority="high" />
+  ${mapExplorerHeadPrefetchScript()}
   <link rel="stylesheet" href="${escapeHtml(withBasePath(basePath, MAPLIBRE_SELF_HOSTED_CSS.path))}" data-maplibre="1" />`;
 }
 
@@ -2708,7 +2714,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
   var planetPromise = null;
   var resolvedPlanetJson = null;
   var prefetchedGlyphs = {};
-  function glyphKey(u) { try { return encodeURI(decodeURI(String(u))); } catch (_) { return String(u); } }
+  ${GLYPH_KEY_FN_SOURCE}
 
   function cleanupFailedMapInit() {
     try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
@@ -2733,9 +2739,18 @@ ${MAP_EXPLORER_BASEMAPS_JS}
     state.mapHydrationStarted = true;
     if (!window.maplibregl) { state.mapHydrationStarted = false; showMapLoadFailure(); return; }
     var styleUrl = typeof MAP_STYLE_URL === 'string' ? MAP_STYLE_URL : ${JSON.stringify(MAP_STANDARD_STYLE_URL)};
-    var pPromise = typeof planetPromise !== 'undefined' ? planetPromise : null;
+    var headPrefetch = window.__zukanMapPrefetch;
+    var pPromise = typeof planetPromise !== 'undefined' && planetPromise ? planetPromise : (headPrefetch && headPrefetch.planet && typeof headPrefetch.planet.then === 'function' ? headPrefetch.planet : null);
     var pJson = typeof resolvedPlanetJson !== 'undefined' ? resolvedPlanetJson : null;
     var gMap = typeof prefetchedGlyphs !== 'undefined' ? prefetchedGlyphs : {};
+    if (headPrefetch && headPrefetch.glyphs) {
+      for (var gi = 0; gi < MAP_PREFETCH_GLYPH_URLS.length; gi += 1) {
+        var gKey = glyphKey(MAP_PREFETCH_GLYPH_URLS[gi]);
+        if (!gMap[gKey] && headPrefetch.glyphs[gKey]) {
+          gMap[gKey] = headPrefetch.glyphs[gKey];
+        }
+      }
+    }
     var hasPrefetchProtocol = false;
     if (typeof window.maplibregl.addProtocol === 'function') {
       hasPrefetchProtocol = true;
@@ -2938,12 +2953,19 @@ ${MAP_EXPLORER_BASEMAPS_JS}
   // Start style/TileJSON and glyph prefetches after MapLibre JS is requested so they do not compete with it.
   if (state.basemap === 'standard' && typeof fetch === 'function') {
     try {
-      planetPromise = fetch(MAP_STYLE_URL, { mode: 'cors', credentials: 'same-origin' })
-        .then(function (r) { return r && r.ok ? r.json() : null; })
+      var headPrefetch = window.__zukanMapPrefetch;
+      planetPromise = (headPrefetch && headPrefetch.planet && typeof headPrefetch.planet.then === 'function'
+        ? headPrefetch.planet
+        : fetch(MAP_STYLE_URL, { mode: 'cors', credentials: 'same-origin' })
+            .then(function (r) { return r && r.ok ? r.json() : null; }))
         .then(function (json) { if (json) resolvedPlanetJson = json; return json; })
         .catch(function () { return null; });
+      var headGlyphs = headPrefetch && headPrefetch.glyphs ? headPrefetch.glyphs : null;
       MAP_PREFETCH_GLYPH_URLS.forEach(function (gUrl) {
-        prefetchedGlyphs[glyphKey(gUrl)] = fetch(gUrl, { mode: 'cors', credentials: 'same-origin' })
+        var existingGlyph = headGlyphs && headGlyphs[glyphKey(gUrl)] && typeof headGlyphs[glyphKey(gUrl)].then === 'function'
+          ? headGlyphs[glyphKey(gUrl)]
+          : null;
+        prefetchedGlyphs[glyphKey(gUrl)] = existingGlyph || fetch(gUrl, { mode: 'cors', credentials: 'same-origin' })
           .then(function (r) { return r && r.ok ? r.arrayBuffer() : null; })
           .catch(function () { return null; });
       });
