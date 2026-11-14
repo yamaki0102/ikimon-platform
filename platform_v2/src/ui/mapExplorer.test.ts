@@ -1,10 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
-import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
+import { MAP_EXPLORER_STYLES, mapExplorerBootBundle, mapExplorerBootScript, mapExplorerBootScriptSource, renderMapExplorer } from "./mapExplorer.js";
+
+function bootCombined(props: { lang: "ja" | "en" | "es" | "pt-BR"; basePath: string }): string {
+  const html = mapExplorerBootScript(props);
+  const cfgMatch = html.match(/<script type="application\/json" id="me-boot-config">([\s\S]*?)<\/script>/);
+  const cfg = cfgMatch?.[1] ? JSON.parse(cfgMatch[1]) : {};
+  const lang = cfg.searchLang || props.lang || "ja";
+  const source = mapExplorerBootScriptSource();
+  const copyLineMatch = source.match(/var COPY = \((\{[\s\S]*?\})\)\[SEARCH_LANG\] \|\| \(\{[\s\S]*?\}\)\.ja;/);
+  const copyByLang = copyLineMatch?.[1] ? JSON.parse(copyLineMatch[1]) : {};
+  const singleCopy = copyByLang[lang] || copyByLang.ja || {};
+  return source
+    .replace("var CFG = {};", `var CFG = ${JSON.stringify(cfg)};`)
+    .replace("var SEARCH_LANG = CFG.searchLang || 'ja';", `var SEARCH_LANG = ${JSON.stringify(lang)};`)
+    .replace(/var COPY = \(\{[\s\S]*?\}\)\[SEARCH_LANG\] \|\| \(\{[\s\S]*?\}\)\.ja;/, `var COPY = ${JSON.stringify(singleCopy)};`)
+    .replace("var COMMUNITY_RECORDS_HREF = CFG.communityRecordsHref || '/records?view=public';", `var COMMUNITY_RECORDS_HREF = ${JSON.stringify(cfg.communityRecordsHref || "/records?view=public")};`)
+    .replace("var UI_KPI_ENDPOINT = CFG.uiKpiEndpoint || '/api/v1/ui-kpi/events';", `var UI_KPI_ENDPOINT = ${JSON.stringify(cfg.uiKpiEndpoint || "/api/v1/ui-kpi/events")};`);
+}
 
 function bootSection(start: string, end: string): string {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const from = script.indexOf(start);
   const to = script.indexOf(end, from);
   assert.ok(from >= 0 && to > from);
@@ -39,7 +56,7 @@ function startupLocationFixture(permission: string, positionThrows = false) {
   const context = vm.createContext({ navigator, state, STARTUP_LOCATION_ZOOM: 15,
     isValidMapLngLat: () => true, rememberLastStartupLocation: () => { calls.remember += 1; },
     dropMeMarker: () => { calls.marker += 1; } });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const gestureHandlers = [...script.matchAll(/state\.map\.on\('(dragstart|zoomstart)', function \(\) \{\s*if \(state\.startupLocationRequestActive\) state\.startupLocationUserMoved = true;\s*\}\);/g)].map((match) => match[0]);
   assert.equal(gestureHandlers.length, 2, "exercise the actual drag and zoom guards");
   new vm.Script(bootSection("function requestStartupCurrentLocation(options)", "function cleanupFailedMapInit()") + gestureHandlers.join("\n")).runInContext(context);
@@ -160,7 +177,7 @@ test("superseded permission and geolocation callbacks cannot settle or move a ne
 });
 
 test("OSM-backed place map credits contributors and links its data licence", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   assert.match(script, /attribution: 'OpenFreeMap \/ <a href="https:\/\/www\.openstreetmap\.org\/copyright"[^>]*>© OpenStreetMap contributors<\/a>'/);
 });
 
@@ -212,7 +229,7 @@ test("unified search distinguishes failed providers from a successful empty sear
 });
 
 test("search failure keeps available results and offers only an explicit retry", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const declarations = ["COPY", "COMMUNITY_RECORDS_HREF"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
   let retry: (() => void) | undefined;
   const queries: string[] = [];
@@ -234,7 +251,7 @@ test("search failure keeps available results and offers only an explicit retry",
 });
 
 test("normal map movement keeps live OSM off the interaction path", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   assert.match(script, /liveOsmDiscovery[\s\S]*live_osm=1/);
   assert.match(script, /function loadWaterwayHints\(\) \{\n    if \(!state\.map \|\| state\.tab !== 'rain'\) return;/);
   const placesBranch = script.slice(script.indexOf("} else if (tab === 'places')"), script.indexOf("} else if (tab === 'rain')"));
@@ -242,14 +259,20 @@ test("normal map movement keeps live OSM off the interaction path", () => {
 });
 
 test("map explorer boot script is syntactically valid JavaScript", () => {
-  const scriptHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const script = scriptHtml.replace(/^<script>/, "").replace(/<\/script>$/, "");
+  const script = mapExplorerBootScriptSource();
 
   assert.doesNotThrow(() => new vm.Script(script));
+  assert.match(script, /localIdeographFontFamily:/);
+  assert.equal((script.match(/localIdeographFontFamily:/g) ?? []).length, 2);
+
+  const bootHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.ok(Buffer.byteLength(bootHtml, "utf8") < 15 * 1024);
+  assert.match(bootHtml, /<script type="application\/json" id="me-boot-config">/);
+  assert.ok(bootHtml.includes(`<script src="${mapExplorerBootBundle().path}" defer></script>`));
 });
 
 test("GBIF area taxa lead with their source-backed organism group and keep a generic fallback", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const context = vm.createContext({
   });
   const declarations = ["COPY", "SEARCH_LANG"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
@@ -290,7 +313,7 @@ test("GBIF organism groups and counts use the selected map locale", () => {
     "pt-BR": ["Insetos", "Aves", "Plantas", "Anfíbios e répteis", "Mamíferos", "Fungos", "Outros organismos"],
   };
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
-    const script = mapExplorerBootScript({ basePath: "", lang });
+    const script = bootCombined({ basePath: "", lang });
     const declarations = ["COPY", "SEARCH_LANG"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
     const context = vm.createContext({});
     new vm.Script([
@@ -309,7 +332,7 @@ test("GBIF organism groups and counts use the selected map locale", () => {
 
 test("map initialization failure offers a usable public-record fallback", () => {
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
-    const script = mapExplorerBootScript({ basePath: "", lang });
+    const script = bootCombined({ basePath: "", lang });
     const between = (start: string, end: string) => {
       const from = script.indexOf(start);
       const to = script.indexOf(end, from);
@@ -355,7 +378,7 @@ test("map initialization failure offers a usable public-record fallback", () => 
 });
 
 test("failed map init is cleaned before fallback and interactions stay enabled", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const section = bootSection("function cleanupFailedMapInit()", "function showMapLoadFailure()");
   const children: any[] = []; let attempts = 0; const enabled: string[] = [];
   const makeNode = (className: string) => { const node: any = { className, parentNode: null, remove() { const i = children.indexOf(node); if (i >= 0) children.splice(i, 1); } }; node.parentNode = { removeChild: () => node.remove() }; return node; };
@@ -391,7 +414,7 @@ test("map header never shrinks shared navigation targets below 44px", () => {
 });
 
 test("map explorer keeps controls touchable and hides internal provenance labels", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   assert.match(MAP_EXPLORER_STYLES, /\.map-explorer :where\(button,a\)\{min-height:44px/);
   assert.match(MAP_EXPLORER_STYLES, /input:not\(\[type=checkbox\]\):not\(\[type=radio\]\):not\(\[type=range\]\)\{min-height:44px/);
   assert.match(MAP_EXPLORER_STYLES, /input\[type=range\]\{min-height:44px/);
@@ -417,7 +440,7 @@ test("map filters lead with regional content types and keep nature taxonomy as a
 });
 
 test("area polygon outline width avoids MapLibre-incompatible zoom composites", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const outlineStart = script.indexOf("id: 'area-polygon-outline'");
   const approximateStart = script.indexOf("id: 'area-polygon-approximate-outline'", outlineStart);
   const outlineScript = script.slice(outlineStart, approximateStart);
@@ -433,7 +456,7 @@ test("area polygon outline width avoids MapLibre-incompatible zoom composites", 
 });
 
 test("approximate school area boundaries get a separate dashed outline layer", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /id: 'area-polygon-approximate-outline'/);
   assert.match(script, /filter: \['all', \['==', \['get', 'approximate_boundary'\], true\], VISIBLE_AREA_POLYGON_FILTER\]/);
@@ -442,7 +465,7 @@ test("approximate school area boundaries get a separate dashed outline layer", (
 });
 
 test("JMA rain layer caps tile zoom at the API-supported max for overzooming", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const rainSourceStart = script.indexOf("state.map.addSource('jma-rain-nowcast'");
   const rainLayerStart = script.indexOf("state.map.addLayer({", rainSourceStart);
   const rainSourceScript = script.slice(rainSourceStart, rainLayerStart);
@@ -463,7 +486,7 @@ test("JMA rain layer caps tile zoom at the API-supported max for overzooming", (
 
 test("collapsed side rail uses a nonnumeric area signal", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const railMatch = html.match(/<div class="me-side-rail-icons"[^>]*>([\s\S]*?)<\/div>/);
 
   assert.ok(railMatch);
@@ -481,7 +504,7 @@ test("collapsed side rail uses a nonnumeric area signal", () => {
 
 test("map explorer localizes English fallback and failure chrome", () => {
   const html = renderMapExplorer({ basePath: "", lang: "en", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "en" });
+  const script = bootCombined({ basePath: "", lang: "en" });
 
   assert.match(html, /aria-label="Expand details"/);
   assert.match(html, /aria-label="Explore places on the map"/);
@@ -502,7 +525,7 @@ test("map explorer localizes English fallback and failure chrome", () => {
 });
 
 test("selected raw points keep site brief while stable cells use place atlas", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const selectedCardStart = script.indexOf("function renderSelectedCard()");
   const selectedPlaceBody = script.slice(
     script.indexOf("if (context.kind === 'place')", selectedCardStart),
@@ -531,7 +554,7 @@ test("selected raw points keep site brief while stable cells use place atlas", (
 });
 
 test("public place actions avoid raw coordinate area creation", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const actionBody = script.slice(
     script.indexOf("function renderPlaceDetailActions"),
     script.indexOf("function renderSelectedCard"),
@@ -546,7 +569,7 @@ test("public place actions avoid raw coordinate area creation", () => {
 
 test("place atlas integration lazily fetches only stable selections with stale-response protection", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const requestBody = script.slice(
     script.indexOf("function requestPlaceAtlasForSelection"),
     script.indexOf("function renderPlaceDetailActions"),
@@ -572,7 +595,7 @@ test("place atlas integration lazily fetches only stable selections with stale-r
 });
 
 test("area and cell selections render place atlas in desktop panel and mobile sheet", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const areaOpenBody = script.slice(
     script.indexOf("function openAreaSheet"),
     script.indexOf("function closeBottomSheet"),
@@ -594,7 +617,7 @@ test("area and cell selections render place atlas in desktop panel and mobile sh
 });
 
 test("transient area fallback does not expose raw coordinates or use them as a durable follow id", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const body = script.slice(
     script.indexOf("function renderTransientAreaContent"),
     script.indexOf("function openTransientAreaSheet"),
@@ -607,7 +630,7 @@ test("transient area fallback does not expose raw coordinates or use them as a d
 });
 
 test("transient area record CTA carries the stable region identity into the record flow", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const body = script.slice(
     script.indexOf("function renderTransientAreaContent"),
     script.indexOf("function openTransientAreaSheet"),
@@ -621,7 +644,7 @@ test("transient area record CTA carries the stable region identity into the reco
 });
 
 test("registered area record CTA carries the field identity into the record flow", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const body = script.slice(
     script.indexOf("function renderAreaSheet"),
     script.indexOf("function renderAreaTimeline"),
@@ -643,7 +666,7 @@ test("mobile place detail peek keeps the map visible", () => {
 });
 
 test("mobile area sheet opens as a draggable peek instead of a tiny bottom sliver", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /function showAreaBottomSheet\(\)/);
@@ -669,7 +692,7 @@ test("mobile area sheet opens as a draggable peek instead of a tiny bottom slive
 
 test("map home opens as a nearby-record tool instead of a raw point finder", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /me-map-kicker">探索する/);
@@ -677,7 +700,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
   assert.match(html, /aria-label="地図メニューを開く"/);
   assert.match(html, /class="me-start-panel-brief">記録・ガイド<\/span>/);
-  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">⌄<\/span>/);
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true"><svg\b[\s\S]*?<\/svg><\/span>/);
   assert.match(html, /近く/);
   assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
   assert.match(html, /記録/);
@@ -773,8 +796,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(script, /function dismissStartPanel\(\)/);
   assert.match(script, /function setStartPanelCollapsed\(collapsed\)/);
   assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
-  assert.match(script, /startPanelCloseEl\.querySelector\('\.me-start-panel-symbol'\)/);
-  assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '⌄' : '×';/);
+  assert.match(script, /startPanelCloseEl\.setAttribute\('aria-expanded', collapsed \? 'false' : 'true'\);/);
   assert.match(script, /var t = btn\.getAttribute\('data-tab'\);/);
   assert.match(script, /if \(!t\) return;/);
   assert.match(script, /function canShowPurposeHint\(\)/);
@@ -803,7 +825,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
 
 test("map explorer overlays signed-in owner observations separately from public cells", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(html, /data-api-my-observations="\/api\/v1\/map\/my-observations"/);
   assert.match(html, /id="me-own-trail"/);
@@ -917,7 +939,7 @@ test("map explorer overlays signed-in owner observations separately from public 
 });
 
 test("shared map state does not serialize private owner observation coordinates", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const serializeBody = script.slice(
     script.indexOf("function serializeMapState()"),
     script.indexOf("function saveMapState()"),
@@ -930,7 +952,7 @@ test("shared map state does not serialize private owner observation coordinates"
 });
 
 test("shared map state restores a selected public place without persisting raw place coordinates", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const serializeBody = script.slice(
     script.indexOf("function serializeMapState()"),
     script.indexOf("function saveMapState()"),
@@ -955,7 +977,7 @@ test("shared map state restores a selected public place without persisting raw p
 });
 
 test("map interactions persist the shareable viewport when moveend is absent", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const interactionBody = script.slice(
     script.indexOf("state.map.on('moveend', function ()"),
     script.indexOf("// Empty-point tap"),
@@ -968,7 +990,7 @@ test("map interactions persist the shareable viewport when moveend is absent", (
 
 test("map explorer exposes JMA rain overlay without making ikimon the forecaster", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(html, /id="me-rain-card"[^>]*hidden/);
   assert.match(html, /id="me-rain-toggle"[^>]*>更新</);
@@ -1024,7 +1046,7 @@ test("map explorer exposes JMA rain overlay without making ikimon the forecaster
 });
 
 test("area sheets gate contribution CTAs behind public access evidence", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function isSchoolArea\(area\)/);
   assert.match(script, /幼稚園\|保育園\|こども園\|学園/);
@@ -1069,7 +1091,7 @@ test("area sheets gate contribution CTAs behind public access evidence", () => {
 });
 
 test("area gallery empty state is localized without leaking Japanese guidance", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "en" });
+  const script = bootCombined({ basePath: "", lang: "en" });
 
   assert.match(script, /No records yet\. If the public scope and on-site rules are clear/);
   assert.match(script, /For safety and privacy, direct recording is not offered for this area/);
@@ -1086,7 +1108,7 @@ test("mobile map status clears the default area legend", () => {
 });
 
 test("locate action highlights nearby discoverable places on the map", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /nearbyAreasStatusTemplate/);
@@ -1107,7 +1129,7 @@ test("locate action highlights nearby discoverable places on the map", () => {
 });
 
 test("walk map candidates render as compact map markers from area-level hints", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /walkMapCandidateMarkers: \[\]/);
@@ -1131,7 +1153,7 @@ test("walk map candidates render as compact map markers from area-level hints", 
 });
 
 test("cell and blank map selections are aggregate and safety surfaces", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /title: COPY\.cellAggregateTitle/);
   assert.match(script, /badge: COPY\.cellAggregateBadge/);
@@ -1146,7 +1168,7 @@ test("cell and blank map selections are aggregate and safety surfaces", () => {
 });
 
 test("map comparison uses bounded public previews and excludes restricted areas and viewer-owned neighbors", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   assert.match(script, /return rendered \+ renderContextComparisonStrip\(context\)/);
   assert.match(script, /renderDetailVisitReasons\(detailContext\) \+\s+renderContextComparisonStrip\(detailContext\)/);
   const context = vm.createContext({
@@ -1206,7 +1228,7 @@ test("map empty and comparison guidance is localized across supported languages"
     ["pt-BR", "Opções próximas", "áreas privadas", "Comparar por perto"],
   ] as const;
   for (const [lang, emptyTitle, safety, comparison] of expected) {
-    const script = mapExplorerBootScript({ basePath: "", lang });
+    const script = bootCombined({ basePath: "", lang });
     assert.ok(script.includes(emptyTitle), `${lang} empty title`);
     assert.ok(script.includes(safety), `${lang} access guidance`);
     assert.ok(script.includes(comparison), `${lang} comparison title`);
@@ -1214,7 +1236,7 @@ test("map empty and comparison guidance is localized across supported languages"
 });
 
 test("area sheet includes local feedback surface", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function renderAreaPositiveFeedback/);
   assert.match(script, /viewerContribution/);
@@ -1229,7 +1251,7 @@ test("area sheet includes local feedback surface", () => {
 });
 
 test("map UX interactions emit area open and selected-place CTA KPI events", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /var UI_KPI_ENDPOINT = "\/api\/v1\/ui-kpi\/events"/);
   assert.match(script, /function sendMapKpi\(eventName, actionKey, metadata\)/);
@@ -1249,7 +1271,7 @@ test("map UX interactions emit area open and selected-place CTA KPI events", () 
 });
 
 test("area badge labels are not rendered as map markers", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function refreshAreaBadgeMarkers/);
   assert.match(script, /function refreshAreaBadgeMarkers\(\) \{\s*clearAreaBadgeMarkers\(\);\s*refreshNearbyAreaMarkers\(state\.nearbyAreaOrigin\);\s*\}/);
@@ -1264,7 +1286,7 @@ test("area badge labels are not rendered as map markers", () => {
 });
 
 test("guide spots advertise guide availability without area label badges", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /areaBadgeGuideLabel/);
   assert.match(script, /function renderGuideSpotMarker/);
@@ -1274,7 +1296,7 @@ test("guide spots advertise guide availability without area label badges", () =>
 });
 
 test("guide area badges are disabled in favor of guide spot pins", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.doesNotMatch(script, /GUIDE_BADGE_LABEL_ZOOM/);
@@ -1297,7 +1319,7 @@ test("guide area badges are disabled in favor of guide spot pins", () => {
 
 test("map guide spots render independently from area polygons", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /data-api-guide-spots="\/api\/v1\/map\/guide-spots"/);
@@ -1334,8 +1356,8 @@ test("map legend stays within the map viewport", () => {
 
 test("area legend explains place meanings and safety states", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
-  const enScript = mapExplorerBootScript({ basePath: "", lang: "en" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  const enScript = bootCombined({ basePath: "", lang: "en" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /id="me-legend-detail"/);
@@ -1364,7 +1386,7 @@ test("area legend explains place meanings and safety states", () => {
 
 test("layer tabs expose low-zoom guidance without a floating layer key", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(html, /id="me-layer-hint"/);
@@ -1408,7 +1430,7 @@ test("mobile map keeps two primary tabs and the existing advanced-layer selector
 });
 
 test("mobile map panels are mutually exclusive", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /var filterDrawerEl = document\.querySelector\('\.me-filter-drawer'\)/);
@@ -1420,7 +1442,7 @@ test("mobile map panels are mutually exclusive", () => {
 });
 
 test("result side panel groups dense records by date and normalizes candidate labels", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /function friendlyTaxonLabel\(label\)/);
@@ -1443,9 +1465,9 @@ test("result side panel groups dense records by date and normalizes candidate la
   assert.match(script, /function widenEmptyViewport\(\)/);
   assert.match(script, /function setResultsLoadState\(stateName, count\)/);
   assert.match(script, /function runInitialMapDataLoad\(reason\)/);
-  assert.match(script, /refreshDiscoveryPreviewMarkers\(\);\s+if \(state\.tab === 'markers' \|\| state\.tab === 'places' \|\| state\.tab === 'rain'\) loadGuideSpots\(\);\s+scheduleStartPanelRouteCandidates\(reason === 'load' \? 120 : 260\);/);
-  assert.match(script, /scheduleInitialMapDataLoad\(180\)/);
-  assert.match(script, /runInitialMapDataLoad\('load'\)/);
+  assert.match(script, /refreshDiscoveryPreviewMarkers\(\);\s+if \(state\.tab === 'markers' \|\| state\.tab === 'places' \|\| state\.tab === 'rain'\) loadGuideSpots\(\);\s+scheduleStartPanelRouteCandidates\(reason === 'load' \|\| reason === 'idle' \? 120 : 260\);/);
+  assert.match(script, /scheduleInitialMapDataLoad\(4500\)/);
+  assert.match(script, /runInitialMapDataLoad\('idle'\)/);
   assert.match(script, /function scheduleRecordsLoadWatchdog\(requestSeq, requestKey, scope\)/);
   assert.match(script, /function scheduleRecordsHardSettleWatchdog\(\)/);
   assert.match(script, /function recoverRecordsLoad\(requestSeq, requestKey, scope\)/);
@@ -1489,7 +1511,7 @@ test("result side panel groups dense records by date and normalizes candidate la
 });
 
 test("unified search separates current-area and other-area results", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(script, /searchGroupCurrent/);
@@ -1506,7 +1528,7 @@ test("unified search separates current-area and other-area results", () => {
 
 test("unified search prefers canonical registry aliases and keeps Nominatim as a bounded fallback", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(html, /data-api-place-search="\/api\/v1\/map\/place-search"/);
   assert.match(script, /function canonicalPlaceRows\(payload\)/);
@@ -1529,7 +1551,7 @@ test("unified search prefers canonical registry aliases and keeps Nominatim as a
 });
 
 test("place search selection opens the area encyclopedia around the result", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const placeBody = script.slice(
     script.indexOf("function buildPlaceSearchRows"),
     script.indexOf("function runUnifiedSearch"),
@@ -1572,7 +1594,7 @@ test("place search selection opens the area encyclopedia around the result", () 
 });
 
 test("place search origin stays local and is not persisted or sent as map telemetry", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const serializeBody = script.slice(
     script.indexOf("function serializeMapState"),
     script.indexOf("function saveMapState"),
@@ -1587,7 +1609,7 @@ test("place search origin stays local and is not persisted or sent as map teleme
 });
 
 test("map status distinguishes visible map readiness from record loading", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /"recordsLoading":"記録を読み込み中…"/);
   assert.match(script, /setStatus\(COPY\.recordsLoading\);/);
@@ -1595,7 +1617,7 @@ test("map status distinguishes visible map readiness from record loading", () =>
 });
 
 test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /id: fillId,\s+type: 'fill',\s+source: sourceId,\s+minzoom: 8,/);
   assert.match(script, /'blank', 'rgba\(100,116,139,0\.30\)'/);
@@ -1607,7 +1629,7 @@ test("frontier and heatmap layers gain stronger zoom-sensitive visual feedback",
 });
 
 test("area polygon selection reopens the side panel before showing selection", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const openAreaSheetBody = script.slice(script.indexOf("function openAreaSheet("), script.indexOf("function applyAreaSnapshot"));
 
   assert.match(script, /function openAreaFeatureSheet\(feature, lat, lng\)/);
@@ -1616,7 +1638,7 @@ test("area polygon selection reopens the side panel before showing selection", (
 });
 
 test("community photo selection keeps nearby map context and opens the side panel", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const selectRecordBody = script.slice(
     script.indexOf("function selectRecord(record, options)"),
     script.indexOf("function openBottomSheet(record)"),
@@ -1649,7 +1671,7 @@ test("community photo selection keeps nearby map context and opens the side pane
 });
 
 test("community photo preview markers stay compact while allowing more visible places", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /var maxCards = zoom >= 16 \? 18 : \(zoom >= 15 \? 14 : 10\);/);
   assert.match(script, /dedupeRecordsForSurface\(publicRecordsForSignedInSurface\(Array\.isArray\(state\.records\) \? state\.records\.slice\(\) : \[\]\), 'card'\)/);
@@ -1672,7 +1694,7 @@ test("community photo preview markers stay compact while allowing more visible p
 });
 
 test("Japanese map detail labels avoid service-authored motivation headings", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.doesNotMatch(script, /行きたくなる理由|また見たくなること|見に行く理由|歩く理由|近くで見えたもの|この場所で見えたもの/);
   assert.match(script, /"siteBriefWhyHereLabel":"記録"/);
@@ -1697,7 +1719,7 @@ test("map explorer keeps the map framed as a tool", () => {
 });
 
 test("default map surface uses a tiered simple vector style", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /url: 'https:\/\/tiles\.openfreemap\.org\/planet'/);
   assert.match(script, /glyphs: 'https:\/\/tiles\.openfreemap\.org\/fonts\/\{fontstack\}\/\{range\}\.pbf'/);
@@ -1740,7 +1762,7 @@ test("map explorer restores the quick record launcher on mobile only", () => {
 });
 
 test("mobile map filters open from the thumb zone above the record launcher", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   const styles = MAP_EXPLORER_STYLES;
 
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-filter-panel \{[\s\S]*position: fixed;[\s\S]*top: auto;[\s\S]*bottom: calc\(var\(--me-mobile-action-space\) \+ 8px\);[\s\S]*z-index: 80;/);
@@ -1763,7 +1785,7 @@ test("map explorer shows the map role without taking over the service subject", 
 });
 
 test("map explorer hides migration jargon and unidentified placeholders from public copy", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function publicBriefText/);
   assert.match(script, /Cloudflare\|互換表示\|移行中/);
@@ -1772,7 +1794,7 @@ test("map explorer hides migration jargon and unidentified placeholders from pub
 });
 
 test("area map labels and side cards expose organizer and encyclopedia shortcuts", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /areaBadgeEventLabel/);
   assert.match(script, /areaBadgeAlbumLabel/);
@@ -1792,7 +1814,7 @@ test("area map labels and side cards expose organizer and encyclopedia shortcuts
 });
 
 test("area sheet exposes on-site guide stops with geolocation-gated playback", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function renderAreaGuideStop\(source, center\)/);
   assert.match(script, /guide_stop_json/);
@@ -1810,7 +1832,7 @@ test("area sheet exposes on-site guide stops with geolocation-gated playback", (
 });
 
 test("map viewport movement refreshes stale result panels automatically", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /viewportRefreshTimer: null/);
   assert.match(script, /function refreshViewportSearchData\(\)/);
@@ -1820,17 +1842,17 @@ test("map viewport movement refreshes stale result panels automatically", () => 
 });
 
 test("map initial data load stays light and defers secondary panels", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /var VIEWPORT_RECORD_LIMIT = 600;/);
   assert.match(script, /var CELL_RECORD_LIMIT = 1500;/);
   assert.match(script, /var recordLimit = scope && scope\.cellId \? CELL_RECORD_LIMIT : VIEWPORT_RECORD_LIMIT;/);
   assert.match(script, /function deferMapTask\(fn, delay\)/);
-  assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \? 220 : 420\);/);
+  assert.match(script, /deferMapTask\(function \(\) \{[\s\S]*loadEffortSummary\(\);[\s\S]*loadTraces\(\);[\s\S]*\}, reason === 'load' \|\| reason === 'idle' \? 220 : 420\);/);
 });
 
 test("map uses nearby startup location while keeping record page location explicit", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function applyRestoredParams\(params, options\)/);
   assert.match(script, /var restoreViewport = !options \|\| options\.restoreViewport !== false;/);
@@ -1853,7 +1875,7 @@ test("map uses nearby startup location while keeping record page location explic
 });
 
 test("heatmap and rain tabs keep area polygons selectable", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /show\(areaLayers, tab === 'heatmap' \|\| tab === 'places' \|\| tab === 'rain'\);/);
   assert.match(script, /show\(areaLabelLayers, tab === 'places' \|\| tab === 'rain'\);/);
@@ -1869,7 +1891,7 @@ test("heatmap and rain tabs keep area polygons selectable", () => {
 });
 
 test("area density and labels are staged by zoom instead of appearing all at once", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /var areaLabelLayers = \['area-polygon-name-priority', 'area-polygon-name'\]/);
   assert.match(script, /id: 'area-polygon-name-priority'[\s\S]*?minzoom: 13\.2/);
@@ -1890,7 +1912,7 @@ test("area density and labels are staged by zoom instead of appearing all at onc
 });
 
 test("heatmap area filters keep osm parks as selectable anchors", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function areaSourcesQueryValueForMap\(\)/);
   assert.match(script, /state\.tab === 'heatmap' && sources\.length && sources\.indexOf\('osm_park'\) < 0/);
@@ -1899,7 +1921,7 @@ test("heatmap area filters keep osm parks as selectable anchors", () => {
 });
 
 test("observation cell clicks are not swallowed by administrative area polygons", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function pickConcreteAreaHit\(areaHits\)/);
   assert.match(script, /isAdministrativeAreaFeature\(feature\)/);
@@ -1909,7 +1931,7 @@ test("observation cell clicks are not swallowed by administrative area polygons"
 });
 
 test("overlapping observation cells and concrete areas show an explicit chooser", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /function showCellAreaChoice\(cellFeature, areaFeature, lngLat, options\)/);
   assert.match(script, /me-overlap-choice/);
@@ -1921,7 +1943,7 @@ test("overlapping observation cells and concrete areas show an explicit chooser"
 });
 
 test("small area outlines have a stable click hitbox across zoom levels", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /id: 'area-polygon-hitbox'/);
   assert.match(script, /'line-width': 14/);
@@ -1932,7 +1954,7 @@ test("small area outlines have a stable click hitbox across zoom levels", () => 
 });
 
 test("selected area polygon keeps a high-contrast double outline", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /id: 'area-polygon-selected-halo'/);
   assert.match(script, /'line-color': 'rgba\(255,255,255,0\.94\)'/);
@@ -1949,7 +1971,7 @@ test("selected area polygon keeps a high-contrast double outline", () => {
 });
 
 test("approximate school areas are not rendered as circular map ranges", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.match(script, /var VISIBLE_AREA_POLYGON_FILTER = \['!', \['all', \['==', \['get', 'source'\], 'school'\], \['==', \['get', 'approximate_boundary'\], true\]\]\]/);
   assert.match(script, /filter: VISIBLE_AREA_POLYGON_FILTER/);
@@ -1960,7 +1982,7 @@ test("approximate school areas are not rendered as circular map ranges", () => {
 
 test("map explorer omits visited place shortcuts while keeping side collapse control", () => {
   const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
 
   assert.doesNotMatch(html, /id="me-visited-panel"/);
   assert.doesNotMatch(html, /data-api-my-places/);
@@ -1979,7 +2001,7 @@ test("map explorer omits visited place shortcuts while keeping side collapse con
 });
 
 test("map guards addSource with style readiness, preloads MapLibre, and uses concise search placeholders", () => {
-  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const script = bootCombined({ basePath: "", lang: "ja" });
   assert.match(script, /function whenStyleReady\(map, fn\)/);
   assert.match(script, /map\.isStyleLoaded\(\)/);
   assert.match(script, /map\.once\('style\.load'/);
@@ -1993,9 +2015,30 @@ test("map guards addSource with style readiness, preloads MapLibre, and uses con
   ];
   for (const [lang, placeholder] of expectedPlaceholders) {
     const html = renderMapExplorer({ basePath: "", lang, years: [2026] });
-    assert.match(html, /<link rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/);
-    assert.match(html, /<link rel="preload" as="script" href="https:\/\/cdn\.jsdelivr\.net\/npm\/maplibre-gl@/);
+    assert.doesNotMatch(html, /cdn\.jsdelivr\.net/);
+    assert.match(html, /<link rel="preconnect" href="https:\/\/tiles\.openfreemap\.org"/);
+    assert.match(html, /<link rel="preload" as="script" href="\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.js"/);
+    assert.match(html, /<link rel="stylesheet" href="\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.css"/);
     assert.ok(html.includes(`placeholder="${placeholder}"`));
     assert.doesNotMatch(html, /placeholder="[^"]*(?:生きもの|species|especie|espécie)/i);
   }
+});
+
+test("map layer toggle uses inline SVG chevron, layer hint is a compact pill, and compact attribution avoids button overlap", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true"><svg\b/);
+  assert.doesNotMatch(html, /class="me-start-panel-symbol"[^>]*>⌄</);
+  assert.doesNotMatch(script, /startPanelSymbolEl\.textContent/);
+  assert.match(styles, /\.me-start-panel-close\[aria-expanded="true"\] \.me-start-panel-symbol svg/);
+
+  assert.doesNotMatch(html, /id="me-layer-hint-text"/);
+  assert.match(styles, /\.me-layer-hint \{[\s\S]*?border-radius: 999px;[\s\S]*?padding: 3px;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.me-layer-hint \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?padding: 3px;/);
+
+  assert.match(script, /attributionControl:\s*false/);
+  assert.match(script, /new window\.maplibregl\.AttributionControl\(\{\s*compact:\s*true\s*\}\)/);
+  assert.match(styles, /\.map-explorer \.maplibregl-ctrl-attrib\.maplibregl-compact\.maplibregl-compact-show\{padding:0 48px 0 10px\}/);
 });

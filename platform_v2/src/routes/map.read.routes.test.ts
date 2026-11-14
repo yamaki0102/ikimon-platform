@@ -12,7 +12,25 @@ test("map route keeps share-state plumbing in the shell", async () => {
     });
 
     assert.equal(response.statusCode, 200);
-    const html = response.body;
+    const rawHtml = response.body;
+    const bootScriptMatch = rawHtml.match(/<script\b[^>]*type="application\/json" id="me-boot-config">([\s\S]*?)<\/script>\s*<script\b[^>]*src="([^"]+)" defer[^>]*><\/script>/);
+    assert.ok(bootScriptMatch, "expected external deferred map boot script and JSON config");
+    assert.ok(Buffer.byteLength(bootScriptMatch[0], "utf8") < 15 * 1024, "inline map boot config must stay under 15 KB");
+    const bootJsRes = await app.inject({ method: "GET", url: bootScriptMatch[2] });
+    assert.equal(bootJsRes.statusCode, 200);
+    assert.equal(bootJsRes.headers["cache-control"], "public, max-age=31536000, immutable");
+
+    const maplibreCssMatch = rawHtml.match(/<link rel="stylesheet" href="(\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.css)" data-maplibre="1" \/>/);
+    const maplibreJsMatch = rawHtml.match(/<link rel="preload" as="script" href="(\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.js)" \/>/);
+    assert.ok(maplibreCssMatch && maplibreJsMatch, "expected self-hosted hashed MapLibre CSS and JS links");
+    const maplibreCssRes = await app.inject({ method: "GET", url: maplibreCssMatch[1] });
+    assert.equal(maplibreCssRes.statusCode, 200);
+    assert.equal(maplibreCssRes.headers["cache-control"], "public, max-age=31536000, immutable");
+    const maplibreJsRes = await app.inject({ method: "GET", url: maplibreJsMatch[1] });
+    assert.equal(maplibreJsRes.statusCode, 200);
+    assert.equal(maplibreJsRes.headers["cache-control"], "public, max-age=31536000, immutable");
+
+    const html = rawHtml + "\n" + bootJsRes.body;
     assert.match(html, /id="me-share-state"/);
     assert.match(html, /MapExplorerStateHelpers/);
     assert.match(html, /MAP_STATE_KEYS = \[[^\]]*"areas"/);

@@ -25,6 +25,8 @@ import {
   runPool,
 } from "./materialize-direct-r2-reuse.mjs";
 import { selectCoreMaterializationPaths } from "./materialization-target-selection.mjs";
+import { mapExplorerBootBundle } from "../../src/ui/mapExplorer.ts";
+import { MAPLIBRE_SELF_HOSTED_CSS, MAPLIBRE_SELF_HOSTED_JS } from "../../src/ui/mapExplorerAssets.ts";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -274,7 +276,10 @@ const staticAssetPaths = [
   "/assets/img/invasive/invasive-reptile-thumb.webp",
   "/assets/img/invasive/invasive-reptile.png",
   "/assets/img/invasive/invasive-spider-thumb.webp",
-  "/assets/img/invasive/invasive-spider.png"
+  "/assets/img/invasive/invasive-spider.png",
+  mapExplorerBootBundle().path,
+  MAPLIBRE_SELF_HOSTED_JS.path,
+  MAPLIBRE_SELF_HOSTED_CSS.path
 ];
 
 function normalizePublicPath(value) {
@@ -375,6 +380,7 @@ function staticContentType(pathname) {
   if (pathname.endsWith(".html")) return "text/html";
   if (pathname.endsWith(".txt")) return "text/plain";
   if (pathname.endsWith(".js")) return "application/javascript";
+  if (pathname.endsWith(".css")) return "text/css";
   if (pathname.endsWith(".xml")) return "application/xml";
   if (pathname.endsWith(".webmanifest")) return "application/manifest+json";
   if (pathname.endsWith(".ico")) return "image/x-icon";

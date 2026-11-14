@@ -177,6 +177,10 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /window\.clarity\('set', 'ikimon_action', params\.action_key\)/);
   assert.match(html, /www\.clarity\.ms\/tag/);
   assert.match(html, /wl2ezvfqbh/);
+  assert.match(html, /const loadAnalyticsScripts = \(\) => \{[\s\S]*googletagmanager\.com\/gtag\/js[\s\S]*www\.clarity\.ms\/tag/);
+  assert.match(html, /window\.setTimeout\(\(\) => \{\s*if \(typeof window\.requestIdleCallback === 'function'\)/);
+  assert.match(html, /\}, 3000\)/);
+  assert.match(html, /window\.addEventListener\('load', scheduleAnalyticsLoad, \{ once: true \}\)/);
   assert.match(html, /host !== 'ikimon\.life' && host !== 'www\.ikimon\.life'/);
   assert.match(html, /<span class="brand-logo-lockup"><img class="brand-lockup-img" src="\/assets\/brand\/zukan-lockup\.svg" alt="ZUKAN" width="150" height="32" \/><\/span>/);
   assert.equal((html.match(/class="brand-lockup-img"/g) ?? []).length, 1);

@@ -4262,18 +4262,41 @@ export function renderSiteDocument(options: SiteShellOptions): string {
   window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
   window.gtag('js', new Date());
   window.gtag('config', googleTagId);
+  window.clarity = window.clarity || function () { (window.clarity.q = window.clarity.q || []).push(arguments); };
   window.ikimonExternalAnalytics = { track: trackExternalAnalytics };
 
-  const googleScript = document.createElement('script');
-  googleScript.async = true;
-  googleScript.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(googleTagId);
-  document.head.appendChild(googleScript);
+  let analyticsLoaded = false;
+  const loadAnalyticsScripts = () => {
+    if (analyticsLoaded) return;
+    analyticsLoaded = true;
 
-  (function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments);};
-    t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-  })(window, document, 'clarity', 'script', ${JSON.stringify(IKIMON_CLARITY_PROJECT_ID)});
+    const googleScript = document.createElement('script');
+    googleScript.async = true;
+    googleScript.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(googleTagId);
+    document.head.appendChild(googleScript);
+
+    (function(c,l,a,r,i,t,y){
+      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments);};
+      t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;
+      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, 'clarity', 'script', ${JSON.stringify(IKIMON_CLARITY_PROJECT_ID)});
+  };
+
+  const scheduleAnalyticsLoad = () => {
+    window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(loadAnalyticsScripts, { timeout: 2000 });
+      } else {
+        loadAnalyticsScripts();
+      }
+    }, 3000);
+  };
+
+  if (document.readyState === 'complete') {
+    scheduleAnalyticsLoad();
+  } else {
+    window.addEventListener('load', scheduleAnalyticsLoad, { once: true });
+  }
 })();
 </script>`;
   const legacyServiceWorkerCleanupScript = `<script>

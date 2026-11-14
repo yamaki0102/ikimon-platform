@@ -90,7 +90,7 @@ test("records list cards use w320 thumbnail src with 320w/640w srcset, fixed box
   }
 });
 
-test("distinguishing line prefers safe coarse place, falls back to trimmed first line of public note, else nothing new, and hides protected locations", () => {
+test("distinguishing line prefers safe coarse place, falls back to public note, then safe AI/scene hint, else nothing, without repeating date", () => {
   const items = [
     {
       visitId: "rec-place",
@@ -101,6 +101,7 @@ test("distinguishing line prefers safe coarse place, falls back to trimmed first
       photoUrl: null,
       publicAreaLabel: "静岡県浜松市",
       publicNote: "これは出ないはずのノート",
+      aiCandidateLabel: "ドングリ",
     },
     {
       visitId: "rec-note",
@@ -111,6 +112,7 @@ test("distinguishing line prefers safe coarse place, falls back to trimmed first
       photoUrl: null,
       publicAreaLabel: null,
       publicNote: "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほ\n二行目は表示されない",
+      aiCandidateLabel: "ドングリ",
     },
     {
       visitId: "rec-sensitive-place",
@@ -123,6 +125,30 @@ test("distinguishing line prefers safe coarse place, falls back to trimmed first
       publicNote: "池のふちで鳴いていた",
     },
     {
+      visitId: "rec-ai-hint",
+      displayName: "名前待ち",
+      observedAt: "2026-09-30T00:00:00Z",
+      mediaKind: "photo" as const,
+      isAwaitingId: true,
+      photoUrl: null,
+      publicAreaLabel: null,
+      publicNote: null,
+      aiCandidateLabel: "ドングリ",
+      scenePlaceType: "grassland_urban_edge",
+    },
+    {
+      visitId: "rec-scene-hint",
+      displayName: "名前待ち",
+      observedAt: "2026-09-30T00:00:00Z",
+      mediaKind: "photo" as const,
+      isAwaitingId: true,
+      photoUrl: null,
+      publicAreaLabel: null,
+      publicNote: null,
+      aiCandidateLabel: null,
+      scenePlaceType: "grassland_urban_edge",
+    },
+    {
       visitId: "rec-none",
       displayName: "名前待ち",
       observedAt: "2026-09-30T00:00:00Z",
@@ -132,23 +158,46 @@ test("distinguishing line prefers safe coarse place, falls back to trimmed first
       publicAreaLabel: null,
       publicNote: null,
     },
+    {
+      visitId: "rec-identified",
+      displayName: "ニホンアマガエル",
+      observedAt: "2026-09-30T00:00:00Z",
+      mediaKind: "photo" as const,
+      isAwaitingId: false,
+      photoUrl: null,
+      publicAreaLabel: "静岡県浜松市",
+      publicNote: null,
+    },
   ];
 
   const html = renderRecordsProductSection(items as never, new URL("https://zukan.earth/ja/records?view=public"), "public", null);
   const cards = [...html.matchAll(/<a class="cf-records-native-card"[\s\S]*?<\/a>/g)].map((m) => m[0]);
-  assert.equal(cards.length, 4);
+  assert.equal(cards.length, 7);
 
-  assert.match(cards[0]!, /9月30日 · 静岡県浜松市/);
-  assert.doesNotMatch(cards[0]!, /これは出ないはずのノート/);
+  assert.match(cards[0]!, /<strong>写真 · 9月30日<\/strong><span>静岡県浜松市<\/span><span>名前は未確認<\/span>/);
+  assert.doesNotMatch(cards[0]!, /これは出ないはずのノート|ドングリ/);
+  assert.equal(cards[0]!.match(/9月30日/g)?.length, 1);
 
-  assert.match(cards[1]!, /9月30日 · あいうえおかきくけこさしすせそたちつてとなにぬね…/);
-  assert.doesNotMatch(cards[1]!, /はひふへほ|二行目/);
+  assert.match(cards[1]!, /<strong>写真 · 9月30日<\/strong><span>あいうえおかきくけこさしすせそたちつてとなにぬね…<\/span>/);
+  assert.doesNotMatch(cards[1]!, /はひふへほ|二行目|ドングリ/);
+  assert.equal(cards[1]!.match(/9月30日/g)?.length, 1);
 
   assert.doesNotMatch(cards[2]!, /西小学校|1-2-3|位置を保護/);
-  assert.match(cards[2]!, /9月30日 · 池のふちで鳴いていた/);
+  assert.match(cards[2]!, /<strong>写真 · 9月30日<\/strong><span>池のふちで鳴いていた<\/span>/);
+  assert.equal(cards[2]!.match(/9月30日/g)?.length, 1);
 
-  assert.doesNotMatch(cards[3]!, /位置を保護/);
-  assert.match(cards[3]!, /<span>9月30日<\/span>/);
+  assert.match(cards[3]!, /<strong>写真 · 9月30日<\/strong><span>ドングリかもしれません<\/span><span>名前は未確認<\/span>/);
+  assert.doesNotMatch(cards[3]!, /草地と市街地/);
+  assert.equal(cards[3]!.match(/9月30日/g)?.length, 1);
+
+  assert.match(cards[4]!, /<strong>写真 · 9月30日<\/strong><span>草地と市街地の境界のようです<\/span><span>名前は未確認<\/span>/);
+  assert.equal(cards[4]!.match(/9月30日/g)?.length, 1);
+
+  assert.doesNotMatch(cards[5]!, /位置を保護/);
+  assert.match(cards[5]!, /<strong>写真 · 9月30日<\/strong><span>名前は未確認<\/span>/);
+  assert.equal(cards[5]!.match(/9月30日/g)?.length, 1);
+
+  assert.match(cards[6]!, /<strong>ニホンアマガエル<\/strong><span>9月30日 · 静岡県浜松市<\/span>/);
 });
 
 test("derived-transform route supports w320 and w640 widths", async () => {
@@ -234,6 +283,7 @@ test("public records route loads safe coarse place and public note without leaki
     assert.match(html, /\/derived-transform\/w320\/derived\/import\/20260930\/observation_photo\/a1\/display\.webp/);
     assert.match(html, /浜松市/);
     assert.match(html, /川辺の葦原で撮影/);
+    assert.doesNotMatch(html, /<span>9月30日<\/span>/);
     assert.doesNotMatch(html, /詳細メモ|test@example\.com|秘密のプライベートメモ|自宅付近|位置を保護/);
   } finally {
     sqlite.close();

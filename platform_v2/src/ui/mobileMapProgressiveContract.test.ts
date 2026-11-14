@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./mapExplorer.js";
+import { MAP_EXPLORER_STYLES, mapExplorerBootScriptSource, renderMapExplorer } from "./mapExplorer.js";
 
 const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026, 2025] });
 const styles = MAP_EXPLORER_STYLES;
-const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+const script = mapExplorerBootScriptSource();
 const stagingSpec = readFileSync(new URL("../../e2e/map.staging.spec.ts", import.meta.url), "utf8");
 
 test("mobile map exposes two primary layers and one advanced-layer selector in the drawer", () => {

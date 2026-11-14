@@ -1,7 +1,15 @@
+import { createHash } from "node:crypto";
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import { overlaysForLang, type LocalizedOverlay } from "../services/layerCatalog.js";
+import {
+  MAPLIBRE_CSS_SRI,
+  MAPLIBRE_JS_SRI,
+  MAPLIBRE_SELF_HOSTED_CSS,
+  MAPLIBRE_SELF_HOSTED_JS,
+  type HashedStaticAsset,
+} from "./mapExplorerAssets.js";
 import {
   buildOfficialNoticeClientRenderer,
   getOfficialNoticeRenderCopy,
@@ -1359,7 +1367,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <strong>${escapeHtml(startPanelTitle)}</strong>
         <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
           <span class="me-start-panel-brief">${escapeHtml(startPanelBrief)}</span>
-          <span class="me-start-panel-symbol" aria-hidden="true">⌄</span>
+          <span class="me-start-panel-symbol" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
       </div>
       <div class="me-start-panel-grid">
@@ -1591,10 +1599,9 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Explorar locais no mapa"
         : "Explore places on the map";
 
-  return `<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous" referrerpolicy="no-referrer" data-maplibre="1" />
-  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  return `<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  <link rel="stylesheet" href="${escapeHtml(withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_CSS.path))}" data-maplibre="1" />
+  <link rel="preload" as="script" href="${escapeHtml(withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_JS.path))}" />
   <section class="section me-section map-explorer" data-side="rail" aria-label="${escapeHtml(mapRegionLabel)}">
     <div class="me-topbar">
       <div class="me-topbar-primary">
@@ -1819,7 +1826,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <div class="me-legend-detail is-hidden" id="me-legend-detail" aria-hidden="true"></div>
         </div>
         <div class="me-layer-hint is-hidden" id="me-layer-hint" aria-hidden="true" role="status">
-          <span id="me-layer-hint-text"></span>
           <button type="button" class="me-layer-hint-jump" id="me-layer-hint-jump">${escapeHtml(copy.layerHintJump)}</button>
           <button type="button" class="me-layer-hint-close" id="me-layer-hint-close" aria-label="${escapeHtml(copy.layerHintDismiss)}">×</button>
         </div>
@@ -1833,24 +1839,378 @@ export function renderMapExplorer(props: MapExplorerProps): string {
   </section>`;
 }
 
-export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
-  const copy = MAP_EXPLORER_COPY[props.lang];
-  const gbifTaxonGroupLabels = props.lang === "ja"
+function serializeJsonForHtmlScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+function buildMapExplorerClientCopy(lang: SiteLang) {
+  const copy = MAP_EXPLORER_COPY[lang];
+  const gbifTaxonGroupLabels = lang === "ja"
     ? { insect: "昆虫類", bird: "鳥類", plant: "植物", amphibian_reptile: "両生類・爬虫類", mammal: "哺乳類", fungi: "菌類", other: "その他の生物" }
-    : props.lang === "es"
+    : lang === "es"
       ? { insect: "Insectos", bird: "Aves", plant: "Plantas", amphibian_reptile: "Anfibios y reptiles", mammal: "Mamíferos", fungi: "Hongos", other: "Otros organismos" }
-      : props.lang === "pt-BR"
+      : lang === "pt-BR"
         ? { insect: "Insetos", bird: "Aves", plant: "Plantas", amphibian_reptile: "Anfíbios e répteis", mammal: "Mamíferos", fungi: "Fungos", other: "Outros organismos" }
         : { insect: "Insects", bird: "Birds", plant: "Plants", amphibian_reptile: "Amphibians and reptiles", mammal: "Mammals", fungi: "Fungi", other: "Other organisms" };
-  const ambient = ambientPanelLabels(props.lang);
-  const actor = actorPanelLabels(props.lang);
-  const noticeCopy = getOfficialNoticeRenderCopy(props.lang);
+  const ambient = ambientPanelLabels(lang);
+  const actor = actorPanelLabels(lang);
+  const noticeCopy = getOfficialNoticeRenderCopy(lang);
+  return {
+    loading: copy.loading,
+    recordsLoading: copy.recordsLoading,
+    empty: copy.empty,
+    emptyTitle: copy.emptyTitle,
+    emptyLead: copy.emptyLead,
+    emptyActionAreas: copy.emptyActionAreas,
+    emptyActionWiden: copy.emptyActionWiden,
+    emptyActionRecord: copy.emptyActionRecord,
+    comparisonTitle: copy.comparisonTitle,
+    comparisonAreaLabel: copy.comparisonAreaLabel,
+    comparisonRecordLabel: copy.comparisonRecordLabel,
+    comparisonSeasonLabel: copy.comparisonSeasonLabel,
+    comparisonAreaEmpty: copy.comparisonAreaEmpty,
+    comparisonRecordEmpty: copy.comparisonRecordEmpty,
+    comparisonSeasonEmpty: copy.comparisonSeasonEmpty,
+    comparisonSafetyNote: copy.comparisonSafetyNote,
+    statsTemplate: "__RETURNED__ / __TOTAL__",
+    recentFindsHint: copy.recentFindsHint,
+    coverageLegendLow: copy.coverageLegendLow,
+    coverageLegendHigh: copy.coverageLegendHigh,
+    heatmapLegendLow: copy.heatmapLegendLow,
+    heatmapLegendHigh: copy.heatmapLegendHigh,
+    areaTrustLegendLow: copy.areaTrustLegendLow,
+    areaTrustLegendHigh: copy.areaTrustLegendHigh,
+    areaLegendConfirmedLabel: copy.areaLegendConfirmedLabel,
+    areaLegendConfirmedHint: copy.areaLegendConfirmedHint,
+    areaLegendPendingLabel: copy.areaLegendPendingLabel,
+    areaLegendPendingHint: copy.areaLegendPendingHint,
+    areaLegendParkLabel: copy.areaLegendParkLabel,
+    areaLegendParkHint: copy.areaLegendParkHint,
+    areaLegendSchoolLabel: copy.areaLegendSchoolLabel,
+    areaLegendSchoolHint: copy.areaLegendSchoolHint,
+    areaLegendWaterLabel: copy.areaLegendWaterLabel,
+    areaLegendWaterHint: copy.areaLegendWaterHint,
+    layerHintPlaces: copy.layerHintPlaces,
+    layerHintFrontier: copy.layerHintFrontier,
+    layerHintHeatmap: copy.layerHintHeatmap,
+    layerHintJump: copy.layerHintJump,
+    purposeHintTitle: copy.purposeHintTitle,
+    purposeHintBody: copy.purposeHintBody,
+    purposeHintDismiss: copy.purposeHintDismiss,
+    legendLabel: copy.legendLabel,
+    popupOpenLabel: copy.popupOpenLabel,
+    bottomSheetRecord: copy.bottomSheetRecord,
+    bottomSheetNotes: copy.bottomSheetNotes,
+    bottomSheetLens: copy.bottomSheetLens,
+    bottomSheetScan: copy.bottomSheetScan,
+    bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
+    bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
+    bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
+    ownObservationStackSuffix: lang === "ja" ? "件" : lang === "es" ? " registros" : lang === "pt-BR" ? " registros" : " records",
+    ownObservationStackMore: lang === "ja" ? "ほか__COUNT__件" : lang === "es" ? "__COUNT__ más" : lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
+    ownObservationStackHeading: lang === "ja" ? "この場所で残した記録" : lang === "es" ? "Registros guardados aquí" : lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
+    ownObservationStackHint: lang === "ja" ? "自分にだけ正確な位置で表示しています。" : lang === "es" ? "Only you see these exact locations." : lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
+    ownObservationPublicApproxHint: lang === "ja" ? "公開マップではおおよその位置で表示されます。" : lang === "es" ? "On the public map, this is shown at an approximate location." : lang === "pt-BR" ? "No mapa publico, isto aparece em uma localizacao aproximada." : "On the public map, this is shown at an approximate location.",
+    ownObservationExactBadge: lang === "ja" ? "自分にだけ正確な位置" : lang === "es" ? "Exacto solo para ti" : lang === "pt-BR" ? "Exato so para voce" : "Exact for you only",
+    ownObservationStackOpen: lang === "ja" ? "開く" : lang === "es" ? "Abrir" : lang === "pt-BR" ? "Abrir" : "Open",
+    ownObservationTrailHeading: lang === "ja" ? "自分の撮影" : lang === "es" ? "Tus fotos" : lang === "pt-BR" ? "Suas fotos" : "Your photos",
+    siteBriefHeading: copy.siteBriefHeading,
+    siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
+    siteBriefChecksLabel: copy.siteBriefChecksLabel,
+    siteBriefCapturesLabel: copy.siteBriefCapturesLabel,
+    siteBriefEnvironmentLabel: copy.siteBriefEnvironmentLabel,
+    siteBriefWhyHereLabel: copy.siteBriefWhyHereLabel,
+    siteBriefWhyNowLabel: copy.siteBriefWhyNowLabel,
+    siteBriefOneVisitLabel: copy.siteBriefOneVisitLabel,
+    siteBriefNextHookLabel: copy.siteBriefNextHookLabel,
+    siteBriefLoading: copy.siteBriefLoading,
+    siteBriefError: copy.siteBriefError,
+    loopHookTravelerFallback: lang === "ja" ? "今回の 1 回を、次の寄り道の理由に変える" : lang === "es" ? "Convierte esta visita en motivo para volver" : lang === "pt-BR" ? "Transforme esta visita em motivo para voltar" : "Turn this one visit into a reason to return",
+    loopHookLocalFallback: lang === "ja" ? "次の人の手がかりを 1 行残す" : lang === "es" ? "Deja una pista breve para la siguiente persona" : lang === "pt-BR" ? "Deixe uma pista curta para a próxima pessoa" : "Leave one short clue for the next person",
+    loopHookLocalPrefix: lang === "ja" ? "次は " : lang === "es" ? "Lo siguiente: " : lang === "pt-BR" ? "Próximo: " : "Next: ",
+    searchNoResult: copy.searchNoResult,
+    searchError: copy.searchError,
+    searchPartial: copy.searchPartial,
+    searchRetry: copy.searchRetry,
+    searchResultSpecies: copy.searchResultSpecies,
+    searchResultPlace: copy.searchResultPlace,
+    unknownHypothesisLabel: copy.unknownHypothesisLabel,
+    recordingGapLabel: copy.recordingGapLabel,
+    selectedPointName: copy.selectedPointName,
+    areaRestrictedActionLabel: copy.areaRestrictedActionLabel,
+    areaRestrictedActionHint: copy.areaRestrictedActionHint,
+    areaSafeRecordLabel: copy.areaSafeRecordLabel,
+    areaGalleryEmptyPublicLead: copy.areaGalleryEmptyPublicLead,
+    areaGalleryEmptyPublicSafety: copy.areaGalleryEmptyPublicSafety,
+    areaGalleryEmptyPublicWiden: copy.areaGalleryEmptyPublicWiden,
+    areaGalleryEmptyRestrictedLead: copy.areaGalleryEmptyRestrictedLead,
+    areaGalleryEmptyRestrictedCheck: copy.areaGalleryEmptyRestrictedCheck,
+    areaGalleryEmptyRestrictedWiden: copy.areaGalleryEmptyRestrictedWiden,
+    areaGalleryEmptySchoolLead: copy.areaGalleryEmptySchoolLead,
+    areaGalleryEmptySchoolWiden: copy.areaGalleryEmptySchoolWiden,
+    areaNextStepEyebrow: copy.areaNextStepEyebrow,
+    areaNextStepRecordTitle: copy.areaNextStepRecordTitle,
+    areaNextStepRestrictedTitle: copy.areaNextStepRestrictedTitle,
+    areaNextStepScopeLine: copy.areaNextStepScopeLine,
+    areaNextStepRecordLine: copy.areaNextStepRecordLine,
+    areaNextStepFirstRecordLine: copy.areaNextStepFirstRecordLine,
+    areaNextStepBrowseLine: copy.areaNextStepBrowseLine,
+    areaNextStepGuideLine: copy.areaNextStepGuideLine,
+    areaNextStepRestrictedLine: copy.areaNextStepRestrictedLine,
+    areaNextStepRecordCta: copy.areaNextStepRecordCta,
+    areaSchoolNotice: copy.areaSchoolNotice,
+    cellAggregateTitle: copy.cellAggregateTitle,
+    cellAggregateBadge: copy.cellAggregateBadge,
+    cellAggregateSafety: copy.cellAggregateSafety,
+    gbifAreaTitle: copy.gbifAreaTitle,
+    gbifAreaBadge: copy.gbifAreaBadge,
+    gbifAreaLoading: copy.gbifAreaLoading,
+    gbifAreaEmpty: copy.gbifAreaEmpty,
+    gbifAreaSafety: copy.gbifAreaSafety,
+    gbifAreaLatestYearLabel: copy.gbifAreaLatestYearLabel,
+    gbifAreaRecordCountLabel: copy.gbifAreaRecordCountLabel,
+    gbifAreaTopTaxaLabel: copy.gbifAreaTopTaxaLabel,
+    gbifAreaSourceLabel: copy.gbifAreaSourceLabel,
+    gbifAreaSourceLink: copy.gbifAreaSourceLink,
+    mapPointSafety: copy.mapPointSafety,
+    osmAreaFallbackName: copy.osmAreaFallbackName,
+    osmAreaSourceLabel: copy.osmAreaSourceLabel,
+    areaLoading: copy.areaLoading,
+    unregisteredAreaText: copy.unregisteredAreaText,
+    mapLoadErrorTitle: copy.mapLoadErrorTitle,
+    mapLoadErrorBody: copy.mapLoadErrorBody,
+    mapLoadRetryLabel: copy.mapLoadRetryLabel,
+    mapLoadRecordsLabel: copy.mapLoadRecordsLabel,
+    locateError: copy.locateError,
+    yearAll: copy.yearAll,
+    seasonAll: copy.seasonAll,
+    seasonSpring: copy.seasonSpring,
+    seasonSummer: copy.seasonSummer,
+    seasonAutumn: copy.seasonAutumn,
+    seasonWinter: copy.seasonWinter,
+    shareCopied: copy.shareCopied,
+    shareError: copy.shareError,
+    gbifTaxonGroupLabels: gbifTaxonGroupLabels,
+    rainNow: lang === "ja" ? "現在" : lang === "es" ? "Ahora" : lang === "pt-BR" ? "Agora" : "Now",
+    rainMinute: lang === "ja" ? "__MIN__分後" : lang === "es" ? "+__MIN__ min" : lang === "pt-BR" ? "+__MIN__ min" : "+__MIN__ min",
+    rainHour: lang === "ja" ? "__HOUR__時間後" : lang === "es" ? "+__HOUR__ h" : lang === "pt-BR" ? "+__HOUR__ h" : "+__HOUR__ h",
+    rainLoading: lang === "ja" ? "気象庁データを読み込み中…" : lang === "es" ? "Cargando datos JMA…" : lang === "pt-BR" ? "Carregando dados JMA…" : "Loading JMA data…",
+    rainUnavailable: lang === "ja" ? "雨雲を取得できませんでした。時間をおいて確認してください。" : lang === "es" ? "No se pudo cargar la lluvia. Inténtalo más tarde." : lang === "pt-BR" ? "Não foi possível carregar a chuva. Tente mais tarde." : "Rain data could not be loaded. Try again later.",
+    rainCheckLoading: lang === "ja" ? "この地点の雨雲を確認中…" : lang === "es" ? "Comprobando este punto…" : lang === "pt-BR" ? "Verificando este ponto…" : "Checking this point…",
+    rainAtNow: lang === "ja" ? "この地点は現在、降水域に重なっています。" : lang === "es" ? "Este punto está bajo precipitación ahora." : lang === "pt-BR" ? "Este ponto está sob precipitação agora." : "This point is under precipitation now.",
+    rainWithin: lang === "ja" ? "この地点は__TIME__までに降水域へ入る見込みです。" : lang === "es" ? "Este punto entrará en precipitación hacia __TIME__." : lang === "pt-BR" ? "Este ponto deve entrar em precipitação em __TIME__." : "This point is expected to enter precipitation by __TIME__.",
+    rainClear: lang === "ja" ? "この地点に重なる降水域は6時間先まで見当たりません。" : lang === "es" ? "No se ve precipitación sobre este punto hasta 6 h." : lang === "pt-BR" ? "Não há precipitação sobre este ponto até 6 h." : "No precipitation is shown over this point through 6 h.",
+    rainIndeterminate: lang === "ja" ? "この地点の雨雲判定を完了できませんでした。" : lang === "es" ? "No se pudo completar la comprobación de este punto." : lang === "pt-BR" ? "Não foi possível completar a verificação deste ponto." : "This point check could not be completed.",
+    rainMapCenter: lang === "ja" ? "地図中心" : lang === "es" ? "centro del mapa" : lang === "pt-BR" ? "centro do mapa" : "map center",
+    rainLocationFallback: lang === "ja" ? "現在地を使えないため、地図中心の雨雲を確認します。" : lang === "es" ? "No se pudo usar tu ubicación; se comprobará el centro del mapa." : lang === "pt-BR" ? "Não foi possível usar sua localização; vamos verificar o centro do mapa." : "Location is unavailable, so the map center will be checked.",
+    rainForecastNotice: lang === "ja" ? "ZUKAN独自予報ではありません。強い雨・雷は公式情報も確認してください。" : lang === "es" ? "No es un pronóstico de ZUKAN. Revisa avisos oficiales si hay lluvia fuerte o tormentas." : lang === "pt-BR" ? "Não é previsão do ZUKAN. Consulte alertas oficiais em chuva forte ou trovoadas." : "This is not a ZUKAN forecast. Check official alerts for heavy rain or thunder.",
+    rainAttribution: lang === "ja" ? "出典: 気象庁。ZUKAN独自予報ではありません。強い雨・雷は公式情報も確認してください。" : lang === "es" ? "Source: JMA. This is not a ZUKAN forecast. Check official alerts for storms." : lang === "pt-BR" ? "Fonte: JMA. Não é previsão do ZUKAN. Consulte alertas oficiais." : "Source: JMA. This is not a ZUKAN forecast. Check official alerts.",
+    selfLabel: ambient.selfLabel,
+    communityLabel: ambient.communityLabel,
+    frontierLabel: ambient.frontierLabel,
+    roleCardLabel: ambient.roleCardLabel,
+    roleLabel: ambient.roleLabel,
+    roleOptions: ambient.roles,
+    actorLabel: actor.actorLabel,
+    actorOptions: actor.actors,
+    actorLensLabel: lang === "ja" ? "見る人" : lang === "es" ? "Lente elegido" : lang === "pt-BR" ? "Lente ativa" : "Active lens",
+    actor_all: lang === "ja" ? "すべて" : lang === "es" ? "Todo" : lang === "pt-BR" ? "Tudo" : "All",
+    actor_local_steward: lang === "ja" ? "地域で暮らす人" : lang === "es" ? "Cuidador local" : lang === "pt-BR" ? "Guardião local" : "Local steward",
+    actor_traveler: lang === "ja" ? "訪れた人" : lang === "es" ? "Viajero" : lang === "pt-BR" ? "Viajante" : "Traveler",
+    actor_casual: lang === "ja" ? "散歩中の人" : lang === "es" ? "Casual" : lang === "pt-BR" ? "Casual" : "Casual",
+    actorHint_all: lang === "ja" ? "地図全体のまだ知らない場所を眺める" : lang === "es" ? "Mirar lugares por conocer en todo el mapa" : lang === "pt-BR" ? "Ver lugares a conhecer no mapa todo" : "Browse unknown places across the map",
+    actorHint_local_steward: lang === "ja" ? "同じ場所を続けて見る" : lang === "es" ? "Mirar para volver y cuidar" : lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
+    actorHint_traveler: lang === "ja" ? "一度の訪問で開ける空白を探す" : lang === "es" ? "Buscar huecos para una sola visita" : lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
+    actorHint_casual: lang === "ja" ? "生活動線の近くにある余白を見る" : lang === "es" ? "Ver lugares pendientes cerca de la rutina" : lang === "pt-BR" ? "Ver lugares pendentes perto da rotina" : "Look for nearby everyday gaps",
+    roleHintScan: lang === "ja" ? "気になる余白を見に行くなら周辺を散歩" : lang === "es" ? "Pasea alrededor para conocer huecos" : lang === "pt-BR" ? "Caminhe ao redor para conhecer vazios" : "Walk nearby to explore the blank spots",
+    roleHintGuide: lang === "ja" ? "確度を上げるならその場で調べる" : lang === "es" ? "Consulta en el sitio para subir la certeza" : lang === "pt-BR" ? "Verifique no local para subir a certeza" : "Check on site to raise certainty",
+    roleHintNote: lang === "ja" ? "比較可能にするなら記録に残す" : lang === "es" ? "Deja una nota para hacerlo comparable" : lang === "pt-BR" ? "Registre em nota para tornar comparável" : "Leave a note to make it revisitable",
+    roleHintMixed: lang === "ja" ? "今日は周辺写真・足元動画・メモ1行で進める" : lang === "es" ? "Hoy avanza con una foto amplia, un video corto y una nota" : lang === "pt-BR" ? "Hoje avance com uma foto ampla, um vídeo curto e uma nota" : "Use one wide photo, a short clip, and a note today",
+    axis_scan_pass: lang === "ja" ? "まだ歩かれていない道がある" : lang === "es" ? "Quedan caminos poco recorridos" : lang === "pt-BR" ? "Ainda há caminhos pouco vistos" : "some paths are still little explored",
+    axis_guide_scene: lang === "ja" ? "現地で見たい手がかりがある" : lang === "es" ? "Hay pistas para ver en sitio" : lang === "pt-BR" ? "Há pistas para ver no local" : "there are clues to see on site",
+    axis_revisit_note: lang === "ja" ? "また行くと変化が見えそう" : lang === "es" ? "Volver puede mostrar cambios" : lang === "pt-BR" ? "Voltar pode mostrar mudanças" : "returning could reveal changes",
+    contributorBand_0: lang === "ja" ? "まだ集計なし" : lang === "es" ? "Sin agregado aún" : lang === "pt-BR" ? "Sem agregado ainda" : "No aggregate yet",
+    contributorBand_1_2: lang === "ja" ? "1-2人ほど" : lang === "es" ? "1-2 personas" : lang === "pt-BR" ? "1-2 pessoas" : "about 1-2 people",
+    contributorBand_3_5: lang === "ja" ? "3-5人ほど" : lang === "es" ? "3-5 personas" : lang === "pt-BR" ? "3-5 pessoas" : "about 3-5 people",
+    contributorBand_6p: lang === "ja" ? "6人以上" : lang === "es" ? "6 o más" : lang === "pt-BR" ? "6 ou mais" : "6+ people",
+    winsLabel: lang === "ja" ? "前進" : lang === "es" ? "Avances" : lang === "pt-BR" ? "Avanços" : "wins",
+    revisitLabel: lang === "ja" ? "再訪地点" : lang === "es" ? "Revisitas" : lang === "pt-BR" ? "Revisitas" : "revisits",
+    communityStrengthLabel: lang === "ja" ? "最近記録が増えた帯" : lang === "es" ? "Áreas reforzadas" : lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
+    communityProgressLabel: lang === "ja" ? "共同前進" : lang === "es" ? "Progreso colectivo" : lang === "pt-BR" ? "Progresso coletivo" : "collective progress",
+    aggregateContributorLabel: lang === "ja" ? "集計された記録者" : lang === "es" ? "personas agregadas" : lang === "pt-BR" ? "pessoas agregadas" : "aggregated contributors",
+    frontierBlankLabel: lang === "ja" ? "まだ知らない場所" : lang === "es" ? "lugares por conocer" : lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
+    frontierBuildingLabel: lang === "ja" ? "記録少なめ" : lang === "es" ? "en construcción" : lang === "pt-BR" ? "em construção" : "building",
+    frontierRepeatableLabel: lang === "ja" ? "比較可能" : lang === "es" ? "comparables" : lang === "pt-BR" ? "comparáveis" : "repeatable",
+    frontierMatureLabel: lang === "ja" ? "記録多め" : lang === "es" ? "maduras" : lang === "pt-BR" ? "maduras" : "mature",
+    campaign_scan_blank: lang === "ja" ? "まだ知らない場所をひとつ見に行く" : lang === "es" ? "Visitar un lugar por conocer" : lang === "pt-BR" ? "Visitar um lugar a conhecer" : "Visit one unknown place",
+    campaign_guide_building: lang === "ja" ? "記録が少ない場所を確かめる" : lang === "es" ? "Subir la certeza de zonas en crecimiento" : lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
+    campaign_note_repeatable: lang === "ja" ? "比較できる場所に記録を足す" : lang === "es" ? "Hacer más densa una zona repetible" : lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
+    campaign_mixed_frontier: lang === "ja" ? "気になる場所の見え方を少し増やす" : lang === "es" ? "Añadir más mirada a un lugar curioso" : lang === "pt-BR" ? "Adicionar mais olhar a um lugar curioso" : "Add another view to a curious place",
+    priorityCueLabel: lang === "ja" ? "優先理由" : lang === "es" ? "prioridad" : lang === "pt-BR" ? "prioridade" : "priority",
+    priority_steady_revisit: lang === "ja" ? "同じ場所で比べる" : lang === "es" ? "Engrosar con revisitas" : lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
+    priority_fresh_gap: lang === "ja" ? "新しい空白を開く" : lang === "es" ? "Abrir un hueco nuevo" : lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
+    priority_nearby_gap: lang === "ja" ? "近くにまだ知らない場所がある" : lang === "es" ? "Hay lugares cercanos por conocer" : lang === "pt-BR" ? "Há lugares perto para conhecer" : "There are unknown places nearby",
+    remainingLabel: lang === "ja" ? "まだ知らない場所" : lang === "es" ? "lugares por conocer" : lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
+    aggregateModeNote: lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : lang === "es" ? "Solo agregados del área, no personas concretas" : lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
+    impactPanelTitleMine: lang === "ja" ? "自分の記録から見えること" : lang === "es" ? "Cómo ayudan tus registros" : lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
+    impactPanelTitleGuest: lang === "ja" ? "この地域で見えてきたこと" : lang === "es" ? "Lo que se ve en esta zona" : lang === "pt-BR" ? "O que aparece nesta área" : "What appears in this area",
+    impactPanelLoading: lang === "ja" ? "この範囲の記録を読み込み中…" : lang === "es" ? "Leyendo registros de esta zona…" : lang === "pt-BR" ? "Lendo registros desta área…" : "Loading records in this area…",
+    impactRevisitStory: lang === "ja" ? "同じ場所を比べられるようになった" : lang === "es" ? "Hizo posible comparar el mismo lugar" : lang === "pt-BR" ? "Tornou possível comparar o mesmo lugar" : "Made the same place comparable",
+    impactGuideStory: lang === "ja" ? "ガイド記録で季節の手がかりが増えた" : lang === "es" ? "La guía añadió pistas de temporada" : lang === "pt-BR" ? "O guia adicionou pistas da estação" : "Guide records added seasonal clues",
+    impactScanStory: lang === "ja" ? "スキャンで未調査エリアが見えた" : lang === "es" ? "El escaneo mostró huecos por explorar" : lang === "pt-BR" ? "O escaneamento mostrou áreas a explorar" : "Scans revealed places still to explore",
+    impactBlankStory: lang === "ja" ? "この場所の空白を埋める候補が見えた" : lang === "es" ? "Aparecieron huecos que se pueden completar" : lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
+    impactCommunityStory: lang === "ja" ? "最近、記録が増えた場所" : lang === "es" ? "Lugares que se hicieron más claros hace poco" : lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
+    impactPrivateNote: lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : lang === "es" ? "Se muestra solo agregado del área, no nombres." : lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
+    searchArea: lang === "ja" ? "この範囲で再検索" : lang === "es" ? "Buscar en esta área" : lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
+    resultHeading: lang === "ja" ? "近くの発見" : lang === "es" ? "Hallazgos cercanos" : lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
+    resultCountLabel: lang === "ja" ? "件を表示中" : lang === "es" ? "resultados visibles" : lang === "pt-BR" ? "resultados visíveis" : "results visible",
+    movedHint: lang === "ja" ? "地図を動かした。結果を更新するには押す。" : lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
+    areaActivityRallyTitle: copy.activityRallyTitle,
+    areaActivityRallyBody: copy.activityRallyBody,
+    areaActivityRallyMeta: copy.activityRallyMeta,
+    areaActivityRallyLinkLabel: copy.activityRallyLinkLabel,
+    selectHint: lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
+    overlapChoiceTitle: lang === "ja" ? "どちらを開く？" : lang === "es" ? "¿Qué abrir?" : lang === "pt-BR" ? "O que abrir?" : "What should open?",
+    overlapChoiceCell: lang === "ja" ? "四角を選ぶ" : lang === "es" ? "Elegir celda" : lang === "pt-BR" ? "Escolher célula" : "Select cell",
+    overlapChoiceArea: lang === "ja" ? "エリアを開く" : lang === "es" ? "Abrir área" : lang === "pt-BR" ? "Abrir área" : "Open area",
+    placeHint: lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
+    selectedCardLabel: lang === "ja" ? "詳細を見る" : lang === "es" ? "Ver detalle" : lang === "pt-BR" ? "Ver detalhes" : "Open detail",
+    identifyLabel: lang === "ja" ? "名前を手伝う" : lang === "es" ? "Identificar" : lang === "pt-BR" ? "Identificar" : "Identify",
+    selectedFieldLabel: lang === "ja" ? "この場所の見え方" : lang === "es" ? "Cómo se ve este lugar" : lang === "pt-BR" ? "Como este lugar aparece" : "How this place reads",
+    selectedRoleLead: lang === "ja" ? "手がかり" : lang === "es" ? "Pistas" : lang === "pt-BR" ? "Pistas" : "Clues",
+    selectionObservationLabel: lang === "ja" ? "選択中の観察" : lang === "es" ? "Observación seleccionada" : lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
+    selectionPlaceLabel: lang === "ja" ? "地図の手がかり" : lang === "es" ? "Pistas del mapa" : lang === "pt-BR" ? "Pistas do mapa" : "Map clues",
+    awaitingIdLabel: lang === "ja" ? "名前はあとで確認" : lang === "es" ? "Sin identificar" : lang === "pt-BR" ? "Sem identificação" : "Needs name",
+    aiCandidateLabel: lang === "ja" ? "AI候補" : lang === "es" ? "Candidato IA" : lang === "pt-BR" ? "Candidato de IA" : "AI candidate",
+    recentDiscoveryFallback: lang === "ja" ? "最近の発見" : lang === "es" ? "Hallazgo reciente" : lang === "pt-BR" ? "Descoberta recente" : "Recent find",
+    discoveryFallback: lang === "ja" ? "発見" : lang === "es" ? "Hallazgo" : lang === "pt-BR" ? "Descoberta" : "Find",
+    resultGroupedByDate: lang === "ja" ? "日付ごと" : lang === "es" ? "por fecha" : lang === "pt-BR" ? "por data" : "by date",
+    resultGroupUnknownDate: lang === "ja" ? "日付不明" : lang === "es" ? "Fecha desconocida" : lang === "pt-BR" ? "Data desconhecida" : "Unknown date",
+    searchGroupCurrent: lang === "ja" ? "この範囲" : lang === "es" ? "En esta zona" : lang === "pt-BR" ? "Nesta área" : "In this area",
+    searchGroupOther: lang === "ja" ? "他の地域" : lang === "es" ? "Otras zonas" : lang === "pt-BR" ? "Outras áreas" : "Other areas",
+    searchRecentPrefix: lang === "ja" ? "直近" : lang === "es" ? "Último" : lang === "pt-BR" ? "Recente" : "Latest",
+    openDiscoverySuffix: lang === "ja" ? "を開く" : lang === "es" ? ": abrir" : lang === "pt-BR" ? ": abrir" : " - open",
+    walkableFindsAria: lang === "ja" ? "徒歩5分圏の発見" : lang === "es" ? "Hallazgos a cinco minutos a pie" : lang === "pt-BR" ? "Descobertas a cinco minutos a pé" : "Finds within a five-minute walk",
+    walkableFindsTitle: lang === "ja" ? "近くの記録" : lang === "es" ? "Lo visto cerca" : lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
+    nearDistanceImmediate: lang === "ja" ? "すぐ近く" : lang === "es" ? "muy cerca" : lang === "pt-BR" ? "bem perto" : "nearby",
+    nearDistanceApproxPrefix: lang === "ja" ? "約" : lang === "es" ? "aprox. " : lang === "pt-BR" ? "aprox. " : "about ",
+    placeStoryTitle: lang === "ja" ? "この場所" : lang === "es" ? "Historia del lugar" : lang === "pt-BR" ? "História do local" : "Place story",
+    placeStoryNow: lang === "ja" ? "今見られるもの" : lang === "es" ? "Lo que se puede ver ahora" : lang === "pt-BR" ? "O que dá para ver agora" : "What you may find now",
+    placeStoryRecent: lang === "ja" ? "最近の発見" : lang === "es" ? "Hallazgos recientes" : lang === "pt-BR" ? "Descobertas recentes" : "Recent finds",
+    placeStoryMissing: lang === "ja" ? "この場所で足りない記録" : lang === "es" ? "Registros que faltan aquí" : lang === "pt-BR" ? "Registros que faltam aqui" : "What is missing here",
+    placeStoryActions: lang === "ja" ? "次にできること" : lang === "es" ? "Qué hacer después" : lang === "pt-BR" ? "O que fazer a seguir" : "What to do next",
+    placeStoryNoTaxa: lang === "ja" ? "まだ代表種は少ない。まず写真で場所の様子を残せます。" : lang === "es" ? "Aún hay pocos taxones destacados. Una foto puede mostrar el lugar." : lang === "pt-BR" ? "Ainda há poucos grupos destacados. Uma foto pode mostrar o local." : "Few featured taxa yet. A photo can show the place.",
+    placeStoryNeedSeason: lang === "ja" ? "季節をまたいだ記録があると、変化が見えやすくなります。" : lang === "es" ? "Más estaciones hacen más visible el cambio." : lang === "pt-BR" ? "Mais estações tornam a mudança mais visível." : "More seasons make change easier to see.",
+    placeStoryNeedGuide: lang === "ja" ? "現地ガイドがある場所は、その場の手がかりを開けます。" : lang === "es" ? "Donde hay guía, puedes abrir pistas del lugar." : lang === "pt-BR" ? "Onde há guia, você pode abrir pistas do local." : "Where guides exist, you can open place clues.",
+    guideStopEyebrow: lang === "ja" ? "現地ガイド" : lang === "es" ? "Guía en sitio" : lang === "pt-BR" ? "Guia no local" : "On-site guide",
+    guideStopNearLabel: lang === "ja" ? "この場所で聞けます" : lang === "es" ? "Disponible aquí" : lang === "pt-BR" ? "Disponível aqui" : "Available here",
+    guideStopFarLabel: lang === "ja" ? "近づくと聞けます" : lang === "es" ? "Acércate para escuchar" : lang === "pt-BR" ? "Aproxime-se para ouvir" : "Move closer to listen",
+    guideStopLocate: lang === "ja" ? "現在地で確認" : lang === "es" ? "Comprobar ubicación" : lang === "pt-BR" ? "Verificar localização" : "Check location",
+    guideStopPlay: lang === "ja" ? "この場所で聞く" : lang === "es" ? "Escuchar aquí" : lang === "pt-BR" ? "Ouvir aqui" : "Listen here",
+    guideStopStop: lang === "ja" ? "停止" : lang === "es" ? "Detener" : lang === "pt-BR" ? "Parar" : "Stop",
+    guideStopPermissionPrompt: lang === "ja" ? "現在地を許可すると、再生できる距離か確認します。" : lang === "es" ? "Permite la ubicación para saber si puedes reproducirlo." : lang === "pt-BR" ? "Permita a localização para saber se já pode reproduzir." : "Allow location to check whether this can play.",
+    guideStopDistanceTemplate: lang === "ja" ? "近さを粗く確認して、再生できる状態だけ表示します。" : lang === "es" ? "La cercanía se comprueba de forma aproximada." : lang === "pt-BR" ? "A proximidade é verificada de forma aproximada." : "Nearby access is checked approximately.",
+    guideStopFarTemplate: lang === "ja" ? "もう少し近づくと聞けます。" : lang === "es" ? "Acércate un poco más para escucharlo." : lang === "pt-BR" ? "Aproxime-se um pouco mais para ouvir." : "Move a little closer to listen.",
+    guideStopVeryNearLabel: lang === "ja" ? "すぐ近くです" : lang === "es" ? "Muy cerca" : lang === "pt-BR" ? "Bem perto" : "Very nearby",
+    guideSpotClusterLabel: lang === "ja" ? "この周辺のガイド" : lang === "es" ? "Guías cercanas" : lang === "pt-BR" ? "Guias próximos" : "Nearby guides",
+    guideStopApprovalOwner: lang === "ja" ? "管理者承認済み" : lang === "es" ? "Aprobado por el gestor" : lang === "pt-BR" ? "Aprovado pelo gestor" : "Manager approved",
+    guideStopUnsupported: lang === "ja" ? "このブラウザでは音声再生に対応していません。" : lang === "es" ? "Este navegador no admite reproducción por voz." : lang === "pt-BR" ? "Este navegador não oferece reprodução por voz." : "This browser does not support speech playback.",
+    areaBadgeGuideLabel: lang === "ja" ? "ガイド" : lang === "es" ? "Guía" : lang === "pt-BR" ? "Guia" : "Guide",
+    coverSourceAdmin: lang === "ja" ? "管理者が選んだ代表写真" : lang === "es" ? "Foto destacada por el gestor" : lang === "pt-BR" ? "Foto escolhida pelo gestor" : "Manager-picked cover photo",
+    coverSourceCommunity: lang === "ja" ? "みんなが選んだ代表写真" : lang === "es" ? "Foto destacada por la comunidad" : lang === "pt-BR" ? "Foto escolhida pela comunidade" : "Community-picked cover photo",
+    coverSourceAuto: lang === "ja" ? "最近の発見から自動選定" : lang === "es" ? "Elegida automáticamente de hallazgos recientes" : lang === "pt-BR" ? "Escolhida automaticamente de descobertas recentes" : "Auto-picked from recent finds",
+    coverFallbackTitle: lang === "ja" ? "代表写真" : lang === "es" ? "Foto del lugar" : lang === "pt-BR" ? "Foto do local" : "Place photo",
+    areaGalleryTitle: lang === "ja" ? "このエリアで観察されたもの" : lang === "es" ? "Observado en esta zona" : lang === "pt-BR" ? "Observado nesta área" : "Observed in this area",
+    areaGalleryLead: lang === "ja" ? "写真と記録から、この場所の顔をざっと見る。" : lang === "es" ? "Ver rápidamente la cara del lugar desde fotos y registros." : lang === "pt-BR" ? "Ver rapidamente a cara do lugar por fotos e registros." : "Scan the place through photos and records.",
+    areaGalleryEmpty: lang === "ja" ? "まだ記録がありません。近くの写真やガイドを探せます。" : lang === "es" ? "Aún no hay registros. Puedes buscar fotos o guías cercanas." : lang === "pt-BR" ? "Ainda não há registros. Você pode buscar fotos ou guias próximos." : "No records yet. Browse nearby photos or guides.",
+    areaGalleryCountSuffix: lang === "ja" ? "件" : lang === "es" ? " registros" : lang === "pt-BR" ? " registros" : " records",
+    areaSeasonNow: lang === "ja" ? "今の季節" : lang === "es" ? "Temporada actual" : lang === "pt-BR" ? "Estação atual" : "This season",
+    areaTabRepresentative: lang === "ja" ? "代表種" : lang === "es" ? "Representativas" : lang === "pt-BR" ? "Representativas" : "Representative",
+    areaTabRecent: lang === "ja" ? "最近増えた" : lang === "es" ? "Recientes" : lang === "pt-BR" ? "Recentes" : "Recent rise",
+    areaTabMissing: lang === "ja" ? "未記録季節" : lang === "es" ? "Temporadas vacías" : lang === "pt-BR" ? "Estações vazias" : "Season gaps",
+    areaMissingSeasonLead: lang === "ja" ? "まだ少ない季節があります。近くの写真や記録を探せます。" : lang === "es" ? "Faltan algunas estaciones. Puedes buscar fotos o registros cercanos." : lang === "pt-BR" ? "Faltam algumas estações. Você pode buscar fotos ou registros próximos." : "Some seasons are sparse. Browse nearby photos or records.",
+    areaCompleteSeasonLead: lang === "ja" ? "四季の記録があります。同じ季節の違いも見られます。" : lang === "es" ? "Hay registros de las cuatro estaciones. También se ven diferencias dentro de una estación." : lang === "pt-BR" ? "Há registros das quatro estações. Também aparecem diferenças dentro da mesma estação." : "All seasons have records. Same-season differences can also show.",
+    areaPublicPageLabel: lang === "ja" ? "エリア図鑑を見る" : lang === "es" ? "Ver álbum del área" : lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
+    areaEventCreateLabel: lang === "ja" ? "主催者の方へ" : lang === "es" ? "Para organizadores" : lang === "pt-BR" ? "Para organizadores" : "For organizers",
+    areaBadgeEventLabel: lang === "ja" ? "主催者" : lang === "es" ? "Organizadores" : lang === "pt-BR" ? "Organizadores" : "Organizers",
+    areaBadgeAlbumLabel: lang === "ja" ? "エリア図鑑" : lang === "es" ? "Álbum" : lang === "pt-BR" ? "Álbum" : "Area album",
+    areaEventCreateHint: lang === "ja" ? "観察会や投稿ラリーを、地域の活動として扱う入口です。" : lang === "es" ? "Entrada para tratar salidas y rallies como actividades locales." : lang === "pt-BR" ? "Entrada para tratar eventos e rallies como atividades locais." : "A guide for handling events and posting rallies as local activities.",
+    areaPositiveTitleMine: lang === "ja" ? "このエリアで見えてきたこと" : lang === "es" ? "Lo que se va viendo aquí" : lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
+    areaPositiveTitleGuest: lang === "ja" ? "みんなの記録で見えてきたこと" : lang === "es" ? "Lo que los registros muestran" : lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
+    areaPositiveViewer: lang === "ja" ? "あなたの視点" : lang === "es" ? "Tu mirada" : lang === "pt-BR" ? "Seu olhar" : "Your perspective",
+    areaPositiveViewerGuest: lang === "ja" ? "このエリアの視点" : lang === "es" ? "Miradas de esta zona" : lang === "pt-BR" ? "Olhares desta área" : "Area perspective",
+    areaPositiveThanks: lang === "ja" ? "あなたの記録から" : lang === "es" ? "Gracias a tus registros" : lang === "pt-BR" ? "Graças aos seus registros" : "Because of your records",
+    areaPositiveThanksGuest: lang === "ja" ? "みんなの記録から" : lang === "es" ? "Gracias a todos" : lang === "pt-BR" ? "Graças a todos" : "Because of everyone",
+    areaPositiveCommunity: lang === "ja" ? "みんなの視点" : lang === "es" ? "Mirada colectiva" : lang === "pt-BR" ? "Olhar coletivo" : "Everyone's perspective",
+    areaPositiveOverlap: lang === "ja" ? "重なると見えること" : lang === "es" ? "Lo que aparece al combinarse" : lang === "pt-BR" ? "O que aparece quando se junta" : "What overlap reveals",
+    areaPositiveMineRecords: lang === "ja" ? "自分の記録を見る" : lang === "es" ? "Revisar mis registros" : lang === "pt-BR" ? "Rever meus registros" : "Review my records",
+    areaPositiveCommunityRecords: lang === "ja" ? "みんなの記録を見る" : lang === "es" ? "Ver registros de todos" : lang === "pt-BR" ? "Ver registros de todos" : "Browse community records",
+    areaPositiveEyebrow: lang === "ja" ? "記録の手応え" : lang === "es" ? "Eco de tus registros" : lang === "pt-BR" ? "Sinal dos registros" : "Record feedback",
+    areaPositivePeopleSuffix: lang === "ja" ? "人" : lang === "es" ? " personas" : lang === "pt-BR" ? " pessoas" : " people",
+    areaPositiveVisitSuffix: lang === "ja" ? "回" : lang === "es" ? " visitas" : lang === "pt-BR" ? " visitas" : " visits",
+    placeActionRecord: lang === "ja" ? "この場所で記録" : lang === "es" ? "Registrar aquí" : lang === "pt-BR" ? "Registrar aqui" : "Record here",
+    placeActionNearby: lang === "ja" ? "近くを探索" : lang === "es" ? "Explorar cerca" : lang === "pt-BR" ? "Explorar perto" : "Explore nearby",
+    placeActionGuide: lang === "ja" ? "ガイドで探す" : lang === "es" ? "Buscar con guía" : lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
+    placeActionScan: lang === "ja" ? "スキャンする" : lang === "es" ? "Escanear" : lang === "pt-BR" ? "Escanear" : "Scan here",
+    placeActionFollow: lang === "ja" ? "この場所の更新を追う" : lang === "es" ? "Seguir las novedades de este lugar" : lang === "pt-BR" ? "Acompanhar atualizações deste local" : "Follow updates for this place",
+    nearbyAreasStatusTemplate: lang === "ja" ? "現在地の近くで __COUNT__ 件のエリアを見つけられます" : lang === "es" ? "__COUNT__ áreas visibles cerca de tu ubicación" : lang === "pt-BR" ? "__COUNT__ áreas visíveis perto da sua localização" : "__COUNT__ discoverable areas near you",
+    nearbyAreasNoneStatus: lang === "ja" ? "近くのエリアはまだ薄いです。少し広げると入口が見つかるかもしれません。" : lang === "es" ? "Todavía hay pocas áreas cerca. Amplía un poco para encontrar entradas." : lang === "pt-BR" ? "Ainda há poucas áreas perto. Amplie um pouco para encontrar entradas." : "Nearby areas are still thin. Widen the view to find entries.",
+    nearbyAreaMarkerLabel: lang === "ja" ? "近くのエリア" : lang === "es" ? "Área cercana" : lang === "pt-BR" ? "Área próxima" : "Nearby area",
+    nearbyAreaPublicLabel: lang === "ja" ? "一般公開" : lang === "es" ? "Acceso público" : lang === "pt-BR" ? "Acesso público" : "Public",
+    nearbyAreaSchoolLabel: lang === "ja" ? "安全確認" : lang === "es" ? "Revisar seguridad" : lang === "pt-BR" ? "Verificar segurança" : "Check safety",
+    nearbyAreaRestrictedLabel: lang === "ja" ? "要確認" : lang === "es" ? "Revisar" : lang === "pt-BR" ? "Verificar" : "Check",
+    insightHeading: lang === "ja" ? "見えてきた範囲" : lang === "es" ? "Lo que ya se ve" : lang === "pt-BR" ? "O que já aparece" : "What is coming into view",
+    insightSubhead: lang === "ja" ? "この表示範囲の発見の気配を眺める。" : lang === "es" ? "Mira las señales de esta ventana." : lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
+  };
+}
+
+const MAP_EXPLORER_COPY_BY_LANG = {
+  ja: buildMapExplorerClientCopy("ja"),
+  en: buildMapExplorerClientCopy("en"),
+  es: buildMapExplorerClientCopy("es"),
+  "pt-BR": buildMapExplorerClientCopy("pt-BR"),
+};
+
+const MAP_EXPLORER_NOTICE_COPY_BY_LANG = {
+  ja: getOfficialNoticeRenderCopy("ja"),
+  en: getOfficialNoticeRenderCopy("en"),
+  es: getOfficialNoticeRenderCopy("es"),
+  "pt-BR": getOfficialNoticeRenderCopy("pt-BR"),
+};
+
+function buildMapExplorerBootConfig(props: { lang: SiteLang; basePath: string }) {
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
+  return {
+    searchLang: props.lang,
+    observationHrefTpl,
+    recordHref: appendLangToHref(withBasePath(props.basePath, "/record"), props.lang),
+    notesHref: appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang),
+    communityRecordsHref: appendLangToHref(withBasePath(props.basePath, "/records?view=public"), props.lang),
+    placeHrefPrefix: appendLangToHref(withBasePath(props.basePath, "/places/"), props.lang),
+    lensHref: appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang),
+    scanHref: appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang),
+    eventsOrganizerHref: appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang),
+    fieldsAlbumTpl: appendLangToHref(withBasePath(props.basePath, "/community/fields/__FIELD_ID__"), props.lang),
+    loginHref: appendLangToHref(withBasePath(props.basePath, "/login"), props.lang),
+    uiKpiEndpoint: withBasePath(props.basePath, "/api/v1/ui-kpi/events"),
+    maplibreCssHref: withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_CSS.path),
+    maplibreJsHref: withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_JS.path),
+  };
+}
 
-  // Everything client-side lives in one IIFE to avoid globals.
-  return `<script>
-(function () {
+let cachedMapExplorerBootBundle: HashedStaticAsset | null = null;
+
+export function mapExplorerBootScriptSource(): string {
+  return `(function () {
+  var CFG = {};
+  try {
+    var cfgEl = document.getElementById('me-boot-config');
+    if (cfgEl && cfgEl.textContent) CFG = JSON.parse(cfgEl.textContent);
+  } catch (_) { CFG = {}; }
   var root = document.getElementById('map-explorer');
   if (!root) return;
   var mapShellEl = root.closest('.me-section') || root.parentElement;
@@ -1968,347 +2328,46 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   var placeAtlasSeq = 0;
   var placeAtlasAbort = null;
 
-  var COPY = ${JSON.stringify({
-    loading: copy.loading,
-    recordsLoading: copy.recordsLoading,
-    empty: copy.empty,
-    emptyTitle: copy.emptyTitle,
-    emptyLead: copy.emptyLead,
-    emptyActionAreas: copy.emptyActionAreas,
-    emptyActionWiden: copy.emptyActionWiden,
-    emptyActionRecord: copy.emptyActionRecord,
-    comparisonTitle: copy.comparisonTitle,
-    comparisonAreaLabel: copy.comparisonAreaLabel,
-    comparisonRecordLabel: copy.comparisonRecordLabel,
-    comparisonSeasonLabel: copy.comparisonSeasonLabel,
-    comparisonAreaEmpty: copy.comparisonAreaEmpty,
-    comparisonRecordEmpty: copy.comparisonRecordEmpty,
-    comparisonSeasonEmpty: copy.comparisonSeasonEmpty,
-    comparisonSafetyNote: copy.comparisonSafetyNote,
-    statsTemplate: "__RETURNED__ / __TOTAL__",
-    recentFindsHint: copy.recentFindsHint,
-    coverageLegendLow: copy.coverageLegendLow,
-    coverageLegendHigh: copy.coverageLegendHigh,
-    heatmapLegendLow: copy.heatmapLegendLow,
-    heatmapLegendHigh: copy.heatmapLegendHigh,
-    areaTrustLegendLow: copy.areaTrustLegendLow,
-    areaTrustLegendHigh: copy.areaTrustLegendHigh,
-    areaLegendConfirmedLabel: copy.areaLegendConfirmedLabel,
-    areaLegendConfirmedHint: copy.areaLegendConfirmedHint,
-    areaLegendPendingLabel: copy.areaLegendPendingLabel,
-    areaLegendPendingHint: copy.areaLegendPendingHint,
-    areaLegendParkLabel: copy.areaLegendParkLabel,
-    areaLegendParkHint: copy.areaLegendParkHint,
-    areaLegendSchoolLabel: copy.areaLegendSchoolLabel,
-    areaLegendSchoolHint: copy.areaLegendSchoolHint,
-    areaLegendWaterLabel: copy.areaLegendWaterLabel,
-    areaLegendWaterHint: copy.areaLegendWaterHint,
-    layerHintPlaces: copy.layerHintPlaces,
-    layerHintFrontier: copy.layerHintFrontier,
-    layerHintHeatmap: copy.layerHintHeatmap,
-    layerHintJump: copy.layerHintJump,
-    purposeHintTitle: copy.purposeHintTitle,
-    purposeHintBody: copy.purposeHintBody,
-    purposeHintDismiss: copy.purposeHintDismiss,
-    legendLabel: copy.legendLabel,
-    popupOpenLabel: copy.popupOpenLabel,
-    bottomSheetRecord: copy.bottomSheetRecord,
-    bottomSheetNotes: copy.bottomSheetNotes,
-    bottomSheetLens: copy.bottomSheetLens,
-    bottomSheetScan: copy.bottomSheetScan,
-    bottomSheetCloseLabel: copy.bottomSheetCloseLabel,
-    bottomSheetExpandLabel: copy.bottomSheetExpandLabel,
-    bottomSheetCollapseLabel: copy.bottomSheetCollapseLabel,
-    ownObservationStackSuffix: props.lang === "ja" ? "件" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
-    ownObservationStackMore: props.lang === "ja" ? "ほか__COUNT__件" : props.lang === "es" ? "__COUNT__ más" : props.lang === "pt-BR" ? "mais __COUNT__" : "__COUNT__ more",
-    ownObservationStackHeading: props.lang === "ja" ? "この場所で残した記録" : props.lang === "es" ? "Registros guardados aquí" : props.lang === "pt-BR" ? "Registros salvos aqui" : "Records saved here",
-    ownObservationStackHint: props.lang === "ja" ? "自分にだけ正確な位置で表示しています。" : props.lang === "es" ? "Only you see these exact locations." : props.lang === "pt-BR" ? "Somente voce ve estes locais exatos." : "Only you see these exact locations.",
-    ownObservationPublicApproxHint: props.lang === "ja" ? "公開マップではおおよその位置で表示されます。" : props.lang === "es" ? "On the public map, this is shown at an approximate location." : props.lang === "pt-BR" ? "No mapa publico, isto aparece em uma localizacao aproximada." : "On the public map, this is shown at an approximate location.",
-    ownObservationExactBadge: props.lang === "ja" ? "自分にだけ正確な位置" : props.lang === "es" ? "Exacto solo para ti" : props.lang === "pt-BR" ? "Exato so para voce" : "Exact for you only",
-    ownObservationStackOpen: props.lang === "ja" ? "開く" : props.lang === "es" ? "Abrir" : props.lang === "pt-BR" ? "Abrir" : "Open",
-    ownObservationTrailHeading: props.lang === "ja" ? "自分の撮影" : props.lang === "es" ? "Tus fotos" : props.lang === "pt-BR" ? "Suas fotos" : "Your photos",
-    siteBriefHeading: copy.siteBriefHeading,
-    siteBriefReasonsLabel: copy.siteBriefReasonsLabel,
-    siteBriefChecksLabel: copy.siteBriefChecksLabel,
-    siteBriefCapturesLabel: copy.siteBriefCapturesLabel,
-    siteBriefEnvironmentLabel: copy.siteBriefEnvironmentLabel,
-    siteBriefWhyHereLabel: copy.siteBriefWhyHereLabel,
-    siteBriefWhyNowLabel: copy.siteBriefWhyNowLabel,
-    siteBriefOneVisitLabel: copy.siteBriefOneVisitLabel,
-    siteBriefNextHookLabel: copy.siteBriefNextHookLabel,
-    siteBriefLoading: copy.siteBriefLoading,
-    siteBriefError: copy.siteBriefError,
-    loopHookTravelerFallback: props.lang === "ja" ? "今回の 1 回を、次の寄り道の理由に変える" : props.lang === "es" ? "Convierte esta visita en motivo para volver" : props.lang === "pt-BR" ? "Transforme esta visita em motivo para voltar" : "Turn this one visit into a reason to return",
-    loopHookLocalFallback: props.lang === "ja" ? "次の人の手がかりを 1 行残す" : props.lang === "es" ? "Deja una pista breve para la siguiente persona" : props.lang === "pt-BR" ? "Deixe uma pista curta para a próxima pessoa" : "Leave one short clue for the next person",
-    loopHookLocalPrefix: props.lang === "ja" ? "次は " : props.lang === "es" ? "Lo siguiente: " : props.lang === "pt-BR" ? "Próximo: " : "Next: ",
-    searchNoResult: copy.searchNoResult,
-    searchError: copy.searchError,
-    searchPartial: copy.searchPartial,
-    searchRetry: copy.searchRetry,
-    searchResultSpecies: copy.searchResultSpecies,
-    searchResultPlace: copy.searchResultPlace,
-    unknownHypothesisLabel: copy.unknownHypothesisLabel,
-    recordingGapLabel: copy.recordingGapLabel,
-    selectedPointName: copy.selectedPointName,
-    areaRestrictedActionLabel: copy.areaRestrictedActionLabel,
-    areaRestrictedActionHint: copy.areaRestrictedActionHint,
-    areaSafeRecordLabel: copy.areaSafeRecordLabel,
-    areaGalleryEmptyPublicLead: copy.areaGalleryEmptyPublicLead,
-    areaGalleryEmptyPublicSafety: copy.areaGalleryEmptyPublicSafety,
-    areaGalleryEmptyPublicWiden: copy.areaGalleryEmptyPublicWiden,
-    areaGalleryEmptyRestrictedLead: copy.areaGalleryEmptyRestrictedLead,
-    areaGalleryEmptyRestrictedCheck: copy.areaGalleryEmptyRestrictedCheck,
-    areaGalleryEmptyRestrictedWiden: copy.areaGalleryEmptyRestrictedWiden,
-    areaGalleryEmptySchoolLead: copy.areaGalleryEmptySchoolLead,
-    areaGalleryEmptySchoolWiden: copy.areaGalleryEmptySchoolWiden,
-    areaNextStepEyebrow: copy.areaNextStepEyebrow,
-    areaNextStepRecordTitle: copy.areaNextStepRecordTitle,
-    areaNextStepRestrictedTitle: copy.areaNextStepRestrictedTitle,
-    areaNextStepScopeLine: copy.areaNextStepScopeLine,
-    areaNextStepRecordLine: copy.areaNextStepRecordLine,
-    areaNextStepFirstRecordLine: copy.areaNextStepFirstRecordLine,
-    areaNextStepBrowseLine: copy.areaNextStepBrowseLine,
-    areaNextStepGuideLine: copy.areaNextStepGuideLine,
-    areaNextStepRestrictedLine: copy.areaNextStepRestrictedLine,
-    areaNextStepRecordCta: copy.areaNextStepRecordCta,
-    areaSchoolNotice: copy.areaSchoolNotice,
-    cellAggregateTitle: copy.cellAggregateTitle,
-    cellAggregateBadge: copy.cellAggregateBadge,
-    cellAggregateSafety: copy.cellAggregateSafety,
-    gbifAreaTitle: copy.gbifAreaTitle,
-    gbifAreaBadge: copy.gbifAreaBadge,
-    gbifAreaLoading: copy.gbifAreaLoading,
-    gbifAreaEmpty: copy.gbifAreaEmpty,
-    gbifAreaSafety: copy.gbifAreaSafety,
-    gbifAreaLatestYearLabel: copy.gbifAreaLatestYearLabel,
-    gbifAreaRecordCountLabel: copy.gbifAreaRecordCountLabel,
-    gbifAreaTopTaxaLabel: copy.gbifAreaTopTaxaLabel,
-    gbifAreaSourceLabel: copy.gbifAreaSourceLabel,
-    gbifAreaSourceLink: copy.gbifAreaSourceLink,
-    mapPointSafety: copy.mapPointSafety,
-    osmAreaFallbackName: copy.osmAreaFallbackName,
-    osmAreaSourceLabel: copy.osmAreaSourceLabel,
-    areaLoading: copy.areaLoading,
-    unregisteredAreaText: copy.unregisteredAreaText,
-    mapLoadErrorTitle: copy.mapLoadErrorTitle,
-    mapLoadErrorBody: copy.mapLoadErrorBody,
-    mapLoadRetryLabel: copy.mapLoadRetryLabel,
-    mapLoadRecordsLabel: copy.mapLoadRecordsLabel,
-    locateError: copy.locateError,
-    yearAll: copy.yearAll,
-    seasonAll: copy.seasonAll,
-    seasonSpring: copy.seasonSpring,
-    seasonSummer: copy.seasonSummer,
-    seasonAutumn: copy.seasonAutumn,
-    seasonWinter: copy.seasonWinter,
-    shareCopied: copy.shareCopied,
-    shareError: copy.shareError,
-    gbifTaxonGroupLabels: gbifTaxonGroupLabels,
-    rainNow: props.lang === "ja" ? "現在" : props.lang === "es" ? "Ahora" : props.lang === "pt-BR" ? "Agora" : "Now",
-    rainMinute: props.lang === "ja" ? "__MIN__分後" : props.lang === "es" ? "+__MIN__ min" : props.lang === "pt-BR" ? "+__MIN__ min" : "+__MIN__ min",
-    rainHour: props.lang === "ja" ? "__HOUR__時間後" : props.lang === "es" ? "+__HOUR__ h" : props.lang === "pt-BR" ? "+__HOUR__ h" : "+__HOUR__ h",
-    rainLoading: props.lang === "ja" ? "気象庁データを読み込み中…" : props.lang === "es" ? "Cargando datos JMA…" : props.lang === "pt-BR" ? "Carregando dados JMA…" : "Loading JMA data…",
-    rainUnavailable: props.lang === "ja" ? "雨雲を取得できませんでした。時間をおいて確認してください。" : props.lang === "es" ? "No se pudo cargar la lluvia. Inténtalo más tarde." : props.lang === "pt-BR" ? "Não foi possível carregar a chuva. Tente mais tarde." : "Rain data could not be loaded. Try again later.",
-    rainCheckLoading: props.lang === "ja" ? "この地点の雨雲を確認中…" : props.lang === "es" ? "Comprobando este punto…" : props.lang === "pt-BR" ? "Verificando este ponto…" : "Checking this point…",
-    rainAtNow: props.lang === "ja" ? "この地点は現在、降水域に重なっています。" : props.lang === "es" ? "Este punto está bajo precipitación ahora." : props.lang === "pt-BR" ? "Este ponto está sob precipitação agora." : "This point is under precipitation now.",
-    rainWithin: props.lang === "ja" ? "この地点は__TIME__までに降水域へ入る見込みです。" : props.lang === "es" ? "Este punto entrará en precipitación hacia __TIME__." : props.lang === "pt-BR" ? "Este ponto deve entrar em precipitação em __TIME__." : "This point is expected to enter precipitation by __TIME__.",
-    rainClear: props.lang === "ja" ? "この地点に重なる降水域は6時間先まで見当たりません。" : props.lang === "es" ? "No se ve precipitación sobre este punto hasta 6 h." : props.lang === "pt-BR" ? "Não há precipitação sobre este ponto até 6 h." : "No precipitation is shown over this point through 6 h.",
-    rainIndeterminate: props.lang === "ja" ? "この地点の雨雲判定を完了できませんでした。" : props.lang === "es" ? "No se pudo completar la comprobación de este punto." : props.lang === "pt-BR" ? "Não foi possível completar a verificação deste ponto." : "This point check could not be completed.",
-    rainMapCenter: props.lang === "ja" ? "地図中心" : props.lang === "es" ? "centro del mapa" : props.lang === "pt-BR" ? "centro do mapa" : "map center",
-    rainLocationFallback: props.lang === "ja" ? "現在地を使えないため、地図中心の雨雲を確認します。" : props.lang === "es" ? "No se pudo usar tu ubicación; se comprobará el centro del mapa." : props.lang === "pt-BR" ? "Não foi possível usar sua localização; vamos verificar o centro do mapa." : "Location is unavailable, so the map center will be checked.",
-    rainForecastNotice: props.lang === "ja" ? "ZUKAN独自予報ではありません。強い雨・雷は公式情報も確認してください。" : props.lang === "es" ? "No es un pronóstico de ZUKAN. Revisa avisos oficiales si hay lluvia fuerte o tormentas." : props.lang === "pt-BR" ? "Não é previsão do ZUKAN. Consulte alertas oficiais em chuva forte ou trovoadas." : "This is not a ZUKAN forecast. Check official alerts for heavy rain or thunder.",
-    rainAttribution: props.lang === "ja" ? "出典: 気象庁。ZUKAN独自予報ではありません。強い雨・雷は公式情報も確認してください。" : props.lang === "es" ? "Source: JMA. This is not a ZUKAN forecast. Check official alerts for storms." : props.lang === "pt-BR" ? "Fonte: JMA. Não é previsão do ZUKAN. Consulte alertas oficiais." : "Source: JMA. This is not a ZUKAN forecast. Check official alerts.",
-    selfLabel: ambient.selfLabel,
-    communityLabel: ambient.communityLabel,
-    frontierLabel: ambient.frontierLabel,
-    roleCardLabel: ambient.roleCardLabel,
-    roleLabel: ambient.roleLabel,
-    roleOptions: ambient.roles,
-    actorLabel: actor.actorLabel,
-    actorOptions: actor.actors,
-    actorLensLabel: props.lang === "ja" ? "見る人" : props.lang === "es" ? "Lente elegido" : props.lang === "pt-BR" ? "Lente ativa" : "Active lens",
-    actor_all: props.lang === "ja" ? "すべて" : props.lang === "es" ? "Todo" : props.lang === "pt-BR" ? "Tudo" : "All",
-    actor_local_steward: props.lang === "ja" ? "地域で暮らす人" : props.lang === "es" ? "Cuidador local" : props.lang === "pt-BR" ? "Guardião local" : "Local steward",
-    actor_traveler: props.lang === "ja" ? "訪れた人" : props.lang === "es" ? "Viajero" : props.lang === "pt-BR" ? "Viajante" : "Traveler",
-    actor_casual: props.lang === "ja" ? "散歩中の人" : props.lang === "es" ? "Casual" : props.lang === "pt-BR" ? "Casual" : "Casual",
-    actorHint_all: props.lang === "ja" ? "地図全体のまだ知らない場所を眺める" : props.lang === "es" ? "Mirar lugares por conocer en todo el mapa" : props.lang === "pt-BR" ? "Ver lugares a conhecer no mapa todo" : "Browse unknown places across the map",
-    actorHint_local_steward: props.lang === "ja" ? "同じ場所を続けて見る" : props.lang === "es" ? "Mirar para volver y cuidar" : props.lang === "pt-BR" ? "Olhar para voltar e cuidar" : "Look as someone who will return",
-    actorHint_traveler: props.lang === "ja" ? "一度の訪問で開ける空白を探す" : props.lang === "es" ? "Buscar huecos para una sola visita" : props.lang === "pt-BR" ? "Buscar vazios de visita única" : "Look for gaps to open in one visit",
-    actorHint_casual: props.lang === "ja" ? "生活動線の近くにある余白を見る" : props.lang === "es" ? "Ver lugares pendientes cerca de la rutina" : props.lang === "pt-BR" ? "Ver lugares pendentes perto da rotina" : "Look for nearby everyday gaps",
-    roleHintScan: props.lang === "ja" ? "気になる余白を見に行くなら周辺を散歩" : props.lang === "es" ? "Pasea alrededor para conocer huecos" : props.lang === "pt-BR" ? "Caminhe ao redor para conhecer vazios" : "Walk nearby to explore the blank spots",
-    roleHintGuide: props.lang === "ja" ? "確度を上げるならその場で調べる" : props.lang === "es" ? "Consulta en el sitio para subir la certeza" : props.lang === "pt-BR" ? "Verifique no local para subir a certeza" : "Check on site to raise certainty",
-    roleHintNote: props.lang === "ja" ? "比較可能にするなら記録に残す" : props.lang === "es" ? "Deja una nota para hacerlo comparable" : props.lang === "pt-BR" ? "Registre em nota para tornar comparável" : "Leave a note to make it revisitable",
-    roleHintMixed: props.lang === "ja" ? "今日は周辺写真・足元動画・メモ1行で進める" : props.lang === "es" ? "Hoy avanza con una foto amplia, un video corto y una nota" : props.lang === "pt-BR" ? "Hoje avance com uma foto ampla, um vídeo curto e uma nota" : "Use one wide photo, a short clip, and a note today",
-    axis_scan_pass: props.lang === "ja" ? "まだ歩かれていない道がある" : props.lang === "es" ? "Quedan caminos poco recorridos" : props.lang === "pt-BR" ? "Ainda há caminhos pouco vistos" : "some paths are still little explored",
-    axis_guide_scene: props.lang === "ja" ? "現地で見たい手がかりがある" : props.lang === "es" ? "Hay pistas para ver en sitio" : props.lang === "pt-BR" ? "Há pistas para ver no local" : "there are clues to see on site",
-    axis_revisit_note: props.lang === "ja" ? "また行くと変化が見えそう" : props.lang === "es" ? "Volver puede mostrar cambios" : props.lang === "pt-BR" ? "Voltar pode mostrar mudanças" : "returning could reveal changes",
-    contributorBand_0: props.lang === "ja" ? "まだ集計なし" : props.lang === "es" ? "Sin agregado aún" : props.lang === "pt-BR" ? "Sem agregado ainda" : "No aggregate yet",
-    contributorBand_1_2: props.lang === "ja" ? "1-2人ほど" : props.lang === "es" ? "1-2 personas" : props.lang === "pt-BR" ? "1-2 pessoas" : "about 1-2 people",
-    contributorBand_3_5: props.lang === "ja" ? "3-5人ほど" : props.lang === "es" ? "3-5 personas" : props.lang === "pt-BR" ? "3-5 pessoas" : "about 3-5 people",
-    contributorBand_6p: props.lang === "ja" ? "6人以上" : props.lang === "es" ? "6 o más" : props.lang === "pt-BR" ? "6 ou mais" : "6+ people",
-    winsLabel: props.lang === "ja" ? "前進" : props.lang === "es" ? "Avances" : props.lang === "pt-BR" ? "Avanços" : "wins",
-    revisitLabel: props.lang === "ja" ? "再訪地点" : props.lang === "es" ? "Revisitas" : props.lang === "pt-BR" ? "Revisitas" : "revisits",
-    communityStrengthLabel: props.lang === "ja" ? "最近記録が増えた帯" : props.lang === "es" ? "Áreas reforzadas" : props.lang === "pt-BR" ? "Faixas fortalecidas" : "strengthened bands",
-    communityProgressLabel: props.lang === "ja" ? "共同前進" : props.lang === "es" ? "Progreso colectivo" : props.lang === "pt-BR" ? "Progresso coletivo" : "collective progress",
-    aggregateContributorLabel: props.lang === "ja" ? "集計された記録者" : props.lang === "es" ? "personas agregadas" : props.lang === "pt-BR" ? "pessoas agregadas" : "aggregated contributors",
-    frontierBlankLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
-    frontierBuildingLabel: props.lang === "ja" ? "記録少なめ" : props.lang === "es" ? "en construcción" : props.lang === "pt-BR" ? "em construção" : "building",
-    frontierRepeatableLabel: props.lang === "ja" ? "比較可能" : props.lang === "es" ? "comparables" : props.lang === "pt-BR" ? "comparáveis" : "repeatable",
-    frontierMatureLabel: props.lang === "ja" ? "記録多め" : props.lang === "es" ? "maduras" : props.lang === "pt-BR" ? "maduras" : "mature",
-    campaign_scan_blank: props.lang === "ja" ? "まだ知らない場所をひとつ見に行く" : props.lang === "es" ? "Visitar un lugar por conocer" : props.lang === "pt-BR" ? "Visitar um lugar a conhecer" : "Visit one unknown place",
-    campaign_guide_building: props.lang === "ja" ? "記録が少ない場所を確かめる" : props.lang === "es" ? "Subir la certeza de zonas en crecimiento" : props.lang === "pt-BR" ? "Aumentar a certeza das zonas em crescimento" : "Raise certainty in building areas",
-    campaign_note_repeatable: props.lang === "ja" ? "比較できる場所に記録を足す" : props.lang === "es" ? "Hacer más densa una zona repetible" : props.lang === "pt-BR" ? "Tornar mais espessa uma zona repetível" : "Thicken one repeatable area",
-    campaign_mixed_frontier: props.lang === "ja" ? "気になる場所の見え方を少し増やす" : props.lang === "es" ? "Añadir más mirada a un lugar curioso" : props.lang === "pt-BR" ? "Adicionar mais olhar a um lugar curioso" : "Add another view to a curious place",
-    priorityCueLabel: props.lang === "ja" ? "優先理由" : props.lang === "es" ? "prioridad" : props.lang === "pt-BR" ? "prioridade" : "priority",
-    priority_steady_revisit: props.lang === "ja" ? "同じ場所で比べる" : props.lang === "es" ? "Engrosar con revisitas" : props.lang === "pt-BR" ? "Espessar com revisitas" : "Thicken by revisiting",
-    priority_fresh_gap: props.lang === "ja" ? "新しい空白を開く" : props.lang === "es" ? "Abrir un hueco nuevo" : props.lang === "pt-BR" ? "Abrir um vazio novo" : "Open a fresh gap",
-    priority_nearby_gap: props.lang === "ja" ? "近くにまだ知らない場所がある" : props.lang === "es" ? "Hay lugares cercanos por conocer" : props.lang === "pt-BR" ? "Há lugares perto para conhecer" : "There are unknown places nearby",
-    remainingLabel: props.lang === "ja" ? "まだ知らない場所" : props.lang === "es" ? "lugares por conocer" : props.lang === "pt-BR" ? "lugares a conhecer" : "unknown places",
-    aggregateModeNote: props.lang === "ja" ? "他ユーザー個別ではなく、地域の集計だけを表示中" : props.lang === "es" ? "Solo agregados del área, no personas concretas" : props.lang === "pt-BR" ? "Somente agregados da área, sem pessoas específicas" : "Area aggregate only, no individual people shown",
-    impactPanelTitleMine: props.lang === "ja" ? "自分の記録から見えること" : props.lang === "es" ? "Cómo ayudan tus registros" : props.lang === "pt-BR" ? "Como seus registros ajudam" : "How your records help",
-    impactPanelTitleGuest: props.lang === "ja" ? "この地域で見えてきたこと" : props.lang === "es" ? "Lo que se ve en esta zona" : props.lang === "pt-BR" ? "O que aparece nesta área" : "What appears in this area",
-    impactPanelLoading: props.lang === "ja" ? "この範囲の記録を読み込み中…" : props.lang === "es" ? "Leyendo registros de esta zona…" : props.lang === "pt-BR" ? "Lendo registros desta área…" : "Loading records in this area…",
-    impactRevisitStory: props.lang === "ja" ? "同じ場所を比べられるようになった" : props.lang === "es" ? "Hizo posible comparar el mismo lugar" : props.lang === "pt-BR" ? "Tornou possível comparar o mesmo lugar" : "Made the same place comparable",
-    impactGuideStory: props.lang === "ja" ? "ガイド記録で季節の手がかりが増えた" : props.lang === "es" ? "La guía añadió pistas de temporada" : props.lang === "pt-BR" ? "O guia adicionou pistas da estação" : "Guide records added seasonal clues",
-    impactScanStory: props.lang === "ja" ? "スキャンで未調査エリアが見えた" : props.lang === "es" ? "El escaneo mostró huecos por explorar" : props.lang === "pt-BR" ? "O escaneamento mostrou áreas a explorar" : "Scans revealed places still to explore",
-    impactBlankStory: props.lang === "ja" ? "この場所の空白を埋める候補が見えた" : props.lang === "es" ? "Aparecieron huecos que se pueden completar" : props.lang === "pt-BR" ? "Apareceram vazios que podem ser preenchidos" : "Found gaps that can be filled",
-    impactCommunityStory: props.lang === "ja" ? "最近、記録が増えた場所" : props.lang === "es" ? "Lugares que se hicieron más claros hace poco" : props.lang === "pt-BR" ? "Lugares que ficaram mais claros recentemente" : "Places that became clearer recently",
-    impactPrivateNote: props.lang === "ja" ? "個人名ではなく、地域の集計だけで表示しています。" : props.lang === "es" ? "Se muestra solo agregado del área, no nombres." : props.lang === "pt-BR" ? "Mostramos apenas agregados da área, sem nomes." : "Only area aggregates are shown, not names.",
-    searchArea: props.lang === "ja" ? "この範囲で再検索" : props.lang === "es" ? "Buscar en esta área" : props.lang === "pt-BR" ? "Buscar nesta área" : "Search this area",
-    resultHeading: props.lang === "ja" ? "近くの発見" : props.lang === "es" ? "Hallazgos cercanos" : props.lang === "pt-BR" ? "Descobertas por perto" : "Nearby finds",
-    resultCountLabel: props.lang === "ja" ? "件を表示中" : props.lang === "es" ? "resultados visibles" : props.lang === "pt-BR" ? "resultados visíveis" : "results visible",
-    movedHint: props.lang === "ja" ? "地図を動かした。結果を更新するには押す。" : props.lang === "es" ? "Moviste el mapa. Pulsa para actualizar resultados." : props.lang === "pt-BR" ? "Você moveu o mapa. Toque para atualizar." : "Map moved. Press to refresh results.",
-    areaActivityRallyTitle: copy.activityRallyTitle,
-    areaActivityRallyBody: copy.activityRallyBody,
-    areaActivityRallyMeta: copy.activityRallyMeta,
-    areaActivityRallyLinkLabel: copy.activityRallyLinkLabel,
-    selectHint: props.lang === "ja" ? "エリアか一覧を選ぶと、ここに写真と次の行動が出る。" : props.lang === "es" ? "Elige un área o una fila para ver foto y siguiente acción." : props.lang === "pt-BR" ? "Escolha uma área ou item para ver foto e próxima ação." : "Pick an area or row to see the photo and next action.",
-    overlapChoiceTitle: props.lang === "ja" ? "どちらを開く？" : props.lang === "es" ? "¿Qué abrir?" : props.lang === "pt-BR" ? "O que abrir?" : "What should open?",
-    overlapChoiceCell: props.lang === "ja" ? "四角を選ぶ" : props.lang === "es" ? "Elegir celda" : props.lang === "pt-BR" ? "Escolher célula" : "Select cell",
-    overlapChoiceArea: props.lang === "ja" ? "エリアを開く" : props.lang === "es" ? "Abrir área" : props.lang === "pt-BR" ? "Abrir área" : "Open area",
-    placeHint: props.lang === "ja" ? "地図を押すと、その地点の仮説と次の行動をここに出す。" : props.lang === "es" ? "Toca el mapa para ver la hipótesis del lugar y la siguiente acción." : props.lang === "pt-BR" ? "Toque no mapa para ver a hipótese do lugar e a próxima ação." : "Tap the map to see the place hypothesis and next action.",
-    selectedCardLabel: props.lang === "ja" ? "詳細を見る" : props.lang === "es" ? "Ver detalle" : props.lang === "pt-BR" ? "Ver detalhes" : "Open detail",
-    identifyLabel: props.lang === "ja" ? "名前を手伝う" : props.lang === "es" ? "Identificar" : props.lang === "pt-BR" ? "Identificar" : "Identify",
-    selectedFieldLabel: props.lang === "ja" ? "この場所の見え方" : props.lang === "es" ? "Cómo se ve este lugar" : props.lang === "pt-BR" ? "Como este lugar aparece" : "How this place reads",
-    selectedRoleLead: props.lang === "ja" ? "手がかり" : props.lang === "es" ? "Pistas" : props.lang === "pt-BR" ? "Pistas" : "Clues",
-    selectionObservationLabel: props.lang === "ja" ? "選択中の観察" : props.lang === "es" ? "Observación seleccionada" : props.lang === "pt-BR" ? "Observação selecionada" : "Selected observation",
-    selectionPlaceLabel: props.lang === "ja" ? "地図の手がかり" : props.lang === "es" ? "Pistas del mapa" : props.lang === "pt-BR" ? "Pistas do mapa" : "Map clues",
-    awaitingIdLabel: props.lang === "ja" ? "名前はあとで確認" : props.lang === "es" ? "Sin identificar" : props.lang === "pt-BR" ? "Sem identificação" : "Needs name",
-    aiCandidateLabel: props.lang === "ja" ? "AI候補" : props.lang === "es" ? "Candidato IA" : props.lang === "pt-BR" ? "Candidato de IA" : "AI candidate",
-    recentDiscoveryFallback: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgo reciente" : props.lang === "pt-BR" ? "Descoberta recente" : "Recent find",
-    discoveryFallback: props.lang === "ja" ? "発見" : props.lang === "es" ? "Hallazgo" : props.lang === "pt-BR" ? "Descoberta" : "Find",
-    resultGroupedByDate: props.lang === "ja" ? "日付ごと" : props.lang === "es" ? "por fecha" : props.lang === "pt-BR" ? "por data" : "by date",
-    resultGroupUnknownDate: props.lang === "ja" ? "日付不明" : props.lang === "es" ? "Fecha desconocida" : props.lang === "pt-BR" ? "Data desconhecida" : "Unknown date",
-    searchGroupCurrent: props.lang === "ja" ? "この範囲" : props.lang === "es" ? "En esta zona" : props.lang === "pt-BR" ? "Nesta área" : "In this area",
-    searchGroupOther: props.lang === "ja" ? "他の地域" : props.lang === "es" ? "Otras zonas" : props.lang === "pt-BR" ? "Outras áreas" : "Other areas",
-    searchRecentPrefix: props.lang === "ja" ? "直近" : props.lang === "es" ? "Último" : props.lang === "pt-BR" ? "Recente" : "Latest",
-    openDiscoverySuffix: props.lang === "ja" ? "を開く" : props.lang === "es" ? ": abrir" : props.lang === "pt-BR" ? ": abrir" : " - open",
-    walkableFindsAria: props.lang === "ja" ? "徒歩5分圏の発見" : props.lang === "es" ? "Hallazgos a cinco minutos a pie" : props.lang === "pt-BR" ? "Descobertas a cinco minutos a pé" : "Finds within a five-minute walk",
-    walkableFindsTitle: props.lang === "ja" ? "近くの記録" : props.lang === "es" ? "Lo visto cerca" : props.lang === "pt-BR" ? "O que apareceu por perto" : "What appeared nearby",
-    nearDistanceImmediate: props.lang === "ja" ? "すぐ近く" : props.lang === "es" ? "muy cerca" : props.lang === "pt-BR" ? "bem perto" : "nearby",
-    nearDistanceApproxPrefix: props.lang === "ja" ? "約" : props.lang === "es" ? "aprox. " : props.lang === "pt-BR" ? "aprox. " : "about ",
-    placeStoryTitle: props.lang === "ja" ? "この場所" : props.lang === "es" ? "Historia del lugar" : props.lang === "pt-BR" ? "História do local" : "Place story",
-    placeStoryNow: props.lang === "ja" ? "今見られるもの" : props.lang === "es" ? "Lo que se puede ver ahora" : props.lang === "pt-BR" ? "O que dá para ver agora" : "What you may find now",
-    placeStoryRecent: props.lang === "ja" ? "最近の発見" : props.lang === "es" ? "Hallazgos recientes" : props.lang === "pt-BR" ? "Descobertas recentes" : "Recent finds",
-    placeStoryMissing: props.lang === "ja" ? "この場所で足りない記録" : props.lang === "es" ? "Registros que faltan aquí" : props.lang === "pt-BR" ? "Registros que faltam aqui" : "What is missing here",
-    placeStoryActions: props.lang === "ja" ? "次にできること" : props.lang === "es" ? "Qué hacer después" : props.lang === "pt-BR" ? "O que fazer a seguir" : "What to do next",
-    placeStoryNoTaxa: props.lang === "ja" ? "まだ代表種は少ない。まず写真で場所の様子を残せます。" : props.lang === "es" ? "Aún hay pocos taxones destacados. Una foto puede mostrar el lugar." : props.lang === "pt-BR" ? "Ainda há poucos grupos destacados. Uma foto pode mostrar o local." : "Few featured taxa yet. A photo can show the place.",
-    placeStoryNeedSeason: props.lang === "ja" ? "季節をまたいだ記録があると、変化が見えやすくなります。" : props.lang === "es" ? "Más estaciones hacen más visible el cambio." : props.lang === "pt-BR" ? "Mais estações tornam a mudança mais visível." : "More seasons make change easier to see.",
-    placeStoryNeedGuide: props.lang === "ja" ? "現地ガイドがある場所は、その場の手がかりを開けます。" : props.lang === "es" ? "Donde hay guía, puedes abrir pistas del lugar." : props.lang === "pt-BR" ? "Onde há guia, você pode abrir pistas do local." : "Where guides exist, you can open place clues.",
-    guideStopEyebrow: props.lang === "ja" ? "現地ガイド" : props.lang === "es" ? "Guía en sitio" : props.lang === "pt-BR" ? "Guia no local" : "On-site guide",
-    guideStopNearLabel: props.lang === "ja" ? "この場所で聞けます" : props.lang === "es" ? "Disponible aquí" : props.lang === "pt-BR" ? "Disponível aqui" : "Available here",
-    guideStopFarLabel: props.lang === "ja" ? "近づくと聞けます" : props.lang === "es" ? "Acércate para escuchar" : props.lang === "pt-BR" ? "Aproxime-se para ouvir" : "Move closer to listen",
-    guideStopLocate: props.lang === "ja" ? "現在地で確認" : props.lang === "es" ? "Comprobar ubicación" : props.lang === "pt-BR" ? "Verificar localização" : "Check location",
-    guideStopPlay: props.lang === "ja" ? "この場所で聞く" : props.lang === "es" ? "Escuchar aquí" : props.lang === "pt-BR" ? "Ouvir aqui" : "Listen here",
-    guideStopStop: props.lang === "ja" ? "停止" : props.lang === "es" ? "Detener" : props.lang === "pt-BR" ? "Parar" : "Stop",
-    guideStopPermissionPrompt: props.lang === "ja" ? "現在地を許可すると、再生できる距離か確認します。" : props.lang === "es" ? "Permite la ubicación para saber si puedes reproducirlo." : props.lang === "pt-BR" ? "Permita a localização para saber se já pode reproduzir." : "Allow location to check whether this can play.",
-    guideStopDistanceTemplate: props.lang === "ja" ? "近さを粗く確認して、再生できる状態だけ表示します。" : props.lang === "es" ? "La cercanía se comprueba de forma aproximada." : props.lang === "pt-BR" ? "A proximidade é verificada de forma aproximada." : "Nearby access is checked approximately.",
-    guideStopFarTemplate: props.lang === "ja" ? "もう少し近づくと聞けます。" : props.lang === "es" ? "Acércate un poco más para escucharlo." : props.lang === "pt-BR" ? "Aproxime-se um pouco mais para ouvir." : "Move a little closer to listen.",
-    guideStopVeryNearLabel: props.lang === "ja" ? "すぐ近くです" : props.lang === "es" ? "Muy cerca" : props.lang === "pt-BR" ? "Bem perto" : "Very nearby",
-    guideSpotClusterLabel: props.lang === "ja" ? "この周辺のガイド" : props.lang === "es" ? "Guías cercanas" : props.lang === "pt-BR" ? "Guias próximos" : "Nearby guides",
-    guideStopApprovalOwner: props.lang === "ja" ? "管理者承認済み" : props.lang === "es" ? "Aprobado por el gestor" : props.lang === "pt-BR" ? "Aprovado pelo gestor" : "Manager approved",
-    guideStopUnsupported: props.lang === "ja" ? "このブラウザでは音声再生に対応していません。" : props.lang === "es" ? "Este navegador no admite reproducción por voz." : props.lang === "pt-BR" ? "Este navegador não oferece reprodução por voz." : "This browser does not support speech playback.",
-    areaBadgeGuideLabel: props.lang === "ja" ? "ガイド" : props.lang === "es" ? "Guía" : props.lang === "pt-BR" ? "Guia" : "Guide",
-    coverSourceAdmin: props.lang === "ja" ? "管理者が選んだ代表写真" : props.lang === "es" ? "Foto destacada por el gestor" : props.lang === "pt-BR" ? "Foto escolhida pelo gestor" : "Manager-picked cover photo",
-    coverSourceCommunity: props.lang === "ja" ? "みんなが選んだ代表写真" : props.lang === "es" ? "Foto destacada por la comunidad" : props.lang === "pt-BR" ? "Foto escolhida pela comunidade" : "Community-picked cover photo",
-    coverSourceAuto: props.lang === "ja" ? "最近の発見から自動選定" : props.lang === "es" ? "Elegida automáticamente de hallazgos recientes" : props.lang === "pt-BR" ? "Escolhida automaticamente de descobertas recentes" : "Auto-picked from recent finds",
-    coverFallbackTitle: props.lang === "ja" ? "代表写真" : props.lang === "es" ? "Foto del lugar" : props.lang === "pt-BR" ? "Foto do local" : "Place photo",
-    areaGalleryTitle: props.lang === "ja" ? "このエリアで観察されたもの" : props.lang === "es" ? "Observado en esta zona" : props.lang === "pt-BR" ? "Observado nesta área" : "Observed in this area",
-    areaGalleryLead: props.lang === "ja" ? "写真と記録から、この場所の顔をざっと見る。" : props.lang === "es" ? "Ver rápidamente la cara del lugar desde fotos y registros." : props.lang === "pt-BR" ? "Ver rapidamente a cara do lugar por fotos e registros." : "Scan the place through photos and records.",
-    areaGalleryEmpty: props.lang === "ja" ? "まだ記録がありません。近くの写真やガイドを探せます。" : props.lang === "es" ? "Aún no hay registros. Puedes buscar fotos o guías cercanas." : props.lang === "pt-BR" ? "Ainda não há registros. Você pode buscar fotos ou guias próximos." : "No records yet. Browse nearby photos or guides.",
-    areaGalleryCountSuffix: props.lang === "ja" ? "件" : props.lang === "es" ? " registros" : props.lang === "pt-BR" ? " registros" : " records",
-    areaSeasonNow: props.lang === "ja" ? "今の季節" : props.lang === "es" ? "Temporada actual" : props.lang === "pt-BR" ? "Estação atual" : "This season",
-    areaTabRepresentative: props.lang === "ja" ? "代表種" : props.lang === "es" ? "Representativas" : props.lang === "pt-BR" ? "Representativas" : "Representative",
-    areaTabRecent: props.lang === "ja" ? "最近増えた" : props.lang === "es" ? "Recientes" : props.lang === "pt-BR" ? "Recentes" : "Recent rise",
-    areaTabMissing: props.lang === "ja" ? "未記録季節" : props.lang === "es" ? "Temporadas vacías" : props.lang === "pt-BR" ? "Estações vazias" : "Season gaps",
-    areaMissingSeasonLead: props.lang === "ja" ? "まだ少ない季節があります。近くの写真や記録を探せます。" : props.lang === "es" ? "Faltan algunas estaciones. Puedes buscar fotos o registros cercanos." : props.lang === "pt-BR" ? "Faltam algumas estações. Você pode buscar fotos ou registros próximos." : "Some seasons are sparse. Browse nearby photos or records.",
-    areaCompleteSeasonLead: props.lang === "ja" ? "四季の記録があります。同じ季節の違いも見られます。" : props.lang === "es" ? "Hay registros de las cuatro estaciones. También se ven diferencias dentro de una estación." : props.lang === "pt-BR" ? "Há registros das quatro estações. Também aparecem diferenças dentro da mesma estação." : "All seasons have records. Same-season differences can also show.",
-    areaPublicPageLabel: props.lang === "ja" ? "エリア図鑑を見る" : props.lang === "es" ? "Ver álbum del área" : props.lang === "pt-BR" ? "Ver álbum da área" : "Open area album",
-    areaEventCreateLabel: props.lang === "ja" ? "主催者の方へ" : props.lang === "es" ? "Para organizadores" : props.lang === "pt-BR" ? "Para organizadores" : "For organizers",
-    areaBadgeEventLabel: props.lang === "ja" ? "主催者" : props.lang === "es" ? "Organizadores" : props.lang === "pt-BR" ? "Organizadores" : "Organizers",
-    areaBadgeAlbumLabel: props.lang === "ja" ? "エリア図鑑" : props.lang === "es" ? "Álbum" : props.lang === "pt-BR" ? "Álbum" : "Area album",
-    areaEventCreateHint: props.lang === "ja" ? "観察会や投稿ラリーを、地域の活動として扱う入口です。" : props.lang === "es" ? "Entrada para tratar salidas y rallies como actividades locales." : props.lang === "pt-BR" ? "Entrada para tratar eventos e rallies como atividades locais." : "A guide for handling events and posting rallies as local activities.",
-    areaPositiveTitleMine: props.lang === "ja" ? "このエリアで見えてきたこと" : props.lang === "es" ? "Lo que se va viendo aquí" : props.lang === "pt-BR" ? "O que começou a aparecer aqui" : "What is coming into view here",
-    areaPositiveTitleGuest: props.lang === "ja" ? "みんなの記録で見えてきたこと" : props.lang === "es" ? "Lo que los registros muestran" : props.lang === "pt-BR" ? "O que os registros mostram" : "What records are revealing",
-    areaPositiveViewer: props.lang === "ja" ? "あなたの視点" : props.lang === "es" ? "Tu mirada" : props.lang === "pt-BR" ? "Seu olhar" : "Your perspective",
-    areaPositiveViewerGuest: props.lang === "ja" ? "このエリアの視点" : props.lang === "es" ? "Miradas de esta zona" : props.lang === "pt-BR" ? "Olhares desta área" : "Area perspective",
-    areaPositiveThanks: props.lang === "ja" ? "あなたの記録から" : props.lang === "es" ? "Gracias a tus registros" : props.lang === "pt-BR" ? "Graças aos seus registros" : "Because of your records",
-    areaPositiveThanksGuest: props.lang === "ja" ? "みんなの記録から" : props.lang === "es" ? "Gracias a todos" : props.lang === "pt-BR" ? "Graças a todos" : "Because of everyone",
-    areaPositiveCommunity: props.lang === "ja" ? "みんなの視点" : props.lang === "es" ? "Mirada colectiva" : props.lang === "pt-BR" ? "Olhar coletivo" : "Everyone's perspective",
-    areaPositiveOverlap: props.lang === "ja" ? "重なると見えること" : props.lang === "es" ? "Lo que aparece al combinarse" : props.lang === "pt-BR" ? "O que aparece quando se junta" : "What overlap reveals",
-    areaPositiveMineRecords: props.lang === "ja" ? "自分の記録を見る" : props.lang === "es" ? "Revisar mis registros" : props.lang === "pt-BR" ? "Rever meus registros" : "Review my records",
-    areaPositiveCommunityRecords: props.lang === "ja" ? "みんなの記録を見る" : props.lang === "es" ? "Ver registros de todos" : props.lang === "pt-BR" ? "Ver registros de todos" : "Browse community records",
-    areaPositiveEyebrow: props.lang === "ja" ? "記録の手応え" : props.lang === "es" ? "Eco de tus registros" : props.lang === "pt-BR" ? "Sinal dos registros" : "Record feedback",
-    areaPositivePeopleSuffix: props.lang === "ja" ? "人" : props.lang === "es" ? " personas" : props.lang === "pt-BR" ? " pessoas" : " people",
-    areaPositiveVisitSuffix: props.lang === "ja" ? "回" : props.lang === "es" ? " visitas" : props.lang === "pt-BR" ? " visitas" : " visits",
-    placeActionRecord: props.lang === "ja" ? "この場所で記録" : props.lang === "es" ? "Registrar aquí" : props.lang === "pt-BR" ? "Registrar aqui" : "Record here",
-    placeActionNearby: props.lang === "ja" ? "近くを探索" : props.lang === "es" ? "Explorar cerca" : props.lang === "pt-BR" ? "Explorar perto" : "Explore nearby",
-    placeActionGuide: props.lang === "ja" ? "ガイドで探す" : props.lang === "es" ? "Buscar con guía" : props.lang === "pt-BR" ? "Buscar com guia" : "Explore with guide",
-    placeActionScan: props.lang === "ja" ? "スキャンする" : props.lang === "es" ? "Escanear" : props.lang === "pt-BR" ? "Escanear" : "Scan here",
-    placeActionFollow: props.lang === "ja" ? "この場所の更新を追う" : props.lang === "es" ? "Seguir las novedades de este lugar" : props.lang === "pt-BR" ? "Acompanhar atualizações deste local" : "Follow updates for this place",
-    nearbyAreasStatusTemplate: props.lang === "ja" ? "現在地の近くで __COUNT__ 件のエリアを見つけられます" : props.lang === "es" ? "__COUNT__ áreas visibles cerca de tu ubicación" : props.lang === "pt-BR" ? "__COUNT__ áreas visíveis perto da sua localização" : "__COUNT__ discoverable areas near you",
-    nearbyAreasNoneStatus: props.lang === "ja" ? "近くのエリアはまだ薄いです。少し広げると入口が見つかるかもしれません。" : props.lang === "es" ? "Todavía hay pocas áreas cerca. Amplía un poco para encontrar entradas." : props.lang === "pt-BR" ? "Ainda há poucas áreas perto. Amplie um pouco para encontrar entradas." : "Nearby areas are still thin. Widen the view to find entries.",
-    nearbyAreaMarkerLabel: props.lang === "ja" ? "近くのエリア" : props.lang === "es" ? "Área cercana" : props.lang === "pt-BR" ? "Área próxima" : "Nearby area",
-    nearbyAreaPublicLabel: props.lang === "ja" ? "一般公開" : props.lang === "es" ? "Acceso público" : props.lang === "pt-BR" ? "Acesso público" : "Public",
-    nearbyAreaSchoolLabel: props.lang === "ja" ? "安全確認" : props.lang === "es" ? "Revisar seguridad" : props.lang === "pt-BR" ? "Verificar segurança" : "Check safety",
-    nearbyAreaRestrictedLabel: props.lang === "ja" ? "要確認" : props.lang === "es" ? "Revisar" : props.lang === "pt-BR" ? "Verificar" : "Check",
-    insightHeading: props.lang === "ja" ? "見えてきた範囲" : props.lang === "es" ? "Lo que ya se ve" : props.lang === "pt-BR" ? "O que já aparece" : "What is coming into view",
-    insightSubhead: props.lang === "ja" ? "この表示範囲の発見の気配を眺める。" : props.lang === "es" ? "Mira las señales de esta ventana." : props.lang === "pt-BR" ? "Veja os sinais nesta janela." : "Browse the signs in this viewport.",
-  })};
+  var SEARCH_LANG = CFG.searchLang || 'ja';
+  var COPY = (${JSON.stringify(MAP_EXPLORER_COPY_BY_LANG)})[SEARCH_LANG] || (${JSON.stringify(MAP_EXPLORER_COPY_BY_LANG)}).ja;
   ${MAP_EXPLORER_STATE_RUNTIME}
   ${MAP_PLACE_ATLAS_PROFILE_RUNTIME}
-  var SEARCH_LANG = ${JSON.stringify(props.lang)};
   var YEAR_VALUES = [];
   try {
     YEAR_VALUES = JSON.parse((yearRangeEl && yearRangeEl.getAttribute('data-year-values')) || '[]');
   } catch (_) { YEAR_VALUES = []; }
-  var OBSERVATION_HREF_TPL = ${JSON.stringify(observationHrefTpl)};
-  var RECORD_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/record"), props.lang))};
-  var NOTES_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=mine"), props.lang))};
-  var COMMUNITY_RECORDS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/records?view=public"), props.lang))};
-  var PLACE_HREF_PREFIX = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/places/"), props.lang))};
-  var LENS_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/lens"), props.lang))};
-  var SCAN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/map?tab=frontier"), props.lang))};
-  var EVENTS_ORGANIZER_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/events"), props.lang))};
-  var FIELDS_ALBUM_TPL = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/community/fields/__FIELD_ID__"), props.lang))};
-  var LOGIN_HREF = ${JSON.stringify(appendLangToHref(withBasePath(props.basePath, "/login"), props.lang))};
-  var UI_KPI_ENDPOINT = ${JSON.stringify(withBasePath(props.basePath, "/api/v1/ui-kpi/events"))};
-  ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", noticeCopy, { kpiNamespace: "map" })}
+  var OBSERVATION_HREF_TPL = CFG.observationHrefTpl || '/observations/__ID__';
+  var RECORD_HREF = CFG.recordHref || '/record';
+  var NOTES_HREF = CFG.notesHref || '/records?view=mine';
+  var COMMUNITY_RECORDS_HREF = CFG.communityRecordsHref || '/records?view=public';
+  var PLACE_HREF_PREFIX = CFG.placeHrefPrefix || '/places/';
+  var LENS_HREF = CFG.lensHref || '/lens';
+  var SCAN_HREF = CFG.scanHref || '/map?tab=frontier';
+  var EVENTS_ORGANIZER_HREF = CFG.eventsOrganizerHref || '/community/events';
+  var FIELDS_ALBUM_TPL = CFG.fieldsAlbumTpl || '/community/fields/__FIELD_ID__';
+  var LOGIN_HREF = CFG.loginHref || '/login';
+  var UI_KPI_ENDPOINT = CFG.uiKpiEndpoint || '/api/v1/ui-kpi/events';
+  ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", getOfficialNoticeRenderCopy("ja"), { kpiNamespace: "map", copyExpr: `(${JSON.stringify(MAP_EXPLORER_NOTICE_COPY_BY_LANG)})[SEARCH_LANG] || (${JSON.stringify(MAP_EXPLORER_NOTICE_COPY_BY_LANG)}).ja` })}
 
-  var MAPLIBRE_CSS_SRI = 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V';
-  var MAPLIBRE_JS_SRI  = 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj';
-  var MAPLIBRE_CSS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_CSS_SRI = ${JSON.stringify(MAPLIBRE_CSS_SRI)};
+  var MAPLIBRE_JS_SRI  = ${JSON.stringify(MAPLIBRE_JS_SRI)};
+  var MAPLIBRE_CSS_PRIMARY = CFG.maplibreCssHref || ${JSON.stringify(MAPLIBRE_SELF_HOSTED_CSS.path)};
   var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
-  var MAPLIBRE_JS_PRIMARY = 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  var MAPLIBRE_JS_PRIMARY = CFG.maplibreJsHref || ${JSON.stringify(MAPLIBRE_SELF_HOSTED_JS.path)};
   var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
   if (!document.querySelector('link[data-maplibre="1"]')) {
     var link = document.createElement('link');
     link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
-    link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
-    link.referrerPolicy = 'no-referrer'; link.setAttribute('data-maplibre', '1');
+    if (MAPLIBRE_CSS_PRIMARY.indexOf('http') === 0) {
+      link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
+      link.referrerPolicy = 'no-referrer';
+    }
+    link.setAttribute('data-maplibre', '1');
     link.onerror = function () {
       if (link.getAttribute('data-fallback') === '1') return;
       link.setAttribute('data-fallback', '1');
+      link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
+      link.referrerPolicy = 'no-referrer';
       link.href = MAPLIBRE_CSS_FALLBACK;
     };
     document.head.appendChild(link);
@@ -2765,12 +2824,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     startPanelEl.setAttribute('aria-hidden', 'false');
     if (startPanelCloseEl) {
       startPanelCloseEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      var startPanelSymbolEl = startPanelCloseEl.querySelector('.me-start-panel-symbol');
-      if (startPanelSymbolEl) {
-        startPanelSymbolEl.textContent = collapsed ? '⌄' : '×';
-      } else {
-        startPanelCloseEl.textContent = collapsed ? '⌄' : '×';
-      }
     }
   }
   function closeFilterDrawer() {
@@ -3503,7 +3556,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function maybeShowLayerHint(tab) {
     var info = layerHintInfo(tab);
-    if (!info || !info.text || !String(info.text).trim() || !state.map || !layerHintEl || !layerHintTextEl) {
+    if (!info || !info.text || !String(info.text).trim() || !state.map || !layerHintEl) {
       hideLayerHint();
       return;
     }
@@ -3515,7 +3568,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       hideLayerHint();
       return;
     }
-    layerHintTextEl.textContent = info.text;
+    if (layerHintTextEl) layerHintTextEl.textContent = info.text;
     layerHintEl.setAttribute('data-tab', tab);
     layerHintEl.classList.remove('is-hidden');
     layerHintEl.setAttribute('aria-hidden', 'false');
@@ -9312,13 +9365,13 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     refreshMapData();
     refreshDiscoveryPreviewMarkers();
     if (state.tab === 'markers' || state.tab === 'places' || state.tab === 'rain') loadGuideSpots();
-    scheduleStartPanelRouteCandidates(reason === 'load' ? 120 : 260);
+    scheduleStartPanelRouteCandidates(reason === 'load' || reason === 'idle' ? 120 : 260);
     maybeShowLayerHint(state.tab);
     deferMapTask(function () {
       if (state.tab === 'frontier') loadFrontier(state.map);
       loadEffortSummary();
       loadTraces();
-    }, reason === 'load' ? 220 : 420);
+    }, reason === 'load' || reason === 'idle' ? 220 : 420);
     return true;
   }
 
@@ -9788,7 +9841,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         style: BASEMAPS[state.basemap] || BASEMAPS.standard,
         center: startupViewport.center,
         zoom: startupViewport.zoom,
-        attributionControl: true,
+        attributionControl: false,
+        localIdeographFontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif",
       });
     } catch (err) {
       try { console.error('[map] init failed', err); } catch (_) {}
@@ -9802,7 +9856,8 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           style: BASEMAPS.standard,
           center: DEFAULT_MAP_CENTER,
           zoom: DEFAULT_MAP_ZOOM,
-          attributionControl: true,
+          attributionControl: false,
+          localIdeographFontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif",
         });
       } catch (err2) {
         cleanupFailedMapInit();
@@ -9812,6 +9867,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
     }
     enableMapInteractions();
+    if (window.maplibregl.AttributionControl) {
+      state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('click', dismissPurposeHint);
     state.map.on('click', dismissStartPanel);
@@ -9830,9 +9888,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       refreshStartPanelRoutes();
       scheduleStartPanelRouteCandidates(120);
       requestStartupCurrentLocation({ onlyIfGranted: true });
-      runInitialMapDataLoad('load');
+      state.map.once('idle', function () {
+        runInitialMapDataLoad('idle');
+      });
+      scheduleInitialMapDataLoad(1200);
     });
-    scheduleInitialMapDataLoad(180);
+    scheduleInitialMapDataLoad(4500);
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
         state.ignoreNextMoveEnd = false;
@@ -9925,7 +9986,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   if (window.maplibregl) hydrate();
   else {
-    loadMaplibreScript(MAPLIBRE_JS_PRIMARY, true, hydrate, function () {
+    loadMaplibreScript(MAPLIBRE_JS_PRIMARY, false, hydrate, function () {
       loadMaplibreScript(MAPLIBRE_JS_FALLBACK, true, hydrate, showMapLoadFailure);
     });
   }
@@ -10869,8 +10930,28 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       saveMapState();
     });
   });
-})();
-</script>`;
+})();`;
+}
+
+export function mapExplorerBootBundle(): HashedStaticAsset {
+  if (cachedMapExplorerBootBundle) return cachedMapExplorerBootBundle;
+  const content = Buffer.from(mapExplorerBootScriptSource(), "utf8");
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  cachedMapExplorerBootBundle = {
+    path: `/assets/map/map-explorer.${sha256.slice(0, 12)}.js`,
+    content,
+    contentType: "application/javascript; charset=utf-8",
+    etag: `"${sha256.slice(0, 24)}"`,
+    sri: "",
+  };
+  return cachedMapExplorerBootBundle;
+}
+
+export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
+  const bundle = mapExplorerBootBundle();
+  const configJson = serializeJsonForHtmlScript(buildMapExplorerBootConfig(props));
+  const scriptSrc = withBasePath(props.basePath, bundle.path);
+  return `<script type="application/json" id="me-boot-config">${configJson}</script>\n<script src="${escapeHtml(scriptSrc)}" defer></script>`;
 }
 
 export const MAP_EXPLORER_STYLES = `
@@ -11381,9 +11462,18 @@ export const MAP_EXPLORER_STYLES = `
     white-space: nowrap;
   }
   .me-start-panel-symbol {
-    display: inline-grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
     line-height: 1;
+  }
+  .me-start-panel-symbol svg {
+    display: block;
+    transition: transform .18s ease;
+  }
+  .me-start-panel-close[aria-expanded="true"] .me-start-panel-symbol svg {
+    transform: rotate(180deg);
   }
   .me-start-panel.is-collapsed .me-start-panel-head {
     position: static;
@@ -12739,16 +12829,17 @@ export const MAP_EXPLORER_STYLES = `
     left: 12px;
     bottom: 56px;
     z-index: 5;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    max-width: min(520px, calc(100% - 24px));
+    gap: 2px;
+    width: fit-content;
+    max-width: calc(100% - 24px);
     box-sizing: border-box;
-    padding: 9px 10px 9px 12px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.96);
-    border: 1px solid rgba(15,118,110,.16);
-    box-shadow: 0 10px 24px rgba(15,23,42,.14);
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,118,110,.18);
+    box-shadow: 0 8px 20px rgba(15,23,42,.14);
     color: #0f172a;
     font-size: 12px;
     line-height: 1.35;
@@ -14732,8 +14823,8 @@ export const MAP_EXPLORER_STYLES = `
       width: fit-content;
       max-width: calc(100% - 20px);
       bottom: calc(var(--me-mobile-action-space) + 48px);
-      flex-wrap: wrap;
-      padding: 9px 10px;
+      flex-wrap: nowrap;
+      padding: 3px;
     }
     .me-layer-hint span {
       flex: 1 1 auto;
@@ -14965,6 +15056,9 @@ export const MAP_EXPLORER_STYLES = `
   .map-explorer :where(button){min-width:44px}
   .map-explorer input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
   .map-explorer .maplibregl-ctrl button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact{min-height:44px;display:flex;align-items:center}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact.maplibregl-compact-show{padding:0 48px 0 10px}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px;padding:0}
   .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}
