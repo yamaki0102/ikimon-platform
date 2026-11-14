@@ -23198,6 +23198,31 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(invasive.headers.get("content-type"), "image/webp");
     assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
+    await env.ASSET_BUCKET.put("original-ui/static/assets/map/map-explorer.abcdef123456.js", "console.log('map');", {
+      httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+    });
+    await env.ASSET_BUCKET.put("original-ui/static/assets/vendor/maplibre-gl-4.7.1.123456abcdef.js", "window.maplibregl={};", {
+      httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+    });
+    await env.ASSET_BUCKET.put("original-ui/static/assets/vendor/maplibre-gl-4.7.1.fedcba654321.css", ".maplibregl-map{}", {
+      httpMetadata: { contentType: "text/css; charset=utf-8" }
+    });
+
+    const mapBootJs = await worker.fetch(new Request("https://zukan.earth/assets/map/map-explorer.abcdef123456.js"), productionEnv);
+    assert.equal(mapBootJs.status, 200);
+    assert.equal(mapBootJs.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(mapBootJs.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const maplibreJs = await worker.fetch(new Request("https://zukan.earth/assets/vendor/maplibre-gl-4.7.1.123456abcdef.js"), productionEnv);
+    assert.equal(maplibreJs.status, 200);
+    assert.equal(maplibreJs.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(maplibreJs.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const maplibreCss = await worker.fetch(new Request("https://zukan.earth/assets/vendor/maplibre-gl-4.7.1.fedcba654321.css"), productionEnv);
+    assert.equal(maplibreCss.status, 200);
+    assert.equal(maplibreCss.headers.get("content-type"), "text/css; charset=utf-8");
+    assert.equal(maplibreCss.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {

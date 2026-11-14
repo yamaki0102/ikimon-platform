@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import { loadConfig } from "../config.js";
 import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbnailUrl.js";
+import { mapExplorerBootBundle } from "../ui/mapExplorer.js";
+import { MAPLIBRE_SELF_HOSTED_CSS, MAPLIBRE_SELF_HOSTED_JS } from "../ui/mapExplorerAssets.js";
 
 /**
  * Legacy asset pass-through.
@@ -124,6 +126,20 @@ async function renderMissingThumbnail(width: number, rel: string): Promise<{ dat
 }
 
 export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<void> {
+  for (const asset of [mapExplorerBootBundle(), MAPLIBRE_SELF_HOSTED_JS, MAPLIBRE_SELF_HOSTED_CSS]) {
+    app.get(asset.path, async (request, reply) => {
+      if (request.headers["if-none-match"] === asset.etag) {
+        reply.code(304).send();
+        return;
+      }
+      reply
+        .type(asset.contentType)
+        .header("Cache-Control", "public, max-age=31536000, immutable")
+        .header("ETag", asset.etag)
+        .send(asset.content);
+    });
+  }
+
   // Wildcard route for every path under /assets/*
   app.get<{ Params: { "*": string } }>("/assets/*", async (request, reply) => {
     const rel = "assets/" + (request.params["*"] ?? "");

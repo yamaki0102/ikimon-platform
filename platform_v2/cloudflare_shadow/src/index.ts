@@ -19894,6 +19894,8 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (/^\/assets\/img\/landing\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/event-discovery\/ryuyo-(?:hero|discovery|memories)\.webp$/.test(pathname)) return true;
   if (/^\/assets\/event-discovery\/ryuyo-photo-(?:hero|mantis|dragonfly|butterfly|leaf|pond|path)-[a-f0-9]{12}\.webp$/.test(pathname)) return true;
+  if (/^\/assets\/map\/map-explorer\.[a-f0-9]{12}\.js$/.test(pathname)) return true;
+  if (/^\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
   return false;
 }
 
@@ -20011,6 +20013,7 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
   if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
   if (pathname.endsWith(".txt")) return "text/plain; charset=utf-8";
   if (pathname.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (pathname.endsWith(".css")) return "text/css; charset=utf-8";
   if (pathname.endsWith(".xml")) return "application/xml; charset=utf-8";
   if (pathname.endsWith(".json")) return "application/json; charset=utf-8";
   if (pathname.endsWith(".webmanifest")) return "application/manifest+json; charset=utf-8";

@@ -61,11 +61,11 @@ export function getOfficialNoticeRenderCopy(lang: SiteLang): OfficialNoticeRende
 export function buildOfficialNoticeClientRenderer(
   functionName: string,
   copy: OfficialNoticeRenderCopy,
-  options: { kpiNamespace: string },
+  options: { kpiNamespace: string; copyExpr?: string },
 ): string {
   return `
 function ${functionName}(notices) {
-  var COPY = ${JSON.stringify(copy)};
+  var COPY = ${options.copyExpr ?? JSON.stringify(copy)};
   var KPI_NAMESPACE = ${JSON.stringify(options.kpiNamespace)};
   function esc(value) {
     return String(value == null ? '' : value)

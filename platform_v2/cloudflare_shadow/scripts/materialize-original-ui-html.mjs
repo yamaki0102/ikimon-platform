@@ -25,6 +25,8 @@ import {
   runPool,
 } from "./materialize-direct-r2-reuse.mjs";
 import { selectCoreMaterializationPaths } from "./materialization-target-selection.mjs";
+import { mapExplorerBootBundle } from "../../src/ui/mapExplorer.ts";
+import { MAPLIBRE_SELF_HOSTED_CSS, MAPLIBRE_SELF_HOSTED_JS } from "../../src/ui/mapExplorerAssets.ts";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -274,7 +276,10 @@ const staticAssetPaths = [
   "/assets/img/invasive/invasive-reptile-thumb.webp",
   "/assets/img/invasive/invasive-reptile.png",
   "/assets/img/invasive/invasive-spider-thumb.webp",
-  "/assets/img/invasive/invasive-spider.png"
+  "/assets/img/invasive/invasive-spider.png",
+  mapExplorerBootBundle().path,
+  MAPLIBRE_SELF_HOSTED_JS.path,
+  MAPLIBRE_SELF_HOSTED_CSS.path
 ];
 
 function normalizePublicPath(value) {
