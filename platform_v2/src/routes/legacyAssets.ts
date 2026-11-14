@@ -9,6 +9,7 @@ import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbn
 import { mapExplorerBootBundle, mapExplorerDeferredBundle, mapExplorerDeferredStylesAsset } from "../ui/mapExplorer.js";
 import {
   MAP_GLYPH_SUBSET_ASSET_LIST,
+  MAP_STATIC_BASEMAP_ASSET,
   MAPLIBRE_SELF_HOSTED_CSS,
   MAPLIBRE_SELF_HOSTED_JS,
 } from "../ui/mapExplorerAssets.js";
@@ -140,6 +141,7 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
     MAPLIBRE_SELF_HOSTED_JS,
     MAPLIBRE_SELF_HOSTED_CSS,
     ...MAP_GLYPH_SUBSET_ASSET_LIST,
+    MAP_STATIC_BASEMAP_ASSET,
   ]) {
     app.get(asset.path, async (request, reply) => {
       if (request.headers["if-none-match"] === asset.etag) {

@@ -28,6 +28,7 @@ import { selectCoreMaterializationPaths } from "./materialization-target-selecti
 import { mapExplorerBootBundle, mapExplorerDeferredBundle, mapExplorerDeferredStylesAsset } from "../../src/ui/mapExplorer.ts";
 import {
   MAP_GLYPH_SUBSET_ASSET_LIST,
+  MAP_STATIC_BASEMAP_ASSET,
   MAPLIBRE_SELF_HOSTED_CSS,
   MAPLIBRE_SELF_HOSTED_JS,
 } from "../../src/ui/mapExplorerAssets.ts";
@@ -289,6 +290,7 @@ const staticAssetPaths = [
   MAPLIBRE_SELF_HOSTED_JS.path,
   MAPLIBRE_SELF_HOSTED_CSS.path,
   ...MAP_GLYPH_SUBSET_ASSET_LIST.map((asset) => asset.path),
+  MAP_STATIC_BASEMAP_ASSET.path,
 ];
 
 function normalizePublicPath(value) {

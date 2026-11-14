@@ -76,3 +76,42 @@ export const MAP_GLYPH_SUBSET_ASSETS: Record<MapGlyphSubsetRange, HashedStaticAs
 
 export const MAP_GLYPH_SUBSET_ASSET_LIST: readonly HashedStaticAsset[] =
   MAP_GLYPH_SUBSET_RANGES.map((range) => MAP_GLYPH_SUBSET_ASSETS[range]);
+
+export interface StaticBasemapMeta {
+  readonly path: string;
+  readonly hash: string;
+  readonly center: readonly [number, number];
+  readonly zoom: number;
+  readonly cssWidth: number;
+  readonly cssHeight: number;
+  readonly pixelRatio: number;
+  readonly quality: number;
+  readonly byteLength: number;
+  readonly styleDigest: string;
+}
+
+function loadStaticBasemapAsset(): { meta: StaticBasemapMeta; asset: HashedStaticAsset } {
+  const metaPath = fileURLToPath(new URL("../../assets/map/static-basemap.json", import.meta.url));
+  const meta = JSON.parse(readFileSync(metaPath, "utf8")) as StaticBasemapMeta;
+  const webpPath = fileURLToPath(new URL(`../../assets/map/static-basemap.${meta.hash}.webp`, import.meta.url));
+  const content = readFileSync(webpPath);
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  const actualHash = sha256.slice(0, 12);
+  if (actualHash !== meta.hash || meta.path !== `/assets/map/static-basemap.${actualHash}.webp`) {
+    throw new Error(`Static basemap integrity mismatch: got ${actualHash}, expected ${meta.hash}`);
+  }
+  return {
+    meta,
+    asset: {
+      path: meta.path,
+      content,
+      contentType: "image/webp",
+      etag: `"${sha256.slice(0, 24)}"`,
+      sri: `sha384-${createHash("sha384").update(content).digest("base64")}`,
+    },
+  };
+}
+
+const staticBasemapLoaded = loadStaticBasemapAsset();
+export const MAP_STATIC_BASEMAP_META: StaticBasemapMeta = staticBasemapLoaded.meta;
+export const MAP_STATIC_BASEMAP_ASSET: HashedStaticAsset = staticBasemapLoaded.asset;
