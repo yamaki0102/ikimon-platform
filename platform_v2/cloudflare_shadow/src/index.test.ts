@@ -23247,6 +23247,15 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(maplibreCss.headers.get("content-type"), "text/css; charset=utf-8");
     assert.equal(maplibreCss.headers.get("cache-control"), "public, max-age=31536000, immutable");
 
+    await env.ASSET_BUCKET.put("original-ui/static/assets/fonts/noto-sans-regular/12288-12543.0123456789ab.pbf", "pbf", {
+      httpMetadata: { contentType: "application/octet-stream" }
+    });
+
+    const glyphPbf = await worker.fetch(new Request("https://zukan.earth/assets/fonts/noto-sans-regular/12288-12543.0123456789ab.pbf"), productionEnv);
+    assert.equal(glyphPbf.status, 200);
+    assert.equal(glyphPbf.headers.get("content-type"), "application/x-protobuf");
+    assert.equal(glyphPbf.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
     assert.equal(fallbackCalls, 0);
     assert.equal(core.operationAudit.length, 0);
   } finally {
