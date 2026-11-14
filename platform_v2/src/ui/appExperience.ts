@@ -10,27 +10,107 @@ const labels = {
   es: ["Inicio", "Registros", "Capturar", "Lugares", "Participar", "Cuenta", "Ir al contenido", "Páginas principales"],
   "pt-br": ["Início", "Registros", "Capturar", "Lugares", "Participar", "Conta", "Ir ao conteúdo", "Páginas principais"],
 };
+const langSwitchMeta = [
+  { code: "ja", short: "JP", label: "日本語", aria: "言語" },
+  { code: "en", short: "EN", label: "English", aria: "Language" },
+  { code: "es", short: "ES", label: "Español", aria: "Idioma" },
+  { code: "pt-br", short: "PT", label: "Português", aria: "Idioma" },
+] as const;
 const icons = [
-  '<path d="m3 11 9-7 9 7M5 10v10h14V10M9 20v-6h6v6"/>',
+  '<path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/>',
   '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/>',
-  '<path d="M8 6 9 3h6l1 3h4v15H4V6Z"/><circle cx="12" cy="13" r="4"/>',
+  '<path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/>',
   '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',
-  '<circle cx="9" cy="8" r="3"/><path d="M3 21v-4a6 6 0 0 1 12 0v4M17 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v2"/>',
+  '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/>',
 ];
 
-export function renderAppExperienceNavigation(lang: string, active: number, placement: "header" | "bottom", member = false): string {
-  const language = lang.toLowerCase() as keyof typeof labels;
-  const copy = labels[language] ?? labels.ja;
-  const prefix = `/${labels[language] ? language : "ja"}`;
-  const paths = ["/", `/records?view=${member ? "mine" : "public"}`, "/record", "/map?tab=places", "/community/events"];
-  return `<nav class="zukan-app-nav is-${placement}" aria-label="${copy[7]}">${(placement === "header" ? [0, 1, 3, 4, 2] : [0, 1, 2, 3, 4]).map((index) => `<a class="ik-ui-action${index === 2 ? " is-capture" : ""}" href="${prefix}${paths[index]}"${active === index ? ' aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true">${icons[index]}</svg><span>${copy[index]}</span></a>`).join("")}</nav>`;
+function normalizeAppLang(lang: string): keyof typeof labels {
+  const lower = lang.toLowerCase();
+  return (lower in labels ? lower : "ja") as keyof typeof labels;
 }
 
-export function renderAppExperienceHeader(lang: string, active: number, member = false, mainId = "main-content"): string {
-  const language = lang.toLowerCase() as keyof typeof labels;
-  const copy = labels[language] ?? labels.ja;
-  const prefix = `/${labels[language] ? language : "ja"}`;
-  return `<a class="zukan-app-skip" href="#${mainId}">${copy[6]}</a><header class="zukan-app-header"><div><a class="zukan-app-brand" href="${prefix}/" aria-label="ZUKAN"><img src="/assets/brand/zukan-lockup.svg" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a></div></header>`;
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function localizedSwitchHref(targetLang: string, currentPath?: string): string {
+  if (!currentPath) return `/${targetLang}/`;
+  const [rawPath, rawSearch = ""] = currentPath.split("?", 2);
+  const stripped = (rawPath || "/").replace(/^\/(ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
+  const normalizedPath = stripped.startsWith("/") ? stripped : `/${stripped}`;
+  return `/${targetLang}${normalizedPath}${rawSearch ? `?${rawSearch}` : ""}`;
+}
+
+export function appExperienceActiveIndex(path: string): number {
+  const pathname = (path.split(/[?#]/, 1)[0] ?? "/").replace(/^\/(ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
+  if (pathname === "/" || pathname === "/home") return 0;
+  if (pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/")) return 1;
+  if (pathname === "/record" || pathname.startsWith("/record/")) return 2;
+  if (pathname === "/map" || pathname.startsWith("/map/") || pathname.startsWith("/places/")) return 3;
+  if (pathname === "/community/events" || pathname.startsWith("/community/events/")) return 4;
+  return -1;
+}
+
+export function renderAppExperienceLanguageSwitch(lang: string, currentPath?: string): string {
+  const language = normalizeAppLang(lang);
+  const currentMeta = langSwitchMeta.find((item) => item.code === language) ?? langSwitchMeta[0];
+  const links = langSwitchMeta.map((item) => {
+    const active = item.code === language;
+    const href = escapeAttr(localizedSwitchHref(item.code, currentPath));
+    return `<a class="lang-switch-link${active ? " is-active" : ""}" href="${href}" hreflang="${item.code}" lang="${item.code}"${active ? ' aria-current="true"' : ""}><span class="lang-switch-code">${item.short}</span><span class="lang-switch-name">${item.label}</span></a>`;
+  }).join("");
+  return `<details class="lang-switch lang-switch-desktop zukan-app-lang" data-language-disclosure><summary class="lang-switch-label" aria-label="${escapeAttr(`${currentMeta.aria}: ${currentMeta.label}`)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg><span class="lang-switch-current">${currentMeta.short}</span></summary><div class="lang-switch-options">${links}</div></details>`;
+}
+
+export function renderAppExperienceNavigation(lang: string, active: number, placement: "header" | "bottom", member = false): string {
+  const language = normalizeAppLang(lang);
+  const copy = labels[language];
+  const prefix = `/${language}`;
+  const guestRecordsPath = `${prefix}/records?view=public`;
+  const memberRecordsPath = `${prefix}/records?view=mine`;
+  const paths = [`${prefix}/`, member ? memberRecordsPath : guestRecordsPath, `${prefix}/record`, `${prefix}/map?tab=places`, `${prefix}/community/events`];
+  const order = placement === "header" ? [0, 1, 3, 4, 2] : [0, 1, 2, 3, 4];
+  const navClass = placement === "bottom" ? "zukan-app-nav is-bottom global-record-launcher" : "zukan-app-nav is-header";
+  return `<nav class="${navClass}" aria-label="${copy[7]}">${order.map((index) => {
+    const isActive = active === index;
+    const isCapture = index === 2;
+    const classes = placement === "bottom"
+      ? `global-record-choice${isActive ? " is-active" : ""}${isCapture ? " is-primary is-capture" : ""} ik-ui-action`
+      : `ik-ui-action${isCapture ? " is-capture" : ""}`;
+    const authAttrs = index === 1
+      ? ` data-bottom-nav-auth data-auth-guest-href="${escapeAttr(guestRecordsPath)}" data-auth-member-href="${escapeAttr(memberRecordsPath)}"`
+      : "";
+    const captureAttrs = isCapture && !isActive
+      ? ` data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${placement === "bottom" ? "capture_nav" : "header_capture"}"`
+      : "";
+    const iconHtml = placement === "bottom"
+      ? `<span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${icons[index]}</svg></span>`
+      : `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[index]}</svg>`;
+    return `<a class="${classes}" href="${escapeAttr(paths[index] ?? "")}"${authAttrs}${captureAttrs}${isActive ? ' aria-current="page"' : ""}>${iconHtml}<span>${copy[index]}</span></a>`;
+  }).join("")}</nav>`;
+}
+
+export function renderAppExperienceHeader(
+  lang: string,
+  active: number,
+  member = false,
+  mainId = "main-content",
+  options?: {
+    currentPath?: string;
+    authControlsHtml?: string;
+    extraHeaderClass?: string;
+    headerAttrs?: string;
+    brandLockupSrc?: string;
+  },
+): string {
+  const language = normalizeAppLang(lang);
+  const copy = labels[language];
+  const prefix = `/${language}`;
+  const headerClass = options?.extraHeaderClass ? `${options.extraHeaderClass} zukan-app-header` : "zukan-app-header";
+  const headerAttrs = options?.headerAttrs ? ` ${options.headerAttrs}` : "";
+  const brandSrc = options?.brandLockupSrc ? escapeAttr(options.brandLockupSrc) : "/assets/brand/zukan-lockup.svg";
+  const accountHtml = options?.authControlsHtml ?? `<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a>`;
+  return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${renderAppExperienceLanguageSwitch(lang, options?.currentPath)}${accountHtml}</div></div></header>`;
 }
 
 /**
@@ -151,8 +231,21 @@ body[data-zukan-app-experience] .site-core-nav-link.is-capture{color:#fff;backgr
 .zukan-app-header{position:sticky;top:0;z-index:80;background:var(--zukan-surface-base);border-bottom:1px solid var(--zukan-line)}
 .zukan-app-header>div{display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1248px;height:72px;margin:auto;padding:0 24px}
 .zukan-app-brand{display:inline-flex;align-items:center;gap:8px;min-height:44px;flex-shrink:0}.zukan-app-brand img{object-fit:contain}
-.zukan-app-account{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 12px;color:var(--zukan-green);font-size:14px;text-decoration:none}
+.zukan-app-header-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.zukan-app-lang{position:relative}
+.zukan-app-lang summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 10px;border:1px solid var(--zukan-line);border-radius:999px;background:#fff;color:var(--zukan-ink);font-size:13px;font-weight:700;cursor:pointer}
+.zukan-app-lang summary::-webkit-details-marker{display:none}
+.zukan-app-lang summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.zukan-app-lang .lang-switch-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:95;min-width:176px;padding:6px;border:1px solid var(--zukan-line);border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(15,23,42,.16)}
+.zukan-app-lang[open] .lang-switch-options,.lang-switch[open] .lang-switch-options{display:grid;gap:4px}
+.zukan-app-lang .lang-switch-link{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:8px;color:var(--zukan-ink);text-decoration:none;font-size:14px;font-weight:650}
+.zukan-app-lang .lang-switch-link:hover,.zukan-app-lang .lang-switch-link:focus-visible{background:#edf3ee}
+.zukan-app-lang .lang-switch-link.is-active{background:#edf3ee;color:var(--zukan-green)}
+.zukan-app-lang .lang-switch-code{font-size:12px;font-weight:800;opacity:.75;min-width:22px}
+.zukan-app-account{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 12px;color:var(--zukan-green);font-size:14px;text-decoration:none;white-space:nowrap}
 .zukan-app-nav{display:flex;gap:6px}.zukan-app-nav a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;text-decoration:none;color:var(--zukan-muted);font-size:15px;font-weight:650;border-radius:8px}.zukan-app-nav a[aria-current=page]{color:var(--zukan-green);background:#edf3ee}.zukan-app-nav a.is-capture{background:var(--zukan-action-capture);color:#fff}.zukan-app-nav a.is-capture:hover{background:var(--zukan-action-capture-hover)}.zukan-app-nav a.is-capture:active{background:var(--zukan-action-capture-active)}.zukan-app-nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;flex-shrink:0}.zukan-app-nav.is-header svg{display:none}.zukan-app-nav.is-bottom{display:none}
+.zukan-app-nav.is-bottom .global-record-choice-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px}
+.zukan-app-nav.is-bottom a.is-capture .global-record-choice-icon{width:32px;height:24px;border-radius:999px;background:var(--zukan-action-capture-hover)}
 .zukan-app-skip{position:fixed;top:-120px;left:16px;z-index:200;padding:12px 20px;background:#fff;color:var(--zukan-green)}.zukan-app-skip:focus{top:8px}
 body[data-zukan-app-experience] .home-state-view{gap:56px;padding-top:32px}
 /* Guest Home is composed independently from the member workspace.
@@ -216,11 +309,10 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
 @media(min-width:1161px){body[data-zukan-app-experience] .global-record-launcher{display:none!important}body[data-zukan-app-experience] .site-shell.has-global-record-launcher{padding-bottom:24px}}
 @media(max-width:1160px){
  body[data-zukan-app-experience]{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
- body[data-zukan-app-experience] .site-header-inner,.zukan-app-header>div{height:64px;padding:0 16px}
+ body[data-zukan-app-experience] .site-header-inner,.zukan-app-header>div{height:64px;padding:0 12px;gap:10px}
  body[data-zukan-app-experience] .site-core-nav,.zukan-app-nav.is-header{display:none!important}
  body[data-zukan-app-experience] .global-record-launcher,.zukan-app-nav.is-bottom{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;z-index:85;left:0;right:0;bottom:0;width:100%;max-width:none;transform:none;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));border:0;border-top:1px solid var(--zukan-line);border-radius:0;background:#fff;box-shadow:none}
- .zukan-app-nav.is-bottom a{flex-direction:column;gap:3px;font-size:12px;min-height:56px;padding:6px 0}
- body[data-zukan-app-experience] .global-record-choice{min-height:56px;padding:5px 0;border-radius:8px;font-size:12px}
+ .zukan-app-nav.is-bottom a,.zukan-app-nav.is-bottom .global-record-choice{flex-direction:column;gap:3px;font-size:12px;min-height:56px;padding:5px 2px;border-radius:8px;line-height:1.15;text-align:center}
  body[data-zukan-app-experience] .site-shell.has-global-record-launcher{padding-bottom:calc(112px + max(0px, env(safe-area-inset-bottom)))}
  body[data-zukan-app-experience] .home-recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  body[data-zukan-app-experience] .of-media-column{top:80px}

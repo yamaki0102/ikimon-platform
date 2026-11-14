@@ -527,12 +527,18 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   outline-offset: 3px;
 }
 .zukan-participation-empty {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
   margin: 0;
   padding: 18px 0;
   color: #55615a;
   line-height: 1.7;
 }
-.zukan-participation-empty a {
+.zukan-participation-empty-lead {
+  margin: 0;
+}
+.zukan-participation-empty a:not(.zukan-participation-action):not(.zukan-participation-secondary-action) {
   color: #245c3a;
   font-weight: 800;
 }
@@ -1040,7 +1046,7 @@ export function renderEventListBody(
   <section class="zukan-participation-section" aria-labelledby="participation-actionable-heading">
     <h2 id="participation-actionable-heading">${escapeHtml(d.sectionActionable)}</h2>
     ${actionable.length === 0
-      ? `<p class="zukan-participation-empty" data-participation-empty>${escapeHtml(d.actionableEmpty)} <a href="${escapeHtml(appendLangToHref("/records?view=public", lang))}">${escapeHtml(strings.listBackToCommunity)}</a></p>`
+      ? `<div class="zukan-participation-empty" data-participation-empty><p class="zukan-participation-empty-lead">${escapeHtml(d.actionableEmpty)}</p><a class="zukan-participation-action" href="${escapeHtml(appendLangToHref("/records?view=public", lang))}">${escapeHtml(strings.listBackToCommunity)}</a></div>`
       : `<div class="zukan-participation-list">${actionable.map((s) => renderRow(s, "actionable")).join("")}</div>`}
   </section>`;
 
@@ -1063,7 +1069,10 @@ export function renderEventListBody(
   const noProgramsBlock = `
   <section class="zukan-participation-section" aria-labelledby="participation-actionable-heading">
     <h2 id="participation-actionable-heading">${escapeHtml(d.sectionActionable)}</h2>
-    <p class="zukan-participation-empty" data-participation-empty>${escapeHtml(d.actionableEmpty)} ${escapeHtml(d.noProgramsLead)} <a href="${escapeHtml(appendLangToHref("/records?view=public", lang))}">${escapeHtml(strings.listBackToCommunity)}</a></p>
+    <div class="zukan-participation-empty" data-participation-empty>
+      <p class="zukan-participation-empty-lead">${escapeHtml(d.noProgramsLead)}</p>
+      <a class="zukan-participation-action" href="${escapeHtml(appendLangToHref("/records?view=public", lang))}">${escapeHtml(strings.listBackToCommunity)}</a>
+    </div>
   </section>`;
 
   let discoveryBody: string;

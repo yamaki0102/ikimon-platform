@@ -20356,10 +20356,10 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "掲載中の公開企画はまだありません。", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
-    { prefix: "en", title: "Join", empty: "No public programs are listed yet.", failed: "Couldn’t load programs.", retry: "Reload" },
-    { prefix: "es", title: "Participar", empty: "Todavía no hay actividades públicas publicadas.", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
-    { prefix: "pt-br", title: "Participar", empty: "Ainda não há atividades públicas publicadas.", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
+    { prefix: "ja", title: "参加", empty: "掲載中の公開企画はまだありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "en", title: "Join", empty: "No public programs are listed yet", failed: "Couldn’t load programs.", retry: "Reload" },
+    { prefix: "es", title: "Participar", empty: "Todavía no hay actividades públicas publicadas", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
+    { prefix: "pt-br", title: "Participar", empty: "Ainda não há atividades públicas publicadas", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
   ];
 
   for (const item of cases) {
@@ -25085,8 +25085,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /最近の投稿テスト/);
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
-  assert.match(body, /\/derived\/[^"\s]+\/display\.webp/);
-  assert.match(body, /位置を保護/);
+  assert.match(body, /\/derived-transform\/w320\/derived\/[^"\s]+\/display\.webp/);
+  assert.doesNotMatch(body, /位置を保護/);
   assert.doesNotMatch(body, /record-shadow-materialized/);
   assert.doesNotMatch(body, /cell:34\.81,137\.73/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");

@@ -65,7 +65,7 @@ for (const language of ["ja", "en", "es", "pt-br"]) {
       assert.ok(guest.includes(`/${language}/map?tab=places`));
       assert.ok(guest.includes(`/${language}/community/events`));
       assert.ok(guest.includes(`/${language}/record`));
-      const order = [...guest.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+      const order = [...guest.matchAll(/\shref="([^"]+)"/g)].map((match) => match[1]);
       assert.equal(order[placement === "header" ? 4 : 2], `/${language}/record`);
     }
     assert.ok(renderAppExperienceHeader(language, 0, false, "main-content").includes('href="#main-content"'));
@@ -76,4 +76,14 @@ test("route admission and fallback language stay bounded", () => {
   for (const path of ["/", "/ja/records?view=public", "/map?tab=places", "/community/events", "/profile"]) assert.equal(isAppExperiencePath(path), true);
   for (const path of ["/records-external", "/admin", "/other"]) assert.equal(isAppExperiencePath(path), false);
   assert.ok(renderAppExperienceNavigation("unknown", 0, "bottom").includes('href="/ja/"'));
+});
+
+test("shared top bar always renders the interactive language switcher across locales", () => {
+  for (const language of ["ja", "en", "es", "pt-br"]) {
+    const header = renderAppExperienceHeader(language, 0, false, "main-content", { currentPath: `/${language}/records?view=public` });
+    assert.match(header, /<details class="lang-switch lang-switch-desktop zukan-app-lang" data-language-disclosure>/);
+    for (const target of ["ja", "en", "es", "pt-br"]) {
+      assert.match(header, new RegExp(`href="/${target}/records\\?view=public"`));
+    }
+  }
 });

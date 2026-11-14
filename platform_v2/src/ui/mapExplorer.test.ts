@@ -396,7 +396,7 @@ test("map explorer keeps controls touchable and hides internal provenance labels
   assert.match(MAP_EXPLORER_STYLES, /input:not\(\[type=checkbox\]\):not\(\[type=radio\]\):not\(\[type=range\]\)\{min-height:44px/);
   assert.match(MAP_EXPLORER_STYLES, /input\[type=range\]\{min-height:44px/);
   assert.match(MAP_EXPLORER_STYLES, /:where\(\.me-area-source-opt,\.me-trace-toggle-label,\.me-basemap-opt\)\{min-width:44px;min-height:44px/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-close\{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-start-panel\.is-collapsed \.me-start-panel-close\{width:auto!important;min-width:44px!important;max-width:none!important;height:44px!important/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-legend\.is-collapsed \.me-legend-toggle\{width:44px;min-width:44px;min-height:44px/);
   assert.match(MAP_EXPLORER_STYLES, /:has\(input:focus-visible\)\{outline:3px solid/);
   assert.match(MAP_EXPLORER_STYLES, /\.maplibregl-ctrl button\{width:44px!important;height:44px!important/);
@@ -1976,4 +1976,26 @@ test("map explorer omits visited place shortcuts while keeping side collapse con
   assert.match(html, /id="me-side-toggle"/);
   assert.match(script, /function setSideRailMode\(rail\)/);
   assert.match(script, /setSideRailMode\(nowRail\);/);
+});
+
+test("map guards addSource with style readiness, preloads MapLibre, and uses concise search placeholders", () => {
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.match(script, /function whenStyleReady\(map, fn\)/);
+  assert.match(script, /map\.isStyleLoaded\(\)/);
+  assert.match(script, /map\.once\('style\.load'/);
+  assert.match(script, /function syncViewerOwnedRecordSource\(map\)[\s\S]*?whenStyleReady\(map,/);
+
+  const expectedPlaceholders: Array<[lang: "ja" | "en" | "es" | "pt-BR", text: string]> = [
+    ["ja", "場所や記録を探す"],
+    ["en", "Find a place or record"],
+    ["es", "Buscar lugar o registro"],
+    ["pt-BR", "Buscar local ou registro"],
+  ];
+  for (const [lang, placeholder] of expectedPlaceholders) {
+    const html = renderMapExplorer({ basePath: "", lang, years: [2026] });
+    assert.match(html, /<link rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/);
+    assert.match(html, /<link rel="preload" as="script" href="https:\/\/cdn\.jsdelivr\.net\/npm\/maplibre-gl@/);
+    assert.ok(html.includes(`placeholder="${placeholder}"`));
+    assert.doesNotMatch(html, /placeholder="[^"]*(?:生きもの|species|especie|espécie)/i);
+  }
 });

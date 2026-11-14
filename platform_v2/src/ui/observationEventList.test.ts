@@ -281,7 +281,7 @@ test("sessions without a public event code are not advertised as joinable", () =
   };
   const html = renderEventListBody([privateLive], getObservationEventStrings("ja"), "ja");
 
-  assert.match(html, /いま参加できる企画はありません/);
+  assert.match(html, /掲載中の公開企画はまだありません/);
   assert.doesNotMatch(html, /公開参加コードなし/);
   assert.match(html, /みんなの記録を見る/);
 });
@@ -324,8 +324,10 @@ test("participation body owns one heading and leaves the main landmark to its pa
 
 test("zero results and load failure are distinct states", () => {
   const zero = renderEventListBody([], getObservationEventStrings("ja"), "ja");
-  assert.match(zero, /いま参加できる企画はありません/);
   assert.match(zero, /掲載中の公開企画はまだありません/);
+  const emptyBlock = zero.match(/data-participation-empty>[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.equal((emptyBlock.match(/<p class="zukan-participation-empty-lead">/g) ?? []).length, 1);
+  assert.equal((emptyBlock.match(/<a class="zukan-participation-action"/g) ?? []).length, 1);
   assert.doesNotMatch(zero, /読み込めませんでした/);
   assert.doesNotMatch(zero, /data-load-failed/);
 
@@ -363,4 +365,15 @@ test("participation list includes substantive guide copy above the sitemap body-
   assert.match(html, /href="\/ja\/map"/);
   assert.match(html, /href="\/ja\/walk-maps"/);
   assert.match(html, /href="\/ja\/record"/);
+});
+
+test("participation empty state renders one plain sentence and one primary action link across all locales", () => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const prefix = lang === "pt-BR" ? "pt-br" : lang;
+    const html = renderEventListBody([], getObservationEventStrings(lang), lang);
+    const emptyBlock = html.match(/data-participation-empty>[\s\S]*?<\/div>/)?.[0] ?? "";
+    assert.equal((emptyBlock.match(/<p class="zukan-participation-empty-lead">/g) ?? []).length, 1);
+    assert.equal((emptyBlock.match(/<a class="zukan-participation-action"/g) ?? []).length, 1);
+    assert.match(emptyBlock, new RegExp(`href="/${prefix}/records\\?view=public"`));
+  }
 });

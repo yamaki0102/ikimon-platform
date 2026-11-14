@@ -35,7 +35,7 @@ test("guest recovery keeps the draft on-device and preserves the recovery redire
   const html = renderCloudflareRecordRecoveryGuestHtml(url, "nonce-value");
   assert.match(html, /data-record-recovery-start/);
   assert.match(html, /<title>下書きから記録を続ける \| ZUKAN<\/title>/);
-  assert.match(html, /class="zukan-app-brand"[^>]*aria-label="ZUKAN"/);
+  assert.match(html, /class="(?:[^"]*\s)?zukan-app-brand(?:\s[^"]*)?"[^>]*aria-label="ZUKAN"/);
   assert.match(html, /写真・入力内容はこの端末に残っています/);
   assert.match(html, /ログインして続ける/);
   assert.match(html, /登録して続ける/);
