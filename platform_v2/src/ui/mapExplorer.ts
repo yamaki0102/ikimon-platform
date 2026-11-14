@@ -2708,6 +2708,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
   var planetPromise = null;
   var resolvedPlanetJson = null;
   var prefetchedGlyphs = {};
+  function glyphKey(u) { try { return encodeURI(decodeURI(String(u))); } catch (_) { return String(u); } }
 
   function cleanupFailedMapInit() {
     try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
@@ -2750,8 +2751,8 @@ ${MAP_EXPLORER_BASEMAPS_JS}
                 .then(function (j) { return { data: j }; });
             });
           }
-          if (gMap[realUrl]) {
-            return gMap[realUrl].then(function (buf) {
+          if (gMap[glyphKey(realUrl)]) {
+            return gMap[glyphKey(realUrl)].then(function (buf) {
               if (buf) return { data: buf.slice(0) };
               return fetch(realUrl, { mode: 'cors', credentials: 'same-origin', signal: abortController && abortController.signal })
                 .then(function (r) { return r.arrayBuffer(); })
@@ -2785,7 +2786,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
       };
     };
     var prefetchTransform = function (url) {
-      if (hasPrefetchProtocol && (gMap[url] || (url === styleUrl && pPromise))) {
+      if (hasPrefetchProtocol && (gMap[glyphKey(url)] || (url === styleUrl && pPromise))) {
         return { url: 'zukanprefetch://' + url };
       }
       return { url: url };
@@ -2942,7 +2943,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
         .then(function (json) { if (json) resolvedPlanetJson = json; return json; })
         .catch(function () { return null; });
       MAP_PREFETCH_GLYPH_URLS.forEach(function (gUrl) {
-        prefetchedGlyphs[gUrl] = fetch(gUrl, { mode: 'cors', credentials: 'same-origin' })
+        prefetchedGlyphs[glyphKey(gUrl)] = fetch(gUrl, { mode: 'cors', credentials: 'same-origin' })
           .then(function (r) { return r && r.ok ? r.arrayBuffer() : null; })
           .catch(function () { return null; });
       });

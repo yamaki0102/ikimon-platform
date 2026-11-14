@@ -2096,3 +2096,4 @@ test("MapLibre preload with fetchpriority=high is in the head and map-explorer i
   assert.ok(bootHtml.includes(deferredAsset.path));
   assert.ok(bootHtml.includes(deferredCssAsset.path));
 });
+test("glyph prefetch reuse keys MapLibre's unencoded fontstack URL", () => { const src = mapExplorerCriticalScriptSource(); const glyphKey = new Function(`${src.match(/function glyphKey\(u\) \{[^\n]*\}/)![0]}; return glyphKey;`)() as (u: string) => string; for (const url of MAP_PREFETCHED_GLYPH_URLS) assert.equal(glyphKey(decodeURI(url)), glyphKey(url)); for (const re of [/prefetchedGlyphs\[glyphKey\(gUrl\)\]/, /gMap\[glyphKey\(url\)\]/, /gMap\[glyphKey\(realUrl\)\]/]) assert.match(src, re); });
