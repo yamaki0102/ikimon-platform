@@ -677,7 +677,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(html, /class="me-start-panel is-collapsed" id="me-start-panel" data-testid="map-start-panel" aria-label="地図メニュー" aria-hidden="false"/);
   assert.match(html, /aria-label="地図メニューを開く"/);
   assert.match(html, /class="me-start-panel-brief">記録・ガイド<\/span>/);
-  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true">⌄<\/span>/);
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true"><svg\b[\s\S]*?<\/svg><\/span>/);
   assert.match(html, /近く/);
   assert.match(html, /許可済みなら近くから始めます。押すと現在地へ移動します。/);
   assert.match(html, /記録/);
@@ -773,8 +773,7 @@ test("map home opens as a nearby-record tool instead of a raw point finder", () 
   assert.match(script, /function dismissStartPanel\(\)/);
   assert.match(script, /function setStartPanelCollapsed\(collapsed\)/);
   assert.match(script, /startPanelCloseEl\.addEventListener\('click'/);
-  assert.match(script, /startPanelCloseEl\.querySelector\('\.me-start-panel-symbol'\)/);
-  assert.match(script, /startPanelSymbolEl\.textContent = collapsed \? '⌄' : '×';/);
+  assert.match(script, /startPanelCloseEl\.setAttribute\('aria-expanded', collapsed \? 'false' : 'true'\);/);
   assert.match(script, /var t = btn\.getAttribute\('data-tab'\);/);
   assert.match(script, /if \(!t\) return;/);
   assert.match(script, /function canShowPurposeHint\(\)/);
@@ -1998,4 +1997,23 @@ test("map guards addSource with style readiness, preloads MapLibre, and uses con
     assert.ok(html.includes(`placeholder="${placeholder}"`));
     assert.doesNotMatch(html, /placeholder="[^"]*(?:生きもの|species|especie|espécie)/i);
   }
+});
+
+test("map layer toggle uses inline SVG chevron, layer hint is a compact pill, and compact attribution avoids button overlap", () => {
+  const html = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const script = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  const styles = MAP_EXPLORER_STYLES;
+
+  assert.match(html, /class="me-start-panel-symbol" aria-hidden="true"><svg\b/);
+  assert.doesNotMatch(html, /class="me-start-panel-symbol"[^>]*>⌄</);
+  assert.doesNotMatch(script, /startPanelSymbolEl\.textContent/);
+  assert.match(styles, /\.me-start-panel-close\[aria-expanded="true"\] \.me-start-panel-symbol svg/);
+
+  assert.doesNotMatch(html, /id="me-layer-hint-text"/);
+  assert.match(styles, /\.me-layer-hint \{[\s\S]*?border-radius: 999px;[\s\S]*?padding: 3px;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.me-layer-hint \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?padding: 3px;/);
+
+  assert.match(script, /attributionControl:\s*false/);
+  assert.match(script, /new window\.maplibregl\.AttributionControl\(\{\s*compact:\s*true\s*\}\)/);
+  assert.match(styles, /\.map-explorer \.maplibregl-ctrl-attrib\.maplibregl-compact\.maplibregl-compact-show\{padding:0 48px 0 10px\}/);
 });

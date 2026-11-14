@@ -1359,7 +1359,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         <strong>${escapeHtml(startPanelTitle)}</strong>
         <button type="button" class="me-start-panel-close" id="me-start-panel-close" aria-label="${escapeHtml(startPanelCloseLabel)}" aria-expanded="false">
           <span class="me-start-panel-brief">${escapeHtml(startPanelBrief)}</span>
-          <span class="me-start-panel-symbol" aria-hidden="true">⌄</span>
+          <span class="me-start-panel-symbol" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
         </button>
       </div>
       <div class="me-start-panel-grid">
@@ -1819,7 +1819,6 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           <div class="me-legend-detail is-hidden" id="me-legend-detail" aria-hidden="true"></div>
         </div>
         <div class="me-layer-hint is-hidden" id="me-layer-hint" aria-hidden="true" role="status">
-          <span id="me-layer-hint-text"></span>
           <button type="button" class="me-layer-hint-jump" id="me-layer-hint-jump">${escapeHtml(copy.layerHintJump)}</button>
           <button type="button" class="me-layer-hint-close" id="me-layer-hint-close" aria-label="${escapeHtml(copy.layerHintDismiss)}">×</button>
         </div>
@@ -2765,12 +2764,6 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     startPanelEl.setAttribute('aria-hidden', 'false');
     if (startPanelCloseEl) {
       startPanelCloseEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-      var startPanelSymbolEl = startPanelCloseEl.querySelector('.me-start-panel-symbol');
-      if (startPanelSymbolEl) {
-        startPanelSymbolEl.textContent = collapsed ? '⌄' : '×';
-      } else {
-        startPanelCloseEl.textContent = collapsed ? '⌄' : '×';
-      }
     }
   }
   function closeFilterDrawer() {
@@ -3503,7 +3496,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function maybeShowLayerHint(tab) {
     var info = layerHintInfo(tab);
-    if (!info || !info.text || !String(info.text).trim() || !state.map || !layerHintEl || !layerHintTextEl) {
+    if (!info || !info.text || !String(info.text).trim() || !state.map || !layerHintEl) {
       hideLayerHint();
       return;
     }
@@ -3515,7 +3508,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       hideLayerHint();
       return;
     }
-    layerHintTextEl.textContent = info.text;
+    if (layerHintTextEl) layerHintTextEl.textContent = info.text;
     layerHintEl.setAttribute('data-tab', tab);
     layerHintEl.classList.remove('is-hidden');
     layerHintEl.setAttribute('aria-hidden', 'false');
@@ -9788,7 +9781,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
         style: BASEMAPS[state.basemap] || BASEMAPS.standard,
         center: startupViewport.center,
         zoom: startupViewport.zoom,
-        attributionControl: true,
+        attributionControl: false,
       });
     } catch (err) {
       try { console.error('[map] init failed', err); } catch (_) {}
@@ -9802,7 +9795,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
           style: BASEMAPS.standard,
           center: DEFAULT_MAP_CENTER,
           zoom: DEFAULT_MAP_ZOOM,
-          attributionControl: true,
+          attributionControl: false,
         });
       } catch (err2) {
         cleanupFailedMapInit();
@@ -9812,6 +9805,9 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       }
     }
     enableMapInteractions();
+    if (window.maplibregl.AttributionControl) {
+      state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     state.map.on('click', dismissPurposeHint);
     state.map.on('click', dismissStartPanel);
@@ -11381,9 +11377,18 @@ export const MAP_EXPLORER_STYLES = `
     white-space: nowrap;
   }
   .me-start-panel-symbol {
-    display: inline-grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
     line-height: 1;
+  }
+  .me-start-panel-symbol svg {
+    display: block;
+    transition: transform .18s ease;
+  }
+  .me-start-panel-close[aria-expanded="true"] .me-start-panel-symbol svg {
+    transform: rotate(180deg);
   }
   .me-start-panel.is-collapsed .me-start-panel-head {
     position: static;
@@ -12739,16 +12744,17 @@ export const MAP_EXPLORER_STYLES = `
     left: 12px;
     bottom: 56px;
     z-index: 5;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    max-width: min(520px, calc(100% - 24px));
+    gap: 2px;
+    width: fit-content;
+    max-width: calc(100% - 24px);
     box-sizing: border-box;
-    padding: 9px 10px 9px 12px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.96);
-    border: 1px solid rgba(15,118,110,.16);
-    box-shadow: 0 10px 24px rgba(15,23,42,.14);
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.94);
+    border: 1px solid rgba(15,118,110,.18);
+    box-shadow: 0 8px 20px rgba(15,23,42,.14);
     color: #0f172a;
     font-size: 12px;
     line-height: 1.35;
@@ -14732,8 +14738,8 @@ export const MAP_EXPLORER_STYLES = `
       width: fit-content;
       max-width: calc(100% - 20px);
       bottom: calc(var(--me-mobile-action-space) + 48px);
-      flex-wrap: wrap;
-      padding: 9px 10px;
+      flex-wrap: nowrap;
+      padding: 3px;
     }
     .me-layer-hint span {
       flex: 1 1 auto;
@@ -14965,6 +14971,9 @@ export const MAP_EXPLORER_STYLES = `
   .map-explorer :where(button){min-width:44px}
   .map-explorer input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
   .map-explorer .maplibregl-ctrl button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact{min-height:44px;display:flex;align-items:center}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact.maplibregl-compact-show{padding:0 48px 0 10px}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px;padding:0}
   .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}

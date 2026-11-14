@@ -10,6 +10,12 @@ const labels = {
   es: ["Inicio", "Registros", "Capturar", "Lugares", "Participar", "Cuenta", "Ir al contenido", "Páginas principales"],
   "pt-br": ["Início", "Registros", "Capturar", "Lugares", "Participar", "Conta", "Ir ao conteúdo", "Páginas principais"],
 };
+const loginLabels: Record<keyof typeof labels, string> = {
+  ja: "ログイン",
+  en: "Sign in",
+  es: "Iniciar sesión",
+  "pt-br": "Entrar",
+};
 const langSwitchMeta = [
   { code: "ja", short: "JP", label: "日本語", aria: "言語" },
   { code: "en", short: "EN", label: "English", aria: "Language" },
@@ -109,7 +115,11 @@ export function renderAppExperienceHeader(
   const headerClass = options?.extraHeaderClass ? `${options.extraHeaderClass} zukan-app-header` : "zukan-app-header";
   const headerAttrs = options?.headerAttrs ? ` ${options.headerAttrs}` : "";
   const brandSrc = options?.brandLockupSrc ? escapeAttr(options.brandLockupSrc) : "/assets/brand/zukan-lockup.svg";
-  const accountHtml = options?.authControlsHtml ?? `<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a>`;
+  const loginRedirect = options?.currentPath ?? `${prefix}/profile`;
+  const defaultAccountHtml = member
+    ? `<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a>`
+    : `<a class="ik-ui-action zukan-app-account home-header-login site-login-link" href="${prefix}/login?redirect=${encodeURIComponent(loginRedirect)}">${loginLabels[language]}</a>`;
+  const accountHtml = options?.authControlsHtml ?? defaultAccountHtml;
   return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${renderAppExperienceLanguageSwitch(lang, options?.currentPath)}${accountHtml}</div></div></header>`;
 }
 

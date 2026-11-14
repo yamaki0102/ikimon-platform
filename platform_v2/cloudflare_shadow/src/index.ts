@@ -824,6 +824,9 @@ interface PublicMapRow {
   asset_count: number;
   public_area_label?: string | null;
   public_note?: string | null;
+  ai_candidate_label?: string | null;
+  scene_place_type?: string | null;
+  scene_surrounding_cover?: string | null;
 }
 
 type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
@@ -21289,6 +21292,32 @@ function formatPublicCardNoteLine(note: unknown): string | null {
   return chars.length > 24 ? `${chars.slice(0, 24).join("")}…` : firstLine;
 }
 
+function isGenericPublicCardAiLabel(label: string): boolean {
+  return /^(?:鳥|鳥類|小鳥|動物|生きもの|生物|植物|写っているもの|unknown|unidentified|unclassified)$/iu.test(label);
+}
+
+function publicCardHintLine(
+  item: ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem,
+  lang: "ja" | "en" | "es" | "pt-br"
+): string | null {
+  const copy = observationFirstRecordDetailCopy(lang);
+  const aiLabel = "aiCandidateLabel" in item ? normalizeOptionalText(item.aiCandidateLabel) : null;
+  if (aiLabel && !isWeakTaxonLabel(aiLabel) && !isGenericPublicCardAiLabel(aiLabel) && !containsDiscoveryPersonalInformation(aiLabel)) {
+    return copy.candidateTemplate.replace("{name}", aiLabel);
+  }
+  const scenePlaceType = "scenePlaceType" in item ? normalizeOptionalText(item.scenePlaceType) : null;
+  if (scenePlaceType && scenePlaceType !== "unknown") {
+    const headline = copy.environmentHeadlines[scenePlaceType];
+    if (headline) return headline;
+  }
+  const sceneSurroundingCover = "sceneSurroundingCover" in item ? normalizeOptionalText(item.sceneSurroundingCover) : null;
+  if (sceneSurroundingCover && sceneSurroundingCover !== "unknown") {
+    const coverLabel = copy.environmentValues[sceneSurroundingCover];
+    if (coverLabel) return coverLabel;
+  }
+  return null;
+}
+
 function renderRecordsProductCard(
   item: ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem,
   lang: "ja" | "en" | "es" | "pt-br",
@@ -21302,9 +21331,13 @@ function renderRecordsProductCard(
     : normalizeOptionalText(item.displayName) ?? homeRecordMediaLabel(item.mediaKind, lang);
   const safePlace = normalizeSafePublicAreaLabelCandidate(item.publicAreaLabel);
   const publicNoteLine = mode === "public" && "publicNote" in item ? formatPublicCardNoteLine(item.publicNote) : null;
+  const publicHint = mode === "public" ? publicCardHintLine(item, lang) : null;
   const distinguishing = mode === "public"
-    ? (safePlace ?? publicNoteLine ?? null)
+    ? (safePlace ?? publicNoteLine ?? publicHint ?? null)
     : lang === "ja" ? "自分の記録" : "Your record";
+  const secondLine = item.isAwaitingId
+    ? distinguishing
+    : [date, distinguishing].filter(Boolean).join(" · ") || null;
   const visibility = mode === "mine" && "ownerVisibility" in item
     ? (item.ownerVisibility === "public" ? (lang === "ja" ? "公開" : "Public") : (lang === "ja" ? "非公開" : "Private"))
     : "";
@@ -21319,7 +21352,7 @@ function renderRecordsProductCard(
     : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
   return `<a class="cf-records-native-card" href="${escapeHtml(recordsDiscoveryDetailHref(item.visitId, lang, context))}">
     <span class="cf-records-native-media">${media}</span>
-    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, distinguishing].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
+    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong>${secondLine ? `<span>${escapeHtml(secondLine)}</span>` : ""}${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
   </a>`;
 }
 
@@ -22059,10 +22092,26 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
   </style></head>`);
 }
 
+type PublicMapCardMeta = {
+  publicAreaLabel: string | null;
+  publicNote: string | null;
+  aiCandidateLabel: string | null;
+  scenePlaceType: string | null;
+  sceneSurroundingCover: string | null;
+};
+
 async function queryPublicMapCardMeta(
   env: Env
-): Promise<Map<string, { publicAreaLabel: string | null; publicNote: string | null }>> {
-  const map = new Map<string, { publicAreaLabel: string | null; publicNote: string | null }>();
+): Promise<Map<string, PublicMapCardMeta>> {
+  const map = new Map<string, PublicMapCardMeta>();
+  const ensure = (id: string): PublicMapCardMeta => {
+    let entry = map.get(id);
+    if (!entry) {
+      entry = { publicAreaLabel: null, publicNote: null, aiCandidateLabel: null, scenePlaceType: null, sceneSurroundingCover: null };
+      map.set(id, entry);
+    }
+    return entry;
+  };
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT r.observation_id, r.public_area_label, o.note
@@ -22080,12 +22129,66 @@ async function queryPublicMapCardMeta(
         LIMIT 5000`
     ).all<{ observation_id: string; public_area_label: string | null; note: string | null }>();
     for (const row of rows.results) {
-      const safeArea = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
-      const safeNote = formatPublicCardNoteLine(row.note);
-      map.set(row.observation_id, {
-        publicAreaLabel: safeArea,
-        publicNote: safeNote,
-      });
+      const entry = ensure(row.observation_id);
+      entry.publicAreaLabel = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
+      entry.publicNote = formatPublicCardNoteLine(row.note);
+    }
+  } catch (error) {
+    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+  }
+  try {
+    const aiRows = await env.OBS_DB.prepare(
+      `SELECT o.observation_id,
+              COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
+              art.source_payload_json AS ai_source_payload_json
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+         JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
+        WHERE o.visibility = 'public'
+          AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
+        ORDER BY r.observed_at DESC
+        LIMIT 5000`
+    ).all<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>();
+    for (const row of aiRows.results) {
+      const aiLabel = normalizeOptionalText(row.ai_candidate_label);
+      if (!aiLabel || isWeakTaxonLabel(aiLabel) || isGenericPublicCardAiLabel(aiLabel) || containsDiscoveryPersonalInformation(aiLabel)) continue;
+      if (!isPublicObservationAiSubjectEligible(aiLabel, row.ai_source_payload_json)) continue;
+      ensure(row.observation_id).aiCandidateLabel = aiLabel;
+    }
+  } catch (error) {
+    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+  }
+  try {
+    const envRows = await env.OBS_DB.prepare(
+      `SELECT er.occurrence_id, er.structured_json
+         FROM observation_environment_records er
+         JOIN readmodel_public_observations r ON r.observation_id = er.occurrence_id
+         JOIN observations o ON o.observation_id = r.observation_id
+        WHERE o.visibility = 'public'
+          AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
+        ORDER BY er.created_at DESC
+        LIMIT 5000`
+    ).all<{ occurrence_id: string; structured_json: string }>();
+    for (const row of envRows.results) {
+      const entry = ensure(row.occurrence_id);
+      if (entry.scenePlaceType || entry.sceneSurroundingCover) continue;
+      const parsed = parseCompatibleStructuredJson(row.structured_json);
+      const placeType = normalizeOptionalText(parsed.place_type);
+      const surroundingCover = normalizeOptionalText(parsed.surrounding_cover);
+      if (placeType && placeType !== "unknown") entry.scenePlaceType = placeType;
+      if (surroundingCover && surroundingCover !== "unknown") entry.sceneSurroundingCover = surroundingCover;
     }
   } catch (error) {
     if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
@@ -22099,7 +22202,7 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
   const [photoUrls, mediaKinds, cardMeta] = await Promise.all([
     queryPublicMapPhotoUrls(env),
     queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>()),
-    queryPublicMapCardMeta(env).catch(() => new Map<string, { publicAreaLabel: string | null; publicNote: string | null }>()),
+    queryPublicMapCardMeta(env).catch(() => new Map<string, PublicMapCardMeta>()),
   ]);
   const uniqueItems: Array<ReturnType<typeof publicMapObservationItem>> = [];
   const seen = new Set<string>();
@@ -22110,6 +22213,9 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
         ...row,
         public_area_label: normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? meta?.publicAreaLabel ?? null,
         public_note: row.public_note ?? meta?.publicNote ?? null,
+        ai_candidate_label: row.ai_candidate_label ?? meta?.aiCandidateLabel ?? null,
+        scene_place_type: row.scene_place_type ?? meta?.scenePlaceType ?? null,
+        scene_surrounding_cover: row.scene_surrounding_cover ?? meta?.sceneSurroundingCover ?? null,
       };
       const mediaKind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
       return publicMapObservationItem(enrichedRow, photoUrls.get(row.observation_id) ?? null, mediaKind);
@@ -22901,6 +23007,9 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     localityLabel: "位置をぼかしています",
     publicAreaLabel: normalizeSafePublicAreaLabelCandidate(row.public_area_label),
     publicNote: formatPublicCardNoteLine(row.public_note),
+    aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
+    scenePlaceType: normalizeOptionalText(row.scene_place_type),
+    sceneSurroundingCover: normalizeOptionalText(row.scene_surrounding_cover),
     observedAt: row.observed_at,
     photoUrl,
     mediaKind,

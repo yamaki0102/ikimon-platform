@@ -52,6 +52,15 @@ test("event shell navigation uses the request language and membership", async ()
   assert.match(html, /class="lang-switch-link" href="\/ja\/"/);
 });
 
+test("signed-out event shell top bar shows localized login instead of profile link", async () => {
+  const guestJa = await observationEventPageHtml("参加", "<h1>参加</h1>", "test", 200, "ja", false).text();
+  assert.match(guestJa, /class="ik-ui-action zukan-app-account home-header-login site-login-link" href="\/ja\/login\?redirect=[^"]*">ログイン<\/a>/);
+  assert.doesNotMatch(guestJa, /zukan-app-account" href="\/ja\/profile">自分<\/a>/);
+
+  const guestEn = await observationEventPageHtml("Join", "<h1>Join</h1>", "test", 200, "en", false).text();
+  assert.match(guestEn, /class="ik-ui-action zukan-app-account home-header-login site-login-link" href="\/en\/login\?redirect=[^"]*">Sign in<\/a>/);
+});
+
 test("unavailable records are not reported as an empty collection", () => {
   const url = new URL("https://zukan.earth/ja/records?view=public&q=bird");
   const failed = renderRecordsProductSection([], url, "public", null, true);

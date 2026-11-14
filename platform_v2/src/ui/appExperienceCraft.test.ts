@@ -87,3 +87,22 @@ test("shared top bar always renders the interactive language switcher across loc
     }
   }
 });
+
+test("shared top bar shows localized login action when signed out and profile action when signed in", () => {
+  const expectedLogin: Record<string, string> = {
+    ja: "ログイン",
+    en: "Sign in",
+    es: "Iniciar sesión",
+    "pt-br": "Entrar",
+  };
+  for (const language of ["ja", "en", "es", "pt-br"]) {
+    const guestHeader = renderAppExperienceHeader(language, 4, false, "main-content", { currentPath: `/${language}/community/events` });
+    assert.ok(guestHeader.includes(`href="/${language}/login?redirect=`));
+    assert.ok(guestHeader.includes(`>${expectedLogin[language]}</a>`));
+    assert.doesNotMatch(guestHeader, /zukan-app-account" href="[^"]*\/profile"/);
+
+    const memberHeader = renderAppExperienceHeader(language, 4, true, "main-content", { currentPath: `/${language}/community/events` });
+    assert.ok(memberHeader.includes(`href="/${language}/profile"`));
+    assert.doesNotMatch(memberHeader, /site-login-link/);
+  }
+});
