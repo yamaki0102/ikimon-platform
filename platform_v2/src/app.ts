@@ -74,7 +74,7 @@ import { getStrings } from "./i18n/index.js";
 import type { LandingSnapshot } from "./services/readModels.js";
 import { DEMO_LOGIN_BANNER_STYLES, renderDemoLoginBanner } from "./ui/demoLoginBanner.js";
 import { LANDING_TOP_STYLES, renderLandingTopSections } from "./ui/landingTop.js";
-import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "./ui/mapExplorer.js";
+import { MAP_EXPLORER_CRITICAL_STYLES, mapExplorerBootScript, mapExplorerHeadPreloadHtml, renderMapExplorer } from "./ui/mapExplorer.js";
 import { escapeHtml, renderSiteDocument } from "./ui/siteShell.js";
 
 type PreviewContext = {
@@ -486,7 +486,9 @@ function buildMapHomeHtml(
     activeNav: localizedNavHome(lang),
     lang,
     currentPath,
-    extraStyles: MAP_EXPLORER_STYLES,
+    extraHeadHtml: mapExplorerHeadPreloadHtml(options.basePath),
+    extraStyles: MAP_EXPLORER_CRITICAL_STYLES,
+    externalizeGlobalRecordScript: true,
     shellClassName: "shell-bleed shell-map",
     hideFooter: true,
     body: `${renderMapExplorer({ basePath: options.basePath, lang, years })}

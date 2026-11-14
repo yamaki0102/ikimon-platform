@@ -19894,7 +19894,8 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (/^\/assets\/img\/landing\/[a-zA-Z0-9._-]+$/.test(pathname)) return true;
   if (/^\/assets\/event-discovery\/ryuyo-(?:hero|discovery|memories)\.webp$/.test(pathname)) return true;
   if (/^\/assets\/event-discovery\/ryuyo-photo-(?:hero|mantis|dragonfly|butterfly|leaf|pond|path)-[a-f0-9]{12}\.webp$/.test(pathname)) return true;
-  if (/^\/assets\/map\/map-explorer\.[a-f0-9]{12}\.js$/.test(pathname)) return true;
+  if (/^\/assets\/map\/map-explorer(?:-deferred)?\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
+  if (/^\/assets\/ui\/global-record-entry\.[a-f0-9]{12}\.js$/.test(pathname)) return true;
   if (/^\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
   return false;
 }
