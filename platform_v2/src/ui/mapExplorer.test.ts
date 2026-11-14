@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { gzipSync } from "node:zlib";
 import test from "node:test";
 import vm from "node:vm";
 import {
+  MAP_GLYPH_SUBSET_ASSETS,
+  MAP_GLYPH_SUBSET_ASSET_LIST,
+} from "./mapExplorerAssets.js";
+import {
   MAP_EXPLORER_STYLES,
   MAP_PREFETCHED_GLYPH_RANGES,
+  MAP_PREFETCHED_GLYPH_SUBSET_URLS,
   MAP_PREFETCHED_GLYPH_URLS,
   MAP_STANDARD_FONT_STACK,
   MAP_STANDARD_GLYPHS_TEMPLATE,
@@ -16,8 +22,15 @@ import {
   mapExplorerDeferredStylesAsset,
   mapExplorerHeadPrefetchScript,
   mapExplorerHeadPreloadHtml,
+  mapPrefetchedGlyphSubsetMap,
   renderMapExplorer,
 } from "./mapExplorer.js";
+import {
+  MAPLIBRE_LOCAL_GLYPH_RE,
+  parseGlyphsPbf,
+  shouldKeepGlyphCodePoint,
+// @ts-ignore JS build-time script
+} from "../../scripts/generate-map-glyph-subsets.mjs";
 
 function bootCombined(props: { lang: "ja" | "en" | "es" | "pt-BR"; basePath: string }): string {
   const html = mapExplorerBootScript(props);
@@ -2234,4 +2247,171 @@ test("head prefetch script is tiny, ordered after MapLibre preload, shares glyph
 
   await runCriticalWithPrefetch(true);
   await runCriticalWithPrefetch(false);
+});
+
+test("self-hosted CJK glyph subset PBFs parse, keep only non-local glyphs, and shrink significantly", () => {
+  assert.equal(MAP_GLYPH_SUBSET_ASSET_LIST.length, 2);
+  for (const range of MAP_PREFETCHED_GLYPH_RANGES) {
+    const asset = MAP_GLYPH_SUBSET_ASSETS[range];
+    assert.match(asset.path, new RegExp(`^/assets/fonts/noto-sans-regular/${range}\\.[a-f0-9]{12}\\.pbf$`));
+    assert.equal(asset.contentType, "application/x-protobuf");
+    const parsed = parseGlyphsPbf(asset.content);
+    assert.equal(parsed.stacks.length, 1);
+    const stack = parsed.stacks[0];
+    assert.ok(stack.name.startsWith(MAP_STANDARD_FONT_STACK));
+    assert.equal(stack.range, range);
+    assert.ok(stack.glyphs.length > 0);
+    for (const glyph of stack.glyphs) {
+      assert.equal(
+        shouldKeepGlyphCodePoint(glyph.id),
+        true,
+        `U+${glyph.id.toString(16).toUpperCase()} should not be covered by localIdeographFontFamily`,
+      );
+      assert.equal(MAPLIBRE_LOCAL_GLYPH_RE.test(String.fromCodePoint(glyph.id)), false);
+    }
+  }
+
+  const range12288Ids = new Set(
+    parseGlyphsPbf(MAP_GLYPH_SUBSET_ASSETS["12288-12543"].content).stacks[0].glyphs.map((g: { id: number }) => g.id),
+  );
+  for (const required of [0x3000, 0x3001, 0x3002, 0x300c, 0x300d, 0x30fb, 0x30fc]) {
+    assert.ok(range12288Ids.has(required), `12288-12543 subset must keep U+${required.toString(16).toUpperCase()}`);
+  }
+  for (const dropped of [0x3042, 0x30a2]) {
+    assert.equal(range12288Ids.has(dropped), false, `12288-12543 subset must drop local kana U+${dropped.toString(16).toUpperCase()}`);
+  }
+
+  const range65280Ids = new Set(
+    parseGlyphsPbf(MAP_GLYPH_SUBSET_ASSETS["65280-65535"].content).stacks[0].glyphs.map((g: { id: number }) => g.id),
+  );
+  for (const required of [0xff01, 0xff10, 0xff21, 0xff5e, 0xff61, 0xff65]) {
+    assert.ok(range65280Ids.has(required), `65280-65535 subset must keep U+${required.toString(16).toUpperCase()}`);
+  }
+  assert.equal(range65280Ids.has(0xff71), false, "65280-65535 subset must drop halfwidth katakana U+FF71");
+
+  assert.ok(MAP_GLYPH_SUBSET_ASSETS["12288-12543"].content.byteLength < 30_000);
+  assert.ok(gzipSync(MAP_GLYPH_SUBSET_ASSETS["12288-12543"].content).byteLength < 20_000);
+  assert.ok(MAP_GLYPH_SUBSET_ASSETS["65280-65535"].content.byteLength < 55_000);
+  assert.ok(gzipSync(MAP_GLYPH_SUBSET_ASSETS["65280-65535"].content).byteLength < 40_000);
+});
+
+test("head and critical glyph prefetches use self-hosted subset URLs, keep other ranges on openfreemap, and fall back on failure", async () => {
+  const headScript = mapExplorerHeadPrefetchScript().replace(/^<script>/, "").replace(/<\/script>$/, "");
+  const critical = mapExplorerCriticalScriptSource();
+  const subsetMap = mapPrefetchedGlyphSubsetMap();
+  for (const subsetUrl of MAP_PREFETCHED_GLYPH_SUBSET_URLS) {
+    assert.ok(headScript.includes(subsetUrl), `head prefetch must reference ${subsetUrl}`);
+    assert.ok(critical.includes(subsetUrl), `critical script must reference ${subsetUrl}`);
+  }
+
+  const runScenario = async (opts: { withHead: boolean; failSubsets: boolean }) => {
+    const fetchedUrls: string[] = [];
+    const protocols: Record<string, (params: { url: string; type?: string }) => Promise<{ data: unknown }>> = {};
+    const planetPayload = { tiles: ["https://tiles.openfreemap.org/planet/{z}/{x}/{y}.pbf"], minzoom: 0, maxzoom: 14 };
+    const subsetBytes = new Uint8Array([10, 20, 30]).buffer;
+    const fallbackBytes = new Uint8Array([40, 50, 60, 70, 80]).buffer;
+
+    const mockFetch = async (url: string) => {
+      fetchedUrls.push(url);
+      if (url === MAP_STANDARD_STYLE_URL) {
+        return { ok: true, json: async () => planetPayload };
+      }
+      if (MAP_PREFETCHED_GLYPH_SUBSET_URLS.includes(url)) {
+        if (opts.failSubsets) {
+          return { ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) };
+        }
+        return { ok: true, arrayBuffer: async () => subsetBytes };
+      }
+      if (MAP_PREFETCHED_GLYPH_URLS.includes(url)) {
+        return { ok: true, arrayBuffer: async () => fallbackBytes };
+      }
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    };
+
+    const noopEl = () => ({
+      addEventListener() {},
+      removeEventListener() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {},
+      getAttribute() { return null; },
+      querySelectorAll() { return []; },
+      querySelector() { return null; },
+      style: {},
+      dataset: {},
+    });
+    let appendedScript: any = null;
+    const fakeDoc = {
+      getElementById(id: string) { return id === "map-explorer" ? noopEl() : null; },
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      createElement(tag: string) {
+        const el = noopEl();
+        if (tag === "script") appendedScript = el;
+        return el;
+      },
+      head: { appendChild() {} },
+      body: { appendChild() {} },
+    };
+    let mapOptions: any = null;
+    const mockMaplibre = {
+      addProtocol(name: string, fn: any) { protocols[name] = fn; },
+      Map: function MockMap(this: any, optsArg: any) {
+        mapOptions = optsArg;
+        this.once = () => {};
+        this.on = () => {};
+        this.addControl = () => {};
+        this.getCenter = () => ({ lng: 138, lat: 34.7 });
+        this.getZoom = () => 10;
+      },
+      AttributionControl: function MockAttrib(this: any) {},
+      NavigationControl: function MockNav(this: any) {},
+    };
+    const fakeWin: any = {
+      fetch: mockFetch,
+      location: { search: "", href: "https://zukan.earth/ja/map", pathname: "/ja/map" },
+      history: { replaceState() {} },
+      navigator: {},
+      document: fakeDoc,
+      URL,
+      URLSearchParams,
+      console,
+      setTimeout,
+      clearTimeout,
+      maplibregl: opts.withHead ? mockMaplibre : undefined,
+    };
+    fakeWin.window = fakeWin;
+    fakeWin.self = fakeWin;
+    const ctx = vm.createContext(fakeWin);
+    if (opts.withHead) {
+      vm.runInContext(headScript, ctx);
+    }
+    vm.runInContext(critical, ctx);
+    if (!opts.withHead) {
+      fakeWin.maplibregl = mockMaplibre;
+      appendedScript.onload();
+    }
+
+    assert.ok(protocols.zukanprefetch, "zukanprefetch protocol must be registered");
+    for (const origUrl of MAP_PREFETCHED_GLYPH_URLS) {
+      const unencoded = decodeURI(origUrl);
+      const transformed = mapOptions.transformRequest(unencoded);
+      assert.equal(transformed.url, `zukanprefetch://${unencoded}`);
+      const res = await protocols.zukanprefetch!({ url: transformed.url, type: "arrayBuffer" });
+      assert.equal((res.data as ArrayBuffer).byteLength, opts.failSubsets ? 5 : 3);
+      assert.ok(fetchedUrls.includes(subsetMap[origUrl]!));
+      if (opts.failSubsets) {
+        assert.ok(fetchedUrls.includes(origUrl), `must fall back to ${origUrl} when subset fails`);
+      } else {
+        assert.equal(fetchedUrls.includes(origUrl), false, `must not fetch ${origUrl} when subset succeeds`);
+      }
+    }
+
+    const otherGlyphUrl = "https://tiles.openfreemap.org/fonts/Noto Sans Regular/0-255.pbf";
+    assert.equal(mapOptions.transformRequest(otherGlyphUrl).url, otherGlyphUrl);
+  };
+
+  await runScenario({ withHead: true, failSubsets: false });
+  await runScenario({ withHead: true, failSubsets: true });
+  await runScenario({ withHead: false, failSubsets: false });
+  await runScenario({ withHead: false, failSubsets: true });
 });
