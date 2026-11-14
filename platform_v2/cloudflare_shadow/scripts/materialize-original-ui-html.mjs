@@ -26,7 +26,11 @@ import {
 } from "./materialize-direct-r2-reuse.mjs";
 import { selectCoreMaterializationPaths } from "./materialization-target-selection.mjs";
 import { mapExplorerBootBundle, mapExplorerDeferredBundle, mapExplorerDeferredStylesAsset } from "../../src/ui/mapExplorer.ts";
-import { MAPLIBRE_SELF_HOSTED_CSS, MAPLIBRE_SELF_HOSTED_JS } from "../../src/ui/mapExplorerAssets.ts";
+import {
+  MAP_GLYPH_SUBSET_ASSET_LIST,
+  MAPLIBRE_SELF_HOSTED_CSS,
+  MAPLIBRE_SELF_HOSTED_JS,
+} from "../../src/ui/mapExplorerAssets.ts";
 import { globalRecordEntryAsset } from "../../src/ui/siteShell.ts";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
@@ -283,7 +287,8 @@ const staticAssetPaths = [
   mapExplorerDeferredStylesAsset().path,
   globalRecordEntryAsset().path,
   MAPLIBRE_SELF_HOSTED_JS.path,
-  MAPLIBRE_SELF_HOSTED_CSS.path
+  MAPLIBRE_SELF_HOSTED_CSS.path,
+  ...MAP_GLYPH_SUBSET_ASSET_LIST.map((asset) => asset.path),
 ];
 
 function normalizePublicPath(value) {
@@ -391,12 +396,14 @@ function staticContentType(pathname) {
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
   if (pathname.endsWith(".svg")) return "image/svg+xml";
+  if (pathname.endsWith(".pbf")) return "application/x-protobuf";
   return "application/octet-stream";
 }
 
 function materializationGatewayContentType(contentType) {
-  // The shared materialization gateway accepts generic XML but not the SVG-specific
-  // media type. R2 responses restore image/svg+xml from the trusted .svg pathname.
+  // The shared materialization gateway accepts generic XML / octet-stream but not
+  // SVG or protobuf media types. R2 responses restore those from trusted pathnames.
+  if (contentType === "application/x-protobuf") return "application/octet-stream";
   return contentType === "image/svg+xml" ? "application/xml" : contentType;
 }
 

@@ -4,6 +4,8 @@ import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { JA_PUBLIC_SHARED_COPY } from "../copy/jaPublic.js";
 import { overlaysForLang, type LocalizedOverlay } from "../services/layerCatalog.js";
 import {
+  MAP_GLYPH_SUBSET_ASSETS,
+  MAP_GLYPH_SUBSET_RANGES,
   MAPLIBRE_CSS_SRI,
   MAPLIBRE_JS_SRI,
   MAPLIBRE_SELF_HOSTED_CSS,
@@ -35,22 +37,39 @@ import { escapeHtml } from "./siteShell.js";
 export const MAP_STANDARD_STYLE_URL = "https://tiles.openfreemap.org/planet";
 export const MAP_STANDARD_GLYPHS_TEMPLATE = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 export const MAP_STANDARD_FONT_STACK = "Noto Sans Regular";
-export const MAP_PREFETCHED_GLYPH_RANGES = ["12288-12543", "65280-65535"] as const;
+export const MAP_PREFETCHED_GLYPH_RANGES = MAP_GLYPH_SUBSET_RANGES;
 export const MAP_PREFETCHED_GLYPH_URLS = MAP_PREFETCHED_GLYPH_RANGES.map((range) =>
   MAP_STANDARD_GLYPHS_TEMPLATE
     .replace("{fontstack}", encodeURIComponent(MAP_STANDARD_FONT_STACK))
     .replace("{range}", range),
 );
+export const MAP_PREFETCHED_GLYPH_SUBSET_URLS = MAP_PREFETCHED_GLYPH_RANGES.map(
+  (range) => MAP_GLYPH_SUBSET_ASSETS[range].path,
+);
+export function mapPrefetchedGlyphSubsetMap(basePath = ""): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const [i, range] of MAP_PREFETCHED_GLYPH_RANGES.entries()) {
+    const origUrl = MAP_PREFETCHED_GLYPH_URLS[i];
+    if (origUrl) {
+      map[origUrl] = withBasePath(basePath, MAP_GLYPH_SUBSET_ASSETS[range].path);
+    }
+  }
+  return map;
+}
 const GLYPH_KEY_FN_SOURCE = "function glyphKey(u) { try { return encodeURI(decodeURI(String(u))); } catch (_) { return String(u); } }";
 
-export function mapExplorerHeadPrefetchScript(): string {
-  return `<script>(function(){if(typeof fetch!=='function')return;var o={mode:'cors',credentials:'same-origin'},g={};${GLYPH_KEY_FN_SOURCE}var u=${JSON.stringify(MAP_PREFETCHED_GLYPH_URLS)};for(var i=0;i<u.length;i++){g[glyphKey(u[i])]=fetch(u[i],o).then(function(r){return r&&r.ok?r.arrayBuffer():null}).catch(function(){return null})}window.__zukanMapPrefetch={planet:fetch(${JSON.stringify(MAP_STANDARD_STYLE_URL)},o).then(function(r){return r&&r.ok?r.json():null}).catch(function(){return null}),glyphs:g}})()</script>`;
+export function mapExplorerHeadPrefetchScript(basePath = ""): string {
+  const pairs = MAP_PREFETCHED_GLYPH_RANGES.map((range, i) => [
+    MAP_PREFETCHED_GLYPH_URLS[i] ?? "",
+    withBasePath(basePath, MAP_GLYPH_SUBSET_ASSETS[range].path),
+  ]);
+  return `<script>(function(){if(typeof fetch!=='function')return;var o={mode:'cors',credentials:'same-origin'},g={};${GLYPH_KEY_FN_SOURCE}var u=${JSON.stringify(pairs)};function b(r){return r&&r.ok?r.arrayBuffer():null}function f(p){return fetch(p[1],o).then(b).catch(function(){return null}).then(function(d){return d||fetch(p[0],o).then(b).catch(function(){return null})})}for(var i=0;i<u.length;i++){g[glyphKey(u[i][0])]=f(u[i])}window.__zukanMapPrefetch={planet:fetch(${JSON.stringify(MAP_STANDARD_STYLE_URL)},o).then(function(r){return r&&r.ok?r.json():null}).catch(function(){return null}),glyphs:g}})()</script>`;
 }
 
 export function mapExplorerHeadPreloadHtml(basePath: string): string {
   return `<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
   <link rel="preload" as="script" href="${escapeHtml(withBasePath(basePath, MAPLIBRE_SELF_HOSTED_JS.path))}" fetchpriority="high" />
-  ${mapExplorerHeadPrefetchScript()}
+  ${mapExplorerHeadPrefetchScript(basePath)}
   <link rel="stylesheet" href="${escapeHtml(withBasePath(basePath, MAPLIBRE_SELF_HOSTED_CSS.path))}" data-maplibre="1" />`;
 }
 
@@ -2196,6 +2215,7 @@ function buildMapExplorerBootConfig(props: { lang: SiteLang; basePath: string })
     uiKpiEndpoint: withBasePath(props.basePath, "/api/v1/ui-kpi/events"),
     maplibreCssHref: withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_CSS.path),
     maplibreJsHref: withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_JS.path),
+    glyphSubsetMap: mapPrefetchedGlyphSubsetMap(props.basePath),
     deferredJsHref: withBasePath(props.basePath, mapExplorerDeferredBundle().path),
     deferredCssHref: withBasePath(props.basePath, mapExplorerDeferredStylesAsset().path),
     loadError: {
@@ -2558,6 +2578,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
   var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
   var MAP_STYLE_URL = ${JSON.stringify(MAP_STANDARD_STYLE_URL)};
   var MAP_PREFETCH_GLYPH_URLS = ${JSON.stringify(MAP_PREFETCHED_GLYPH_URLS)};
+  var MAP_PREFETCH_GLYPH_SUBSETS = CFG.glyphSubsetMap || ${JSON.stringify(mapPrefetchedGlyphSubsetMap())};
 
   var state = {
     tab: 'places',
@@ -2961,13 +2982,22 @@ ${MAP_EXPLORER_BASEMAPS_JS}
         .then(function (json) { if (json) resolvedPlanetJson = json; return json; })
         .catch(function () { return null; });
       var headGlyphs = headPrefetch && headPrefetch.glyphs ? headPrefetch.glyphs : null;
+      var fetchGlyphWithFallback = function (gUrl, subUrl) {
+        var toBuf = function (r) { return r && r.ok ? r.arrayBuffer() : null; };
+        var fetchOrig = function () {
+          return fetch(gUrl, { mode: 'cors', credentials: 'same-origin' }).then(toBuf).catch(function () { return null; });
+        };
+        if (!subUrl || subUrl === gUrl) return fetchOrig();
+        return fetch(subUrl, { mode: 'cors', credentials: 'same-origin' })
+          .then(toBuf)
+          .catch(function () { return null; })
+          .then(function (buf) { return buf || fetchOrig(); });
+      };
       MAP_PREFETCH_GLYPH_URLS.forEach(function (gUrl) {
         var existingGlyph = headGlyphs && headGlyphs[glyphKey(gUrl)] && typeof headGlyphs[glyphKey(gUrl)].then === 'function'
           ? headGlyphs[glyphKey(gUrl)]
           : null;
-        prefetchedGlyphs[glyphKey(gUrl)] = existingGlyph || fetch(gUrl, { mode: 'cors', credentials: 'same-origin' })
-          .then(function (r) { return r && r.ok ? r.arrayBuffer() : null; })
-          .catch(function () { return null; });
+        prefetchedGlyphs[glyphKey(gUrl)] = existingGlyph || fetchGlyphWithFallback(gUrl, MAP_PREFETCH_GLYPH_SUBSETS[glyphKey(gUrl)]);
       });
     } catch (_) {}
   }

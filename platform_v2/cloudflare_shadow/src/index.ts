@@ -19860,7 +19860,7 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
   const object = await getVersionedOriginalUiObject(env, originalUiStaticAssetKey(url.pathname));
   if (object?.body) {
     const fallbackContentType = contentTypeForOriginalUiStaticAsset(url.pathname);
-    const contentType = url.pathname.endsWith(".svg")
+    const contentType = url.pathname.endsWith(".svg") || url.pathname.endsWith(".pbf")
       ? fallbackContentType
       : object.httpMetadata?.contentType ?? fallbackContentType;
     const shouldRewrite = ["/offline.html", "/robots.txt", "/sitemap.xml", "/app-sw.js", "/manifest.webmanifest"].includes(url.pathname);
@@ -20022,6 +20022,7 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
   if (pathname.endsWith(".png")) return "image/png";
   if (pathname.endsWith(".webp")) return "image/webp";
   if (pathname.endsWith(".svg")) return "image/svg+xml";
+  if (pathname.endsWith(".pbf")) return "application/x-protobuf";
   return "application/octet-stream";
 }
 

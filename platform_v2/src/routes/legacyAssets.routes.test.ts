@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
 import { buildApp } from "../app.js";
+import { MAP_GLYPH_SUBSET_ASSET_LIST } from "../ui/mapExplorerAssets.js";
 
 async function withEnv(
   overrides: Record<string, string | undefined>,
@@ -294,5 +295,28 @@ test("lg thumbnails preserve photo aspect ratio for detail pages", async () => {
     );
   } finally {
     await rm(sandboxRoot, { recursive: true, force: true });
+  }
+});
+
+test("self-hosted CJK glyph subset PBFs are served with immutable caching and protobuf content type", async () => {
+  const app = buildApp();
+  try {
+    for (const asset of MAP_GLYPH_SUBSET_ASSET_LIST) {
+      const res = await app.inject({ method: "GET", url: asset.path });
+      assert.equal(res.statusCode, 200);
+      assert.equal(res.headers["content-type"], "application/x-protobuf");
+      assert.equal(res.headers["cache-control"], "public, max-age=31536000, immutable");
+      assert.equal(res.headers.etag, asset.etag);
+      assert.equal(Buffer.compare(res.rawPayload, asset.content), 0);
+
+      const notModified = await app.inject({
+        method: "GET",
+        url: asset.path,
+        headers: { "if-none-match": asset.etag },
+      });
+      assert.equal(notModified.statusCode, 304);
+    }
+  } finally {
+    await app.close();
   }
 });

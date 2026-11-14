@@ -49,3 +49,30 @@ export const MAPLIBRE_SELF_HOSTED_CSS = loadPinnedVendorAsset(
   MAPLIBRE_CSS_SRI,
   "text/css; charset=utf-8",
 );
+
+export const MAP_GLYPH_SUBSET_RANGES = ["12288-12543", "65280-65535"] as const;
+export type MapGlyphSubsetRange = (typeof MAP_GLYPH_SUBSET_RANGES)[number];
+
+function loadHashedGlyphSubsetAsset(range: MapGlyphSubsetRange): HashedStaticAsset {
+  const fullPath = fileURLToPath(
+    new URL(`../../assets/fonts/noto-sans-regular/${range}.pbf`, import.meta.url),
+  );
+  const content = readFileSync(fullPath);
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  const sri = `sha384-${createHash("sha384").update(content).digest("base64")}`;
+  return {
+    path: `/assets/fonts/noto-sans-regular/${range}.${sha256.slice(0, 12)}.pbf`,
+    content,
+    contentType: "application/x-protobuf",
+    etag: `"${sha256.slice(0, 24)}"`,
+    sri,
+  };
+}
+
+export const MAP_GLYPH_SUBSET_ASSETS: Record<MapGlyphSubsetRange, HashedStaticAsset> = {
+  "12288-12543": loadHashedGlyphSubsetAsset("12288-12543"),
+  "65280-65535": loadHashedGlyphSubsetAsset("65280-65535"),
+};
+
+export const MAP_GLYPH_SUBSET_ASSET_LIST: readonly HashedStaticAsset[] =
+  MAP_GLYPH_SUBSET_RANGES.map((range) => MAP_GLYPH_SUBSET_ASSETS[range]);

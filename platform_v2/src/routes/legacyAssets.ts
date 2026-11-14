@@ -7,7 +7,11 @@ import sharp from "sharp";
 import { loadConfig } from "../config.js";
 import { THUMBNAIL_PRESET_SIZES, type ThumbnailPreset } from "../services/thumbnailUrl.js";
 import { mapExplorerBootBundle, mapExplorerDeferredBundle, mapExplorerDeferredStylesAsset } from "../ui/mapExplorer.js";
-import { MAPLIBRE_SELF_HOSTED_CSS, MAPLIBRE_SELF_HOSTED_JS } from "../ui/mapExplorerAssets.js";
+import {
+  MAP_GLYPH_SUBSET_ASSET_LIST,
+  MAPLIBRE_SELF_HOSTED_CSS,
+  MAPLIBRE_SELF_HOSTED_JS,
+} from "../ui/mapExplorerAssets.js";
 import { globalRecordEntryAsset } from "../ui/siteShell.js";
 
 /**
@@ -51,6 +55,7 @@ const MIME: Record<string, string> = {
   ".bin": "application/octet-stream",
   ".woff": "font/woff",
   ".woff2": "font/woff2",
+  ".pbf": "application/x-protobuf",
 };
 
 function mimeFor(ext: string): string {
@@ -127,7 +132,15 @@ async function renderMissingThumbnail(width: number, rel: string): Promise<{ dat
 }
 
 export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<void> {
-  for (const asset of [mapExplorerBootBundle(), mapExplorerDeferredBundle(), mapExplorerDeferredStylesAsset(), globalRecordEntryAsset(), MAPLIBRE_SELF_HOSTED_JS, MAPLIBRE_SELF_HOSTED_CSS]) {
+  for (const asset of [
+    mapExplorerBootBundle(),
+    mapExplorerDeferredBundle(),
+    mapExplorerDeferredStylesAsset(),
+    globalRecordEntryAsset(),
+    MAPLIBRE_SELF_HOSTED_JS,
+    MAPLIBRE_SELF_HOSTED_CSS,
+    ...MAP_GLYPH_SUBSET_ASSET_LIST,
+  ]) {
     app.get(asset.path, async (request, reply) => {
       if (request.headers["if-none-match"] === asset.etag) {
         reply.code(304).send();
