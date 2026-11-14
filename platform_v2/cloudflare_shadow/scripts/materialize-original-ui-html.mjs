@@ -380,6 +380,7 @@ function staticContentType(pathname) {
   if (pathname.endsWith(".html")) return "text/html";
   if (pathname.endsWith(".txt")) return "text/plain";
   if (pathname.endsWith(".js")) return "application/javascript";
+  if (pathname.endsWith(".css")) return "text/css";
   if (pathname.endsWith(".xml")) return "application/xml";
   if (pathname.endsWith(".webmanifest")) return "application/manifest+json";
   if (pathname.endsWith(".ico")) return "image/x-icon";

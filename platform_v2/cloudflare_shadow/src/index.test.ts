@@ -30397,7 +30397,7 @@ test("event template creation preserves the selected template and field through 
   const entry = await worker.fetch(new Request("https://ikimon.life" + path), env);
   assert.equal(entry.status, 200);
   const entryHtml = await entry.text();
-  const loginHref = /href="([^"]*\/login\?redirect=[^"]+)"/u.exec(entryHtml)?.[1] ?? "";
+  const loginHref = /href="([^"]*\/login\?redirect=[^"]*event_template[^"]*)"/u.exec(entryHtml)?.[1] ?? "";
   const returnPath = new URL(loginHref.replace(/&amp;/gu, "&"), "https://ikimon.life").searchParams.get("redirect");
   assert.equal(returnPath, `/en/community/events/new?event_template=ryuyo&field_id=${RYUYO_FIELD_ID}`);
   assert.doesNotMatch(loginHref, /other\.test/u);
