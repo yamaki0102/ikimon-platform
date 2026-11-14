@@ -44,7 +44,12 @@ test("event shell navigation uses the request language and membership", async ()
   const html = await response.text();
   assert.match(html, /<html lang="en">/);
   assert.match(html, /href="\/en\/records\?view=mine"/);
-  assert.doesNotMatch(html, /href="\/ja\//);
+  const navBlocks = html.match(/<nav\b[\s\S]*?<\/nav>/g) ?? [];
+  assert.ok(navBlocks.length >= 1);
+  for (const navBlock of navBlocks) {
+    assert.doesNotMatch(navBlock, /\shref="\/ja\//);
+  }
+  assert.match(html, /class="lang-switch-link" href="\/ja\/"/);
 });
 
 test("unavailable records are not reported as an empty collection", () => {

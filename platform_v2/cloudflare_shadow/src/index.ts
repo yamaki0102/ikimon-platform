@@ -7,7 +7,7 @@ import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsS
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
 import * as bcrypt from "bcryptjs";
 import {
@@ -21142,6 +21142,16 @@ function renderCloudflareProfileHtml(
     .site-account-icons{gap:4px;padding:3px;border-radius:999px}
     .site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}
     .desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .zukan-app-lang{position:relative}
+    .zukan-app-lang summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 10px;border:1px solid #d6e3dc;border-radius:999px;background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+    .zukan-app-lang summary::-webkit-details-marker{display:none}
+    .zukan-app-lang summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+    .zukan-app-lang .lang-switch-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:95;min-width:176px;padding:6px;border:1px solid #d6e3dc;border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(15,23,42,.16)}
+    .zukan-app-lang[open] .lang-switch-options{display:grid;gap:4px}
+    .zukan-app-lang .lang-switch-link{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:650}
+    .zukan-app-lang .lang-switch-link:hover,.zukan-app-lang .lang-switch-link:focus-visible{background:#edf3ee}
+    .zukan-app-lang .lang-switch-link.is-active{background:#edf3ee;color:var(--teal)}
+    .zukan-app-lang .lang-switch-code{font-size:12px;font-weight:800;opacity:.75;min-width:22px}
     .site-mobile-menu{position:relative;display:none}
     .site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:var(--ink);cursor:pointer}
     .site-mobile-menu-toggle::-webkit-details-marker{display:none}
@@ -21211,11 +21221,14 @@ function renderCloudflareProfileAction(href: string, title: string, body: string
 
 function renderCloudflareProfileHeader(prefix: string): string {
   const safePrefix = escapeHtml(prefix);
-  return renderVpsImageHeader()
+  const lang = prefix.replace(/^\//, "") || "ja";
+  const langSwitch = renderAppExperienceLanguageSwitch(lang, `${prefix}/profile`);
+  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "__LANG_SWITCH__")
     .replace('href="/ja/login?redirect=%2Fprofile"', `href="${safePrefix}/profile"`)
     .replace('href="/ja/login?redirect=%2Fprofile%2Fsettings"', `href="${safePrefix}/profile/settings"`)
     .replaceAll('href="/ja/', `href="${safePrefix}/`)
-    .replaceAll('action="/ja/', `action="${safePrefix}/`);
+    .replaceAll('action="/ja/', `action="${safePrefix}/`)
+    .replace("__LANG_SWITCH__", langSwitch);
 }
 
 function renderCloudflareProfileRecordCard(
@@ -34048,7 +34061,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail, rec
   };
 }
 
-function renderVpsImageHeader(recordsHref = "/ja/records"): string {
+function renderVpsImageHeader(recordsHref = "/ja/records", lang = "ja", currentPath?: string, langSwitchHtml?: string): string {
+  const langSwitch = langSwitchHtml ?? renderAppExperienceLanguageSwitch(lang, currentPath);
   return `<header class="site-header">
   <div class="site-header-inner">
     <div class="site-brand-cluster">
@@ -34069,9 +34083,7 @@ function renderVpsImageHeader(recordsHref = "/ja/records"): string {
       <input class="site-search-input" type="search" name="q" placeholder="地域の記録や場所を探す" value="" aria-label="地域の記録と場所を検索">
     </form>
     <div class="site-header-actions site-header-actions-desktop">
-      <div class="lang-switch lang-switch-desktop" aria-label="言語">
-        <span class="lang-switch-label"><svg class="desktop-side-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a14 14 0 0 1 0 18"></path><path d="M12 3a14 14 0 0 0 0 18"></path></svg><span class="lang-switch-current">JP</span></span>
-      </div>
+      ${langSwitch}
       <a class="btn btn-solid site-record-link" href="/ja/record">記録する</a>
       <nav class="site-account-icons" aria-label="アカウント">
         <a class="site-account-icon" href="/ja/login?redirect=%2Fprofile" title="マイページ" aria-label="マイページ"><svg class="desktop-side-nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></a>

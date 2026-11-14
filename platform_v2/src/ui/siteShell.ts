@@ -1,5 +1,5 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
-import { APP_EXPERIENCE_LAYOUT_STYLES, isAppExperiencePath, ZUKAN_DESIGN_FOUNDATION_STYLES } from "./appExperience.js";
+import { APP_EXPERIENCE_LAYOUT_STYLES, appExperienceActiveIndex, isAppExperiencePath, renderAppExperienceHeader, renderAppExperienceNavigation, ZUKAN_DESIGN_FOUNDATION_STYLES } from "./appExperience.js";
 import { FRONTEND_FOUNDATION_CSS } from "./frontendFoundation.js";
 import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, supportedLanguages, type SiteLang } from "../i18n.js";
@@ -839,19 +839,14 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
 
   if (homeChrome || (isAppExperiencePath(currentPath) && !minimalChrome)) {
     const homeProfileIcon = siteAccountIcon(basePath, lang, "account", "/profile", accountCopy.profile, "data-account-profile");
-    return `<header class="site-header site-header-home" data-home-header data-home-auth-state="${homeChrome ?? "guest"}">
-    <div class="site-header-inner">
-      <div class="site-brand-cluster">
-        <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
-          <span class="brand-logo-lockup"><img class="brand-lockup-img" src="${escapeHtml(brandLockupSrc)}" alt="ZUKAN" width="150" height="32" /></span>
-        </a>
-      </div>
-      ${navLinks}
-      <div class="zukan-app-language">${desktopLangSwitch}</div>
-      <div class="home-header-actions is-guest"><a class="home-header-login site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a></div>
-      <nav class="home-header-actions is-member" aria-label="${escapeHtml(accountCopy.accountNav)}">${notificationIcon}${homeProfileIcon}</nav>
-    </div>
-  </header>`;
+    const authControlsHtml = `<div class="home-header-actions is-guest"><a class="home-header-login site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a></div><nav class="home-header-actions is-member" aria-label="${escapeHtml(accountCopy.accountNav)}">${notificationIcon}${homeProfileIcon}</nav>`;
+    return renderAppExperienceHeader(lang, appExperienceActiveIndex(currentPath), homeChrome === "member", "main-content", {
+      currentPath,
+      authControlsHtml,
+      extraHeaderClass: "site-header site-header-home",
+      headerAttrs: `data-home-header data-home-auth-state="${homeChrome ?? "guest"}"`,
+      brandLockupSrc,
+    });
   }
 
   if (minimalChrome) {
@@ -1333,40 +1328,9 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
     return "";
   }
   const copy = globalRecordEntryCopy(lang);
-  const pathname = normalizePathname(currentPath);
-  const homeHref = appendLangToHref(withBasePath(basePath, "/"), lang);
-  const placesHref = appendLangToHref(withBasePath(basePath, "/map?tab=places"), lang);
-  const memberRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang);
-  const guestRecordsHref = appendLangToHref(withBasePath(basePath, "/records?view=public"), lang);
-  const recordsHref = authState === "member" ? memberRecordsHref : guestRecordsHref;
-  const eventsHref = appendLangToHref(withBasePath(basePath, "/community/events"), lang);
-  const homeCurrent = pathname === "/" || pathname === "/home";
-  const placesCurrent = pathname === "/map" || pathname.startsWith("/map/");
-  const recordsCurrent = pathname === "/records" || pathname.startsWith("/records/") || pathname.startsWith("/observations/");
-  const eventsCurrent = pathname === "/community/events" || pathname.startsWith("/community/events/");
-  return `<nav class="global-record-launcher" aria-label="${escapeHtml(copy.navLabel)}">
+  const bottomNav = renderAppExperienceNavigation(lang, appExperienceActiveIndex(currentPath), "bottom", authState === "member");
+  return `${bottomNav}
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
-    <a class="global-record-choice${homeCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(homeHref)}"${homeCurrent ? ' aria-current="page"' : ""}>
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg></span>
-      <span>${escapeHtml(copy.home)}</span>
-    </a>
-    <a class="global-record-choice${recordsCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(recordsHref)}" data-bottom-nav-auth data-auth-guest-href="${escapeHtml(guestRecordsHref)}" data-auth-member-href="${escapeHtml(memberRecordsHref)}"${recordsCurrent ? ' aria-current="page"' : ""}>
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
-      <span>${escapeHtml(copy.records)}</span>
-    </a>
-    <button type="button" class="global-record-choice is-primary ik-ui-action" data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="capture_nav" aria-haspopup="dialog" aria-label="${escapeHtml(copy.captureAria)}">
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/></svg></span>
-      <span>${escapeHtml(copy.photo)}</span>
-    </button>
-    <a class="global-record-choice${placesCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(placesHref)}"${placesCurrent ? ' aria-current="page"' : ""}>
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15M15 6v15"/></svg></span>
-      <span>${escapeHtml(copy.places)}</span>
-    </a>
-    <a class="global-record-choice${eventsCurrent ? " is-active" : ""} ik-ui-action" href="${escapeHtml(eventsHref)}"${eventsCurrent ? ' aria-current="page"' : ""}>
-      <span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/></svg></span>
-      <span>${escapeHtml(copy.events)}</span>
-    </a>
-  </nav>
   <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
   <section class="global-record-camera-sheet" data-global-record-camera-sheet hidden aria-label="${escapeHtml(copy.sheetLabel)}">
     <div class="global-record-camera-head">
@@ -6296,88 +6260,6 @@ ${alternateLinks}
     .onboarding-empty p { margin: 0 0 20px; color: #475569; max-width: 44ch; margin-inline: auto; }
     .ver-tag { font-size: 11px; font-weight: 700; color: #94a3b8; margin-right: 6px; font-family: ui-monospace, monospace; }
     ${globalRecordNav ? `
-    .global-record-launcher {
-      position: fixed;
-      left: max(8px, env(safe-area-inset-left));
-      right: max(8px, env(safe-area-inset-right));
-      bottom: max(6px, env(safe-area-inset-bottom));
-      z-index: 36;
-      display: none;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      padding: 8px;
-      gap: 8px;
-      border-radius: 24px;
-      background: rgba(255,255,255,.96);
-      border: 1px solid rgba(15,23,42,.08);
-      box-shadow: 0 20px 44px rgba(15,23,42,.20);
-      backdrop-filter: blur(18px);
-    }
-    .global-record-choice {
-      min-height: 58px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      padding: 7px 6px;
-      border-radius: 17px;
-      background: rgba(248,250,252,.92);
-      color: #0f172a;
-      font-size: 11px;
-      font-weight: 950;
-      line-height: 1.2;
-      text-decoration: none;
-      border: 0;
-      font-family: inherit;
-      cursor: pointer;
-    }
-    .global-record-choice.is-primary {
-      min-height: 66px;
-      margin-top: -10px;
-      margin-bottom: 2px;
-      border-radius: 21px;
-      background: #b94f18;
-      color: #fff;
-      border: 1px solid #b94f18;
-      box-shadow: none;
-    }
-    .global-record-choice.is-active,
-    .global-record-choice[aria-current="page"] {
-      color: #065f46;
-      background: #f0f7f2;
-      box-shadow: inset 0 -3px #087a4d;
-    }
-    .global-record-choice > span:last-child {
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .global-record-choice-icon {
-      width: 30px;
-      height: 30px;
-      flex: 0 0 30px;
-      display: grid;
-      place-items: center;
-      border-radius: 999px;
-      background: rgba(15,23,42,.06);
-    }
-    .global-record-choice.is-primary .global-record-choice-icon {
-      width: 36px;
-      height: 36px;
-      flex-basis: 36px;
-      background: #963f13;
-      color: #fff;
-    }
-    .global-record-choice svg {
-      width: 18px;
-      height: 18px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
     .global-record-camera-backdrop {
       position: fixed;
       inset: 0;
@@ -7595,7 +7477,7 @@ ${alternateLinks}
     ${ZUKAN_DESIGN_FOUNDATION_STYLES}
     ${options.publicContextHtml ? PUBLIC_CONTEXT_STYLES : ""}
     ${options.extraStyles ?? ""}
-    ${isAppExperiencePath(currentPath) ? APP_EXPERIENCE_LAYOUT_STYLES : ""}
+    ${(isAppExperiencePath(currentPath) || Boolean(globalRecordNav)) ? APP_EXPERIENCE_LAYOUT_STYLES : ""}
   </style>
 </head>
 <body data-zukan-design="v1"${isAppExperiencePath(currentPath) ? ' data-zukan-app-experience="v1"' : ""}${prefersCollapsedSideNav ? ' class="is-desktop-side-nav-collapsed"' : ""}>

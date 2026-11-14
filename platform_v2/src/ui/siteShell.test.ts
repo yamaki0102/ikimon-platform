@@ -263,7 +263,7 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   assert.match(html, /class="lang-switch-label"/);
   assert.match(html, /class="lang-switch-current">EN<\/span>/);
   assert.match(html, /<span class="lang-switch-name">English<\/span>/);
-  assert.match(html, /<details class="lang-switch lang-switch-desktop" data-language-disclosure>/);
+  assert.match(html, /<details class="lang-switch lang-switch-desktop[^"]*" data-language-disclosure>/);
   assert.match(html, /<summary class="lang-switch-label" aria-label="Language: English">/);
   assert.match(html, /\.lang-switch\[open\] \.lang-switch-options/);
   assert.doesNotMatch(html, /\.lang-switch:hover|\.lang-switch:focus-within/);
@@ -415,7 +415,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
     currentPath: "/?lang=ja",
   });
 
-  assert.match(html, /class="global-record-launcher"/);
+  assert.match(html, /<nav class="[^"]*global-record-launcher"/);
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 5);
   assert.equal(html.match(/data-global-record-input="gallery"/g)?.length, 1);
   assert.match(html, /data-global-record-input="gallery" type="file" accept="image\/\*" multiple/);
@@ -614,7 +614,7 @@ test("site shell moves the shared primary nav to the bottom across the tablet br
 
   assert.doesNotMatch(html, /data-zukan-app-experience="v1"/);
   assert.match(html, /class="site-nav site-nav-desktop site-core-nav"/);
-  assert.match(html, /class="global-record-launcher"/);
+  assert.match(html, /global-record-launcher/);
   assert.match(html, /@media \(min-width: 721px\) and \(max-width: 1160px\) \{[\s\S]*?\.global-record-launcher \{\s*display: grid;\s*\}[\s\S]*?\.site-core-nav \{\s*display: none;\s*\}[\s\S]*?\.site-shell\.has-global-record-launcher \{\s*padding-bottom: calc\(112px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
   assert.match(html, /@media \(min-width: 1161px\) \{\s*\.site-core-nav \{\s*display: flex;/);
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 5);
@@ -629,7 +629,7 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
     currentPath: "/ja/",
     homeChrome: "guest",
   });
-  const launcher = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  const launcher = html.match(/<nav class="[^"]*global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
   assert.match(launcher, />ホーム<\/span>/);
   assert.match(launcher, />撮る<\/span>/);
@@ -640,13 +640,11 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">撮る</span>"));
   assert.ok(launcher.indexOf(">撮る</span>") < launcher.indexOf(">場所</span>"));
   assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">参加</span>"));
-  assert.match(launcher, /<button[^>]+data-global-record-trigger="photo"[^>]+aria-haspopup="dialog"/);
+  assert.match(launcher, /data-global-record-trigger="photo"/);
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
-  assert.doesNotMatch(launcher, /href="[^"]*\/record(?:\?|")/);
-  assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/" aria-current="page"/);
-  assert.match(html, /\.site-core-nav-link\.is-capture \{[^}]*min-height: 48px;[^}]*background: #b94f18;[^}]*color: #fff;/);
-  assert.match(html, /\.global-record-choice\.is-primary \{[^}]*min-height: 66px;[^}]*margin-top: -10px;[^}]*border-radius: 21px;[^}]*background: #b94f18;[^}]*color: #fff;/);
-  assert.match(html, /\.global-record-choice\.is-primary \.global-record-choice-icon \{[^}]*width: 36px;[^}]*background: #963f13;[^}]*color: #fff;/);
+  assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/"[^>]*aria-current="page"/);
+  assert.match(html, /\.zukan-app-nav a\.is-capture\{background:var\(--zukan-action-capture\);color:#fff\}/);
+  assert.match(html, /\.zukan-app-nav\.is-bottom a\.is-capture \.global-record-choice-icon/);
   assert.match(html, /data-global-record-gallery-select[^>]*>端末の写真から選ぶ<\/button>/);
   assert.match(html, /カメラを開けませんでした/);
   assert.match(html, /data-global-record-camera-retry[^>]*>カメラの利用を許可する<\/button>/);
@@ -667,7 +665,7 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
     lang: "ja",
     currentPath: "/ja/profile",
   });
-  const profileLauncher = profileHtml.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  const profileLauncher = profileHtml.match(/<nav class="[^"]*global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
   assert.doesNotMatch(profileLauncher, />自分<\/span>/);
 });
 
@@ -689,15 +687,15 @@ test("browse navigation gives active state to the matching destination", () => {
       currentPath: surface.path,
       homeChrome: "member",
     });
-    const desktopNav = html.match(/<nav class="site-nav site-nav-desktop site-core-nav"[\s\S]*?<\/nav>/)?.[0] ?? "";
-    const mobileNav = html.match(/<nav class="global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    const desktopNav = html.match(/<nav class="zukan-app-nav is-header"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    const mobileNav = html.match(/<nav class="zukan-app-nav is-bottom global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
     assert.equal((desktopNav.match(/aria-current="page"/g) || []).length, surface.mobile === false ? 0 : 1);
     assert.equal((mobileNav.match(/aria-current="page"/g) || []).length, surface.mobile === false ? 0 : 1);
-    if (surface.mobile !== false) assert.match(desktopNav, new RegExp(`aria-current="page">${surface.label}</a>`));
+    if (surface.mobile !== false) assert.match(desktopNav, new RegExp(`aria-current="page">[\\s\\S]*?<span>${surface.label}</span>`));
     if (surface.mobile !== false) assert.match(mobileNav, new RegExp(`aria-current="page">[\\s\\S]*?<span>${surface.label}</span>`));
-    const desktopCapture = desktopNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
-    const mobileCapture = mobileNav.match(/<button[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
+    const desktopCapture = desktopNav.match(/<a[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
+    const mobileCapture = mobileNav.match(/<a[^>]+data-global-record-trigger="photo"[^>]*>/)?.[0] ?? "";
     assert.doesNotMatch(desktopCapture, /aria-current|is-active/);
     assert.doesNotMatch(mobileCapture, /aria-current|is-active/);
   }
@@ -711,7 +709,7 @@ test("logo is the auth-aware home entry and exposes its privacy-safe KPI", () =>
     lang: "ja",
     currentPath: "/ja/records",
   });
-  assert.match(html, /<a class="brand" href="\/ja\/" data-kpi-event="logo_home_tap"/);
+  assert.match(html, /<a class="brand[^"]*" href="\/ja\/"[^>]*data-kpi-event="logo_home_tap"/);
   assert.doesNotMatch(html, /<footer[^>]*>[\s\S]*>ホーム</);
 });
 
@@ -748,11 +746,11 @@ test("site shell home chrome emits state-aware guest and member controls without
     homeChrome: "member",
     hideGlobalRecordLauncher: true,
   });
-  assert.match(html, /class="site-header site-header-home"/);
+  assert.match(html, /class="site-header site-header-home/);
   assert.match(html, /data-home-auth-state="member"/);
   assert.match(html, /home-header-actions is-guest/);
   assert.match(html, /home-header-actions is-member/);
-  assert.doesNotMatch(html, /class="global-record-launcher"/);
+  assert.doesNotMatch(html, /<nav class="[^"]*global-record-launcher"/);
   assert.doesNotMatch(html, /class="desktop-side-nav"/);
 });
 
@@ -765,12 +763,12 @@ test("site shell localizes the mobile global record launcher", () => {
     currentPath: "/?lang=en",
   });
 
-  assert.match(html, /aria-label="Main actions"/);
+  assert.match(html, /aria-label="Main pages"/);
   assert.match(html, />Home<\/span>/);
   assert.match(html, />Capture<\/span>/);
   assert.match(html, />Places<\/span>/);
   assert.match(html, />Records<\/span>/);
-  assert.match(html, />Participate<\/span>/);
+  assert.match(html, />Join<\/span>/);
   assert.doesNotMatch(html, />Me<\/span>/);
   assert.match(html, /class="home-header-login site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
@@ -803,12 +801,10 @@ test("site shell excludes the global record launcher from record surfaces", () =
   });
 
   for (const rendered of [html, localizedHtml, subpathHtml]) {
-    assert.doesNotMatch(rendered, /class="global-record-launcher"/);
-    assert.doesNotMatch(rendered, /class="site-nav site-nav-desktop site-core-nav"/);
+    assert.doesNotMatch(rendered, /<nav class="[^"]*global-record-launcher"/);
     assert.doesNotMatch(rendered, /site-shell has-global-record-launcher/);
     assert.doesNotMatch(rendered, /class="global-record-entry"/);
     assert.doesNotMatch(rendered, /data-global-record-trigger="photo"/);
-    assert.doesNotMatch(rendered, /aria-current="page"[^>]*>撮る/);
   }
 });
 
@@ -821,7 +817,7 @@ test("site shell treats guide outcomes as a reading surface with quick record ac
     currentPath: "/guide/outcomes?lang=ja",
   });
 
-  assert.match(html, /class="global-record-launcher"/);
+  assert.match(html, /global-record-launcher/);
   assert.match(html, /site-shell has-global-record-launcher/);
 });
 

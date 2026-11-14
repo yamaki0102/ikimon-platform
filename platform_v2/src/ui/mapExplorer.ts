@@ -355,7 +355,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefNextHookLabel: "次の手がかり",
     siteBriefLoading: "この地点を読み解き中…",
     siteBriefError: "地図だけでは読み解けません。立入可否と現地の安全を優先してください。",
-    searchPlaceholder: "場所や生きものを探す（例: 静岡市 谷津山、モンシロチョウ）",
+    searchPlaceholder: "場所や記録を探す",
     searchAriaLabel: "場所または種を検索",
     searchNoResult: "見つからなかった。もう一語ゆるめてみる。",
     searchError: "検索結果を取得できませんでした。時間をおいて再検索してください。",
@@ -550,7 +550,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefNextHookLabel: "next clue",
     siteBriefLoading: "Reading this place…",
     siteBriefError: "Could not read this place. Trust your field sense.",
-    searchPlaceholder: "Find a place or species (e.g. Shizuoka, swallowtail)",
+    searchPlaceholder: "Find a place or record",
     searchAriaLabel: "Search place or species",
     searchNoResult: "No match. Try a looser term.",
     searchError: "Search failed. Wait a moment and retry.",
@@ -745,7 +745,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefNextHookLabel: "siguiente pista",
     siteBriefLoading: "Leyendo este lugar…",
     siteBriefError: "No pude leer este lugar. Confía en tu campo.",
-    searchPlaceholder: "Buscar lugar o especie (p. ej. Shizuoka, mariposa)",
+    searchPlaceholder: "Buscar lugar o registro",
     searchAriaLabel: "Buscar lugar o especie",
     searchNoResult: "Sin resultados. Prueba con menos palabras.",
     searchError: "Fallo al buscar. Espera y reintenta.",
@@ -940,7 +940,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
     siteBriefNextHookLabel: "próxima pista",
     siteBriefLoading: "Lendo este lugar…",
     siteBriefError: "Não consegui ler este lugar. Confie no campo.",
-    searchPlaceholder: "Buscar local ou espécie (ex.: Shizuoka, borboleta)",
+    searchPlaceholder: "Buscar local ou registro",
     searchAriaLabel: "Buscar local ou espécie",
     searchNoResult: "Sem resultados. Tente um termo mais amplo.",
     searchError: "Falha na busca. Aguarde e tente novamente.",
@@ -1591,7 +1591,11 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         ? "Explorar locais no mapa"
         : "Explore places on the map";
 
-  return `<section class="section me-section map-explorer" data-side="rail" aria-label="${escapeHtml(mapRegionLabel)}">
+  return `<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V" crossorigin="anonymous" referrerpolicy="no-referrer" data-maplibre="1" />
+  <link rel="preload" as="script" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <section class="section me-section map-explorer" data-side="rail" aria-label="${escapeHtml(mapRegionLabel)}">
     <div class="me-topbar">
       <div class="me-topbar-primary">
         <span class="me-map-kicker">${escapeHtml(lang === "ja" ? "探索する" : lang === "es" ? "Guia regional" : lang === "pt-BR" ? "Guia regional" : "Regional guide")}</span>
@@ -2978,7 +2982,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     sideRailCountEl.setAttribute('data-signal', active ? 'broad-activity' : 'neutral');
   }
 
-  function setStatus(text) { if (statusEl) statusEl.textContent = text || ''; }
+  function setStatus(text) {
+    if (!statusEl) return;
+    var normalized = String(text || '').trim();
+    var hide = !normalized || normalized === '—';
+    statusEl.textContent = hide ? '' : normalized;
+    statusEl.hidden = hide;
+    statusEl.classList.toggle('is-hidden', hide);
+  }
   function setStatusMeta(meta) { if (statusEl) statusEl.title = meta || ''; }
   function rainStatusWithNotice(text) {
     var out = String(text || '');
@@ -3064,6 +3075,10 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function updateRainLayer() {
     if (!state.map) return;
+    if (typeof state.map.isStyleLoaded === 'function' && !state.map.isStyleLoaded()) {
+      whenStyleReady(state.map, updateRainLayer);
+      return;
+    }
     removeRainLayer();
     if (!state.rainEnabled || state.tab !== 'rain') return;
     var entry = selectedRainTime();
@@ -3488,7 +3503,7 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
   function maybeShowLayerHint(tab) {
     var info = layerHintInfo(tab);
-    if (!info || !state.map || !layerHintEl || !layerHintTextEl) {
+    if (!info || !info.text || !String(info.text).trim() || !state.map || !layerHintEl || !layerHintTextEl) {
       hideLayerHint();
       return;
     }
@@ -7952,10 +7967,36 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     return null;
   }
 
+  function whenStyleReady(map, fn) {
+    if (!map || typeof fn !== 'function') return;
+    if (typeof map.isStyleLoaded === 'function' && map.isStyleLoaded()) {
+      fn();
+      return;
+    }
+    var done = false;
+    var run = function () {
+      if (done) return;
+      done = true;
+      fn();
+    };
+    if (typeof map.once === 'function') {
+      map.once('style.load', run);
+      map.once('load', run);
+    }
+  }
+
   function syncViewerOwnedRecordSource(map) {
     if (!map) return;
     var sourceId = 'viewer-owned-observations';
     var collection = buildViewerOwnedRecordPointCollection(state.records || []);
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData(collection);
+      return;
+    }
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { syncViewerOwnedRecordSource(map); });
+      return;
+    }
     if (map.getSource(sourceId)) {
       map.getSource(sourceId).setData(collection);
       return;
@@ -8010,7 +8051,19 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function ensureCellSource(map, features) {
+    if (!map) return;
     var sourceId = 'observations';
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData({ type: 'FeatureCollection', features: features });
+      syncCellPointSource(map, features);
+      syncViewerOwnedRecordSource(map);
+      highlightSelectedCell();
+      return;
+    }
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { ensureCellSource(map, features); });
+      return;
+    }
     if (map.getSource(sourceId)) {
       map.getSource(sourceId).setData({ type: 'FeatureCollection', features: features });
       syncCellPointSource(map, features);
@@ -8022,10 +8075,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
       type: 'geojson',
       data: { type: 'FeatureCollection', features: features },
     });
-    map.addSource('observation-centroids', {
-      type: 'geojson',
-      data: buildCellPointCollection(features),
-    });
+    if (!map.getSource('observation-centroids')) {
+      map.addSource('observation-centroids', {
+        type: 'geojson',
+        data: buildCellPointCollection(features),
+      });
+    }
     map.addLayer({
       id: 'observation-cell-fill',
       type: 'fill',
@@ -8284,8 +8339,17 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function paintFrontier(map, collection) {
+    if (!map) return;
     var sourceId = 'frontier';
     var fillId = 'frontier-fill';
+    if (map.getSource(sourceId)) {
+      map.getSource(sourceId).setData(collection);
+      return;
+    }
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { paintFrontier(map, collection); });
+      return;
+    }
     if (!map.getSource(sourceId)) {
       map.addSource(sourceId, { type: 'geojson', data: collection });
       map.addLayer({
@@ -8359,6 +8423,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function ensureWaterwayHints(map) {
     if (!map || map.getSource('waterway-hints')) return;
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { ensureWaterwayHints(map); });
+      return;
+    }
+    if (map.getSource('waterway-hints')) return;
     map.addSource('waterway-hints', {
       type: 'geojson',
       data: { type: 'FeatureCollection', features: [] },
@@ -8506,6 +8575,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   }
 
   function ensureAreaPolygons(map) {
+    if (!map || map.getSource('area-polygons')) return;
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { ensureAreaPolygons(map); });
+      return;
+    }
     if (map.getSource('area-polygons')) return;
     map.addSource('area-polygons', {
       type: 'geojson',
@@ -9500,6 +9574,14 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
     if (!map || !coll || !coll.features || !coll.features.length) return;
     var srcId = 'traces';
     var layerId = 'traces-line';
+    if (map.getSource(srcId)) {
+      map.getSource(srcId).setData(coll);
+      return;
+    }
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { paintTraces(map, coll); });
+      return;
+    }
     if (map.getSource(srcId)) {
       map.getSource(srcId).setData(coll);
       return;
@@ -10711,6 +10793,11 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
 
   function addOverlay(map, def) {
     if (!map || map.getSource(overlaySourceId(def.id))) return;
+    if (typeof map.isStyleLoaded === 'function' && !map.isStyleLoaded()) {
+      whenStyleReady(map, function () { addOverlay(map, def); });
+      return;
+    }
+    if (map.getSource(overlaySourceId(def.id))) return;
     try {
       map.addSource(overlaySourceId(def.id), {
         type: 'raster',
@@ -12668,6 +12755,7 @@ export const MAP_EXPLORER_STYLES = `
     font-weight: 820;
   }
   .me-layer-hint.is-hidden { display: none; }
+  .me-map-status.is-hidden { display: none !important; }
   .me-layer-hint span {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -14427,14 +14515,14 @@ export const MAP_EXPLORER_STYLES = `
       padding: 4px;
     }
     .me-start-panel.is-collapsed .me-start-panel-close {
-      width: 34px;
-      min-width: 34px;
-      max-width: 34px;
+      width: auto;
+      min-width: 44px;
+      max-width: none;
       height: 34px;
-      padding: 0;
+      padding: 0 12px;
     }
     .me-start-panel.is-collapsed .me-start-panel-brief {
-      display: none;
+      display: inline;
     }
     .me-start-panel.is-collapsed .me-start-panel-grid {
       display: none;
@@ -14640,17 +14728,18 @@ export const MAP_EXPLORER_STYLES = `
     }
     .me-layer-hint {
       left: 10px;
-      right: 10px;
+      right: auto;
+      width: fit-content;
+      max-width: calc(100% - 20px);
       bottom: calc(var(--me-mobile-action-space) + 48px);
-      max-width: none;
       flex-wrap: wrap;
       padding: 9px 10px;
     }
     .me-layer-hint span {
-      flex: 1 1 100%;
+      flex: 1 1 auto;
     }
     .me-layer-hint-jump {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       min-width: 0;
     }
     .me-bottom-sheet {
@@ -14876,9 +14965,10 @@ export const MAP_EXPLORER_STYLES = `
   .map-explorer :where(button){min-width:44px}
   .map-explorer input:not([type=checkbox]):not([type=radio]):not([type=range]){min-height:44px}
   .map-explorer .maplibregl-ctrl button{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important}
+  .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}
-  .map-explorer .me-start-panel.is-collapsed .me-start-panel-close{width:44px!important;min-width:44px!important;max-width:44px!important;height:44px!important;min-height:44px!important}
+  .map-explorer .me-start-panel.is-collapsed .me-start-panel-close{width:auto!important;min-width:44px!important;max-width:none!important;height:44px!important;min-height:44px!important;padding:0 12px!important}
   .map-explorer .me-legend.is-collapsed .me-legend-toggle{width:44px;min-width:44px;min-height:44px}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt):has(input:focus-visible){outline:3px solid rgba(14,165,233,.42);outline-offset:2px}
 `;

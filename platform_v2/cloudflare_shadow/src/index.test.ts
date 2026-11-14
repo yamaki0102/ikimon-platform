@@ -20356,10 +20356,10 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "掲載中の公開企画はまだありません。", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
-    { prefix: "en", title: "Join", empty: "No public programs are listed yet.", failed: "Couldn’t load programs.", retry: "Reload" },
-    { prefix: "es", title: "Participar", empty: "Todavía no hay actividades públicas publicadas.", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
-    { prefix: "pt-br", title: "Participar", empty: "Ainda não há atividades públicas publicadas.", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
+    { prefix: "ja", title: "参加", empty: "掲載中の公開企画はまだありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "en", title: "Join", empty: "No public programs are listed yet", failed: "Couldn’t load programs.", retry: "Reload" },
+    { prefix: "es", title: "Participar", empty: "Todavía no hay actividades públicas publicadas", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
+    { prefix: "pt-br", title: "Participar", empty: "Ainda não há atividades públicas publicadas", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
   ];
 
   for (const item of cases) {
