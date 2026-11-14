@@ -823,6 +823,7 @@ interface PublicMapRow {
   taxon_label: string | null;
   asset_count: number;
   public_area_label?: string | null;
+  public_note?: string | null;
 }
 
 type HomeRecordMediaKind = "photo" | "video" | "audio" | "record";
@@ -21264,18 +21265,32 @@ function recordsProductItemMatches(item: ReturnType<typeof publicMapObservationI
   ].filter(Boolean).join(" ")).includes(query);
 }
 
+function formatPublicCardNoteLine(note: unknown): string | null {
+  if (typeof note !== "string") return null;
+  const firstLine = note
+    .split(/\r?\n/u)
+    .map((line) => line.replace(/\s+/gu, " ").trim())
+    .find((line) => line.length > 0);
+  if (!firstLine || containsDiscoveryPersonalInformation(firstLine)) return null;
+  const chars = Array.from(firstLine);
+  return chars.length > 24 ? `${chars.slice(0, 24).join("")}…` : firstLine;
+}
+
 function renderRecordsProductCard(
   item: ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem,
   lang: "ja" | "en" | "es" | "pt-br",
   mode: "mine" | "public",
-  context: RecordsDiscoveryContext
+  context: RecordsDiscoveryContext,
+  index = 0
 ): string {
   const date = formatHomeRecordObservedAt(item.observedAt, lang);
   const title = item.isAwaitingId
     ? [homeRecordMediaLabel(item.mediaKind, lang), date].filter(Boolean).join(" · ")
     : normalizeOptionalText(item.displayName) ?? homeRecordMediaLabel(item.mediaKind, lang);
-  const location = mode === "public"
-    ? normalizeOptionalText(item.publicAreaLabel) ?? (lang === "ja" ? "位置を保護" : "Location protected")
+  const safePlace = normalizeSafePublicAreaLabelCandidate(item.publicAreaLabel);
+  const publicNoteLine = mode === "public" && "publicNote" in item ? formatPublicCardNoteLine(item.publicNote) : null;
+  const distinguishing = mode === "public"
+    ? (safePlace ?? publicNoteLine ?? null)
     : lang === "ja" ? "自分の記録" : "Your record";
   const visibility = mode === "mine" && "ownerVisibility" in item
     ? (item.ownerVisibility === "public" ? (lang === "ja" ? "公開" : "Public") : (lang === "ja" ? "非公開" : "Private"))
@@ -21283,12 +21298,15 @@ function renderRecordsProductCard(
   const photoUrl = mode === "mine" && "ownerVisibility" in item && item.ownerVisibility !== "public"
     ? null
     : item.photoUrl;
-  const media = photoUrl
-    ? `<img src="${escapeHtml(photoUrl)}" alt="" loading="lazy" decoding="async">`
+  const thumbUrl = photoUrl ? (publicDerivedImageTransformUrl(photoUrl, 320) ?? photoUrl) : null;
+  const thumbSrcset = photoUrl ? publicDerivedImageSrcset(photoUrl, [320, 640]) : "";
+  const loadingAttr = index < 3 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"';
+  const media = thumbUrl
+    ? `<img src="${escapeHtml(thumbUrl)}"${thumbSrcset ? ` srcset="${thumbSrcset}" sizes="(max-width: 639px) 104px, 320px"` : ""} alt="" width="320" height="240" ${loadingAttr} decoding="async">`
     : `<span class="cf-records-native-no-media" aria-hidden="true">${escapeHtml(homeRecordMediaLabel(item.mediaKind, lang))}</span>`;
   return `<a class="cf-records-native-card" href="${escapeHtml(recordsDiscoveryDetailHref(item.visitId, lang, context))}">
     <span class="cf-records-native-media">${media}</span>
-    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, location].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
+    <span class="cf-records-native-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml([date, distinguishing].filter(Boolean).join(" · "))}</span>${item.isAwaitingId ? `<span>${lang === "ja" ? "名前は未確認" : "Identification unconfirmed"}</span>` : ""}${visibility ? `<small>${escapeHtml(visibility)}</small>` : ""}</span>
   </a>`;
 }
 
@@ -21363,15 +21381,15 @@ export function renderRecordsProductSection(
   const cards = unavailable
     ? `<div class="cf-records-native-empty" role="status"><strong>${isJapanese ? "記録を読み込めませんでした。" : "Records could not be loaded."}</strong><p>${isJapanese ? "通信を確認して、もう一度お試しください。" : "Check the connection and try again."}</p><a href="${escapeHtml(url.pathname + url.search)}">${isJapanese ? "もう一度読み込む" : "Try again"}</a></div>`
     : items.length > 0
-    ? `<div class="cf-records-native-grid">${items.map((item) => {
-          const card = renderRecordsProductCard(item, lang, mode, { view: mode, query });
+    ? `<div class="cf-records-native-grid">${items.map((item, index) => {
+          const card = renderRecordsProductCard(item, lang, mode, { view: mode, query }, index);
           if (!session || savedStates === null) return card;
           return `<div class="zs-card">${card}${renderSavedControl({ kind: "record", objectId: item.visitId, path: `/observations/${item.visitId}`, title: item.isAwaitingId ? quietHomeCopy[lang].record : (normalizeOptionalText(item.displayName) ?? quietHomeCopy[lang].record) }, lang, savedStates.get(item.visitId) ?? null)}</div>`;
         }).join("")}</div>`
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query ? scopeCopy.noMatch(query) : scopeCopy.empty)}</strong>${query ? `<p class="cf-records-native-empty-hint">${escapeHtml(scopeCopy.searchHint)}</p>` : ""}<div class="cf-records-native-empty-actions"><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? scopeCopy.clearSearch : scopeCopy.createRecord)}</a><a class="cf-records-native-empty-secondary" href="${escapeHtml(mode === "public" ? `${prefix}/map?tab=places` : `${prefix}/records?view=public`)}">${escapeHtml(mode === "public" ? scopeCopy.browsePlaces : scopeCopy.browsePublic)}</a></div></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;height:104px;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${session && savedStates !== null ? `<a class="qh-entrances" href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a>` : ""}
@@ -22028,17 +22046,60 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
   </style></head>`);
 }
 
+async function queryPublicMapCardMeta(
+  env: Env
+): Promise<Map<string, { publicAreaLabel: string | null; publicNote: string | null }>> {
+  const map = new Map<string, { publicAreaLabel: string | null; publicNote: string | null }>();
+  try {
+    const rows = await env.OBS_DB.prepare(
+      `SELECT r.observation_id, r.public_area_label, o.note
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+        WHERE o.visibility = 'public'
+          AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
+        ORDER BY r.observed_at DESC
+        LIMIT 5000`
+    ).all<{ observation_id: string; public_area_label: string | null; note: string | null }>();
+    for (const row of rows.results) {
+      const safeArea = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
+      const safeNote = formatPublicCardNoteLine(row.note);
+      map.set(row.observation_id, {
+        publicAreaLabel: safeArea,
+        publicNote: safeNote,
+      });
+    }
+  } catch (error) {
+    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+  }
+  return map;
+}
+
 async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
   const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
-  const photoUrls = await queryPublicMapPhotoUrls(env);
-  const mediaKinds = await queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>());
+  const [photoUrls, mediaKinds, cardMeta] = await Promise.all([
+    queryPublicMapPhotoUrls(env),
+    queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>()),
+    queryPublicMapCardMeta(env).catch(() => new Map<string, { publicAreaLabel: string | null; publicNote: string | null }>()),
+  ]);
   const uniqueItems: Array<ReturnType<typeof publicMapObservationItem>> = [];
   const seen = new Set<string>();
   for (const item of rows
     .map((row) => {
+      const meta = cardMeta.get(row.observation_id);
+      const enrichedRow: PublicMapRow = {
+        ...row,
+        public_area_label: normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? meta?.publicAreaLabel ?? null,
+        public_note: row.public_note ?? meta?.publicNote ?? null,
+      };
       const mediaKind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
-      return publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, mediaKind);
+      return publicMapObservationItem(enrichedRow, photoUrls.get(row.observation_id) ?? null, mediaKind);
     })
     .filter((item) => item.photoUrl || item.mediaKind === "video" || item.mediaKind === "audio")) {
     const key = `${item.visitId}:${item.photoUrl ?? ""}`;
@@ -22367,7 +22428,8 @@ function localizedMaterializedPath(pathname: string, langSegment: string): strin
 
 const PUBLIC_DERIVED_MEDIA_CACHE_CONTROL = "public, max-age=3600";
 const PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL = "private, no-cache, no-store, must-revalidate";
-const PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS = new Set([360, 680, 1020, 1360]);
+const PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS = new Set([320, 360, 640, 680, 1020, 1360]);
+const HOME_DERIVED_IMAGE_TRANSFORM_WIDTHS = [360, 680, 1020, 1360] as const;
 type PublicDerivedImageTransformFormat = "avif" | "webp" | "jpeg";
 
 const PUBLIC_DERIVED_IMAGE_TRANSFORM_FORMATS: ReadonlyArray<{
@@ -22447,8 +22509,11 @@ function publicDerivedImageTransformUrl(photoUrl: string, width: number): string
   return `/derived-transform/w${width}/${key}`;
 }
 
-function publicDerivedImageSrcset(photoUrl: string): string {
-  const candidates = Array.from(PUBLIC_DERIVED_IMAGE_TRANSFORM_WIDTHS)
+function publicDerivedImageSrcset(
+  photoUrl: string,
+  widths: readonly number[] = HOME_DERIVED_IMAGE_TRANSFORM_WIDTHS
+): string {
+  const candidates = widths
     .map((width) => {
       const url = publicDerivedImageTransformUrl(photoUrl, width);
       return url ? `${escapeHtml(url)} ${width}w` : null;
@@ -22821,7 +22886,8 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     isAiCandidate: false,
     isAwaitingId: isWeakTaxonLabel(row.taxon_label),
     localityLabel: "位置をぼかしています",
-    publicAreaLabel: normalizeOptionalText(row.public_area_label),
+    publicAreaLabel: normalizeSafePublicAreaLabelCandidate(row.public_area_label),
+    publicNote: formatPublicCardNoteLine(row.public_note),
     observedAt: row.observed_at,
     photoUrl,
     mediaKind,

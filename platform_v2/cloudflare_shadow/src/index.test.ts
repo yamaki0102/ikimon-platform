@@ -25085,8 +25085,8 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(body, /最近の投稿テスト/);
   assert.match(body, /record-live-materialized/);
   assert.match(body, /\/derived\/.+\/display\.webp/);
-  assert.match(body, /\/derived\/[^"\s]+\/display\.webp/);
-  assert.match(body, /位置を保護/);
+  assert.match(body, /\/derived-transform\/w320\/derived\/[^"\s]+\/display\.webp/);
+  assert.doesNotMatch(body, /位置を保護/);
   assert.doesNotMatch(body, /record-shadow-materialized/);
   assert.doesNotMatch(body, /cell:34\.81,137\.73/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
