@@ -23201,6 +23201,15 @@ test("production original UI static assets serve materialized bytes from R2 with
     await env.ASSET_BUCKET.put("original-ui/static/assets/map/map-explorer.abcdef123456.js", "console.log('map');", {
       httpMetadata: { contentType: "application/javascript; charset=utf-8" }
     });
+    await env.ASSET_BUCKET.put("original-ui/static/assets/map/map-explorer-deferred.112233445566.js", "console.log('deferred');", {
+      httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+    });
+    await env.ASSET_BUCKET.put("original-ui/static/assets/map/map-explorer-deferred.665544332211.css", ".me-deferred{}", {
+      httpMetadata: { contentType: "text/css; charset=utf-8" }
+    });
+    await env.ASSET_BUCKET.put("original-ui/static/assets/ui/global-record-entry.aabbccddeeff.js", "console.log('global');", {
+      httpMetadata: { contentType: "application/javascript; charset=utf-8" }
+    });
     await env.ASSET_BUCKET.put("original-ui/static/assets/vendor/maplibre-gl-4.7.1.123456abcdef.js", "window.maplibregl={};", {
       httpMetadata: { contentType: "application/javascript; charset=utf-8" }
     });
@@ -23212,6 +23221,21 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(mapBootJs.status, 200);
     assert.equal(mapBootJs.headers.get("content-type"), "application/javascript; charset=utf-8");
     assert.equal(mapBootJs.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const mapDeferredJs = await worker.fetch(new Request("https://zukan.earth/assets/map/map-explorer-deferred.112233445566.js"), productionEnv);
+    assert.equal(mapDeferredJs.status, 200);
+    assert.equal(mapDeferredJs.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(mapDeferredJs.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const mapDeferredCss = await worker.fetch(new Request("https://zukan.earth/assets/map/map-explorer-deferred.665544332211.css"), productionEnv);
+    assert.equal(mapDeferredCss.status, 200);
+    assert.equal(mapDeferredCss.headers.get("content-type"), "text/css; charset=utf-8");
+    assert.equal(mapDeferredCss.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const globalRecordJs = await worker.fetch(new Request("https://zukan.earth/assets/ui/global-record-entry.aabbccddeeff.js"), productionEnv);
+    assert.equal(globalRecordJs.status, 200);
+    assert.equal(globalRecordJs.headers.get("content-type"), "application/javascript; charset=utf-8");
+    assert.equal(globalRecordJs.headers.get("cache-control"), "public, max-age=31536000, immutable");
 
     const maplibreJs = await worker.fetch(new Request("https://zukan.earth/assets/vendor/maplibre-gl-4.7.1.123456abcdef.js"), productionEnv);
     assert.equal(maplibreJs.status, 200);

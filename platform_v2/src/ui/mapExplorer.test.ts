@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
-import { MAP_EXPLORER_STYLES, mapExplorerBootBundle, mapExplorerBootScript, mapExplorerBootScriptSource, renderMapExplorer } from "./mapExplorer.js";
+import {
+  MAP_EXPLORER_STYLES,
+  MAP_PREFETCHED_GLYPH_RANGES,
+  MAP_PREFETCHED_GLYPH_URLS,
+  MAP_STANDARD_FONT_STACK,
+  MAP_STANDARD_GLYPHS_TEMPLATE,
+  mapExplorerBootBundle,
+  mapExplorerBootScript,
+  mapExplorerBootScriptSource,
+  mapExplorerCriticalScriptSource,
+  mapExplorerDeferredBundle,
+  mapExplorerDeferredStylesAsset,
+  mapExplorerHeadPreloadHtml,
+  renderMapExplorer,
+} from "./mapExplorer.js";
 
 function bootCombined(props: { lang: "ja" | "en" | "es" | "pt-BR"; basePath: string }): string {
   const html = mapExplorerBootScript(props);
@@ -59,7 +73,7 @@ function startupLocationFixture(permission: string, positionThrows = false) {
   const script = bootCombined({ basePath: "", lang: "ja" });
   const gestureHandlers = [...script.matchAll(/state\.map\.on\('(dragstart|zoomstart)', function \(\) \{\s*if \(state\.startupLocationRequestActive\) state\.startupLocationUserMoved = true;\s*\}\);/g)].map((match) => match[0]);
   assert.equal(gestureHandlers.length, 2, "exercise the actual drag and zoom guards");
-  new vm.Script(bootSection("function requestStartupCurrentLocation(options)", "function cleanupFailedMapInit()") + gestureHandlers.join("\n")).runInContext(context);
+  new vm.Script(bootSection("function requestStartupCurrentLocation(options)", "var deferredMapInitDone") + gestureHandlers.join("\n")).runInContext(context);
   return { calls, state, request: (options: object) => context.requestStartupCurrentLocation(options),
     move: (gesture: string) => gestures[gesture]!(),
     resolvePermission: (index: number, permission = "granted") => { assert.ok(permissionResolvers[index]); permissionResolvers[index]!({ state: permission }); },
@@ -2041,4 +2055,44 @@ test("map layer toggle uses inline SVG chevron, layer hint is a compact pill, an
   assert.match(script, /attributionControl:\s*false/);
   assert.match(script, /new window\.maplibregl\.AttributionControl\(\{\s*compact:\s*true\s*\}\)/);
   assert.match(styles, /\.map-explorer \.maplibregl-ctrl-attrib\.maplibregl-compact\.maplibregl-compact-show\{padding:0 48px 0 10px\}/);
+});
+
+test("glyph prefetch URLs match the style glyphs template and MapLibre reuses them via addProtocol/transformRequest", () => {
+  const critical = mapExplorerCriticalScriptSource();
+  assert.doesNotThrow(() => new vm.Script(critical));
+  assert.deepEqual(MAP_PREFETCHED_GLYPH_RANGES, ["12288-12543", "65280-65535"]);
+  for (const range of MAP_PREFETCHED_GLYPH_RANGES) {
+    const expected = MAP_STANDARD_GLYPHS_TEMPLATE
+      .replace("{fontstack}", encodeURIComponent(MAP_STANDARD_FONT_STACK))
+      .replace("{range}", range);
+    assert.ok(MAP_PREFETCHED_GLYPH_URLS.includes(expected));
+    assert.ok(critical.includes(expected));
+  }
+  assert.match(critical, /addProtocol\('zukanprefetch'/);
+  assert.match(critical, /transformRequest:\s*hasPrefetchProtocol\s*\?\s*prefetchTransform\s*:\s*undefined/);
+  const loadIdx = critical.indexOf("loadMaplibreScript(MAPLIBRE_JS_PRIMARY");
+  const prefetchIdx = critical.indexOf("MAP_PREFETCH_GLYPH_URLS.forEach");
+  assert.ok(loadIdx > 0 && prefetchIdx > loadIdx, "glyph prefetch must start after MapLibre JS is requested");
+});
+
+test("MapLibre preload with fetchpriority=high is in the head and map-explorer is split with deferred chunk loaded after map load", () => {
+  const headHtml = mapExplorerHeadPreloadHtml("");
+  assert.match(headHtml, /<link rel="preload" as="script" href="\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.js" fetchpriority="high" \/>/);
+
+  const criticalAsset = mapExplorerBootBundle();
+  const deferredAsset = mapExplorerDeferredBundle();
+  const deferredCssAsset = mapExplorerDeferredStylesAsset();
+  assert.match(criticalAsset.path, /^\/assets\/map\/map-explorer\.[a-f0-9]{12}\.js$/);
+  assert.match(deferredAsset.path, /^\/assets\/map\/map-explorer-deferred\.[a-f0-9]{12}\.js$/);
+  assert.match(deferredCssAsset.path, /^\/assets\/map\/map-explorer-deferred\.[a-f0-9]{12}\.css$/);
+  assert.ok(criticalAsset.content.length < deferredAsset.content.length / 5, "critical chunk must be much smaller than deferred chunk");
+
+  const criticalSource = criticalAsset.content.toString("utf8");
+  assert.doesNotMatch(criticalSource, /loadGuideSpots|loadEffortSummary|MAP_EXPLORER_COPY_BY_LANG/);
+  assert.match(criticalSource, /state\.map\.once\('load',\s*onMapFirstLoad\)/);
+  assert.match(criticalSource, /loadDeferredExplorer\(\)/);
+
+  const bootHtml = mapExplorerBootScript({ basePath: "", lang: "ja" });
+  assert.ok(bootHtml.includes(deferredAsset.path));
+  assert.ok(bootHtml.includes(deferredCssAsset.path));
 });

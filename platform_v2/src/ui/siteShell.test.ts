@@ -1347,3 +1347,66 @@ test("privacy longform links to /ja/contact", async () => {
   assert.doesNotMatch(md, /\]\(\/contact\)/);
   assert.equal((md.match(/\]\(\/ja\/contact\)/g) ?? []).length, 2);
 });
+
+test("site shell shares one in-flight /api/v1/auth/session?optional=1 promise across boot consumers", async () => {
+  const vm = await import("node:vm");
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Map",
+    body: "<div id='map-explorer'></div>",
+    lang: "ja",
+    currentPath: "/ja/map",
+  });
+  const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]!);
+  const authScript = scripts.find((s) => s.includes("ikimon:auth-session-ready"));
+  const recordScript = scripts.find((s) => s.includes("const CAMERA_START_TIMEOUT_MS"));
+  assert.ok(authScript && recordScript);
+  assert.match(authScript, /__ikimonOptionalSessionPromise/);
+  assert.match(recordScript, /__ikimonOptionalSessionPromise/);
+
+  let sessionFetchCount = 0;
+  const fakeWindow: Record<string, unknown> = {
+    location: { pathname: "/ja/map", search: "" },
+    addEventListener() {},
+    dispatchEvent() {},
+    CustomEvent: class { constructor(public type: string, public init?: unknown) {} },
+    matchMedia: () => ({ matches: false }),
+    indexedDB: {
+      open: () => {
+        const req: Record<string, unknown> = {};
+        setImmediate(() => {
+          if (typeof req.onerror === "function") (req.onerror as () => void)();
+        });
+        return req;
+      },
+    },
+  };
+  const fakeDoc = {
+    documentElement: { lang: "ja", dataset: {} as Record<string, string>, classList: { add() {}, remove() {}, toggle() {} } },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener() {},
+  };
+  const ctx = vm.createContext({
+    window: fakeWindow,
+    document: fakeDoc,
+    navigator: {},
+    localStorage: { getItem: () => null, setItem() {} },
+    sessionStorage: { getItem: () => null, setItem() {} },
+    URL,
+    CustomEvent: fakeWindow.CustomEvent,
+    setTimeout,
+    clearTimeout,
+    fetch: async (url: string) => {
+      if (url.includes("/api/v1/auth/session")) {
+        sessionFetchCount += 1;
+        return { ok: true, json: async () => ({ ok: false, error: "session_not_found", session: null }) };
+      }
+      return { ok: true, json: async () => ({ ok: true }) };
+    },
+  });
+  new vm.Script(recordScript).runInContext(ctx);
+  new vm.Script(authScript).runInContext(ctx);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sessionFetchCount, 1, "expected only one /api/v1/auth/session?optional=1 request");
+});

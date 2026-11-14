@@ -32,6 +32,22 @@ import { escapeHtml } from "./siteShell.js";
  * keep the v2 SSR bundle lean.
  */
 
+export const MAP_STANDARD_STYLE_URL = "https://tiles.openfreemap.org/planet";
+export const MAP_STANDARD_GLYPHS_TEMPLATE = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+export const MAP_STANDARD_FONT_STACK = "Noto Sans Regular";
+export const MAP_PREFETCHED_GLYPH_RANGES = ["12288-12543", "65280-65535"] as const;
+export const MAP_PREFETCHED_GLYPH_URLS = MAP_PREFETCHED_GLYPH_RANGES.map((range) =>
+  MAP_STANDARD_GLYPHS_TEMPLATE
+    .replace("{fontstack}", encodeURIComponent(MAP_STANDARD_FONT_STACK))
+    .replace("{range}", range),
+);
+
+export function mapExplorerHeadPreloadHtml(basePath: string): string {
+  return `<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  <link rel="preload" as="script" href="${escapeHtml(withBasePath(basePath, MAPLIBRE_SELF_HOSTED_JS.path))}" fetchpriority="high" />
+  <link rel="stylesheet" href="${escapeHtml(withBasePath(basePath, MAPLIBRE_SELF_HOSTED_CSS.path))}" data-maplibre="1" />`;
+}
+
 export type TaxonGroupChip = {
   value: string;
   label: string;
@@ -1601,7 +1617,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
 
   return `<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
   <link rel="stylesheet" href="${escapeHtml(withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_CSS.path))}" data-maplibre="1" />
-  <link rel="preload" as="script" href="${escapeHtml(withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_JS.path))}" />
+  <link rel="preload" as="script" href="${escapeHtml(withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_JS.path))}" fetchpriority="high" />
   <section class="section me-section map-explorer" data-side="rail" aria-label="${escapeHtml(mapRegionLabel)}">
     <div class="me-topbar">
       <div class="me-topbar-primary">
@@ -1695,47 +1711,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
                 <span class="me-overlay-heading">${escapeHtml(overlayLabels.heading)}</span>
                 <span class="me-overlay-intro">${escapeHtml(overlayLabels.intro)}</span>
               </summary>
-              <div class="me-overlay-list" data-overlay-catalog='${escapeHtml(
-                JSON.stringify(overlays.map((o) => ({
-                  id: o.id,
-                  tiles: o.tiles,
-                  tileSize: o.tileSize,
-                  attribution: o.attribution,
-                  minzoom: o.minzoom,
-                  maxzoom: o.maxzoom,
-                  defaultOpacity: o.defaultOpacity,
-                })))
-              )}'>
-                ${overlays
-                  .map(
-                    (o) => `<label class="me-overlay-item" data-overlay-id="${escapeHtml(o.id)}">
-                      <div class="me-overlay-row">
-                        <input type="checkbox" class="me-overlay-toggle" />
-                        <span class="me-overlay-label">${escapeHtml(o.label)}</span>
-                        <span class="me-overlay-category me-overlay-cat-${escapeHtml(o.category)}">${escapeHtml(o.category)}</span>
-                      </div>
-                      ${o.note ? `<p class="me-overlay-note">${escapeHtml(o.note)}</p>` : ""}
-                      ${o.legendGradient ? `<div class="me-overlay-legend">
-                        <span class="me-overlay-legend-low">${escapeHtml(o.legendLow ?? "")}</span>
-                        <span class="me-overlay-legend-gradient" style="background:${escapeHtml(o.legendGradient)}"></span>
-                        <span class="me-overlay-legend-high">${escapeHtml(o.legendHigh ?? "")}</span>
-                      </div>` : ""}
-                      <div class="me-overlay-opacity">
-                        <span class="me-overlay-opacity-label">${escapeHtml(overlayLabels.opacityLabel)}</span>
-                        <input
-                          type="range"
-                          class="me-overlay-opacity-range"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value="${o.defaultOpacity.toString()}"
-                          aria-label="${escapeHtml(overlayLabels.opacityLabel)}: ${escapeHtml(o.label)}"
-                        />
-                      </div>
-                    </label>`,
-                  )
-                  .join("")}
-              </div>
+              <div class="me-overlay-list" id="me-overlay-list"></div>
             </details>
             <div class="me-filter-group me-filter-group-actions">
               <a class="me-cross-chip" href="${escapeHtml(lensHref)}" data-kpi-action="map:cross-lens"><span aria-hidden="true">🔍</span>${escapeHtml(copy.crossLensLabel)}</a>
@@ -2181,9 +2157,24 @@ const MAP_EXPLORER_NOTICE_COPY_BY_LANG = {
   "pt-BR": getOfficialNoticeRenderCopy("pt-BR"),
 };
 
+const OVERLAY_CATALOG_BY_LANG = {
+  ja: overlaysForLang("ja"),
+  en: overlaysForLang("en"),
+  es: overlaysForLang("es"),
+  "pt-BR": overlaysForLang("pt-BR"),
+};
+
+const OVERLAY_OPACITY_LABEL_BY_LANG = {
+  ja: overlayPanelLabels("ja").opacityLabel,
+  en: overlayPanelLabels("en").opacityLabel,
+  es: overlayPanelLabels("es").opacityLabel,
+  "pt-BR": overlayPanelLabels("pt-BR").opacityLabel,
+};
+
 function buildMapExplorerBootConfig(props: { lang: SiteLang; basePath: string }) {
   const observationHrefTpl = withBasePath(props.basePath, "/observations/__ID__") +
     "?lang=" + props.lang;
+  const copy = MAP_EXPLORER_COPY_BY_LANG[props.lang] ?? MAP_EXPLORER_COPY_BY_LANG.ja;
   return {
     searchLang: props.lang,
     observationHrefTpl,
@@ -2199,181 +2190,22 @@ function buildMapExplorerBootConfig(props: { lang: SiteLang; basePath: string })
     uiKpiEndpoint: withBasePath(props.basePath, "/api/v1/ui-kpi/events"),
     maplibreCssHref: withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_CSS.path),
     maplibreJsHref: withBasePath(props.basePath, MAPLIBRE_SELF_HOSTED_JS.path),
+    deferredJsHref: withBasePath(props.basePath, mapExplorerDeferredBundle().path),
+    deferredCssHref: withBasePath(props.basePath, mapExplorerDeferredStylesAsset().path),
+    loadError: {
+      title: copy.mapLoadErrorTitle,
+      body: copy.mapLoadErrorBody,
+      retry: copy.mapLoadRetryLabel,
+      records: copy.mapLoadRecordsLabel,
+    },
   };
 }
 
 let cachedMapExplorerBootBundle: HashedStaticAsset | null = null;
+let cachedMapExplorerDeferredBundle: HashedStaticAsset | null = null;
+let cachedMapExplorerDeferredStyles: HashedStaticAsset | null = null;
 
-export function mapExplorerBootScriptSource(): string {
-  return `(function () {
-  var CFG = {};
-  try {
-    var cfgEl = document.getElementById('me-boot-config');
-    if (cfgEl && cfgEl.textContent) CFG = JSON.parse(cfgEl.textContent);
-  } catch (_) { CFG = {}; }
-  var root = document.getElementById('map-explorer');
-  if (!root) return;
-  var mapShellEl = root.closest('.me-section') || root.parentElement;
-  var statusEl = document.getElementById('me-map-status');
-  var legendEl = document.getElementById('me-legend');
-  var legendToggleEl = document.getElementById('me-legend-toggle');
-  var legendLowEl = document.getElementById('me-legend-low');
-  var legendHighEl = document.getElementById('me-legend-high');
-  var legendDetailEl = document.getElementById('me-legend-detail');
-  var ownTrailEl = document.getElementById('me-own-trail');
-  var ownTrailListEl = document.getElementById('me-own-trail-list');
-  var ownTrailCountEl = document.getElementById('me-own-trail-count');
-  var personalMemoryEl = document.getElementById('me-personal-memory');
-  var personalMemoryListEl = document.getElementById('me-personal-memory-list');
-  var layerHintEl = document.getElementById('me-layer-hint');
-  var layerHintTextEl = document.getElementById('me-layer-hint-text');
-  var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
-  var layerHintCloseEl = document.getElementById('me-layer-hint-close');
-  var purposeHintEl = document.getElementById('me-purpose-hint');
-  var purposeHintCloseEl = document.getElementById('me-purpose-hint-close');
-  var startPanelEl = document.getElementById('me-start-panel');
-  var startPanelCloseEl = document.getElementById('me-start-panel-close');
-  var startPanelLocationEl = document.getElementById('me-start-panel-location');
-  var startPanelRoutesEl = document.querySelector('.me-start-panel-routes');
-  var startPanelRoutesHeadingEl = document.getElementById('me-start-panel-routes-heading');
-  var startPanelRoutesStaticHtml = startPanelRoutesEl && startPanelRoutesEl.querySelector('nav')
-    ? startPanelRoutesEl.querySelector('nav').innerHTML
-    : '';
-  var filterDrawerEl = document.querySelector('.me-filter-drawer');
-  var sheetEl = document.getElementById('me-bottom-sheet');
-  var sheetInnerEl = document.getElementById('me-bottom-inner');
-  var sheetCloseEl = document.getElementById('me-bottom-close');
-  var sheetGripEl = document.getElementById('me-bottom-grip');
-  var sideStatusEl = document.getElementById('me-side-status');
-  var resultsListEl = document.getElementById('me-results-list');
-  var selectedCardEl = document.getElementById('me-map-selection-card');
-  var mapInsightCardEl = document.getElementById('me-map-insight-card');
-  var contributionPanelEl = document.getElementById('me-contribution-panel');
-  var sideEl = document.getElementById('me-side');
-  var sideToggleEl = document.getElementById('me-side-toggle');
-  var sideRailCountEl = document.getElementById('me-side-rail-count');
-  var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
-  var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
-  var sideTabBtns = document.querySelectorAll('[data-side-tab]');
-  function setSideTab(name) {
-    if (!sideEl) return;
-    sideEl.setAttribute('data-tab', name);
-    for (var i = 0; i < sideTabBtns.length; i++) {
-      var btn = sideTabBtns[i];
-      var on = btn.getAttribute('data-side-tab') === name;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-selected', on ? 'true' : 'false');
-    }
-  }
-  function setSideSelectionTabAvailable(available) {
-    var btn = document.querySelector('[data-side-tab="selection"]');
-    if (!btn) return;
-    if (available) btn.removeAttribute('disabled');
-    else btn.setAttribute('disabled', 'disabled');
-  }
-  function setSideRailMode(rail) {
-    if (!sideSectionEl) return;
-    sideSectionEl.setAttribute('data-side', rail ? 'rail' : 'open');
-    if (sideToggleEl) sideToggleEl.setAttribute('aria-expanded', rail ? 'false' : 'true');
-    try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
-    // Resize map after panel size change so MapLibre picks up new dimensions.
-    setTimeout(function () {
-      try { if (state && state.map && state.map.resize) state.map.resize(); } catch (e) {}
-    }, 280);
-  }
-  if (sideToggleEl) {
-    sideToggleEl.addEventListener('click', function () {
-      var nowRail = !sideSectionEl || sideSectionEl.getAttribute('data-side') !== 'rail';
-      setSideRailMode(nowRail);
-    });
-  }
-  for (var st = 0; st < sideTabBtns.length; st++) {
-    sideTabBtns[st].addEventListener('click', function (ev) {
-      var t = ev.currentTarget;
-      if (t.hasAttribute('disabled')) return;
-      setSideTab(t.getAttribute('data-side-tab') || 'results');
-    });
-  }
-  try {
-    var stored = window.localStorage.getItem('me-side-rail');
-    if (stored === '1') setSideRailMode(true);
-  } catch (e) {}
-  var yearRangeEl = document.getElementById('me-year-range');
-  var yearLabelEl = document.getElementById('me-year-label');
-  var yearAllEl = document.getElementById('me-year-all');
-  var shareStateEl = document.getElementById('me-share-state');
-  var searchAreaBtnEl = document.getElementById('me-search-area-btn');
-  var rainCardEl = document.getElementById('me-rain-card');
-  var rainToggleEl = document.getElementById('me-rain-toggle');
-  var rainTimelineEl = document.getElementById('me-rain-timeline');
-  var rainStatusEl = document.getElementById('me-rain-status');
-  var rainCurrentEl = document.getElementById('me-rain-current');
-  var rainTargetEl = document.getElementById('me-rain-target');
-  var apiCells = root.getAttribute('data-api-cells') || '';
-  var apiObservations = root.getAttribute('data-api-observations') || '';
-  var apiPlaceProfile = root.getAttribute('data-api-place-profile') || '';
-  var apiPlaceSearch = root.getAttribute('data-api-place-search') || '';
-  var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
-  var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
-  var apiTraces = root.getAttribute('data-api-traces') || '';
-  var apiFrontier = root.getAttribute('data-api-frontier') || '';
-  var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
-  var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
-  var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
-  var apiGbifAreaSummary = root.getAttribute('data-api-gbif-area-summary') || '';
-  var apiJmaNowcastTimes = root.getAttribute('data-api-jma-nowcast-times') || '';
-  var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
-  var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
-  var apiWalkMapCandidates = root.getAttribute('data-api-walk-map-candidates') || '';
-  var placeAtlasSeq = 0;
-  var placeAtlasAbort = null;
-
-  var SEARCH_LANG = CFG.searchLang || 'ja';
-  var COPY = (${JSON.stringify(MAP_EXPLORER_COPY_BY_LANG)})[SEARCH_LANG] || (${JSON.stringify(MAP_EXPLORER_COPY_BY_LANG)}).ja;
-  ${MAP_EXPLORER_STATE_RUNTIME}
-  ${MAP_PLACE_ATLAS_PROFILE_RUNTIME}
-  var YEAR_VALUES = [];
-  try {
-    YEAR_VALUES = JSON.parse((yearRangeEl && yearRangeEl.getAttribute('data-year-values')) || '[]');
-  } catch (_) { YEAR_VALUES = []; }
-  var OBSERVATION_HREF_TPL = CFG.observationHrefTpl || '/observations/__ID__';
-  var RECORD_HREF = CFG.recordHref || '/record';
-  var NOTES_HREF = CFG.notesHref || '/records?view=mine';
-  var COMMUNITY_RECORDS_HREF = CFG.communityRecordsHref || '/records?view=public';
-  var PLACE_HREF_PREFIX = CFG.placeHrefPrefix || '/places/';
-  var LENS_HREF = CFG.lensHref || '/lens';
-  var SCAN_HREF = CFG.scanHref || '/map?tab=frontier';
-  var EVENTS_ORGANIZER_HREF = CFG.eventsOrganizerHref || '/community/events';
-  var FIELDS_ALBUM_TPL = CFG.fieldsAlbumTpl || '/community/fields/__FIELD_ID__';
-  var LOGIN_HREF = CFG.loginHref || '/login';
-  var UI_KPI_ENDPOINT = CFG.uiKpiEndpoint || '/api/v1/ui-kpi/events';
-  ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", getOfficialNoticeRenderCopy("ja"), { kpiNamespace: "map", copyExpr: `(${JSON.stringify(MAP_EXPLORER_NOTICE_COPY_BY_LANG)})[SEARCH_LANG] || (${JSON.stringify(MAP_EXPLORER_NOTICE_COPY_BY_LANG)}).ja` })}
-
-  var MAPLIBRE_CSS_SRI = ${JSON.stringify(MAPLIBRE_CSS_SRI)};
-  var MAPLIBRE_JS_SRI  = ${JSON.stringify(MAPLIBRE_JS_SRI)};
-  var MAPLIBRE_CSS_PRIMARY = CFG.maplibreCssHref || ${JSON.stringify(MAPLIBRE_SELF_HOSTED_CSS.path)};
-  var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
-  var MAPLIBRE_JS_PRIMARY = CFG.maplibreJsHref || ${JSON.stringify(MAPLIBRE_SELF_HOSTED_JS.path)};
-  var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
-  if (!document.querySelector('link[data-maplibre="1"]')) {
-    var link = document.createElement('link');
-    link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
-    if (MAPLIBRE_CSS_PRIMARY.indexOf('http') === 0) {
-      link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
-      link.referrerPolicy = 'no-referrer';
-    }
-    link.setAttribute('data-maplibre', '1');
-    link.onerror = function () {
-      if (link.getAttribute('data-fallback') === '1') return;
-      link.setAttribute('data-fallback', '1');
-      link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
-      link.referrerPolicy = 'no-referrer';
-      link.href = MAPLIBRE_CSS_FALLBACK;
-    };
-    document.head.appendChild(link);
-  }
-
-  var SIMPLE_MID_LANDMARK_CLASSES = ['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'];
+const MAP_EXPLORER_BASEMAPS_JS = `  var SIMPLE_MID_LANDMARK_CLASSES = ['school', 'kindergarten', 'college', 'university', 'park', 'garden', 'playground'];
   var SIMPLE_HIGH_LANDMARK_CLASSES = ['railway', 'town_hall', 'library', 'hospital'];
   var SIMPLE_COMMERCIAL_LANDMARK_CLASSES = ['shop', 'grocery', 'cafe', 'restaurant'];
   var SIMPLE_LOCALITY_CLASSES = ['town', 'village', 'hamlet', 'suburb', 'quarter', 'neighbourhood'];
@@ -2381,9 +2213,9 @@ export function mapExplorerBootScriptSource(): string {
   var BASEMAPS = {
     standard: {
       version: 8,
-      glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+      glyphs: '${MAP_STANDARD_GLYPHS_TEMPLATE}',
       sources: {
-        openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet', attribution: 'OpenFreeMap / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>' },
+        openmaptiles: { type: 'vector', url: '${MAP_STANDARD_STYLE_URL}', attribution: 'OpenFreeMap / <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>' },
       },
       layers: [
         { id: 'simple-bg', type: 'background', paint: { 'background-color': '#edf4ef' } },
@@ -2675,27 +2507,51 @@ export function mapExplorerBootScriptSource(): string {
       },
       layers: [{ id: 'esri', type: 'raster', source: 'esri' }],
     },
-  };
+  };`;
 
-  var overlayCatalog = [];
+export function mapExplorerCriticalScriptSource(): string {
+  return `(function () {
+  var CFG = {};
   try {
-    var catalogEl = document.querySelector('.me-overlay-list');
-    if (catalogEl) overlayCatalog = JSON.parse(catalogEl.getAttribute('data-overlay-catalog') || '[]');
-  } catch (_) { overlayCatalog = []; }
-  var overlayState = {};
-  overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
-  var AREA_SOURCE_VALUES = [
-    'nature_symbiosis_site', 'tsunag', 'school', 'osm_named_area',
-    'protected_area', 'oecm', 'osm_park', 'user_defined',
-  ];
-  var VIEWPORT_RECORD_LIMIT = 600;
-  var CELL_RECORD_LIMIT = 1500;
+    var cfgEl = document.getElementById('me-boot-config');
+    if (cfgEl && cfgEl.textContent) CFG = JSON.parse(cfgEl.textContent);
+  } catch (_) { CFG = {}; }
+  var root = document.getElementById('map-explorer');
+  if (!root) return;
+
+  var MAPLIBRE_CSS_SRI = ${JSON.stringify(MAPLIBRE_CSS_SRI)};
+  var MAPLIBRE_JS_SRI  = ${JSON.stringify(MAPLIBRE_JS_SRI)};
+  var MAPLIBRE_CSS_PRIMARY = CFG.maplibreCssHref || ${JSON.stringify(MAPLIBRE_SELF_HOSTED_CSS.path)};
+  var MAPLIBRE_CSS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';
+  var MAPLIBRE_JS_PRIMARY = CFG.maplibreJsHref || ${JSON.stringify(MAPLIBRE_SELF_HOSTED_JS.path)};
+  var MAPLIBRE_JS_FALLBACK = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';
+  if (!document.querySelector('link[data-maplibre="1"]')) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS_PRIMARY;
+    if (MAPLIBRE_CSS_PRIMARY.indexOf('http') === 0) {
+      link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
+      link.referrerPolicy = 'no-referrer';
+    }
+    link.setAttribute('data-maplibre', '1');
+    link.onerror = function () {
+      if (link.getAttribute('data-fallback') === '1') return;
+      link.setAttribute('data-fallback', '1');
+      link.integrity = MAPLIBRE_CSS_SRI; link.crossOrigin = 'anonymous';
+      link.referrerPolicy = 'no-referrer';
+      link.href = MAPLIBRE_CSS_FALLBACK;
+    };
+    document.head.appendChild(link);
+  }
+
+${MAP_EXPLORER_BASEMAPS_JS}
+
   var DEFAULT_MAP_CENTER = [138.383, 34.975];
   var DEFAULT_MAP_ZOOM = 13.6;
   var STARTUP_LOCATION_ZOOM = 15.0;
-  var SHIZUOKA_PREF_BBOX = [137.47, 34.57, 139.16, 35.65];
   var LAST_LOCATION_STORAGE_KEY = 'ikimon-map-last-startup-location-v1';
   var LAST_LOCATION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 30;
+  var MAP_STYLE_URL = ${JSON.stringify(MAP_STANDARD_STYLE_URL)};
+  var MAP_PREFETCH_GLYPH_URLS = ${JSON.stringify(MAP_PREFETCHED_GLYPH_URLS)};
 
   var state = {
     tab: 'places',
@@ -2780,7 +2636,505 @@ export function mapExplorerBootScriptSource(): string {
     _fittedOnce: false,
     _ownObservationFirstViewApplied: false,
     _meMarker: null,
+    _mapLoadFired: false,
   };
+
+  function isValidMapLngLat(lng, lat) {
+    return Number.isFinite(lng) && Number.isFinite(lat) && lng >= -180 && lng <= 180 && lat >= -85 && lat <= 85;
+  }
+
+  function readLastStartupLocation() {
+    try {
+      var raw = localStorage.getItem(LAST_LOCATION_STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      var lng = Number(parsed && parsed.lng);
+      var lat = Number(parsed && parsed.lat);
+      var capturedAt = Number(parsed && parsed.capturedAt);
+      if (!isValidMapLngLat(lng, lat)) return null;
+      if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > LAST_LOCATION_MAX_AGE_MS) return null;
+      return {
+        center: [lng, lat],
+        zoom: Math.max(DEFAULT_MAP_ZOOM, Math.min(16.5, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
+        source: 'last_location',
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function initialStartupViewport() {
+    if (state._restoredCenter && state._restoredCenter.length >= 2) {
+      return {
+        center: state._restoredCenter,
+        zoom: state._restoredZoom != null ? state._restoredZoom : DEFAULT_MAP_ZOOM,
+        source: 'explicit_viewport',
+      };
+    }
+    var last = readLastStartupLocation();
+    if (last) return last;
+    return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, source: 'regional_default' };
+  }
+
+  (function () {
+    try {
+      var raw = window.location.search || window.location.hash || '';
+      var cleaned = String(raw || '').replace(/^[?#]/, '');
+      var hasUrlParams = !!cleaned;
+      if (!cleaned) {
+        try { cleaned = String(localStorage.getItem('ikimon-map-state-v1') || ''); } catch (_) {}
+      }
+      if (!cleaned) return;
+      var params = {};
+      new URLSearchParams(cleaned).forEach(function (value, key) { params[key] = value; });
+      if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
+      if (hasUrlParams && params.lng && params.lat && params.z) {
+        var lng2 = parseFloat(params.lng);
+        var lat2 = parseFloat(params.lat);
+        var z2 = parseFloat(params.z);
+        if (isFinite(lng2) && isFinite(lat2) && isFinite(z2) && lng2 >= -180 && lng2 <= 180 && lat2 >= -85 && lat2 <= 85 && z2 >= 0 && z2 <= 22) {
+          state._restoredCenter = [lng2, lat2];
+          state._restoredZoom = z2;
+        }
+      }
+    } catch (_) {}
+  })();
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  var planetPromise = null;
+  var resolvedPlanetJson = null;
+  var prefetchedGlyphs = {};
+
+  function cleanupFailedMapInit() {
+    try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
+    state.map = null;
+    if (!root) return;
+    Array.prototype.slice.call(root.querySelectorAll('.maplibregl-canvas-container, .maplibregl-control-container')).forEach(function (node) {
+      try { node.remove(); } catch (_) { if (node.parentNode) node.parentNode.removeChild(node); }
+    });
+    try { root.classList.remove('maplibregl-map'); } catch (_) {}
+  }
+
+  function enableMapInteractions() {
+    if (!state.map) return;
+    ['dragPan', 'scrollZoom', 'doubleClickZoom', 'boxZoom', 'keyboard', 'touchZoomRotate'].forEach(function (key) {
+      var handler = state.map[key];
+      if (handler && typeof handler.enable === 'function') { try { handler.enable(); } catch (_) {} }
+    });
+  }
+
+  function hydrate() {
+    if (state.mapHydrationStarted || state.map) return;
+    state.mapHydrationStarted = true;
+    if (!window.maplibregl) { state.mapHydrationStarted = false; showMapLoadFailure(); return; }
+    var styleUrl = typeof MAP_STYLE_URL === 'string' ? MAP_STYLE_URL : ${JSON.stringify(MAP_STANDARD_STYLE_URL)};
+    var pPromise = typeof planetPromise !== 'undefined' ? planetPromise : null;
+    var pJson = typeof resolvedPlanetJson !== 'undefined' ? resolvedPlanetJson : null;
+    var gMap = typeof prefetchedGlyphs !== 'undefined' ? prefetchedGlyphs : {};
+    var hasPrefetchProtocol = false;
+    if (typeof window.maplibregl.addProtocol === 'function') {
+      hasPrefetchProtocol = true;
+      if (!window.__zukanPrefetchProtocolRegistered) {
+        window.__zukanPrefetchProtocolRegistered = true;
+        window.maplibregl.addProtocol('zukanprefetch', function (params, abortController) {
+          var realUrl = String(params && params.url || '').replace(/^zukanprefetch:\\/\\//, '');
+          if (realUrl === styleUrl && pPromise) {
+            return pPromise.then(function (json) {
+              if (json) return { data: json };
+              return fetch(realUrl, { mode: 'cors', credentials: 'same-origin', signal: abortController && abortController.signal })
+                .then(function (r) { return r.json(); })
+                .then(function (j) { return { data: j }; });
+            });
+          }
+          if (gMap[realUrl]) {
+            return gMap[realUrl].then(function (buf) {
+              if (buf) return { data: buf.slice(0) };
+              return fetch(realUrl, { mode: 'cors', credentials: 'same-origin', signal: abortController && abortController.signal })
+                .then(function (r) { return r.arrayBuffer(); })
+                .then(function (b) { return { data: b }; });
+            });
+          }
+          return fetch(realUrl, { mode: 'cors', credentials: 'same-origin', signal: abortController && abortController.signal })
+            .then(function (r) { return params.type === 'json' ? r.json() : r.arrayBuffer(); })
+            .then(function (d) { return { data: d }; });
+        });
+      }
+    }
+    var buildStandardStyle = function () {
+      if (!pJson || !Array.isArray(pJson.tiles)) return BASEMAPS.standard;
+      var std = BASEMAPS.standard;
+      var src = std.sources && std.sources.openmaptiles ? std.sources.openmaptiles : {};
+      var nextSrc = {
+        type: 'vector',
+        tiles: pJson.tiles,
+        attribution: src.attribution,
+      };
+      if (typeof pJson.minzoom === 'number') nextSrc.minzoom = pJson.minzoom;
+      if (typeof pJson.maxzoom === 'number') nextSrc.maxzoom = pJson.maxzoom;
+      if (Array.isArray(pJson.bounds)) nextSrc.bounds = pJson.bounds;
+      if (typeof pJson.scheme === 'string') nextSrc.scheme = pJson.scheme;
+      return {
+        version: std.version,
+        glyphs: std.glyphs,
+        sources: { openmaptiles: nextSrc },
+        layers: std.layers,
+      };
+    };
+    var prefetchTransform = function (url) {
+      if (hasPrefetchProtocol && (gMap[url] || (url === styleUrl && pPromise))) {
+        return { url: 'zukanprefetch://' + url };
+      }
+      return { url: url };
+    };
+    var startupViewport = initialStartupViewport();
+    var selectedStyle = (state.basemap === 'standard' || !BASEMAPS[state.basemap])
+      ? buildStandardStyle()
+      : BASEMAPS[state.basemap];
+    try {
+      state.maplibreRuntime = window.maplibregl;
+      state.map = new window.maplibregl.Map({
+        container: root,
+        style: selectedStyle,
+        center: startupViewport.center,
+        zoom: startupViewport.zoom,
+        attributionControl: false,
+        transformRequest: hasPrefetchProtocol ? prefetchTransform : undefined,
+        localIdeographFontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif",
+      });
+    } catch (err) {
+      try { console.error('[map] init failed', err); } catch (_) {}
+      cleanupFailedMapInit();
+      state._restoredCenter = null;
+      state._restoredZoom = null;
+      try {
+        state.maplibreRuntime = window.maplibregl;
+        state.map = new window.maplibregl.Map({
+          container: root,
+          style: buildStandardStyle(),
+          center: DEFAULT_MAP_CENTER,
+          zoom: DEFAULT_MAP_ZOOM,
+          attributionControl: false,
+          transformRequest: hasPrefetchProtocol ? prefetchTransform : undefined,
+          localIdeographFontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif",
+        });
+      } catch (err2) {
+        cleanupFailedMapInit();
+        state.mapHydrationStarted = false;
+        showMapLoadFailure();
+        return;
+      }
+    }
+    enableMapInteractions();
+    if (window.maplibregl.AttributionControl) {
+      state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    }
+    state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    var onMapFirstLoad = function () {
+      state._mapLoadFired = true;
+      if (typeof loadDeferredExplorer === 'function') loadDeferredExplorer();
+    };
+    if (typeof state.map.once === 'function') state.map.once('load', onMapFirstLoad);
+    else if (typeof state.map.on === 'function') state.map.on('load', onMapFirstLoad);
+  }
+
+  function showMapLoadFailure() {
+    if (typeof setStatus === 'function') setStatus('—');
+    else {
+      var sEl = document.getElementById('me-map-status');
+      if (sEl) sEl.textContent = '—';
+    }
+    if (!root || root.querySelector('[data-map-load-error="1"]')) return;
+    var errCopy = (typeof CFG !== 'undefined' && CFG.loadError) ? CFG.loadError : {};
+    var errTitle = (typeof COPY !== 'undefined' && COPY.mapLoadErrorTitle) || errCopy.title || 'Map unavailable';
+    var errBody = (typeof COPY !== 'undefined' && COPY.mapLoadErrorBody) || errCopy.body || '';
+    var errRetry = (typeof COPY !== 'undefined' && COPY.mapLoadRetryLabel) || errCopy.retry || 'Reload';
+    var errRecords = (typeof COPY !== 'undefined' && COPY.mapLoadRecordsLabel) || errCopy.records || 'Records';
+    var recordsHref = (typeof COMMUNITY_RECORDS_HREF !== 'undefined' && COMMUNITY_RECORDS_HREF) || (typeof CFG !== 'undefined' && CFG.communityRecordsHref) || '/records?view=public';
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : escHtml;
+    var box = document.createElement('div');
+    box.setAttribute('data-map-load-error', '1');
+    box.setAttribute('role', 'region');
+    box.setAttribute('aria-label', errTitle);
+    box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ecfeff,#eff6ff);color:#0f172a;font:500 14px/1.5 system-ui,sans-serif;text-align:center;z-index:4;';
+    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">' + esc(errTitle) + '</div><div style="opacity:.75;margin-bottom:12px;">' + esc(errBody) + '</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">' + esc(errRetry) + '</button><a href="' + esc(recordsHref) + '" data-map-public-records-link style="display:inline-flex;align-items:center;min-height:44px;margin-left:12px;text-underline-offset:3px;">' + esc(errRecords) + '</a></div>';
+    var btn = box.querySelector('button');
+    if (btn) btn.addEventListener('click', function () { window.location.reload(); });
+    root.appendChild(box);
+  }
+
+  function loadMaplibreScript(src, useSri, onload, onfail) {
+    var s = document.createElement('script');
+    s.src = src;
+    if (useSri) {
+      s.integrity = MAPLIBRE_JS_SRI;
+      s.crossOrigin = 'anonymous';
+      s.referrerPolicy = 'no-referrer';
+    }
+    s.defer = true;
+    s.onload = function () {
+      if (window.maplibregl) onload();
+      else onfail();
+    };
+    s.onerror = onfail;
+    document.head.appendChild(s);
+  }
+
+  var deferredLoadRequested = false;
+  function loadDeferredExplorer() {
+    if (typeof window.__ikimonMapDeferredInit === 'function') {
+      window.__ikimonMapDeferredInit();
+      return;
+    }
+    if (deferredLoadRequested) return;
+    deferredLoadRequested = true;
+    if (CFG.deferredCssHref && !document.querySelector('link[data-me-deferred-css="1"]')) {
+      var cssLink = document.createElement('link');
+      cssLink.rel = 'stylesheet';
+      cssLink.href = CFG.deferredCssHref;
+      cssLink.setAttribute('data-me-deferred-css', '1');
+      document.head.appendChild(cssLink);
+    }
+    if (CFG.deferredJsHref) {
+      var s = document.createElement('script');
+      s.src = CFG.deferredJsHref;
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+  }
+
+  window.__ikimonMapBoot = {
+    root: root,
+    CFG: CFG,
+    state: state,
+    BASEMAPS: BASEMAPS,
+    DEFAULT_MAP_CENTER: DEFAULT_MAP_CENTER,
+    DEFAULT_MAP_ZOOM: DEFAULT_MAP_ZOOM,
+    STARTUP_LOCATION_ZOOM: STARTUP_LOCATION_ZOOM,
+    LAST_LOCATION_STORAGE_KEY: LAST_LOCATION_STORAGE_KEY,
+    LAST_LOCATION_MAX_AGE_MS: LAST_LOCATION_MAX_AGE_MS,
+    isValidMapLngLat: isValidMapLngLat,
+    readLastStartupLocation: readLastStartupLocation,
+    initialStartupViewport: initialStartupViewport,
+    cleanupFailedMapInit: cleanupFailedMapInit,
+    enableMapInteractions: enableMapInteractions,
+    showMapLoadFailure: showMapLoadFailure,
+    loadMaplibreScript: loadMaplibreScript,
+    hydrate: hydrate,
+    loadDeferredExplorer: loadDeferredExplorer,
+  };
+
+  if (window.maplibregl) hydrate();
+  else {
+    loadMaplibreScript(MAPLIBRE_JS_PRIMARY, false, hydrate, function () {
+      loadMaplibreScript(MAPLIBRE_JS_FALLBACK, true, hydrate, showMapLoadFailure);
+    });
+  }
+
+  // Start style/TileJSON and glyph prefetches after MapLibre JS is requested so they do not compete with it.
+  if (state.basemap === 'standard' && typeof fetch === 'function') {
+    try {
+      planetPromise = fetch(MAP_STYLE_URL, { mode: 'cors', credentials: 'same-origin' })
+        .then(function (r) { return r && r.ok ? r.json() : null; })
+        .then(function (json) { if (json) resolvedPlanetJson = json; return json; })
+        .catch(function () { return null; });
+      MAP_PREFETCH_GLYPH_URLS.forEach(function (gUrl) {
+        prefetchedGlyphs[gUrl] = fetch(gUrl, { mode: 'cors', credentials: 'same-origin' })
+          .then(function (r) { return r && r.ok ? r.arrayBuffer() : null; })
+          .catch(function () { return null; });
+      });
+    } catch (_) {}
+  }
+})();`;
+}
+
+export function mapExplorerDeferredScriptSource(): string {
+  return `(function () {
+  var B = window.__ikimonMapBoot;
+  if (!B || !B.root) return;
+  var root = B.root;
+  var CFG = B.CFG || {};
+  var state = B.state;
+  var BASEMAPS = B.BASEMAPS;
+  var DEFAULT_MAP_CENTER = B.DEFAULT_MAP_CENTER;
+  var DEFAULT_MAP_ZOOM = B.DEFAULT_MAP_ZOOM;
+  var STARTUP_LOCATION_ZOOM = B.STARTUP_LOCATION_ZOOM;
+  var LAST_LOCATION_STORAGE_KEY = B.LAST_LOCATION_STORAGE_KEY;
+  var LAST_LOCATION_MAX_AGE_MS = B.LAST_LOCATION_MAX_AGE_MS;
+  var isValidMapLngLat = B.isValidMapLngLat;
+  var readLastStartupLocation = B.readLastStartupLocation;
+  var initialStartupViewport = B.initialStartupViewport;
+  var cleanupFailedMapInit = B.cleanupFailedMapInit;
+  var enableMapInteractions = B.enableMapInteractions;
+  var showMapLoadFailure = B.showMapLoadFailure;
+
+  var mapShellEl = root.closest('.me-section') || root.parentElement;
+  var statusEl = document.getElementById('me-map-status');
+  var legendEl = document.getElementById('me-legend');
+  var legendToggleEl = document.getElementById('me-legend-toggle');
+  var legendLowEl = document.getElementById('me-legend-low');
+  var legendHighEl = document.getElementById('me-legend-high');
+  var legendDetailEl = document.getElementById('me-legend-detail');
+  var ownTrailEl = document.getElementById('me-own-trail');
+  var ownTrailListEl = document.getElementById('me-own-trail-list');
+  var ownTrailCountEl = document.getElementById('me-own-trail-count');
+  var personalMemoryEl = document.getElementById('me-personal-memory');
+  var personalMemoryListEl = document.getElementById('me-personal-memory-list');
+  var layerHintEl = document.getElementById('me-layer-hint');
+  var layerHintTextEl = document.getElementById('me-layer-hint-text');
+  var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
+  var layerHintCloseEl = document.getElementById('me-layer-hint-close');
+  var purposeHintEl = document.getElementById('me-purpose-hint');
+  var purposeHintCloseEl = document.getElementById('me-purpose-hint-close');
+  var startPanelEl = document.getElementById('me-start-panel');
+  var startPanelCloseEl = document.getElementById('me-start-panel-close');
+  var startPanelLocationEl = document.getElementById('me-start-panel-location');
+  var startPanelRoutesEl = document.querySelector('.me-start-panel-routes');
+  var startPanelRoutesHeadingEl = document.getElementById('me-start-panel-routes-heading');
+  var startPanelRoutesStaticHtml = startPanelRoutesEl && startPanelRoutesEl.querySelector('nav')
+    ? startPanelRoutesEl.querySelector('nav').innerHTML
+    : '';
+  var filterDrawerEl = document.querySelector('.me-filter-drawer');
+  var sheetEl = document.getElementById('me-bottom-sheet');
+  var sheetInnerEl = document.getElementById('me-bottom-inner');
+  var sheetCloseEl = document.getElementById('me-bottom-close');
+  var sheetGripEl = document.getElementById('me-bottom-grip');
+  var sideStatusEl = document.getElementById('me-side-status');
+  var resultsListEl = document.getElementById('me-results-list');
+  var selectedCardEl = document.getElementById('me-map-selection-card');
+  var mapInsightCardEl = document.getElementById('me-map-insight-card');
+  var contributionPanelEl = document.getElementById('me-contribution-panel');
+  var sideEl = document.getElementById('me-side');
+  var sideToggleEl = document.getElementById('me-side-toggle');
+  var sideRailCountEl = document.getElementById('me-side-rail-count');
+  var sideSelectionEmptyEl = document.getElementById('me-side-selection-empty');
+  var sideSectionEl = sideEl ? sideEl.closest('.me-section') : null;
+  var sideTabBtns = document.querySelectorAll('[data-side-tab]');
+  function setSideTab(name) {
+    if (!sideEl) return;
+    sideEl.setAttribute('data-tab', name);
+    for (var i = 0; i < sideTabBtns.length; i++) {
+      var btn = sideTabBtns[i];
+      var on = btn.getAttribute('data-side-tab') === name;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+  }
+  function setSideSelectionTabAvailable(available) {
+    var btn = document.querySelector('[data-side-tab="selection"]');
+    if (!btn) return;
+    if (available) btn.removeAttribute('disabled');
+    else btn.setAttribute('disabled', 'disabled');
+  }
+  function setSideRailMode(rail) {
+    if (!sideSectionEl) return;
+    sideSectionEl.setAttribute('data-side', rail ? 'rail' : 'open');
+    if (sideToggleEl) sideToggleEl.setAttribute('aria-expanded', rail ? 'false' : 'true');
+    try { window.localStorage.setItem('me-side-rail', rail ? '1' : '0'); } catch (e) {}
+    setTimeout(function () {
+      try { if (state && state.map && state.map.resize) state.map.resize(); } catch (e) {}
+    }, 280);
+  }
+  if (sideToggleEl) {
+    sideToggleEl.addEventListener('click', function () {
+      var nowRail = !sideSectionEl || sideSectionEl.getAttribute('data-side') !== 'rail';
+      setSideRailMode(nowRail);
+    });
+  }
+  for (var st = 0; st < sideTabBtns.length; st++) {
+    sideTabBtns[st].addEventListener('click', function (ev) {
+      var t = ev.currentTarget;
+      if (t.hasAttribute('disabled')) return;
+      setSideTab(t.getAttribute('data-side-tab') || 'results');
+    });
+  }
+  try {
+    var stored = window.localStorage.getItem('me-side-rail');
+    if (stored === '1') setSideRailMode(true);
+  } catch (e) {}
+  var yearRangeEl = document.getElementById('me-year-range');
+  var yearLabelEl = document.getElementById('me-year-label');
+  var yearAllEl = document.getElementById('me-year-all');
+  var shareStateEl = document.getElementById('me-share-state');
+  var searchAreaBtnEl = document.getElementById('me-search-area-btn');
+  var rainCardEl = document.getElementById('me-rain-card');
+  var rainToggleEl = document.getElementById('me-rain-toggle');
+  var rainTimelineEl = document.getElementById('me-rain-timeline');
+  var rainStatusEl = document.getElementById('me-rain-status');
+  var rainCurrentEl = document.getElementById('me-rain-current');
+  var rainTargetEl = document.getElementById('me-rain-target');
+  var apiCells = root.getAttribute('data-api-cells') || '';
+  var apiObservations = root.getAttribute('data-api-observations') || '';
+  var apiPlaceProfile = root.getAttribute('data-api-place-profile') || '';
+  var apiPlaceSearch = root.getAttribute('data-api-place-search') || '';
+  var apiMyObservations = root.getAttribute('data-api-my-observations') || '';
+  var apiSiteBrief = root.getAttribute('data-api-site-brief') || '';
+  var apiTraces = root.getAttribute('data-api-traces') || '';
+  var apiFrontier = root.getAttribute('data-api-frontier') || '';
+  var apiEffortSummary = root.getAttribute('data-api-effort-summary') || '';
+  var apiAreaPolygons = root.getAttribute('data-api-area-polygons') || '';
+  var apiGuideSpots = root.getAttribute('data-api-guide-spots') || '';
+  var apiGbifAreaSummary = root.getAttribute('data-api-gbif-area-summary') || '';
+  var apiJmaNowcastTimes = root.getAttribute('data-api-jma-nowcast-times') || '';
+  var apiAreaSnapshotTemplate = root.getAttribute('data-api-area-snapshot') || '';
+  var apiAreaFollow = root.getAttribute('data-api-area-follow') || '';
+  var apiWalkMapCandidates = root.getAttribute('data-api-walk-map-candidates') || '';
+  var placeAtlasSeq = 0;
+  var placeAtlasAbort = null;
+
+  var SEARCH_LANG = CFG.searchLang || 'ja';
+  var COPY = (${JSON.stringify(MAP_EXPLORER_COPY_BY_LANG)})[SEARCH_LANG] || (${JSON.stringify(MAP_EXPLORER_COPY_BY_LANG)}).ja;
+  ${MAP_EXPLORER_STATE_RUNTIME}
+  ${MAP_PLACE_ATLAS_PROFILE_RUNTIME}
+  var YEAR_VALUES = [];
+  try {
+    YEAR_VALUES = JSON.parse((yearRangeEl && yearRangeEl.getAttribute('data-year-values')) || '[]');
+  } catch (_) { YEAR_VALUES = []; }
+  var OBSERVATION_HREF_TPL = CFG.observationHrefTpl || '/observations/__ID__';
+  var RECORD_HREF = CFG.recordHref || '/record';
+  var NOTES_HREF = CFG.notesHref || '/records?view=mine';
+  var COMMUNITY_RECORDS_HREF = CFG.communityRecordsHref || '/records?view=public';
+  var PLACE_HREF_PREFIX = CFG.placeHrefPrefix || '/places/';
+  var LENS_HREF = CFG.lensHref || '/lens';
+  var SCAN_HREF = CFG.scanHref || '/map?tab=frontier';
+  var EVENTS_ORGANIZER_HREF = CFG.eventsOrganizerHref || '/community/events';
+  var FIELDS_ALBUM_TPL = CFG.fieldsAlbumTpl || '/community/fields/__FIELD_ID__';
+  var LOGIN_HREF = CFG.loginHref || '/login';
+  var UI_KPI_ENDPOINT = CFG.uiKpiEndpoint || '/api/v1/ui-kpi/events';
+  ${buildOfficialNoticeClientRenderer("renderMapOfficialNotices", getOfficialNoticeRenderCopy("ja"), { kpiNamespace: "map", copyExpr: `(${JSON.stringify(MAP_EXPLORER_NOTICE_COPY_BY_LANG)})[SEARCH_LANG] || (${JSON.stringify(MAP_EXPLORER_NOTICE_COPY_BY_LANG)}).ja` })}
+
+  var OVERLAY_CATALOG_BY_LANG = ${JSON.stringify(OVERLAY_CATALOG_BY_LANG)};
+  var OVERLAY_OPACITY_LABELS = ${JSON.stringify(OVERLAY_OPACITY_LABEL_BY_LANG)};
+  var overlayCatalog = OVERLAY_CATALOG_BY_LANG[SEARCH_LANG] || OVERLAY_CATALOG_BY_LANG.ja || [];
+  (function () {
+    var listEl = document.getElementById('me-overlay-list');
+    if (!listEl || listEl.children.length > 0 || !overlayCatalog.length) return;
+    var opacityLabel = OVERLAY_OPACITY_LABELS[SEARCH_LANG] || OVERLAY_OPACITY_LABELS.ja || 'Opacity';
+    var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
+    listEl.innerHTML = overlayCatalog.map(function (o) {
+      return '<label class="me-overlay-item" data-overlay-id="' + esc(o.id) + '">'
+        + '<div class="me-overlay-row"><input type="checkbox" class="me-overlay-toggle" />'
+        + '<span class="me-overlay-label">' + esc(o.label) + '</span>'
+        + '<span class="me-overlay-category me-overlay-cat-' + esc(o.category) + '">' + esc(o.category) + '</span></div>'
+        + (o.note ? '<p class="me-overlay-note">' + esc(o.note) + '</p>' : '')
+        + (o.legendGradient ? '<div class="me-overlay-legend"><span class="me-overlay-legend-low">' + esc(o.legendLow || '') + '</span><span class="me-overlay-legend-gradient" style="background:' + esc(o.legendGradient) + '"></span><span class="me-overlay-legend-high">' + esc(o.legendHigh || '') + '</span></div>' : '')
+        + '<div class="me-overlay-opacity"><span class="me-overlay-opacity-label">' + esc(opacityLabel) + '</span>'
+        + '<input type="range" class="me-overlay-opacity-range" min="0" max="1" step="0.05" value="' + esc(o.defaultOpacity) + '" aria-label="' + esc(opacityLabel) + ': ' + esc(o.label) + '" /></div>'
+        + '</label>';
+    }).join('');
+  })();
+  var overlayState = {};
+  overlayCatalog.forEach(function (o) { overlayState[o.id] = { enabled: false, opacity: o.defaultOpacity }; });
+  var AREA_SOURCE_VALUES = [
+    'nature_symbiosis_site', 'tsunag', 'school', 'osm_named_area',
+    'protected_area', 'oecm', 'osm_park', 'user_defined',
+  ];
+  var VIEWPORT_RECORD_LIMIT = 600;
+  var CELL_RECORD_LIMIT = 1500;
+  var SHIZUOKA_PREF_BBOX = [137.47, 34.57, 139.16, 35.65];
   var areaGuideWatchId = null;
   var activeGuideStopContext = null;
   var activeGuideSpeech = null;
@@ -9688,10 +10042,6 @@ export function mapExplorerBootScriptSource(): string {
     if (state.rainEnabled) updateRainLayer();
   };
 
-  function isValidMapLngLat(lng, lat) {
-    return Number.isFinite(lng) && Number.isFinite(lat) && lng >= -180 && lng <= 180 && lat >= -85 && lat <= 85;
-  }
-
   function rememberLastStartupLocation(lng, lat, meta) {
     lng = Number(lng);
     lat = Number(lat);
@@ -9706,39 +10056,6 @@ export function mapExplorerBootScriptSource(): string {
         capturedAt: Date.now(),
       }));
     } catch (_) {}
-  }
-
-  function readLastStartupLocation() {
-    try {
-      var raw = localStorage.getItem(LAST_LOCATION_STORAGE_KEY);
-      if (!raw) return null;
-      var parsed = JSON.parse(raw);
-      var lng = Number(parsed && parsed.lng);
-      var lat = Number(parsed && parsed.lat);
-      var capturedAt = Number(parsed && parsed.capturedAt);
-      if (!isValidMapLngLat(lng, lat)) return null;
-      if (!Number.isFinite(capturedAt) || Date.now() - capturedAt > LAST_LOCATION_MAX_AGE_MS) return null;
-      return {
-        center: [lng, lat],
-        zoom: Math.max(DEFAULT_MAP_ZOOM, Math.min(16.5, Number(parsed.zoom) || STARTUP_LOCATION_ZOOM)),
-        source: 'last_location',
-      };
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function initialStartupViewport() {
-    if (state._restoredCenter && state._restoredCenter.length >= 2) {
-      return {
-        center: state._restoredCenter,
-        zoom: state._restoredZoom != null ? state._restoredZoom : DEFAULT_MAP_ZOOM,
-        source: 'explicit_viewport',
-      };
-    }
-    var last = readLastStartupLocation();
-    if (last) return last;
-    return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, source: 'regional_default' };
   }
 
   function requestStartupCurrentLocation(options) {
@@ -9811,74 +10128,17 @@ export function mapExplorerBootScriptSource(): string {
     run();
   }
 
-  function cleanupFailedMapInit() {
-    try { if (state.map && typeof state.map.remove === 'function') state.map.remove(); } catch (_) {}
-    state.map = null;
-    if (!root) return;
-    Array.prototype.slice.call(root.querySelectorAll('.maplibregl-canvas-container, .maplibregl-control-container')).forEach(function (node) {
-      try { node.remove(); } catch (_) { if (node.parentNode) node.parentNode.removeChild(node); }
-    });
-    try { root.classList.remove('maplibregl-map'); } catch (_) {}
-  }
-
-  function enableMapInteractions() {
-    if (!state.map) return;
-    ['dragPan', 'scrollZoom', 'doubleClickZoom', 'boxZoom', 'keyboard', 'touchZoomRotate'].forEach(function (key) {
-      var handler = state.map[key];
-      if (handler && typeof handler.enable === 'function') { try { handler.enable(); } catch (_) {} }
-    });
-  }
-
-  function hydrate() {
-    if (state.mapHydrationStarted || state.map) return;
-    state.mapHydrationStarted = true;
-    if (!window.maplibregl) { state.mapHydrationStarted = false; showMapLoadFailure(); return; }
-    var startupViewport = initialStartupViewport();
-    try {
-      state.maplibreRuntime = window.maplibregl;
-      state.map = new window.maplibregl.Map({
-        container: root,
-        style: BASEMAPS[state.basemap] || BASEMAPS.standard,
-        center: startupViewport.center,
-        zoom: startupViewport.zoom,
-        attributionControl: false,
-        localIdeographFontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif",
-      });
-    } catch (err) {
-      try { console.error('[map] init failed', err); } catch (_) {}
-      cleanupFailedMapInit();
-      state._restoredCenter = null;
-      state._restoredZoom = null;
-      try {
-        state.maplibreRuntime = window.maplibregl;
-        state.map = new window.maplibregl.Map({
-          container: root,
-          style: BASEMAPS.standard,
-          center: DEFAULT_MAP_CENTER,
-          zoom: DEFAULT_MAP_ZOOM,
-          attributionControl: false,
-          localIdeographFontFamily: "'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif",
-        });
-      } catch (err2) {
-        cleanupFailedMapInit();
-        state.mapHydrationStarted = false;
-        showMapLoadFailure();
-        return;
-      }
-    }
-    enableMapInteractions();
-    if (window.maplibregl.AttributionControl) {
-      state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-    }
-    state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  var deferredMapInitDone = false;
+  function initDeferredMapHandlers() {
+    if (deferredMapInitDone || !state.map) return;
+    deferredMapInitDone = true;
     state.map.on('click', dismissPurposeHint);
     state.map.on('click', dismissStartPanel);
     state.map.on('dragstart', dismissPurposeHint);
     state.map.on('zoomstart', dismissPurposeHint);
     state.map.on('dragstart', dismissStartPanel);
     state.map.on('zoomstart', dismissStartPanel);
-    state.map.on('load', function () {
-      // Restore enabled overlays from URL/localStorage state before loading data.
+    var runPostLoad = function () {
       overlayCatalog.forEach(function (def) {
         if (overlayState[def.id] && overlayState[def.id].enabled) addOverlay(state.map, def);
       });
@@ -9888,11 +10148,16 @@ export function mapExplorerBootScriptSource(): string {
       refreshStartPanelRoutes();
       scheduleStartPanelRouteCandidates(120);
       requestStartupCurrentLocation({ onlyIfGranted: true });
-      state.map.once('idle', function () {
-        runInitialMapDataLoad('idle');
-      });
+      if (typeof state.map.once === 'function') {
+        state.map.once('idle', function () {
+          runInitialMapDataLoad('idle');
+        });
+      }
       scheduleInitialMapDataLoad(1200);
-    });
+    };
+    if (state._mapLoadFired) runPostLoad();
+    else if (typeof state.map.once === 'function') state.map.once('load', runPostLoad);
+    else if (typeof state.map.on === 'function') state.map.on('load', runPostLoad);
     scheduleInitialMapDataLoad(4500);
     state.map.on('moveend', function () {
       if (state.ignoreNextMoveEnd) {
@@ -9923,9 +10188,6 @@ export function mapExplorerBootScriptSource(): string {
       state.waterwayDebounce = setTimeout(function () { loadWaterwayHints(); }, 350);
       if (layerHintEl && !layerHintEl.classList.contains('is-hidden')) maybeShowLayerHint(state.tab);
     });
-    // Some provider/browser combinations finish drag or zoom without emitting
-    // MapLibre's aggregate moveend event. Persist the shareable viewport at
-    // the gesture boundary so the URL still follows real map interactions.
     state.map.on('move', scheduleMapStateSave);
     state.map.on('dragend', saveMapState);
     state.map.on('zoomend', saveMapState);
@@ -9937,8 +10199,6 @@ export function mapExplorerBootScriptSource(): string {
     state.map.on('zoomstart', function () {
       if (state.startupLocationRequestActive) state.startupLocationUserMoved = true;
     });
-    // Empty-point tap → Site Brief. Skip if the click hit an observation
-    // layer (those have their own handlers via map.on('click', 'layer', ...)).
     state.map.on('click', function (e) {
       var layers = [];
       ['observation-cell-fill', 'observation-cell-outline', 'observation-cell-selected', 'viewer-owned-observation-halo', 'viewer-owned-observation-dot', 'obs-cell-heat', 'obs-cell-heat-selected'].forEach(function (id) {
@@ -9952,44 +10212,8 @@ export function mapExplorerBootScriptSource(): string {
       openPlaceSheet(e.lngLat.lat, e.lngLat.lng);
     });
   }
-
-  function showMapLoadFailure() {
-    setStatus('—');
-    if (!root || root.querySelector('[data-map-load-error="1"]')) return;
-    var box = document.createElement('div');
-    box.setAttribute('data-map-load-error', '1');
-    box.setAttribute('role', 'region');
-    box.setAttribute('aria-label', COPY.mapLoadErrorTitle);
-    box.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#ecfeff,#eff6ff);color:#0f172a;font:500 14px/1.5 system-ui,sans-serif;text-align:center;z-index:4;';
-    box.innerHTML = '<div><div style="font-size:15px;margin-bottom:6px;">' + escapeHtml(COPY.mapLoadErrorTitle) + '</div><div style="opacity:.75;margin-bottom:12px;">' + escapeHtml(COPY.mapLoadErrorBody) + '</div><button type="button" style="padding:8px 14px;border-radius:9999px;border:1px solid rgba(15,23,42,.18);background:#fff;cursor:pointer;font:600 13px/1 system-ui,sans-serif;">' + escapeHtml(COPY.mapLoadRetryLabel) + '</button><a href="' + escapeHtml(COMMUNITY_RECORDS_HREF) + '" data-map-public-records-link style="display:inline-flex;align-items:center;min-height:44px;margin-left:12px;text-underline-offset:3px;">' + escapeHtml(COPY.mapLoadRecordsLabel) + '</a></div>';
-    var btn = box.querySelector('button');
-    if (btn) btn.addEventListener('click', function () { window.location.reload(); });
-    root.appendChild(box);
-  }
-
-  function loadMaplibreScript(src, useSri, onload, onfail) {
-    var s = document.createElement('script');
-    s.src = src;
-    if (useSri) {
-      s.integrity = MAPLIBRE_JS_SRI;
-      s.crossOrigin = 'anonymous';
-      s.referrerPolicy = 'no-referrer';
-    }
-    s.defer = true;
-    s.onload = function () {
-      if (window.maplibregl) onload();
-      else onfail();
-    };
-    s.onerror = onfail;
-    document.head.appendChild(s);
-  }
-
-  if (window.maplibregl) hydrate();
-  else {
-    loadMaplibreScript(MAPLIBRE_JS_PRIMARY, false, hydrate, function () {
-      loadMaplibreScript(MAPLIBRE_JS_FALLBACK, true, hydrate, showMapLoadFailure);
-    });
-  }
+  window.__ikimonMapDeferredInit = initDeferredMapHandlers;
+  if (state._mapLoadFired) initDeferredMapHandlers();
 
   // Bind UI events.
   document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
@@ -10933,9 +11157,13 @@ export function mapExplorerBootScriptSource(): string {
 })();`;
 }
 
+export function mapExplorerBootScriptSource(): string {
+  return `${mapExplorerCriticalScriptSource()}\n${mapExplorerDeferredScriptSource()}`;
+}
+
 export function mapExplorerBootBundle(): HashedStaticAsset {
   if (cachedMapExplorerBootBundle) return cachedMapExplorerBootBundle;
-  const content = Buffer.from(mapExplorerBootScriptSource(), "utf8");
+  const content = Buffer.from(mapExplorerCriticalScriptSource(), "utf8");
   const sha256 = createHash("sha256").update(content).digest("hex");
   cachedMapExplorerBootBundle = {
     path: `/assets/map/map-explorer.${sha256.slice(0, 12)}.js`,
@@ -10947,6 +11175,34 @@ export function mapExplorerBootBundle(): HashedStaticAsset {
   return cachedMapExplorerBootBundle;
 }
 
+export function mapExplorerDeferredBundle(): HashedStaticAsset {
+  if (cachedMapExplorerDeferredBundle) return cachedMapExplorerDeferredBundle;
+  const content = Buffer.from(mapExplorerDeferredScriptSource(), "utf8");
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  cachedMapExplorerDeferredBundle = {
+    path: `/assets/map/map-explorer-deferred.${sha256.slice(0, 12)}.js`,
+    content,
+    contentType: "application/javascript; charset=utf-8",
+    etag: `"${sha256.slice(0, 24)}"`,
+    sri: "",
+  };
+  return cachedMapExplorerDeferredBundle;
+}
+
+export function mapExplorerDeferredStylesAsset(): HashedStaticAsset {
+  if (cachedMapExplorerDeferredStyles) return cachedMapExplorerDeferredStyles;
+  const content = Buffer.from(MAP_EXPLORER_DEFERRED_STYLES, "utf8");
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  cachedMapExplorerDeferredStyles = {
+    path: `/assets/map/map-explorer-deferred.${sha256.slice(0, 12)}.css`,
+    content,
+    contentType: "text/css; charset=utf-8",
+    etag: `"${sha256.slice(0, 24)}"`,
+    sri: "",
+  };
+  return cachedMapExplorerDeferredStyles;
+}
+
 export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string }): string {
   const bundle = mapExplorerBootBundle();
   const configJson = serializeJsonForHtmlScript(buildMapExplorerBootConfig(props));
@@ -10954,8 +11210,12 @@ export function mapExplorerBootScript(props: { lang: SiteLang; basePath: string 
   return `<script type="application/json" id="me-boot-config">${configJson}</script>\n<script src="${escapeHtml(scriptSrc)}" defer></script>`;
 }
 
-export const MAP_EXPLORER_STYLES = `
+export const MAP_EXPLORER_DEFERRED_STYLES = `
   ${MAP_PLACE_ATLAS_PROFILE_STYLES}
+  ${OFFICIAL_NOTICE_CARD_STYLES}
+`;
+
+export const MAP_EXPLORER_CRITICAL_STYLES = `
   .site-header {
     background: rgba(249,255,254,.9);
   }
@@ -14007,7 +14267,6 @@ export const MAP_EXPLORER_STYLES = `
     .me-detail-walk-item { grid-template-columns: 38px minmax(0, 1fr); }
     .me-detail-walk-item small { grid-column: 2; justify-self: start; text-align: left; max-width: none; }
   }
-  ${OFFICIAL_NOTICE_CARD_STYLES}
 
   .me-side {
     position: absolute;
@@ -15066,3 +15325,5 @@ export const MAP_EXPLORER_STYLES = `
   .map-explorer .me-legend.is-collapsed .me-legend-toggle{width:44px;min-width:44px;min-height:44px}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt):has(input:focus-visible){outline:3px solid rgba(14,165,233,.42);outline-offset:2px}
 `;
+
+export const MAP_EXPLORER_STYLES = `${MAP_EXPLORER_CRITICAL_STYLES}\n${MAP_EXPLORER_DEFERRED_STYLES}`;

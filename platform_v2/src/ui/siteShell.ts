@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
+import type { HashedStaticAsset } from "./mapExplorerAssets.js";
 import { APP_EXPERIENCE_LAYOUT_STYLES, appExperienceActiveIndex, isAppExperiencePath, renderAppExperienceHeader, renderAppExperienceNavigation, ZUKAN_DESIGN_FOUNDATION_STYLES } from "./appExperience.js";
 import { FRONTEND_FOUNDATION_CSS } from "./frontendFoundation.js";
 import { withBasePath } from "../httpBasePath.js";
@@ -67,6 +69,10 @@ export type SiteShellOptions = {
   minimalChrome?: boolean;
   /** State-aware home header. Both safe shells are emitted so the Cloudflare materialized runtime can switch without JS. */
   homeChrome?: "guest" | "member";
+  /** Extra tags (e.g. preconnect/preload) placed in <head> before <style>. */
+  extraHeadHtml?: string;
+  /** Load the global record entry script as an external hashed asset instead of inline HTML. */
+  externalizeGlobalRecordScript?: boolean;
 };
 
 type ShellCopy = {
@@ -1404,17 +1410,9 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   </section>`;
 }
 
-function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
-  const cameraCopy = globalRecordEntryCopy(lang);
-  const recordTargets = {
-    photo: appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang),
-    video: appendLangToHref(withBasePath(basePath, "/record?start=video"), lang),
-    gallery: appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang),
-  };
-  return `<script>
-(function () {
-  const BASE_PATH = ${JSON.stringify(basePath.replace(/\/$/, ""))};
-  const CAMERA_COPY = ${JSON.stringify(cameraCopy)};
+function globalRecordEntryScriptBody(configPrelude: string): string {
+  return `(function () {
+${configPrelude}
   const CAMERA_START_TIMEOUT_MS = 10000;
   const REQUIRE_CLOSEUP_FOCUS = false;
   const requestCameraStream = async (mediaDevices, constraints, options = {}) => {
@@ -1468,7 +1466,6 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       if (timeout !== undefined) clearTimeout(timeout);
     }
   };
-  const RECORD_TARGETS = ${JSON.stringify(recordTargets)};
   const DB_NAME = 'ikimon-record-draft';
   const STORE_NAME = 'drafts';
   const GUEST_DRAFT_TOKEN_KEY = 'ikimon:record-draft-guest-token-v1';
@@ -1787,18 +1784,41 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     const token = guestDraftToken();
     return { draftKey: 'latest:guest:' + token, ownerKey: 'guest:' + token, continuationToken: token };
   };
+  let preferSharedBootSession = false;
   const draftOwnerContext = async () => {
-    const response = await fetch(apiPath('/api/v1/auth/session') + '?optional=1', {
-      method: 'GET',
-      headers: { accept: 'application/json' },
-      credentials: 'include',
-    });
-    const json = await response.json().catch(() => null);
-    if (response.ok && json && json.ok && json.session && json.session.userId) {
+    const useShared = preferSharedBootSession;
+    preferSharedBootSession = false;
+    const sessionUrl = apiPath('/api/v1/auth/session') + '?optional=1';
+    let payloadPromise;
+    if (useShared) {
+      if (!window.__ikimonOptionalSessionPromise) {
+        window.__ikimonOptionalSessionPromise = fetch(sessionUrl, {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          credentials: 'same-origin',
+        })
+          .then((res) => res.json().catch(() => null).then((json) => ({ ok: res.ok, json })))
+          .catch((err) => {
+            window.__ikimonOptionalSessionPromise = null;
+            throw err;
+          });
+      }
+      payloadPromise = window.__ikimonOptionalSessionPromise;
+    } else {
+      payloadPromise = fetch(sessionUrl, {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+        credentials: 'include',
+      }).then((res) => res.json().catch(() => null).then((json) => ({ ok: res.ok, json })));
+    }
+    const result = await payloadPromise;
+    const responseOk = Boolean(result && result.ok);
+    const json = result ? result.json : null;
+    if (responseOk && json && json.ok && json.session && json.session.userId) {
       const userId = String(json.session.userId);
       return { draftKey: 'latest:user:' + userId, ownerKey: 'user:' + userId, continuationToken: '' };
     }
-    if (response.ok && json && json.ok === false && json.error === 'session_not_found' && json.session === null) {
+    if (responseOk && json && json.ok === false && json.error === 'session_not_found' && json.session === null) {
       return guestDraftOwnerContext();
     }
     throw new Error('session_status_unavailable');
@@ -3639,6 +3659,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
       && restorePagePath === String(window.location.pathname || '');
     photoPreviewRestoreInFlight = true;
     try {
+      preferSharedBootSession = true;
       const restoreOwner = await draftOwnerContext();
       if (!restoreIsCurrent()) return;
       const draft = await readStoredPhotoPreview(restoreOwner, restorePagePath);
@@ -3673,8 +3694,54 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang): string {
     cameraStartInFlight = false;
     stopActiveStream();
   });
-})();
-</script>`;
+})();`;
+}
+
+let cachedGlobalRecordEntryAsset: HashedStaticAsset | null = null;
+
+export function globalRecordEntryAsset(): HashedStaticAsset {
+  if (cachedGlobalRecordEntryAsset) return cachedGlobalRecordEntryAsset;
+  const prelude = `  let __grCfg = {};
+  try {
+    const __grEl = document.getElementById('global-record-config');
+    if (__grEl && __grEl.textContent) __grCfg = JSON.parse(__grEl.textContent);
+  } catch (_) {}
+  const BASE_PATH = String(__grCfg.basePath || '');
+  const CAMERA_COPY = __grCfg.cameraCopy || {};
+  const RECORD_TARGETS = __grCfg.recordTargets || {};`;
+  const content = Buffer.from(globalRecordEntryScriptBody(prelude), "utf8");
+  const sha256 = createHash("sha256").update(content).digest("hex");
+  cachedGlobalRecordEntryAsset = {
+    path: `/assets/ui/global-record-entry.${sha256.slice(0, 12)}.js`,
+    content,
+    contentType: "application/javascript; charset=utf-8",
+    etag: `"${sha256.slice(0, 24)}"`,
+    sri: "",
+  };
+  return cachedGlobalRecordEntryAsset;
+}
+
+function globalRecordEntryScript(basePath: string, lang: SiteLang, externalize = false): string {
+  const cameraCopy = globalRecordEntryCopy(lang);
+  const recordTargets = {
+    photo: appendLangToHref(withBasePath(basePath, "/record?start=photo"), lang),
+    video: appendLangToHref(withBasePath(basePath, "/record?start=video"), lang),
+    gallery: appendLangToHref(withBasePath(basePath, "/record?start=gallery"), lang),
+  };
+  const normalizedBasePath = basePath.replace(/\/$/, "");
+  if (externalize) {
+    const asset = globalRecordEntryAsset();
+    const configJson = JSON.stringify({
+      basePath: normalizedBasePath,
+      cameraCopy,
+      recordTargets,
+    }).replace(/</g, "\\u003c");
+    return `<script type="application/json" id="global-record-config">${configJson}</script>\n<script src="${escapeHtml(withBasePath(basePath, asset.path))}" defer></script>`;
+  }
+  const prelude = `  const BASE_PATH = ${JSON.stringify(normalizedBasePath)};
+  const CAMERA_COPY = ${JSON.stringify(cameraCopy)};
+  const RECORD_TARGETS = ${JSON.stringify(recordTargets)};`;
+  return `<script>\n${globalRecordEntryScriptBody(prelude)}\n</script>`;
 }
 
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
@@ -3993,13 +4060,18 @@ function authNavHydrationScript(basePath: string, lang: SiteLang): string {
     hydratePersonalizedMenu();
     publishAuthSessionReady(true, alertsRequest);
   };
-  fetch(endpoint, {
+  const sessionPromise = window.__ikimonOptionalSessionPromise || (window.__ikimonOptionalSessionPromise = fetch(endpoint, {
     method: 'GET',
     headers: { accept: 'application/json' },
     credentials: 'same-origin'
   })
-    .then((response) => response.ok ? response.json() : null)
-    .then((payload) => applySignedInState(payload && payload.ok ? payload.session : null))
+    .then((response) => response.json().catch(() => null).then((json) => ({ ok: response.ok, json })))
+    .catch((err) => {
+      window.__ikimonOptionalSessionPromise = null;
+      throw err;
+    }));
+  sessionPromise
+    .then((result) => applySignedInState(result && result.ok && result.json && result.json.ok ? result.json.session : null))
     .catch(() => undefined);
 })();
 </script>`;
@@ -4641,7 +4713,7 @@ ${alternateLinks}
   <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />${ogImageMeta}${twitterCardMeta}
   <meta name="twitter:title" content="${escapeHtml(pageTitle)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />${twitterImageMeta}
-  ${structuredDataHtml}
+  ${structuredDataHtml}${options.extraHeadHtml ? `\n  ${options.extraHeadHtml}` : ""}
   ${appLaunchHeadScript}
   ${appOutboxHeadScript}
   ${analyticsHeadScript}
@@ -7523,7 +7595,7 @@ ${alternateLinks}
   ${legacyServiceWorkerCleanupScript}
   ${appRuntimeScript}
   ${authNavHydrationScript(options.basePath, lang)}
-  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang) : ""}
+  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang, Boolean(options.externalizeGlobalRecordScript)) : ""}
   ${languageDisclosureScript()}
   ${uiKpiScript}
   ${options.publicContextHtml ? PUBLIC_CONTEXT_SCRIPT : ""}

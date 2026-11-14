@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getShortCopy } from "../content/index.js";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
-import { MAP_EXPLORER_STYLES, mapExplorerBootScript, renderMapExplorer } from "../ui/mapExplorer.js";
+import { MAP_EXPLORER_CRITICAL_STYLES, mapExplorerBootScript, mapExplorerHeadPreloadHtml, renderMapExplorer } from "../ui/mapExplorer.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -27,7 +27,9 @@ export async function registerMapReadRoutes(app: FastifyInstance): Promise<void>
       lang,
       currentPath: appendLangToHref(withBasePath(basePath, "/map"), lang),
       shellClassName: "shell-bleed shell-map",
-      extraStyles: MAP_EXPLORER_STYLES,
+      extraHeadHtml: mapExplorerHeadPreloadHtml(basePath),
+      extraStyles: MAP_EXPLORER_CRITICAL_STYLES,
+      externalizeGlobalRecordScript: true,
       // Deliberately no hero: the map page should land on the map canvas,
       // while the explorer component carries a one-line context strip.
       hideFooter: true,
