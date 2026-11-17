@@ -3,7 +3,8 @@ import test from "node:test";
 import vm from "node:vm";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
 
-type Options = { width?: number; height?: number; fail?: boolean; gif?: boolean; type?: string; size?: number; unsupported?: boolean; nullContext?: boolean };
+type FaceResult = { available: boolean; redacted: boolean; faceCount: number; error: string | null; detector: string };
+type Options = { width?: number; height?: number; fail?: boolean; gif?: boolean; type?: string; size?: number; unsupported?: boolean; nullContext?: boolean; faceDetector?: () => Promise<FaceResult> };
 
 function fixture(options: Options = {}) {
   let closed = 0;
@@ -24,14 +25,32 @@ function fixture(options: Options = {}) {
   const type = options.gif ? "image/gif" : options.type ?? "image/png";
   const file = { name: options.gif ? "photo.gif" : `field.photo.${type === "image/jpeg" ? "jpg" : "png"}`, type, size: options.size, data: `data:${type};base64,b3JpZ2luYWw=` };
   class Reader { result = ""; onload?: () => void; onerror?: () => void; readAsDataURL(blob: { data: string }) { this.result = blob.data; this.onload?.(); } }
+  let created = 0;
+  const scratchSizes: number[][] = [];
+  const faceDetector = options.faceDetector;
   const context = vm.createContext({
     FileReader: Reader,
-    window: { createImageBitmap: async () => { decoded++; return { width: options.width ?? 4000, height: options.height ?? 3000, close: () => { closed++; } }; } },
-    document: { createElement: () => { if (options.fail) throw new Error("canvas unavailable"); return canvas; } },
+    window: {
+      createImageBitmap: async () => { decoded++; return { width: options.width ?? 4000, height: options.height ?? 3000, close: () => { closed++; } }; },
+      ...(faceDetector ? {
+        ikimonFacePrivacy: {
+          redactCanvasFaces: async (scratch: { width: number; height: number }) => { scratchSizes.push([scratch.width, scratch.height]); return faceDetector(); },
+          summarizeFacePrivacy: (raw: FaceResult) => ({ detector: raw.detector, status: raw.redacted ? "redacted" : raw.available ? "no_faces" : "unavailable", faceCount: raw.faceCount, error: raw.error }),
+        },
+      } : {}),
+    },
+    document: {
+      createElement: () => {
+        if (options.fail) throw new Error("canvas unavailable");
+        created++;
+        // The first canvas is the upload canvas; later ones are face-check scratch copies.
+        return created === 1 ? canvas : { width: 0, height: 0, getContext: () => ({ drawImage: () => undefined }) };
+      },
+    },
     input: file,
   });
   new vm.Script(PHOTO_UPLOAD_PREPARATION_SCRIPT + "\nresult = preparePhotoUpload(input);").runInContext(context);
-  return { result: context.result as Promise<{ filename: string; mimeType: string; base64Data: string; facePrivacy?: { status: string; error: string | null } }>, facts: () => ({ closed, decoded, drawn, encodings, canvas }) };
+  return { result: context.result as Promise<{ filename: string; mimeType: string; base64Data: string; facePrivacy?: { status: string; error: string | null; faceCount?: number; detector?: string } }>, facts: () => ({ closed, decoded, drawn, encodings, canvas, scratchSizes }) };
 }
 
 test("large photos use WebP and release decoded/canvas memory", async () => {
@@ -109,4 +128,36 @@ test("does not reuse an AVIF original that the upload API does not accept", asyn
   assert.equal(result.filename, "field.photo.webp");
   assert.equal(result.mimeType, "image/webp");
   assert.match(result.base64Data, /^data:image\/webp;base64,/);
+});
+
+test("face check marks face-free photos no_faces on a downscaled copy without changing the upload", async () => {
+  const f = fixture({ faceDetector: async () => ({ available: true, redacted: false, faceCount: 0, error: null, detector: "mediapipe_wasm_face_detector" }) });
+  const result = await f.result;
+  assert.equal(result.facePrivacy?.status, "no_faces");
+  assert.equal(result.facePrivacy?.detector, "mediapipe_wasm_face_detector");
+  assert.deepEqual(f.facts().scratchSizes, [[1280, 960]]);
+  assert.deepEqual(f.facts().drawn, [2560, 1920]);
+  assert.match(result.base64Data, /^data:image\/webp;base64,/);
+});
+
+test("detected faces keep the photo pending so it is never syndicated externally", async () => {
+  const f = fixture({ faceDetector: async () => ({ available: true, redacted: true, faceCount: 2, error: null, detector: "mediapipe_wasm_face_detector" }) });
+  const result = await f.result;
+  assert.equal(result.facePrivacy?.status, "pending");
+  assert.equal(result.facePrivacy?.error, "faces_detected");
+  assert.equal(result.facePrivacy?.faceCount, 2);
+});
+
+test("an unavailable or failing detector never reports no_faces", async () => {
+  const unavailable = await fixture({ faceDetector: async () => ({ available: false, redacted: false, faceCount: 0, error: "wasm_face_detector_failed", detector: "mediapipe_wasm_face_detector" }) }).result;
+  assert.equal(unavailable.facePrivacy?.status, "unavailable");
+  const throwing = await fixture({ faceDetector: async () => { throw new Error("boom"); } }).result;
+  assert.equal(throwing.facePrivacy?.status, "unavailable");
+  assert.equal(throwing.facePrivacy?.error, "face_check_failed");
+});
+
+test("the upload request carries only a server-accepted face privacy status", () => {
+  const context = vm.createContext({ window: {}, document: {}, FileReader: class {} });
+  new vm.Script(PHOTO_UPLOAD_PREPARATION_SCRIPT + "\nstatuses = [photoFacePrivacyStatus({ facePrivacy: { status: 'no_faces' } }), photoFacePrivacyStatus({ facePrivacy: { status: 'unavailable' } }), photoFacePrivacyStatus({ facePrivacy: { status: 'redacted' } }), photoFacePrivacyStatus({}), photoFacePrivacyStatus(null)];").runInContext(context);
+  assert.equal(JSON.stringify(context.statuses), JSON.stringify(["no_faces", "unavailable", "pending", "pending", "pending"]));
 });

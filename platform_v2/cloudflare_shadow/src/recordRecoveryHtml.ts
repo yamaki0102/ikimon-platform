@@ -1,4 +1,5 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
+import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 export type CloudflareRecordRecoverySource =
   | ""
@@ -398,6 +399,10 @@ export function renderCloudflareRecordRecoverySignedHtml(
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
+  <script nonce="${escapeHtml(cspNonce)}">
+  window.ikimonFacePrivacyAssetBase = "/assets/face-privacy";
+  ${FACE_PRIVACY_CLIENT_SCRIPT}
+  </script>
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(copy)};
@@ -888,7 +893,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             ...upload,
             mediaRole: index === 0 ? "primary" : "context",
-            facePrivacy: "pending",
+            facePrivacy: photoFacePrivacyStatus(upload),
           });
           prepared[index] = null;
           completedPhotoIndexes.add(index);

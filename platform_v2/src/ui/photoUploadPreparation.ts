@@ -50,6 +50,35 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
     }
     return await loadImageElementForUpload(file);
   };
+  // Detection only: runs ZUKAN's same-origin face detector (window.ikimonFacePrivacy) on a
+  // scratch copy, so the uploaded photo is never modified here. "no_faces" lets the photo
+  // qualify for external publication feeds; detected faces stay "pending" (not syndicated).
+  const PHOTO_FACE_CHECK_MAX_EDGE = 1280;
+  const checkFacesForUpload = async (sourceCanvas) => {
+    const api = typeof window !== 'undefined' ? window.ikimonFacePrivacy : null;
+    if (!api || typeof api.redactCanvasFaces !== 'function' || typeof api.summarizeFacePrivacy !== 'function') {
+      return { detector: 'none', status: 'pending', faceCount: 0, error: 'face_detector_not_loaded' };
+    }
+    try {
+      const scale = Math.min(1, PHOTO_FACE_CHECK_MAX_EDGE / Math.max(sourceCanvas.width, sourceCanvas.height));
+      const scratch = document.createElement('canvas');
+      scratch.width = Math.max(1, Math.round(sourceCanvas.width * scale));
+      scratch.height = Math.max(1, Math.round(sourceCanvas.height * scale));
+      const scratchContext = scratch.getContext('2d');
+      if (!scratchContext) return { detector: 'none', status: 'unavailable', faceCount: 0, error: 'face_check_canvas_unavailable' };
+      scratchContext.drawImage(sourceCanvas, 0, 0, scratch.width, scratch.height);
+      const summary = api.summarizeFacePrivacy(await api.redactCanvasFaces(scratch, {}));
+      scratch.width = 1; scratch.height = 1;
+      if (summary.status === 'redacted') return { ...summary, status: 'pending', error: 'faces_detected' };
+      return summary;
+    } catch (_) {
+      return { detector: 'unknown', status: 'unavailable', faceCount: 0, error: 'face_check_failed' };
+    }
+  };
+  const photoFacePrivacyStatus = (upload) => {
+    const status = upload && upload.facePrivacy && upload.facePrivacy.status;
+    return status === 'no_faces' || status === 'unavailable' ? status : 'pending';
+  };
   const preparePhotoUpload = async (file) => {
     const originalType = String(file && file.type || 'image/jpeg').toLowerCase();
     if (originalType === 'image/gif') {
@@ -78,7 +107,7 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       if (!encoded && !alphaSafeInput) encoded = await canvasToImage(canvas, 'image/jpeg');
       if (!encoded && alphaSafeInput) encoded = await canvasToImage(canvas, 'image/png');
       if (!encoded) throw new Error('photo_encode_failed');
-      const facePrivacy = { detector: 'server_async_face_privacy', status: 'pending', faceCount: 0, error: null };
+      const facePrivacy = await checkFacesForUpload(canvas);
       const encodedPayload = encoded.dataUrl.split(',')[1];
       const encodedBytes = Math.floor((encodedPayload.length * 3) / 4)
         - (encodedPayload.endsWith('==') ? 2 : encodedPayload.endsWith('=') ? 1 : 0);
