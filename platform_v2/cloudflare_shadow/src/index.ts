@@ -13,6 +13,7 @@ import {
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
+import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
@@ -20538,6 +20539,10 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     </div>
   </dialog>
   <script nonce="${escapeHtml(cspNonce)}">
+  window.ikimonFacePrivacyAssetBase = "/assets/face-privacy";
+  ${FACE_PRIVACY_CLIENT_SCRIPT}
+  </script>
+  <script nonce="${escapeHtml(cspNonce)}">
   (() => {
     const copy = ${JSON.stringify(mediaCopy)};
     ${PHOTO_UPLOAD_PREPARATION_SCRIPT}
@@ -20926,7 +20931,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
             await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
               ...upload,
               mediaRole: index === 0 ? "primary" : "context",
-              facePrivacy: "pending"
+              facePrivacy: photoFacePrivacyStatus(upload)
             });
             preparedPhotoUploads[index] = null;
             completedPhotoIndexes.add(index);
