@@ -127,6 +127,8 @@ test("nonempty owner results retain media reads and private ownership even when 
       assert.equal(response.status, 200);
       assert.equal(value.observationCalls().length, 3);
       assert.equal(value.mediaCalls().length, 2);
+      // Media kinds are read only for this owner's own rows, not the whole asset tables.
+      assert.ok(value.mediaCalls().every(call => /json_each\(\?\)/u.test(call.sql)));
       assert.doesNotMatch(body, /Other private record|Hidden owner record/u);
       if (!query) {
         assert.match(body, /Private owner record/u);
@@ -135,8 +137,9 @@ test("nonempty owner results retain media reads and private ownership even when 
     }
     const response = await value.fetch("nonempty", "/ja/records?view=mine", "GET", "media");
     assert.match(await response.text(), /Private owner record/u);
-    assert.equal(value.observationCalls().length, 2);
-    assert.equal(value.mediaCalls().length, 1);
+    // Both media readers run in parallel; one failing still leaves the owner card visible.
+    assert.equal(value.observationCalls().length, 3);
+    assert.equal(value.mediaCalls().length, 2);
   } finally { value.close(); }
 });
 
@@ -150,8 +153,9 @@ test("owner failures and malformed D1 results remain unavailable instead of beco
       assert.match(body, /role="status"/u);
       assert.match(body, /記録を読み込めませんでした。/u);
       assert.doesNotMatch(body, /まだ記録はありません。/u);
-      assert.equal(value.observationCalls().length, fault === "owner" ? 1 : 3);
-      assert.equal(value.mediaCalls().length, fault === "owner" ? 0 : 2);
+      // A failed or malformed owner read never triggers the media lookup.
+      assert.equal(value.observationCalls().length, 1);
+      assert.equal(value.mediaCalls().length, 0);
     }
   } finally { value.close(); }
 });

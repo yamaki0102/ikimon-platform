@@ -22125,9 +22125,11 @@ type PublicMapCardMeta = {
 };
 
 async function queryPublicMapCardMeta(
-  env: Env
+  env: Env,
+  ids?: readonly string[]
 ): Promise<Map<string, PublicMapCardMeta>> {
   const map = new Map<string, PublicMapCardMeta>();
+  if (ids && ids.length === 0) return map;
   const ensure = (id: string): PublicMapCardMeta => {
     let entry = map.get(id);
     if (!entry) {
@@ -22136,8 +22138,18 @@ async function queryPublicMapCardMeta(
     }
     return entry;
   };
-  try {
-    const rows = await env.OBS_DB.prepare(
+  // A missing optional table/column leaves that part of the metadata empty; other errors propagate.
+  const tolerateMissingSchema = <T>(query: Promise<{ results: T[] }>): Promise<T[]> => query.then(
+    (result) => result.results,
+    (error) => {
+      if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+      return [];
+    },
+  );
+  const observationScope = observationIdScope("o.observation_id", ids);
+  const environmentScope = observationIdScope("er.occurrence_id", ids);
+  const [baseRows, aiRows, envRows] = await Promise.all([
+    tolerateMissingSchema<{ observation_id: string; public_area_label: string | null; note: string | null }>(scopedStatement(env,
       `SELECT r.observation_id, r.public_area_label, o.note
          FROM readmodel_public_observations r
          JOIN observations o ON o.observation_id = r.observation_id
@@ -22149,19 +22161,11 @@ async function queryPublicMapCardMeta(
                AND rights.withdrawal_status IS NOT NULL
                AND rights.withdrawal_status <> 'active'
           )
+          ${observationScope.sql}
         ORDER BY r.observed_at DESC
-        LIMIT 5000`
-    ).all<{ observation_id: string; public_area_label: string | null; note: string | null }>();
-    for (const row of rows.results) {
-      const entry = ensure(row.observation_id);
-      entry.publicAreaLabel = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
-      entry.publicNote = formatPublicCardNoteLine(row.note);
-    }
-  } catch (error) {
-    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
-  }
-  try {
-    const aiRows = await env.OBS_DB.prepare(
+        LIMIT 5000`, observationScope.binds
+    ).all<{ observation_id: string; public_area_label: string | null; note: string | null }>()),
+    tolerateMissingSchema<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>(scopedStatement(env,
       `SELECT o.observation_id,
               COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
               art.source_payload_json AS ai_source_payload_json
@@ -22176,20 +22180,11 @@ async function queryPublicMapCardMeta(
                AND rights.withdrawal_status IS NOT NULL
                AND rights.withdrawal_status <> 'active'
           )
+          ${observationScope.sql}
         ORDER BY r.observed_at DESC
-        LIMIT 5000`
-    ).all<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>();
-    for (const row of aiRows.results) {
-      const aiLabel = normalizeOptionalText(row.ai_candidate_label);
-      if (!aiLabel || isWeakTaxonLabel(aiLabel) || isGenericPublicCardAiLabel(aiLabel) || containsDiscoveryPersonalInformation(aiLabel)) continue;
-      if (!isPublicObservationAiSubjectEligible(aiLabel, row.ai_source_payload_json)) continue;
-      ensure(row.observation_id).aiCandidateLabel = aiLabel;
-    }
-  } catch (error) {
-    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
-  }
-  try {
-    const envRows = await env.OBS_DB.prepare(
+        LIMIT 5000`, observationScope.binds
+    ).all<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>()),
+    tolerateMissingSchema<{ occurrence_id: string; structured_json: string }>(scopedStatement(env,
       `SELECT er.occurrence_id, er.structured_json
          FROM observation_environment_records er
          JOIN readmodel_public_observations r ON r.observation_id = er.occurrence_id
@@ -22202,20 +22197,30 @@ async function queryPublicMapCardMeta(
                AND rights.withdrawal_status IS NOT NULL
                AND rights.withdrawal_status <> 'active'
           )
+          ${environmentScope.sql}
         ORDER BY er.created_at DESC
-        LIMIT 5000`
-    ).all<{ occurrence_id: string; structured_json: string }>();
-    for (const row of envRows.results) {
-      const entry = ensure(row.occurrence_id);
-      if (entry.scenePlaceType || entry.sceneSurroundingCover) continue;
-      const parsed = parseCompatibleStructuredJson(row.structured_json);
-      const placeType = normalizeOptionalText(parsed.place_type);
-      const surroundingCover = normalizeOptionalText(parsed.surrounding_cover);
-      if (placeType && placeType !== "unknown") entry.scenePlaceType = placeType;
-      if (surroundingCover && surroundingCover !== "unknown") entry.sceneSurroundingCover = surroundingCover;
-    }
-  } catch (error) {
-    if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+        LIMIT 5000`, environmentScope.binds
+    ).all<{ occurrence_id: string; structured_json: string }>()),
+  ]);
+  for (const row of baseRows) {
+    const entry = ensure(row.observation_id);
+    entry.publicAreaLabel = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
+    entry.publicNote = formatPublicCardNoteLine(row.note);
+  }
+  for (const row of aiRows) {
+    const aiLabel = normalizeOptionalText(row.ai_candidate_label);
+    if (!aiLabel || isWeakTaxonLabel(aiLabel) || isGenericPublicCardAiLabel(aiLabel) || containsDiscoveryPersonalInformation(aiLabel)) continue;
+    if (!isPublicObservationAiSubjectEligible(aiLabel, row.ai_source_payload_json)) continue;
+    ensure(row.observation_id).aiCandidateLabel = aiLabel;
+  }
+  for (const row of envRows) {
+    const entry = ensure(row.occurrence_id);
+    if (entry.scenePlaceType || entry.sceneSurroundingCover) continue;
+    const parsed = parseCompatibleStructuredJson(row.structured_json);
+    const placeType = normalizeOptionalText(parsed.place_type);
+    const surroundingCover = normalizeOptionalText(parsed.surrounding_cover);
+    if (placeType && placeType !== "unknown") entry.scenePlaceType = placeType;
+    if (surroundingCover && surroundingCover !== "unknown") entry.sceneSurroundingCover = surroundingCover;
   }
   return map;
 }
@@ -22223,13 +22228,36 @@ async function queryPublicMapCardMeta(
 async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<ReturnType<typeof publicMapObservationItem>>> {
   const rows = await queryPublicMapRows(env);
   if (rows.length === 0) return [];
-  const [photoUrls, mediaKinds, cardMeta] = await Promise.all([
-    queryPublicMapPhotoUrls(env),
-    queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>()),
-    queryPublicMapCardMeta(env).catch(() => new Map<string, PublicMapCardMeta>()),
-  ]);
   const uniqueItems: Array<ReturnType<typeof publicMapObservationItem>> = [];
   const seen = new Set<string>();
+  // Enrich only the newest candidates instead of every public record. Records without
+  // presentable media are skipped, so further windows are read until the limit is met.
+  const window = Math.max(limit * PUBLIC_RECORD_CARD_WINDOW_FACTOR, PUBLIC_RECORD_CARD_MIN_WINDOW);
+  for (let start = 0; start < rows.length && uniqueItems.length < limit; start += window) {
+    const batch = rows.slice(start, start + window);
+    const ids = [...new Set(batch.map((row) => row.observation_id))];
+    const [photoUrls, mediaKinds, cardMeta] = await Promise.all([
+      queryPublicMapPhotoUrls(env, ids),
+      queryPublicMapMediaKinds(env, ids).catch(() => new Map<string, HomeRecordMediaKind>()),
+      queryPublicMapCardMeta(env, ids).catch(() => new Map<string, PublicMapCardMeta>()),
+    ]);
+    appendPublicRecordCards(uniqueItems, seen, batch, photoUrls, mediaKinds, cardMeta, limit);
+  }
+  return uniqueItems;
+}
+
+const PUBLIC_RECORD_CARD_WINDOW_FACTOR = 3;
+const PUBLIC_RECORD_CARD_MIN_WINDOW = 60;
+
+function appendPublicRecordCards(
+  uniqueItems: Array<ReturnType<typeof publicMapObservationItem>>,
+  seen: Set<string>,
+  rows: PublicMapRow[],
+  photoUrls: Map<string, string>,
+  mediaKinds: Map<string, HomeRecordMediaKind>,
+  cardMeta: Map<string, PublicMapCardMeta>,
+  limit: number,
+): void {
   for (const item of rows
     .map((row) => {
       const meta = cardMeta.get(row.observation_id);
@@ -22251,7 +22279,6 @@ async function recentPublicRecordCards(env: Env, limit = 24): Promise<Array<Retu
     uniqueItems.push(item);
     if (uniqueItems.length >= limit) break;
   }
-  return uniqueItems;
 }
 
 async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<OwnerHomeRecordItem[]> {
@@ -22306,7 +22333,10 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
     ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
   }
   if (Array.isArray(rows?.results) && rows.results.length === 0) return [];
-  const mediaKinds = await queryPublicMapMediaKinds(env).catch(() => new Map<string, HomeRecordMediaKind>());
+  // Media kinds only for this owner's rows. A malformed result skips the lookup and still
+  // fails below, so it stays "unavailable" instead of becoming an empty success.
+  const ownerIds = Array.isArray(rows?.results) ? [...new Set(rows.results.map((row) => row.observation_id))] : [];
+  const mediaKinds = await queryPublicMapMediaKinds(env, ownerIds).catch(() => new Map<string, HomeRecordMediaKind>());
   return rows.results.map((row) => ({
     ...publicMapObservationItem({
       observation_id: row.observation_id,
@@ -22935,8 +22965,22 @@ async function queryPublicMapSnapshotMeta(env: Env): Promise<PublicMapSnapshotMe
   }
 }
 
-async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
-  const rows = await env.OBS_DB.prepare(
+// Restricts a public-card enrichment query to the given observation ids through one bound
+// JSON parameter (D1 caps bound parameters at 100). undefined keeps the unrestricted query.
+function observationIdScope(column: string, ids: readonly string[] | undefined): { sql: string; binds: string[] } {
+  if (!ids) return { sql: "", binds: [] };
+  return { sql: `AND ${column} IN (SELECT value FROM json_each(?))`, binds: [JSON.stringify(ids)] };
+}
+
+function scopedStatement(env: Env, sql: string, binds: string[]): D1PreparedStatement {
+  const statement = env.OBS_DB.prepare(sql);
+  return binds.length > 0 ? statement.bind(...binds) : statement;
+}
+
+async function queryPublicMapPhotoUrls(env: Env, ids?: readonly string[]): Promise<Map<string, string>> {
+  if (ids && ids.length === 0) return new Map();
+  const scope = observationIdScope("a.observation_id", ids);
+  const rows = await scopedStatement(env,
     `SELECT a.observation_id, a.public_derivative_key, a.mime, a.processing_state,
             a.public_derivative_verified_at, a.public_derivative_metadata_json,
             a.exif_scrub_state, a.public_ready_at,
@@ -22955,8 +22999,9 @@ async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
         AND a.public_ready_at IS NOT NULL
         AND a.mime LIKE 'image/%'
         ${presentablePublicPhotoSql("a")}
+        ${scope.sql}
       ORDER BY a.public_ready_at DESC
-      LIMIT 5000`
+      LIMIT 5000`, scope.binds
   ).all<PublicMapPhotoRow>();
   const map = new Map<string, string>();
   for (const row of rows.results) {
@@ -22967,34 +23012,41 @@ async function queryPublicMapPhotoUrls(env: Env): Promise<Map<string, string>> {
   return map;
 }
 
-async function queryPublicMapMediaKinds(env: Env): Promise<Map<string, HomeRecordMediaKind>> {
+async function queryPublicMapMediaKinds(env: Env, ids?: readonly string[]): Promise<Map<string, HomeRecordMediaKind>> {
   const map = new Map<string, HomeRecordMediaKind>();
-  const imported = await env.OBS_DB.prepare(
-    `SELECT COALESCE(visit_id, occurrence_id) AS observation_id,
-            MAX(CASE WHEN asset_role = 'observation_video' THEN 1 ELSE 0 END) AS has_video,
-            MAX(CASE WHEN asset_role IN ('observation_photo', 'observation_photo_original') THEN 1 ELSE 0 END) AS has_photo,
-            MAX(CASE WHEN asset_role = 'observation_audio' THEN 1 ELSE 0 END) AS has_audio
-       FROM production_import_evidence_assets
-      WHERE COALESCE(visit_id, occurrence_id) IS NOT NULL
-        AND asset_role IN ('observation_photo', 'observation_photo_original', 'observation_video', 'observation_audio')
-      GROUP BY COALESCE(visit_id, occurrence_id)
-      LIMIT 5000`
-  ).all<PublicMapMediaKindRow>();
+  if (ids && ids.length === 0) return map;
+  const importedScope = observationIdScope("COALESCE(visit_id, occurrence_id)", ids);
+  const nativeScope = observationIdScope("observation_id", ids);
+  const [imported, nativeRows] = await Promise.all([
+    scopedStatement(env,
+      `SELECT COALESCE(visit_id, occurrence_id) AS observation_id,
+              MAX(CASE WHEN asset_role = 'observation_video' THEN 1 ELSE 0 END) AS has_video,
+              MAX(CASE WHEN asset_role IN ('observation_photo', 'observation_photo_original') THEN 1 ELSE 0 END) AS has_photo,
+              MAX(CASE WHEN asset_role = 'observation_audio' THEN 1 ELSE 0 END) AS has_audio
+         FROM production_import_evidence_assets
+        WHERE COALESCE(visit_id, occurrence_id) IS NOT NULL
+          AND asset_role IN ('observation_photo', 'observation_photo_original', 'observation_video', 'observation_audio')
+          ${importedScope.sql}
+        GROUP BY COALESCE(visit_id, occurrence_id)
+        LIMIT 5000`, importedScope.binds
+    ).all<PublicMapMediaKindRow>(),
+    scopedStatement(env,
+      `SELECT observation_id,
+              MAX(CASE WHEN mime LIKE 'video/%' THEN 1 ELSE 0 END) AS has_video,
+              MAX(CASE WHEN mime LIKE 'image/%' THEN 1 ELSE 0 END) AS has_photo,
+              MAX(CASE WHEN mime LIKE 'audio/%' THEN 1 ELSE 0 END) AS has_audio
+         FROM asset_ledger
+        WHERE observation_id IS NOT NULL
+          AND processing_state = 'uploaded'
+          ${nativeScope.sql}
+        GROUP BY observation_id
+        LIMIT 5000`, nativeScope.binds
+    ).all<PublicMapMediaKindRow>(),
+  ]);
+  // Imported signals first, native signals second: the same precedence as before.
   for (const row of imported.results) {
     setHomeRecordMediaKind(map, row.observation_id, mediaKindFromSignals(row));
   }
-
-  const nativeRows = await env.OBS_DB.prepare(
-    `SELECT observation_id,
-            MAX(CASE WHEN mime LIKE 'video/%' THEN 1 ELSE 0 END) AS has_video,
-            MAX(CASE WHEN mime LIKE 'image/%' THEN 1 ELSE 0 END) AS has_photo,
-            MAX(CASE WHEN mime LIKE 'audio/%' THEN 1 ELSE 0 END) AS has_audio
-       FROM asset_ledger
-      WHERE observation_id IS NOT NULL
-        AND processing_state = 'uploaded'
-      GROUP BY observation_id
-      LIMIT 5000`
-  ).all<PublicMapMediaKindRow>();
   for (const row of nativeRows.results) {
     setHomeRecordMediaKind(map, row.observation_id, mediaKindFromSignals(row));
   }
