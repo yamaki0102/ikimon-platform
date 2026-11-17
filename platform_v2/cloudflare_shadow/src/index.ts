@@ -19952,7 +19952,15 @@ async function getManifestBoundOriginalUiObject(
   relativeKey: string,
 ): Promise<MaterializedR2ObjectBody | null> {
   const requiresLearnEntry = isJapaneseLearnHtmlKey(relativeKey);
-  const manifest = await env.ASSET_BUCKET.get(`${manifestVersionPrefix}/manifest.json`);
+  // Most entries live under the manifest's own version, so read that object alongside the
+  // manifest rather than after it. It is used only if the manifest binds the key to this same
+  // version (otherwise it is discarded). Learn objects are never read before the manifest admits them.
+  const speculativeKey = requiresLearnEntry ? null : `${manifestVersionPrefix}/${relativeKey}`;
+  const [manifest, speculativeObject] = await Promise.all([
+    env.ASSET_BUCKET.get(`${manifestVersionPrefix}/manifest.json`),
+    speculativeKey ? env.ASSET_BUCKET.get(speculativeKey) : Promise.resolve(null),
+  ]);
+  const discardSpeculative = () => { void speculativeObject?.body?.cancel().catch(() => undefined); };
   if (requiresLearnEntry && !manifest?.body) return null;
   let objectVersionPrefix = manifestVersionPrefix;
   let manifestSha256 = "";
@@ -19972,7 +19980,13 @@ async function getManifestBoundOriginalUiObject(
       if (requiresLearnEntry) return null;
     }
   }
-  const object = await env.ASSET_BUCKET.get(`${objectVersionPrefix}/${relativeKey}`);
+  let object: R2ObjectBody | null;
+  if (speculativeKey && objectVersionPrefix === manifestVersionPrefix) {
+    object = speculativeObject;
+  } else {
+    discardSpeculative();
+    object = await env.ASSET_BUCKET.get(`${objectVersionPrefix}/${relativeKey}`);
+  }
   // Reuse this request's parsed manifest. No cross-request cache: release
   // changes and publication withdrawal must be visible on the next request.
   // Selectively reused objects still bind to their own version's manifest.
