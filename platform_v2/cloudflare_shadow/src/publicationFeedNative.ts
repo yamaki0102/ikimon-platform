@@ -326,12 +326,15 @@ function metadataProvesPublicFaceSafety(value: string | null): boolean {
     ];
     const inspectedBytes = positiveInteger(metadata.bytes);
     const derivativeBytes = positiveInteger(metadata.derivativeBytes);
+    // createRealPublicImageDerivative stores Cloudflare Images `info().format`,
+    // which is the MIME type ("image/webp"); older fixtures used the bare "webp".
+    const derivativeFormatIsWebp = metadata.derivativeFormat === "webp" || metadata.derivativeFormat === "image/webp";
     const containerProvenSafe =
       metadata.tool === "cloudflare-images-public-derivative-v1" &&
       metadata.inspectionVersion === "webp-chunk-v2" &&
       metadata.contentType === "image/webp" &&
       metadata.scannedContainer === "webp" &&
-      metadata.derivativeFormat === "webp" &&
+      derivativeFormatIsWebp &&
       normalizedDate(metadata.checkedAt) !== null &&
       inspectedBytes !== null &&
       inspectedBytes === derivativeBytes &&
