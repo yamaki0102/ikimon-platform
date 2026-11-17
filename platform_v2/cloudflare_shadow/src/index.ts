@@ -3,6 +3,13 @@ import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipati
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import {
+  LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
+  facePrivacyStatusFromMetadata,
+  isCurrentPublicImageDerivativeMetadata,
+  isFacePrivacyStaticAssetPath,
+  recordableFacePrivacy
+} from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
@@ -3156,6 +3163,7 @@ export const worker = {
     ctx.waitUntil(expireBiosecurityRecords(env).catch(() => console.warn("biosecurity_expiry_pending")));
     ctx.waitUntil(runScheduledOutboxDrain(env));
     ctx.waitUntil(recoverLegacyFalsePositiveImageDerivatives(env));
+    ctx.waitUntil(upgradeLegacyPublicImageDerivatives(env));
     ctx.waitUntil(runScheduledObservationReassessments(env));
     ctx.waitUntil(scheduleAlertDeliveryDrain(env, controller));
     ctx.waitUntil(runScheduledObservationEventQuests(env));
@@ -19860,7 +19868,7 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
   const object = await getVersionedOriginalUiObject(env, originalUiStaticAssetKey(url.pathname));
   if (object?.body) {
     const fallbackContentType = contentTypeForOriginalUiStaticAsset(url.pathname);
-    const contentType = url.pathname.endsWith(".svg") || url.pathname.endsWith(".pbf")
+    const contentType = url.pathname.endsWith(".svg") || url.pathname.endsWith(".pbf") || isFacePrivacyStaticAssetPath(url.pathname)
       ? fallbackContentType
       : object.httpMetadata?.contentType ?? fallbackContentType;
     const shouldRewrite = ["/offline.html", "/robots.txt", "/sitemap.xml", "/app-sw.js", "/manifest.webmanifest"].includes(url.pathname);
@@ -19885,6 +19893,7 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
 }
 
 function isOriginalUiStaticAssetPath(pathname: string): boolean {
+  if (isFacePrivacyStaticAssetPath(pathname)) return true;
   if (pathname === "/offline.html" || pathname === "/robots.txt" || pathname === "/app-sw.js") return true;
   if (pathname === "/sitemap.xml") return true;
   if (pathname === "/favicon.ico" || pathname === "/manifest.webmanifest") return true;
@@ -20015,7 +20024,8 @@ function r2Sha256Checksum(object: R2ObjectBody | null): string {
 function contentTypeForOriginalUiStaticAsset(pathname: string): string {
   if (pathname.endsWith(".html")) return "text/html; charset=utf-8";
   if (pathname.endsWith(".txt")) return "text/plain; charset=utf-8";
-  if (pathname.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (pathname.endsWith(".js") || pathname.endsWith(".mjs")) return "text/javascript; charset=utf-8";
+  if (pathname.endsWith(".wasm")) return "application/wasm";
   if (pathname.endsWith(".css")) return "text/css; charset=utf-8";
   if (pathname.endsWith(".xml")) return "application/xml; charset=utf-8";
   if (pathname.endsWith(".json")) return "application/json; charset=utf-8";
@@ -20031,6 +20041,8 @@ function contentTypeForOriginalUiStaticAsset(pathname: string): string {
 function cacheControlForOriginalUiStaticAsset(pathname: string): string {
   if (pathname === "/app-sw.js" || pathname === "/offline.html") return "no-cache, no-store, must-revalidate";
   if (pathname === "/manifest.webmanifest") return "public, max-age=300";
+  // Not content-hashed: a later MediaPipe/model update must reach browsers within a day.
+  if (isFacePrivacyStaticAssetPath(pathname)) return "public, max-age=86400";
   return "public, max-age=31536000, immutable";
 }
 
@@ -27519,7 +27531,12 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     return replayExistingPhoto(existingAsset);
   }
 
-  await env.ASSET_BUCKET.put(objectKey, body, { httpMetadata: { contentType: mimeType } });
+  // The browser-side face check result travels with the original so the public
+  // derivative writer can record it (publication feeds require it).
+  await env.ASSET_BUCKET.put(objectKey, body, {
+    httpMetadata: { contentType: mimeType },
+    customMetadata: { facePrivacy }
+  });
   try {
     const batchResults = await env.OBS_DB.batch([
     env.OBS_DB.prepare(
@@ -28233,6 +28250,56 @@ async function recoverLegacyFalsePositiveImageDerivatives(env: Env): Promise<voi
   for (const row of rows.results) {
     await markUploadedAssetsPublicReady(row.observation_id, env);
     await refreshPublicReadmodel(row.observation_id, env);
+  }
+}
+
+// Gradually re-derive public images written by older pipelines (`sharp` imports, pre-v2
+// inspection) so they pass the current public media and publication-feed checks.
+async function upgradeLegacyPublicImageDerivatives(env: Env): Promise<void> {
+  if (!env.IMAGES) return;
+  let rows: { results: Array<{ observation_id: string }> };
+  try {
+    rows = await env.OBS_DB.prepare(LEGACY_PUBLIC_IMAGE_UPGRADE_SQL).all<{ observation_id: string }>();
+  } catch (error) {
+    console.error("[media-upgrade] failed to query legacy public image derivatives", error);
+    return;
+  }
+  for (const row of rows.results) {
+    try {
+      await upgradeLegacyImageDerivativesForObservation(row.observation_id, env);
+      await refreshPublicReadmodel(row.observation_id, env);
+    } catch (error) {
+      console.error("[media-upgrade] legacy derivative upgrade failed", row.observation_id, error);
+    }
+  }
+}
+
+// Re-derives each served legacy image of one observation (e.g. `sharp` import or pre-v2
+// inspection). The existing derivative stays published if anything fails.
+async function upgradeLegacyImageDerivativesForObservation(observationId: string, env: Env): Promise<void> {
+  const assets = await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, sha256, mime, public_derivative_metadata_json
+       FROM asset_ledger
+      WHERE observation_id = ?
+        AND processing_state = 'uploaded'
+        AND exif_scrub_state = 'scrubbed'
+        AND mime LIKE 'image/%'
+        AND public_derivative_metadata_json IS NOT NULL`
+  ).bind(observationId).all<UploadedAssetRow & { public_derivative_metadata_json: string | null }>();
+  for (const asset of assets.results) {
+    let metadata: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(asset.public_derivative_metadata_json ?? "");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+      metadata = parsed as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (isCurrentPublicImageDerivativeMetadata(metadata) || metadata.legacyUpgradeFailedAt) continue;
+    await createRealPublicImageDerivative(asset, env, {
+      preserveExistingOnFailure: true,
+      priorFacePrivacy: facePrivacyStatusFromMetadata(metadata)
+    });
   }
 }
 
@@ -31738,23 +31805,51 @@ async function markImageDerivativeFailed(
   ).run();
 }
 
-async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env): Promise<boolean> {
+type PublicImageDerivativeOptions = {
+  // Upgrading a legacy derivative that is already served must not unpublish it on failure.
+  preserveExistingOnFailure?: boolean;
+  // Face check carried over from the derivative being replaced (same source image).
+  priorFacePrivacy?: string | null;
+};
+
+async function createRealPublicImageDerivative(
+  asset: UploadedAssetRow,
+  env: Env,
+  options: PublicImageDerivativeOptions = {}
+): Promise<boolean> {
+  const markFailed = async (reason: string, details?: Record<string, unknown>): Promise<void> => {
+    if (options.preserveExistingOnFailure) {
+      console.warn("[media-derivative] legacy upgrade skipped", asset.asset_id, reason);
+      // Keep the served derivative; only note the attempt so the scheduled upgrade moves on.
+      await env.OBS_DB.prepare(
+        `UPDATE asset_ledger
+         SET public_derivative_metadata_json = json_set(public_derivative_metadata_json,
+               '$.legacyUpgradeFailedReason', ?, '$.legacyUpgradeFailedAt', ?)
+         WHERE asset_id = ? AND json_valid(public_derivative_metadata_json)`
+      ).bind(reason, new Date().toISOString(), asset.asset_id).run();
+      return;
+    }
+    await markImageDerivativeFailed(env, asset.asset_id, reason, details);
+  };
   const images = env.IMAGES;
   if (!images) {
-    await markImageDerivativeFailed(env, asset.asset_id, "images_binding_unavailable");
+    await markFailed("images_binding_unavailable");
     return false;
   }
 
   const original = await env.ASSET_BUCKET.get(asset.object_key);
   if (!original?.body) {
-    await markImageDerivativeFailed(env, asset.asset_id, "original_object_missing");
+    await markFailed("original_object_missing");
     return false;
   }
 
+  const originalCustomMetadata = (original as { customMetadata?: Record<string, string> }).customMetadata;
+  const facePrivacy = recordableFacePrivacy(originalCustomMetadata?.facePrivacy)
+    ?? recordableFacePrivacy(options.priorFacePrivacy);
   const originalBytes = await new Response(original.body).arrayBuffer();
   const maxInputBytes = 20 * 1024 * 1024;
   if (originalBytes.byteLength === 0 || originalBytes.byteLength > maxInputBytes) {
-    await markImageDerivativeFailed(env, asset.asset_id, "image_input_size_invalid", {
+    await markFailed("image_input_size_invalid", {
       inputBytes: originalBytes.byteLength,
       maxInputBytes
     });
@@ -31765,7 +31860,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
   try {
     originalInfo = await images.info(new Response(originalBytes.slice(0)).body!);
   } catch (error) {
-    await markImageDerivativeFailed(env, asset.asset_id, "image_info_failed", {
+    await markFailed("image_info_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
     });
     return false;
@@ -31783,7 +31878,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
       .transform({ width: targetWidth })
       .output({ format: "image/webp", quality: 82, anim: false });
   } catch (error) {
-    await markImageDerivativeFailed(env, asset.asset_id, "image_transform_failed", {
+    await markFailed("image_transform_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
     });
     return false;
@@ -31795,7 +31890,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
     .trim()
     .toLowerCase();
   if (!outputResponse.ok || contentType !== "image/webp") {
-    await markImageDerivativeFailed(env, asset.asset_id, "image_transform_invalid_response", {
+    await markFailed("image_transform_invalid_response", {
       status: outputResponse.status,
       contentType
     });
@@ -31804,7 +31899,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
 
   const derivativeBody = await outputResponse.arrayBuffer();
   if (derivativeBody.byteLength === 0) {
-    await markImageDerivativeFailed(env, asset.asset_id, "image_transform_empty_output");
+    await markFailed("image_transform_empty_output");
     return false;
   }
 
@@ -31813,7 +31908,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
   try {
     derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
   } catch (error) {
-    await markImageDerivativeFailed(env, asset.asset_id, "derivative_info_failed", {
+    await markFailed("derivative_info_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
     });
     return false;
@@ -31829,10 +31924,11 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
     derivativeFormat: derivativeInfo.format ?? "webp",
     derivativeWidth: derivativeInfo.width ?? null,
     derivativeHeight: derivativeInfo.height ?? null,
-    derivativeBytes: derivativeBody.byteLength
+    derivativeBytes: derivativeBody.byteLength,
+    ...(facePrivacy ? { facePrivacy } : {})
   };
   if (metadataInspection.gpsExifPresent || metadataInspection.scannedContainer !== "webp") {
-    await markImageDerivativeFailed(env, asset.asset_id, "derivative_privacy_check_failed", verifiedMetadata);
+    await markFailed("derivative_privacy_check_failed", verifiedMetadata);
     return false;
   }
 
@@ -31843,7 +31939,7 @@ async function createRealPublicImageDerivative(asset: UploadedAssetRow, env: Env
   });
   const persisted = await env.ASSET_BUCKET.head(publicDerivativeKey);
   if (!persisted || persisted.size !== derivativeBody.byteLength || persisted.httpMetadata?.contentType !== "image/webp") {
-    await markImageDerivativeFailed(env, asset.asset_id, "derivative_r2_verification_failed", {
+    await markFailed("derivative_r2_verification_failed", {
       ...verifiedMetadata,
       persisted: Boolean(persisted),
       persistedBytes: persisted?.size ?? null,

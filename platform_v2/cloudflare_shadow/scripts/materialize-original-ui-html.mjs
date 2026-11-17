@@ -224,7 +224,20 @@ const localizedRenderPaths = new Set([
   ...siteMapPublicLocalizableBasePaths,
 ]);
 
+// Served by the Worker allowlist FACE_PRIVACY_STATIC_ASSET_PATHS (src/publicMediaRepair.ts).
+const faceDetectorStaticAssetPaths = [
+  "/assets/face-privacy/blaze_face_short_range.tflite",
+  "/assets/face-privacy/mediapipe/vision_bundle.mjs",
+  "/assets/face-privacy/mediapipe/wasm/vision_wasm_internal.js",
+  "/assets/face-privacy/mediapipe/wasm/vision_wasm_internal.wasm",
+  "/assets/face-privacy/mediapipe/wasm/vision_wasm_module_internal.js",
+  "/assets/face-privacy/mediapipe/wasm/vision_wasm_module_internal.wasm",
+  "/assets/face-privacy/mediapipe/wasm/vision_wasm_nosimd_internal.js",
+  "/assets/face-privacy/mediapipe/wasm/vision_wasm_nosimd_internal.wasm"
+];
+
 const staticAssetPaths = [
+  ...faceDetectorStaticAssetPaths,
   "/offline.html",
   "/robots.txt",
   "/sitemap.xml",
@@ -390,7 +403,8 @@ function normalizeR2ObjectKey(value) {
 function staticContentType(pathname) {
   if (pathname.endsWith(".html")) return "text/html";
   if (pathname.endsWith(".txt")) return "text/plain";
-  if (pathname.endsWith(".js")) return "application/javascript";
+  if (pathname.endsWith(".js") || pathname.endsWith(".mjs")) return "application/javascript";
+  if (pathname.endsWith(".wasm")) return "application/wasm";
   if (pathname.endsWith(".css")) return "text/css";
   if (pathname.endsWith(".xml")) return "application/xml";
   if (pathname.endsWith(".webmanifest")) return "application/manifest+json";
@@ -436,6 +450,11 @@ async function renderLlmsFull(app) {
 
 async function renderStaticAsset(app, pathname) {
   if (pathname === "/llms-full.txt") return renderLlmsFull(app);
+  if (faceDetectorStaticAssetPaths.includes(pathname)) {
+    // Byte-exact copies of the committed MediaPipe face detector files.
+    const rawPayload = await readFile(join(repoRoot, "upload_package", "public_html", pathname.slice(1)));
+    return { statusCode: 200, headers: { "content-type": staticContentType(pathname) }, rawPayload };
+  }
   if ([
     "/assets/event-discovery/ryuyo-hero.webp",
     "/assets/event-discovery/ryuyo-discovery.webp",
