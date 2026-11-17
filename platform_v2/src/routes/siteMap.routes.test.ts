@@ -34,6 +34,8 @@ test("sitemap stays canonical while staging robots deny crawling", async () => {
     assert.match(sitemap.body, /https:\/\/staging\.zukan\.earth\/ja\/for-business/);
     assert.doesNotMatch(sitemap.body, /https:\/\/staging\.zukan\.earth\/en\/for-business/);
     assert.doesNotMatch(sitemap.body, /:id|:userId/);
+    assert.doesNotMatch(sitemap.body, /\/ja\/walk-maps<\/loc>/);
+    assert.doesNotMatch(sitemap.body, /\/ja\/biosecurity<\/loc>/);
 
     const stagingRobots = await app.inject({
       method: "GET",
@@ -137,6 +139,14 @@ test("top-level shared navigation does not link to 404 pages", async () => {
     assert.equal(sharedNav.statusCode, 200);
     const hrefs = extractInternalHrefs(sharedNav.body);
     assert.ok(hrefs.includes("/ja/community/events"), "shared navigation should expose the implemented participation hub");
+    const publicPage = await app.inject({ method: "GET", url: "/about?lang=ja", headers: { accept: "text/html" } });
+    assert.equal(publicPage.statusCode, 200);
+    const publicHrefs = extractInternalHrefs(publicPage.body);
+    for (const legalHref of ["/ja/privacy", "/ja/terms"]) {
+      assert.ok(publicHrefs.includes(legalHref), `public footer should expose ${legalHref}`);
+      const legalPage = await app.inject({ method: "GET", url: legalHref, headers: { accept: "text/html" } });
+      assert.equal(legalPage.statusCode, 200, `${legalHref} should resolve from the shared navigation`);
+    }
 
     for (const lang of ["ja", "en", "es", "pt-br"] as const) {
       const localized = await app.inject({ method: "GET", url: `/records?lang=${lang}`, headers: { accept: "text/html" } });

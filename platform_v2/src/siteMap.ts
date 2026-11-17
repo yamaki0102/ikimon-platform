@@ -184,7 +184,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
     layout: "wide",
     audience: "visitor",
     auth: "public",
-    navVisibility: ["footer", "qa", "xml"],
+    navVisibility: ["footer", "qa"],
     title: { ja: "散策サンプル", en: "Walk map samples" },
     summary: { ja: "自治体の散策資料を、公開範囲、出典リンク、記録の入口に分けて表示する。", en: "Public walk-map samples with source links and recording entry points." },
     primaryAction: { href: "/walk-maps", label: { ja: "散策サンプルを見る", en: "Open samples" } },
@@ -352,7 +352,7 @@ export const SITE_PAGE_DEFINITIONS: SitePageDefinition[] = [
   {
     path: "/biosecurity",
     lane: "learn", layout: "reading", audience: "public", auth: "public",
-    navVisibility: ["footer", "qa", "xml"],
+    navVisibility: ["footer", "qa"],
     title: { ja: "外来種の見守り", en: "Invasive species observations" },
     summary: { ja: "ログイン不要で写真を非公開保存し、選んだ情報を自治体へ提供できます。", en: "Save private photographs and choose what to share with a municipality." },
     visualQa: { smoke: true, viewports: ["desktop-1440", "mobile-390"], expectedText: { ja: "外来種" }, readySelector: "main", screenshot: { baselineName: "registry-biosecurity" } },
