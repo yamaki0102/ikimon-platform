@@ -23198,6 +23198,23 @@ test("production original UI static assets serve materialized bytes from R2 with
     assert.equal(invasive.headers.get("content-type"), "image/webp");
     assert.equal(invasive.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
 
+    // The record upload face check loads these same-origin MediaPipe files.
+    await env.ASSET_BUCKET.put("original-ui/static/assets/face-privacy/mediapipe/wasm/vision_wasm_internal.wasm", "wasm-bytes", {
+      httpMetadata: { contentType: "application/octet-stream" }
+    });
+    await env.ASSET_BUCKET.put("original-ui/static/assets/face-privacy/mediapipe/vision_bundle.mjs", "export {};", {
+      httpMetadata: { contentType: "application/javascript" }
+    });
+    const faceWasm = await worker.fetch(new Request("https://zukan.earth/assets/face-privacy/mediapipe/wasm/vision_wasm_internal.wasm"), productionEnv);
+    assert.equal(faceWasm.status, 200);
+    assert.equal(faceWasm.headers.get("content-type"), "application/wasm");
+    assert.equal(faceWasm.headers.get("cache-control"), "public, max-age=86400");
+    const faceBundle = await worker.fetch(new Request("https://zukan.earth/assets/face-privacy/mediapipe/vision_bundle.mjs"), productionEnv);
+    assert.equal(faceBundle.status, 200);
+    assert.equal(faceBundle.headers.get("content-type"), "text/javascript; charset=utf-8");
+    const faceUnlisted = await worker.fetch(new Request("https://zukan.earth/assets/face-privacy/README.md"), productionEnv);
+    assert.notEqual(faceUnlisted.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+
     await env.ASSET_BUCKET.put("original-ui/static/assets/map/map-explorer.abcdef123456.js", "console.log('map');", {
       httpMetadata: { contentType: "application/javascript; charset=utf-8" }
     });

@@ -139,7 +139,9 @@ export function browserSecurityHeaders(cspNonce: string, isProduction: boolean):
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `script-src 'self' 'nonce-${cspNonce}' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms https://scripts.clarity.ms https://static.cloudflareinsights.com`,
+    // 'wasm-unsafe-eval' lets the same-origin MediaPipe face detector compile its WebAssembly
+    // (record upload face privacy); it does not permit JavaScript eval.
+    `script-src 'self' 'nonce-${cspNonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com https://www.googletagmanager.com https://www.clarity.ms https://scripts.clarity.ms https://static.cloudflareinsights.com`,
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' blob: https:",
