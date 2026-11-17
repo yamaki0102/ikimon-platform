@@ -20295,7 +20295,7 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
-  return personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect")));
+  return injectOAuthEmailConflictNotice(personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect"))), url);
 }
 
 function isAuthHtmlPath(pathname: string): boolean {
@@ -24445,6 +24445,14 @@ async function handleAppOAuthStart(request: Request, env: Env): Promise<Response
   }
 }
 
+class OAuthEmailConflictError extends Error {
+  constructor() {
+    super("oauth_email_conflict");
+  }
+}
+
+const OAUTH_EMAIL_CONFLICT_CODE = "oauth_email_conflict";
+
 async function handleOAuthCallback(request: Request, providerInput: unknown, env: Env): Promise<Response> {
   const provider = oauthProviderFromInput(providerInput);
   if (!provider) return oauthErrorRedirect(env, true);
@@ -24453,9 +24461,11 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
     return oauthErrorRedirect(env, true);
   }
 
+  let conflictState: Pick<OAuthStatePayload, "redirect" | "appReturnUri"> | null = null;
   try {
     const url = new URL(request.url);
     const state = await readOAuthState(request.headers.get("cookie"), env);
+    conflictState = state;
     const callbackState = url.searchParams.get("state") ?? "";
     const code = url.searchParams.get("code") ?? "";
     if (!state || state.provider !== provider || state.state !== callbackState || !code || url.searchParams.has("error")) {
@@ -24501,6 +24511,7 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       provider,
       error: error instanceof Error ? error.message : "unknown"
     }));
+    if (error instanceof OAuthEmailConflictError) return oauthEmailConflictRedirect(env, conflictState);
     return oauthErrorRedirect(env, true);
   }
 }
@@ -24813,6 +24824,7 @@ async function findVerifiedOAuthAccountByEmail(email: string, env: Env): Promise
     `SELECT user_id, provider, provider_user_id, provider_email, display_name, role_name, rank_label, banned, profile_json
        FROM oauth_accounts
       WHERE provider = 'google' AND lower(provider_email) = lower(?)
+        AND NOT EXISTS (SELECT 1 FROM auth_users WHERE auth_users.user_id = oauth_accounts.user_id)
       ORDER BY linked_at DESC
       LIMIT 1`
   ).bind(email).first<OAuthAccountRow>();
@@ -25163,25 +25175,19 @@ async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<A
   }
 
   const email = normalizeEmail(profile.email);
-  const authUser = email ? await findAuthUserByEmail(email, env) : null;
-  if (authUser?.banned) throw new Error("account_disabled");
-  const userId = authUser?.user_id ?? `user_${crypto.randomUUID()}`;
-  const displayName = authUser?.display_name ?? normalizeOptionalText(profile.name) ?? "ikimon user";
-  const roleName = authUser?.role_name ?? "Observer";
-  const rankLabel = authUser?.rank_label ?? "観察者";
+  if (email && await findAuthUserByEmail(email, env)) throw new OAuthEmailConflictError();
+  const userId = `user_${crypto.randomUUID()}`;
+  const displayName = normalizeOptionalText(profile.name) ?? "ikimon user";
   await env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
-  await upsertOAuthAccount(userId, profile, displayName, roleName, rankLabel, authUser?.banned ?? 0, env);
-  if (authUser) {
-    await env.CORE_DB.prepare("UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(authUser.user_id).run();
-  }
+  await upsertOAuthAccount(userId, profile, displayName, "Observer", "観察者", 0, env);
   return {
     user_id: userId,
     email,
-    password_hash: authUser?.password_hash ?? null,
+    password_hash: null,
     display_name: displayName,
-    role_name: roleName,
-    rank_label: rankLabel,
-    banned: authUser?.banned ?? 0
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0
   };
 }
 
@@ -25239,6 +25245,37 @@ function oauthAccountToAuthUser(row: OAuthAccountRow): AuthUserRow {
     rank_label: row.rank_label,
     banned: row.banned
   };
+}
+
+function oauthEmailConflictRedirect(env: Env, state: Pick<OAuthStatePayload, "redirect" | "appReturnUri"> | null): Response {
+  const headers = new Headers({ "cache-control": "no-store" });
+  headers.append("set-cookie", buildClearedOAuthStateCookie(env));
+  if (state?.appReturnUri) {
+    const appUrl = new URL(state.appReturnUri);
+    appUrl.searchParams.set("error", OAUTH_EMAIL_CONFLICT_CODE);
+    appUrl.searchParams.set("message", oauthEmailConflictMessage("ja"));
+    headers.set("location", appUrl.toString());
+    return new Response(null, { status: 303, headers });
+  }
+  const location = new URL("/login", "https://oauth-conflict.invalid");
+  location.searchParams.set("error", OAUTH_EMAIL_CONFLICT_CODE);
+  if (state?.redirect) location.searchParams.set("redirect", safeRedirectPath(state.redirect));
+  headers.set("location", `${location.pathname}${location.search}`);
+  return new Response(null, { status: 303, headers });
+}
+
+function oauthEmailConflictMessage(lang: "ja" | "en"): string {
+  return lang === "ja"
+    ? "このメールアドレスはすでに別の方法で登録されています。最初に登録したログイン方法（メールアドレスとパスワード）でログインしてください。"
+    : "This email address is already registered with another sign-in method. Please sign in with the method you used when you first registered (email and password).";
+}
+
+function injectOAuthEmailConflictNotice(html: string, url: URL): string {
+  if (url.searchParams.get("error") !== OAUTH_EMAIL_CONFLICT_CODE) return html;
+  const lang = ["en", "es", "pt-br"].includes(url.pathname.split("/")[1] ?? "") || url.searchParams.get("lang") === "en" ? "en" : "ja";
+  const notice = `<p role="alert" data-auth-oauth-conflict style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:#fff1f2;color:#9f1239;font-weight:700;line-height:1.6">${escapeHtml(oauthEmailConflictMessage(lang))}</p>`;
+  const form = /<form[^>]*data-auth-form/i.exec(html);
+  return form ? `${html.slice(0, form.index)}${notice}${html.slice(form.index)}` : html;
 }
 
 function oauthErrorRedirect(env: Env, clearState = false): Response {

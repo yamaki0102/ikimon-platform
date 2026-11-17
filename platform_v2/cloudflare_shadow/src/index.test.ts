@@ -5446,6 +5446,7 @@ class FakeStatement {
       return ([...this.db.oauthAccounts.values()].find((candidate) =>
         candidate.provider === "google"
         && candidate.provider_email?.toLowerCase() === string(v[0]).toLowerCase()
+        && !(normalized.includes("NOT EXISTS (SELECT 1 FROM auth_users") && [...this.db.authUsers.values()].some((row) => row.user_id === candidate.user_id))
       ) as T | undefined) ?? null;
     }
 
@@ -19101,6 +19102,161 @@ test("production app oauth returns an exchange code instead of a raw session tok
   }
 });
 
+const OAUTH_CONFLICT_ENV = {
+  ENVIRONMENT: "production",
+  GOOGLE_CLIENT_ID: "google-client",
+  GOOGLE_CLIENT_SECRET: "google-secret",
+  TWITTER_CLIENT_ID: "twitter-client",
+  TWITTER_CLIENT_SECRET: "twitter-secret",
+  V2_OAUTH_STATE_SECRET: "state-secret"
+};
+
+function seedPasswordAccount(core: ReturnType<typeof createEnv>["core"], email: string, userId = "preclaimed-user") {
+  core.users.add(userId);
+  core.authUsers.set(email.toLowerCase(), {
+    user_id: userId,
+    email: email.toLowerCase(),
+    password_hash: "attacker-controlled",
+    display_name: "Preclaimed",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    last_login_at: null
+  });
+}
+
+async function runOAuthCallback(
+  env: ReturnType<typeof createEnv>["env"],
+  profile: { provider: "google" | "twitter"; id: string; email: string | null; verified?: boolean },
+  options: { app?: boolean } = {}
+): Promise<Response> {
+  const productionEnv = { ...env, ...OAUTH_CONFLICT_ENV };
+  const startUrl = options.app
+    ? `https://ikimon.life/app_oauth_start.php?provider=${profile.provider}&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-1&platform=android&app_version=0.8.1`
+    : `https://ikimon.life/auth/oauth/${profile.provider}/start?redirect=/record`;
+  const start = await worker.fetch(new Request(startUrl), productionEnv);
+  const stateCookie = start.headers.get("set-cookie") ?? "";
+  const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
+  assert.ok(state);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === "https://oauth2.googleapis.com/token" || url === "https://api.x.com/2/oauth2/token") {
+      return Response.json({ access_token: "fixture-access" });
+    }
+    if (url === "https://www.googleapis.com/oauth2/v2/userinfo") {
+      return Response.json({ id: profile.id, name: "Fixture Google", email: profile.email, verified_email: profile.verified ?? true });
+    }
+    if (url.startsWith("https://api.x.com/2/users/me")) {
+      return Response.json({ data: { id: profile.id, name: "Fixture X", username: "fixture_x" } });
+    }
+    return new Response("unexpected fetch", { status: 599 });
+  }) as typeof fetch;
+  try {
+    const callbackPath = profile.provider === "google" ? "oauth_callback.php?provider=google&" : "auth/oauth/twitter/callback?";
+    return await worker.fetch(new Request(`https://ikimon.life/${callbackPath}state=${encodeURIComponent(state)}&code=oauth-code`, {
+      headers: { cookie: stateCookie }
+    }), productionEnv);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+for (const verified of [true, false]) {
+  test(`oauth callback never links a new Google identity (verified=${verified}) to an existing password account by email`, async () => {
+    const { env, core } = createEnv();
+    seedPasswordAccount(core, "victim@example.test");
+    const callback = await runOAuthCallback(env, { provider: "google", id: "google-attacker-target", email: "Victim@Example.test", verified });
+    assert.equal(callback.status, 303);
+    assert.equal(callback.headers.get("location"), "/login?error=oauth_email_conflict&redirect=%2Frecord");
+    assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+    assert.match(callback.headers.get("set-cookie") ?? "", /ikimon_oauth_state=;/);
+    assert.equal(core.authSessions.size, 0);
+    assert.equal(core.oauthAccounts.size, 0);
+    assert.equal(core.authUsers.get("victim@example.test")?.user_id, "preclaimed-user");
+  });
+}
+
+test("oauth email conflict is rendered on the login page", async () => {
+  const { env } = createEnv();
+  await env.ASSET_BUCKET.put("original-ui/html/ja/login.html", "<!doctype html><title>Login</title><form data-auth-form data-redirect=\"/record\"></form>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/en/login.html", "<!doctype html><title>Login</title><form data-auth-form data-redirect=\"/record\"></form>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  const ja = await (await worker.fetch(new Request("https://ikimon.life/ja/login?error=oauth_email_conflict"), productionEnv)).text();
+  assert.match(ja, /data-auth-oauth-conflict/);
+  assert.match(ja, /このメールアドレスはすでに別の方法で登録されています/);
+  const en = await (await worker.fetch(new Request("https://ikimon.life/en/login?error=oauth_email_conflict"), productionEnv)).text();
+  assert.match(en, /data-auth-oauth-conflict/);
+  assert.match(en, /already registered/);
+  const plain = await (await worker.fetch(new Request("https://ikimon.life/ja/login"), productionEnv)).text();
+  assert.doesNotMatch(plain, /data-auth-oauth-conflict/);
+});
+
+test("oauth app callback reports the email conflict without issuing an exchange code", async () => {
+  const { env, core } = createEnv();
+  seedPasswordAccount(core, "victim@example.test");
+  const callback = await runOAuthCallback(env, { provider: "google", id: "google-app-target", email: "victim@example.test" }, { app: true });
+  assert.equal(callback.status, 303);
+  const location = new URL(callback.headers.get("location") ?? "");
+  assert.equal(location.protocol, "ikimonfieldscan:");
+  assert.equal(location.searchParams.get("error"), "oauth_email_conflict");
+  assert.equal(location.searchParams.has("code"), false);
+  assert.equal(core.authSessions.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+});
+
+test("oauth callback still creates a new user when the Google email matches no account", async () => {
+  const { env, core } = createEnv();
+  seedPasswordAccount(core, "someone-else@example.test");
+  const callback = await runOAuthCallback(env, { provider: "google", id: "google-fresh-1", email: "fresh@example.test" });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/record");
+  assert.match(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=/);
+  const linked = core.oauthAccounts.get("google:google-fresh-1");
+  assert.ok(linked?.user_id);
+  assert.notEqual(linked.user_id, "preclaimed-user");
+  assert.equal(core.authSessions.size, 1);
+});
+
+test("oauth callback still logs in an already linked identity", async () => {
+  const { env, core } = createEnv();
+  seedPasswordAccount(core, "linked@example.test");
+  core.users.add("linked-user");
+  core.oauthAccounts.set("google:google-linked-1", {
+    user_id: "linked-user",
+    provider: "google",
+    provider_user_id: "google-linked-1",
+    provider_email: "linked@example.test",
+    display_name: "Linked",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: "2026-08-01T00:00:00.000Z"
+  });
+  const callback = await runOAuthCallback(env, { provider: "google", id: "google-linked-1", email: "linked@example.test" });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/record");
+  assert.equal(core.oauthAccounts.get("google:google-linked-1")?.user_id, "linked-user");
+  assert.deepEqual([...core.authSessions.values()].map((session) => session.user_id), ["linked-user"]);
+});
+
+test("oauth twitter identity without email never links by email", async () => {
+  const { env, core } = createEnv();
+  seedPasswordAccount(core, "victim@example.test");
+  const callback = await runOAuthCallback(env, { provider: "twitter", id: "x-user-1", email: null });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/record");
+  const linked = core.oauthAccounts.get("twitter:x-user-1");
+  assert.ok(linked?.user_id);
+  assert.notEqual(linked.user_id, "preclaimed-user");
+  assert.equal(core.authSessions.size, 1);
+});
+
 test("production oauth start fails closed when provider secrets are not configured", async () => {
   const { env } = createEnv();
   const productionEnv = {
@@ -28263,6 +28419,36 @@ test("staging Access never links an unverified preclaimed password account", asy
   const linkedUserId = core.oauthAccounts.get("cloudflare-access:access-victim-1")?.user_id ?? "";
   assert.notEqual(linkedUserId, "preclaimed-user");
   assert.match(linkedUserId, /^user_access_[a-f0-9]{24}$/);
+});
+
+test("staging Access never inherits a Google link attached to a password account", async () => {
+  const { env, core } = createEnv();
+  const stagingEnv = { ...env, ENVIRONMENT: "staging" };
+  seedPasswordAccount(core, "victim@example.test");
+  core.oauthAccounts.set("google:google-prelinked-1", {
+    user_id: "preclaimed-user",
+    provider: "google",
+    provider_user_id: "google-prelinked-1",
+    provider_email: "victim@example.test",
+    display_name: "Preclaimed",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: JSON.stringify({ verified_email: true }),
+    linked_at: "2026-08-01T00:00:00.000Z"
+  });
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><head></head><body><main>guest</main></body>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const fetchWithContext = worker.fetch as unknown as (request: Request, env: typeof stagingEnv, ctx: unknown) => Promise<Response>;
+  const response = await fetchWithContext(new Request("https://staging.zukan.earth/ja/", {
+    headers: { accept: "text/html" }
+  }), stagingEnv, stagingAccessContext({ email: "victim@example.test", name: "Victim", user_uuid: "access-prelinked-1" }));
+  assert.equal(response.status, 303);
+  const linkedUserId = core.oauthAccounts.get("cloudflare-access:access-prelinked-1")?.user_id ?? "";
+  assert.notEqual(linkedUserId, "preclaimed-user");
+  assert.match(linkedUserId, /^user_access_[a-f0-9]{24}$/);
+  assert.deepEqual(new Set([...core.authSessions.values()].map((session) => session.user_id)), new Set([linkedUserId]));
 });
 
 test("concurrent first Access requests converge on one deterministic user", async () => {
