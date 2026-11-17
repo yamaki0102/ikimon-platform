@@ -352,3 +352,33 @@ test("native projection fails closed for missing, unresolved-minor, and withdraw
   const payload = await response.json() as { channels: Array<{ items: Array<{ id: string }> }> };
   assert.deepEqual(payload.channels[0]?.items, []);
 });
+
+test("accepts the derivative writer's MIME-style format and still rejects non-WebP formats", async () => {
+  // createRealPublicImageDerivative records Cloudflare Images info().format, which is "image/webp".
+  const writerMetadata = (format: string) => JSON.stringify({ ...JSON.parse(publicWebpMetadata("no_faces")) as Record<string, unknown>, derivativeFormat: format });
+  const writerRow = {
+    ...baseRow,
+    observation_id: "visit-writer-format",
+    living_derivative_key: "derived/visit-writer-format/display.webp",
+    living_metadata_json: writerMetadata("image/webp"),
+    community_derivative_key: null,
+    community_width: null,
+    community_height: null,
+    community_metadata_json: null,
+  } satisfies PublicationFeedNativeRow;
+  const pngRow = {
+    ...writerRow,
+    observation_id: "visit-png-format",
+    living_derivative_key: "derived/visit-png-format/display.webp",
+    living_metadata_json: writerMetadata("image/png"),
+  } satisfies PublicationFeedNativeRow;
+  const response = await handlePublicationFeedNativeRequest(
+    new Request("https://zukan.earth/api/v1/publication-feeds/miyakoda-renri-area?limit=8&locale=ja"),
+    database([writerRow, pngRow]),
+  );
+  assert.ok(response);
+  assert.equal(response.status, 200);
+  const payload = await response.json() as { channels: Array<{ key: string; items: Array<{ record_id: string }> }> };
+  const living = payload.channels.find((channel) => channel.key === "living")?.items.map((item) => item.record_id) ?? [];
+  assert.deepEqual(living, ["visit-writer-format"]);
+});
