@@ -33,7 +33,7 @@ function fixture(pinned = true) {
   };
   const read = (path = "/assets/brand/zukan-symbol.svg") => worker.fetch(
     new Request(`https://staging.zukan.earth${path}`), env, { waitUntil() {} });
-  return { objects, gets, read };
+  return { objects, gets, read, env };
 }
 
 test("a pinned release asset needs exactly one manifest read and one object read", async () => {
@@ -57,7 +57,23 @@ test("selectively reused assets retain their original manifest binding", async (
   f.objects.set(`${oldPrefix}/${relative}`, bytes);
   f.objects.set(`${oldPrefix}/manifest.json`, JSON.stringify({ items: [{ key: relative, sha256: digest }] }));
   assert.equal(await (await f.read()).text(), bytes);
-  assert.deepEqual(f.gets, [`${prefix}/manifest.json`, `${oldPrefix}/${relative}`, `${oldPrefix}/manifest.json`]);
+  // The same-version object is read alongside the manifest and discarded once the manifest
+  // binds the key to its original version.
+  assert.deepEqual(f.gets, [`${prefix}/manifest.json`, `${prefix}/${relative}`, `${oldPrefix}/${relative}`, `${oldPrefix}/manifest.json`]);
+});
+
+test("the same-version object is read alongside the manifest, not after it", async () => {
+  const f = fixture();
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const get = f.env.ASSET_BUCKET.get;
+  f.env.ASSET_BUCKET.get = async (key: string) => {
+    inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    try { return await get(key); } finally { inFlight--; }
+  };
+  assert.equal(await (await f.read()).text(), bytes);
+  assert.equal(maxInFlight, 2);
 });
 
 test("reads are not cached across requests or releases", async () => {
