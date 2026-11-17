@@ -382,3 +382,18 @@ test("accepts the derivative writer's MIME-style format and still rejects non-We
   const living = payload.channels.find((channel) => channel.key === "living")?.items.map((item) => item.record_id) ?? [];
   assert.deepEqual(living, ["visit-writer-format"]);
 });
+
+test("asset ranking prefers a face-checked derivative over a newer one without a face check", () => {
+  let capturedSql = "";
+  const db: PublicationFeedNativeDatabase = {
+    prepare(sql) {
+      capturedSql = sql;
+      return { bind() { return this; }, async all<T>() { return { results: [] as T[] }; } };
+    },
+  };
+  return handlePublicationFeedNativeRequest(new Request("https://zukan.earth/api/v1/publication-feeds/miyakoda-renri-area"), db).then(() => {
+    const rankings = capturedSql.match(/ORDER BY CASE[\s\S]*?THEN 0 ELSE 1 END, COALESCE\(asset\.public_ready_at/g) ?? [];
+    assert.equal(rankings.length, 2);
+    for (const ranking of rankings) assert.match(ranking, /"facePrivacy":"no_faces"/);
+  });
+});
