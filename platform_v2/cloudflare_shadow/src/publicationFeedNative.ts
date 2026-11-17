@@ -64,6 +64,16 @@ export type PublicationFeedNativeRow = {
   human_label: string | null;
 };
 
+// Prefer an asset that already carries a face-safe check, then the newest. Without this, a
+// newer derivative lacking a face check (e.g. a re-derived legacy photo) hides an eligible one
+// of the same record. metadataProvesPublicFaceSafety still validates the chosen asset.
+const FACE_CHECKED_ASSET_FIRST = `CASE
+               WHEN asset.public_derivative_metadata_json LIKE '%"facePrivacy":"no_faces"%'
+                 OR asset.public_derivative_metadata_json LIKE '%"facePrivacy":"redacted"%'
+                 OR asset.public_derivative_metadata_json LIKE '%"facePrivacy":{%"status":"no_faces"%'
+                 OR asset.public_derivative_metadata_json LIKE '%"facePrivacy":{%"status":"redacted"%'
+               THEN 0 ELSE 1 END,`;
+
 const PUBLICATION_FEED_NATIVE_SQL = `
   WITH ranked_living_assets AS (
     SELECT asset.observation_id,
@@ -73,7 +83,7 @@ const PUBLICATION_FEED_NATIVE_SQL = `
            asset.public_derivative_metadata_json,
            ROW_NUMBER() OVER (
              PARTITION BY asset.observation_id
-             ORDER BY COALESCE(asset.public_ready_at, asset.uploaded_at, '') DESC, asset.asset_id
+             ORDER BY ${FACE_CHECKED_ASSET_FIRST} COALESCE(asset.public_ready_at, asset.uploaded_at, '') DESC, asset.asset_id
            ) AS asset_rank
       FROM asset_ledger asset
      WHERE asset.processing_state = 'uploaded'
@@ -96,7 +106,7 @@ const PUBLICATION_FEED_NATIVE_SQL = `
            asset.public_derivative_metadata_json,
            ROW_NUMBER() OVER (
              PARTITION BY asset.observation_id
-             ORDER BY COALESCE(asset.public_ready_at, asset.uploaded_at, '') DESC, asset.asset_id
+             ORDER BY ${FACE_CHECKED_ASSET_FIRST} COALESCE(asset.public_ready_at, asset.uploaded_at, '') DESC, asset.asset_id
            ) AS asset_rank
       FROM asset_ledger asset
      WHERE asset.processing_state = 'uploaded'
