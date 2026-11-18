@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import worker from "./publicPresentationEntry";
+import { ORIGINAL_UI_CACHE_TTL_MS } from "./originalUiVersionCache";
 
 const hash = "a".repeat(64);
 const prefix = `original-ui/versions/${hash}`;
@@ -23,7 +24,7 @@ function fixture(pinned = true) {
       async get(key: string) {
         gets.push(key);
         const body = objects.get(key);
-        return body === undefined ? null : { body: new Response(body).body,
+        return body === undefined ? null : { body: new Response(body).body, size: new TextEncoder().encode(body).byteLength,
           httpMetadata: { contentType: "image/svg+xml" },
           checksums: { sha256: createHash("sha256").update(body).digest("hex") } };
       },
@@ -76,12 +77,53 @@ test("the same-version object is read alongside the manifest, not after it", asy
   assert.equal(maxInFlight, 2);
 });
 
-test("reads are not cached across requests or releases", async () => {
+function withClock<T>(run: (advance: (ms: number) => void) => Promise<T>): Promise<T> {
+  const realNow = Date.now;
+  let offset = 0;
+  Date.now = () => realNow() + offset;
+  return run((ms) => { offset += ms; }).finally(() => { Date.now = realNow; });
+}
+
+test("a verified release object is served from the isolate cache until the TTL expires", () => withClock(async (advance) => {
   const f = fixture();
   assert.equal((await f.read()).status, 200);
+  const second = await f.read();
+  assert.equal(second.status, 200);
+  assert.equal(await second.text(), bytes);
+  assert.deepEqual(f.gets, [`${prefix}/manifest.json`, `${prefix}/${relative}`]);
+  // Withdrawing the object from R2 takes effect once the cached copy expires.
   f.objects.delete(`${prefix}/${relative}`);
+  advance(ORIGINAL_UI_CACHE_TTL_MS - 1000);
+  assert.equal((await f.read()).status, 200);
+  advance(2000);
   assert.equal((await f.read()).status, 404);
-  assert.deepEqual(f.gets, [`${prefix}/manifest.json`, `${prefix}/${relative}`, `${prefix}/manifest.json`, `${prefix}/${relative}`]);
+  assert.deepEqual(f.gets.slice(2), [`${prefix}/manifest.json`, `${prefix}/${relative}`]);
+}));
+
+test("objects whose bytes do not match the manifest digest are never cached", async () => {
+  const f = fixture();
+  f.objects.set(`${prefix}/${relative}`, "<svg>tampered</svg>");
+  assert.equal(await (await f.read()).text(), "<svg>tampered</svg>");
+  assert.equal(await (await f.read()).text(), "<svg>tampered</svg>");
+  assert.deepEqual(f.gets, [`${prefix}/manifest.json`, `${prefix}/${relative}`, `${prefix}/${relative}`]);
+});
+
+test("objects not listed in the manifest are read from R2 every time", async () => {
+  const f = fixture();
+  f.objects.set(`${prefix}/manifest.json`, JSON.stringify({ items: [] }));
+  assert.equal((await f.read()).status, 200);
+  assert.equal((await f.read()).status, 200);
+  assert.deepEqual(f.gets, [`${prefix}/manifest.json`, `${prefix}/${relative}`, `${prefix}/${relative}`]);
+});
+
+test("a cached manifest still keeps unlisted Learn articles unavailable", async () => {
+  const f = fixture();
+  assert.equal((await f.read()).status, 200);
+  const key = "html/ja/learn/field-loop.html";
+  f.objects.set(`${prefix}/${key}`, "<h1>This unlisted article must stay unavailable</h1>");
+  const response = await f.read("/ja/learn/field-loop");
+  assert.equal(response.status, 404);
+  assert.ok(!f.gets.includes(`${prefix}/${key}`));
 });
 
 test("Learn admission still fails closed on missing or malformed manifests", async () => {
