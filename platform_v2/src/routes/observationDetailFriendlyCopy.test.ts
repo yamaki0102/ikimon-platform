@@ -396,7 +396,7 @@ test("observation detail exposes owner-only site contribution state through poli
   assert.match(siteContributionSource, /追加で撮る/);
   assert.doesNotMatch(contributionSource, /latitude|longitude|正確な座標|exact/);
   assert.match(registrationSource, /const siteContributionBlock = await buildObservationDetailSiteContribution/);
-  assert.match(registrationSource, /ownerPublicStateBlock\}\$\{siteContributionBlock\}\$\{ownerToolsBlock/);
+  assert.match(registrationSource, /ownerPublicStateBlock\}\$\{siteContributionBlock\}\$\{publicationReturnBlock\}\$\{ownerToolsBlock/);
 });
 
 test("observation detail hero readout keeps scene candidates out of identification tabs", () => {

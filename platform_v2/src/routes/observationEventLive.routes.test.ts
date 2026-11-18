@@ -20,12 +20,12 @@ test("observation event live endpoint is retired from Fastify", async () => {
 
 test("observation event live mode is Worker-native and does not hold a PostgreSQL listener", () => {
   const apiSource = readFileSync(path.join(process.cwd(), "src", "routes", "observationEventApi.ts"), "utf8");
-  const workerSource = readFileSync(path.join(process.cwd(), "cloudflare_shadow", "src", "index.ts"), "utf8");
+  const workerApiSource = readFileSync(path.join(process.cwd(), "cloudflare_shadow", "src", "programs", "api.ts"), "utf8");
   const liveSource = readFileSync(path.join(process.cwd(), "src", "services", "observationEventLive.ts"), "utf8");
 
   assert.doesNotMatch(apiSource, /X-Ikimon-Observation-Event-Live-Mode|writeSse|\/live/);
-  assert.match(workerSource, /getObservationEventLiveSnapshot/);
-  assert.match(workerSource, /action === "live"/);
-  assert.doesNotMatch(workerSource, /subscribeToSession|setInterval|heartbeat|onClose/);
+  assert.match(workerApiSource, /getObservationEventLiveSnapshot/);
+  assert.match(workerApiSource, /action === "live"/);
+  assert.doesNotMatch(workerApiSource, /subscribeToSession|setInterval|heartbeat|onClose/);
   assert.doesNotMatch(liveSource, /LISTEN|UNLISTEN|notification|obs_evt_|PoolClient/);
 });
