@@ -7,6 +7,7 @@ import { buildLearnCatalog } from "../../src/learn/catalog.js";
 import { listLearnMaterializationPaths } from "../../src/learn/materialization.js";
 import { listMarketingPages, type SitePageDefinition } from "../../src/siteMap.js";
 import publicPresentationEntry from "./publicPresentationEntry";
+import { ORIGINAL_UI_CACHE_TTL_MS } from "./originalUiVersionCache";
 
 // These fixtures stay in memory. They use the actual materialization projection,
 // canonical route renderer and final Worker entry, without a database or R2 write.
@@ -271,5 +272,11 @@ test("an unpinned legacy Learn object cannot bypass the current version manifest
   f.bucket.objects.set("original-ui/current/staging.json", { body: JSON.stringify({ version_prefix: versionPrefix }), contentType: "application/json" });
   assert.equal((await read("/ja/learn", env)).status, 200, "the existing valid current pointer still supplies its registered Learn object");
   f.bucket.objects.set(manifestKey, { body: '{"items":[]}', contentType: "application/json" });
-  assert.equal((await read("/ja/learn", env)).status, 404, "an unlisted current object cannot fall through to legacy bytes");
+  // Version manifests are immutable in production; an in-place rewrite is seen once the
+  // isolate cache entry for that version expires.
+  const realNow = Date.now;
+  Date.now = () => realNow() + ORIGINAL_UI_CACHE_TTL_MS + 1000;
+  try {
+    assert.equal((await read("/ja/learn", env)).status, 404, "an unlisted current object cannot fall through to legacy bytes");
+  } finally { Date.now = realNow; }
 });

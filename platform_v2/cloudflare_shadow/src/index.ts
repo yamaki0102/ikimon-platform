@@ -172,6 +172,7 @@ import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, a
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
+import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
@@ -19952,6 +19953,22 @@ async function getManifestBoundOriginalUiObject(
   relativeKey: string,
 ): Promise<MaterializedR2ObjectBody | null> {
   const requiresLearnEntry = isJapaneseLearnHtmlKey(relativeKey);
+  const bucket = env.ASSET_BUCKET as object;
+  const cachedManifest = getCachedOriginalUiManifest(bucket, manifestVersionPrefix);
+  if (cachedManifest) {
+    const entry = cachedManifest.get(relativeKey);
+    if (requiresLearnEntry && !entry) return null;
+    const objectKey = `${entry?.versionPrefix || manifestVersionPrefix}/${relativeKey}`;
+    const sha256 = entry?.sha256 ?? "";
+    const hit = sha256 ? getCachedOriginalUiObject(bucket, objectKey) : null;
+    if (hit) {
+      MATERIALIZED_SOURCE_SHA256.set(hit, sha256);
+      return hit;
+    }
+    const fetched = await cacheVerifiedOriginalUiObject(bucket, objectKey, await env.ASSET_BUCKET.get(objectKey), sha256);
+    return await bindMaterializedSourceSha256(env, entry?.versionPrefix || manifestVersionPrefix, relativeKey, fetched,
+      entry?.versionPrefix && entry.versionPrefix !== manifestVersionPrefix ? undefined : sha256);
+  }
   // Most entries live under the manifest's own version, so read that object alongside the
   // manifest rather than after it. It is used only if the manifest binds the key to this same
   // version (otherwise it is discarded). Learn objects are never read before the manifest admits them.
@@ -19964,17 +19981,19 @@ async function getManifestBoundOriginalUiObject(
   if (requiresLearnEntry && !manifest?.body) return null;
   let objectVersionPrefix = manifestVersionPrefix;
   let manifestSha256 = "";
+  let listedSha256 = "";
   if (manifest?.body) {
     try {
-      const parsed = await new Response(manifest.body).json() as { items?: Array<{ key?: unknown; version_prefix?: unknown; sha256?: unknown }> };
-      const entry = parsed.items?.find((item) => String(item?.key ?? "") === relativeKey);
+      const parsed = await new Response(manifest.body).json() as { items?: unknown };
+      const entries = indexOriginalUiManifest(parsed.items);
+      if (Array.isArray(parsed.items)) storeOriginalUiManifest(bucket, manifestVersionPrefix, entries);
+      const entry = entries.get(relativeKey);
       // New Learn routes are admitted from the exact public content projection,
       // rather than a second article list in this Worker. Unlisted objects stay private.
       if (requiresLearnEntry && !entry) return null;
-      const candidate = String(entry?.version_prefix ?? "");
-      if (/^original-ui\/versions\/[a-f0-9]{64}$/.test(candidate)) objectVersionPrefix = candidate;
-      const digest = String(entry?.sha256 ?? "").toLowerCase();
-      if (/^[a-f0-9]{64}$/.test(digest)) manifestSha256 = digest;
+      if (entry?.versionPrefix) objectVersionPrefix = entry.versionPrefix;
+      if (entry?.sha256) manifestSha256 = entry.sha256;
+      listedSha256 = entry?.sha256 ?? "";
     } catch {
       // An invalid manifest is handled as a missing versioned object.
       if (requiresLearnEntry) return null;
@@ -19987,8 +20006,10 @@ async function getManifestBoundOriginalUiObject(
     discardSpeculative();
     object = await env.ASSET_BUCKET.get(`${objectVersionPrefix}/${relativeKey}`);
   }
-  // Reuse this request's parsed manifest. No cross-request cache: release
-  // changes and publication withdrawal must be visible on the next request.
+  // Versioned manifests and the manifest-verified objects under them are immutable, so they
+  // are cached in this isolate for ORIGINAL_UI_CACHE_TTL_MS. A release switches to a new
+  // version prefix immediately; withdrawing an object from R2 takes effect within the TTL.
+  object = await cacheVerifiedOriginalUiObject(bucket, `${objectVersionPrefix}/${relativeKey}`, object, listedSha256);
   // Selectively reused objects still bind to their own version's manifest.
   return await bindMaterializedSourceSha256(env, objectVersionPrefix, relativeKey, object,
     objectVersionPrefix === manifestVersionPrefix ? manifestSha256 : undefined);
