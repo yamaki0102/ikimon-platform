@@ -41,4 +41,13 @@ ZUKAN は、市民・企業・自治体が一緒に自然の変化を見守り�
 - TNFD は企業開示の枠組みであり、個別サービスのスコアだけで準拠を保証できるものではありません。
 - 企業レポートでは、観察データ、管理行為、公開範囲、努力量、レビュー状態を分けて扱います。
 
+## 現地での解説
+
+浜松市都田で愛管株式会社が運営する「連理の木の下で」では、制度の解説記事に加えて、企業や自治体向けの視察・研修も受け付けています。
+
+- [30by30とは？陸と海の30％を守る目標と、面積だけでは足りない理由](https://lenrinokinoshitade.com/articles/thirty-by-thirty-target-three/)
+- [自然共生サイトとは？認定の対象と相談前の確認事項](https://lenrinokinoshitade.com/articles/nature-coexistence-site-eligibility/)
+- [TNFDのLEAPとは？自然と会社の仕事を現地で調べる方法](https://lenrinokinoshitade.com/articles/tnfd-leap-field-questions/)
+- [企業・自治体の視察・研修](https://lenrinokinoshitade.com/inspection/)
+
 参考: [環境省 30by30](https://www.env.go.jp/nature/biodic/30by30QA.html), [自然共生サイト](https://policies.env.go.jp/nature/biodiversity/30by30alliance/kyousei/nintei/), [TNFD Recommendations](https://tnfd.global/publication/recommendations-of-the-taskforce-on-nature-related-financial-disclosures/)

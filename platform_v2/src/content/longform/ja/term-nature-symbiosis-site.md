@@ -16,4 +16,10 @@
 - [しっかり記録](/learn/terms/survey)
 - [政策・企業活動と自然](/learn/policy-and-business)
 
+## 現地での解説
+
+浜松市都田で愛管株式会社が運営する「連理の木の下で」では、この言葉を現地の取り組みに引き寄せて解説しています。
+
+- [自然共生サイトとは？認定の対象と相談前の確認事項](https://lenrinokinoshitade.com/articles/nature-coexistence-site-eligibility/)
+
 参考: [自然共生サイト](https://policies.env.go.jp/nature/biodiversity/30by30alliance/kyousei/nintei/)
