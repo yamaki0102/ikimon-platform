@@ -176,10 +176,30 @@ export function publicObservationAiFeedback(
     return value ? [value] : [];
   })[0] ?? null;
   const rawObserverFeedback = typeof summary.observer_feedback === "string" ? summary.observer_feedback.trim() : "";
+  const environmentObj = objectValue(payload.environment);
+  const environmentCues = Array.isArray(environmentObj?.cues) ? environmentObj.cues : [];
+  const cueFeedbackText = environmentCues
+    .flatMap((item) => {
+      const cue = objectValue(item);
+      const label = safeText(cue?.label);
+      if (!label) return [];
+      const evidence = safeText(cue?.evidence);
+      return [evidence ? `${label}（${evidence}）` : label];
+    })
+    .slice(0, 3)
+    .join("・");
+  const isEnvironmentOrNoBiota = !hasHumanContext && (
+    payload.recordClass === "environment"
+    || payload.recordClass === "environment_landscape"
+    || payload.detectionState === "not_detected"
+    || subjects.length === 0
+  );
   const feedback = rawObserverFeedback
     ? safeText(rawObserverFeedback)
-    : !hasHumanContext && (payload.recordClass === "environment" || payload.recordClass === "environment_landscape" || subjects.length === 0)
-      ? safeText(summary.environment_summary) ?? safeText(summary.narrative)
+    : isEnvironmentOrNoBiota
+      ? safeText(summary.environment_summary)
+        ?? safeText(summary.narrative)
+        ?? (cueFeedbackText ? safeText(`${cueFeedbackText}が記録されています。`) : null)
       : null;
   return {
     feedback,
