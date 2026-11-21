@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildApp } from "./app.js";
 import { createContactProof } from "./services/contactSubmit.js";
 
@@ -65,6 +68,19 @@ test("root HTML scripts carry the CSP nonce from the response header", async () 
   } finally {
     await app.close();
   }
+});
+
+test("no source template emits inline event handlers that the CSP blocks", () => {
+  const offenders: string[] = [];
+  const walk = (dir: string): void => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (full.endsWith(".ts") && !full.endsWith(".test.ts") && /\son(error|click|load)=["']/.test(readFileSync(full, "utf8"))) offenders.push(full);
+    }
+  };
+  walk(fileURLToPath(new URL(".", import.meta.url)));
+  assert.deepEqual(offenders, []);
 });
 
 test("preview media proxy stays disabled on the public production host", async () => {

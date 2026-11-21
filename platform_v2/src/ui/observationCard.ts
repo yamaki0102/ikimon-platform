@@ -81,7 +81,7 @@ export function renderObservationCard(
       : null;
   const observerLabel = formatActorDisplay(obs.observerName, lang);
   const avatar = obs.observerAvatarUrl
-    ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'" /><span class="obs-card-avatar is-placeholder obs-card-avatar-fallback">${escapeHtml((observerLabel || "?").slice(0, 1))}</span>`
+    ? `<img class="obs-card-avatar" src="${escapeHtml(obs.observerAvatarUrl)}" alt="" loading="lazy" data-fb="next" data-fb-display="inline-flex" /><span class="obs-card-avatar is-placeholder obs-card-avatar-fallback">${escapeHtml((observerLabel || "?").slice(0, 1))}</span>`
     : `<span class="obs-card-avatar is-placeholder">${escapeHtml((observerLabel || "?").slice(0, 1))}</span>`;
   // Broken / missing photo fallback: hand-drawn-style sketch card that looks
   // intentional, not a broken <img>. onerror swaps in the sketch if the URL
@@ -99,7 +99,7 @@ export function renderObservationCard(
   </div>`;
   const mediaAlt = lang === "ja" ? "記録の画像" : lang === "es" ? "Imagen del registro" : lang === "pt-BR" ? "Imagem do registro" : "Record image";
   const photo = mediaUrl
-    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(mediaUrl, "md") ?? mediaUrl)}" alt="${escapeHtml(mediaAlt)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling?.classList.add('is-visible');" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
+    ? `<img class="obs-card-photo" src="${escapeHtml(toThumbnailUrl(mediaUrl, "md") ?? mediaUrl)}" alt="${escapeHtml(mediaAlt)}" loading="lazy" decoding="async" data-fb="next" data-fb-next-class="is-visible" />${sketchFallback.replace('class="obs-card-photo is-sketch"', 'class="obs-card-photo is-sketch obs-card-photo-fallback"')}`
     : sketchFallback;
   const locationMode = options.locationMode ?? "public";
   const placeLine = formatPlaceDisplay({

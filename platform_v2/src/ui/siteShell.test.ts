@@ -241,6 +241,141 @@ test("site shell replaces existing and empty script nonce attributes with the ac
   assert.doesNotMatch(html, /<script\b[^>]*\bnonce=""/);
 });
 
+class FakeNode {
+  attrs = new Map<string, string>();
+  classes = new Set<string>();
+  parentElement: FakeNode | null = null;
+  nextElementSibling: FakeNode | null = null;
+  hidden = false;
+  removed = false;
+  replacedWith: FakeNode | null = null;
+  style: Record<string, string> = {};
+  textContent = "";
+  className = "";
+  constructor(public tagName: string) {}
+  get classList() {
+    return { add: (c: string) => { this.classes.add(c); }, remove: (c: string) => { this.classes.delete(c); } };
+  }
+  getAttribute(name: string): string | null { return this.attrs.get(name) ?? null; }
+  hasAttribute(name: string): boolean { return this.attrs.has(name); }
+  closest(selector: string): FakeNode | null {
+    for (let el: FakeNode | null = this; el; el = el.parentElement) {
+      if (selector.startsWith(".") ? el.classes.has(selector.slice(1)) : el.attrs.has(selector.slice(1, -1))) return el;
+    }
+    return null;
+  }
+  remove(): void { this.removed = true; }
+  replaceWith(node: FakeNode): void { this.replacedWith = node; this.removed = true; }
+}
+
+function fakeImg(attrs: Record<string, string>, parent: FakeNode | null = null): FakeNode {
+  const img = new FakeNode("IMG");
+  for (const [name, value] of Object.entries(attrs)) img.attrs.set(name, value);
+  img.parentElement = parent;
+  return img;
+}
+
+function shellListeners(html: string) {
+  const body = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]!).find((s) => s.includes("addEventListener('error'"));
+  assert.ok(body);
+  const listeners: Record<string, (event: { target: unknown }) => void> = {};
+  const printed = { count: 0 };
+  runInNewContext(body, {
+    HTMLImageElement: FakeNode,
+    Element: FakeNode,
+    window: { print: () => { printed.count += 1; } },
+    document: {
+      addEventListener: (type: string, fn: (event: { target: unknown }) => void, capture?: boolean) => {
+        listeners[type] = fn;
+        if (type === "error") assert.equal(capture, true);
+      },
+      createElement: (tag: string) => new FakeNode(tag.toUpperCase()),
+    },
+  });
+  return { error: listeners.error!, click: listeners.click!, printed };
+}
+
+test("site shell ships one nonce-bound capture listener and no inline event handlers", () => {
+  const html = runWithCspNonce("shell-fb-nonce", () => renderRecordPage({ basePath: "", title: "Test", body: '<img src="x" data-fb="next" />', lang: "ja" }));
+  assert.match(html, /<script nonce="shell-fb-nonce">\(function\(\)\{[\s\S]*?addEventListener\('error'[\s\S]*?\},\s*true\);/);
+  assert.match(html, /addEventListener\('click'[\s\S]*?closest\('\[data-print\]'\)/);
+  assert.doesNotMatch(html, /\son(error|click|load)=/);
+});
+
+test("image fallback verbs next, remove, replace and text-parent act only on data-fb images", () => {
+  const { error } = shellListeners(renderRecordPage({ basePath: "", title: "Test", body: "<p>x</p>", lang: "ja" }));
+
+  const next = fakeImg({ "data-fb": "next", "data-fb-display": "grid", "data-fb-next-class": "is-visible" });
+  next.nextElementSibling = new FakeNode("DIV");
+  next.nextElementSibling.hidden = true;
+  error({ target: next });
+  assert.equal(next.hidden, true);
+  assert.equal(next.nextElementSibling.hidden, false);
+  assert.equal(next.nextElementSibling.style.display, "grid");
+  assert.ok(next.nextElementSibling.classes.has("is-visible"));
+
+  const host = new FakeNode("DIV");
+  host.classes.add("me-own-stack-item");
+  const removeAdd = fakeImg({ "data-fb": "remove", "data-fb-host": ".me-own-stack-item", "data-fb-host-add": "is-photo-missing" }, host);
+  error({ target: removeAdd });
+  assert.ok(host.classes.has("is-photo-missing"));
+  assert.equal(removeAdd.removed, true);
+  assert.equal(host.removed, false);
+
+  const drop = new FakeNode("DIV");
+  drop.classes.add("me-discovery-preview");
+  drop.classes.add("has-photo");
+  const removeDrop = fakeImg({ "data-fb": "remove", "data-fb-host": ".me-discovery-preview", "data-fb-host-drop": "has-photo" }, drop);
+  error({ target: removeDrop });
+  assert.equal(drop.classes.has("has-photo"), false);
+  assert.equal(removeDrop.removed, true);
+
+  const cover = new FakeNode("DIV");
+  cover.classes.add("me-area-cover");
+  const removeHost = fakeImg({ "data-fb": "remove", "data-fb-host": ".me-area-cover", "data-fb-host-remove": "1" }, cover);
+  error({ target: removeHost });
+  assert.equal(cover.removed, true);
+  assert.equal(removeHost.removed, false);
+
+  const wrap = new FakeNode("DIV");
+  const parentHost = fakeImg({ "data-fb": "remove", "data-fb-host": ":parent", "data-fb-host-add": "is-empty" }, wrap);
+  error({ target: parentHost });
+  assert.ok(wrap.classes.has("is-empty"));
+  assert.equal(parentHost.removed, true);
+
+  const replaced = fakeImg({ "data-fb": "replace", "data-fb-tag": "div", "data-fb-class": "obs-nearby-nophoto", "data-fb-text": "📷" });
+  error({ target: replaced });
+  assert.equal(replaced.replacedWith?.tagName, "DIV");
+  assert.equal(replaced.replacedWith?.className, "obs-nearby-nophoto");
+  assert.equal(replaced.replacedWith?.textContent, "📷");
+
+  const defaultTag = fakeImg({ "data-fb": "replace", "data-fb-class": "obs-hero-avatar", "data-fb-text": "A" });
+  error({ target: defaultTag });
+  assert.equal(defaultTag.replacedWith?.tagName, "SPAN");
+
+  const parent = new FakeNode("SPAN");
+  const textParent = fakeImg({ "data-fb": "text-parent", "data-fb-text": "A" }, parent);
+  error({ target: textParent });
+  assert.equal(textParent.removed, true);
+  assert.equal(parent.textContent, "A");
+
+  const plain = fakeImg({ src: "x" });
+  error({ target: plain });
+  assert.equal(plain.removed, false);
+  assert.equal(plain.hidden, false);
+});
+
+test("image fallback listener ignores non-image error targets and print clicks open the print dialog", () => {
+  const { error, click, printed } = shellListeners(renderRecordPage({ basePath: "", title: "Test", body: "<p>x</p>", lang: "ja" }));
+  assert.doesNotThrow(() => error({ target: new FakeNode("DIV") }));
+  const button = new FakeNode("BUTTON");
+  button.attrs.set("data-print", "");
+  click({ target: button });
+  assert.equal(printed.count, 1);
+  click({ target: new FakeNode("DIV") });
+  assert.equal(printed.count, 1);
+});
+
 test("app records search belongs to the content, with public guest navigation", () => {
   const html = renderRecordPage({basePath: "", title: "Records", body: "<p>records</p>", lang: "ja", currentPath: "/ja/records?view=public&q=bird"});
   assert.doesNotMatch(html, /<form class="site-search/);

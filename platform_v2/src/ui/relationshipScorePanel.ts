@@ -508,7 +508,7 @@ export function renderRelationshipScorePanel(
     </section>
     <footer class="rs-report-foot">
       <p class="rs-notice">${escapeHtml(copy.notice)}</p>
-      <button type="button" class="rs-print-button" onclick="window.print()">${escapeHtml(copy.printButton)}</button>
+      <button type="button" class="rs-print-button" data-print>${escapeHtml(copy.printButton)}</button>
     </footer>
   </article>`;
 }

@@ -4600,7 +4600,7 @@ export function mapExplorerDeferredScriptSource(): string {
         var rows = group.records.map(function (record) {
           var active = record.occurrenceId === state.selectedOccurrenceId;
           var thumb = record.photoUrl
-            ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="64" height="64" loading="lazy" decoding="async" fetchpriority="low" onerror="this.outerHTML=&quot;<div class=\\&quot;me-result-thumb me-result-thumb-placeholder\\&quot;>\ud83c\udf3f</div>&quot;" />'
+            ? '<img class="me-result-thumb" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" width="64" height="64" loading="lazy" decoding="async" fetchpriority="low" data-fb="replace" data-fb-tag="div" data-fb-class="me-result-thumb me-result-thumb-placeholder" data-fb-text="\ud83c\udf3f" />'
             : '<div class="me-result-thumb me-result-thumb-placeholder">🌿</div>';
           var displayLabel = recordDisplayName(record);
           var titleMeta = [record.localityLabel || '', resultGroupDate(record)].filter(Boolean).join(' · ');
@@ -4719,7 +4719,7 @@ export function mapExplorerDeferredScriptSource(): string {
       var previewLabel = recordDisplayName(record, COPY.discoveryFallback);
       el.setAttribute('aria-label', recordDisplayName(record, COPY.recentDiscoveryFallback) + ' ' + placementBadge + COPY.openDiscoverySuffix);
       el.innerHTML = record.photoUrl
-        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-discovery-preview&quot;).classList.remove(&quot;has-photo&quot;);this.remove()" /><span>' + escapeHtml(previewLabel) + '</span><em>' + escapeHtml(placementBadge) + '</em>'
+        ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-discovery-preview" data-fb-host-drop="has-photo" /><span>' + escapeHtml(previewLabel) + '</span><em>' + escapeHtml(placementBadge) + '</em>'
         : '<i aria-hidden="true">✦</i><span>' + escapeHtml(previewLabel) + '</span><em>' + escapeHtml(placementBadge) + '</em>';
       el.addEventListener('click', function (event) {
         event.preventDefault();
@@ -4837,7 +4837,7 @@ export function mapExplorerDeferredScriptSource(): string {
     personalMemoryEl.setAttribute('aria-hidden', 'false');
     personalMemoryListEl.innerHTML = clusters.map(function (cluster, index) {
       var label = String(cluster.label || cluster.localityLabel || COPY.personalMemoryFallbackLabel || '').trim();
-      var photo = cluster.representativePhotoUrl ? '<img src="' + escapeHtml(toThumbUrl(cluster.representativePhotoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-personal-memory-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' : '<i aria-hidden="true">●</i>';
+      var photo = cluster.representativePhotoUrl ? '<img src="' + escapeHtml(toThumbUrl(cluster.representativePhotoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-personal-memory-item" data-fb-host-add="is-photo-missing" />' : '<i aria-hidden="true">●</i>';
       return '<button type="button" class="me-personal-memory-item" data-personal-memory-index="' + String(index) + '">' +
         photo +
         '<span><strong>' + escapeHtml(label || COPY.personalMemoryFallbackLabel || '') + '</strong><small>' + escapeHtml(personalMemoryMeta(cluster)) + '</small></span>' +
@@ -4873,7 +4873,7 @@ export function mapExplorerDeferredScriptSource(): string {
       var label = recordDisplayName(record, COPY.discoveryFallback);
       var meta = ownObservationMeta(record);
       return '<button type="button" class="me-own-trail-item" data-own-trail-id="' + escapeHtml(String(record && record.occurrenceId || '')) + '" data-own-trail-lat="' + escapeHtml(String(record && record.latitude || '')) + '" data-own-trail-lng="' + escapeHtml(String(record && record.longitude || '')) + '">' +
-        '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-trail-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
+        '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-own-trail-item" data-fb-host-add="is-photo-missing" />' +
         '<span><strong>' + escapeHtml(label) + '</strong>' + (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') + '</span>' +
       '</button>';
     }).join('');
@@ -5143,7 +5143,7 @@ export function mapExplorerDeferredScriptSource(): string {
         var label = recordDisplayName(record, COPY.discoveryFallback);
         var metaText = ownObservationMeta(record);
         return '<button type="button" class="me-own-stack-item" data-own-observation-choice="' + escapeHtml(String(record && record.occurrenceId || '')) + '">' +
-          '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-stack-item&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />' +
+          '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-own-stack-item" data-fb-host-add="is-photo-missing" />' +
           '<span><strong>' + escapeHtml(label) + '</strong>' + (metaText ? '<small>' + escapeHtml(metaText) + '</small>' : '') + '</span>' +
           '<b>' + escapeHtml(COPY.ownObservationStackOpen || COPY.popupOpenLabel) + '</b>' +
         '</button>';
@@ -5259,7 +5259,7 @@ export function mapExplorerDeferredScriptSource(): string {
       el.setAttribute('title', count > 1 ? groupLabel : label);
       el.setAttribute('data-own-observation-count', String(count));
       el.setAttribute('data-own-observation-ids', allOccurrenceIds);
-      el.innerHTML = '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-own-observation-marker&quot;).classList.add(&quot;is-photo-missing&quot;);this.remove()" />'
+      el.innerHTML = '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-own-observation-marker" data-fb-host-add="is-photo-missing" />'
         + (count > 1 ? '<b aria-hidden="true">' + escapeHtml(String(count)) + '</b>' : '')
         + '<span>' + escapeHtml(count > 1 ? groupLabel : label) + '</span>'
         + (count > 1 ? '<em>' + escapeHtml(allLabels) + '</em>' : '');
@@ -5647,7 +5647,7 @@ export function mapExplorerDeferredScriptSource(): string {
     var compact = !!(options && options.compact);
     if (photoUrl) {
       return '<figure class="me-detail-hero me-detail-hero-photo">' +
-        '<img src="' + escapeHtml(toThumbUrl(photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-detail-hero&quot;).classList.add(&quot;is-empty&quot;);this.remove()" />' +
+        '<img src="' + escapeHtml(toThumbUrl(photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-detail-hero" data-fb-host-add="is-empty" />' +
         '<figcaption><span>' + escapeHtml(badge) + '</span><strong>' + escapeHtml(title) + '</strong>' + (meta ? '<small>' + escapeHtml(meta) + '</small>' : '') + '</figcaption>' +
       '</figure>';
     }
@@ -5848,7 +5848,7 @@ export function mapExplorerDeferredScriptSource(): string {
       '<div class="me-detail-recent-grid">' + records.map(function (record) {
         var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
         var thumb = record.photoUrl
-          ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-detail-recent-item&quot;).classList.add(&quot;is-photoless&quot;);this.remove()" />'
+          ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-detail-recent-item" data-fb-host-add="is-photoless" />'
           : '<span class="me-detail-recent-placeholder" aria-hidden="true">✦</span>';
         return '<button type="button" class="me-detail-recent-item" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
           thumb +
@@ -5869,7 +5869,7 @@ export function mapExplorerDeferredScriptSource(): string {
         var date = record.observedAt ? String(record.observedAt).slice(0, 10) : '';
         var distance = item.meters < 100 ? COPY.nearDistanceImmediate : COPY.nearDistanceApproxPrefix + String(Math.round(item.meters / 50) * 50) + 'm';
         var thumb = record.photoUrl
-          ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
+          ? '<img src="' + escapeHtml(toThumbUrl(record.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" />'
           : '<span aria-hidden="true">✦</span>';
         return '<button type="button" class="me-detail-walk-item" data-occurrence-id="' + escapeHtml(record.occurrenceId || '') + '">' +
           thumb +
@@ -6899,7 +6899,7 @@ export function mapExplorerDeferredScriptSource(): string {
   }
 
   function renderObservationActions(record) {
-    var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />' : '';
+    var photo = record.photoUrl ? '<img class="me-bottom-photo" src="' + escapeHtml(toThumbUrl(record.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" />' : '';
     var href = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
     var identifyHref = href + '#identify';
     var bottomBadge = record.isAiCandidate
@@ -7874,7 +7874,7 @@ export function mapExplorerDeferredScriptSource(): string {
     var meta = [dateText, locality].filter(Boolean).join(' / ');
     return ''
       + '<figure class="me-area-cover is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
-      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-cover&quot;).remove()" />'
+      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-area-cover" data-fb-host-remove="1" />'
       +   '<figcaption>'
       +     '<span>' + escapeHtml(coverSourceLabel(photo.source)) + '</span>'
       +     '<strong>' + escapeHtml(displayName) + '</strong>'
@@ -7895,7 +7895,7 @@ export function mapExplorerDeferredScriptSource(): string {
       var photoMeta = [dateText, locality].filter(Boolean).join(' / ');
       return ''
         + '<figure class="me-area-cover me-area-hero is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
-        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-hero&quot;).classList.add(&quot;is-empty&quot;);this.remove()" />'
+        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-area-hero" data-fb-host-add="is-empty" />'
         +   '<figcaption>'
         +     '<span>' + escapeHtml(sourceLabel || coverSourceLabel(photo.source)) + '</span>'
         +     '<strong>' + escapeHtml(title) + '</strong>'
@@ -8031,7 +8031,7 @@ export function mapExplorerDeferredScriptSource(): string {
           ? '<span class="me-area-gallery-season' + (item.isCurrentSeason ? ' is-current' : '') + '">' + escapeHtml((item.isCurrentSeason ? COPY.areaSeasonNow + ' · ' : '') + item.seasonLabel) + '</span>'
           : '';
         var photo = item && item.photoUrl
-          ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-gallery-card&quot;).classList.add(&quot;is-photoless&quot;);this.remove()" />'
+          ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'md')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-area-gallery-card" data-fb-host-add="is-photoless" />'
           : '<span class="me-area-gallery-placeholder" aria-hidden="true">✦</span>';
         return ''
           + '<a class="me-area-gallery-card" href="' + escapeHtml(href) + '">'
@@ -8130,7 +8130,7 @@ export function mapExplorerDeferredScriptSource(): string {
     var meta = [dateText, locality].filter(Boolean).join(' / ');
     return ''
       + '<figure class="me-area-cover is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
-      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-cover&quot;).remove()" />'
+      +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-area-cover" data-fb-host-remove="1" />'
       +   '<figcaption>'
       +     '<span>' + escapeHtml(coverSourceLabel(photo.source)) + '</span>'
       +     '<strong>' + escapeHtml(displayName) + '</strong>'
@@ -8151,7 +8151,7 @@ export function mapExplorerDeferredScriptSource(): string {
       var photoMeta = [dateText, locality].filter(Boolean).join(' / ');
       return ''
         + '<figure class="me-area-cover me-area-hero is-source-' + escapeHtml(String(photo.source || 'auto_observation')) + '">'
-        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" onerror="this.closest(&quot;.me-area-hero&quot;).classList.add(&quot;is-empty&quot;);this.remove()" />'
+        +   '<img src="' + escapeHtml(toThumbUrl(photo.photoUrl, 'lg')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".me-area-hero" data-fb-host-add="is-empty" />'
         +   '<figcaption>'
         +     '<span>' + escapeHtml(sourceLabel || coverSourceLabel(photo.source)) + '</span>'
         +     '<strong>' + escapeHtml(title) + '</strong>'
@@ -8250,7 +8250,7 @@ export function mapExplorerDeferredScriptSource(): string {
           var occurrenceId = String(item && item.occurrenceId || '');
           var href = occurrenceId ? OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(occurrenceId)) : NOTES_HREF;
           var photo = item && item.photoUrl
-            ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" onerror="this.remove()" />'
+            ? '<img src="' + escapeHtml(toThumbUrl(item.photoUrl, 'sm')) + '" alt="" loading="lazy" decoding="async" data-fb="remove" />'
             : '<span aria-hidden="true">✦</span>';
           var meta = [item && item.seasonLabel, item && item.observedAt ? String(item.observedAt).slice(0, 10) : ''].filter(Boolean).join(' / ');
           return '<a class="me-area-positive-record" href="' + escapeHtml(href) + '">'
