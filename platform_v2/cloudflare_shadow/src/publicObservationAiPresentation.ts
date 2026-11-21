@@ -3,6 +3,7 @@ import type { ObservationFirstAiCandidateInsight } from "./observationFirstRecor
 const genericCandidate = /^(?:鳥|鳥類|小鳥|動物|生きもの|生物|植物|写っているもの|unknown|unidentified|unclassified)$/iu;
 const privateLocation = /(?:\b(?:lat|lng|latitude|longitude|coordinate|geohash|h3)\b|[-+]?\d{1,2}\.\d{4,}\s*[,/]\s*[-+]?\d{2,3}\.\d{4,})/iu;
 const privateContact = /(?:\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|(?<!\d)(?:\+?81[-\s]?)?0\d{1,4}[-\s]?\d{1,4}[-\s]?\d{3,4}(?!\d))/iu;
+const emptyAiBoilerplate = /^(?:特記事項はありません|特にありません|特記すべき点はありません|該当なし|なし)[。．.]?$/u;
 const humanSubjectName = /^(?:homo sapiens(?: sapiens)?|humans?|persons?|people|人|人間|人物|ヒト|personas?|pessoas?|humanos?|ser(?:es)? humanos?)$/iu;
 
 const normalizedSubjectName = (value: unknown): string => typeof value === "string"
@@ -67,8 +68,11 @@ export function isPublicObservationAiSubjectEligible(
 
 function safeText(value: unknown, maxLength = 220): string | null {
   if (typeof value !== "string") return null;
-  const text = value.replace(/\s+/gu, " ").trim();
-  if (!text || text.length > maxLength || privateLocation.test(text) || privateContact.test(text)) return null;
+  const text = value
+    .replace(/\s+/gu, " ")
+    .replace(/画像(\d+)/gu, (_match, index) => `${Number(index) + 1}枚目の写真`)
+    .trim();
+  if (!text || text.length > maxLength || privateLocation.test(text) || privateContact.test(text) || emptyAiBoilerplate.test(text)) return null;
   return text;
 }
 
@@ -176,13 +180,37 @@ export function publicObservationAiFeedback(
     return value ? [value] : [];
   })[0] ?? null;
   const rawObserverFeedback = typeof summary.observer_feedback === "string" ? summary.observer_feedback.trim() : "";
-  const feedback = rawObserverFeedback
-    ? safeText(rawObserverFeedback)
-    : !hasHumanContext && (payload.recordClass === "environment" || payload.recordClass === "environment_landscape" || subjects.length === 0)
-      ? safeText(summary.environment_summary) ?? safeText(summary.narrative)
-      : null;
+  const observerFeedbackIsBlocked = Boolean(rawObserverFeedback) && (privateLocation.test(rawObserverFeedback) || privateContact.test(rawObserverFeedback));
+  const observerFeedback = safeText(rawObserverFeedback);
+  const environmentObj = objectValue(payload.environment);
+  const environmentCues = Array.isArray(environmentObj?.cues) ? environmentObj.cues : [];
+  const cueFeedbackText = environmentCues
+    .flatMap((item) => {
+      const cue = objectValue(item);
+      const label = safeText(cue?.label);
+      if (!label) return [];
+      const evidence = safeText(cue?.evidence);
+      return [evidence ? `${label}（${evidence}）` : label];
+    })
+    .slice(0, 3)
+    .join("・");
+  const isEnvironmentOrNoBiota = !hasHumanContext && (
+    payload.recordClass === "environment"
+    || payload.recordClass === "environment_landscape"
+    || payload.detectionState === "not_detected"
+    || subjects.length === 0
+  );
+  const feedback = observerFeedback
+    ?? (!observerFeedbackIsBlocked && isEnvironmentOrNoBiota
+      ? safeText(summary.environment_summary)
+        ?? safeText(summary.narrative)
+        ?? (cueFeedbackText ? safeText(`この写真からは${cueFeedbackText}のようすが読み取れます。場所の環境や季節の手がかりが残る一枚です。`) : null)
+      : null);
+  const resolvedNextPhoto = nextPhoto ?? (isEnvironmentOrNoBiota && feedback
+    ? "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。"
+    : null);
   return {
     feedback,
-    nextPhoto,
+    nextPhoto: resolvedNextPhoto,
   };
 }

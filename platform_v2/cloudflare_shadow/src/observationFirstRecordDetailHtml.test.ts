@@ -371,10 +371,10 @@ test("legacy unidentified sentinel is never exposed and uses a localized natural
 
 test("scene and non-detection copy is localized in every supported language", () => {
   const expectations = {
-    ja: ["この写真から見つかったもの", "この写真では、生きものの姿は見つかりませんでした"],
-    en: ["Found in this photo", "No organism was visible in this photo"],
-    es: ["Encontrado en esta foto", "En esta foto no se encontró la figura de ningún ser vivo"],
-    "pt-br": ["Encontrado nesta foto", "Nesta foto, não foi possível encontrar a figura de um ser vivo"],
+    ja: ["この写真から見つかったもの", "この写真では、場所や周囲のようすが記録されています"],
+    en: ["Found in this photo", "This photo records the place and its surroundings"],
+    es: ["Encontrado en esta foto", "Esta foto registra el lugar y su entorno"],
+    "pt-br": ["Encontrado nesta foto", "Esta foto registra o local e o seu entorno"],
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
@@ -464,7 +464,7 @@ test("a completed scene analysis without a biological candidate remains a useful
   assert.match(rendered, /水面/);
   assert.match(rendered, /低い草地/);
   assert.match(rendered, /舗装・構造物/);
-  assert.match(rendered, /この写真では、生きものの姿は見つかりませんでした/);
+  assert.match(rendered, /この写真では、場所や周囲のようすが記録されています/);
   assert.match(rendered, /この場所のようす/);
   assert.match(rendered, /写真メモ/);
   assert.match(rendered, /位置はぼかして表示/);
@@ -964,4 +964,29 @@ test("record detail resolves the 7 UX polish items: open capture, readable media
   assert.doesNotMatch(rendered, /<span>◉<\/span>|<span>◌<\/span>/);
   assert.doesNotMatch(rendered, /位置はぼかして表示/);
   assert.match(rendered, /名前はこれから/);
+});
+
+test("existing landscape record without aiFeedback renders grounded environment feedback and avoids absence wording", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
+    lang: "ja",
+    title: "水辺の記録",
+    observedLabel: "2026年11月22日",
+    note: null,
+    detectionState: "not_detected",
+    aiFeedback: null,
+    aiNextPhoto: null,
+    media: [{ mediaId: "scene-water", mediaKind: "photo", url: "https://media.example/water.webp" }],
+    environment: {
+      place_type: "water_edge",
+      surrounding_cover: "low_grass",
+      place_type_source: "derived",
+      surrounding_cover_source: "derived",
+      environment_record_status: "auto_draft",
+    },
+    actionNonce: "nonce-water-scene",
+    viewerAuthenticated: false,
+  });
+  assert.match(rendered, /data-ai-feedback/);
+  assert.match(rendered, /水辺のよう/);
+  assert.doesNotMatch(rendered, /生きものの姿は見つかりませんでした/);
 });

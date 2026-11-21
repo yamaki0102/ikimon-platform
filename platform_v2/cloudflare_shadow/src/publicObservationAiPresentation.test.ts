@@ -209,7 +209,7 @@ test("public AI feedback falls back to environment_summary or narrative for land
   });
   assert.deepEqual(publicObservationAiFeedback(landscapePayload), {
     feedback: "水辺にヨシの群落と石積みの護岸が見えます。",
-    nextPhoto: null,
+    nextPhoto: "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。",
   });
 
   const narrativeOnlyPayload = JSON.stringify({
@@ -222,6 +222,34 @@ test("public AI feedback falls back to environment_summary or narrative for land
   });
   assert.deepEqual(publicObservationAiFeedback(narrativeOnlyPayload), {
     feedback: "開けた草地と低木の境界が記録されています。",
-    nextPhoto: null,
+    nextPhoto: "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。",
+  });
+
+  const cuesOnlyPayload = JSON.stringify({
+    recordClass: "environment",
+    detectionState: "not_detected",
+    environment: {
+      cues: [
+        { label: "水辺", evidence: "水面と岸辺の草が見えます" },
+        { label: "低い草地", evidence: "" },
+      ],
+    },
+  });
+  assert.deepEqual(publicObservationAiFeedback(cuesOnlyPayload), {
+    feedback: "この写真からは水辺（水面と岸辺の草が見えます）・低い草地のようすが読み取れます。場所の環境や季節の手がかりが残る一枚です。",
+    nextPhoto: "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。",
+  });
+
+  const indexedAndBoilerplatePayload = JSON.stringify({
+    recordClass: "environment",
+    detectionState: "not_detected",
+    summary: {
+      observer_feedback: "特記事項はありません。",
+      environment_summary: "画像0および画像1で水辺の護岸と草地が見えます。",
+    },
+  });
+  assert.deepEqual(publicObservationAiFeedback(indexedAndBoilerplatePayload), {
+    feedback: "1枚目の写真および2枚目の写真で水辺の護岸と草地が見えます。",
+    nextPhoto: "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。",
   });
 });
