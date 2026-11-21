@@ -889,3 +889,30 @@ test("human accepted claims and original notes remain visible when human AI advi
   assert.equal(rendered.includes("頭部および胴体の鮮明な拡大画像"), false);
   assert.equal(accepted.acceptedIdentification.claimId, "owner-person-label");
 });
+
+test("record detail renders an in-page zoomable lightbox for photos and omits it without photos", () => {
+  const withPhoto = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "庭の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [{ mediaId: "asset-photo", mediaKind: "photo", url: "https://media.example/safe-full.webp" }],
+    actionNonce: "nonce-zoom",
+  });
+  assert.match(withPhoto, /data-of-photo-trigger/);
+  assert.match(withPhoto, /data-of-lightbox/);
+  assert.match(withPhoto, /data-of-lightbox-toggle/);
+  assert.match(withPhoto, /data-of-lightbox-close/);
+  assert.match(withPhoto, /data-of-lightbox-script/);
+
+  const withoutPhoto = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "音声のみの記録",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [{ mediaId: "asset-audio", mediaKind: "audio", url: "https://media.example/audio.mp3" }],
+    actionNonce: "nonce-no-photo",
+  });
+  assert.doesNotMatch(withoutPhoto, /data-of-photo-trigger/);
+  assert.doesNotMatch(withoutPhoto, /data-of-lightbox-script/);
+});
