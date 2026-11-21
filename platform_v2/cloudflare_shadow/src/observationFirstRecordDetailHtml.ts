@@ -152,7 +152,7 @@ function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: st
   const slides = items.map((item, index) => {
     const label = `${title} — ${mediaLabel(item.mediaKind, copy)} ${index + 1}`;
     if (item.mediaKind === "photo") {
-      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" aria-label="${escapeHtml(copy.enlargePhoto)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
+      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-of-photo-trigger data-of-photo-src="${escapeHtml(item.url)}" data-of-photo-alt="${escapeHtml(label)}" aria-label="${escapeHtml(copy.enlargePhoto)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
     }
     if (item.mediaKind === "video") {
       return `<figure class="of-media-slide" id="record-media-${index + 1}"><video controls preload="metadata" aria-label="${escapeHtml(label)}" src="${escapeHtml(item.url)}"><a href="${escapeHtml(item.url)}">${escapeHtml(copy.openVideo)}</a></video></figure>`;
@@ -163,6 +163,96 @@ function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: st
     ? `<nav class="of-media-nav" aria-label="${escapeHtml(copy.mediaNavigation)}">${items.map((item, index) => `<a href="#record-media-${index + 1}" aria-label="${escapeHtml(`${mediaLabel(item.mediaKind, copy)} ${index + 1}`)}">${index + 1}</a>`).join("")}</nav>`
     : "";
   return `<section class="of-media-stage" aria-label="${escapeHtml(copy.media)}"><div class="of-media-gallery" tabindex="0">${slides}</div>${navigation}</section>`;
+}
+
+function renderPhotoLightbox(hasPhotos: boolean, copy: ObservationFirstRecordDetailCopy): string {
+  if (!hasPhotos) return "";
+  return `<div class="of-lightbox" data-of-lightbox role="dialog" aria-modal="true" aria-label="${escapeHtml(copy.enlargePhoto)}" hidden><button type="button" class="of-lightbox-toggle" data-of-lightbox-toggle data-zoom-actual="${escapeHtml(copy.zoomActual)}" data-zoom-fit="${escapeHtml(copy.zoomFit)}" aria-pressed="false">${escapeHtml(copy.zoomActual)}</button><button type="button" class="of-lightbox-close" data-of-lightbox-close aria-label="${escapeHtml(copy.closeZoom)}">✕ ${escapeHtml(copy.closeZoom)}</button><div class="of-lightbox-inner" data-of-lightbox-inner><img class="of-lightbox-img is-fit" data-of-lightbox-img alt=""></div></div>`;
+}
+
+function renderPhotoLightboxScript(hasPhotos: boolean): string {
+  if (!hasPhotos) return "";
+  return `<script data-of-lightbox-script>
+(function(){
+  var lb = document.querySelector('[data-of-lightbox]');
+  if (!lb) return;
+  var inner = lb.querySelector('[data-of-lightbox-inner]');
+  var img = lb.querySelector('[data-of-lightbox-img]');
+  var toggle = lb.querySelector('[data-of-lightbox-toggle]');
+  var closeBtn = lb.querySelector('[data-of-lightbox-close]');
+  if (!inner || !img || !toggle || !closeBtn) return;
+  var lastTrigger = null;
+  var drag = null;
+  var dragged = false;
+  function setActual(actual) {
+    img.classList.toggle('is-actual', actual);
+    img.classList.toggle('is-fit', !actual);
+    toggle.setAttribute('aria-pressed', actual ? 'true' : 'false');
+    toggle.textContent = actual ? (toggle.getAttribute('data-zoom-fit') || '') : (toggle.getAttribute('data-zoom-actual') || '');
+  }
+  function open(src, alt, trigger) {
+    lastTrigger = trigger || null;
+    img.src = src;
+    img.alt = alt || '';
+    setActual(false);
+    lb.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+  function close() {
+    lb.hidden = true;
+    img.removeAttribute('src');
+    document.documentElement.style.overflow = '';
+    if (lastTrigger && typeof lastTrigger.focus === 'function') lastTrigger.focus();
+    lastTrigger = null;
+  }
+  document.addEventListener('click', function(e) {
+    var trigger = e.target && e.target.closest ? e.target.closest('[data-of-photo-trigger]') : null;
+    if (!trigger) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    var src = trigger.getAttribute('data-of-photo-src') || trigger.getAttribute('href');
+    if (!src) return;
+    e.preventDefault();
+    open(src, trigger.getAttribute('data-of-photo-alt') || '', trigger);
+  });
+  toggle.addEventListener('click', function() { setActual(!img.classList.contains('is-actual')); });
+  closeBtn.addEventListener('click', close);
+  lb.addEventListener('click', function(e) {
+    if (e.target === lb || e.target === inner) close();
+  });
+  img.addEventListener('click', function() {
+    if (dragged) { dragged = false; return; }
+    setActual(!img.classList.contains('is-actual'));
+  });
+  img.addEventListener('pointerdown', function(e) {
+    if (!img.classList.contains('is-actual') || e.button !== 0) return;
+    dragged = false;
+    drag = { x: e.clientX, y: e.clientY, sl: lb.scrollLeft, st: lb.scrollTop };
+    img.classList.add('is-dragging');
+    try { img.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  img.addEventListener('pointermove', function(e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.x;
+    var dy = e.clientY - drag.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragged = true;
+    lb.scrollLeft = drag.sl - dx;
+    lb.scrollTop = drag.st - dy;
+  });
+  function endDrag(e) {
+    if (!drag) return;
+    drag = null;
+    img.classList.remove('is-dragging');
+    try { img.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+  img.addEventListener('pointerup', endDrag);
+  img.addEventListener('pointercancel', endDrag);
+  document.addEventListener('keydown', function(e) {
+    if (lb.hidden) return;
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  });
+})();
+</script>`;
 }
 
 const observationName = (card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy, personPrimaryNames?: readonly string[]): { text: string; ai: boolean } => {
@@ -512,7 +602,10 @@ export function renderObservationFirstRecordDetailHtml(
     : null;
   const languageLinks = (["ja", "en", "es", "pt-br"] as const).map((item) => `<a href="${escapeHtml(recordsDiscoveryDetailHref(detail.recordId, item, presentation.recordsDiscoveryContext ?? null))}" lang="${escapeHtml(item)}"${item === lang ? ' aria-current="page"' : ""}>${escapeHtml(item === "ja" ? "JP" : item === "pt-br" ? "PT" : item.toUpperCase())}</a>`).join("");
   const menu = `<details class="of-menu"><summary aria-label="${escapeHtml(copy.menu)}"><span aria-hidden="true">•••</span></summary><nav aria-label="${escapeHtml(copy.menu)}"><a href="${prefix}/">${escapeHtml(copy.home)}</a><a href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}">${escapeHtml(copy.records)}</a><div aria-label="${escapeHtml(copy.language)}">${languageLinks}</div></nav></details>`;
+  const hasPhotos = media.some((item) => item.mediaKind === "photo");
   const mediaStage = renderRecordMedia(media, title, copy);
+  const photoLightbox = renderPhotoLightbox(hasPhotos, copy);
+  const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
   const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy);
   const aiFeedback = renderAiFeedback(detail, presentation, copy);
   const scene = renderSceneUnderstanding(presentation, copy);
@@ -535,5 +628,6 @@ export function renderObservationFirstRecordDetailHtml(
   ${APP_EXPERIENCE_STYLES}
   :root{--ink:var(--zukan-text-primary);--muted:var(--zukan-text-secondary);--line:var(--zukan-border-decorative);--paper:var(--zukan-surface-base);--wash:var(--zukan-surface-subtle);--green:var(--zukan-action-primary);--soft:var(--zukan-surface-subtle);--focus:var(--zukan-focus-yellow-300)}
   :focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
-  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<h1>${escapeHtml(title)}</h1><div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(presentation.publicLocationLabel ?? detail.privacy.publicLocationLabel)}</p><p class="of-location-protection"><span>◌</span>${escapeHtml(locationProtection)}</p><p><span>◉</span>${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${summary}${aiFeedback}${scene}${environment}${comparison}${publicationReturn}${management}${capture}</aside></div>${related}</main>${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}</body></html>`;
+  .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<h1>${escapeHtml(title)}</h1><div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(presentation.publicLocationLabel ?? detail.privacy.publicLocationLabel)}</p><p class="of-location-protection"><span>◌</span>${escapeHtml(locationProtection)}</p><p><span>◉</span>${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${summary}${aiFeedback}${scene}${environment}${comparison}${publicationReturn}${management}${capture}</aside></div>${related}</main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}</body></html>`;
 }

@@ -9,6 +9,9 @@ export type ObservationFirstRecordDetailCopy = {
   language: string;
   media: string;
   enlargePhoto: string;
+  zoomActual: string;
+  zoomFit: string;
+  closeZoom: string;
   openVideo: string;
   openAudio: string;
   mediaNavigation: string;
@@ -127,7 +130,7 @@ export type ObservationFirstRecordDetailCopy = {
 
 const ja: ObservationFirstRecordDetailCopy = {
   documentSuffix: "ZUKAN", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
-  media: "写真・動画・音", enlargePhoto: "写真を大きく見る", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
+  media: "写真・動画・音", enlargePhoto: "写真を大きく見る", zoomActual: "原寸で拡大", zoomFit: "全体表示", closeZoom: "閉じる", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
   natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" }, aiFeedbackTitle: "AIからの短いメモ", aiNextPhotoTitle: "次に撮るとよい写真",
   edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "AIが見つけたもの", learning: "わかること", aiCandidate: "AIが見つけた候補", communityProposalAvailable: "名前の提案があります", candidateTemplate: "{name}かもしれません",
   openDetails: "詳しく見る", openAll: "すべて見る", recordName: "この記録の名前", photoCandidate: "写真からの候補",
@@ -159,7 +162,7 @@ const ja: ObservationFirstRecordDetailCopy = {
 const en: ObservationFirstRecordDetailCopy = {
   ...ja,
   documentSuffix: "ZUKAN", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
-  media: "Photos, video and sound", enlargePhoto: "View full-size photo", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
+  media: "Photos, video and sound", enlargePhoto: "View full-size photo", zoomActual: "Actual size", zoomFit: "Fit to screen", closeZoom: "Close", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
   natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, aiFeedbackTitle: "A short note from AI", aiNextPhotoTitle: "A photo that could help next", edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
   found: "Found in this record", aiFound: "What AI found", learning: "What this can tell us", aiCandidate: "Candidate found by AI", communityProposalAvailable: "Name suggestions are available", candidateTemplate: "Possibly {name}", openDetails: "View details", openAll: "View all", recordName: "Name for this record", photoCandidate: "Candidate from the photo",
   distinguishingPoints: "What to look for", shootingAdvice: "A photo that could help", compareCandidates: "Compare similar candidates", compareCandidatesLead: "Visible clues are shown alongside what still needs checking.", candidateEvidence: "Clue", candidateUncertainty: "Not yet visible", similarPhotosHidden: "{count} similar photos are represented by one image. The originals have not been deleted.", proposals: "Name suggestions", proposeName: "Suggest a name", proposedName: "Name", proposalNote: "Reason or note", saveProposal: "Save suggestion", loginToPropose: "Log in to suggest a name", acceptName: "Use this name",
@@ -187,7 +190,7 @@ const es: ObservationFirstRecordDetailCopy = {
   publicationEligible: "Los derechos permiten compartirlo (sin confirmar su inclusión en el destino)",
   publicationConfigured: "Destino configurado (sin confirmar la inclusión de este registro)",
   publicationPolicyVersion: "Versión de la política",
-  back: "Volver", menu: "Menú", records: "Registros", home: "Inicio", language: "Idioma", media: "Fotos, vídeo y sonido", enlargePhoto: "Ver foto ampliada", openVideo: "Abrir vídeo", openAudio: "Abrir audio", mediaNavigation: "Cambiar contenido",
+  back: "Volver", menu: "Menú", records: "Registros", home: "Inicio", language: "Idioma", media: "Fotos, vídeo y sonido", enlargePhoto: "Ver foto ampliada", zoomActual: "Tamaño real", zoomFit: "Ajustar a pantalla", closeZoom: "Cerrar", openVideo: "Abrir vídeo", openAudio: "Abrir audio", mediaNavigation: "Cambiar contenido",
   natureRecord: "Registro de naturaleza", publicLocation: "Lugar seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Una nota breve de la IA", aiNextPhotoTitle: "Una foto que podría ayudar", edit: "Edición detallada", share: "Compartir", updatedNotice: "Cambios guardados.",
   found: "Encontrado en este registro", aiFound: "Lo que encontró la IA", learning: "Lo que podemos saber", aiCandidate: "Candidato encontrado por la IA", communityProposalAvailable: "Hay propuestas de nombre", candidateTemplate: "Podría ser {name}", openDetails: "Ver detalles", openAll: "Ver todo", recordName: "Nombre de este registro", photoCandidate: "Candidato a partir de la foto",
   distinguishingPoints: "En qué fijarse", shootingAdvice: "Una foto que podría ayudar", compareCandidates: "Comparar candidatos parecidos", compareCandidatesLead: "Se muestran las pistas visibles y lo que aún falta comprobar.", candidateEvidence: "Pista", candidateUncertainty: "Aún no visible", similarPhotosHidden: "{count} fotos parecidas se muestran mediante una sola imagen. Los originales no se han eliminado.", proposals: "Propuestas de nombre", proposeName: "Proponer un nombre", proposedName: "Nombre", proposalNote: "Motivo o nota", saveProposal: "Guardar propuesta", loginToPropose: "Inicia sesión para proponer un nombre", acceptName: "Usar este nombre",
@@ -214,7 +217,7 @@ const ptBr: ObservationFirstRecordDetailCopy = {
   publicationEligible: "Os direitos permitem compartilhar (inclusão no destino não confirmada)",
   publicationConfigured: "Destino configurado (inclusão deste registro não confirmada)",
   publicationPolicyVersion: "Versão da política",
-  back: "Voltar", menu: "Menu", records: "Registros", home: "Início", language: "Idioma", media: "Fotos, vídeo e som", enlargePhoto: "Ver foto ampliada", openVideo: "Abrir vídeo", openAudio: "Abrir áudio", mediaNavigation: "Trocar mídia",
+  back: "Voltar", menu: "Menu", records: "Registros", home: "Início", language: "Idioma", media: "Fotos, vídeo e som", enlargePhoto: "Ver foto ampliada", zoomActual: "Tamanho real", zoomFit: "Ajustar à tela", closeZoom: "Fechar", openVideo: "Abrir vídeo", openAudio: "Abrir áudio", mediaNavigation: "Trocar mídia",
   natureRecord: "Registro da natureza", publicLocation: "Local seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Uma nota breve da IA", aiNextPhotoTitle: "Uma foto que pode ajudar", edit: "Edição detalhada", share: "Compartilhar", updatedNotice: "Alterações salvas.",
   found: "Encontrado neste registro", aiFound: "O que a IA encontrou", learning: "O que podemos saber", aiCandidate: "Candidato encontrado pela IA", communityProposalAvailable: "Há sugestões de nome", candidateTemplate: "Pode ser {name}", openDetails: "Ver detalhes", openAll: "Ver tudo", recordName: "Nome deste registro", photoCandidate: "Candidato a partir da foto",
   distinguishingPoints: "O que observar", shootingAdvice: "Uma foto que pode ajudar", compareCandidates: "Comparar candidatos parecidos", compareCandidatesLead: "As pistas visíveis aparecem junto do que ainda precisa ser confirmado.", candidateEvidence: "Pista", candidateUncertainty: "Ainda não visível", similarPhotosHidden: "{count} fotos parecidas são representadas por uma imagem. Os originais não foram excluídos.", proposals: "Sugestões de nome", proposeName: "Sugerir um nome", proposedName: "Nome", proposalNote: "Motivo ou observação", saveProposal: "Salvar sugestão", loginToPropose: "Entre para sugerir um nome", acceptName: "Usar este nome",
