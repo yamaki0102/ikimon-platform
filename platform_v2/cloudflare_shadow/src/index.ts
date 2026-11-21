@@ -23637,7 +23637,14 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       const copy = observationFirstRecordDetailCopy(recordLang);
       const formatRecordDate = (value: string): string => {
         const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, { timeZone: "Asia/Tokyo" });
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, {
+          timeZone: "Asia/Tokyo",
+          year: "numeric",
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
       };
       const media = [
         ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const, url: item.url })),
@@ -23667,7 +23674,9 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         environment: detail.environmentRecord,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
-          title: item.displayName,
+          title: item.isAwaitingId
+            ? (item.publicAreaLabel || (recordLang === "ja" ? "近くの自然の記録" : "Nearby nature record"))
+            : item.displayName,
           observedLabel: formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),

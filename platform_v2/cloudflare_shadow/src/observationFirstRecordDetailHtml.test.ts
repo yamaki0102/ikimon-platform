@@ -933,6 +933,39 @@ test("record detail uses theme-aware surface tokens, mobile bottom-nav clearance
   assert.match(rendered, /\[data-ai-feedback\]\{[^}]*background:var\(--soft\)/);
 });
 
+test("record detail resolves the 7 UX polish items: open capture, readable media nav, no radio meta, no empty subject row", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({
+    ...detail,
+    owner: false,
+    observations: [{
+      ...detail.observations[0]!,
+      subjectType: "unknown_subject",
+      subjectLabel: "写っているもの",
+      acceptedIdentification: null,
+      communityIdentifications: [],
+      aiSuggestions: [],
+    }],
+  }, {
+    lang: "ja",
+    title: "水辺のトンボ",
+    observedLabel: "2026/11/22 08:15",
+    note: null,
+    publicLocationLabel: "位置をぼかしています",
+    media: [
+      { mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" },
+      { mediaId: "p2", mediaKind: "photo", url: "https://media.example/2.webp" },
+    ],
+    actionNonce: "nonce-7fixes",
+    viewerAuthenticated: false,
+  });
+  assert.match(rendered, /<details class="of-capture" open>/);
+  assert.doesNotMatch(rendered, /\.of-media-nav\{[^}]*position:absolute/);
+  assert.match(rendered, /@media\(min-width:900px\)\{\.of-media-slide img\{width:100%/);
+  assert.doesNotMatch(rendered, /<span>◉<\/span>|<span>◌<\/span>/);
+  assert.doesNotMatch(rendered, /位置はぼかして表示/);
+  assert.match(rendered, /名前はこれから/);
+});
+
 test("existing landscape record without aiFeedback renders grounded environment feedback and avoids absence wording", () => {
   const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
     lang: "ja",
