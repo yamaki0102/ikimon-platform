@@ -387,7 +387,7 @@ ${JAPANESE_HUMAN_TEXT_CONTRACT}`;
 
 export function buildGeminiSummaryRequest(recordId: string, merged: GeminiMergedObservation) {
   const evidence = { ...merged, candidate: merged.candidate, summary: undefined };
-  const prompt = `以下は3つの専門レーン（主対象、別生物、環境）を決定的に統合した写真証拠JSONです。このJSONだけでikimon.life記録ページ向けの短い日本語説明を作ってください。新しい名前や事実を足さず、primaryと別対象を混ぜず、確定同定を避けます。生物が写っている場合は各subjectを1件ずつ説明し、不確実性と次に撮る部位・角度を具体的にしてください。生物が写っていない景色・環境の記録でも、写っている地形・植生・水辺・構造物・光や季節の手がかりを踏まえ、environment_summary と observer_feedback にその場所の見どころや次の写真で変化・つながりが伝わりやすい視点（全景と足元のアップ等）を柔軟に書いてください。環境は写真で見える範囲に限定します。\n${JAPANESE_HUMAN_TEXT_CONTRACT}\n記録ID:${recordId}\n証拠JSON:${JSON.stringify(evidence)}`;
+  const prompt = `以下は3つの専門レーン（主対象、別生物、環境）を決定的に統合した写真証拠JSONです。このJSONだけでikimon.life記録ページ向けの短い日本語説明を作ってください。新しい名前や事実を足さず、primaryと別対象を混ぜず、確定同定を避けます。「画像0」「画像1」やasset_index等の内部番号は絶対に出さず、「1枚目の写真」「別の写真」など自然な日本語で表現してください。「特記事項はありません」等の空の決まり文句は書かないでください。生物が写っている場合は各subjectを1件ずつ説明し、不確実性と次に撮る部位・角度を具体的にしてください。生物が写っていない景色・環境の記録でも、写っている地形・植生・水辺・構造物・光や季節の手がかりを踏まえ、environment_summary と observer_feedback にその場所の見どころや次の写真で変化・つながりが伝わりやすい視点（全景と足元のアップ等）を柔軟に書いてください。環境は写真で見える範囲に限定します。\n${JAPANESE_HUMAN_TEXT_CONTRACT}\n記録ID:${recordId}\n証拠JSON:${JSON.stringify(evidence)}`;
   return { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: generationConfig(GEMINI_SUMMARY_SCHEMA, 2048, 0.15) };
 }
 
