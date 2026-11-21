@@ -1591,3 +1591,18 @@ test("site shell shares one in-flight /api/v1/auth/session?optional=1 promise ac
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(sessionFetchCount, 1, "expected only one /api/v1/auth/session?optional=1 request");
 });
+
+test("language switcher hides languages that are unavailable for the current page", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "用語集",
+    lang: "ja",
+    currentPath: "/ja/learn/glossary",
+    alternateLangs: ["ja"],
+    body: "<p>test</p>",
+  });
+  assert.match(html, /class="lang-switch-link is-active" href="\/ja\/learn\/glossary"/);
+  assert.doesNotMatch(html, /class="lang-switch-link" href="\/en\/"/);
+  assert.doesNotMatch(html, /class="lang-switch-link" href="\/es\/"/);
+  assert.doesNotMatch(html, /class="lang-switch-link" href="\/pt-br\/"/);
+});
