@@ -175,8 +175,14 @@ export function publicObservationAiFeedback(
     const value = safeText(explanation.next_photo);
     return value ? [value] : [];
   })[0] ?? null;
+  const rawObserverFeedback = typeof summary.observer_feedback === "string" ? summary.observer_feedback.trim() : "";
+  const feedback = rawObserverFeedback
+    ? safeText(rawObserverFeedback)
+    : !hasHumanContext && (payload.recordClass === "environment" || payload.recordClass === "environment_landscape" || subjects.length === 0)
+      ? safeText(summary.environment_summary) ?? safeText(summary.narrative)
+      : null;
   return {
-    feedback: safeText(summary.observer_feedback),
+    feedback,
     nextPhoto,
   };
 }

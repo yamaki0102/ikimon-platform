@@ -410,3 +410,15 @@ test("all observation prompts require Japanese human-facing prose", () => {
     assert.match(prompt, /English prose, descriptive phrases, and comparison sentences are forbidden/);
   }
 });
+
+test("summary prompt guides flexible feedback for landscape and environment records", () => {
+  const merged = mergeGeminiObservationEvidence(
+    { ...primary, record_class: "environment", subjects: [] },
+    { ...census, groups: [] },
+    environment,
+    images.length,
+  );
+  const prompt = JSON.stringify(buildGeminiSummaryRequest("record-landscape", merged).contents);
+  assert.match(prompt, /景色・環境/);
+  assert.match(prompt, /observer_feedback/);
+});

@@ -197,3 +197,31 @@ test("mixed-subject guidance selects the mapped bird or plant instead of a perso
     })).nextPhoto, subject.advice);
   }
 });
+
+test("public AI feedback falls back to environment_summary or narrative for landscape records without observer_feedback", () => {
+  const landscapePayload = JSON.stringify({
+    recordClass: "environment",
+    summary: {
+      observer_feedback: "",
+      environment_summary: "水辺にヨシの群落と石積みの護岸が見えます。",
+      narrative: "水辺の環境が写っています。",
+    },
+  });
+  assert.deepEqual(publicObservationAiFeedback(landscapePayload), {
+    feedback: "水辺にヨシの群落と石積みの護岸が見えます。",
+    nextPhoto: null,
+  });
+
+  const narrativeOnlyPayload = JSON.stringify({
+    recordClass: "environment",
+    summary: {
+      observer_feedback: "",
+      environment_summary: "",
+      narrative: "開けた草地と低木の境界が記録されています。",
+    },
+  });
+  assert.deepEqual(publicObservationAiFeedback(narrativeOnlyPayload), {
+    feedback: "開けた草地と低木の境界が記録されています。",
+    nextPhoto: null,
+  });
+});
