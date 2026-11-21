@@ -3797,7 +3797,7 @@ export function globalRecordEntryAsset(): HashedStaticAsset {
   const BASE_PATH = String(__grCfg.basePath || '');
   const CAMERA_COPY = __grCfg.cameraCopy || {};
   const RECORD_TARGETS = __grCfg.recordTargets || {};`;
-  const content = Buffer.from(globalRecordEntryScriptBody(prelude, (key) => `CAMERA_COPY.sourceChoice.${key}`), "utf8");
+  const content = Buffer.from(globalRecordEntryScriptBody(prelude, (key) => `(CAMERA_COPY.sourceChoice || {}).${key}`), "utf8");
   const sha256 = createHash("sha256").update(content).digest("hex");
   cachedGlobalRecordEntryAsset = {
     path: `/assets/ui/global-record-entry.${sha256.slice(0, 12)}.js`,
