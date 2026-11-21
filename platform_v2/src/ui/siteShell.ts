@@ -768,11 +768,11 @@ function renderLangSwitch(currentPath: string, lang: SiteLang, availableLangs: S
   return `<${rootTag} class="${classes.join(" ")}"${desktop ? " data-language-disclosure" : ` role="group" aria-label="${escapeHtml(switchCopy[lang])}"`}>
     <${labelTag} class="lang-switch-label"${desktop ? ` aria-label="${escapeHtml(`${switchCopy[lang]}: ${currentLanguage?.label ?? currentShortLabel}`)}"` : ""}>${desktopSideNavIcon("language")}<span class="lang-switch-current">${escapeHtml(currentShortLabel)}</span></${labelTag}>
     <div class="lang-switch-options">${supportedLanguages
+    .filter((language) => available.has(language.code) || language.code === lang)
     .map((language) => {
       const activeClass = language.code === lang ? " is-active" : "";
-      const targetPath = available.has(language.code) ? currentPath : "/";
       const current = language.code === lang ? ` aria-current="true"` : "";
-      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(targetPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}" title="${escapeHtml(language.label)}"${current}><span class="lang-switch-code">${escapeHtml(language.shortLabel)}</span><span class="lang-switch-name">${escapeHtml(language.label)}</span></a>`;
+      return `<a class="lang-switch-link${activeClass}" href="${escapeHtml(appendLangToHref(currentPath, language.code))}" hreflang="${escapeHtml(language.code)}" lang="${escapeHtml(language.code)}" title="${escapeHtml(language.label)}"${current}><span class="lang-switch-code">${escapeHtml(language.shortLabel)}</span><span class="lang-switch-name">${escapeHtml(language.label)}</span></a>`;
     })
     .join("")}</div>
   </${rootTag}>`;

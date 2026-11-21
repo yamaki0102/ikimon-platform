@@ -1464,6 +1464,44 @@ function publicEntryRedirectResponse(url: URL, nativePathname: string): Response
   });
 }
 
+function barePathJapaneseRedirectResponse(url: URL): Response | null {
+  const langPrefix = publicLangFromPath(url.pathname);
+  if (langPrefix === null) {
+    if (url.pathname === "/observations") {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          location: `/ja/records${url.search}`,
+          "cache-control": "no-store"
+        }
+      });
+    }
+    if (url.pathname !== "/" && !isOriginalUiHtmlPath(url.pathname) && isOriginalUiHtmlPath(`/ja${url.pathname}`)) {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          location: `/ja${url.pathname}${url.search}`,
+          "cache-control": "no-store"
+        }
+      });
+    }
+    return null;
+  }
+  if (langPrefix !== "ja" && !isOriginalUiHtmlPath(url.pathname)) {
+    const stripped = stripPublicLangPrefix(url.pathname);
+    if (isJapaneseLearnHtmlPath(`/ja${stripped}`)) {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          location: `/ja${stripped}${url.search}`,
+          "cache-control": "no-store"
+        }
+      });
+    }
+  }
+  return null;
+}
+
 type ShadowMapGuideSpot = {
   id: string;
   title: string;
@@ -2626,6 +2664,11 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && isNativeRecordsProductView(url)) {
         return getNativeRecordsProductHtml(request, url, env);
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const barePathRedirect = barePathJapaneseRedirectResponse(url);
+        if (barePathRedirect) return barePathRedirect;
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
@@ -22108,12 +22151,14 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
     : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", settings: "Settings", language: "Language" };
   const accountHref = isSignedInShell ? `${prefix}/profile` : `${prefix}/login?redirect=%2Fprofile`;
   const settingsHref = `${prefix}/profile/settings`;
+  const japaneseOnlyLearn = isJapaneseLearnHtmlPath(url.pathname);
   const languageLinks = [
     { code: "JP", name: "日本語", href: "/ja/", active: lang === "ja" },
     { code: "EN", name: "English", href: "/en/", active: lang === "en" },
     { code: "ES", name: "Español", href: "/es/", active: lang === "es" },
     { code: "PT", name: "Português", href: "/pt-br/", active: lang === "pt-br" }
-  ].map((item) => `<a class="cf-header-menu-lang${item.active ? " is-active" : ""}" href="${escapeHtml(item.href)}"${item.active ? " aria-current=\"true\"" : ""}><span>${escapeHtml(item.code)}</span><span>${escapeHtml(item.name)}</span></a>`).join("");
+  ].filter((item) => !japaneseOnlyLearn || item.code === "JP")
+    .map((item) => `<a class="cf-header-menu-lang${item.active ? " is-active" : ""}" href="${escapeHtml(item.href)}"${item.active ? " aria-current=\"true\"" : ""}><span>${escapeHtml(item.code)}</span><span>${escapeHtml(item.name)}</span></a>`).join("");
   const menu = `<details class="cf-header-menu" data-cloudflare-header-menu>
         <summary aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
         <div class="cf-header-menu-panel" role="menu">

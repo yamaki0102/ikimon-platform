@@ -30761,3 +30761,27 @@ test("event template creation preserves the selected template and field through 
   assert.equal(invalidUpdate.status, 400);
   assert.equal(JSON.parse(obs.observationEventSessions.get(activatedSession.sessionId)!.config_json).event_template.key, "ryuyo");
 });
+
+test("bare paths redirect 301 to /ja/... with query preserved, non-ja learn paths redirect to /ja/..., and unknown paths stay 404", async () => {
+  const { env } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production" };
+  for (const [path, expectedLocation] of [
+    ["/privacy", "/ja/privacy"],
+    ["/terms?from=footer", "/ja/terms?from=footer"],
+    ["/faq", "/ja/faq"],
+    ["/learn/glossary?q=oecm", "/ja/learn/glossary?q=oecm"],
+    ["/learn/terms/30by30", "/ja/learn/terms/30by30"],
+    ["/observations?from=line", "/ja/records?from=line"],
+    ["/en/learn/glossary", "/ja/learn/glossary"],
+    ["/es/learn/terms/30by30?utm_source=x", "/ja/learn/terms/30by30?utm_source=x"]
+  ] as const) {
+    const response = await worker.fetch(new Request(`https://ikimon.life${path}`), productionEnv);
+    assert.equal(response.status, 301, `${path} should redirect 301`);
+    assert.equal(response.headers.get("location"), expectedLocation, `${path} location`);
+  }
+
+  for (const unknownPath of ["/does-not-exist", "/en/does-not-exist", "/ja/does-not-exist"]) {
+    const response = await worker.fetch(new Request(`https://ikimon.life${unknownPath}`), productionEnv);
+    assert.equal(response.status, 404, `${unknownPath} should stay 404`);
+  }
+});
