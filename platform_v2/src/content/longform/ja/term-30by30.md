@@ -16,4 +16,10 @@
 - [ネイチャーポジティブ](/learn/terms/nature-positive)
 - [政策・企業活動と自然](/learn/policy-and-business)
 
+## 現地での解説
+
+浜松市都田で愛管株式会社が運営する「連理の木の下で」では、この言葉を現地の取り組みに引き寄せて解説しています。
+
+- [30by30とは？陸と海の30％を守る目標と、面積だけでは足りない理由](https://lenrinokinoshitade.com/articles/thirty-by-thirty-target-three/)
+
 参考: [環境省 30by30](https://www.env.go.jp/nature/biodic/30by30QA.html)

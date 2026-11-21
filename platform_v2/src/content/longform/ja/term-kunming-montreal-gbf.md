@@ -14,4 +14,10 @@
 - [生物多様性](/learn/terms/biodiversity)
 - [生物多様性の基礎](/learn/biodiversity)
 
+## 現地での解説
+
+浜松市都田で愛管株式会社が運営する「連理の木の下で」では、この言葉を現地の取り組みに引き寄せて解説しています。
+
+- [昆明・モントリオール生物多様性枠組とは？世界目標と日本の取組のつながり](https://lenrinokinoshitade.com/articles/kunming-montreal-biodiversity-framework/)
+
 参考: [Kunming-Montreal Global Biodiversity Framework](https://www.unep.org/resources/kunming-montreal-global-biodiversity-framework)

@@ -16,4 +16,10 @@ ZUKAN の記録は、TNFD 準拠を自動で保証するものではありませ
 - [Evidence Tier](/learn/terms/evidence-tier)
 - [政策・企業活動と自然](/learn/policy-and-business)
 
+## 現地での解説
+
+浜松市都田で愛管株式会社が運営する「連理の木の下で」では、この言葉を現地の取り組みに引き寄せて解説しています。
+
+- [TNFDのLEAPとは？自然と会社の仕事を現地で調べる方法](https://lenrinokinoshitade.com/articles/tnfd-leap-field-questions/)
+
 参考: [TNFD Recommendations](https://tnfd.global/publication/recommendations-of-the-taskforce-on-nature-related-financial-disclosures/)
