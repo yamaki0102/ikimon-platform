@@ -310,6 +310,7 @@ test("image fallback verbs next, remove, replace and text-parent act only on dat
   next.nextElementSibling.hidden = true;
   error({ target: next });
   assert.equal(next.hidden, true);
+  assert.equal(next.style.display, "none");
   assert.equal(next.nextElementSibling.hidden, false);
   assert.equal(next.nextElementSibling.style.display, "grid");
   assert.ok(next.nextElementSibling.classes.has("is-visible"));
