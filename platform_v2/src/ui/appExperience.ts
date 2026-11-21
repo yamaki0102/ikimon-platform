@@ -206,6 +206,7 @@ body[data-zukan-design] :is(h1,h2,h3),body[data-zukan-app-experience] :is(h1,h2,
 body[data-zukan-design] :is(a,button,input,textarea,select,summary):focus-visible,body[data-zukan-app-experience] :is(a,button,input,textarea,select,summary):focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
 body[data-zukan-design] a:not([class]),body[data-zukan-app-experience] a:not([class]){color:var(--zukan-link);text-decoration-thickness:max(1px,.08em);text-underline-offset:.15em}
 body[data-zukan-design] a:not([class]):visited,body[data-zukan-app-experience] a:not([class]):visited{color:var(--zukan-link-visited)}
+body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state])[hidden]{display:none}
 body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state]){display:block;border-inline-start:4px solid var(--zukan-status-info);padding:var(--zukan-space-3);border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle)}
 body[data-zukan-design] [role=alert],body[data-zukan-design] [data-zukan-ui-state=error]{border-inline-start-color:var(--zukan-status-error)}
 body[data-zukan-design] [data-zukan-ui-state=warning],body[data-zukan-design] [data-zukan-ui-state=permission]{border-inline-start-color:var(--zukan-status-warning)}
