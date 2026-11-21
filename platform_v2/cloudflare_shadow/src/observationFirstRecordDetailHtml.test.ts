@@ -916,3 +916,19 @@ test("record detail renders an in-page zoomable lightbox for photos and omits it
   assert.doesNotMatch(withoutPhoto, /data-of-photo-trigger/);
   assert.doesNotMatch(withoutPhoto, /data-of-lightbox-script/);
 });
+
+test("record detail uses theme-aware surface tokens, mobile bottom-nav clearance, and distinct AI feedback styling", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "水辺の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [{ mediaId: "asset-photo", mediaKind: "photo", url: "https://media.example/safe-full.webp" }],
+    aiFeedback: "水辺の植物と水面の状態が記録されています。",
+    actionNonce: "nonce-polish",
+  });
+  assert.match(rendered, /\.of-panel[^}]*background:var\(--paper\)/);
+  assert.match(rendered, /\.of-related-card[^}]*background:var\(--paper\)/);
+  assert.match(rendered, /margin-bottom:calc\(88px \+ env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(rendered, /\[data-ai-feedback\]\{[^}]*background:var\(--soft\)/);
+});
