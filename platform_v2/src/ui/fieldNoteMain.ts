@@ -220,7 +220,7 @@ function renderFieldNoteLiteObservationCard(
   const photoUrl = obs.photoUrl ? (toThumbnailUrl(obs.photoUrl, "sm") ?? obs.photoUrl) : null;
   const photoHtml = photoUrl
     ? `<span class="fn-lite-photo">
-        <img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'" />
+        <img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" data-fb="next" data-fb-display="grid" />
         <span class="fn-lite-photo-empty" aria-hidden="true" style="display:none">${escapeHtml(kindLabel.slice(0, 1))}</span>
       </span>`
     : `<span class="fn-lite-photo fn-lite-photo-empty" aria-hidden="true">${escapeHtml(kindLabel.slice(0, 1))}</span>`;

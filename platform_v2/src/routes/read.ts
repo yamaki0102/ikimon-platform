@@ -8167,7 +8167,7 @@ function renderNearbyAreaRecords(options: {
     const badge = nearbyRecordBadge(displayName);
     return `<a class="obs-nearby-card" href="${escapeHtml(href)}">
       ${thumb
-        ? `<img class="obs-area-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.outerHTML='&lt;div class=&quot;obs-nearby-nophoto&quot;&gt;📷&lt;/div&gt;'" />`
+        ? `<img class="obs-area-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" data-fb="replace" data-fb-tag="div" data-fb-class="obs-nearby-nophoto" data-fb-text="📷" />`
         : '<div class="obs-nearby-nophoto">📷</div>'}
       <div class="obs-nearby-body">
         <div class="obs-nearby-title-row">
@@ -9606,7 +9606,7 @@ function renderObservationReadingHero(options: {
           </div>
           <a class="obs-hero-observer" href="${escapeHtml(options.observerHref)}">
             ${options.snapshot.observerAvatarUrl
-              ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(options.snapshot.observerAvatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'obs-hero-avatar',textContent:${JSON.stringify((options.observerDisplay || "?").slice(0, 1))}}))" />`
+              ? `<img class="obs-hero-avatar obs-hero-avatar-img" src="${escapeHtml(options.snapshot.observerAvatarUrl)}" alt="" loading="lazy" data-fb="replace" data-fb-class="obs-hero-avatar" data-fb-text="${escapeHtml((options.observerDisplay || "?").slice(0, 1))}" />`
               : `<span class="obs-hero-avatar">${escapeHtml((options.observerDisplay || "?").slice(0, 1))}</span>`}
             <span>${escapeHtml(options.observerDisplay)}</span>
           </a>
@@ -10072,7 +10072,7 @@ function renderProfileIntro(basePath: string, snapshot: ProfileSnapshot, editabl
   }
   const avatarFallback = (snapshot.displayName || "?").slice(0, 1);
   const avatar = snapshot.avatarUrl
-    ? `<span class="profile-avatar"><img src="${escapeHtml(snapshot.avatarUrl)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'profile-avatar',textContent:${JSON.stringify(avatarFallback)}}))" /></span>`
+    ? `<span class="profile-avatar"><img src="${escapeHtml(snapshot.avatarUrl)}" alt="" loading="lazy" data-fb="replace" data-fb-class="profile-avatar" data-fb-text="${escapeHtml(avatarFallback)}" /></span>`
     : `<span class="profile-avatar">${escapeHtml(avatarFallback)}</span>`;
   return `<section class="section" data-testid="profile-intro">
     <div class="card is-soft">
@@ -10230,7 +10230,7 @@ function renderChannelMediaCard(
   return `<a class="profile-channel-card" href="${escapeHtml(href)}">
     <span class="profile-channel-media">
       ${mediaUrl
-        ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(fallback)}</span>`
+        ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" data-fb="next" /><span hidden>${escapeHtml(fallback)}</span>`
         : `<span>${escapeHtml(fallback)}</span>`}
     </span>
     <span class="profile-channel-body">
@@ -10777,7 +10777,7 @@ function renderProfileLifeList(snapshot: ProfileSnapshot): string {
     <div class="profile-life-grid">
       ${items.map((item) => `<div class="profile-life-card">
         ${item.photoUrl
-          ? `<div class="profile-life-media"><img class="profile-life-thumb" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName)}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><div class="profile-life-placeholder" hidden>Life List</div></div>`
+          ? `<div class="profile-life-media"><img class="profile-life-thumb" src="${escapeHtml(item.photoUrl)}" alt="${escapeHtml(item.displayName)}" loading="lazy" data-fb="next" /><div class="profile-life-placeholder" hidden>Life List</div></div>`
           : `<div class="profile-life-placeholder">Life List</div>`}
         <div class="profile-life-body">
           <strong>${escapeHtml(item.displayName)}</strong>
@@ -11039,7 +11039,7 @@ function renderProfileSettingsForm(basePath: string, snapshot: ProfileSnapshot):
           <label for="profile-avatar">アイコン</label>
           <div class="profile-settings-avatar">
             <div class="profile-settings-avatar-preview" data-avatar-preview>
-              ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" onerror="this.remove();this.parentElement.textContent=${escapeHtml(JSON.stringify(avatarFallback))}" />` : escapeHtml(avatarFallback)}
+              ${snapshot.avatarUrl ? `<img src="${escapeHtml(snapshot.avatarUrl)}" alt="" data-fb="text-parent" data-fb-text="${escapeHtml(avatarFallback)}" />` : escapeHtml(avatarFallback)}
             </div>
             <div class="profile-settings-avatar-control">
               <label class="profile-settings-file-picker"><span>画像を選ぶ</span><input id="profile-avatar" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" /></label>

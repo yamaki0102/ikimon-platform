@@ -1547,7 +1547,7 @@ function renderLandingGuideOutcomes(options: LandingTopRenderOptions): string {
     const imageUrl = itemImageUrl({ photoUrl: summary.mediaThumbUrl }, "md");
     const avatarUrl = itemImageUrl({ photoUrl: summary.observerAvatarUrl }, "sm");
     const imageHtml = imageUrl
-      ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('is-empty');this.remove();" />`
+      ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=":parent" data-fb-host-add="is-empty" />`
       : `<span aria-hidden="true">GUIDE</span>`;
     return `<a class="prototype-guide-outcome-card is-${escapeHtml(summary.primaryTheme)}" href="${escapeHtml(landingHref(basePath, lang, summary.href))}" data-kpi-action="landing:guide-outcomes:summary">
       <i class="prototype-guide-outcome-thumb">${imageHtml}</i>
@@ -1568,7 +1568,7 @@ function renderLandingGuideOutcomes(options: LandingTopRenderOptions): string {
     const imageUrl = itemImageUrl({ photoUrl: group.photoUrl }, "md");
     const actor = `${group.observerName} がガイドを使って`;
     const imageHtml = imageUrl
-      ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.classList.add('is-empty');this.remove();" />`
+      ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" data-fb="remove" data-fb-host=":parent" data-fb-host-add="is-empty" />`
       : `<span aria-hidden="true">GUIDE</span>`;
     return `<a class="prototype-guide-outcome-card" href="${escapeHtml(landingHref(basePath, lang, group.href))}" data-kpi-action="landing:guide-outcomes:card">
       <i class="prototype-guide-outcome-thumb">${imageHtml}</i>

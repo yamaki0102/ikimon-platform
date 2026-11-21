@@ -108,7 +108,7 @@ function renderNotesMiniCard(
   const photoCount = notesPhotoCount(obs);
   const entryKind = notesEntryKind(obs, lang);
   const photo = photoUrls[0]
-    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false" /><span hidden>${escapeHtml(entryKind.slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(formatNotesNumber(photoCount, lang))}</b>` : ""}</span>`
+    ? `<span class="notes-thumb"><img src="${escapeHtml(photoUrls[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" data-fb="next" /><span hidden>${escapeHtml(entryKind.slice(0, 1))}</span>${photoCount > 1 ? `<b class="notes-thumb-count">${escapeHtml(formatNotesNumber(photoCount, lang))}</b>` : ""}</span>`
     : `<span class="notes-thumb notes-thumb-empty">${escapeHtml(entryKind.slice(0, 1))}</span>`;
   const observerLine = obs.observerName ? `${formatActorDisplay(obs.observerName, lang)} · ` : "";
   const needsNameLine = lang === "ja" ? "名前を見返す余地あり" : lang === "es" ? "Nombre por revisar" : lang === "pt-BR" ? "Nome a revisar" : "Name to review";
@@ -246,9 +246,9 @@ function renderNotesLibraryCard(
   const searchable = `${displayName} ${placeLine} ${obs.observerName} ${dateLabel} ${sourceLabel} ${civicLabel}`.toLowerCase();
   const visiblePhotos = photoUrls.slice(0, 4);
   const photo = visiblePhotos.length > 1
-    ? `<span class="notes-library-photo-stack">${visiblePhotos.map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(`${displayName} ${notesPhotoAltIndex(index + 1, lang)}`)}" loading="lazy" decoding="async" onerror="this.remove()" />`).join("")}</span><b class="notes-library-photo-count">${escapeHtml(notesPhotoCountLabel(photoCount, lang))}</b>`
+    ? `<span class="notes-library-photo-stack">${visiblePhotos.map((url, index) => `<img src="${escapeHtml(url)}" alt="${escapeHtml(`${displayName} ${notesPhotoAltIndex(index + 1, lang)}`)}" loading="lazy" decoding="async" data-fb="remove" />`).join("")}</span><b class="notes-library-photo-count">${escapeHtml(notesPhotoCountLabel(photoCount, lang))}</b>`
     : visiblePhotos[0]
-      ? `<img src="${escapeHtml(visiblePhotos[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.notes-library-card').classList.add('is-photo-missing');this.remove()" />${photoCount > 1 ? `<b class="notes-library-photo-count">${escapeHtml(notesPhotoCountLabel(photoCount, lang))}</b>` : ""}`
+      ? `<img src="${escapeHtml(visiblePhotos[0])}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".notes-library-card" data-fb-host-add="is-photo-missing" />${photoCount > 1 ? `<b class="notes-library-photo-count">${escapeHtml(notesPhotoCountLabel(photoCount, lang))}</b>` : ""}`
     : `<span class="notes-library-placeholder">${escapeHtml(sourceLabel.slice(0, 1))}</span>`;
   const ownerMenu = canOwnerHide
     ? `<details class="notes-library-card-menu">
@@ -1745,7 +1745,7 @@ function renderRecordsPostCard(
     ? ` data-records-identify-card data-identify-title="${escapeHtml(displayName)}" data-identify-meta="${escapeHtml(metaLine)}" data-identify-source="${escapeHtml(sourceLabel)}" data-identify-candidate="${escapeHtml(card.postCandidateName ?? "")}" data-identify-default-name="${escapeHtml(identifyDefaultName)}" data-identify-default-rank="${escapeHtml(card.aiCandidateRank ?? card.featuredTaxonRank ?? "")}" data-identify-media="${escapeHtml(mediaUrl ?? "")}" data-identify-href="${escapeHtml(href)}" data-identify-endpoint="${escapeHtml(identifyEndpoint)}" data-dispute-endpoint="${escapeHtml(disputeEndpoint)}" data-hold-endpoint="${escapeHtml(holdEndpoint)}" data-reference-candidates-endpoint="${escapeHtml(referenceCandidatesEndpoint)}"`
     : "";
   const thumbHtml = mediaUrl
-    ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.closest('.records-post-card').classList.add('is-media-missing');this.remove()" />`
+    ? `<img src="${escapeHtml(mediaUrl)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" data-fb="remove" data-fb-host=".records-post-card" data-fb-host-add="is-media-missing" />`
     : `<span class="records-post-empty-thumb" aria-hidden="true"></span>`;
   const canOwnerHide = options.locationMode === "owner" && card.entryType !== "identification";
   const hideEndpoint = withBasePath(basePath, `/api/v1/observations/${encodeURIComponent(card.visitId)}/hide`);
