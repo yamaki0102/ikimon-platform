@@ -2967,6 +2967,7 @@ ${configPrelude}
     if (cameraVideo) cameraVideo.hidden = true;
     if (empty) empty.hidden = true;
     syncPhotoDraftControls();
+    if (typeof FileReader === 'function') accepted.forEach((file) => { void preparePhotoUpload(file).catch(() => undefined); });
     const dropped = incoming.length - accepted.length;
     setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で投稿、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
     schedulePhotoPreviewWrite();
