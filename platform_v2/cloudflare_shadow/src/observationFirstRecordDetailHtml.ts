@@ -318,13 +318,45 @@ function renderAiCandidateComparison(
   }).join("")}</ul></section>`;
 }
 
+function environmentFallbackFeedback(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  copy: ObservationFirstRecordDetailCopy,
+  lang: ObservationRecordLang,
+): string | null {
+  const activeCount = detail.observations.filter((card) => card.state === "active").length;
+  if (activeCount > 0 && presentation.detectionState !== "not_detected") return null;
+  const env = presentation.environment;
+  const placeHeadline = env?.place_type && env.place_type !== "unknown" ? copy.environmentHeadlines[env.place_type] : null;
+  const detailLabels = (["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).flatMap((field) => {
+    const val = env?.[field];
+    const label = val && val !== "unknown" ? copy.environmentValues[val] : null;
+    return label ? [label] : [];
+  });
+  const sceneLabels = (presentation.sceneElements ?? derivedSceneElements(env))
+    .filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item])
+    .map((item) => copy.sceneElements[item]);
+  const parts = [...new Set([...detailLabels, ...sceneLabels])].slice(0, 3);
+  if (!placeHeadline && parts.length === 0) return null;
+  const sep = lang === "ja" ? "・" : ", ";
+  if (lang === "ja") {
+    const summary = placeHeadline && parts.length > 0
+      ? `${placeHeadline}（${parts.join(sep)}）`
+      : placeHeadline ?? `${parts.join(sep)}のようすが写っています`;
+    return `${summary}。全景に加えて足元や周囲との境目も残すと、季節や場所の変化を比べやすくなります。`;
+  }
+  const summary = placeHeadline && parts.length > 0
+    ? `${placeHeadline} (${parts.join(sep)}).`
+    : placeHeadline ? `${placeHeadline}.` : `${parts.join(sep)}.`;
+  return summary;
+}
+
 function renderAiFeedback(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
   copy: ObservationFirstRecordDetailCopy,
 ): string {
   const lang = presentation.lang ?? "ja";
-  const feedback = presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null;
   const subjects = detail.observations.filter((card) => card.state === "active").flatMap((card) => [
     ...card.aiSuggestions,
     ...(card.acceptedIdentification ? [card.acceptedIdentification] : []),
@@ -334,6 +366,8 @@ function renderAiFeedback(
   const eligible = (names: Array<string | null>) => isPublicObservationAiSubjectEligible(names[0], presentation.aiPersonPrimaryNames, names[1]);
   const humanOnly = subjects.some((names) => !eligible(names))
     && !subjects.some((names) => eligible(names) && names.some((name) => publicSubjectName(name)));
+  const feedback = (presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null)
+    ?? (!humanOnly ? environmentFallbackFeedback(detail, presentation, copy, lang) : null);
   const nextPhoto = !humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null;
   if (!feedback && !nextPhoto) return "";
   return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${feedback ? `<p>${escapeHtml(feedback)}</p>` : ""}${nextPhoto ? `<p><strong>${escapeHtml(copy.aiNextPhotoTitle)}</strong><br>${escapeHtml(nextPhoto)}</p>` : ""}</section>`;

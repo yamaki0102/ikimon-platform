@@ -224,4 +224,19 @@ test("public AI feedback falls back to environment_summary or narrative for land
     feedback: "開けた草地と低木の境界が記録されています。",
     nextPhoto: null,
   });
+
+  const cuesOnlyPayload = JSON.stringify({
+    recordClass: "environment",
+    detectionState: "not_detected",
+    environment: {
+      cues: [
+        { label: "水辺", evidence: "水面と岸辺の草が見えます" },
+        { label: "低い草地", evidence: "" },
+      ],
+    },
+  });
+  assert.deepEqual(publicObservationAiFeedback(cuesOnlyPayload), {
+    feedback: "水辺（水面と岸辺の草が見えます）・低い草地が記録されています。",
+    nextPhoto: null,
+  });
 });
