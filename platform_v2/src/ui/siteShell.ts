@@ -1739,16 +1739,18 @@ ${configPrelude}
   };
   const sendGlobalRecordEvent = (eventName, actionKey, metadata) => {
     try {
+      const originalEventName = String(eventName || 'ui_action').slice(0, 64);
+      const hasActionKey = Boolean(actionKey);
       const payload = {
-        eventName: String(eventName || 'ui_action').slice(0, 64),
+        eventName: 'funnel_step',
         pagePath: location.pathname + location.search,
         routeKey: 'global_record_capture',
-        actionKey: String(actionKey || eventName || 'global_record_action').slice(0, 128),
+        actionKey: String(hasActionKey ? actionKey : originalEventName || 'global_record_action').slice(0, 128),
         metadata: Object.assign({
           kind: activeKind || '',
           lang: document.documentElement.lang || 'ja',
           ts: new Date().toISOString(),
-        }, metadata || {}),
+        }, metadata || {}, hasActionKey ? { event: originalEventName } : {}),
       };
       fetch(apiPath('/api/v1/ui-kpi/events'), {
         method: 'POST',
@@ -1758,7 +1760,7 @@ ${configPrelude}
         credentials: 'same-origin',
       }).catch(() => undefined);
       if (window.ikimonExternalAnalytics && typeof window.ikimonExternalAnalytics.track === 'function') {
-        window.ikimonExternalAnalytics.track(payload.eventName, payload);
+        window.ikimonExternalAnalytics.track(originalEventName, payload);
       }
     } catch (_) {}
   };

@@ -1,8 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { loadConfig } from "../config.js";
 import { checkDatabase } from "../db.js";
-import { registerGlobalRecordPreviewDraftHtmlPatch } from "../services/globalRecordPreviewDraftHtmlPatch.js";
-import { registerGlobalRecordSourceChoiceHtmlPatch } from "../services/globalRecordSourceChoiceHtmlPatch.js";
 import { registerLightPostingHtmlPatch } from "../services/lightPostingHtmlPatch.js";
 import { registerRecordRecoveryHtmlPatch } from "../services/recordRecoveryHtmlPatch.js";
 import { getRuntimeVersionSnapshot } from "../services/runtimeVersion.js";
@@ -10,8 +8,6 @@ import { getRuntimeVersionSnapshot } from "../services/runtimeVersion.js";
 export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
   // Registered before read routes so materialized HTML and live HTML share the same lightweight posting contract.
   registerLightPostingHtmlPatch(app);
-  registerGlobalRecordSourceChoiceHtmlPatch(app);
-  registerGlobalRecordPreviewDraftHtmlPatch(app);
   registerRecordRecoveryHtmlPatch(app);
 
   app.get("/healthz", async () => {

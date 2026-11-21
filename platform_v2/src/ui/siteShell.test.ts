@@ -5,7 +5,6 @@ import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
 import { globalRecordEntryAsset, renderSiteDocument } from "./siteShell.js";
 import { renderPublicContextActions } from "./collaborationContext.js";
-import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
 import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
 
 function withExternalRecordScript(html: string): string {
@@ -438,6 +437,15 @@ test("global record entry is the external hashed asset by default and inlines on
   const inline = renderSiteDocument({ basePath: "", title: "Record", body: "<p>x</p>", lang: "ja", currentPath: "/?lang=ja", externalizeGlobalRecordScript: false });
   assert.doesNotMatch(inline, /global-record-config|global-record-entry\./);
   assert.ok(inline.includes("const CAMERA_START_TIMEOUT_MS"));
+});
+
+test("global record capture script posts only server-accepted KPI event names", () => {
+  const asset = globalRecordEntryAsset().content.toString("utf8");
+  const accepted = new Set(["first_action", "task_completion", "section_view", "read_depth", "primary_cta_click", "map_area_detail_open", "place_profile_open", "place_theme_open", "place_image_error", "place_search_complete", "selected_place_cta_click", "funnel_step", "funnel_error"]);
+  const posted = [...asset.matchAll(/eventName: '([a-z_]+)'/g)].map((match) => match[1]!);
+  assert.ok(posted.includes("funnel_step"));
+  for (const name of posted) assert.ok(accepted.has(name), name);
+  assert.doesNotMatch(asset, /eventName: (?!')/);
 });
 
 test("site shell renders a global record footer nav outside the record flow", () => {
@@ -1069,7 +1077,7 @@ class CameraTestNode {
 // network, browser permission, upload, or wall-clock timer is used by this fixture.
 function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice = true) {
   const rendered = renderRecordPage({ basePath: "", title: "Camera", body: "<p>Camera</p>", lang, currentPath: `/${lang}/learn/field-loop` });
-  const html = compactMaterializedCapture(sourceChoice ? patchGlobalRecordSourceChoiceHtml(patchGlobalRecordSourceChoiceHtml(rendered)) : rendered);
+  const html = compactMaterializedCapture(rendered);
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
   assert.ok(script);
@@ -1307,7 +1315,7 @@ test("unsupported macro focus releases the stream and the error button reuses on
     runtime.nativeFallback?.click();
     assert.equal(runtime.photoInput?.clicks, 1);
     assert.equal(runtime.requests.length, 1, "device camera reuses the file input instead of getUserMedia");
-    assert.equal(runtime.events.filter((event) => event.eventName === "native_camera_tap").length, 1);
+    assert.equal(runtime.events.filter((event) => event.eventName === "funnel_step" && event.metadata.event === "native_camera_tap").length, 1);
   }
   const regularCamera = cameraRuntime("en", false);
   regularCamera.triggers.photo!.click();
