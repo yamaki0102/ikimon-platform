@@ -15,5 +15,5 @@ test("mobile footer quick record saves a reviewed photo with one tap", () => {
 
 test("reviewed photos make save the primary action and keep add-another secondary", () => {
   assert.match(source, /if \(files\.length > 0\) \{\s*setFooterActionMode\('submit'\);/);
-  assert.match(source, /右で記録、左でもう1枚撮れます。/);
+  assert.match(source, /右で投稿、左でもう1枚撮れます。/);
 });

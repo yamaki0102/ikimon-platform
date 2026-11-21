@@ -3,13 +3,28 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
-import { renderSiteDocument } from "./siteShell.js";
+import { globalRecordEntryAsset, renderSiteDocument } from "./siteShell.js";
 import { renderPublicContextActions } from "./collaborationContext.js";
 import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
 import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
 
+function withExternalRecordScript(html: string): string {
+  const asset = globalRecordEntryAsset().content.toString("utf8");
+  return html.replace(/<script src="[^"]*global-record-entry\.[a-f0-9]{12}\.js" defer><\/script>/, () => `<script>
+${asset}
+</script>`);
+}
+
+function renderRecordPage(options: Parameters<typeof renderSiteDocument>[0]): string {
+  return withExternalRecordScript(renderSiteDocument(options));
+}
+
+function recordConfigJson(html: string): string {
+  return html.match(/<script type="application\/json" id="global-record-config">([\s\S]*?)<\/script>/)?.[1] ?? "";
+}
+
 test("site shell renders the optional public-context handoff slot with its scoped behavior", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Public source",
     body: "<p>body</p>",
@@ -30,13 +45,13 @@ test("site shell renders the optional public-context handoff slot with its scope
 });
 
 test("site shell keeps the keyboard skip link at the 44px target contract", () => {
-  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
+  const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
   assert.match(html, /\.skip-link \{[\s\S]*?min-height: 44px;[\s\S]*?display: inline-flex;[\s\S]*?align-items: center;/);
 });
 
 test("site shell applies the shared design foundation once to both product and adjacent routes", () => {
   for (const currentPath of ["/ja/", "/ja/learn/field-loop"]) {
-    const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
+    const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
     assert.match(html, /<body data-zukan-design="v1"/);
     assert.equal((html.match(/--zukan-action-primary:#245c3a/g) ?? []).length, 1);
     assert.match(html, /--ikimon-page-max: var\(--zukan-content-max\);/);
@@ -45,7 +60,7 @@ test("site shell applies the shared design foundation once to both product and a
 });
 
 test("desktop shell controls keep a real 44px target contract", () => {
-  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
+  const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
   assert.match(html, /\.desktop-side-nav-toggle \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;[\s\S]*?flex: 0 0 44px;/);
   assert.match(html, /\.site-search \{[\s\S]*?min-height: 44px;[\s\S]*?padding: 0 14px;/);
   assert.match(html, /\.site-search-input \{[\s\S]*?min-height: 44px;/);
@@ -59,7 +74,7 @@ test("desktop shell controls keep a real 44px target contract", () => {
 });
 
 test("site shell hydrates the login link from the v2 session endpoint", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<p>body</p>",
@@ -161,7 +176,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /const resolvedLocation = await requestCaptureLocation\(true\) \|\| metadata\.location;/);
   assert.match(html, /let latestCaptureLocationAt = 0;/);
   assert.match(html, /maximumAge: forceFresh \? 0 : 15000/);
-  assert.match(html, /latestCaptureLocation = null;\s+latestCaptureLocationAt = 0;\s+void requestCaptureLocation\(true\);/);
+  assert.match(html, /latestCaptureLocation = null;\s+latestCaptureLocationAt = 0;\s+\}/);
+  assert.doesNotMatch(html, /void requestCaptureLocation\(true\);/);
   assert.match(html, /button\.addEventListener\('click', \(event\) => \{\s+event\.preventDefault\(\);/);
   assert.match(html, /ikimon-app-outbox-v1/);
   assert.match(html, /window\.ikimonRequestAppOutboxSync/);
@@ -212,7 +228,7 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
 });
 
 test("site shell replaces existing and empty script nonce attributes with the active CSP nonce", () => {
-  const html = runWithCspNonce("shell-test-nonce", () => renderSiteDocument({
+  const html = runWithCspNonce("shell-test-nonce", () => renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<script nonce=\"stale-shell-nonce\">window.staleNonceScript = true;</script><script nonce=\"\">window.emptyNonceScript = true;</script><script>window.missingNonceScript = true;</script>",
@@ -227,7 +243,7 @@ test("site shell replaces existing and empty script nonce attributes with the ac
 });
 
 test("app records search belongs to the content, with public guest navigation", () => {
-  const html = renderSiteDocument({basePath: "", title: "Records", body: "<p>records</p>", lang: "ja", currentPath: "/ja/records?view=public&q=bird"});
+  const html = renderRecordPage({basePath: "", title: "Records", body: "<p>records</p>", lang: "ja", currentPath: "/ja/records?view=public&q=bird"});
   assert.doesNotMatch(html, /<form class="site-search/);
   assert.doesNotMatch(html, /<aside class="desktop-side-nav/);
   assert.match(html, /data-auth-guest-href="\/ja\/records\?view=public"/);
@@ -236,7 +252,7 @@ test("app records search belongs to the content, with public guest navigation", 
 });
 
 test("mobile menu panel can render outside the sticky header", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<p>body</p>",
@@ -255,7 +271,7 @@ test("mobile menu panel can render outside the sticky header", () => {
 });
 
 test("language switch is user-facing while SEO stays Japanese canonical", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<p>body</p>",
@@ -280,7 +296,7 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
 });
 
 test("language disclosure preserves localized deep links and always-visible mobile choices", () => {
-  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "es", currentPath: "/es/learn/field-loop?tab=places&q=renri#nearby" });
+  const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "es", currentPath: "/es/learn/field-loop?tab=places&q=renri#nearby" });
   const desktop = html.match(/<details class="lang-switch lang-switch-desktop"[\s\S]*?<\/details>/)?.[0];
   const mobile = html.match(/<div class="lang-switch lang-switch-mobile"[\s\S]*?<\/div>\s*<\/div>/)?.[0];
   assert.ok(desktop);
@@ -299,7 +315,7 @@ test("language disclosure preserves localized deep links and always-visible mobi
 });
 
 test("language disclosure closes with Escape and restores the trigger focus", () => {
-  const html = renderSiteDocument({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
+  const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja" });
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .find((match) => match[1]!.includes("const disclosures = document.querySelectorAll('[data-language-disclosure]')"))?.[1];
   assert.ok(script);
@@ -332,7 +348,7 @@ test("language disclosure closes with Escape and restores the trigger focus", ()
 });
 
 test("site shell normalizes service name in visible page titles", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "地域カード管理 — ikimon.life",
     body: "<p>body</p>",
@@ -346,7 +362,7 @@ test("site shell normalizes service name in visible page titles", () => {
 });
 
 test("browser language handling asks before switching away from Japanese SEO entry", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<p>body</p>",
@@ -367,7 +383,7 @@ test("browser language handling asks before switching away from Japanese SEO ent
 });
 
 test("app install prompt stores beforeinstallprompt without immediate display", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Record",
     body: "<p>record</p>",
@@ -385,7 +401,7 @@ test("app install prompt stores beforeinstallprompt without immediate display", 
 });
 
 test("app install prompt excludes root while preserving localized return-value surfaces and mobile defense", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Records",
     body: "<p>records</p>",
@@ -410,8 +426,22 @@ test("app install prompt excludes root while preserving localized return-value s
   assert.match(html, /if \(!promptEl \|\| !deferredPrompt \|\| isStandalone\(\) \|\| !isMobileInstallSurface\(\) \|\| !isReturnValueInstallSurface\(\)\) return;/);
 });
 
+test("global record entry is the external hashed asset by default and inlines only when disabled", () => {
+  const asset = globalRecordEntryAsset();
+  const external = renderSiteDocument({ basePath: "", title: "Record", body: "<p>x</p>", lang: "ja", currentPath: "/?lang=ja" });
+  assert.ok(external.includes(`<script src="${asset.path}" defer></script>`));
+  assert.doesNotMatch(external, /const CAMERA_START_TIMEOUT_MS/);
+  assert.ok(asset.content.toString("utf8").includes("const CAMERA_START_TIMEOUT_MS"));
+  assert.equal(JSON.parse(recordConfigJson(external)).recordTargets.photo, "/ja/record?start=photo");
+  const en = JSON.parse(recordConfigJson(renderSiteDocument({ basePath: "", title: "Record", body: "<p>x</p>", lang: "en", currentPath: "/en/" })));
+  assert.equal(typeof en.cameraCopy.sourceChoice, "object");
+  const inline = renderSiteDocument({ basePath: "", title: "Record", body: "<p>x</p>", lang: "ja", currentPath: "/?lang=ja", externalizeGlobalRecordScript: false });
+  assert.doesNotMatch(inline, /global-record-config|global-record-entry\./);
+  assert.ok(inline.includes("const CAMERA_START_TIMEOUT_MS"));
+});
+
 test("site shell renders a global record footer nav outside the record flow", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<p>body</p>",
@@ -423,7 +453,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 5);
   assert.equal(html.match(/data-global-record-input="gallery"/g)?.length, 1);
   assert.match(html, /data-global-record-input="gallery" type="file" accept="image\/\*" multiple/);
-  assert.doesNotMatch(html, /capture="environment"/);
+  assert.equal(html.match(/capture="environment"/g)?.length, 1);
+  assert.match(html, /data-global-record-input="photo" type="file" accept="image\/\*" capture="environment" hidden/);
+  assert.doesNotMatch(html, /data-global-record-input="gallery"[^>]*capture=/);
   assert.match(html, /files: draftFiles/);
   assert.match(html, /Array\.from\(input\.files\)/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
@@ -494,7 +526,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
   assert.doesNotMatch(html, /もう一度押すと記録/);
   assert.match(html, /if \(files\.length > 0\) \{\s+setFooterActionMode\('submit'\);/);
-  assert.match(html, /右で記録、左でもう1枚撮れます。/);
+  assert.match(html, /右で投稿、左でもう1枚撮れます。/);
   assert.match(html, /必要なら使う区間だけ選べます/);
   assert.match(html, /top: calc\(max\(12px, env\(safe-area-inset-top\)\) \+ var\(--global-record-visual-top, 0px\)\)/);
   assert.match(html, /height: clamp\(260px, min\(72dvh, calc\(var\(--global-record-visual-height, 100dvh\) - 212px\)\), 760px\)/);
@@ -531,7 +563,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
   assert.match(html, /撮影地点を確認しています/);
-  assert.match(html, /位置情報を取得できなかったため、写真を保持して記録画面へ移動します。/);
+  assert.match(html, /場所なしで投稿します\.\.\./);
   assert.match(html, /global_record_capture_latency/);
   assert.match(html, /capture_to_review_ms/);
   assert.doesNotMatch(html, /gps_wait_ms/);
@@ -608,7 +640,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
 });
 
 test("site shell moves the shared primary nav to the bottom across the tablet breakpoint", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Learn",
     body: "<h1>Learn</h1>",
@@ -625,7 +657,7 @@ test("site shell moves the shared primary nav to the bottom across the tablet br
 });
 
 test("primary mobile navigation is capture-first and keeps camera separate from the gallery", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Home",
     body: "<p>home</p>",
@@ -662,7 +694,7 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   assert.match(html, /capture_completed/);
   assert.match(html, /capture_saved/);
 
-  const profileHtml = renderSiteDocument({
+  const profileHtml = renderRecordPage({
     basePath: "",
     title: "Profile",
     body: "<p>profile</p>",
@@ -683,7 +715,7 @@ test("browse navigation gives active state to the matching destination", () => {
   ];
 
   for (const surface of surfaces) {
-    const html = renderSiteDocument({
+    const html = renderRecordPage({
       basePath: "",
       title: surface.label,
       body: "<p>surface</p>",
@@ -706,7 +738,7 @@ test("browse navigation gives active state to the matching destination", () => {
 });
 
 test("logo is the auth-aware home entry and exposes its privacy-safe KPI", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Records",
     body: "<p>records</p>",
@@ -718,7 +750,7 @@ test("logo is the auth-aware home entry and exposes its privacy-safe KPI", () =>
 });
 
 test("site shell minimal chrome keeps guest top visually quiet", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Home",
     body: "<h1>記録を見る</h1>",
@@ -741,7 +773,7 @@ test("site shell minimal chrome keeps guest top visually quiet", () => {
 });
 
 test("site shell home chrome emits state-aware guest and member controls without the global launcher", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Home",
     body: '<h1>Home</h1>',
@@ -759,7 +791,7 @@ test("site shell home chrome emits state-aware guest and member controls without
 });
 
 test("site shell localizes the mobile global record launcher", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Test",
     body: "<p>body</p>",
@@ -782,21 +814,21 @@ test("site shell localizes the mobile global record launcher", () => {
 });
 
 test("site shell excludes the global record launcher from record surfaces", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Record",
     body: "<p>record</p>",
     lang: "ja",
     currentPath: "/record?lang=ja",
   });
-  const localizedHtml = renderSiteDocument({
+  const localizedHtml = renderRecordPage({
     basePath: "",
     title: "Record",
     body: "<p>record</p>",
     lang: "ja",
     currentPath: "/ja/record?start=photo",
   });
-  const subpathHtml = renderSiteDocument({
+  const subpathHtml = renderRecordPage({
     basePath: "",
     title: "Record draft",
     body: "<p>record draft</p>",
@@ -813,7 +845,7 @@ test("site shell excludes the global record launcher from record surfaces", () =
 });
 
 test("site shell treats guide outcomes as a reading surface with quick record actions", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Guide outcomes",
     body: "<p>outcomes</p>",
@@ -826,7 +858,7 @@ test("site shell treats guide outcomes as a reading surface with quick record ac
 });
 
 test("desktop directory omits the duplicate primary rail while keeping its unique routes", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Learn",
     body: "<p>learn</p>",
@@ -857,7 +889,7 @@ test("desktop directory omits the duplicate primary rail while keeping its uniqu
     { lang: "es" as const, href: "/es/guide", label: "Guia en vivo" },
     { lang: "pt-BR" as const, href: "/pt-br/guide", label: "Guia ao vivo" },
   ]) {
-    const localizedHtml = renderSiteDocument({
+    const localizedHtml = renderRecordPage({
       basePath: "",
       title: "Learn",
       body: "<p>learn</p>",
@@ -871,7 +903,7 @@ test("desktop directory omits the duplicate primary rail while keeping its uniqu
 });
 
 test("desktop side nav is opaque and footerless on immersive surfaces", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Map",
     body: "<p>map</p>",
@@ -890,14 +922,14 @@ test("desktop side nav is opaque and footerless on immersive surfaces", () => {
 });
 
 test("subpages use centered width contracts instead of homepage width", () => {
-  const readingHtml = renderSiteDocument({
+  const readingHtml = renderRecordPage({
     basePath: "",
     title: "Learn",
     body: "<p>learn</p>",
     lang: "ja",
     currentPath: "/learn/field-loop?lang=ja",
   });
-  const wideHtml = renderSiteDocument({
+  const wideHtml = renderRecordPage({
     basePath: "",
     title: "Observations",
     body: "<p>observations</p>",
@@ -916,7 +948,7 @@ test("subpages use centered width contracts instead of homepage width", () => {
 });
 
 test("desktop shell keeps the side nav expandable at tight desktop widths", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Home",
     body: "<p>home</p>",
@@ -951,7 +983,7 @@ test("major routes keep route-metadata layout contracts", () => {
 
   assert.deepEqual(snapshot, Object.fromEntries(cases.map((entry) => [entry.path, entry.layout])));
   for (const entry of cases) {
-    const html = renderSiteDocument({
+    const html = renderRecordPage({
       basePath: "",
       title: entry.path,
       body: "<p>body</p>",
@@ -964,7 +996,7 @@ test("major routes keep route-metadata layout contracts", () => {
 
 
 test("global record draft handoff includes a recovery source", () => {
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "test",
     body: "<p>test</p>",
@@ -974,7 +1006,7 @@ test("global record draft handoff includes a recovery source", () => {
   assert.match(html, /const withDraftParams = \(href, kind, source, continuationToken\) =>/);
   assert.match(html, /url\.searchParams\.set\('source', recoverySource\)/);
   assert.match(html, /url\.searchParams\.set\('draft_token', String\(continuationToken\)\)/);
-  assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'location_denied'\)/);
+  assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'global_capture'\)/);
   assert.match(html, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
 });
 
@@ -1036,7 +1068,7 @@ class CameraTestNode {
 // Execute the emitted production script through its DOM listeners. No camera,
 // network, browser permission, upload, or wall-clock timer is used by this fixture.
 function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice = true) {
-  const rendered = renderSiteDocument({ basePath: "", title: "Camera", body: "<p>Camera</p>", lang, currentPath: `/${lang}/learn/field-loop` });
+  const rendered = renderRecordPage({ basePath: "", title: "Camera", body: "<p>Camera</p>", lang, currentPath: `/${lang}/learn/field-loop` });
   const html = compactMaterializedCapture(sourceChoice ? patchGlobalRecordSourceChoiceHtml(patchGlobalRecordSourceChoiceHtml(rendered)) : rendered);
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
@@ -1072,6 +1104,7 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
     "[data-global-record-input]": photoInput ? [galleryInput, photoInput] : [galleryInput],
     "[data-global-record-os-camera]": native && nativeFallback ? [native, nativeFallback] : [],
   };
+  const configJson = recordConfigJson(html);
   const documentElement = new CameraTestNode();
   documentElement.lang = lang;
   const documentEvents = new CameraTestNode();
@@ -1081,6 +1114,7 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
     visibilityState: "visible",
     querySelector: (selector: string) => elements.get(selector) ?? null,
     querySelectorAll: (selector: string) => nodeLists[selector] ?? [],
+    getElementById: (id: string) => (id === "global-record-config" ? { textContent: configJson } : null),
     addEventListener: documentEvents.addEventListener.bind(documentEvents),
   };
   const requests: Array<ReturnType<typeof deferred<ReturnType<typeof cameraTestStream>>> & { constraints: { audio: boolean } }> = [];
@@ -1276,12 +1310,14 @@ test("unsupported macro focus releases the stream and the error button reuses on
     assert.equal(runtime.events.filter((event) => event.eventName === "native_camera_tap").length, 1);
   }
   const regularCamera = cameraRuntime("en", false);
-  regularCamera.startPhoto();
+  regularCamera.triggers.photo!.click();
+  regularCamera.start.click();
   const stream = cameraTestStream({});
   regularCamera.requests[0]!.resolve(stream);
   await flushCameraTasks();
-  assert.equal(regularCamera.video.srcObject, stream, "unpatched regular camera does not require macro capability");
-  assert.equal(regularCamera.error.hidden, true);
+  assert.equal(stream.track.stops, 1, "shipped shell requires macro focus for the regular camera too");
+  assert.equal(regularCamera.video.srcObject, null);
+  assert.equal(regularCamera.error.hidden, false);
 });
 
 test("returning from the native camera keeps its photo ready to submit across a visibility change", async () => {
@@ -1334,10 +1370,10 @@ test("camera startup failures expose localized recovery text and a stable reason
 
 test("privacy and terms render the operator statement; other pages do not", () => {
   for (const path of ["/ja/privacy", "/ja/terms", "/en/privacy"]) {
-    const html = renderSiteDocument({ basePath: "", title: "t", body: "<p>b</p>", lang: path.startsWith("/en") ? "en" : "ja", currentPath: path });
+    const html = renderRecordPage({ basePath: "", title: "t", body: "<p>b</p>", lang: path.startsWith("/en") ? "en" : "ja", currentPath: path });
     assert.match(html, /<p class="footer-operator">(ZUKANはIKIMON株式会社が運営しています|ZUKAN is operated by IKIMON Inc\.)/);
   }
-  const other = renderSiteDocument({ basePath: "", title: "t", body: "<p>b</p>", lang: "ja", currentPath: "/ja/faq" });
+  const other = renderRecordPage({ basePath: "", title: "t", body: "<p>b</p>", lang: "ja", currentPath: "/ja/faq" });
   assert.doesNotMatch(other, /footer-operator">/);
 });
 
@@ -1350,7 +1386,7 @@ test("privacy longform links to /ja/contact", async () => {
 
 test("site shell shares one in-flight /api/v1/auth/session?optional=1 promise across boot consumers", async () => {
   const vm = await import("node:vm");
-  const html = renderSiteDocument({
+  const html = renderRecordPage({
     basePath: "",
     title: "Map",
     body: "<div id='map-explorer'></div>",
@@ -1382,6 +1418,7 @@ test("site shell shares one in-flight /api/v1/auth/session?optional=1 promise ac
     },
   };
   const fakeDoc = {
+    getElementById: (id: string) => (id === "global-record-config" ? { textContent: recordConfigJson(html) } : null),
     documentElement: { lang: "ja", dataset: {} as Record<string, string>, classList: { add() {}, remove() {}, toggle() {} } },
     querySelector: () => null,
     querySelectorAll: () => [],

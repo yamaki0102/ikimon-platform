@@ -20,7 +20,7 @@ for (const lang of ["ja", "en", "es", "pt-BR"]) {
     const app = Fastify();
     registerGlobalRecordSourceChoiceHtmlPatch(app);
     app.get("/capture-fixture", (_request, reply) => reply.type("text/html").send(runWithCspNonce("capture-test-nonce", () => renderSiteDocument({
-      basePath: "", lang, title: "Capture", body: "<main>Capture</main>", currentPath: `/${lang}/learn/field-loop`,
+      basePath: "", lang, title: "Capture", body: "<main>Capture</main>", currentPath: `/${lang}/learn/field-loop`, externalizeGlobalRecordScript: false,
     }))));
     try {
       const response = await app.inject({ method: "GET", url: "/capture-fixture" });
@@ -51,6 +51,13 @@ for (const lang of ["ja", "en", "es", "pt-BR"]) {
     }
   });
 }
+
+test("the default external capture script leaves the page untouched", () => {
+  const html = renderSiteDocument({ basePath: "", lang: "ja", title: "Capture", body: "<main>Capture</main>", currentPath: "/ja/learn/field-loop" });
+  assert.equal(capture(html), undefined);
+  assert.match(html, /<script src="\/assets\/ui\/global-record-entry\.[a-f0-9]{12}\.js" defer/u);
+  assert.equal(compactMaterializedCapture(html), html);
+});
 
 test("non-capture, external and non-classic scripts stay unchanged; ambiguous capture fails closed", () => {
   const fixture = `<script nonce="fixed">const CAMERA_START_TIMEOUT_MS = 10000; const DB_NAME = 'ikimon-record-draft'; const a = '[data-global-record-camera-sheet]'; const b = '[data-global-record-trigger]';</script>`;

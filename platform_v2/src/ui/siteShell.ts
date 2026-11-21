@@ -1164,6 +1164,59 @@ type GlobalRecordEntryCopy = {
   captureOwnerChanged: string;
 };
 
+type SourceChoiceCopy = {
+  native: string;
+  title: string;
+  macro: string;
+  capture: string;
+  review: string;
+  chooser: string;
+  camera: string;
+};
+
+const SOURCE_CHOICE_COPY: Record<SiteLang, SourceChoiceCopy> = {
+  ja: {
+    native: "標準カメラで撮る",
+    title: "撮影方法を選ぶ",
+    macro: "接写カメラ",
+    capture: "写真を撮る",
+    review: "写真を確認しています。追加撮影してから記録へ進めます。",
+    chooser: "標準カメラで撮る、写真から選ぶ、接写カメラを使う、のいずれかを選んでください。",
+    camera: "カメラを起動しています...",
+  },
+  en: {
+    native: "Take with device camera",
+    title: "Choose a photo source",
+    macro: "Macro camera",
+    capture: "Take photo",
+    review: "Review the photo, add another, then continue to record.",
+    chooser: "Take with the device camera, choose a photo, or use the macro camera.",
+    camera: "Starting camera...",
+  },
+  es: {
+    native: "Tomar con la cámara del dispositivo",
+    title: "Elige cómo tomar la foto",
+    macro: "Cámara macro",
+    capture: "Tomar foto",
+    review: "Revisa la foto, añade otra y continúa para registrarla.",
+    chooser: "Usa la cámara del dispositivo, elige una foto o usa la cámara macro.",
+    camera: "Iniciando la cámara...",
+  },
+  "pt-BR": {
+    native: "Tirar com a câmera do aparelho",
+    title: "Escolha como tirar a foto",
+    macro: "Câmera macro",
+    capture: "Tirar foto",
+    review: "Revise a foto, adicione outra e continue para registrar.",
+    chooser: "Use a câmera do aparelho, escolha uma foto ou use a câmera macro.",
+    camera: "Iniciando a câmera...",
+  },
+};
+
+function sourceChoiceCopy(lang: SiteLang): SourceChoiceCopy {
+  return SOURCE_CHOICE_COPY[lang];
+}
+
 function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
   type LegacyCopy = Omit<GlobalRecordEntryCopy, "navLabel" | "home" | "photo" | "photoMode" | "captureAria" | "places" | "records" | "self" | "events" | "gallery" | "errorTitle" | "errorBody" | "permissionBody" | "retry" | "cancel">;
   const copy: Record<SiteLang, LegacyCopy> = {
@@ -1337,6 +1390,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   const bottomNav = renderAppExperienceNavigation(lang, appExperienceActiveIndex(currentPath), "bottom", authState === "member");
   return `${bottomNav}
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
+    <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden />
   <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
   <section class="global-record-camera-sheet" data-global-record-camera-sheet hidden aria-label="${escapeHtml(copy.sheetLabel)}">
     <div class="global-record-camera-head">
@@ -1377,7 +1431,8 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <div class="global-record-photo-grid" data-global-record-photo-grid></div>
     </div>
     <div class="global-record-camera-actions" aria-label="${escapeHtml(copy.actionLabel)}">
-      <button type="button" class="global-record-camera-action is-primary" data-global-record-camera-start>${escapeHtml(copy.start)}</button>
+      <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera>${escapeHtml(sourceChoiceCopy(lang).native)}</button>
+      <button type="button" class="global-record-camera-action is-additional" data-global-record-camera-start>${escapeHtml(copy.start)}</button>
       <button type="button" class="global-record-camera-action" data-global-record-camera-capture hidden>${escapeHtml(copy.capture)}</button>
     </div>
     <button type="button" class="global-record-gallery-select is-secondary" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
@@ -1386,6 +1441,7 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
       <p data-global-record-camera-error-body>${escapeHtml(copy.errorBody)}</p>
       <div>
         <button type="button" data-global-record-camera-retry>${escapeHtml(copy.retry)}</button>
+        <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera data-global-record-os-camera-fallback>${escapeHtml(sourceChoiceCopy(lang).native)}</button>
         <button type="button" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
         <button type="button" data-global-record-camera-cancel>${escapeHtml(copy.cancel)}</button>
       </div>
@@ -1410,11 +1466,11 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   </section>`;
 }
 
-function globalRecordEntryScriptBody(configPrelude: string): string {
+function globalRecordEntryScriptBody(configPrelude: string, sourceChoice: (key: keyof SourceChoiceCopy) => string): string {
   return `(function () {
 ${configPrelude}
   const CAMERA_START_TIMEOUT_MS = 10000;
-  const REQUIRE_CLOSEUP_FOCUS = false;
+  const REQUIRE_CLOSEUP_FOCUS = true;
   const requestCameraStream = async (mediaDevices, constraints, options = {}) => {
     const makeError = (reason, cause) => {
       const error = new Error(reason, { cause });
@@ -1609,10 +1665,10 @@ ${configPrelude}
   const trimDurationLabel = document.querySelector('[data-global-record-video-trim-duration]');
   const labels = {
     photo: {
-      title: '写真を撮る',
+      title: ${sourceChoice("title")},
       help: '',
-      start: 'カメラを起動',
-      capture: '写真を撮る',
+      start: ${sourceChoice("macro")},
+      capture: ${sourceChoice("capture")},
     },
     video: {
       title: '動画を撮る',
@@ -2257,10 +2313,7 @@ ${configPrelude}
     }
     return false;
   };
-  const photoDraftSubmitLabel = () => {
-    const count = selectedPhotoDraftFiles().length;
-    return count > 0 ? 'この' + String(count) + '枚を記録' : '写真を撮る';
-  };
+  const photoDraftSubmitLabel = () => selectedPhotoDraftFiles().length > 0 ? '投稿' : '写真を撮る';
   const resetPhotoDraftSubmitConfirm = () => {
     photoDraftSubmitConfirmUntil = 0;
     if (captureButton && activeKind === 'photo' && selectedPhotoDraftFiles().length > 0 && !activeStream && !directPostInFlight) {
@@ -2377,6 +2430,9 @@ ${configPrelude}
     if (!sheet) return;
     if (kind) sheet.setAttribute('data-active-kind', kind);
     else sheet.removeAttribute('data-active-kind');
+    document.querySelectorAll('[data-global-record-os-camera]').forEach((button) => {
+      button.hidden = kind !== 'photo';
+    });
     document.querySelectorAll('[data-global-record-mode]').forEach((button) => {
       button.setAttribute('aria-pressed', button.getAttribute('data-global-record-mode') === kind ? 'true' : 'false');
     });
@@ -2662,6 +2718,11 @@ ${configPrelude}
     }
     if (startButton) startButton.disabled = true;
     const metadata = capturedReviewMeta || {};
+    if (metadata && metadata.captureSource === 'gallery') {
+      setStatus('写真の撮影時刻と場所を確認するため、記録画面へ移動します。');
+      await navigateWithDraft(files, 'photo', metadata, 'global_capture');
+      return;
+    }
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
       setStatus('撮影地点を確認しています...');
       const resolvedLocation = await requestCaptureLocation(true) || metadata.location;
@@ -2671,9 +2732,9 @@ ${configPrelude}
       }
     }
     if (!photoDraftRetryDetailId && !photoDraftRetryVisitId && !(metadata.location && Number.isFinite(Number(metadata.location.latitude)) && Number.isFinite(Number(metadata.location.longitude)))) {
-      setStatus('位置情報を取得できなかったため、写真を保持して記録画面へ移動します。');
-      await navigateWithDraft(files, 'photo', metadata, 'location_denied');
-      return;
+      metadata.location = null;
+      metadata.locationPending = false;
+      setStatus('場所なしで投稿します...');
     }
     try {
       // Never start a non-idempotent Record write with only volatile photo bytes.
@@ -2708,17 +2769,17 @@ ${configPrelude}
       let detailId = photoDraftRetryDetailId;
       let photoUploadTargetId = photoDraftRetryVisitId || photoDraftRetryDetailId;
       if (!detailId) {
-        const location = metadata.location || null;
-        if (!location || !Number.isFinite(Number(location.latitude)) || !Number.isFinite(Number(location.longitude))) {
-          throw new Error('location_required');
-        }
+        const rawLocation = metadata.location || null;
+        const location = rawLocation && Number.isFinite(Number(rawLocation.latitude)) && Number.isFinite(Number(rawLocation.longitude))
+          ? rawLocation
+          : null;
         const userId = await getCurrentSessionUserId();
         const observedAt = String(metadata.capturedAt || new Date().toISOString());
         const submissionSeed = [
           userId,
           observedAt,
-          Number(location.latitude).toFixed(6),
-          Number(location.longitude).toFixed(6),
+          location ? Number(location.latitude).toFixed(6) : 'unlocated',
+          location ? Number(location.longitude).toFixed(6) : 'unlocated',
           uploadHashes.join(','),
         ].join('|');
         const clientSubmissionId = 'global-photo:' + ((await sha256Hex(submissionSeed)) || String(Date.now()));
@@ -2735,8 +2796,8 @@ ${configPrelude}
             clientSubmissionId,
             userId,
             observedAt,
-            latitude: Number(location.latitude),
-            longitude: Number(location.longitude),
+            latitude: location ? Number(location.latitude) : null,
+            longitude: location ? Number(location.longitude) : null,
             prefecture: '',
             municipality: '',
             localityNote: '',
@@ -2852,7 +2913,7 @@ ${configPrelude}
       photoPreviewPostComplete = true;
       await queuePhotoPreviewWrite('complete');
       await queuePhotoPreviewWrite('discard');
-      resetPhotoDraftAfterDirectPost('記録を保存しました。AIが写真を見て主役と周囲を整理します。続けて撮れます。');
+      resetPhotoDraftAfterDirectPost('投稿しました。続けて撮れます。');
       sendGlobalRecordEvent('capture_saved', 'capture_saved', { mediaType: 'photo', fileCount: uploads.length });
       sendGlobalRecordKpi('direct_post_total_ms', durationSince(directPostStartedAt), {
         fileCount: uploads.length,
@@ -2905,7 +2966,7 @@ ${configPrelude}
     if (empty) empty.hidden = true;
     syncPhotoDraftControls();
     const dropped = incoming.length - accepted.length;
-    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で記録、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
+    setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で投稿、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
     schedulePhotoPreviewWrite();
   };
   const navigateWithDraft = async (files, kind, metadata, source) => {
@@ -3006,6 +3067,12 @@ ${configPrelude}
       captureButton.hidden = true;
     }
     setFooterActionMode('start');
+    if (kind === 'photo') {
+      const macroButton = document.querySelector('[data-global-record-camera-start]');
+      const nativeButton = document.querySelector('[data-global-record-os-camera]');
+      if (macroButton) macroButton.classList.remove('is-primary');
+      if (nativeButton) nativeButton.classList.add('is-primary');
+    }
     if (empty) {
       empty.textContent = 'カメラを起動すると、ここにプレビューが出ます。';
       empty.hidden = false;
@@ -3014,13 +3081,16 @@ ${configPrelude}
     if (backdrop) backdrop.hidden = false;
     document.documentElement.classList.add('global-record-camera-open');
     syncVisualViewportVars();
-    setStatus(kind === 'photo' && options && options.reviewOnly ? '写真を確認しています。追加撮影してから記録へ進めます。' : 'カメラを起動しています...');
+    setStatus(kind === 'photo'
+      ? options && options.reviewOnly
+        ? ${sourceChoice("review")}
+        : ${sourceChoice("chooser")}
+      : ${sourceChoice("camera")});
     if (kind === 'photo') {
       latestCaptureLocation = null;
       latestCaptureLocationAt = 0;
-      void requestCaptureLocation(true);
     }
-    if (!(options && options.reviewOnly)) void startCamera();
+    if (!(options && options.reviewOnly) && kind !== 'photo') void startCamera();
   };
   const startCamera = async () => {
     if (!activeKind || photoPreviewCloseInFlight) return;
@@ -3442,7 +3512,11 @@ ${configPrelude}
           setStatus('ログイン後に続けられるよう、写真を下書きに保存しています...');
           await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {}, 'login_required');
           return;
-        } else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
+        } else if (message === 'location_required') {
+          setStatus('写真を残したまま場所を選べる画面へ移動します...');
+          await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {}, 'location_denied');
+          return;
+        }
         else if (message.startsWith('photo_upload_failed_at_')) setStatus('写真の保存に失敗しました。通信状態を確認してもう一度試してください。');
         else if (photoPreviewPostComplete) setStatus('記録と写真は保存済みです。端末の下書き削除だけ失敗しました。もう一度押すと削除を再試行します。');
         else if (photoDraftRetryDetailId) setStatus('記録本体は保存済みです。写真の通信確認だけ失敗しました。ホームに戻ると記録が見える場合があります。もう一度押すと同じ記録に再送します。');
@@ -3483,6 +3557,13 @@ ${configPrelude}
       openSheet(kind === 'video' ? 'video' : 'photo');
     });
   });
+  document.querySelectorAll('[data-global-record-os-camera]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      sendGlobalRecordEvent('native_camera_tap', 'native_camera_tap', { source: 'camera_sheet' });
+      clickFallbackInput('photo');
+    });
+  });
   document.querySelectorAll('[data-global-record-gallery-select]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -3499,10 +3580,17 @@ ${configPrelude}
         input.value = '';
         return;
       }
-      if (kind === 'photo') {
+      if (kind === 'photo' || kind === 'gallery') {
         photoCaptureSource = 'native';
         openSheet('photo', { reviewOnly: true, keepReview: true });
-        const metadata = buildCaptureMetadata();
+        const metadata = kind === 'gallery'
+          ? {
+              captureSource: 'gallery',
+              capturedAt: null,
+              location: null,
+              locationPending: true,
+            }
+          : buildCaptureMetadata();
         addPhotoDraftFiles(files, metadata);
         input.value = '';
         return;
@@ -3709,7 +3797,7 @@ export function globalRecordEntryAsset(): HashedStaticAsset {
   const BASE_PATH = String(__grCfg.basePath || '');
   const CAMERA_COPY = __grCfg.cameraCopy || {};
   const RECORD_TARGETS = __grCfg.recordTargets || {};`;
-  const content = Buffer.from(globalRecordEntryScriptBody(prelude), "utf8");
+  const content = Buffer.from(globalRecordEntryScriptBody(prelude, (key) => `(CAMERA_COPY.sourceChoice || {}).${key}`), "utf8");
   const sha256 = createHash("sha256").update(content).digest("hex");
   cachedGlobalRecordEntryAsset = {
     path: `/assets/ui/global-record-entry.${sha256.slice(0, 12)}.js`,
@@ -3733,7 +3821,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang, externalize =
     const asset = globalRecordEntryAsset();
     const configJson = JSON.stringify({
       basePath: normalizedBasePath,
-      cameraCopy,
+      cameraCopy: { ...cameraCopy, sourceChoice: sourceChoiceCopy(lang) },
       recordTargets,
     }).replace(/</g, "\\u003c");
     return `<script type="application/json" id="global-record-config">${configJson}</script>\n<script src="${escapeHtml(withBasePath(basePath, asset.path))}" defer></script>`;
@@ -3741,7 +3829,7 @@ function globalRecordEntryScript(basePath: string, lang: SiteLang, externalize =
   const prelude = `  const BASE_PATH = ${JSON.stringify(normalizedBasePath)};
   const CAMERA_COPY = ${JSON.stringify(cameraCopy)};
   const RECORD_TARGETS = ${JSON.stringify(recordTargets)};`;
-  return `<script>\n${globalRecordEntryScriptBody(prelude)}\n</script>`;
+  return `<script>\n${globalRecordEntryScriptBody(prelude, (key) => JSON.stringify(sourceChoiceCopy(lang)[key]))}\n</script>`;
 }
 
 function authNavHydrationScript(basePath: string, lang: SiteLang): string {
@@ -7595,7 +7683,7 @@ ${alternateLinks}
   ${legacyServiceWorkerCleanupScript}
   ${appRuntimeScript}
   ${authNavHydrationScript(options.basePath, lang)}
-  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang, Boolean(options.externalizeGlobalRecordScript)) : ""}
+  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang, options.externalizeGlobalRecordScript !== false) : ""}
   ${languageDisclosureScript()}
   ${uiKpiScript}
   ${options.publicContextHtml ? PUBLIC_CONTEXT_SCRIPT : ""}
