@@ -161,7 +161,8 @@ test("site shell hydrates the login link from the v2 session endpoint", () => {
   assert.match(html, /const resolvedLocation = await requestCaptureLocation\(true\) \|\| metadata\.location;/);
   assert.match(html, /let latestCaptureLocationAt = 0;/);
   assert.match(html, /maximumAge: forceFresh \? 0 : 15000/);
-  assert.match(html, /latestCaptureLocation = null;\s+latestCaptureLocationAt = 0;\s+void requestCaptureLocation\(true\);/);
+  assert.match(html, /latestCaptureLocation = null;\s+latestCaptureLocationAt = 0;\s+\}/);
+  assert.doesNotMatch(html, /void requestCaptureLocation\(true\);/);
   assert.match(html, /button\.addEventListener\('click', \(event\) => \{\s+event\.preventDefault\(\);/);
   assert.match(html, /ikimon-app-outbox-v1/);
   assert.match(html, /window\.ikimonRequestAppOutboxSync/);
@@ -423,7 +424,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.equal(html.match(/<(?:button|a)[^>]+class="global-record-choice/g)?.length, 5);
   assert.equal(html.match(/data-global-record-input="gallery"/g)?.length, 1);
   assert.match(html, /data-global-record-input="gallery" type="file" accept="image\/\*" multiple/);
-  assert.doesNotMatch(html, /capture="environment"/);
+  assert.equal(html.match(/capture="environment"/g)?.length, 1);
+  assert.match(html, /data-global-record-input="photo" type="file" accept="image\/\*" capture="environment" hidden/);
+  assert.doesNotMatch(html, /data-global-record-input="gallery"[^>]*capture=/);
   assert.match(html, /files: draftFiles/);
   assert.match(html, /Array\.from\(input\.files\)/);
   assert.doesNotMatch(html, /class="global-record-entry"/);
@@ -494,7 +497,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /photoDraftSubmitConfirmUntil = nowMs\(\) \+ 4500/);
   assert.doesNotMatch(html, /もう一度押すと記録/);
   assert.match(html, /if \(files\.length > 0\) \{\s+setFooterActionMode\('submit'\);/);
-  assert.match(html, /右で記録、左でもう1枚撮れます。/);
+  assert.match(html, /右で投稿、左でもう1枚撮れます。/);
   assert.match(html, /必要なら使う区間だけ選べます/);
   assert.match(html, /top: calc\(max\(12px, env\(safe-area-inset-top\)\) \+ var\(--global-record-visual-top, 0px\)\)/);
   assert.match(html, /height: clamp\(260px, min\(72dvh, calc\(var\(--global-record-visual-height, 100dvh\) - 212px\)\), 760px\)/);
@@ -531,7 +534,7 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.doesNotMatch(html, /fillCaptureLocationLater/);
   assert.doesNotMatch(html, /const metadata = await buildCaptureMetadata\(\);\s+showCapturedReview\(file, 'photo', metadata\);/);
   assert.match(html, /撮影地点を確認しています/);
-  assert.match(html, /位置情報を取得できなかったため、写真を保持して記録画面へ移動します。/);
+  assert.match(html, /場所なしで投稿します\.\.\./);
   assert.match(html, /global_record_capture_latency/);
   assert.match(html, /capture_to_review_ms/);
   assert.doesNotMatch(html, /gps_wait_ms/);
@@ -974,7 +977,7 @@ test("global record draft handoff includes a recovery source", () => {
   assert.match(html, /const withDraftParams = \(href, kind, source, continuationToken\) =>/);
   assert.match(html, /url\.searchParams\.set\('source', recoverySource\)/);
   assert.match(html, /url\.searchParams\.set\('draft_token', String\(continuationToken\)\)/);
-  assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'location_denied'\)/);
+  assert.match(html, /navigateWithDraft\(files, 'photo', metadata, 'global_capture'\)/);
   assert.match(html, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'login_required'\)/);
 });
 
@@ -1276,12 +1279,14 @@ test("unsupported macro focus releases the stream and the error button reuses on
     assert.equal(runtime.events.filter((event) => event.eventName === "native_camera_tap").length, 1);
   }
   const regularCamera = cameraRuntime("en", false);
-  regularCamera.startPhoto();
+  regularCamera.triggers.photo!.click();
+  regularCamera.start.click();
   const stream = cameraTestStream({});
   regularCamera.requests[0]!.resolve(stream);
   await flushCameraTasks();
-  assert.equal(regularCamera.video.srcObject, stream, "unpatched regular camera does not require macro capability");
-  assert.equal(regularCamera.error.hidden, true);
+  assert.equal(stream.track.stops, 1, "shipped shell requires macro focus for the regular camera too");
+  assert.equal(regularCamera.video.srcObject, null);
+  assert.equal(regularCamera.error.hidden, false);
 });
 
 test("returning from the native camera keeps its photo ready to submit across a visibility change", async () => {

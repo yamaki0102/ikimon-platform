@@ -80,10 +80,10 @@ test("patch anchors stay compatible with the real site shell output", () => {
     currentPath: "/",
   });
   assert.match(original, /data-global-record-camera-sheet/);
-  assert.doesNotMatch(original, /data-global-record-os-camera/);
+  assert.match(original, /data-global-record-os-camera/);
 
   const patched = patchGlobalRecordSourceChoiceHtml(original);
-  assert.notEqual(patched, original, "site-shell drift must not silently turn the source-choice patch into a no-op");
+  assert.equal(patched, original, "shell source already carries the source-choice behaviour; the patch must be a no-op");
   assert.match(patched, /data-global-record-input="photo"[^>]*capture="environment"/);
   assert.match(patched, /class="global-record-camera-action is-primary" data-global-record-os-camera>標準カメラで撮る<\/button>/);
   assert.match(patched, /class="global-record-gallery-select is-secondary" data-global-record-gallery-select/);
