@@ -79,7 +79,8 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
     const status = upload && upload.facePrivacy && upload.facePrivacy.status;
     return status === 'no_faces' || status === 'unavailable' ? status : 'pending';
   };
-  const preparePhotoUpload = async (file) => {
+  const preparedUploadCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+  const runPreparePhotoUpload = async (file) => {
     const originalType = String(file && file.type || 'image/jpeg').toLowerCase();
     if (originalType === 'image/gif') {
       return { filename: file.name || 'upload.gif', mimeType: originalType, base64Data: await readFileAsDataUrl(file) };
@@ -102,12 +103,13 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
       if (image && typeof image.close === 'function') image.close();
       image = null;
+      const facePrivacyPromise = checkFacesForUpload(canvas);
       const alphaSafeInput = !/^image\/jpeg$/.test(originalType);
       let encoded = await canvasToImage(canvas, 'image/webp');
       if (!encoded && !alphaSafeInput) encoded = await canvasToImage(canvas, 'image/jpeg');
       if (!encoded && alphaSafeInput) encoded = await canvasToImage(canvas, 'image/png');
       if (!encoded) throw new Error('photo_encode_failed');
-      const facePrivacy = await checkFacesForUpload(canvas);
+      const facePrivacy = await facePrivacyPromise;
       const encodedPayload = encoded.dataUrl.split(',')[1];
       const encodedBytes = Math.floor((encodedPayload.length * 3) / 4)
         - (encodedPayload.endsWith('==') ? 2 : encodedPayload.endsWith('=') ? 1 : 0);
@@ -126,5 +128,18 @@ export const PHOTO_UPLOAD_PREPARATION_SCRIPT = String.raw`
       if (image && typeof image.close === 'function') image.close();
       if (canvas) { canvas.width = 1; canvas.height = 1; }
     }
+  };
+  const preparePhotoUpload = (file) => {
+    if (preparedUploadCache && file && typeof file === 'object') {
+      const cached = preparedUploadCache.get(file);
+      if (cached) return cached;
+      const task = runPreparePhotoUpload(file).catch((error) => {
+        preparedUploadCache.delete(file);
+        throw error;
+      });
+      preparedUploadCache.set(file, task);
+      return task;
+    }
+    return runPreparePhotoUpload(file);
   };
 `;

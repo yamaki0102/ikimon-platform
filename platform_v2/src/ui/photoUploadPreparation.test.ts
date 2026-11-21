@@ -161,3 +161,44 @@ test("the upload request carries only a server-accepted face privacy status", ()
   new vm.Script(PHOTO_UPLOAD_PREPARATION_SCRIPT + "\nstatuses = [photoFacePrivacyStatus({ facePrivacy: { status: 'no_faces' } }), photoFacePrivacyStatus({ facePrivacy: { status: 'unavailable' } }), photoFacePrivacyStatus({ facePrivacy: { status: 'redacted' } }), photoFacePrivacyStatus({}), photoFacePrivacyStatus(null)];").runInContext(context);
   assert.equal(JSON.stringify(context.statuses), JSON.stringify(["no_faces", "unavailable", "pending", "pending", "pending"]));
 });
+
+test("preparePhotoUpload reuses in-flight/completed work for the same file and runs face check concurrently with encoding", async () => {
+  let decoded = 0;
+  let encoded = 0;
+  let faceCheckStartedBeforeEncodeFinished = false;
+  let resolveBlob!: (blob: unknown) => void;
+  const blobReady = new Promise((resolve) => { resolveBlob = resolve; });
+  const file = { name: "heavy.jpg", type: "image/jpeg", size: 8_000_000 };
+  class Reader { result = ""; onload?: () => void; readAsDataURL(blob: { data: string }) { this.result = blob.data; this.onload?.(); } }
+  const context = vm.createContext({
+    FileReader: Reader,
+    window: {
+      createImageBitmap: async () => { decoded++; return { width: 4000, height: 3000, close: () => undefined }; },
+      ikimonFacePrivacy: {
+        redactCanvasFaces: async () => {
+          faceCheckStartedBeforeEncodeFinished = encoded === 0;
+          return { available: true, redacted: false, faceCount: 0, error: null, detector: "mediapipe_wasm_face_detector" };
+        },
+        summarizeFacePrivacy: (raw: FaceResult) => ({ detector: raw.detector, status: "no_faces", faceCount: raw.faceCount, error: raw.error }),
+      },
+    },
+    document: {
+      createElement: () => ({
+        width: 0, height: 0,
+        getContext: () => ({ drawImage: () => undefined }),
+        toBlob: (callback: (blob: unknown) => void, type: string) => {
+          void blobReady.then(() => { encoded++; callback({ data: `data:${type};base64,ZmFrZQ==`, type }); });
+        },
+      }),
+    },
+    input: file,
+  });
+  new vm.Script(PHOTO_UPLOAD_PREPARATION_SCRIPT + "\nfirst = preparePhotoUpload(input);\nsecond = preparePhotoUpload(input);").runInContext(context);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(faceCheckStartedBeforeEncodeFinished, true);
+  resolveBlob(undefined);
+  const [a, b] = await Promise.all([context.first as Promise<unknown>, context.second as Promise<unknown>]);
+  assert.equal(decoded, 1);
+  assert.equal(encoded, 1);
+  assert.deepEqual(a, b);
+});
