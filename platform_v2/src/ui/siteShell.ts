@@ -7683,7 +7683,7 @@ ${alternateLinks}
   ${legacyServiceWorkerCleanupScript}
   ${appRuntimeScript}
   ${authNavHydrationScript(options.basePath, lang)}
-  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang, Boolean(options.externalizeGlobalRecordScript)) : ""}
+  ${globalRecordNav ? globalRecordEntryScript(options.basePath, lang, options.externalizeGlobalRecordScript !== false) : ""}
   ${languageDisclosureScript()}
   ${uiKpiScript}
   ${options.publicContextHtml ? PUBLIC_CONTEXT_SCRIPT : ""}

@@ -2,11 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import Fastify from "fastify";
-import { renderSiteDocument } from "../ui/siteShell.js";
+import { globalRecordEntryAsset, renderSiteDocument } from "../ui/siteShell.js";
 import { patchGlobalRecordPreviewDraftHtml, registerGlobalRecordPreviewDraftHtmlPatch } from "./globalRecordPreviewDraftHtmlPatch.js";
 
+function withExternalRecordScript(html: string): string {
+  const asset = globalRecordEntryAsset().content.toString("utf8");
+  return html.replace(/<script src="[^"]*global-record-entry\.[a-f0-9]{12}\.js" defer><\/script>/, () => `<script>\n${asset}\n</script>`);
+}
+
+function renderRecordPage(options: Parameters<typeof renderSiteDocument>[0]): string {
+  return withExternalRecordScript(renderSiteDocument(options));
+}
+
+function recordConfigJson(html: string): string {
+  return html.match(/<script type="application\/json" id="global-record-config">([\s\S]*?)<\/script>/)?.[1] ?? "";
+}
+
 function realShell(): string {
-  return renderSiteDocument({
+  return renderRecordPage({
     basePath: "",
     title: "ZUKAN preview draft recovery contract",
     body: "<main>fixture</main>",

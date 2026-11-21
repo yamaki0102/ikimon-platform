@@ -3,9 +3,22 @@ import { Buffer } from "node:buffer";
 import { webcrypto } from "node:crypto";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { renderSiteDocument } from "./siteShell.js";
+import { globalRecordEntryAsset, renderSiteDocument } from "./siteShell.js";
 import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
 import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
+
+function withExternalRecordScript(html: string): string {
+  const asset = globalRecordEntryAsset().content.toString("utf8");
+  return html.replace(/<script src="[^"]*global-record-entry\.[a-f0-9]{12}\.js" defer><\/script>/, () => `<script>\n${asset}\n</script>`);
+}
+
+function renderRecordPage(options: Parameters<typeof renderSiteDocument>[0]): string {
+  return withExternalRecordScript(renderSiteDocument(options));
+}
+
+function recordConfigJson(html: string): string {
+  return html.match(/<script type="application\/json" id="global-record-config">([\s\S]*?)<\/script>/)?.[1] ?? "";
+}
 
 // The actual rendered global capture script is exercised. All network writes and
 // device access are fixture-only: no real login, camera, database or upload.
@@ -173,7 +186,7 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
   let deleteFailures = options.deleteFailures ?? 0;
   let pendingCanvasBlob: ((blob: Blob | null) => void) | null = null;
   const sessionStorageValues = new Map<string, string>();
-  const html = compactMaterializedCapture(patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
+  const html = compactMaterializedCapture(patchGlobalRecordSourceChoiceHtml(renderRecordPage({
     basePath: "",
     title: "Capture preview",
     body: "<p>Fixture</p>",
@@ -203,7 +216,9 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
   const close = node("[data-global-record-camera-cancel]");
   const photoGrid = node("[data-global-record-photo-grid]");
   sheet.hidden = backdrop.hidden = submit.hidden = true;
+  const configJson = recordConfigJson(html);
   const document = {
+    getElementById: (id: string) => (id === "global-record-config" ? { textContent: configJson } : null),
     documentElement: Object.assign(new Element(), { lang: "ja" }),
     querySelector: (selector: string) => elements.get(selector) ?? null,
     querySelectorAll(selector: string) {

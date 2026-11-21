@@ -2,8 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import Fastify from "fastify";
-import { renderSiteDocument } from "../ui/siteShell.js";
+import { globalRecordEntryAsset, renderSiteDocument } from "../ui/siteShell.js";
 import { patchGlobalRecordSourceChoiceHtml, registerGlobalRecordSourceChoiceHtmlPatch } from "./globalRecordSourceChoiceHtmlPatch.js";
+
+function withExternalRecordScript(html: string): string {
+  const asset = globalRecordEntryAsset().content.toString("utf8");
+  return html.replace(/<script src="[^"]*global-record-entry\.[a-f0-9]{12}\.js" defer><\/script>/, () => `<script>\n${asset}\n</script>`);
+}
+
+function renderRecordPage(options: Parameters<typeof renderSiteDocument>[0]): string {
+  return withExternalRecordScript(renderSiteDocument(options));
+}
+
+function recordConfigJson(html: string): string {
+  return html.match(/<script type="application\/json" id="global-record-config">([\s\S]*?)<\/script>/)?.[1] ?? "";
+}
 
 function shellFixture(lang = "ja"): string {
   return `<html lang="${lang}">
@@ -72,7 +85,7 @@ test("photo source choice exposes native camera without pre-requesting camera or
 });
 
 test("patch anchors stay compatible with the real site shell output", () => {
-  const original = renderSiteDocument({
+  const original = renderRecordPage({
     basePath: "",
     title: "ZUKAN source choice contract",
     body: "<main>fixture</main>",
@@ -105,7 +118,7 @@ test("error fallback reuses the native photo input and listener across repeated 
     ["ja", "標準カメラで撮る"], ["en", "Take with device camera"],
     ["es", "Tomar con la cámara del dispositivo"], ["pt-BR", "Tirar com a câmera do aparelho"],
   ] as const) {
-    const original = renderSiteDocument({ basePath: "", title: "Fallback", body: "<p>fixture</p>", lang });
+    const original = renderRecordPage({ basePath: "", title: "Fallback", body: "<p>fixture</p>", lang });
     const once = patchGlobalRecordSourceChoiceHtml(original);
     assert.equal(patchGlobalRecordSourceChoiceHtml(once), once);
     assert.equal((once.match(/<input[^>]*data-global-record-input="photo"/g) ?? []).length, 1);
@@ -123,7 +136,7 @@ test("error fallback reuses the native photo input and listener across repeated 
 });
 
 test("gallery selections do not infer capture time or current location", () => {
-  const original = renderSiteDocument({
+  const original = renderRecordPage({
     basePath: "",
     title: "ZUKAN gallery metadata contract",
     body: "<main>fixture</main>",
@@ -144,7 +157,7 @@ test("native camera and photo library both enter the existing immediate-preview 
 
 test("real input handlers preview gallery files without inference and preserve native, video and close guards", async () => {
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
-    const patched = patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
+    const patched = patchGlobalRecordSourceChoiceHtml(renderRecordPage({
       basePath: "", title: "Source behavior", body: "<main>fixture</main>", lang,
     }));
     const start = patched.indexOf("  document.querySelectorAll('[data-global-record-input]').forEach((input) => {");
@@ -206,7 +219,7 @@ test("real input handlers preview gallery files without inference and preserve n
 });
 
 test("native camera is hidden while the shared sheet is in video mode", () => {
-  const patched = patchGlobalRecordSourceChoiceHtml(renderSiteDocument({
+  const patched = patchGlobalRecordSourceChoiceHtml(renderRecordPage({
     basePath: "",
     title: "ZUKAN video source choice contract",
     body: "<main>fixture</main>",
@@ -245,7 +258,7 @@ test("source choice patch is idempotent", () => {
 
 test("source choice patch reaches the root route materialization", async () => {
   const app = Fastify();
-  const rootHtml = renderSiteDocument({
+  const rootHtml = renderRecordPage({
     basePath: "",
     title: "ZUKAN root source choice contract",
     body: "<main>fixture</main>",
