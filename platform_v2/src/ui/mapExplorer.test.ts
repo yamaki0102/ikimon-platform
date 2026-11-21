@@ -2536,3 +2536,34 @@ test("renderMapExplorer places the static basemap inline script right after #map
   );
   assert.match(doc, /<script nonce="nonce-static-map-test">\(function\(\)\{try\{var r=document\.getElementById\('map-explorer'\)/);
 });
+
+test("own records spread wider than a phone screen open on the latest record instead of a zoom with no roads", () => {
+  const run = (cameraZoom: number) => {
+    const calls: Array<[string, unknown]> = [];
+    const map = {
+      cameraForBounds: () => ({ zoom: cameraZoom }),
+      flyTo: (options: unknown) => calls.push(["flyTo", options]),
+      fitBounds: (_bounds: unknown, options: unknown) => calls.push(["fitBounds", options]),
+    };
+    const records = [{ latitude: 34.71, longitude: 137.73 }, { latitude: 35.0, longitude: 138.3 }];
+    const context = vm.createContext({ state: { map, tab: "places" }, validOwnObservationRecords: () => records });
+    new vm.Script(bootSection("function maybeFitOwnObservationsOnFirstOpen()", "function ownObservationGroups(records)")).runInContext(context);
+    context.maybeFitOwnObservationsOnFirstOpen();
+    return calls;
+  };
+  const wide = run(8.3);
+  assert.equal(wide.length, 1);
+  assert.equal(wide[0]![0], "flyTo");
+  assert.deepEqual([...(wide[0]![1] as { center: number[] }).center], [137.73, 34.71]);
+  assert.equal((wide[0]![1] as { zoom: number }).zoom, 12.2);
+  const near = run(13.4);
+  assert.equal(near.length, 1);
+  assert.equal(near[0]![0], "fitBounds");
+});
+
+test("a tile lost on a weak connection makes the map ask its source again, at most three times", () => {
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  assert.match(script, /state\.map\.on\('error', function \(event\)/);
+  assert.match(script, /tileRetry\.count >= 3/);
+  assert.match(script, /source\.reload\(\)/);
+});

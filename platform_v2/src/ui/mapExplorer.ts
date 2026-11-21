@@ -2968,6 +2968,20 @@ ${MAP_EXPLORER_BASEMAPS_JS}
       state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    var tileRetry = { count: 0, pending: false };
+    // A tile lost on a weak connection is never asked for again by MapLibre; ask the source again a few times.
+    if (typeof state.map.on === 'function') state.map.on('error', function (event) {
+      var sourceId = event && event.sourceId;
+      if (!sourceId || tileRetry.pending || tileRetry.count >= 3) return;
+      tileRetry.pending = true;
+      tileRetry.count += 1;
+      root.setAttribute('data-tile-retry-count', String(tileRetry.count));
+      setTimeout(function () {
+        tileRetry.pending = false;
+        var source = state.map && typeof state.map.getSource === 'function' ? state.map.getSource(sourceId) : null;
+        if (source && typeof source.reload === 'function') source.reload();
+      }, 2000 * tileRetry.count);
+    });
     var onMapFirstLoad = function () {
       state._mapLoadFired = true;
       if (typeof loadDeferredExplorer === 'function') loadDeferredExplorer();
@@ -4967,6 +4981,17 @@ export function mapExplorerDeferredScriptSource(): string {
     if (Math.abs(maxLat - minLat) < 0.0008) {
       minLat -= 0.0008;
       maxLat += 0.0008;
+    }
+    var ownBounds = [[minLng, minLat], [maxLng, maxLat]];
+    var ownCamera = typeof state.map.cameraForBounds === 'function' ? state.map.cameraForBounds(ownBounds, { padding: 74, maxZoom: 15.2 }) : null;
+    // A narrow phone turns a 50km spread into a zoom where no road or pin layer draws; show the latest record instead.
+    if (ownCamera && Number.isFinite(ownCamera.zoom) && ownCamera.zoom < 11) {
+      var nearLat = Number(records[0].latitude);
+      var nearLng = Number(records[0].longitude);
+      if (Number.isFinite(nearLat) && Number.isFinite(nearLng)) {
+        state.map.flyTo({ center: [nearLng, nearLat], zoom: 12.2, duration: 720, essential: true });
+        return;
+      }
     }
     state.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 74, maxZoom: 15.2, duration: 760 });
   }
