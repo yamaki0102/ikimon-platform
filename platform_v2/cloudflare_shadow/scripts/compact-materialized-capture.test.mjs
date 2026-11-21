@@ -6,7 +6,6 @@ import { gzipSync } from "node:zlib";
 import Fastify from "fastify";
 import { renderSiteDocument } from "../../src/ui/siteShell.ts";
 import { runWithCspNonce } from "../../src/services/cspNonce.ts";
-import { registerGlobalRecordSourceChoiceHtmlPatch } from "../../src/services/globalRecordSourceChoiceHtmlPatch.ts";
 import { applyPublicPresentationPipeline } from "../src/publicPresentationPipeline.ts";
 import { compactMaterializedCapture } from "./compact-materialized-capture.mjs";
 
@@ -18,7 +17,6 @@ function capture(html) {
 for (const lang of ["ja", "en", "es", "pt-BR"]) {
   test(`compaction follows actual inject/onSend patches and preserves ${lang} markup, CSP and Worker capture`, async () => {
     const app = Fastify();
-    registerGlobalRecordSourceChoiceHtmlPatch(app);
     app.get("/capture-fixture", (_request, reply) => reply.type("text/html").send(runWithCspNonce("capture-test-nonce", () => renderSiteDocument({
       basePath: "", lang, title: "Capture", body: "<main>Capture</main>", currentPath: `/${lang}/learn/field-loop`, externalizeGlobalRecordScript: false,
     }))));

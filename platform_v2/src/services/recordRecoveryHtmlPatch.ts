@@ -17,21 +17,10 @@ const NEW_RECOVERY_PICKER = `        const chooseRecordRecoveryMedia = () => {
           if (target && typeof target.click === 'function') target.click();
         };`;
 
-const OLD_LOCATION_REQUIRED = `        } else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');`;
-
-const NEW_LOCATION_REQUIRED = `        } else if (message === 'location_required') {
-          setStatus('写真を残したまま場所を選べる画面へ移動します...');
-          await navigateWithDraft(selectedPhotoDraftFiles(), 'photo', capturedReviewMeta || {}, 'location_denied');
-          return;
-        }`;
-
 export function patchRecordRecoveryHtml(html: string): string {
   let patched = html;
   if (patched.includes(OLD_RECOVERY_PICKER)) {
     patched = patched.replace(OLD_RECOVERY_PICKER, NEW_RECOVERY_PICKER);
-  }
-  if (patched.includes(OLD_LOCATION_REQUIRED)) {
-    patched = patched.replace(OLD_LOCATION_REQUIRED, NEW_LOCATION_REQUIRED);
   }
   return patched;
 }

@@ -18,15 +18,6 @@ test("record recovery HTML patch opens the internal media input directly", () =>
   assert.doesNotMatch(patched, /captureButtons\.find/);
 });
 
-test("record recovery HTML patch preserves photos when location is missing", () => {
-  const html = `<script>
-        } else if (message === 'location_required') setStatus('直接記録には地点が必要です。位置情報を許可してからもう一度試してください。');
-  </script>`;
-  const patched = patchRecordRecoveryHtml(html);
-  assert.match(patched, /navigateWithDraft\(selectedPhotoDraftFiles\(\), 'photo', capturedReviewMeta \|\| \{\}, 'location_denied'\)/);
-  assert.match(patched, /写真を残したまま場所を選べる画面へ移動します/);
-});
-
 test("record recovery HTML patch is idempotent", () => {
   const alreadyPatched = `<script>const target = document.querySelector('[data-record-media-input]');</script>`;
   assert.equal(patchRecordRecoveryHtml(alreadyPatched), alreadyPatched);

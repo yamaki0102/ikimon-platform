@@ -4,7 +4,6 @@ import { webcrypto } from "node:crypto";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { globalRecordEntryAsset, renderSiteDocument } from "./siteShell.js";
-import { patchGlobalRecordSourceChoiceHtml } from "../services/globalRecordSourceChoiceHtmlPatch.js";
 import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
 
 function withExternalRecordScript(html: string): string {
@@ -186,13 +185,13 @@ function cameraFixture(drafts: Map<string, Draft>, userId: string, pathname = "/
   let deleteFailures = options.deleteFailures ?? 0;
   let pendingCanvasBlob: ((blob: Blob | null) => void) | null = null;
   const sessionStorageValues = new Map<string, string>();
-  const html = compactMaterializedCapture(patchGlobalRecordSourceChoiceHtml(renderRecordPage({
+  const html = compactMaterializedCapture(renderRecordPage({
     basePath: "",
     title: "Capture preview",
     body: "<p>Fixture</p>",
     lang: "ja",
     currentPath: pathname,
-  })));
+  }));
   const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]!).find((value) => value.includes("const CAMERA_START_TIMEOUT_MS"));
   assert.ok(script);
