@@ -20433,9 +20433,11 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   const title = lang === "ja" ? "記録する" : "Record";
   const mediaCopy = lang === "ja"
     ? {
-      photo: "写真",
+      camera: "カメラで撮る",
+      cameraHint: "カメラを起動して撮影",
+      photo: "写真フォルダから選ぶ",
       video: "動画",
-      photoHint: "カメラ・写真ライブラリ",
+      photoHint: "端末の写真・画像",
       addPhoto: "写真を追加",
       reviewPhotos: "選んだ写真",
       removePhoto: "この写真を削除",
@@ -20472,9 +20474,11 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       failed: "写真はまだ保存されていません。選択したまま、もう一度保存してください。"
     }
     : {
-      photo: "Photo",
+      camera: "Take photo",
+      cameraHint: "Open device camera",
+      photo: "Photo library",
       video: "Video",
-      photoHint: "Camera or photo library",
+      photoHint: "Choose from device",
       addPhoto: "Add photos",
       reviewPhotos: "Selected photos",
       removePhoto: "Remove this photo",
@@ -20537,8 +20541,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-hero{margin:0 0 14px}
     .cf-record-hero h1{margin:0 0 6px;font-size:30px;line-height:1.12;letter-spacing:0}
     .cf-record-hero p{margin:0;color:var(--muted);font-size:16px}
-    .cf-record-picker{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}
+    .cf-record-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:0 0 12px}
     .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900;cursor:pointer}
+    .cf-record-pick.is-primary{border-color:var(--teal);background:var(--mint)}
     .cf-record-pick input{position:absolute;inline-size:1px;block-size:1px;opacity:.01}
     .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:14px;font-weight:800}
     .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
@@ -20585,6 +20590,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       <p>${escapeHtml(mediaCopy.prompt)}</p><p>${escapeHtml(mediaCopy.privateBoundary)}</p>
     </section>
     <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
+      <label class="cf-record-pick is-primary">${escapeHtml(mediaCopy.camera)}<span>${escapeHtml(mediaCopy.cameraHint)}</span><input id="record-media-camera" type="file" accept="image/*" capture="environment"></label>
       <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
       <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>${escapeHtml(mediaCopy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
     </div>
@@ -20632,6 +20638,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     const confirmCount = document.getElementById("record-confirm-count");
     const confirmNote = document.getElementById("record-confirm-note");
     const confirmLocation = document.getElementById("record-confirm-location");
+    const cameraInput = document.getElementById("record-media-camera");
     const photoInput = document.getElementById("record-media-photo");
     const videoInput = document.getElementById("record-media-video");
     const recordPrefix = ${JSON.stringify(prefix)};
@@ -20889,17 +20896,19 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       if (/\\b4\\d\\d\\b/.test(message)) return "4xx";
       return "unknown";
     }
-    photoInput?.addEventListener("change", () => {
-      const incoming = photoInput.files ? Array.from(photoInput.files).filter(file => file instanceof File && file.size > 0) : [];
+    function addPhotoFiles(input) {
+      const incoming = input && input.files ? Array.from(input.files).filter(file => file instanceof File && file.size > 0) : [];
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";
       pendingVideoBodyUploaded = false;
       pendingVideoIdempotencyKey = "";
       selectedPhotos.push(...incoming);
-      photoInput.value = "";
+      if (input) input.value = "";
       reveal("photo");
       void eventMetric("event_photo_selected");
-    });
+    }
+    cameraInput?.addEventListener("change", () => addPhotoFiles(cameraInput));
+    photoInput?.addEventListener("change", () => addPhotoFiles(photoInput));
     videoInput?.addEventListener("change", () => {
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";
