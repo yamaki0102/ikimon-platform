@@ -368,7 +368,11 @@ function renderAiFeedback(
     && !subjects.some((names) => eligible(names) && names.some((name) => publicSubjectName(name)));
   const feedback = (presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null)
     ?? (!humanOnly ? environmentFallbackFeedback(detail, presentation, copy, lang) : null);
-  const nextPhoto = !humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null;
+  const defaultEnvironmentNextPhoto = !humanOnly && !presentation.aiFeedback && feedback && lang === "ja"
+    ? "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。"
+    : null;
+  const nextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
+    ?? defaultEnvironmentNextPhoto;
   if (!feedback && !nextPhoto) return "";
   return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${feedback ? `<p>${escapeHtml(feedback)}</p>` : ""}${nextPhoto ? `<p><strong>${escapeHtml(copy.aiNextPhotoTitle)}</strong><br>${escapeHtml(nextPhoto)}</p>` : ""}</section>`;
 }
