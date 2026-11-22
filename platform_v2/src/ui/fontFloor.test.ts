@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const FILES = ["siteShell.ts", "frontendFoundation.ts", "appExperience.ts", "landingHomeState.ts", "mapExplorer.ts", "guideFlow.ts", "observationEventStyles.ts", "observationFieldList.ts", "../routes/personalLibrary.ts", "../routes/monitoringBusiness.ts", "../routes/guideRead.ts", "../../cloudflare_shadow/src/index.ts"];
+const FILES = ["siteShell.ts", "frontendFoundation.ts", "appExperience.ts", "landingHomeState.ts", "mapExplorer.ts", "guideFlow.ts", "observationEventStyles.ts", "observationEventList.ts", "observationFieldList.ts", "../routes/personalLibrary.ts", "../routes/monitoringBusiness.ts", "../routes/guideRead.ts", "../../cloudflare_shadow/src/index.ts"];
 const ALLOW: string[] = [];
 
 test("shared CSS has no font-size below 14px", () => {

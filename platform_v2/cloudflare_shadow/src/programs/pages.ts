@@ -1406,7 +1406,7 @@ export function renderObservationEventCreatePage(
 </script>`;
 }
 
-function renderObservationEventJoinPage(
+export function renderObservationEventJoinPage(
   session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
   teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
   isAuthenticated: boolean,
@@ -1414,6 +1414,13 @@ function renderObservationEventJoinPage(
   applicationEnabled = false
 ): string {
   const eventCode = session.eventCode ?? "";
+  const startedLabel = session.startedAt ? session.startedAt.slice(0, 10) : "未定";
+  const targetList = Array.isArray(session.targetSpecies) && session.targetSpecies.length > 0
+    ? session.targetSpecies.slice(0, 5).map(escapeHtml).join("・")
+    : "";
+  const placeHref = session.fieldId ? `/places/${encodeURIComponent(session.fieldId)}` : "/map";
+  const placeLabel = session.fieldId ? "この場所の記録を見る" : "地図を見る";
+  const publicOverview = `<aside class="card" data-event-public-overview><p><strong>開催日:</strong> ${escapeHtml(startedLabel)}</p>${targetList ? `<p><strong>見つける対象:</strong> ${targetList}</p>` : ""}<div class="actions"><a class="btn secondary" href="${escapeHtml(placeHref)}">${escapeHtml(placeLabel)}</a><a class="btn secondary" href="/community/events">観察会一覧へ戻る</a></div></aside>`;
   const returnPath = `/community/events/${encodeURIComponent(eventCode)}/join`;
   const registerHref = `/register?redirect=${encodeURIComponent(returnPath)}`;
   const loginHref = `/login?redirect=${encodeURIComponent(returnPath)}`;
@@ -1432,6 +1439,7 @@ function renderObservationEventJoinPage(
     <p class="pill">観察会チェックイン</p>
     <h1>${escapeHtml(session.title)} に参加</h1>
     <p>家族・グループはスマートフォン1台で参加できます。代表者のニックネームや「○○家」で進めてください。</p>
+    ${publicOverview}
     ${applicationLink}
     <aside class="card"><strong>名前が分からなくても大丈夫です</strong><p class="muted">位置情報を共有しなくても、参加・観察・投稿ができます。</p></aside>
     <form data-evt-checkin-form novalidate>
