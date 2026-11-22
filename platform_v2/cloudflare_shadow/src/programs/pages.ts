@@ -1036,7 +1036,22 @@ async function getObservationEventRecapPage(request: Request, url: URL, env: Env
   const auth = await readCompatibleSession(request, env).catch(() => null);
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   const recapResponse = await getObservationEventRecap(request, url, env, session.sessionId);
-  if (!recapResponse.ok) return recapResponse;
+  if (!recapResponse.ok) {
+    if (recapResponse.status === 403) {
+      return pageHtml(
+        "権限がありません",
+        observationEventEmptyState("参加者のみ閲覧できます", "先に観察会へチェックインしてください。"),
+        "event-page-forbidden",
+        403
+      );
+    }
+    return pageHtml(
+      "振り返りを読み込めません",
+      observationEventEmptyState("振り返りを読み込めませんでした", "観察会一覧から選び直してください。"),
+      "event-page-recap-unavailable",
+      recapResponse.status
+    );
+  }
   const recap = await recapResponse.json() as Record<string, unknown>;
   await recordObservationEventParticipantPageMetric(request, env, session, "event_recap_viewed", "recap");
   return pageHtml(`${session.title} の振り返り`, renderObservationEventRecapPage(recap), "event-page-recap");
