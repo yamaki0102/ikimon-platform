@@ -1730,7 +1730,7 @@ test("community photo preview markers stay compact while allowing more visible p
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview \{\s+width: 50px;\s+min-height: 58px;/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview\.is-grid \{[\s\S]*outline: 2px dashed rgba\(14,165,233,\.38\);/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview img,\s+\.me-discovery-preview i \{\s+width: 42px;\s+height: 31px;/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview span \{\s+max-width: 42px;\s+min-height: 18px;[\s\S]+font-size: 8\.5px;/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-discovery-preview span \{\s+max-width: 42px;\s+min-height: 18px;[\s\S]+font-size: 14px;/);
 });
 
 test("Japanese map detail labels avoid service-authored motivation headings", () => {
