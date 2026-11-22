@@ -14,6 +14,7 @@ import {
   MAPLIBRE_SELF_HOSTED_JS,
 } from "../ui/mapExplorerAssets.js";
 import { globalRecordEntryAsset } from "../ui/siteShell.js";
+import { placeYearBandAsset } from "../ui/placeYearBandScript.js";
 
 /**
  * Legacy asset pass-through.
@@ -138,6 +139,7 @@ export async function registerLegacyAssetRoutes(app: FastifyInstance): Promise<v
     mapExplorerDeferredBundle(),
     mapExplorerDeferredStylesAsset(),
     globalRecordEntryAsset(),
+    placeYearBandAsset(),
     MAPLIBRE_SELF_HOSTED_JS,
     MAPLIBRE_SELF_HOSTED_CSS,
     ...MAP_GLYPH_SUBSET_ASSET_LIST,
