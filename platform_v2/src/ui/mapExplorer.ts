@@ -15525,7 +15525,7 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px;padding:0}
   .map-explorer .maplibregl-ctrl-attrib,.map-explorer .maplibregl-ctrl-attrib a,.map-explorer .maplibregl-ctrl-attrib-inner{font-size:14px;line-height:1.3}
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:calc(100% - 20px);white-space:normal}
-  @media (max-width:767px){.map-explorer .maplibregl-ctrl-bottom-right{bottom:calc(env(safe-area-inset-bottom,0px) + 96px);max-width:calc(100% - 20px);display:flex;flex-direction:column-reverse;align-items:flex-end}.map-explorer .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show{position:relative;z-index:0;max-width:min(260px,calc(100vw - 140px))}}
+  @media (max-width:900px){.me-map .maplibregl-ctrl-bottom-right{bottom:calc(var(--me-mobile-action-space) + 4px);max-width:calc(100% - 20px)}.map-explorer .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:min(260px,calc(100vw - 140px))}}
   .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}
