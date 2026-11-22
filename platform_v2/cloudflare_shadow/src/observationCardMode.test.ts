@@ -179,9 +179,9 @@ test("worker routes interactive requests to card mode only behind the staging sw
   assert.match(source, /const OBSERVATION_CARD_MAX_PER_INVOCATION = 20;/);
   assert.equal(source.match(/\.slice\(0, OBSERVATION_CARD_MAX_PER_INVOCATION\)/g)?.length, 2);
   assert.equal(source.match(/await submitDirectGeminiObservationReassessment\(/g)?.length, 1);
-  assert.equal(config.match(/"OBSERVATION_AI_MODE"/g)?.length, 1);
+  assert.equal(config.match(/"OBSERVATION_AI_MODE": "card_v1"/g)?.length, 2);
   const staging = config.indexOf("\"name\": \"ikimon-life-cloudflare-staging\"");
   const production = config.indexOf("\"name\": \"ikimon-life-cloudflare-prod\"");
   const flag = config.indexOf("\"OBSERVATION_AI_MODE\": \"card_v1\"");
-  assert.ok(staging > 0 && flag > staging && flag < production);
+  assert.ok(staging > 0 && flag > staging && flag < production && config.lastIndexOf("\"OBSERVATION_AI_MODE\": \"card_v1\"") > production);
 });
