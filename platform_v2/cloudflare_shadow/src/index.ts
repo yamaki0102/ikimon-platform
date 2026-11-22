@@ -19005,14 +19005,33 @@ async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1Fixe
       optionalFirst(
         env.OBS_DB.prepare(
           `SELECT public_derivative_key
-             FROM evidence_assets
+             FROM asset_ledger
             WHERE observation_id IN (${lookupIds.map(() => "?").join(", ")})
-              AND asset_role IN ('observation_photo', 'observation_photo_original')
+              AND processing_state = 'uploaded'
               AND public_derivative_key IS NOT NULL
-            ORDER BY created_at ASC
+              AND public_derivative_verified_at IS NOT NULL
+              AND exif_scrub_state = 'scrubbed'
+              AND public_ready_at IS NOT NULL
+              AND mime LIKE 'image/%'
+            ORDER BY public_ready_at DESC
             LIMIT 1`
         ).bind(...lookupIds).first<{ public_derivative_key: string | null }>()
-      ),
+      ).then(async (direct) => direct ?? optionalFirst(
+        env.OBS_DB.prepare(
+          `SELECT a.public_derivative_key
+             FROM production_import_evidence_assets e
+             JOIN asset_ledger a ON a.asset_id = e.asset_id
+            WHERE e.visit_id = ?
+              AND a.processing_state = 'uploaded'
+              AND a.public_derivative_key IS NOT NULL
+              AND a.public_derivative_verified_at IS NOT NULL
+              AND a.exif_scrub_state = 'scrubbed'
+              AND a.public_ready_at IS NOT NULL
+              AND a.mime LIKE 'image/%'
+            ORDER BY a.public_ready_at DESC
+            LIMIT 1`
+        ).bind(visit.visit_id).first<{ public_derivative_key: string | null }>()
+      )),
     ]);
     const taxa = taxaRows.results
       .map((row) => normalizeOptionalText(row.vernacular_name) ?? normalizeOptionalText(row.scientific_name))
@@ -19144,7 +19163,9 @@ function renderFixedPointCompareCard(slot: "a" | "b", visit: D1FixedPointStation
 function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
   const sameMonthPair = findFixedPointSameMonthPair(station.visits);
   const initialA = sameMonthPair ? sameMonthPair[0] : station.visits[0];
-  const initialB = sameMonthPair ? sameMonthPair[1] : station.visits[1];
+  const initialB = sameMonthPair
+    ? sameMonthPair[1]
+    : (initialA ? station.visits.find((v) => v.observedLabel !== initialA.observedLabel) : undefined) ?? station.visits[1];
   const hasComparableDates = station.visits.length >= 2 && new Set(station.visits.map((v) => v.observedLabel)).size >= 2;
   const compareOptions = (selectedId: string) => station.visits.map((visit) => {
     const label = `${visit.observedLabel} — ${visit.taxa.join("、") || visit.note.slice(0, 20)}`;

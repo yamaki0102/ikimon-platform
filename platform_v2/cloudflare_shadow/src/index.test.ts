@@ -5097,6 +5097,14 @@ class FakeStatement {
 
     const v = this.values;
 
+    if (normalized.startsWith("SELECT public_derivative_key FROM asset_ledger WHERE observation_id IN")) {
+      const ids = v.map(string);
+      const match = [...this.db.assets.values()].find((asset) =>
+        asset.observation_id && ids.includes(asset.observation_id) && asset.processing_state === "uploaded" && asset.public_derivative_key
+      );
+      return match ? ({ public_derivative_key: match.public_derivative_key } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256")) {
       const row = normalized.includes("WHERE session_id = ? AND participant_id = ? AND idempotency_key = ?")
         ? [...this.db.observationEventGuestMedia.values()].find((item) => item.session_id === string(v[0]) && item.participant_id === string(v[1]) && item.idempotency_key === string(v[2]))
@@ -23169,6 +23177,24 @@ test("production fixed point station page is D1-native without origin fallback",
     asset_role: "observation_photo",
     legacy_relative_path: null
   });
+  obs.assets.set("asset-fixed-1", {
+    asset_id: "asset-fixed-1",
+    draft_id: "draft-fixed-1",
+    observation_id: "visit-fixed-2026",
+    owner_user_id: "observer-1",
+    object_key: "orig/fixed-1.jpg",
+    partition_month: "2026-06",
+    sha256: "sha-orig-fixed-1",
+    bytes: 1000,
+    mime: "image/webp",
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260620/observation_photo/asset-fixed-1/display.webp",
+    public_derivative_sha256: "sha-fixed-1",
+    public_derivative_verified_at: "2026-06-20T09:05:00.000Z",
+    public_derivative_metadata_json: '{"gpsExifPresent":false,"contentType":"image/webp"}',
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-20T09:05:00.000Z",
+  });
   obs.stewardshipActions.set("action-fixed-1", {
     action_id: "action-fixed-1",
     place_id: fieldId,
@@ -23203,6 +23229,7 @@ test("production fixed point station page is D1-native without origin fallback",
     assert.match(body, /data-compare-same-month/);
     assert.match(body, /data-compare-slot="a"/);
     assert.match(body, /data-compare-slot="b"/);
+    assert.match(body, /<img class="fps-compare-photo" src="\/derived-transform\/w680\/derived\/import\/20260620\/observation_photo\/asset-fixed-1\/display\.webp"/);
     assert.match(body, /観察日/);
     assert.match(body, /記録者/);
     assert.match(body, /原文/);
