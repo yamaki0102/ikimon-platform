@@ -4953,6 +4953,8 @@ ${alternateLinks}
     :where(table) { display: block; max-width: 100%; overflow-x: auto; }
     :where(pre) { overflow-x: auto; }
     :where(main, section, article, aside, li, p, h1, h2, h3, h4, a, td, th, dd, dt, figcaption, label) { overflow-wrap: anywhere; }
+    :where(strong, b, th, label, summary, button, [class*=badge], [class*=chip], [class*=kicker], [class*=eyebrow], [class*=tag], [class*=pill]) { word-break: keep-all; overflow-wrap: break-word; }
+    @supports (word-break: auto-phrase) { :where(strong, b, th, label, summary, button, [class*=badge], [class*=chip], [class*=kicker], [class*=eyebrow], [class*=tag], [class*=pill]) { word-break: auto-phrase; } }
     :where(main, section, article, aside, nav, form) > * { min-width: 0; }
     body {
       margin: 0;
