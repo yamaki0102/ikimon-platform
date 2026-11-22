@@ -26577,6 +26577,7 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   assert.match(response.headers.get("cache-control") ?? "", /no-store/);
   assert.match(response.headers.get("content-security-policy") ?? "", /script-src 'self' 'nonce-/);
   assert.match(body, /id="record-form"[^>]*hidden/);
+  assert.match(body, /id="record-media-camera"[^>]*capture="environment"/);
   assert.match(body, /id="record-media-photo"/);
   assert.match(body, /id="record-media-video"/);
   assert.match(body, /id="record-submit-panel"/);
