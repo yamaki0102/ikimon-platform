@@ -871,12 +871,12 @@ function renderParticipationGuideSection(lang: SiteLang): string {
   const copy = {
     ja: {
       heading: "ZUKANでの参加について",
-      whatTitle: "地域の観察企画とは",
-      whatBody: "自治体や地域の団体、案内役が季節や場所に合わせて開く観察会・フィールド企画を掲載しています。同じ場所で集めた記録は、地域の自然のいまを確かめる手がかりになり、公開範囲も自分で選べます。",
+      whatTitle: "地域のイベントとは",
+      whatBody: "自治体や地域の団体、案内役が開く祭り・まちあるき・朝市・行事・観察会などの地域のイベントを掲載しています。イベントで撮った写真や同じ場所で集めた記録は、自分の手元に残しつつ場所のページにも積もります。",
       howTitle: "参加の流れ",
-      howBody: "掲載中の企画から詳細を開き、開催場所・日時・参加方法や当日の注意事項を確認してチェックインします。案内コードや共有リンクを受け取っている場合は、当日そのまま参加画面へ進めます。",
-      soloTitle: "企画がないときも参加できます",
-      soloBody: "公開中の観察会がないときでも、普段の散歩や身近な自然で気づいた生きものを自分のペースで記録したり、公開されている地図や散策マップから地域の記録をたどったりすることができます。",
+      howBody: "掲載中のイベントから詳細を開き、開催場所・日時・参加方法や当日の注意事項を確認してチェックインします。案内コードや共有リンクを受け取っている場合は、当日そのまま参加画面へ進めます。",
+      soloTitle: "イベントがないときも参加できます",
+      soloBody: "公開中のイベントがないときでも、普段の散歩や身近な景色を自分のペースで記録したり、公開されている地図や散策マップから地域の記録をたどったりすることができます。",
       links: [
         { href: "/records?view=public", label: "公開記録を見る" },
         { href: "/map", label: "地図から探す" },
@@ -886,8 +886,8 @@ function renderParticipationGuideSection(lang: SiteLang): string {
     },
     en: {
       heading: "About participating on ZUKAN",
-      whatTitle: "What local programs are",
-      whatBody: "This page lists observation events and seasonal field programs hosted by local groups, municipalities, or organizers. Records gathered together help build a clearer picture of local nature.",
+      whatTitle: "What local events are",
+      whatBody: "This page lists local events hosted by community groups, municipalities, or organizers, including festivals, town walks, morning markets, and observation events. Photos you take can stay in your own records and also connect to the place page.",
       howTitle: "How to join",
       howBody: "Open a listed program to check its date, location, and participation method before checking in. If you received a shared event link or code, you can go straight to the check-in page on the day.",
       soloTitle: "Participate anytime at your own pace",
@@ -901,8 +901,8 @@ function renderParticipationGuideSection(lang: SiteLang): string {
     },
     es: {
       heading: "Sobre participar en ZUKAN",
-      whatTitle: "Qué son las actividades locales",
-      whatBody: "Aquí se publican encuentros de observación y recorridos locales organizados por grupos, municipios o responsables. Los registros compartidos ayudan a conocer mejor la naturaleza del lugar.",
+      whatTitle: "Qué son los eventos locales",
+      whatBody: "Aquí se publican eventos locales organizados por grupos, municipios o responsables, como festivales, paseos urbanos, mercados, actos locales y jornadas de observación. Las fotos que tomes quedan en tus registros y también se conectan con la página del lugar.",
       howTitle: "Cómo participar",
       howBody: "Abre una actividad publicada para revisar la fecha, el lugar y la forma de participación antes de registrarte. Si recibiste un enlace o código, puedes entrar directamente el día de la actividad.",
       soloTitle: "Participa también a tu ritmo",
@@ -916,8 +916,8 @@ function renderParticipationGuideSection(lang: SiteLang): string {
     },
     "pt-BR": {
       heading: "Sobre participar no ZUKAN",
-      whatTitle: "O que são as atividades locais",
-      whatBody: "Esta página reúne encontros de observação e caminhadas locais organizados por grupos, municípios ou responsáveis. Os registros feitos juntos ajudam a acompanhar a natureza da região.",
+      whatTitle: "O que são os eventos locais",
+      whatBody: "Esta página reúne eventos locais organizados por grupos, municípios ou responsáveis, como festivais, caminhadas, feiras, encontros locais e atividades de observação. As fotos registradas ficam nos seus arquivos e também se conectam à página do lugar.",
       howTitle: "Como participar",
       howBody: "Abra uma atividade listada para conferir data, local e forma de participação antes de fazer check-in. Se você recebeu um link ou código, pode acessar direto no dia.",
       soloTitle: "Participe também no seu ritmo",
