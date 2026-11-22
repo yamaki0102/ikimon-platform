@@ -94,7 +94,7 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-hero .evt-hero-eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 14px;
-  font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  font-size: 14px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   color: #d1fae5;
   background: rgba(255,255,255,.12);
   border: 1px solid rgba(255,255,255,.22);
@@ -111,7 +111,7 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-hero p { margin: 0; max-width: 60ch; color: rgba(236,253,245,.86); font-size: 16px; line-height: 1.6; }
 .evt-hero .evt-hero-meta {
   display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 18px;
-  font-size: 13px; color: #d1fae5;
+  font-size: 14px; color: #d1fae5;
 }
 .evt-hero .evt-hero-meta b { font-weight: 700; color: #ecfdf5; }
 .evt-hero .evt-hero-actions {
@@ -202,7 +202,7 @@ export const OBSERVATION_EVENT_STYLES = `
 /* === eyebrow + heading === */
 .evt-eyebrow {
   display: inline-block;
-  font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
   color: var(--evt-ink-soft);
 }
 .evt-heading {
@@ -217,7 +217,7 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-badge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 10px; border-radius: 999px;
-  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  font-size: 14px; font-weight: 700; letter-spacing: .04em;
   background: var(--evt-surface);
   border: 1px solid var(--evt-line);
   color: var(--evt-ink);
@@ -319,7 +319,7 @@ export const OBSERVATION_EVENT_STYLES = `
 }
 .evt-solo-cockpit span:last-child {
   color: var(--evt-ink-soft);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -365,7 +365,7 @@ export const OBSERVATION_EVENT_STYLES = `
 .evt-live-feed-item.is-target { background: linear-gradient(135deg, #ecfdf5, #d1fae5); }
 .evt-live-feed-item.is-quest { background: linear-gradient(135deg, #fdf2f8, #fce7f3); }
 .evt-live-feed-item.is-announce { background: linear-gradient(135deg, #eff6ff, #dbeafe); }
-.evt-live-feed-time { color: var(--evt-ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+.evt-live-feed-time { color: var(--evt-ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
 
 .evt-live-status {
   display: grid;
@@ -380,7 +380,7 @@ export const OBSERVATION_EVENT_STYLES = `
   padding: 10px 12px;
   display: flex; flex-direction: column; gap: 2px;
 }
-.evt-live-stat-card .evt-live-stat-label { font-size: 11px; color: var(--evt-ink-soft); letter-spacing: .08em; text-transform: uppercase; }
+.evt-live-stat-card .evt-live-stat-label { font-size: 14px; color: var(--evt-ink-soft); letter-spacing: .08em; text-transform: uppercase; }
 .evt-live-stat-card .evt-live-stat-value { font-size: 20px; font-weight: 850; font-variant-numeric: tabular-nums; }
 
 .evt-live-actions {
@@ -400,7 +400,7 @@ export const OBSERVATION_EVENT_STYLES = `
   border: 1px solid var(--evt-line);
   background: var(--evt-surface);
   color: var(--evt-ink);
-  font-weight: 800; font-size: 13px;
+  font-weight: 800; font-size: 14px;
   cursor: pointer;
   transition: transform var(--evt-motion-fast), box-shadow var(--evt-motion-fast), background var(--evt-motion-fast);
   -webkit-tap-highlight-color: transparent;
@@ -544,7 +544,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   font-weight: 850;
 }
 .evt-solo-loop-grid strong { color: var(--evt-ink); font-size: 14px; }
-.evt-solo-loop-grid p { margin: 0; color: var(--evt-ink-soft); font-size: 12px; line-height: 1.45; }
+.evt-solo-loop-grid p { margin: 0; color: var(--evt-ink-soft); font-size: 14px; line-height: 1.45; }
 
 /* === Quest カード（中段オーバーレイ） === */
 .evt-quest-card {
@@ -576,7 +576,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   border-radius: 999px;
   border: 1px solid var(--evt-line);
   background: var(--evt-surface);
-  font-weight: 800; font-size: 13px;
+  font-weight: 800; font-size: 14px;
   cursor: pointer;
 }
 .evt-quest-card .evt-quest-actions button.is-accept {
@@ -643,7 +643,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   padding: 8px 12px; min-height: var(--ik-tap-target, 44px);
   border-radius: 999px; border: 1px solid var(--evt-line);
   background: var(--evt-surface);
-  font-size: 13px; font-weight: 700;
+  font-size: 14px; font-weight: 700;
   cursor: pointer;
   transition: transform var(--evt-motion-fast), background var(--evt-motion-fast);
 }
@@ -673,7 +673,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   min-width: 44px;
   border-radius: 999px;
   background: transparent; border: 0;
-  font-weight: 700; font-size: 13px; color: var(--evt-ink-soft);
+  font-weight: 700; font-size: 14px; color: var(--evt-ink-soft);
   cursor: pointer;
   transition: background var(--evt-motion-fast), color var(--evt-motion-fast);
 }
@@ -710,7 +710,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
               radial-gradient(120% 80% at 0% 100%, rgba(236,72,153,.32), transparent 55%);
 }
 .evt-result-card > * { position: relative; }
-.evt-result-card .evt-result-eyebrow { color: #d1fae5; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
+.evt-result-card .evt-result-eyebrow { color: #d1fae5; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; }
 .evt-result-card h2 { margin: 6px 0 12px; font-size: clamp(22px, 3vw, 30px); line-height: 1.18; font-weight: 850; }
 .evt-result-card .evt-result-stats {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
@@ -723,7 +723,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   backdrop-filter: blur(4px);
 }
 .evt-result-card .evt-result-stats strong { display: block; font-size: 22px; font-weight: 850; font-variant-numeric: tabular-nums; }
-.evt-result-card .evt-result-stats span { font-size: 11px; color: #d1fae5; letter-spacing: .08em; text-transform: uppercase; }
+.evt-result-card .evt-result-stats span { font-size: 14px; color: #d1fae5; letter-spacing: .08em; text-transform: uppercase; }
 
 /* === チェックイン === */
 .evt-checkin-shell {
@@ -792,7 +792,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 .evt-area-planner > legend {
   padding: 0 6px;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 14px;
 }
 .evt-area-head {
   display: grid;
@@ -841,7 +841,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   background: rgba(255,255,255,.94);
   color: #0f172a;
   box-shadow: 0 6px 14px rgba(15,23,42,.14);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 900;
   line-height: 1.2;
   white-space: nowrap;
@@ -875,7 +875,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   border-radius: 10px;
   background: rgba(15,23,42,.78);
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
   pointer-events: none;
 }
 .evt-area-map-shell.is-map-ready .evt-area-map-fallback {
@@ -887,7 +887,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   background: rgba(248,250,252,.9);
   border: 1px solid rgba(148,163,184,.18);
   color: var(--evt-ink-soft);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 .evt-area-suggestions,
@@ -944,7 +944,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   background: #ffffff;
   border: 1px solid rgba(16,185,129,.24);
   color: #047857;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
 }
 .evt-land-cover-panel [data-evt-land-cover-total].is-over {
@@ -969,7 +969,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 }
 .evt-land-cover-row span {
   color: var(--evt-ink);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.2;
   font-weight: 850;
 }
@@ -980,7 +980,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 }
 .evt-land-cover-row output {
   color: var(--evt-ink-soft);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 850;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1016,7 +1016,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   background: #ffffff;
   border: 1px solid rgba(14,165,233,.24);
   color: #0369a1;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
 }
 .evt-area-sketch-preview-summary {
@@ -1044,7 +1044,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 .evt-area-sketch-preview-summary span {
   margin-top: 5px;
   color: var(--evt-ink-soft);
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 850;
   line-height: 1.2;
 }
@@ -1064,7 +1064,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   border: 1px solid var(--evt-line);
   background: #ffffff;
   color: var(--evt-ink-soft);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 850;
   line-height: 1.15;
 }
@@ -1099,7 +1099,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 }
 .evt-area-sketch-preview-evidence strong {
   color: var(--evt-ink);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.25;
   font-weight: 900;
 }
@@ -1107,7 +1107,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 .evt-area-sketch-preview p {
   margin: 0;
   color: var(--evt-ink-soft);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
 }
 .evt-area-preview {
@@ -1125,7 +1125,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
 .evt-area-suggestion span,
 .evt-area-conflict span {
   color: var(--evt-ink-soft);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
 }
 .evt-area-conflict-actions {
@@ -1167,7 +1167,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
     min-height: 58px;
     padding: 8px 4px;
     border-radius: 14px;
-    font-size: 11px;
+    font-size: 14px;
     line-height: 1.2;
   }
   .evt-live-action-btn:first-child {
@@ -1194,7 +1194,7 @@ body[data-zukan-app-experience] .evt-rally-shell .evt-rally-consent a {
   position: fixed; bottom: 16px; right: 16px;
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 999px;
-  font-size: 12px; font-weight: 700;
+  font-size: 14px; font-weight: 700;
   background: rgba(15,23,42,.85); color: #ecfdf5;
   box-shadow: var(--evt-shadow-md);
   pointer-events: none;

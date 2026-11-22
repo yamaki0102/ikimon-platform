@@ -104,7 +104,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
     ? `<div class="evt-card" style="display:grid; gap:10px;">
         <span class="evt-badge evt-mode-effort" style="width:fit-content;">公開フィールドの見方</span>
         <h3 class="evt-heading" style="margin:0; font-size:18px;">公開フィールドは安全に出せる場所だけを表示します</h3>
-        <p class="evt-lead" style="font-size:13px;">公開できる場所がまだ少ない時は、地図で公開記録を粗い位置で見ながら、自分やグループだけの非公開フィールドを先に作れます。</p>
+        <p class="evt-lead" style="font-size:14px;">公開できる場所がまだ少ない時は、地図で公開記録を粗い位置で見ながら、自分やグループだけの非公開フィールドを先に作れます。</p>
         <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px;">
           <span class="evt-badge evt-mode-discovery" style="justify-content:center;">公園</span>
           <span class="evt-badge evt-mode-effort" style="justify-content:center;">散歩道</span>
@@ -126,8 +126,8 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
             <span class="evt-eyebrow">${f.areaHa ? `${f.areaHa.toFixed(1)} ha` : `${f.radiusM} m`}</span>
           </header>
           <h3 class="evt-heading" style="margin:0; font-size:17px;">${escapeHtml(f.name)}</h3>
-          <p class="evt-lead" style="font-size:13px;">${escapeHtml([f.prefecture, f.city].filter(Boolean).join(" / "))}</p>
-          ${f.summary ? `<p class="evt-lead" style="font-size:12px;">${escapeHtml(f.summary)}</p>` : ""}
+          <p class="evt-lead" style="font-size:14px;">${escapeHtml([f.prefecture, f.city].filter(Boolean).join(" / "))}</p>
+          ${f.summary ? `<p class="evt-lead" style="font-size:14px;">${escapeHtml(f.summary)}</p>` : ""}
           <div style="display:flex; flex-wrap:wrap; gap:6px;">
             <span class="evt-badge ${statusBadge.className}">${escapeHtml(statusBadge.label)}</span>
             <span class="evt-badge ${useBadge.className}">${escapeHtml(useBadge.label)}</span>
@@ -164,7 +164,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
   <section class="evt-card" aria-label="フィールドを検索" style="display:grid; gap:10px;">
     <div>
       <span class="evt-eyebrow">絞り込み</span>
-      <p class="evt-lead" style="font-size:13px; margin-top:4px;">場所カードを見てから、必要な時だけ名前・市町村・都道府県で絞り込めます。</p>
+      <p class="evt-lead" style="font-size:14px; margin-top:4px;">場所カードを見てから、必要な時だけ名前・市町村・都道府県で絞り込めます。</p>
     </div>
     <form id="field-db-search" action="/community/fields" method="get" style="display:flex; gap:8px;">
       ${filter.source ? `<input type="hidden" name="source" value="${escapeHtml(filter.source)}" />` : ""}
@@ -187,7 +187,7 @@ export function renderFieldListBody(args: RenderFieldListArgs): string {
 
   <details style="display:grid; gap:8px; padding:12px; border-radius:8px; border:1px solid var(--evt-line); background:rgba(255,255,255,.82);">
     <summary class="evt-eyebrow" style="cursor:pointer;">どんな場所が公開されるの?</summary>
-    <p class="evt-lead" style="font-size:12px; margin:0;">自然共生サイト・TSUNAG は公表済みの公開ソース、マイフィールドはログイン後の非公開/グループ用です。</p>
+    <p class="evt-lead" style="font-size:14px; margin:0;">自然共生サイト・TSUNAG は公表済みの公開ソース、マイフィールドはログイン後の非公開/グループ用です。</p>
     <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${sourceChips}</div>
   </details>
 
