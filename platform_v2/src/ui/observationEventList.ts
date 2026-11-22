@@ -412,7 +412,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-eyebrow {
   margin: 0 0 8px;
   color: #55615a;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: .05em;
 }
@@ -459,7 +459,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
   display: block;
   margin-bottom: 4px;
   color: #245c3a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 .zukan-participation-row h3 {
@@ -489,7 +489,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-facts div { min-width: 0; }
 .zukan-participation-facts dt {
   color: #6b766f;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 .zukan-participation-facts dd {
@@ -545,7 +545,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-tz-note {
   margin: 12px 0 0;
   color: #55615a;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .zukan-participation-notice {
@@ -682,7 +682,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 }
 .zukan-participation-detail-fact dt {
   color: #55615a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: .04em;
 }
@@ -707,7 +707,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-terms-disclaimer {
   margin: 12px 0 0;
   color: #55615a;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
 }
 .zukan-participation-detail-record {
@@ -782,7 +782,7 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 }
 .zukan-participation-guide-item p {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.7;
   color: var(--zukan-text-secondary, #5a675f);
 }
@@ -795,12 +795,12 @@ export const OBSERVATION_EVENT_LIST_STYLES = `
 .zukan-participation-guide-links a {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--zukan-border-control, #cbd9d0);
   color: var(--zukan-action-primary, #245c3a);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   text-decoration: none;
 }

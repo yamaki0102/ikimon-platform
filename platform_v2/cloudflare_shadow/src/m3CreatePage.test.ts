@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderObservationEventCreatePage, renderObservationEventRecapPage } from "./index.js";
-import { renderObservationEventRallyPage } from "./programs/pages.js";
+import { renderObservationEventJoinPage, renderObservationEventRallyPage } from "./programs/pages.js";
 
 test("M3 native create surface exposes the collaboration fields and safe handoff", () => {
   const body = renderObservationEventCreatePage({
@@ -94,4 +94,25 @@ test("observation rally page links participant to recap, own records, and field 
   assert.match(html, /href="\/events\/session-1\/recap"/);
   assert.match(html, /href="\/records\?view=mine"/);
   assert.match(html, /href="\/places\/field-42"/);
+});
+
+test("observation event join page renders public event overview and links to place and events list", () => {
+  const html = renderObservationEventJoinPage(
+    {
+      sessionId: "session-1",
+      eventCode: "SPRING-01",
+      title: "春の自然観察会",
+      startedAt: "2026-11-23T09:00:00.000Z",
+      endedAt: null,
+      fieldId: "field-42",
+      targetSpecies: ["ヤマトシジミ", "ヒメジョオン"],
+    } as never,
+    [],
+    false,
+  );
+  assert.match(html, /data-event-public-overview/);
+  assert.match(html, /2026-11-23/);
+  assert.match(html, /ヤマトシジミ/);
+  assert.match(html, /href="\/places\/field-42"/);
+  assert.match(html, /href="\/community\/events"/);
 });
