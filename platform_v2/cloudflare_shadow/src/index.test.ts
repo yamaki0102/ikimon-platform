@@ -20020,6 +20020,18 @@ test("observation event guest checkin keeps credentials server-side and location
   assert.equal(injectedQueryRecap.status, 403);
   assert.equal((await injectedQueryRecap.json() as any).error, "event participant required");
 
+  const nonParticipantRecapPage = await worker.fetch(
+    new Request(`https://ikimon.life/ja/events/${created.sessionId}/recap`),
+    productionEnv
+  );
+  assert.equal(nonParticipantRecapPage.status, 403);
+  assert.match(nonParticipantRecapPage.headers.get("content-type") ?? "", /text\/html/);
+  const nonParticipantRecapHtml = await nonParticipantRecapPage.text();
+  assert.match(nonParticipantRecapHtml, /参加者のみ閲覧できます/);
+  assert.match(nonParticipantRecapHtml, /href="\/ja\/community\/events"|href="\/community\/events"/);
+  assert.match(nonParticipantRecapHtml, /zukan-app-nav is-bottom/);
+  assert.doesNotMatch(nonParticipantRecapHtml, /event participant required/);
+
   const concurrentEventResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
     method: "POST",
     headers: { "content-type": "application/json", cookie: organizerCookie },
