@@ -25,7 +25,7 @@ function fixture() {
   }
   native.exec(`
     CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, public_profile_status TEXT NOT NULL DEFAULT 'draft', valid_to TEXT, superseded_by_place_id TEXT);
-    CREATE TABLE place_policies (place_id TEXT NOT NULL, place_visibility TEXT NOT NULL, valid_to TEXT);
+    CREATE TABLE place_policies (place_policy_id TEXT PRIMARY KEY, place_id TEXT NOT NULL, place_visibility TEXT NOT NULL, public_location_mode TEXT NOT NULL DEFAULT 'place', valid_from TEXT, valid_to TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE record_place_memberships (membership_id TEXT PRIMARY KEY, record_id TEXT NOT NULL, place_id TEXT NOT NULL,
       membership_state TEXT NOT NULL DEFAULT 'confirmed', public_precision TEXT NOT NULL DEFAULT 'place', removed_at TEXT);
   `);
@@ -42,9 +42,18 @@ function fixture() {
     },
   };
   let seq = 0;
+  let policySeq = 0;
+  const addPolicy = (id: string, visibility: string, mode: string, from: string) => {
+    native.prepare("INSERT INTO place_policies (place_policy_id, place_id, place_visibility, public_location_mode, valid_from) VALUES (?, ?, ?, ?, ?)")
+      .run(`pol-${++policySeq}`, id, visibility, mode, from);
+  };
+  const hide = (visit: string, mode: "emergency" | "private") => {
+    native.prepare("INSERT INTO observations (observation_id, draft_id, owner_user_id, observed_at, public_cell, visibility, emergency_hidden) VALUES (?, ?, 'u', '2008-01-01', 'c', ?, ?)")
+      .run(visit, `d-${visit}`, mode === "private" ? "private" : "public", mode === "emergency" ? 1 : 0);
+  };
   const addPlace = (id: string, name: string, visibility = "public", status = "published") => {
     native.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, ?)").run(id, name, status);
-    native.prepare("INSERT INTO place_policies (place_id, place_visibility) VALUES (?, ?)").run(id, visibility);
+    addPolicy(id, visibility, "place", "2000-01-01");
   };
   const addRecord = (visit: string, place: string, observedAt: string, o: {
     visibility?: string; consent?: string; withdrawal?: string; precision?: string; state?: string; removed?: string | null;
@@ -65,7 +74,7 @@ function fixture() {
         .run(visit, o.cell ?? "cell-1", observedAt, o.area);
     }
   };
-  return { native, db, statements, addPlace, addRecord };
+  return { native, db, statements, addPlace, addRecord, addPolicy, hide };
 }
 
 test("years are distinct, ascending and exclude every non-public record", async () => {
@@ -181,4 +190,44 @@ test("route: 400 on a bad place id, empty for non-public, public cache for anony
   const authed = await get("/api/v1/places/p1/years", { headers: { cookie: "s=1" } });
   assert.equal(authed?.headers.get("cache-control"), "private, no-store");
   assert.equal(await get("/api/v1/places/p1/other"), null);
+});
+
+test("emergency-hidden and non-public observations vanish from every read", async () => {
+  const f = fixture();
+  f.addPlace("p1", "浜松城公園");
+  f.addRecord("ok", "p1", "2008-05-01T00:00:00Z");
+  f.addRecord("hid", "p1", "1999-05-01T00:00:00Z");
+  f.addRecord("priv", "p1", "1998-05-01T00:00:00Z");
+  f.hide("hid", "emergency");
+  f.hide("priv", "private");
+  assert.deepEqual((await loadPlaceYearIndex(f.db, "p1")).years, [{ year: 2008, count: 1 }]);
+  assert.deepEqual((await loadPlaceYearCards(f.db, "p1")).map((c) => c.visitId), ["ok"]);
+  f.hide("ok", "emergency");
+  assert.equal(await resolveDefaultPublicPlace(f.db), null);
+});
+
+test("a hidden location mode or a non-public latest policy removes the place from reads", async () => {
+  const f = fixture();
+  f.addPlace("hid-mode", "場所A");
+  f.addPolicy("hid-mode", "public", "hidden", "2010-01-01");
+  f.addPlace("went-private", "場所B");
+  f.addPolicy("went-private", "private", "place", "2020-01-01");
+  f.addPlace("back-public", "場所C", "private");
+  f.addPolicy("back-public", "public", "place", "2021-01-01");
+  for (const id of ["hid-mode", "went-private", "back-public"]) f.addRecord(`r-${id}`, id, "2008-05-01T00:00:00Z");
+  assert.deepEqual((await loadPlaceYearIndex(f.db, "hid-mode")).years, []);
+  assert.deepEqual(await loadPlaceYearCards(f.db, "hid-mode"), []);
+  assert.deepEqual((await loadPlaceYearIndex(f.db, "went-private")).years, []);
+  assert.deepEqual(await loadPlaceYearCards(f.db, "went-private"), []);
+  assert.equal((await loadPlaceYearCards(f.db, "back-public")).length, 1);
+  assert.deepEqual(await resolveDefaultPublicPlace(f.db), { placeId: "back-public", label: "場所C" });
+});
+
+test("responses vary on credentials", async () => {
+  const f = fixture();
+  f.addPlace("p1", "浜松城公園");
+  const anon = await handlePlaceYearReadRequest(new Request("https://zukan.earth/api/v1/places/p1/years"), f.db, "/api/v1/places/p1/years");
+  const authed = await handlePlaceYearReadRequest(new Request("https://zukan.earth/api/v1/places/p1/records", { headers: { authorization: "x" } }), f.db, "/api/v1/places/p1/records");
+  for (const r of [anon, authed]) assert.equal(r?.headers.get("vary"), "Cookie, Authorization");
+  assert.equal(authed?.headers.get("cache-control"), "private, no-store");
 });

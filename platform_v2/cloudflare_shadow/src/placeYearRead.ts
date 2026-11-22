@@ -35,9 +35,14 @@ const PUBLIC_PLACE_GATE = `EXISTS (
              AND p.superseded_by_place_id IS NULL
              AND EXISTS (
                SELECT 1 FROM place_policies pp
-                WHERE pp.place_id = p.place_id
+                WHERE pp.place_policy_id = (
+                    SELECT pp2.place_policy_id FROM place_policies pp2
+                     WHERE pp2.place_id = p.place_id AND pp2.valid_to IS NULL
+                     ORDER BY COALESCE(pp2.valid_from, pp2.created_at) DESC, pp2.place_policy_id DESC
+                     LIMIT 1
+                  )
                   AND pp.place_visibility = 'public'
-                  AND pp.valid_to IS NULL
+                  AND COALESCE(pp.public_location_mode, 'place') <> 'hidden'
              )
         )`;
 
@@ -55,6 +60,11 @@ const PUBLIC_VISIT_GATE = `COALESCE(v.public_visibility, 'private') = 'public'
              WHERE rights.visit_id = v.visit_id
                AND rights.withdrawal_status = 'active'
                AND rights.record_consent IN ('public_summary', 'external_export')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM observations ho
+             WHERE ho.observation_id = v.visit_id
+               AND (ho.emergency_hidden <> 0 OR ho.visibility <> 'public')
           )
           AND substr(COALESCE(v.observed_at, v.created_at, ''), 1, 4) GLOB '[12][0-9][0-9][0-9]'`;
 
@@ -218,6 +228,7 @@ export async function handlePlaceYearReadRequest(
     return json({ error: "invalid_place_id" }, 400, { "cache-control": "no-store" });
   }
   const headers = {
+    vary: "Cookie, Authorization",
     "cache-control": request.headers.has("cookie") || request.headers.has("authorization")
       ? "private, no-store"
       : "public, max-age=60",
