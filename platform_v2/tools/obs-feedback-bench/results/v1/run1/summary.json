@@ -1,0 +1,200 @@
+[
+ {
+  "id": "wai-deepseek41",
+  "n": 45,
+  "quality": 97.8,
+  "p50ms": 34151,
+  "p95ms": 41173,
+  "costPer1000Usd": 13.89,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.44,
+  "byCategory": {
+   "environment": 100,
+   "organism": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 97,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "g35lite",
+  "n": 45,
+  "quality": 96.4,
+  "p50ms": 12175,
+  "p95ms": 14178,
+  "costPer1000Usd": 17.82,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.44,
+  "byCategory": {
+   "organism": 100,
+   "environment": 99,
+   "landscape": 100,
+   "built": 100,
+   "hard": 90,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "g36flash",
+  "n": 45,
+  "quality": 96,
+  "p50ms": 18882,
+  "p95ms": 23234,
+  "costPer1000Usd": 23.72,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.46,
+  "byCategory": {
+   "organism": 98,
+   "environment": 94,
+   "landscape": 98,
+   "built": 100,
+   "hard": 89,
+   "hidden-subject": 100
+  }
+ },
+ {
+  "id": "prod",
+  "n": 45,
+  "quality": 95.9,
+  "p50ms": 17995,
+  "p95ms": 25642,
+  "costPer1000Usd": 44.31,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 100,
+   "environment": 95,
+   "landscape": 100,
+   "built": 100,
+   "hard": 87,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "lite-only",
+  "n": 45,
+  "quality": 95.9,
+  "p50ms": 10302,
+  "p95ms": 11751,
+  "costPer1000Usd": 10.88,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.14,
+  "byCategory": {
+   "environment": 98,
+   "organism": 100,
+   "landscape": 96,
+   "built": 97,
+   "hard": 87,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "hydrogen",
+  "n": 45,
+  "quality": 95.6,
+  "p50ms": 23747,
+  "p95ms": 30599,
+  "costPer1000Usd": 48.13,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.62,
+  "byCategory": {
+   "organism": 98,
+   "environment": 95,
+   "landscape": 96,
+   "built": 99,
+   "hard": 89,
+   "hidden-subject": 95
+  }
+ },
+ {
+  "id": "wai-gemma4",
+  "n": 45,
+  "quality": 94.8,
+  "p50ms": 92476,
+  "p95ms": 118127,
+  "costPer1000Usd": 3.42,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.24,
+  "byCategory": {
+   "organism": 96,
+   "environment": 97,
+   "landscape": 100,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "prod+sweep",
+  "n": 45,
+  "quality": 94.2,
+  "p50ms": 21270,
+  "p95ms": 26160,
+  "costPer1000Usd": 45.77,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.52,
+  "byCategory": {
+   "organism": 95,
+   "environment": 94,
+   "landscape": 99,
+   "built": 99,
+   "hard": 88,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "wai-qwen38",
+  "n": 45,
+  "quality": 42.4,
+  "p50ms": 163023,
+  "p95ms": 222881,
+  "costPer1000Usd": 15.07,
+  "failureRate": 0.5555555555555556,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 46,
+   "environment": 28,
+   "landscape": 43,
+   "built": 60,
+   "hard": 60,
+   "hidden-subject": 0
+  }
+ },
+ {
+  "id": "wai-inkling",
+  "n": 45,
+  "quality": 14.8,
+  "p50ms": 31260,
+  "p95ms": 36482,
+  "costPer1000Usd": 15.66,
+  "failureRate": 0.8444444444444444,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 8,
+   "environment": 14,
+   "landscape": 0,
+   "built": 38,
+   "hard": 30,
+   "hidden-subject": 0
+  }
+ },
+ {
+  "id": "wai-llama4scout",
+  "n": 45,
+  "quality": 11.6,
+  "p50ms": 120379,
+  "p95ms": 148129,
+  "costPer1000Usd": 1.26,
+  "failureRate": 0.8666666666666667,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 40,
+   "environment": 0,
+   "landscape": 0,
+   "built": 0,
+   "hard": 0,
+   "hidden-subject": 0
+  }
+ }
+]

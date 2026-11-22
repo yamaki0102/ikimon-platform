@@ -73,7 +73,7 @@ test("observation reassess pipeline contract keeps AI output candidate-only", ()
 });
 
 test("observation reassess service uses the shared pipeline version contract", () => {
-  const source = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const source = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
 
   assert.match(source, /OBSERVATION_REASSESS_PIPELINE_VERSION/);
   assert.match(source, /const PIPELINE_VERSION = OBSERVATION_REASSESS_PIPELINE_VERSION/);
@@ -81,7 +81,7 @@ test("observation reassess service uses the shared pipeline version contract", (
 });
 
 test("observation_reassess_candidate_only_pipeline_contract write targets stay in the pipeline allowlist", () => {
-  const reassessSource = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const reassessSource = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
   const aiJudgementSource = readFileSync(new URL("./aiJudgementObservationRecords.ts", import.meta.url), "utf8");
   const managementActionSource = readFileSync(new URL("./managementActionConfirmation.ts", import.meta.url), "utf8");
   const alertDispatcherSource = readFileSync(new URL("./alertDispatcher.ts", import.meta.url), "utf8");
