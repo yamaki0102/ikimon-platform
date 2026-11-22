@@ -26609,6 +26609,12 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   assert.match(body, /id="record-media-video"/);
   assert.match(body, /id="record-submit-panel"/);
   assert.match(body, /id="record-status"/);
+  assert.match(body, /id="record-saved-links"/);
+  assert.match(body, /data-record-saved-links/);
+  assert.match(body, /showSavedRecordLinks/);
+  assert.match(body, /\/observations\//);
+  assert.match(body, /\/records\?view=mine/);
+  assert.match(body, /\/places\//);
   assert.match(body, /name="latitude"/);
   assert.match(body, /name="longitude"/);
   assert.match(body, /\/api\/v1\/observations\/upsert/);
