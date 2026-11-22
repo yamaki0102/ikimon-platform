@@ -1,0 +1,12 @@
+{
+ "runId": "run7",
+ "version": "v1",
+ "configs": [
+  "prod-worker",
+  "card-lite"
+ ],
+ "items": 45,
+ "maxUsd": 1.2,
+ "spentUsd": 0.33843695000000024,
+ "stoppedByCap": false
+}

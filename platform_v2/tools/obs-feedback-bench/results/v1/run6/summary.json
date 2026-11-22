@@ -1,0 +1,74 @@
+[
+ {
+  "id": "card-lite",
+  "n": 45,
+  "quality": 97.7,
+  "p50ms": 7497,
+  "p95ms": 29279,
+  "costPer1000Usd": 2.49,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.81,
+  "byCategory": {
+   "environment": 100,
+   "organism": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 50
+  }
+ },
+ {
+  "id": "prod",
+  "n": 45,
+  "quality": 95.9,
+  "p50ms": 17995,
+  "p95ms": 25642,
+  "costPer1000Usd": 44.31,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.94,
+  "byCategory": {
+   "organism": 100,
+   "environment": 95,
+   "landscape": 100,
+   "built": 100,
+   "hard": 87,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "hydrogen",
+  "n": 45,
+  "quality": 95.6,
+  "p50ms": 23747,
+  "p95ms": 30599,
+  "costPer1000Usd": 48.13,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.97,
+  "byCategory": {
+   "organism": 98,
+   "environment": 95,
+   "landscape": 96,
+   "built": 99,
+   "hard": 89,
+   "hidden-subject": 95
+  }
+ },
+ {
+  "id": "prod-worker",
+  "n": 45,
+  "quality": 68.3,
+  "p50ms": 3882,
+  "p95ms": 7059,
+  "costPer1000Usd": 4.34,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 100,
+   "environment": 59,
+   "landscape": 28,
+   "built": 57,
+   "hard": 67,
+   "hidden-subject": 100
+  }
+ }
+]

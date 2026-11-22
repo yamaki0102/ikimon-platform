@@ -1,0 +1,77 @@
+{
+ "key": "conifers",
+ "en": {
+  "scientific_name": "Pinales",
+  "english_name": "Conifers",
+  "rank": "order",
+  "overview": "Evergreen or rarely deciduous woody plants bearing cones and needle-like or scale-like leaves, widespread across Japanese forests.",
+  "distinguishing_tips": [
+   "Needle-like, linear, or scale-like leaves",
+   "Woody or fleshy seed cones instead of flowers",
+   "Resinous bark and aromatic foliage when crushed",
+   "Typically conical or columnar crown shape"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycadales",
+    "distinction_point": "Palm-like unbranched trunks with large pinnate fronds rather than needles or scales."
+   },
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgoales",
+    "distinction_point": "Distinctive fan-shaped leaves with dichotomous venation that turn bright yellow in autumn."
+   },
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiales",
+    "distinction_point": "Small herbaceous plants with creeping stems and tiny leaves, lacking woody trunks."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of needles or scale-like leaves and their arrangement",
+   "Seed cones or pollen cones on the branches",
+   "Bark texture and overall tree silhouette"
+  ],
+  "season_habitat": "Year-round in montane, subalpine, and planted forests throughout Japan."
+ },
+ "ja": {
+  "scientific_name": "Pinales",
+  "english_name": "マツ目（針葉樹）",
+  "rank": "目",
+  "overview": "球果（まつぼっくりなど）をつけ、針状または鱗片状の葉を持つ常緑（まれに落葉）の木本植物です。日本の森林に広く分布しています。",
+  "distinguishing_tips": [
+   "針状、線状、または鱗片状の葉",
+   "花ではなく、木質または多肉質の球果をつける",
+   "樹皮に樹脂があり、葉を揉むと芳香がする",
+   "一般的に円錐形または円柱形の樹形"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycadales",
+    "japanese_name": "ソテツ目",
+    "distinction_point": "針葉や鱗片葉ではなく、ヤシのような枝分かれしない幹と大きな羽状複葉を持つ。"
+   },
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgoales",
+    "japanese_name": "イチョウ目",
+    "distinction_point": "特徴的な扇形の葉を持ち、葉脈が二又に分かれている。秋には鮮やかな黄色に紅葉する。"
+   },
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiales",
+    "japanese_name": "ヒカゲノカズラ目",
+    "distinction_point": "木質の幹を持たず、這うような茎と小さな葉を持つ小型の草本植物。"
+   }
+  ],
+  "confirm_more": [
+   "針葉や鱗片葉の形とつき方の接写",
+   "枝についている球果（種子球果や雄花）",
+   "樹皮の質感と木全体のシルエット"
+  ],
+  "season_habitat": "日本全国の山地、亜高山帯、植林地などで一年中見られます。"
+ },
+ "costUsd": 0.00872325
+}

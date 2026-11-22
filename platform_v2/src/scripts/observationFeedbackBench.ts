@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import sharp from "sharp";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   VISUAL_EXTRACT_INSTRUCTIONS,
   buildVisualInputParts,
@@ -26,7 +27,7 @@ type Item = {
   ctx: { lat: number | null; lng: number | null; observedAt: string; place: string; memo: string };
   expect: BenchExpect;
 };
-type Config = { id: string; extract: string; summary: string; sweep?: string; extractThinking?: string; mode?: "single" | "slim" | "card"; card?: string; translate?: string; tiles?: number; verify?: string };
+type Config = { id: string; extract: string; summary: string; sweep?: string; extractThinking?: string; mode?: "single" | "slim" | "card" | "worker"; card?: string; translate?: string; tiles?: number; verify?: string };
 type Configs = { prices: Record<string, [number, number]>; baseline: string; judge: string; configs: Config[] };
 type CallResult = { text: string; inTok: number; outTok: number; ms: number; costUsd: number; error?: string };
 type Row = {
@@ -132,7 +133,7 @@ function worstCost(cfg: Configs, c: Config): number {
     const [pin, pout] = price(cfg, m);
     return (WORST_INPUT_TOKENS * pin + MAX_OUTPUT_TOKENS * pout) / 1e6;
   };
-  return one(c.extract) + (c.mode === "single" || c.mode === "card" ? 0 : one(c.summary)) + (c.card ? one(c.card) / 2 : 0) + (c.tiles && c.sweep ? (2 * c.tiles * c.tiles * 600 * price(cfg, c.sweep)[0]) / 1e6 : 0) + (c.sweep ? one(c.sweep) : 0);
+  return one(c.extract) + (c.mode === "single" || c.mode === "card" ? 0 : one(c.summary)) + (c.card ? one(c.card) / 2 : 0) + (c.tiles && c.sweep ? (2 * c.tiles * c.tiles * 600 * price(cfg, c.sweep)[0]) / 1e6 : 0) + (c.sweep ? one(c.sweep) : 0) + (c.mode === "worker" ? 3 * one(c.extract) : 0);
 }
 
 const SINGLE_TAIL = `画像を直接見て、最終的な観察ページ保存用JSONを上記スキーマで1回で作ってください。
@@ -155,16 +156,18 @@ const SLIM_TAIL = "\n各値は短い名詞句にし、JSON全体を日本語2500
 
 const SWEEP_PROMPT = "写っている生きもの（小さく写り込んだもの、葉や枝に隠れたもの、背景のものを含む）をすべて探してください。植物・樹木の群落は1件にまとめてよい。JSONのみ: {\"subjects\":[{\"asset_index\":0,\"label\":\"日本語名\",\"rank\":\"species|genus|family|order|class\",\"confidence\":0.0,\"box_2d\":[ymin,xmin,ymax,xmax]}]} box_2dは0-1000。";
 
+const opaqueId = (id: string) => `rec-${createHash("sha1").update(id).digest("hex").slice(0, 10)}`;
+
 function loadImages(item: Item, dir: string) {
   const files = item.images ?? [`${item.id}.jpg`];
-  return files.map((f, i) => ({ mime: "image/jpeg", b64: readFileSync(join(dir, "images", f)).toString("base64"), assetId: `bench-${item.id}-${i}` }));
+  return files.map((f, i) => ({ mime: "image/jpeg", b64: readFileSync(join(dir, "images", f)).toString("base64"), assetId: `${opaqueId(item.id)}-${i}` }));
 }
 
 function basePrompt(item: Item, photos: ReturnType<typeof loadImages>): string {
   const c = item.ctx;
   const pkg = [`place=${c.place}`, "observed_subjects=1:未同定 (unknown)", "safe_rank=unknown", "evidence_tier=none", "review=unreviewed", `media_roles=${photos.length > 1 ? "primary,context" : "primary"}`].filter(Boolean).join("\n");
   return renderPrompt({
-    occurrenceId: `bench-${item.id}`,
+    occurrenceId: opaqueId(item.id),
     lat: c.lat == null ? "不明" : c.lat.toFixed(2),
     lng: c.lng == null ? "不明" : c.lng.toFixed(2),
     observedAt: c.observedAt,
@@ -366,8 +369,110 @@ async function runCard(cfg: Configs, c: Config, item: Item, dir: string, runId: 
   return { runId, config: c.id, item: item.id, category: item.category, ok: !failure, failure, ms: idCall.ms + (Date.now() - t0) + sweepCachedMs, inTok: idCall.inTok + sweepCalls.reduce((n, x) => n + x.inTok, 0), outTok: idCall.outTok + sweepCalls.reduce((n, x) => n + x.outTok, 0), costUsd: idCall.costUsd + sweepCalls.reduce((n, x) => n + x.costUsd, 0), cardUsd, final, extractText: idCall.text.slice(0, 6000) };
 }
 
+let workerLib: Promise<any> | null = null;
+const loadWorkerLib = () => (workerLib ??= import(pathToFileURL(resolve(dirname(fileURLToPath(import.meta.url)), "../../cloudflare_shadow/src/geminiObservationBatch.ts")).href));
+const WORKER_SLOTS: Record<string, string> = { vegetation_structure: "vegetation_structure_candidates", substrate: "substrate_candidates", moisture: "moisture_regime_candidates", human_influence: "human_influence_candidates", management_signs: "management_hint_candidates" };
+const workerBand = (n: unknown) => (Number(n) >= 0.8 ? "high" : Number(n) >= 0.5 ? "medium" : "low");
+
+async function workerLane(cfg: Configs, lib: any, model: string, request: Json): Promise<CallResult> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY unset");
+  const [pin, pout] = price(cfg, `gemini:${model}`);
+  const t = Date.now();
+  let inTok = 0, outTok = 0, error = "";
+  const fetcher = (async (url: any, init: any) => {
+    const r = await fetch(url, { ...init, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
+    try { const u = ((await r.clone().json()) as any)?.usageMetadata ?? {}; inTok += u.promptTokenCount ?? 0; outTok += (u.candidatesTokenCount ?? 0) + (u.thoughtsTokenCount ?? 0); } catch { /* usage unavailable */ }
+    return r;
+  }) as typeof fetch;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await lib.generateGeminiContent(key, model, request, fetcher);
+      return { text: String(res.text), inTok, outTok, ms: Date.now() - t, costUsd: (inTok * pin + outTok * pout) / 1e6 };
+    } catch (e) {
+      error = String((e as Error)?.message ?? e).slice(0, 200);
+      if (!/api_failed:(429|5\d\d)|timeout|fetch failed/i.test(error)) break;
+      await new Promise((r) => setTimeout(r, 5000 * (attempt + 1)));
+    }
+  }
+  return { text: "", inTok, outTok, ms: Date.now() - t, costUsd: (inTok * pin + outTok * pout) / 1e6, error };
+}
+
+function workerFinal(m: any): Json {
+  const sub = (x: any): Json => ({ name: x.vernacularName ?? x.scientificName ?? "", scientific_name: x.scientificName ?? "", rank: x.rank, confidence_band: workerBand(x.confidence), features_seen: x.visualEvidence, missing_evidence: x.needsMoreEvidence, media_regions: [{ asset_index: Number(x.assetIndex ?? 0) }] });
+  const main = m.candidate.vernacularName || m.candidate.scientificName ? sub(m.candidate) : null;
+  const others = (m.candidate.coexistingSubjects as any[]).map(sub);
+  const area: Record<string, Json[]> = {};
+  for (const cue of (m.environment?.cues ?? []) as any[]) (area[WORKER_SLOTS[cue.slot] ?? "other_candidates"] ??= []).push({ label: cue.label, confidence: cue.confidence, why: cue.evidence });
+  const top = (m.topCandidates as any[])[0];
+  const ex = (m.summary?.subject_explanations ?? []) as any[];
+  return {
+    recommended_taxon_name: main ? main.name : "", recommended_scientific_name: main ? main.scientific_name : "", recommended_rank: main ? main.rank : "unknown", confidence_band: main ? main.confidence_band : "low",
+    recommended_media_regions: main ? main.media_regions : [],
+    narrative: m.summary?.narrative ?? "", simple_summary: m.summary?.environment_summary ?? "", observer_boost: m.summary?.observer_feedback ?? "", interaction_summary: m.summary?.interaction_summary ?? "",
+    area_inference: area, environment_fields: m.environment?.fields, record_class: m.recordClass,
+    identifications: main ? [main, ...others] : others, coexisting_taxa: others,
+    diagnostic_features_seen: top?.supportingFeatures, missing_evidence: top?.missingFeatures,
+    distinguishing_tips: ex.map((e) => `${e.title}: ${e.explanation} ${e.uncertainty}`), confusable_groups: (m.topCandidates as any[]).slice(1).map((c) => c.name ?? c.scientificName), confirm_more: ex.map((e) => e.next_photo),
+    specialist: m.specialistEscalation, summary_generated: Boolean(m.summary),
+  };
+}
+
+async function runWorker(cfg: Configs, c: Config, item: Item, dir: string, runId: string): Promise<Row> {
+  const lib = await loadWorkerLib();
+  const photos = loadImages(item, dir);
+  const bufs = photos.map((ph) => Buffer.from(ph.b64, "base64"));
+  const images = await Promise.all(bufs.map(async (buf, i) => ({ assetId: photos[i]!.assetId, mimeType: "image/webp", base64Data: (await sharp(buf).rotate().resize({ width: 1024, withoutEnlargement: true }).webp({ quality: 76 }).toBuffer()).toString("base64") })));
+  const M: string = lib.GEMINI_PRIMARY_MODEL;
+  const rid = opaqueId(item.id);
+  const calls: CallResult[] = [];
+  const t0 = Date.now();
+  let failure: string | null = null;
+  let final: Json | null = null;
+  const lane = async (name: string, model: string, request: Json) => {
+    const r = await workerLane(cfg, lib, model, request);
+    calls.push(r);
+    if (r.error) throw new Error(`${name}:${r.error}`);
+    return r.text;
+  };
+  try {
+    const [pt, ct, et] = await Promise.all([
+      lane("primary", M, lib.buildGeminiPrimaryRequest(rid, item.ctx.observedAt || null, images)),
+      lane("census", M, lib.buildGeminiCensusDirectRequest(rid, images)),
+      lane("environment", M, lib.buildGeminiEnvironmentRequest(rid, images)),
+    ]);
+    const primary = lib.parseGeminiPrimaryEvidenceDirect(pt), census = lib.parseGeminiCensusEvidenceDirect(ct);
+    const merged = lib.mergeGeminiObservationEvidence(primary, census, lib.parseGeminiEnvironmentEvidenceDirect(et), images.length, { primary: M, census: M });
+    merged.specialistEscalation = lib.decideGeminiSpecialistEscalation(merged, primary, census);
+    if (merged.specialistEscalation.required) {
+      const k = Number(merged.candidate.assetIndex ?? 0), pi = Number.isInteger(k) && k >= 0 && k < images.length ? k : 0;
+      const sp = [images[pi]!];
+      const rect = merged.candidate.subjectLocator?.rect;
+      if (rect) {
+        const px = Math.max(0.04, rect.width * 0.25), py = Math.max(0.04, rect.height * 0.25);
+        const l = Math.max(0, rect.x - px), tp = Math.max(0, rect.y - py), r = Math.min(1, rect.x + rect.width + px), b = Math.min(1, rect.y + rect.height + py);
+        if (!(r - l >= 0.92 && b - tp >= 0.92)) {
+          const up = await sharp(bufs[pi]!).rotate().toBuffer({ resolveWithObject: true });
+          const W = up.info.width, H = up.info.height;
+          const box = { left: Math.round(l * W), top: Math.round(tp * H), width: Math.max(1, Math.min(W - Math.round(l * W), Math.round((r - l) * W))), height: Math.max(1, Math.min(H - Math.round(tp * H), Math.round((b - tp) * H))) };
+          sp.push({ assetId: `${images[pi]!.assetId}:specialist-crop-v1`, mimeType: "image/webp", base64Data: (await sharp(up.data).extract(box).resize({ width: 1024, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer()).toString("base64") });
+        }
+      }
+      sp.push(...images.filter((_x, i) => i !== pi).slice(0, 2));
+      Object.assign(merged, lib.applyGeminiSpecialistEvidence(merged, lib.parseGeminiSpecialistEvidenceDirect(await lane("specialist", lib.GEMINI_SPECIALIST_MODEL, lib.buildGeminiSpecialistRequest(rid, merged.specialistEscalation.specialistKind, sp.slice(0, 4), merged)))));
+    }
+    if (merged.topCandidates.length > 0 || merged.needsReview) Object.assign(merged, lib.applyGeminiObservationSummary(merged, lib.parseGeminiObservationSummaryDirect(await lane("summary", M, lib.buildGeminiSummaryRequest(rid, merged)))));
+    final = workerFinal(merged);
+  } catch (e) {
+    failure = String((e as Error)?.message ?? e).slice(0, 180);
+  }
+  const sum = (k: "inTok" | "outTok" | "costUsd") => calls.reduce((n, x) => n + x[k], 0);
+  return { runId, config: c.id, item: item.id, category: item.category, ok: !failure, failure, ms: Date.now() - t0, inTok: sum("inTok"), outTok: sum("outTok"), costUsd: sum("costUsd"), final, extractText: `calls=${calls.length}` };
+}
+
 async function runOne(cfg: Configs, c: Config, item: Item, dir: string, runId: string): Promise<Row> {
   if (c.mode === "card") return runCard(cfg, c, item, dir, runId);
+  if (c.mode === "worker") return runWorker(cfg, c, item, dir, runId);
   const photos = loadImages(item, dir);
   const prompt = basePrompt(item, photos);
   const calls: CallResult[] = [];
@@ -491,12 +596,13 @@ async function cmdJudge(a: Record<string, string>) {
   let spent = 0;
   const byKey = new Map(rows.map((r) => [`${r.config}|${r.item}`, r]));
   const tasks: Array<() => Promise<void>> = [];
+  const baseline = a.baseline ?? cfg.baseline;
   const judgeOnly = a.configs ? new Set(a.configs.split(",")) : null;
   for (const c of cfg.configs) {
-    if (c.id === cfg.baseline || (judgeOnly && !judgeOnly.has(c.id))) continue;
+    if (c.id === baseline || (judgeOnly && !judgeOnly.has(c.id))) continue;
     for (const it of items) {
       const cand = byKey.get(`${c.id}|${it.id}`);
-      const base = byKey.get(`${cfg.baseline}|${it.id}`);
+      const base = byKey.get(`${baseline}|${it.id}`);
       if (!cand || !base) continue;
       for (const order of ["cb", "bc"] as const) {
         if (done.has(`${c.id}|${it.id}|${order}`)) continue;
@@ -565,11 +671,11 @@ function cmdReport(a: Record<string, string>) {
   const lines = [
     `# ${version} ${a.run}`,
     "",
-    `| config | 品質 | 一対比較勝率(対${cfg.baseline}) | 中央値ms | p95ms | 1000件あたりUSD | 失敗率 | ${cats.join(" | ")} |`,
+    `| config | 品質 | 一対比較勝率(対${a.baseline ?? cfg.baseline}) | 中央値ms | p95ms | 1000件あたりUSD | 失敗率 | ${cats.join(" | ")} |`,
     `|---|---|---|---|---|---|---|${cats.map(() => "---").join("|")}|`,
     ...rows.map((r) => `| ${r.id} | ${r.quality} | ${r.winRateVsBaseline ?? "-"} | ${r.p50ms} | ${r.p95ms} | ${r.costPer1000Usd} | ${(r.failureRate * 100).toFixed(0)}% | ${cats.map((c) => r.byCategory[c] ?? "-").join(" | ")} |`),
     "",
-    `推奨: ${recommend(rows, cfg.baseline)}`,
+    `推奨: ${recommend(rows, a.baseline ?? cfg.baseline)}`,
   ];
   if (a.compare) {
     const other = aggregate(readRows(join(resDir, a.compare)), items, []).sort((x, y) => y.quality - x.quality);

@@ -1,0 +1,11 @@
+{
+ "runId": "run6",
+ "version": "v1",
+ "configs": [
+  "prod-worker"
+ ],
+ "items": 45,
+ "maxUsd": 0.8,
+ "spentUsd": 0.19549850000000002,
+ "stoppedByCap": false
+}

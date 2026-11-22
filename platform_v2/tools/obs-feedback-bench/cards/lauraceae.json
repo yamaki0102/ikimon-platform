@@ -1,0 +1,77 @@
+{
+ "key": "lauraceae",
+ "en": {
+  "scientific_name": "Lauraceae",
+  "english_name": "Laurel family",
+  "rank": "family",
+  "overview": "A family of mostly evergreen aromatic trees and shrubs, including camphor and cinnamon, common in warm-temperate Japanese forests.",
+  "distinguishing_tips": [
+   "Leaves are typically alternate, entire, and leathery with a glossy upper surface.",
+   "Crushed leaves or twigs emit a distinct spicy or camphor-like scent.",
+   "Small, inconspicuous yellowish-green flowers lack true petals.",
+   "Fruits are single-seeded berries, often seated in a cup-like receptacle."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Oak and beech family",
+    "scientific_name": "Fagaceae",
+    "distinction_point": "Fagaceae leaves are often toothed and lack aromatic oils when crushed."
+   },
+   {
+    "english_name": "Tea family",
+    "scientific_name": "Theaceae",
+    "distinction_point": "Theaceae leaves usually have serrated margins and larger, showy five-petaled flowers."
+   },
+   {
+    "english_name": "Citrus family",
+    "scientific_name": "Rutaceae",
+    "distinction_point": "Rutaceae leaves often have translucent oil glands and winged petioles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the underside of a leaf to show venation and color.",
+   "Flowers or fruits, especially the cup-like base of the berry.",
+   "Twig and bark texture to check for branching pattern."
+  ],
+  "season_habitat": "Evergreen year-round, thriving in warm-temperate broadleaf forests and lowland hills across Japan."
+ },
+ "ja": {
+  "scientific_name": "Lauraceae",
+  "english_name": "クスノキ科",
+  "rank": "科",
+  "overview": "クスノキやニッケイなどを含む、主に常緑の芳香を持つ樹木や低木のグループです。日本の暖温帯の森林でよく見られます。",
+  "distinguishing_tips": [
+   "葉は通常互生し、全縁（縁にギザギザがない）で、表面に光沢のある革質です。",
+   "葉や枝を揉むと、スパイシーな香りやクスノキ特有の芳香がします。",
+   "花は小さく目立たず、黄緑色で、真の花弁はありません。",
+   "果実は種子が1つの液果で、多くの場合、カップ状の台座（花托）に乗っています。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ブナ科",
+    "scientific_name": "Fagaceae",
+    "japanese_name": "ブナ科",
+    "distinction_point": "ブナ科の葉は縁に鋸歯（ギザギザ）があることが多く、揉んでも芳香油の匂いはしません。"
+   },
+   {
+    "english_name": "ツバキ科",
+    "scientific_name": "Theaceae",
+    "japanese_name": "ツバキ科",
+    "distinction_point": "ツバキ科の葉は通常、縁に鋸歯があり、花は大きく目立つ5枚の花弁を持っています。"
+   },
+   {
+    "english_name": "ミカン科",
+    "scientific_name": "Rutaceae",
+    "japanese_name": "ミカン科",
+    "distinction_point": "ミカン科の葉には半透明の油点があり、葉柄に翼があることが多いです。"
+   }
+  ],
+  "confirm_more": [
+   "葉の裏側の脈の様子や色を確認するための接写。",
+   "花や果実、特に液果のカップ状の基部。",
+   "枝の分岐パターンを確認するための枝や樹皮の質感。"
+  ],
+  "season_habitat": "一年中常緑で、日本全国の暖温帯の広葉樹林や低地の丘陵地帯に生育しています。"
+ },
+ "costUsd": 0.00839875
+}
