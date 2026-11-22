@@ -18922,6 +18922,11 @@ interface D1FixedPointStation {
 interface D1FixedPointStationVisit {
   visitId: string;
   observedAt: string | null;
+  observedLabel: string;
+  observerLabel: string;
+  note: string;
+  sourceLabel: string;
+  photoUrl: string | null;
   taxa: string[];
   mediaCount: number;
 }
@@ -18938,15 +18943,33 @@ async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1Fixe
   if (!normalizedPlaceId || normalizedPlaceId.length > 128) return null;
   const field = await getFieldDetailReadmodelRowOrNullOnMissingTable(normalizedPlaceId, env);
   const visitRows = await env.OBS_DB.prepare(
-    `SELECT visit_id, observed_at
+    `SELECT visit_id, observed_at, legacy_observation_id, user_id
        FROM production_import_visits
       WHERE place_id = ?
         AND COALESCE(public_visibility, 'public') <> 'private'
       ORDER BY observed_at DESC, visit_id DESC
       LIMIT 80`
-  ).bind(normalizedPlaceId).all<{ visit_id: string; observed_at: string | null }>();
+  ).bind(normalizedPlaceId).all<{
+    visit_id: string;
+    observed_at: string | null;
+    legacy_observation_id: string | null;
+    user_id: string | null;
+  }>();
+  const fieldSourceLabel = field?.source === "nature_symbiosis_site"
+    ? "自然共生サイト記録"
+    : field?.source === "paper_notebook"
+      ? "紙の野帳"
+      : "公開観察記録";
+  const optionalFirst = async <T>(promise: Promise<T | null>): Promise<T | null> => {
+    try {
+      return await promise;
+    } catch {
+      return null;
+    }
+  };
   const visits = await Promise.all(visitRows.results.map(async (visit): Promise<D1FixedPointStationVisit> => {
-    const [taxaRows, mediaCount] = await Promise.all([
+    const lookupIds = [visit.visit_id, ...(visit.legacy_observation_id ? [visit.legacy_observation_id] : [])];
+    const [taxaRows, mediaCount, obsRow, userRow, photoRow] = await Promise.all([
       env.OBS_DB.prepare(
         `SELECT occurrence_id, scientific_name, vernacular_name
            FROM production_import_occurrences
@@ -18963,15 +18986,65 @@ async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1Fixe
            FROM production_import_evidence_assets
           WHERE visit_id = ?
             AND asset_role IN ('observation_photo', 'observation_video')`
-      ).bind(visit.visit_id).first<{ count: number }>()
+      ).bind(visit.visit_id).first<{ count: number }>(),
+      optionalFirst(
+        env.OBS_DB.prepare(
+          `SELECT note, source
+             FROM observations
+            WHERE observation_id IN (${lookupIds.map(() => "?").join(", ")})
+            LIMIT 1`
+        ).bind(...lookupIds).first<{ note: string | null; source: string | null }>()
+      ),
+      visit.user_id
+        ? optionalFirst(
+            env.CORE_DB.prepare("SELECT display_name FROM auth_users WHERE user_id = ? LIMIT 1")
+              .bind(visit.user_id)
+              .first<{ display_name: string | null }>()
+          )
+        : Promise.resolve(null),
+      optionalFirst(
+        env.OBS_DB.prepare(
+          `SELECT public_derivative_key
+             FROM evidence_assets
+            WHERE observation_id IN (${lookupIds.map(() => "?").join(", ")})
+              AND asset_role IN ('observation_photo', 'observation_photo_original')
+              AND public_derivative_key IS NOT NULL
+            ORDER BY created_at ASC
+            LIMIT 1`
+        ).bind(...lookupIds).first<{ public_derivative_key: string | null }>()
+      ),
     ]);
+    const taxa = taxaRows.results
+      .map((row) => normalizeOptionalText(row.vernacular_name) ?? normalizeOptionalText(row.scientific_name))
+      .filter((value): value is string => Boolean(value))
+      .slice(0, 5);
+    const rawObserver = normalizeOptionalText(userRow?.display_name);
+    const observerLabel = rawObserver && !containsDiscoveryPersonalInformation(rawObserver)
+      ? rawObserver
+      : "地域の観察者";
+    const rawNote = normalizeOptionalText(obsRow?.note);
+    const note = rawNote && !containsDiscoveryPersonalInformation(rawNote)
+      ? rawNote
+      : (taxa.join("、") || "（原文メモなし）");
+    const rawSource = normalizeOptionalText(obsRow?.source);
+    const sourceLabel = rawSource === "paper_notebook"
+      ? "紙の野帳"
+      : rawSource
+        ? "ZUKAN記録"
+        : fieldSourceLabel;
+    const derivativeKey = normalizeOptionalText(photoRow?.public_derivative_key);
+    const photoUrl = derivativeKey
+      ? `/derived-transform/w680/${derivativeKey.replace(/^\/+/, "")}`
+      : null;
     return {
       visitId: visit.visit_id,
       observedAt: visit.observed_at,
-      taxa: taxaRows.results
-        .map((row) => normalizeOptionalText(row.vernacular_name) ?? normalizeOptionalText(row.scientific_name))
-        .filter((value): value is string => Boolean(value))
-        .slice(0, 5),
+      observedLabel: formatPublicObservationDate(visit.observed_at) || "日付不明",
+      observerLabel,
+      note,
+      sourceLabel,
+      photoUrl,
+      taxa,
       mediaCount: Number(mediaCount?.count ?? 0)
     };
   }));
@@ -19046,7 +19119,51 @@ function renderFixedPointStationNotFoundHtml(placeId: string): string {
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ZUKAN</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
 }
 
+function findFixedPointSameMonthPair(
+  visits: readonly D1FixedPointStationVisit[],
+): [D1FixedPointStationVisit, D1FixedPointStationVisit] | null {
+  for (let i = 0; i < visits.length; i += 1) {
+    const newer = visits[i]!;
+    const newerYm = String(newer.observedAt ?? "").slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(newerYm)) continue;
+    const prevYearYm = `${Number(newerYm.slice(0, 4)) - 1}-${newerYm.slice(5, 7)}`;
+    const prevYearMatch = visits.find((candidate, j) => j > i && String(candidate.observedAt ?? "").slice(0, 7) === prevYearYm);
+    if (prevYearMatch) return [newer, prevYearMatch];
+  }
+  return null;
+}
+
+function renderFixedPointCompareCard(slot: "a" | "b", visit: D1FixedPointStationVisit): string {
+  const taxaText = visit.taxa.join("、") || "対象整理中";
+  const photo = visit.photoUrl
+    ? `<img class="fps-compare-photo" src="${escapeHtml(visit.photoUrl)}" alt="${escapeHtml(`${visit.observedLabel} ${taxaText}`)}" loading="lazy" decoding="async">`
+    : "";
+  return `<article class="fps-compare-card" data-compare-slot="${slot}">${photo}<dl class="fps-compare-meta"><div><dt>観察日</dt><dd><time>${escapeHtml(visit.observedLabel)}</time></dd></div><div><dt>記録者</dt><dd>${escapeHtml(visit.observerLabel)}</dd></div><div><dt>対象</dt><dd>${escapeHtml(taxaText)}</dd></div><div><dt>原文</dt><dd>${escapeHtml(visit.note)}</dd></div><div><dt>出典</dt><dd>${escapeHtml(visit.sourceLabel)}</dd></div></dl><a class="fps-compare-link" href="/observations/${encodeURIComponent(visit.visitId)}">記録を開く</a></article>`;
+}
+
 function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
+  const sameMonthPair = findFixedPointSameMonthPair(station.visits);
+  const initialA = sameMonthPair ? sameMonthPair[0] : station.visits[0];
+  const initialB = sameMonthPair ? sameMonthPair[1] : station.visits[1];
+  const hasComparableDates = station.visits.length >= 2 && new Set(station.visits.map((v) => v.observedLabel)).size >= 2;
+  const compareOptions = (selectedId: string) => station.visits.map((visit) => {
+    const label = `${visit.observedLabel} — ${visit.taxa.join("、") || visit.note.slice(0, 20)}`;
+    return `<option value="${escapeHtml(visit.visitId)}"${visit.visitId === selectedId ? " selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+  const compareSection = hasComparableDates && initialA && initialB
+    ? `<section class="fps-compare" data-fixed-point-compare aria-labelledby="fps-compare-title"><div class="fps-compare-head"><h2 id="fps-compare-title">時期を比べて見る</h2>${sameMonthPair ? `<button type="button" class="fps-compare-preset" data-compare-same-month data-a-id="${escapeHtml(sameMonthPair[0].visitId)}" data-b-id="${escapeHtml(sameMonthPair[1].visitId)}">前年同月で比べる</button>` : ""}</div><div class="fps-compare-controls"><label>記録A<select data-compare-select="a">${compareOptions(initialA.visitId)}</select></label><label>記録B<select data-compare-select="b">${compareOptions(initialB.visitId)}</select></label></div><div class="fps-compare-grid">${renderFixedPointCompareCard("a", initialA)}${renderFixedPointCompareCard("b", initialB)}</div></section>`
+    : "";
+  const comparePayload = hasComparableDates
+    ? JSON.stringify(station.visits.map((v) => ({
+        visitId: v.visitId,
+        observedLabel: v.observedLabel,
+        observerLabel: v.observerLabel,
+        taxaText: v.taxa.join("、") || "対象整理中",
+        note: v.note,
+        sourceLabel: v.sourceLabel,
+        photoUrl: v.photoUrl,
+      }))).replace(/</g, "\\u003c")
+    : "";
   const years = station.yearlyTimeline.length
     ? station.yearlyTimeline.map((year) => `<article class="fps-card"><strong>${escapeHtml(year.year)}</strong><span>観察 ${year.visitCount} / メディア ${year.mediaCount} / 手入れ ${year.stewardshipCount}</span><p>${escapeHtml(year.taxa.join("、") || "対象整理中")}</p></article>`).join("")
     : `<article class="fps-empty">年ごとの比較に使える公開記録はまだありません。</article>`;
@@ -19082,7 +19199,21 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
     .fps-stat strong { display:block; color:#064e3b; font-size:28px; line-height:1; } .fps-stat span, .fps-card span, .fps-row span, .fps-row time { color:var(--muted); font-size:12px; font-weight:850; }
     section { margin-top:24px; } h2 { margin:0 0 10px; font-size:clamp(21px,3vw,30px); letter-spacing:0; } .fps-card p { margin:8px 0 0; color:#334155; line-height:1.55; font-weight:720; }
     .fps-row { display:grid; grid-template-columns:110px minmax(0,1fr) 90px auto; gap:10px; align-items:center; margin-bottom:8px; } .fps-row a { color:var(--green); font-weight:900; text-decoration:none; }
-    @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } }
+    .fps-compare { padding:16px; border-radius:10px; border:1px solid var(--line); background:#fff; }
+    .fps-compare-head { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+    .fps-compare-preset { min-height:44px; padding:0 14px; border:1px solid var(--green); border-radius:8px; background:#ecfdf5; color:#065f46; font:inherit; font-weight:900; cursor:pointer; }
+    .fps-compare-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+    .fps-compare-controls label { display:grid; gap:4px; font-size:13px; font-weight:850; color:var(--muted); }
+    .fps-compare-controls select { width:100%; min-height:44px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font:inherit; font-weight:750; }
+    .fps-compare-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .fps-compare-card { min-width:0; padding:12px; border:1px solid var(--line); border-radius:8px; background:#f8fafc; display:grid; gap:8px; align-content:start; }
+    .fps-compare-photo { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; background:#e2e8f0; }
+    .fps-compare-meta { display:grid; gap:6px; margin:0; }
+    .fps-compare-meta div { display:grid; gap:1px; }
+    .fps-compare-meta dt { font-size:11px; font-weight:850; color:var(--muted); }
+    .fps-compare-meta dd { margin:0; font-size:14px; font-weight:720; color:var(--ink); overflow-wrap:anywhere; }
+    .fps-compare-link { color:var(--green); font-weight:900; text-decoration:none; font-size:14px; }
+    @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } .fps-compare { padding:12px; } .fps-compare-controls { grid-template-columns:1fr; } .fps-compare-grid { gap:8px; } .fps-compare-card { padding:10px; } }
   </style>
 </head>
 <body>
@@ -19090,10 +19221,59 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
 <main data-cloudflare-fixed-point-station="1" data-place-id="${escapeHtml(station.placeId)}">
   <section class="fps-hero"><div><span>定点ページ</span><h1>${escapeHtml(station.name)}</h1><p>${escapeHtml(station.locationLabel)}。同じ場所の公開記録と手入れの履歴を年ごとに並べます。</p></div><a href="${escapeHtml(recordHref)}">この場所を記録</a></section>
   <div class="fps-stats"><div class="fps-stat"><strong>${station.visits.length}</strong><span>公開記録</span></div><div class="fps-stat"><strong>${station.yearlyTimeline.length}</strong><span>年</span></div><div class="fps-stat"><strong>${station.actions.length}</strong><span>手入れ</span></div></div>
+  ${compareSection}
   <section><h2>年ごとの様子</h2><div class="fps-grid">${years}</div></section>
   <section><h2>同じ場所の記録</h2>${visits}</section>
   <section><h2>手入れの記録</h2><div class="fps-grid">${actions}</div></section>
 </main>
+${hasComparableDates ? `<script>
+(() => {
+  const visits = ${comparePayload};
+  const byId = new Map(visits.map((v) => [v.visitId, v]));
+  const selectA = document.querySelector('[data-compare-select="a"]');
+  const selectB = document.querySelector('[data-compare-select="b"]');
+  const slotA = document.querySelector('[data-compare-slot="a"]');
+  const slotB = document.querySelector('[data-compare-slot="b"]');
+  const preset = document.querySelector('[data-compare-same-month]');
+  function renderSlot(slot, visit) {
+    if (!slot || !visit) return;
+    slot.replaceChildren();
+    if (visit.photoUrl) {
+      const img = document.createElement('img');
+      img.className = 'fps-compare-photo';
+      img.src = visit.photoUrl;
+      img.alt = visit.observedLabel + ' ' + visit.taxaText;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      slot.append(img);
+    }
+    const dl = document.createElement('dl');
+    dl.className = 'fps-compare-meta';
+    for (const [label, value] of [['観察日', visit.observedLabel], ['記録者', visit.observerLabel], ['対象', visit.taxaText], ['原文', visit.note], ['出典', visit.sourceLabel]]) {
+      const wrap = document.createElement('div');
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      wrap.append(dt, dd);
+      dl.append(wrap);
+    }
+    const link = document.createElement('a');
+    link.className = 'fps-compare-link';
+    link.href = '/observations/' + encodeURIComponent(visit.visitId);
+    link.textContent = '記録を開く';
+    slot.append(dl, link);
+  }
+  selectA?.addEventListener('change', () => renderSlot(slotA, byId.get(selectA.value)));
+  selectB?.addEventListener('change', () => renderSlot(slotB, byId.get(selectB.value)));
+  preset?.addEventListener('click', () => {
+    const aId = preset.getAttribute('data-a-id');
+    const bId = preset.getAttribute('data-b-id');
+    if (aId && selectA && byId.has(aId)) { selectA.value = aId; renderSlot(slotA, byId.get(aId)); }
+    if (bId && selectB && byId.has(bId)) { selectB.value = bId; renderSlot(slotB, byId.get(bId)); }
+  });
+})();
+</script>` : ""}
 </body>
 </html>`;
 }
