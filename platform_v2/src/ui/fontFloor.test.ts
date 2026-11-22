@@ -35,3 +35,11 @@ test("walk-map and records shadow CSS has no font-size below 14px", () => {
   }
   assert.deepEqual(bad, []);
 });
+
+test("short labels keep whole words and home categories fall back to one column", () => {
+  const shell = readFileSync(join(dir, "siteShell.ts"), "utf8");
+  assert.match(shell, /\[class\*=chip\][^}]*\{ word-break: keep-all; overflow-wrap: break-word; \}/);
+  const home = readFileSync(join(dir, "landingHomeState.ts"), "utf8");
+  assert.match(home, /\.home-category-section strong\{word-break:keep-all/);
+  assert.match(home, /repeat\(auto-fit,minmax\(min\(100%,260px\),1fr\)\)/);
+});

@@ -2575,3 +2575,8 @@ test("attribution starts collapsed on narrow widths", () => {
   assert.match(script, /state\.map\.once\('idle', collapseAttrib\)/);
   assert.match(script, /attribUserOpened/);
 });
+
+test("bottom-right map controls stay in normal flow above the mobile action space", () => {
+  assert.doesNotMatch(MAP_EXPLORER_STYLES, /maplibregl-ctrl-bottom-right\{[^}]*column-reverse/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-map \.maplibregl-ctrl-bottom-right\{bottom:calc\(var\(--me-mobile-action-space\) \+ 4px\)/);
+});
