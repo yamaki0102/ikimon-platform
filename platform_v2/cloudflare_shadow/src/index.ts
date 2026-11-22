@@ -29169,6 +29169,7 @@ type GeminiProviderMetadata = {
 };
 
 const OBSERVATION_CARD_MODELS = [CARD_ID_MODEL, CARD_WRITER_MODEL, CARD_TILE_MODEL];
+const OBSERVATION_CARD_MAX_PER_INVOCATION = 20;
 
 function observationCardModeEnabled(env: Env): boolean {
   return env.OBSERVATION_AI_MODE === "card_v1";
@@ -29399,7 +29400,7 @@ async function submitInteractiveObservationReassessment(request: ObservationReas
 
 async function submitDirectGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   const rows = (await loadPendingGeminiRequests(observationIds, env)).filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
-  for (const row of rows) await submitInteractiveObservationReassessment(row, env);
+  for (const row of observationCardModeEnabled(env) ? rows.slice(0, OBSERVATION_CARD_MAX_PER_INVOCATION) : rows) await submitInteractiveObservationReassessment(row, env);
 }
 
 async function updateProcessingGeminiPayload(request: ObservationReassessmentRequestRow, execution: GeminiBatchExecution, env: Env, extra: Record<string, unknown> = {}): Promise<boolean> {
@@ -29446,7 +29447,8 @@ async function ensureGeminiBatch(apiKey: string, model: string, displayName: str
 async function submitGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
   const pendingInitial = await loadPendingGeminiRequests(observationIds, env);
-  for (const request of pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json))) {
+  const interactiveRows = pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
+  for (const request of observationCardModeEnabled(env) ? interactiveRows.slice(0, OBSERVATION_CARD_MAX_PER_INVOCATION) : interactiveRows) {
     await submitInteractiveObservationReassessment(request, env);
   }
   let pending = (await loadPendingGeminiRequests(observationIds, env))

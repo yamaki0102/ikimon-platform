@@ -124,6 +124,10 @@ test("pipeline sends no place, protects person records and writes each card once
   const person = fakeDeps({ record_class: "person", main_theme: "organism", habitat_type: "都市公園", subjects: [subject()], narrative: "公園" }, { tileModel: async () => "{}", tileSource: async () => { tileSourceCalls++; return null; } });
   const guarded = await runObservationCardPipeline(input, person.deps);
   assert.deepEqual([guarded.merged.recordClass, guarded.stats.subjects, guarded.merged.candidate.vernacularName, tileSourceCalls], ["person", 0, null, 0]);
+  for (const record_class of ["document", "food"]) {
+    const skipped = await runObservationCardPipeline(input, fakeDeps({ record_class, main_theme: "environment", habitat_type: "その他", subjects: [], narrative: "紙面" }, { tileModel: async () => "{}", tileSource: async () => { tileSourceCalls++; return null; } }).deps);
+    assert.deepEqual([skipped.merged.recordClass, skipped.stats.tileCalls, tileSourceCalls], [record_class, 0, 0]);
+  }
   await assert.rejects(runObservationCardPipeline(input, fakeDeps({}, { gemini: async () => "not json" }).deps), /card_identification_invalid_json/);
 });
 
@@ -172,6 +176,8 @@ test("worker routes interactive requests to card mode only behind the staging sw
   assert.match(source, /if \(!observationCardModeEnabled\(env\)\) await requeuePublicPhotoAiQualityBacklog\(env\)/);
   assert.match(source, /mode: "card_v1", source: "observation_card_v1_reassessment"/);
   assert.match(source, /providerMode: "card_v1"/);
+  assert.match(source, /const OBSERVATION_CARD_MAX_PER_INVOCATION = 20;/);
+  assert.equal(source.match(/\.slice\(0, OBSERVATION_CARD_MAX_PER_INVOCATION\)/g)?.length, 2);
   assert.equal(source.match(/await submitDirectGeminiObservationReassessment\(/g)?.length, 1);
   assert.equal(config.match(/"OBSERVATION_AI_MODE"/g)?.length, 1);
   const staging = config.indexOf("\"name\": \"ikimon-life-cloudflare-staging\"");

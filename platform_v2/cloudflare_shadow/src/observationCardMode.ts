@@ -19,6 +19,7 @@ export const CARD_STORE_PREFIX = "ai-cards/v1/";
 export const CARD_TILE_GRID = 5;
 export const CARD_TILE_MAX_IMAGES = 2;
 export const CARD_TILE_BUDGET_MS = 45_000;
+export const CARD_TILE_SKIP_CLASSES = ["person", "document", "food"];
 export const CARD_PUBLIC_EVIDENCE_MAX = 160;
 export const CARD_PUBLIC_TEXT_MAX = 220;
 
@@ -399,7 +400,7 @@ export async function runObservationCardPipeline(input: CardInput, deps: CardDep
   const subjects = id.record_class === "person" ? [] : normalizeCardSubjects(id.subjects, input.images.length);
   const lead = subjects[0];
   const [found, second] = await Promise.all([
-    id.record_class === "person" ? Promise.resolve([] as Json[]) : tileSweep(input, deps, subjects, stats).catch((error: unknown) => {
+    CARD_TILE_SKIP_CLASSES.includes(String(id.record_class)) ? Promise.resolve([] as Json[]) : tileSweep(input, deps, subjects, stats).catch((error: unknown) => {
       stats.tileError = (error instanceof Error ? error.message : String(error)).slice(0, 120);
       return [] as Json[];
     }),
