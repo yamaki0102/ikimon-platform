@@ -14926,12 +14926,16 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     .me-rain-mode .site-shell.is-map-surface .global-record-launcher {
       display: none;
     }
+    .me-section .me-bottom-sheet--detail { bottom: calc(var(--me-nav-top) + 8px); }
+    .me-section .me-legend { bottom: calc(var(--me-nav-top) + 8px); right: 64px; }
+    .me-rain-mode .me-section .me-bottom-sheet--detail, .me-rain-mode .me-section .me-legend { bottom: 8px; }
 
     .me-section {
       --me-side-w: 0px;
       --me-topbar-h: 94px;
       --me-enjoy-h: 38px;
-      --me-mobile-action-space: calc(92px + max(0px, env(safe-area-inset-bottom)));
+      --me-nav-top: calc(max(8px, env(safe-area-inset-bottom)) + 69px + env(safe-area-inset-bottom));
+      --me-mobile-action-space: calc(var(--me-nav-top) + 15px);
       --me-mobile-sheet-clearance: 14px;
     }
     .me-rain-mode .me-section {

@@ -1796,7 +1796,7 @@ test("map explorer restores the quick record launcher on mobile only", () => {
 
   assert.match(styles, /\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: none;\s*\}/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.site-shell\.is-map-surface \.global-record-launcher \{\s*display: grid;\s*z-index: 72;[\s\S]*bottom: max\(8px, env\(safe-area-inset-bottom\)\);/);
-  assert.match(styles, /--me-mobile-action-space: calc\(92px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);/);
+  assert.match(styles, /--me-mobile-action-space: calc\(var\(--me-nav-top\) \+ 15px\);/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.me-map \.maplibregl-ctrl-bottom-right \{\s*bottom: calc\(var\(--me-mobile-action-space\) \+ 4px\);\s*\}/);
   assert.match(styles, /@media \(max-width: 1160px\) \{\s*\.me-map \.maplibregl-ctrl-bottom-right \{\s*bottom: calc\(88px \+ max\(0px, env\(safe-area-inset-bottom\)\)\);\s*z-index: 90;\s*\}\s*\.me-locate-fab \{ bottom: calc\(132px \+ max\(0px, env\(safe-area-inset-bottom\)\)\); \}/);
 });
@@ -2579,4 +2579,11 @@ test("attribution starts collapsed on narrow widths", () => {
 test("bottom-right map controls stay in normal flow above the mobile action space", () => {
   assert.doesNotMatch(MAP_EXPLORER_STYLES, /maplibregl-ctrl-bottom-right\{[^}]*column-reverse/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-map \.maplibregl-ctrl-bottom-right\{bottom:calc\(var\(--me-mobile-action-space\) \+ 4px\)/);
+});
+
+test("mobile bottom sheet, legend and controls share the bottom nav height variable", () => {
+  assert.match(MAP_EXPLORER_STYLES, /--me-nav-top: calc\(max\(8px, env\(safe-area-inset-bottom\)\) \+ 69px/);
+  assert.match(MAP_EXPLORER_STYLES, /--me-mobile-action-space: calc\(var\(--me-nav-top\) \+ 15px\)/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-section \.me-bottom-sheet--detail \{ bottom: calc\(var\(--me-nav-top\) \+ 8px\); \}/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-section \.me-legend \{ bottom: calc\(var\(--me-nav-top\) \+ 8px\);/);
 });
