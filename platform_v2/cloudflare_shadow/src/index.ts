@@ -155,6 +155,7 @@ import {
 import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
 import {
   listD1PublicPlaceChildren,
+  matchD1PublicPlaceDetail,
   searchD1PublicPlaces,
 } from "./placeRegistryD1";
 import {
@@ -2201,22 +2202,19 @@ async function getGlobalPlaceDetailPage(
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
 
-  let result;
+  let detailMatch;
   try {
-    const search = await searchD1PublicPlaces({ db: env.OBS_DB, query: canonicalPlaceId, limit: 2 });
-    result = search.results.find((candidate) => candidate.canonicalPlaceId === canonicalPlaceId) ?? null;
+    detailMatch = await matchD1PublicPlaceDetail(env.OBS_DB, canonicalPlaceId);
   } catch {
     return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, {
       "cache-control": "no-store",
       "retry-after": "60",
     });
   }
-  if (!result?.osmSourceId) {
+  if (detailMatch.state === "not_found") {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
-
-  const sourceMatch = result.osmSourceId.match(/^(way|relation):(\d+)$/u);
-  if (!sourceMatch?.[1] || !sourceMatch[2]) {
+  if (detailMatch.state !== "eligible") {
     return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, { "cache-control": "no-store" });
   }
 
@@ -2226,9 +2224,9 @@ async function getGlobalPlaceDetailPage(
       db: env.OBS_DB,
       placeRef: {
         kind: "osm_area",
-        entityKey: `osm:${sourceMatch[1]}:${sourceMatch[2]}`,
-        osmType: sourceMatch[1] as "way" | "relation",
-        osmId: Number(sourceMatch[2]),
+        entityKey: `osm:${detailMatch.osmType}:${detailMatch.osmIdText}`,
+        osmType: detailMatch.osmType,
+        osmId: detailMatch.osmId,
       },
       fetchFn: fetch,
     });
