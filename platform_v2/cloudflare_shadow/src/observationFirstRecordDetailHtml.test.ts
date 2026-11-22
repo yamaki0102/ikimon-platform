@@ -960,7 +960,7 @@ test("record detail resolves the 7 UX polish items: open capture, readable media
   });
   assert.match(rendered, /<details class="of-capture" open>/);
   assert.doesNotMatch(rendered, /\.of-media-nav\{[^}]*position:absolute/);
-  assert.match(rendered, /@media\(min-width:900px\)\{.*\.of-media-slide img\{width:100%/);
+  assert.match(rendered, /@media\(min-width:900px\)\{.*body\[data-zukan-app-experience\] \.of-media-slide :is\(img,video\)\{width:100%/);
   assert.doesNotMatch(rendered, /<span>◉<\/span>|<span>◌<\/span>/);
   assert.doesNotMatch(rendered, /位置はぼかして表示/);
   assert.match(rendered, /名前はこれから/);
@@ -1006,6 +1006,49 @@ test("record detail fixes media-nav contrast after appExperience, desktop image 
     viewerAuthenticated: false,
   });
   assert.match(rendered, /\.of-media-nav a\{[^}]*color:var\(--ink\)/);
-  assert.match(rendered, /@media\(min-width:900px\)\{\.of-media-stage\{min-height:0\}\.of-media-slide img\{width:100%;height:calc\(100vh - 96px\);object-fit:contain\}\}/);
-  assert.match(rendered, /\.of-note\[data-ai-feedback\]\{[^}]*border:1px solid var\(--green\);border-radius:17px/);
+  assert.match(rendered, /body\[data-zukan-app-experience\] \.of-media-slide :is\(img,video\)\{[^}]*height:calc\(100vh - 96px\)/);
+  assert.match(rendered, /body\[data-zukan-app-experience\] \.of-note\[data-ai-feedback\]\{[^}]*border:1px solid var\(--green\);border-radius:17px/);
+});
+
+test("rendered desktop 1440x900 page scales portrait photo height >= 600 and frames ai-feedback card", async () => {
+  const { existsSync } = await import("node:fs");
+  const chromePath = "/home/nexus/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
+  if (!existsSync(chromePath)) return;
+  const { chromium } = await import("playwright-core");
+  const portraitSvg = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="330" height="446" viewBox="0 0 330 446"><rect width="330" height="446" fill="#245c3a"/></svg>');
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "水辺の観察",
+    observedLabel: "2026/11/22 08:15",
+    note: null,
+    aiFeedback: "水辺の植生が見えます。",
+    media: [{ mediaId: "p1", mediaKind: "photo", url: portraitSvg }],
+    actionNonce: "nonce-browser-measure",
+    viewerAuthenticated: false,
+  });
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.setContent(rendered, { waitUntil: "load" });
+    const metrics = await page.evaluate(() => {
+      const img = document.querySelector(".of-media-slide img");
+      const feedback = document.querySelector("[data-ai-feedback]");
+      const imgRect = img ? img.getBoundingClientRect() : null;
+      const feedbackStyle = feedback ? getComputedStyle(feedback) : null;
+      return {
+        imgHeight: imgRect ? imgRect.height : 0,
+        borderRadius: feedbackStyle ? feedbackStyle.borderRadius : "",
+        borderTopWidth: feedbackStyle ? feedbackStyle.borderTopWidth : "",
+        borderLeftWidth: feedbackStyle ? feedbackStyle.borderLeftWidth : "",
+        backgroundColor: feedbackStyle ? feedbackStyle.backgroundColor : "",
+      };
+    });
+    assert.ok(metrics.imgHeight >= 600, `expected portrait imgHeight >= 600, got ${metrics.imgHeight}`);
+    assert.equal(metrics.borderRadius, "17px");
+    assert.equal(metrics.borderTopWidth, "1px");
+    assert.equal(metrics.borderLeftWidth, "1px");
+    assert.notEqual(metrics.backgroundColor, "rgb(255, 255, 255)");
+  } finally {
+    await browser.close();
+  }
 });
