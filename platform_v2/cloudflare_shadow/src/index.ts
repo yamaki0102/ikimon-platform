@@ -89,6 +89,17 @@ import {
   type GeminiObservationImage,
 } from "./geminiObservationBatch";
 import {
+  CARD_ID_MODEL,
+  CARD_PROMPT_VERSION,
+  CARD_STORE_PREFIX,
+  CARD_TILE_MODEL,
+  CARD_WRITER_MODEL,
+  callCardGemini,
+  runObservationCardPipeline,
+  type CardDeps,
+  type CardStats,
+} from "./observationCardMode";
+import {
   buildHumanObservationEditPlan,
   buildIdentificationAcceptancePlan,
   buildIdentificationClaimDualWritePlan,
@@ -28731,7 +28742,7 @@ async function upgradeLegacyImageDerivativesForObservation(observationId: string
 
 async function runScheduledObservationReassessments(env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
-  await requeuePublicPhotoAiQualityBacklog(env);
+  if (!observationCardModeEnabled(env)) await requeuePublicPhotoAiQualityBacklog(env);
   await resumeGeminiObservationBatchGroups(env);
   await submitGeminiObservationReassessmentGroups([], env);
 }
@@ -29151,10 +29162,17 @@ type DirectGeminiLaneEvidence = {
 };
 
 type GeminiProviderMetadata = {
-  mode: "batch" | "direct_generate_content";
+  mode: "batch" | "direct_generate_content" | "card_v1";
   source: string;
   lanes?: Record<string, DirectGeminiLaneEvidence>;
+  card?: { stats: CardStats };
 };
+
+const OBSERVATION_CARD_MODELS = [CARD_ID_MODEL, CARD_WRITER_MODEL, CARD_TILE_MODEL];
+
+function observationCardModeEnabled(env: Env): boolean {
+  return env.OBSERVATION_AI_MODE === "card_v1";
+}
 
 function reassessmentSource(sourcePayloadJson: string): string {
   const payload = reassessmentPayload(sourcePayloadJson);
@@ -29282,9 +29300,106 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   }
 }
 
+async function observationCardTilePng(asset: ObservationAiAssetRow, env: Env): Promise<Uint8Array | null> {
+  if (!env.IMAGES) return null;
+  const object = (asset.public_derivative_key ? await env.ASSET_BUCKET.get(asset.public_derivative_key) : null)
+    ?? await env.ASSET_BUCKET.get(asset.object_key);
+  if (!object?.body) return null;
+  const bytes = await new Response(object.body).arrayBuffer();
+  if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) return null;
+  const output = await env.IMAGES.input(new Response(bytes).body!).transform({ width: 1024 }).output({ format: "image/png", anim: false });
+  const response = output.response();
+  return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+}
+
+function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): CardDeps {
+  const ai = env.AI;
+  return {
+    gemini: (model, parts, options) => callCardGemini(env.GEMINI_API_KEY!, model, parts, options),
+    ...(ai && env.IMAGES ? {
+      tileModel: async (png: string, prompt: string) => {
+        const result = await ai.run(CARD_TILE_MODEL, {
+          messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: `data:image/png;base64,${png}` } }, { type: "text", text: prompt }] }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 512,
+          chat_template_kwargs: { enable_thinking: false },
+        }) as { choices?: Array<{ message?: { content?: unknown } }>; response?: unknown } | null;
+        const content = result?.choices?.[0]?.message?.content ?? result?.response;
+        return typeof content === "string" ? content : JSON.stringify(content ?? "");
+      },
+      tileSource: async (assetIndex: number) => {
+        const asset = prepared.assets[assetIndex];
+        return asset ? observationCardTilePng(asset, env) : null;
+      },
+    } : {}),
+    loadCard: async (key) => {
+      const object = await env.ASSET_BUCKET.get(`${CARD_STORE_PREFIX}${key}.json`);
+      if (!object) return null;
+      try {
+        const parsed = JSON.parse(await new Response(object.body).text()) as unknown;
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+      } catch {
+        return null;
+      }
+    },
+    saveCard: async (key, card) => {
+      await env.ASSET_BUCKET.put(`${CARD_STORE_PREFIX}${key}.json`, JSON.stringify(card), { httpMetadata: { contentType: "application/json" } });
+    },
+    tileConcurrency: 6,
+  };
+}
+
+async function submitCardObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
+  let prepared: PreparedGeminiObservation;
+  try {
+    prepared = await loadPreparedGeminiObservation(request, env);
+  } catch (error) {
+    await failPendingDirectGeminiReassessment(request, error, env);
+    return;
+  }
+  const payload = reassessmentPayload(request.source_payload_json);
+  delete payload.errorCode;
+  delete payload.failedAt;
+  delete payload.batchExecution;
+  const nextPayload = JSON.stringify({
+    ...payload,
+    executionStatus: "processing",
+    attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
+    providerMode: "card_v1",
+    modelStack: OBSERVATION_CARD_MODELS,
+    modelPlan: { primary: CARD_ID_MODEL, cards: CARD_WRITER_MODEL, tiles: CARD_TILE_MODEL },
+    promptVersion: CARD_PROMPT_VERSION,
+    ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+    startedAt: new Date().toISOString(),
+  });
+  const claimed = await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'processing', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
+  if (Number(claimed.meta?.changes ?? 0) !== 1) return;
+  prepared.request.request_state = "processing";
+  prepared.request.source_payload_json = nextPayload;
+
+  try {
+    const result = await runObservationCardPipeline({ observedAt: prepared.record.observed_at, images: prepared.images }, observationCardDeps(prepared, env));
+    await finalizeGeminiObservationReassessment(prepared, result.merged, env, { mode: "card_v1", source: "observation_card_v1_reassessment", card: { stats: result.stats } });
+  } catch (error) {
+    await failGeminiReassessment(prepared.request, error, env);
+  }
+}
+
+async function submitInteractiveObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
+  if (observationCardModeEnabled(env) && reassessmentAttemptCount(request.source_payload_json) < 2) {
+    await submitCardObservationReassessment(request, env);
+    return;
+  }
+  await submitDirectGeminiObservationReassessment(request, env);
+}
+
 async function submitDirectGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   const rows = (await loadPendingGeminiRequests(observationIds, env)).filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
-  for (const row of rows) await submitDirectGeminiObservationReassessment(row, env);
+  for (const row of rows) await submitInteractiveObservationReassessment(row, env);
 }
 
 async function updateProcessingGeminiPayload(request: ObservationReassessmentRequestRow, execution: GeminiBatchExecution, env: Env, extra: Record<string, unknown> = {}): Promise<boolean> {
@@ -29332,7 +29447,7 @@ async function submitGeminiObservationReassessmentGroups(observationIds: string[
   if (!env.GEMINI_API_KEY) return;
   const pendingInitial = await loadPendingGeminiRequests(observationIds, env);
   for (const request of pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json))) {
-    await submitDirectGeminiObservationReassessment(request, env);
+    await submitInteractiveObservationReassessment(request, env);
   }
   let pending = (await loadPendingGeminiRequests(observationIds, env))
     .filter((row) => !isInteractiveStandardReassessment(row.source_payload_json));
@@ -29809,25 +29924,34 @@ async function finalizeGeminiObservationReassessment(
   const completedAt = new Date().toISOString();
   const specialistApplied = merged.topCandidates.some((topCandidate) => topCandidate.sourceLanes.includes("specialist"));
   const interactive = provider.mode === "direct_generate_content";
-  const providerModels = {
+  const providerModels = provider.card ? {
+    primary: CARD_ID_MODEL,
+    census: CARD_ID_MODEL,
+    environment: CARD_ID_MODEL,
+    specialist: GEMINI_SPECIALIST_MODEL,
+    summary: CARD_WRITER_MODEL,
+  } : {
     primary: GEMINI_PRIMARY_MODEL,
     census: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
     environment: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
     specialist: GEMINI_SPECIALIST_MODEL,
     summary: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_SUMMARY_MODEL,
   };
+  const providerPromptVersion = provider.card ? CARD_PROMPT_VERSION : GEMINI_OBSERVATION_PROMPT_VERSION;
   const assessmentPayload = {
     source: provider.source,
     providerMode: provider.mode,
     providerLanes: provider.lanes ?? null,
+    cardStats: provider.card?.stats ?? null,
     models: {
       primary: providerModels.primary,
       census: providerModels.census,
       environment: providerModels.environment,
       specialist: specialistApplied ? providerModels.specialist : null,
       summary: providerModels.summary,
+      tiles: provider.card ? CARD_TILE_MODEL : null,
     },
-    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    promptVersion: providerPromptVersion,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
     assetIds: prepared.assets.map((asset) => asset.asset_id),
     sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
@@ -29879,12 +30003,15 @@ async function finalizeGeminiObservationReassessment(
     providerMode: provider.mode,
     providerLanes: provider.lanes ?? null,
     aiRunId,
-    models: interactive
-      ? [GEMINI_PRIMARY_MODEL]
-      : specialistApplied
-        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
-        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
-    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    cardStats: provider.card?.stats ?? null,
+    models: provider.card
+      ? OBSERVATION_CARD_MODELS
+      : interactive
+        ? [GEMINI_PRIMARY_MODEL]
+        : specialistApplied
+          ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
+          : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+    promptVersion: providerPromptVersion,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
     recordClass: merged.recordClass,
     informationState: merged.informationState,
