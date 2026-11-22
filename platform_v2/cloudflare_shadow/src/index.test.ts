@@ -5091,7 +5091,7 @@ class FakeStatement {
 
   async first<T>(): Promise<T | null> {
     const normalized = normalize(this.query);
-    if (normalized.startsWith("SELECT 1 AS ok")) {
+    if (normalized === "SELECT 1 AS ok") {
       return ({ ok: 1 } as T);
     }
 
