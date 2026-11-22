@@ -1,0 +1,66 @@
+{
+ "key": "salix",
+ "en": {
+  "scientific_name": "Salix",
+  "english_name": "Willows",
+  "rank": "genus",
+  "overview": "Deciduous trees and shrubs common along Japanese waterways, recognizable by narrow leaves and fuzzy spring catkins.",
+  "distinguishing_tips": [
+   "Narrow, lance-shaped leaves with finely toothed margins",
+   "Soft, silky catkins appearing in early spring",
+   "Winter buds covered by a single cap-like scale",
+   "Slender, flexible, often drooping branches"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Poplars",
+    "scientific_name": "Populus",
+    "distinction_point": "Poplars have broader, triangular or rounded leaves and multiple bud scales."
+   },
+   {
+    "english_name": "Alders",
+    "scientific_name": "Alnus",
+    "distinction_point": "Alders have woody, cone-like female catkins and broader, doubly toothed leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of leaf underside and petiole",
+   "Winter buds showing the single bud scale",
+   "Flowering catkins in early spring"
+  ],
+  "season_habitat": "Flowers in early spring; common along riverbanks, wetlands, and mountain streams throughout Japan."
+ },
+ "ja": {
+  "scientific_name": "Salix",
+  "english_name": "ヤナギ属",
+  "rank": "属",
+  "overview": "日本の水辺でよく見られる落葉性の高木や低木です。細長い葉と、春に咲くふわふわとした花穂（尾状花序）が特徴です。",
+  "distinguishing_tips": [
+   "細長い披針形の葉で、縁に細かい鋸歯がある",
+   "早春に咲く、柔らかく絹のような質感の花穂",
+   "冬芽が1枚のキャップ状の鱗片に覆われている",
+   "細くしなやかで、垂れ下がる枝"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Poplars",
+    "scientific_name": "Populus",
+    "japanese_name": "ハコヤナギ属",
+    "distinction_point": "ハコヤナギ属は葉がより幅広く三角形や円形に近く、冬芽の鱗片が複数あります。"
+   },
+   {
+    "english_name": "Alders",
+    "scientific_name": "Alnus",
+    "japanese_name": "ハンノキ属",
+    "distinction_point": "ハンノキ属は木質化した松ぼっくりのような雌花穂をつけ、葉はより幅広く二重鋸歯があります。"
+   }
+  ],
+  "confirm_more": [
+   "葉の裏面と葉柄の接合部の拡大写真",
+   "1枚の鱗片に覆われた冬芽の様子",
+   "早春に咲く花穂"
+  ],
+  "season_habitat": "早春に開花します。日本全国の川岸、湿地、渓流沿いなどでよく見られます。"
+ },
+ "costUsd": 0.00743925
+}

@@ -1,0 +1,77 @@
+{
+ "key": "phyllostachys",
+ "en": {
+  "scientific_name": "Phyllostachys",
+  "english_name": "Timber bamboos",
+  "rank": "genus",
+  "overview": "Tall, running bamboos with grooved internodes and two unequal branches per node, widely naturalized and cultivated across Japan.",
+  "distinguishing_tips": [
+   "Two unequal branches arising from each upper node.",
+   "Distinct vertical groove above the branch attachment.",
+   "Culm sheaths fall off early as shoots mature.",
+   "Prominent double-ringed nodes on the main stem."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Medake bamboos",
+    "scientific_name": "Pleioblastus",
+    "distinction_point": "Pleioblastus has three or more branches per node and lacks the vertical culm groove."
+   },
+   {
+    "english_name": "Sasa bamboos",
+    "scientific_name": "Sasa",
+    "distinction_point": "Sasa has only one branch per node and persistent culm sheaths."
+   },
+   {
+    "english_name": "Clumping bamboos",
+    "scientific_name": "Bambusa",
+    "distinction_point": "Bambusa grows in tight clumps with multiple clustered branches per node."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a node showing the branch count and vertical groove.",
+   "Culm sheath pattern and auricles on a young shoot.",
+   "Overall growth habit showing spaced-out culms."
+  ],
+  "season_habitat": "Evergreen year-round, thriving in lowland forests, hillsides, and abandoned groves across Japan."
+ },
+ "ja": {
+  "scientific_name": "Phyllostachys",
+  "english_name": "マダケ属",
+  "rank": "属",
+  "overview": "日本各地で広く植栽・野生化している大型のタケ類です。節に溝があり、節ごとに長さの異なる2本の枝が出るのが特徴です。",
+  "distinguishing_tips": [
+   "節ごとに長さの異なる2本の枝が出る。",
+   "枝の付け根の上に、はっきりとした縦の溝がある。",
+   "タケノコの成長とともに、稈鞘（皮）が早く脱落する。",
+   "茎の節が二重の輪のように目立つ。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "メダケ属",
+    "scientific_name": "Pleioblastus",
+    "japanese_name": "メダケ属",
+    "distinction_point": "メダケ属は節から3本以上の枝が出て、稈に縦の溝がない。"
+   },
+   {
+    "english_name": "ササ属",
+    "scientific_name": "Sasa",
+    "japanese_name": "ササ属",
+    "distinction_point": "ササ属は節から出る枝が1本のみで、稈鞘が枯れても残りやすい。"
+   },
+   {
+    "english_name": "ホウライチク属",
+    "scientific_name": "Bambusa",
+    "japanese_name": "ホウライチク属",
+    "distinction_point": "ホウライチク属は株立ち状に密生し、節から多数の枝が束になって出る。"
+   }
+  ],
+  "confirm_more": [
+   "節の枝の数と縦溝のアップ。",
+   "若いタケノコの稈鞘の模様や耳（突起）の形状。",
+   "稈が間隔を空けて生える全体の生育状況。"
+  ],
+  "season_habitat": "一年中緑を保ち、日本各地の低地の森林、丘陵地、放置された竹林などでよく見られる。"
+ },
+ "costUsd": 0.0096045
+}

@@ -192,15 +192,18 @@ const ID_PROMPT = (ctx: string) => `${ctx}
 
 写真の観察記録を読み、JSONのみ返す。値は短く。
 {"main_theme":"organism|environment",
+"inventory":["写っている生きものを、名前を決める前に見た目で短く書き出す。最大8"],
 "habitat_type":"${HABITATS.join("|")}|その他",
 "subjects":[{"name":"和名","scientific_name":"学名","role":"main|host|other_animal|background","group":"bird|mammal|reptile|amphibian|fish|insect|spider|plant|fungus|other","rank":"species|genus|family|order|class","confidence_band":"low|medium|high","view":"close|mid|far","asset_indexes":[0],"features_seen":["この写真で実際に見えた特徴 最大3"],"missing_evidence":["確定に足りない証拠 最大2"]}],
 "area_inference":{${AREA_KEYS.map((k) => `"${k}":[{"label":"","confidence":0.0,"why":""}]`).join(",")}},
 "narrative":"160字以内厳守。何がどう写り、どう読めるか。日時・場所は繰り返さず、情緒的な描写はしない",
 "simple_summary":"80字以内",
 "observer_boost":"70字以内の1文。この記録ですでに良い点。大げさな賞賛は禁止"}
-- subjects は写っている生きものを1件ずつ別々に同定する。最大8件。次の順に写真を見直し、見えるものは必ず1件ずつ入れる: (1) 主役の生きもの (2) 主役が止まる・食べる・隠れる植物など host (3) ほかの動物 other_animal（小さな写り込み、枝葉に隠れた鳥や虫、遠くの個体） (4) 背景や足元の植生 background（樹林、草地、コケ、シダ、水草など、まとまりごとに1件）。同じ生きものが複数枚に写るなら asset_indexes にまとめる。
+- 最初に inventory を書く。写真を隅まで見て、次の順に見えるものを1行ずつ書き出す。そのあと inventory の各行に1件ずつ subjects を対応させて同定する（行を飛ばさない。最大8件）: (1) 主役の生きもの (2) 主役が止まる・食べる・隠れる植物など host (3) ほかの動物 other_animal（小さな写り込み、枝葉に隠れた鳥や虫、遠くの個体） (4) 背景や足元の植生 background（樹林、草地、コケ、シダ、水草など、まとまりごとに1件）。同じ生きものが複数枚に写るなら asset_indexes にまとめる。
 - background の植生は、決め手が見えない限り「落葉広葉樹」「イネ科草本」「コケ植物」のような粗い名前にし、rank は family/order/class、view は mid か far。
-- 人（ヒト）は subjects に入れない。機械・建物・道具、雲・空・水・岩・雪・砂など生きものでないものも入れない。生きものが見当たらなければ subjects は空配列にし、無理に埋めない。
+- 例（カマキリが黄色い花穂に止まり、奥がススキの草地の写真）: inventory=["緑色の大きなカマキリ","カマキリが止まる黄色い花穂の草","奥に広がる穂の出たススキ状の草"] → subjects は オオカマキリ(main)、セイタカアワダチソウ(host)、ススキ類(background, genus) の3件。
+- 「植物」「樹木」「草本類」だけの言い方は使わず、少なくとも「落葉広葉樹」「イネ科草本」「シダ植物」程度まで言う。そこまで言えないものは挙げない。同じ種類の個体が複数いても1件にまとめる。クモの網・巣・足跡などの痕跡は subjects に入れず narrative に書く。
+- 人（ヒト）は inventory にも subjects にも入れない。機械・建物・道具、雲・空・水・岩・雪・砂など生きものでないものも入れない。生きものが見当たらなければ subjects は空配列にし、無理に埋めない。
 - 樹木・栽培植物・赤トンボ類など似た種が多いものは、花・果実・葉や模様の細部といった決め手を features_seen に書けるときだけ species。書けなければ属・科で止める。
 - view は、その生きものが大きくはっきり写るなら close、形は分かるが細部が見えないなら mid、遠景・小さい・不鮮明なら far。
 - far のものは種まで言わない。科・属・「〜類」などで止め、confidence_band は low。mid は種の決め手が実際に見えるときだけ species、confidence_band は medium まで。
@@ -262,6 +265,10 @@ const TILE_PROMPT = `これは写真の一部を拡大したものです。動�
 JSONのみ: {"animals":[{"name":"和名（分かる階級まで。例: 小鳥）","group":"bird|mammal|reptile|amphibian|fish|insect|spider|other","confidence_band":"low|medium|high","where":"どこにどう見えるか"}]}`;
 const ZOOM_PROMPT = (known: string) => `日本国内の野外写真です。すでに同定済みの生きもの: ${known || "なし"}。拡大に写るのがそれと同じ個体・同じ種類なら {"none":true} だけを返す。1枚目は広い範囲、2枚目はその中央付近の拡大。拡大に動物が確かに写っているかを自分の目で確かめる。広い範囲の文脈から、丸太・畦・岩・影・枯れ葉・ゴミなどの見間違いでないかも確かめる。写っていない、または動物と言い切れなければ {"none":true} だけを返す。写っていれば同定し、種の確定に必要な形質が見えなければ genus/family/order で止める。
 JSONのみ: {"name":"和名","scientific_name":"学名","rank":"species|genus|family|order|class","confidence_band":"low|medium|high","features_seen":["実際に見えた特徴 最大3"],"missing_evidence":["確定に足りない証拠 最大2"]}`;
+const SECOND_PROMPT = (ctx: string) => `${ctx}
+
+写真でいちばん大きくはっきり写る生きものを1つだけ同定する。種の決め手が実際に見えなければ属・科で止める。JSONのみ: {"name":"和名","scientific_name":"学名","rank":"species|genus|family|order|class"}`;
+const VAGUE_NAME = /^(植物|樹木|樹木類|草本|草本類|草本植物|草|木|植物の葉|植物の果実)$/;
 const TILE_COARSE: Record<string, [string, string, string]> = { bird: ["鳥類", "Aves", "class"], mammal: ["哺乳類", "Mammalia", "class"], reptile: ["爬虫類", "Reptilia", "class"], amphibian: ["両生類", "Amphibia", "class"], fish: ["魚類", "Actinopterygii", "class"], insect: ["昆虫", "Insecta", "class"], spider: ["クモ類", "Araneae", "order"] };
 const BAND_RANK: Record<string, number> = { low: 0, medium: 1, high: 2 };
 let tileSlots = 12;
@@ -349,11 +356,32 @@ async function runCard(cfg: Configs, c: Config, item: Item, dir: string, runId: 
   let final: Json | null = null;
   let cardUsd = 0;
   if (id) {
-    const subjects = (Array.isArray(id.subjects) ? (id.subjects as Json[]) : []).filter((s) => s && typeof s === "object" && s.name && !/^(ヒト|人間|人物|人|空|水|土)$|岩|^石|雲|雪|砂/.test(String(s.name)) && !/homo sapiens/i.test(String(s.scientific_name ?? ""))).slice(0, 8);
+    const listed = (Array.isArray(id.subjects) ? (id.subjects as Json[]) : []).filter((s) => s && typeof s === "object" && s.name && !/^(ヒト|人間|人物|人|空|水|土)$|岩|^石|雲|雪|砂/.test(String(s.name)) && !/homo sapiens/i.test(String(s.scientific_name ?? "")));
+    const genusOf = (x: Json) => String(x.scientific_name ?? "").split(" ")[0]?.toLowerCase() ?? "";
+    const merged: Json[] = [];
+    for (const sub of listed) {
+      if (/網|巣$|足跡/.test(String(sub.name))) continue;
+      const dup = merged.find((x) => String(x.name) === String(sub.name) || (genusOf(sub) && genusOf(x) === genusOf(sub)));
+      if (dup) dup.asset_indexes = [...new Set([...(Array.isArray(dup.asset_indexes) ? dup.asset_indexes : []), ...(Array.isArray(sub.asset_indexes) ? sub.asset_indexes : [])])];
+      else merged.push(sub);
+    }
+    const specific = merged.filter((x) => !VAGUE_NAME.test(String(x.name)));
+    const subjects = (specific.length ? specific : merged).slice(0, 8);
     for (const sub of subjects) { if (sub.view === "far") { sub.confidence_band = "low"; if (sub.rank === "species") { sub.rank = "genus"; sub.name = `${sub.name}の仲間`; sub.scientific_name = String(sub.scientific_name ?? "").split(" ")[0] ?? ""; } } else if (sub.view === "mid" && sub.confidence_band === "high") sub.confidence_band = "medium"; }
-    const sweep = await tileSweep(cfg, c, photos, subjects, item.id);
+    const lead = subjects[0];
+    const [sweep, second] = await Promise.all([
+      tileSweep(cfg, c, photos, subjects, item.id),
+      lead && lead.rank === "species" && id.main_theme !== "environment" ? callModel(cfg, c.verify ?? c.extract, [...buildVisualInputParts(photos), { text: SECOND_PROMPT(slimContext(item, photos)) }], { temperature: 0.1, thinking: (c.verify ?? c.extract).startsWith("gemini:") ? "minimal" : undefined }) : Promise.resolve(null),
+    ]);
     sweepCachedMs = sweep.cachedMs;
-    sweepCalls = sweep.calls;
+    sweepCalls = second ? [...sweep.calls, second] : sweep.calls;
+    const sj = second && !second.error ? parseJson(second.text) : null;
+    if (lead && sj?.name) {
+      const same = String(sj.name) === String(lead.name) || (sj.scientific_name && String(sj.scientific_name).toLowerCase() === String(lead.scientific_name ?? "").toLowerCase());
+      if (!same && sj.rank === "species") { lead.confidence_band = "low"; lead.alt_candidate = String(sj.name); lead.missing_evidence = [...(Array.isArray(lead.missing_evidence) ? lead.missing_evidence : []), `別の読み取りでは${String(sj.name)}。決め手の確認が必要`]; }
+      else if (!same && lead.confidence_band === "high") lead.confidence_band = "medium";
+      lead.second_check = same ? "agree" : sj.rank === "species" ? "conflict" : "coarser";
+    }
     subjects.push(...sweep.added);
     const cards = await Promise.all(subjects.map((s, i) => (i < 4 ? taxonCard(cfg, c, s) : Promise.resolve({ card: null, costUsd: 0 }))));
     const hab = await habitatCard(cfg, c, String(id.habitat_type ?? ""));
