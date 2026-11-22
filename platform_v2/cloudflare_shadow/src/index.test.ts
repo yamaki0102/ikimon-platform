@@ -6842,13 +6842,19 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT visit_id, observed_at FROM production_import_visits")) {
+    if (normalized.startsWith("SELECT visit_id, observed_at, legacy_observation_id, user_id FROM production_import_visits")
+      || normalized.startsWith("SELECT visit_id, observed_at FROM production_import_visits")) {
       const placeId = string(v[0]);
       const rows = [...this.db.productionVisits.values()]
         .filter((row) => row.place_id === placeId && (row.public_visibility ?? "public") !== "private")
         .sort((a, b) => (b.observed_at ?? "").localeCompare(a.observed_at ?? "") || b.visit_id.localeCompare(a.visit_id))
         .slice(0, 80)
-        .map((row) => ({ visit_id: row.visit_id, observed_at: row.observed_at }));
+        .map((row) => ({
+          visit_id: row.visit_id,
+          observed_at: row.observed_at,
+          legacy_observation_id: row.legacy_observation_id,
+          user_id: row.user_id,
+        }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT occurrence_id, scientific_name, vernacular_name FROM production_import_occurrences")) {
@@ -23124,6 +23130,22 @@ test("production fixed point station page is D1-native without origin fallback",
     public_visibility: "public",
     observed_at: "2026-06-20T09:00:00.000Z"
   });
+  obs.productionVisits.set("visit-fixed-2025", {
+    visit_id: "visit-fixed-2025",
+    legacy_observation_id: null,
+    place_id: fieldId,
+    user_id: "observer-2",
+    public_visibility: "public",
+    observed_at: "2025-06-15T09:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-fixed-2025", {
+    occurrence_id: "occ-fixed-2025",
+    visit_id: "visit-fixed-2025",
+    scientific_name: "Pseudothemis zonata",
+    vernacular_name: "コシアキトンボ",
+    taxon_rank: "species",
+    created_at: "2025-06-15T09:01:00.000Z"
+  });
   obs.productionVisits.set("visit-fixed-private", {
     visit_id: "visit-fixed-private",
     legacy_observation_id: null,
@@ -23174,6 +23196,18 @@ test("production fixed point station page is D1-native without origin fallback",
     assert.match(body, /<title>谷津山の観察地点 \| 定点ページ \| ZUKAN<\/title>/);
     assert.match(body, /<header><a href="\/">ZUKAN<\/a><nav><a href="\/map">地図へ<\/a><\/nav><\/header>/);
     assert.match(body, /ササゴイ/);
+    assert.match(body, /コシアキトンボ/);
+    assert.match(body, /data-fixed-point-compare/);
+    assert.match(body, /data-compare-select="a"/);
+    assert.match(body, /data-compare-select="b"/);
+    assert.match(body, /data-compare-same-month/);
+    assert.match(body, /data-compare-slot="a"/);
+    assert.match(body, /data-compare-slot="b"/);
+    assert.match(body, /観察日/);
+    assert.match(body, /記録者/);
+    assert.match(body, /原文/);
+    assert.match(body, /出典/);
+    assert.doesNotMatch(body, /AIからの短いメモ|AIが見つけた/);
     assert.match(body, /水辺のごみを拾った/);
     assert.doesNotMatch(body, /visit-fixed-private/);
     assert.equal(fallbackCalls, 0);
