@@ -37,12 +37,14 @@ const PUBLIC_PLACE_GATE = `EXISTS (
                SELECT 1 FROM place_policies pp
                 WHERE pp.place_policy_id = (
                     SELECT pp2.place_policy_id FROM place_policies pp2
-                     WHERE pp2.place_id = p.place_id AND pp2.valid_to IS NULL
+                     WHERE pp2.place_id = p.place_id
+                       AND substr(COALESCE(pp2.valid_from, pp2.created_at), 1, 10) <= date('now')
+                       AND (pp2.valid_to IS NULL OR substr(pp2.valid_to, 1, 10) > date('now'))
                      ORDER BY COALESCE(pp2.valid_from, pp2.created_at) DESC, pp2.place_policy_id DESC
                      LIMIT 1
                   )
                   AND pp.place_visibility = 'public'
-                  AND COALESCE(pp.public_location_mode, 'place') <> 'hidden'
+                  AND COALESCE(pp.public_location_mode, 'place') = 'place'
              )
         )`;
 
@@ -63,7 +65,7 @@ const PUBLIC_VISIT_GATE = `COALESCE(v.public_visibility, 'private') = 'public'
           )
           AND NOT EXISTS (
             SELECT 1 FROM observations ho
-             WHERE ho.observation_id = v.visit_id
+             WHERE (ho.observation_id = v.visit_id OR ho.observation_id = v.legacy_observation_id)
                AND (ho.emergency_hidden <> 0 OR ho.visibility <> 'public')
           )
           AND substr(COALESCE(v.observed_at, v.created_at, ''), 1, 4) GLOB '[12][0-9][0-9][0-9]'`;

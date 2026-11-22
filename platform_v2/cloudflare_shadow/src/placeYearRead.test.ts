@@ -231,3 +231,41 @@ test("responses vary on credentials", async () => {
   for (const r of [anon, authed]) assert.equal(r?.headers.get("vary"), "Cookie, Authorization");
   assert.equal(authed?.headers.get("cache-control"), "private, no-store");
 });
+
+test("hide matches the legacy observation id of a migrated record", async () => {
+  const f = fixture();
+  f.addPlace("p1", "浜松城公園");
+  f.addRecord("migrated", "p1", "2008-05-01T00:00:00Z");
+  f.native.prepare("UPDATE production_import_visits SET legacy_observation_id = 'legacy-1' WHERE visit_id = 'migrated'").run();
+  f.hide("legacy-1", "emergency");
+  assert.deepEqual((await loadPlaceYearIndex(f.db, "p1")).years, []);
+  assert.deepEqual(await loadPlaceYearCards(f.db, "p1"), []);
+});
+
+test("a future-dated or expired policy does not override the current one", async () => {
+  const f = fixture();
+  f.addPlace("fut", "場所F", "private");
+  f.addPolicy("fut", "public", "place", "2000-01-01");
+  f.addPolicy("fut", "private", "place", "2001-01-01");
+  f.addPolicy("fut", "public", "place", "2999-01-01");
+  f.addRecord("r1", "fut", "2008-05-01T00:00:00Z");
+  assert.deepEqual((await loadPlaceYearIndex(f.db, "fut")).years, []);
+  f.addPlace("exp", "場所E", "private");
+  f.addPolicy("exp", "public", "place", "2000-01-01");
+  f.native.prepare("UPDATE place_policies SET valid_to = '2001-01-01' WHERE place_id = 'exp'").run();
+  f.addPolicy("exp", "public", "place", "2002-01-01");
+  f.addRecord("r2", "exp", "2008-05-01T00:00:00Z");
+  assert.equal((await loadPlaceYearCards(f.db, "exp")).length, 1);
+});
+
+test("zone and public_cell precision places are excluded from place-level reads", async () => {
+  const f = fixture();
+  for (const mode of ["zone", "public_cell"]) {
+    f.addPlace(`pl-${mode}`, "場所", "private");
+    f.addPolicy(`pl-${mode}`, "public", mode, "2000-01-01");
+    f.addRecord(`rec-${mode}`, `pl-${mode}`, "2008-05-01T00:00:00Z");
+    assert.deepEqual((await loadPlaceYearIndex(f.db, `pl-${mode}`)).years, []);
+    assert.deepEqual(await loadPlaceYearCards(f.db, `pl-${mode}`), []);
+  }
+  assert.equal(await resolveDefaultPublicPlace(f.db), null);
+});
