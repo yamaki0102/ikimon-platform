@@ -1083,7 +1083,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     ${APP_EXPERIENCE_STYLES}
     ${OBSERVATION_EVENT_LIST_STYLES}
     ${nativeMarker === "event-page-rally" ? OBSERVATION_EVENT_STYLES : ""}
-    body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#245c3a}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#245c3a}
+    body[data-zukan-app-experience] main{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#245c3a}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#245c3a}
   </style>
 </head>
 <body ${standalone ? 'data-zukan-design="v1" data-event-lp="standalone"' : 'data-zukan-app-experience="v1"'}>
@@ -1742,7 +1742,7 @@ function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<
   return `<section class="card"><h1>${escapeHtml(session.title)} 編集</h1><p class="muted">Worker/D1 runtimeでは、更新は PATCH /api/v1/observation-events/:sessionId に集約します。</p><pre>${escapeHtml(JSON.stringify({ sessionId: session.sessionId, title: session.title, primaryMode: session.primaryMode, activeModes: session.activeModes, targetSpecies: session.targetSpecies }, null, 2))}</pre><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}">session API</a></div></section>`;
 }
 
-function renderObservationEventRallyPage(
+export function renderObservationEventRallyPage(
   session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
   rally: Omit<Awaited<ReturnType<typeof getObservationRallySnapshot>>, "readOnly"> & { readOnly?: boolean },
   isAuthenticated: boolean,
@@ -1752,6 +1752,7 @@ function renderObservationEventRallyPage(
   guestMediaCanReview = false,
   guestMediaCanSubmit = false
 ): string {
+  const participantLinks = `<div class="actions"><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">ふりかえりを見る</a><a class="btn secondary" href="/records?view=mine">自分の記録</a>${session.fieldId ? `<a class="btn secondary" href="/places/${encodeURIComponent(session.fieldId)}">場所ページを見る</a>` : `<a class="btn secondary" href="/map">地図を見る</a>`}</div>`;
   if (!options) {
     const body = renderObservationRallyBody({
       session,
@@ -1761,7 +1762,7 @@ function renderObservationEventRallyPage(
     const media = guestMediaEnabled
       ? `<div id="event-private-media">${renderObservationEventGuestMediaPanel(session.sessionId, guestMediaCanReview, guestMediaCanSubmit)}</div>`
       : "";
-    return `${body}${media}<script>${observationRallyScript()}</script>`;
+    return `${body}${media}${participantLinks}<script>${observationRallyScript()}</script>`;
   }
   const recordParams = new URLSearchParams();
   if (session.eventCode) recordParams.set("event", session.eventCode);
@@ -1970,7 +1971,8 @@ export function renderObservationEventRecapPage(recap: Record<string, unknown>):
   const rehost = canManage
     ? `<article class="card"><h2>次回の観察会</h2><p class="muted">企画設定だけを再利用します。参加者・同意・review・公開状態は引き継ぎません。</p><div class="actions"><a class="btn" href="/community/events/new?template_from=${encodeURIComponent(String(session.sessionId ?? ""))}">もう一度開催する</a></div></article>`
     : "";
-  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察記録</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p></article>${rehost}</section>`;
+  const participantLinks = `<div class="actions"><a class="btn secondary" href="/records?view=mine">自分の記録</a>${typeof session.fieldId === "string" && session.fieldId ? `<a class="btn secondary" href="/places/${encodeURIComponent(session.fieldId)}">場所ページを見る</a>` : `<a class="btn secondary" href="/map">地図を見る</a>`}</div>`;
+  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察記録</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p></article>${participantLinks}${rehost}</section>`;
 }
 
 function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buildObservationEventOfficialReport>> & Record<string, unknown>): string {

@@ -50,6 +50,7 @@ test("event shell navigation uses the request language and membership", async ()
     assert.doesNotMatch(navBlock, /\shref="\/ja\//);
   }
   assert.match(html, /class="lang-switch-link" href="\/ja\/"/);
+  assert.match(html, /body\[data-zukan-app-experience\] main\{padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom,0px\)\)\}/);
 });
 
 test("signed-out event shell top bar shows localized login instead of profile link", async () => {

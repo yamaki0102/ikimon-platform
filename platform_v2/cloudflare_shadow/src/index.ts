@@ -20778,6 +20778,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-confirm-actions button{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink);font:inherit;font-size:16px}
     .cf-record-confirm-actions button[type=submit]{background:var(--teal);border-color:var(--teal);color:white}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
+    .cf-record-saved-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .cf-record-saved-links a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--teal);border-radius:4px;background:white;color:var(--teal);text-decoration:none;font-weight:800}
+    .cf-record-saved-links a.is-primary{background:var(--teal);color:white}
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
@@ -20808,6 +20811,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       </details>
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
+      <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
@@ -20833,6 +20837,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     ${PHOTO_UPLOAD_PREPARATION_SCRIPT}
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
+    const savedLinks = document.getElementById("record-saved-links");
+    const initialPlaceId = new URLSearchParams(location.search).get("placeId") || "";
     const submitPanel = document.getElementById("record-submit-panel");
     const confirmDialog = document.getElementById("record-confirm");
     const reviewOpen = document.getElementById("record-review-open");
@@ -20850,6 +20856,31 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       participantRole: document.body.dataset.eventParticipantRole || ""
     };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
+    function showSavedRecordLinks(visitId, resolvedPlaceId) {
+      if (!savedLinks) return;
+      savedLinks.textContent = "";
+      const isEn = recordPrefix === "/en";
+      const items = [
+        { href: recordPrefix + "/observations/" + encodeURIComponent(visitId), label: isEn ? "Open this record" : "この記録を見る", primary: true },
+        { href: recordPrefix + "/records?view=mine", label: isEn ? "My records" : "自分の記録", primary: false }
+      ];
+      if (eventContext.eventSessionId) {
+        items.push({ href: recordPrefix + "/events/" + encodeURIComponent(eventContext.eventSessionId) + "/live", label: isEn ? "Back to event" : "観察会に戻る", primary: false });
+      }
+      if (resolvedPlaceId) {
+        items.push({ href: recordPrefix + "/places/" + encodeURIComponent(resolvedPlaceId), label: isEn ? "Open place" : "場所ページを見る", primary: false });
+      } else {
+        items.push({ href: recordPrefix + "/map", label: isEn ? "Open map" : "地図を見る", primary: false });
+      }
+      for (const item of items) {
+        const anchor = document.createElement("a");
+        anchor.href = item.href;
+        anchor.textContent = item.label;
+        if (item.primary) anchor.className = "is-primary";
+        savedLinks.appendChild(anchor);
+      }
+      savedLinks.hidden = false;
+    }
     function setStatus(message, error) {
       if (!status) return;
       status.textContent = message;
@@ -21229,6 +21260,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
+          showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
           setStatus(copy.saved + " " + files.length + copy.photoSaved, false);
           return;
         }
@@ -21282,6 +21314,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
+        showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         submitting = false;
