@@ -193,12 +193,15 @@ const ID_PROMPT = (ctx: string) => `${ctx}
 写真の観察記録を読み、JSONのみ返す。値は短く。
 {"main_theme":"organism|environment",
 "habitat_type":"${HABITATS.join("|")}|その他",
-"subjects":[{"name":"和名","scientific_name":"学名","group":"bird|mammal|reptile|amphibian|fish|insect|spider|plant|fungus|other","rank":"species|genus|family|order|class","confidence_band":"low|medium|high","view":"close|mid|far","asset_indexes":[0],"features_seen":["この写真で実際に見えた特徴 最大3"],"missing_evidence":["確定に足りない証拠 最大2"]}],
+"subjects":[{"name":"和名","scientific_name":"学名","role":"main|host|other_animal|background","group":"bird|mammal|reptile|amphibian|fish|insect|spider|plant|fungus|other","rank":"species|genus|family|order|class","confidence_band":"low|medium|high","view":"close|mid|far","asset_indexes":[0],"features_seen":["この写真で実際に見えた特徴 最大3"],"missing_evidence":["確定に足りない証拠 最大2"]}],
 "area_inference":{${AREA_KEYS.map((k) => `"${k}":[{"label":"","confidence":0.0,"why":""}]`).join(",")}},
 "narrative":"160字以内厳守。何がどう写り、どう読めるか。日時・場所は繰り返さず、情緒的な描写はしない",
 "simple_summary":"80字以内",
 "observer_boost":"70字以内の1文。この記録ですでに良い点。大げさな賞賛は禁止"}
-- subjects は写っている生きものを1件ずつ別々に同定する。目立つ順、最大6件。小さな写り込み、枝葉に隠れた鳥や虫、背景の生きもの、主役が止まっている植物も1件ずつ入れる。同じ生きものが複数枚に写るなら asset_indexes にまとめる。
+- subjects は写っている生きものを1件ずつ別々に同定する。最大8件。次の順に写真を見直し、見えるものは必ず1件ずつ入れる: (1) 主役の生きもの (2) 主役が止まる・食べる・隠れる植物など host (3) ほかの動物 other_animal（小さな写り込み、枝葉に隠れた鳥や虫、遠くの個体） (4) 背景や足元の植生 background（樹林、草地、コケ、シダ、水草など、まとまりごとに1件）。同じ生きものが複数枚に写るなら asset_indexes にまとめる。
+- background の植生は、決め手が見えない限り「落葉広葉樹」「イネ科草本」「コケ植物」のような粗い名前にし、rank は family/order/class、view は mid か far。
+- 人（ヒト）は subjects に入れない。機械・建物・道具、雲・空・水・岩・雪・砂など生きものでないものも入れない。生きものが見当たらなければ subjects は空配列にし、無理に埋めない。
+- 樹木・栽培植物・赤トンボ類など似た種が多いものは、花・果実・葉や模様の細部といった決め手を features_seen に書けるときだけ species。書けなければ属・科で止める。
 - view は、その生きものが大きくはっきり写るなら close、形は分かるが細部が見えないなら mid、遠景・小さい・不鮮明なら far。
 - far のものは種まで言わない。科・属・「〜類」などで止め、confidence_band は low。mid は種の決め手が実際に見えるときだけ species、confidence_band は medium まで。
 - 種の確定に必要な形質が見えなければ genus/family/order で止め、confidence_band を下げる。
@@ -226,6 +229,7 @@ async function getCard(cfg: Configs, c: Config, key: string, prompt: string): Pr
   if (!key || !c.card || !c.translate) return { card: null, costUsd: 0 };
   const path = join(CARD_DIR, `${key}.json`);
   if (existsSync(path)) return { card: JSON.parse(readFileSync(path, "utf8")) as Card, costUsd: 0 };
+  if (process.argv.includes("--no-new-cards")) return { card: null, costUsd: 0 };
   const running = cardInflight.get(key);
   if (running) return { card: (await running).card, costUsd: 0 };
   const p = (async () => {
@@ -258,6 +262,7 @@ const TILE_PROMPT = `これは写真の一部を拡大したものです。動�
 JSONのみ: {"animals":[{"name":"和名（分かる階級まで。例: 小鳥）","group":"bird|mammal|reptile|amphibian|fish|insect|spider|other","confidence_band":"low|medium|high","where":"どこにどう見えるか"}]}`;
 const ZOOM_PROMPT = (known: string) => `日本国内の野外写真です。すでに同定済みの生きもの: ${known || "なし"}。拡大に写るのがそれと同じ個体・同じ種類なら {"none":true} だけを返す。1枚目は広い範囲、2枚目はその中央付近の拡大。拡大に動物が確かに写っているかを自分の目で確かめる。広い範囲の文脈から、丸太・畦・岩・影・枯れ葉・ゴミなどの見間違いでないかも確かめる。写っていない、または動物と言い切れなければ {"none":true} だけを返す。写っていれば同定し、種の確定に必要な形質が見えなければ genus/family/order で止める。
 JSONのみ: {"name":"和名","scientific_name":"学名","rank":"species|genus|family|order|class","confidence_band":"low|medium|high","features_seen":["実際に見えた特徴 最大3"],"missing_evidence":["確定に足りない証拠 最大2"]}`;
+const TILE_COARSE: Record<string, [string, string, string]> = { bird: ["鳥類", "Aves", "class"], mammal: ["哺乳類", "Mammalia", "class"], reptile: ["爬虫類", "Reptilia", "class"], amphibian: ["両生類", "Amphibia", "class"], fish: ["魚類", "Actinopterygii", "class"], insect: ["昆虫", "Insecta", "class"], spider: ["クモ類", "Araneae", "order"] };
 const BAND_RANK: Record<string, number> = { low: 0, medium: 1, high: 2 };
 let tileSlots = 12;
 const tileWaiters: Array<() => void> = [];
@@ -325,7 +330,8 @@ async function tileSweep(cfg: Configs, c: Config, photos: ReturnType<typeof load
       if (!zj || zj.none || !zj.name) continue;
       const genus = String(zj.scientific_name ?? "").split(" ")[0]?.toLowerCase();
       if (subjects.some((sub) => String(sub.name) === String(zj.name) || (genus && String(sub.scientific_name ?? "").toLowerCase().startsWith(genus)))) continue;
-      added.push({ name: String(zj.name), scientific_name: String(zj.scientific_name ?? ""), group: h.group, rank: String(zj.rank ?? "class"), confidence_band: zj.confidence_band === "high" ? "medium" : String(zj.confidence_band ?? "low"), asset_indexes: [assetIndex], features_seen: Array.isArray(zj.features_seen) && zj.features_seen.length ? zj.features_seen : [h.where], missing_evidence: zj.missing_evidence ?? [], found_by: "tile" });
+      const coarse = ["species", "genus"].includes(String(zj.rank ?? "")) ? TILE_COARSE[h.group] : undefined;
+      added.push({ name: coarse ? coarse[0] : String(zj.name), scientific_name: coarse ? coarse[1] : String(zj.scientific_name ?? ""), ...(coarse ? { tentative: String(zj.name) } : {}), role: "other_animal", group: h.group, rank: coarse ? coarse[2] : String(zj.rank ?? "class"), confidence_band: zj.confidence_band === "high" ? "medium" : String(zj.confidence_band ?? "low"), asset_indexes: [assetIndex], features_seen: Array.isArray(zj.features_seen) && zj.features_seen.length ? zj.features_seen : [h.where], missing_evidence: zj.missing_evidence ?? [], found_by: "tile" });
     }
   }));
   return { added, calls, cachedMs: cached ? scan.ms : 0 };
@@ -343,8 +349,8 @@ async function runCard(cfg: Configs, c: Config, item: Item, dir: string, runId: 
   let final: Json | null = null;
   let cardUsd = 0;
   if (id) {
-    const subjects = (Array.isArray(id.subjects) ? (id.subjects as Json[]) : []).filter((s) => s && typeof s === "object" && s.name).slice(0, 6);
-    for (const sub of subjects) { if (sub.view === "far") sub.confidence_band = "low"; else if (sub.view === "mid" && sub.confidence_band === "high") sub.confidence_band = "medium"; }
+    const subjects = (Array.isArray(id.subjects) ? (id.subjects as Json[]) : []).filter((s) => s && typeof s === "object" && s.name && !/^(ヒト|人間|人物|人|空|水|土)$|岩|^石|雲|雪|砂/.test(String(s.name)) && !/homo sapiens/i.test(String(s.scientific_name ?? ""))).slice(0, 8);
+    for (const sub of subjects) { if (sub.view === "far") { sub.confidence_band = "low"; if (sub.rank === "species") { sub.rank = "genus"; sub.name = `${sub.name}の仲間`; sub.scientific_name = String(sub.scientific_name ?? "").split(" ")[0] ?? ""; } } else if (sub.view === "mid" && sub.confidence_band === "high") sub.confidence_band = "medium"; }
     const sweep = await tileSweep(cfg, c, photos, subjects, item.id);
     sweepCachedMs = sweep.cachedMs;
     sweepCalls = sweep.calls;

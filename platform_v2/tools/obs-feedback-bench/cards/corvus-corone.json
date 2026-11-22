@@ -1,0 +1,66 @@
+{
+ "key": "corvus-corone",
+ "en": {
+  "scientific_name": "Corvus corone",
+  "english_name": "Carrion Crow",
+  "rank": "species",
+  "overview": "A common, medium-sized all-black crow in Japan, often seen walking in open fields, parks, and riverbanks.",
+  "distinguishing_tips": [
+   "Slender, slightly curved bill",
+   "Flatter forehead profile",
+   "Glossy black plumage overall",
+   "Walks steadily on the ground"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Large-billed Crow",
+    "scientific_name": "Corvus macrorhynchos",
+    "distinction_point": "Has a much thicker, arched bill and a steeper, rounded forehead."
+   },
+   {
+    "english_name": "Rook",
+    "scientific_name": "Corvus frugilegus",
+    "distinction_point": "Adults show pale, bare skin at the base of a sharper bill."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head and bill",
+   "Bird walking or foraging on open ground",
+   "Full body shot showing overall proportions"
+  ],
+  "season_habitat": "Year-round resident across Japan, favoring open farmland, riverbeds, and suburban parks."
+ },
+ "ja": {
+  "scientific_name": "Corvus corone",
+  "english_name": "Carrion Crow",
+  "rank": "species",
+  "overview": "日本でよく見られる中型のカラスで、全身が黒いのが特徴です。開けた野原や公園、河川敷などを歩いている姿がよく観察されます。",
+  "distinguishing_tips": [
+   "くちばしは細めで、わずかにカーブしている",
+   "額のラインが平らでなだらか",
+   "全身の羽毛に光沢がある",
+   "地面をしっかりと歩く"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Large-billed Crow",
+    "scientific_name": "Corvus macrorhynchos",
+    "japanese_name": "ハシブトガラス",
+    "distinction_point": "くちばしが非常に太く、アーチ状に曲がっている。額がこんもりと盛り上がっている。"
+   },
+   {
+    "english_name": "Rook",
+    "scientific_name": "Corvus frugilegus",
+    "japanese_name": "ミヤマガラス",
+    "distinction_point": "成鳥はくちばしの付け根が白く、皮膚が露出している。くちばしはより鋭い。"
+   }
+  ],
+  "confirm_more": [
+   "頭部とくちばしの横顔",
+   "開けた地面で歩いたり採餌したりしている様子",
+   "全身のプロポーションがわかる写真"
+  ],
+  "season_habitat": "日本全国に一年中生息する留鳥。開けた農耕地や河川敷、郊外の公園などを好む。"
+ },
+ "costUsd": 0.00770925
+}
