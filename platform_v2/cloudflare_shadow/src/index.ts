@@ -22432,7 +22432,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
     .cf-header-menu-item:hover,.cf-header-menu-item:focus-visible,.cf-header-menu-lang:hover,.cf-header-menu-lang:focus-visible{background:#ecfdf5;outline:none}
     .cf-header-menu-item.is-primary{background:#0f9f78;color:#fff}
     .cf-header-menu-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-top:6px;border-top:1px solid rgba(15,23,42,.08)}
-    .cf-header-menu-lang{min-width:0;justify-content:flex-start;font-size:12px}
+    .cf-header-menu-lang{min-width:0;justify-content:flex-start;font-size:14px}
     .cf-header-menu-lang span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cf-header-menu-lang.is-active{background:#eef8f5;color:#0f766e}
     ${desktopNativeMenuFallbackStyle}

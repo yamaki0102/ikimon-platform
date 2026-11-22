@@ -352,7 +352,7 @@ function renderDetailPage(basePath: string, lang: SiteLang, item: InvasiveSpecie
 
 const INVASIVE_SPECIES_STYLES = `
   .invasive-page { display: grid; gap: 20px; }
-  .invasive-breadcrumb a { color: #047857; font-size: 13px; font-weight: 850; text-decoration: none; }
+  .invasive-breadcrumb a { color: #047857; font-size: 14px; font-weight: 850; text-decoration: none; }
   .invasive-safety,
   .invasive-summary,
   .invasive-detail-card,
@@ -367,7 +367,7 @@ const INVASIVE_SPECIES_STYLES = `
   .invasive-total,
   .invasive-official-sources strong,
   .invasive-section-head span,
-  .invasive-reporting-slot span { color: #047857; font-size: 12px; line-height: 1.35; font-weight: 950; }
+  .invasive-reporting-slot span { color: #047857; font-size: 14px; line-height: 1.35; font-weight: 950; }
   .invasive-safety h2 { margin: 6px 0 0; color: #10251a; font-size: clamp(25px, 4vw, 42px); line-height: 1.16; letter-spacing: 0; }
   .invasive-safety p,
   .invasive-summary p { margin: 10px 0 0; color: #475569; font-size: 15px; line-height: 1.8; font-weight: 680; }
@@ -375,24 +375,24 @@ const INVASIVE_SPECIES_STYLES = `
   .invasive-official-sources { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
   .invasive-official-sources a,
   .invasive-source-link,
-  .invasive-action-pill { min-height: 38px; display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px; font-size: 13px; font-weight: 900; text-decoration: none; }
+  .invasive-action-pill { min-height: 38px; display: inline-flex; align-items: center; padding: 8px 12px; border-radius: 999px; font-size: 14px; font-weight: 900; text-decoration: none; }
   .invasive-official-sources a,
   .invasive-source-link { border: 1px solid rgba(16,185,129,.22); color: #047857; background: #f0fdf4; }
   .invasive-group { padding: 16px; }
   .invasive-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-  .invasive-group-head strong { color: #64748b; font-size: 12px; }
+  .invasive-group-head strong { color: #64748b; font-size: 14px; }
   .invasive-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .invasive-card { min-height: 160px; display: grid; align-content: start; gap: 7px; padding: 14px; border: 1px solid rgba(15,23,42,.08); border-radius: 8px; background: #f8fafc; color: inherit; text-decoration: none; }
   .invasive-card h2 { margin: 0; color: #10251a; font-size: 20px; line-height: 1.3; letter-spacing: 0; }
   .invasive-card i,
-  .invasive-scientific { color: #64748b; font-size: 13px; font-style: italic; overflow-wrap: anywhere; }
-  .invasive-card p { margin: 4px 0 0; color: #92400e; font-size: 13px; font-weight: 850; }
+  .invasive-scientific { color: #64748b; font-size: 14px; font-style: italic; overflow-wrap: anywhere; }
+  .invasive-card p { margin: 4px 0 0; color: #92400e; font-size: 14px; font-weight: 850; }
   .invasive-detail-card { display: grid; gap: 12px; padding: clamp(18px, 4vw, 32px); }
   .invasive-detail-card h2 { margin: 0; color: #10251a; font-size: clamp(30px, 5vw, 54px); line-height: 1.08; letter-spacing: 0; }
   .invasive-action-pill { width: fit-content; background: #fff7ed; color: #92400e; border: 1px solid rgba(217,119,6,.18); }
   .invasive-detail-card dl { display: grid; gap: 10px; margin: 6px 0 0; }
   .invasive-detail-card dl div { display: grid; gap: 4px; padding: 12px; border-radius: 8px; background: #f8fafc; }
-  .invasive-detail-card dt { color: #10251a; font-size: 13px; font-weight: 950; }
+  .invasive-detail-card dt { color: #10251a; font-size: 14px; font-weight: 950; }
   .invasive-detail-card dd { margin: 0; color: #475569; font-size: 14px; line-height: 1.75; font-weight: 680; }
   .invasive-action-sources,
   .invasive-reporting-visibility { display: grid; gap: 14px; padding: clamp(18px, 4vw, 28px); }
@@ -406,39 +406,39 @@ const INVASIVE_SPECIES_STYLES = `
   .invasive-action-source strong,
   .invasive-reporting-slot strong,
   .invasive-partner-cta strong { color: #10251a; font-size: 15px; line-height: 1.45; font-weight: 950; }
-  .invasive-action-source div span { flex-shrink: 0; padding: 3px 8px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 950; }
+  .invasive-action-source div span { flex-shrink: 0; padding: 3px 8px; border-radius: 999px; background: #ecfdf5; color: #047857; font-size: 14px; font-weight: 950; }
   .invasive-action-source p,
   .invasive-reporting-slot p,
-  .invasive-partner-cta p { margin: 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 680; }
+  .invasive-partner-cta p { margin: 0; color: #475569; font-size: 14px; line-height: 1.7; font-weight: 680; }
   .invasive-reporting-slot.is-active { border-color: rgba(16,185,129,.24); background: #f0fdf4; }
   .invasive-reporting-slot.is-empty { border-style: dashed; background: #fff; }
   .invasive-region-check { display: grid; gap: 12px; padding: 14px; border: 1px solid rgba(16,185,129,.22); border-radius: 8px; background: #f0fdf4; }
   .invasive-region-check strong { color: #10251a; font-size: 15px; line-height: 1.45; font-weight: 950; }
-  .invasive-region-check p { margin: 4px 0 0; color: #475569; font-size: 13px; line-height: 1.7; font-weight: 680; }
+  .invasive-region-check p { margin: 4px 0 0; color: #475569; font-size: 14px; line-height: 1.7; font-weight: 680; }
   .invasive-region-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
-  .invasive-region-form label { display: grid; gap: 5px; color: #047857; font-size: 12px; font-weight: 950; }
+  .invasive-region-form label { display: grid; gap: 5px; color: #047857; font-size: 14px; font-weight: 950; }
   .invasive-region-form input { width: 100%; min-height: 42px; border: 1px solid rgba(15,23,42,.14); border-radius: 8px; padding: 8px 10px; color: #10251a; background: #fff; font: inherit; font-size: 14px; }
-  .invasive-region-form button { min-height: 42px; border: 0; border-radius: 8px; padding: 8px 14px; background: #10251a; color: #fff; font-size: 13px; font-weight: 950; cursor: pointer; }
-  .invasive-region-result { padding: 12px; border-radius: 8px; background: rgba(255,255,255,.78); color: #475569; font-size: 13px; line-height: 1.7; font-weight: 680; }
+  .invasive-region-form button { min-height: 42px; border: 0; border-radius: 8px; padding: 8px 14px; background: #10251a; color: #fff; font-size: 14px; font-weight: 950; cursor: pointer; }
+  .invasive-region-result { padding: 12px; border-radius: 8px; background: rgba(255,255,255,.78); color: #475569; font-size: 14px; line-height: 1.7; font-weight: 680; }
   .invasive-region-result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin-top: 8px; }
   .invasive-region-result article { display: grid; gap: 5px; padding: 10px; border: 1px solid rgba(15,23,42,.08); border-radius: 8px; background: #fff; }
-  .invasive-region-result article span { color: #047857; font-size: 11px; font-weight: 950; }
-  .invasive-region-result article p { margin: 0; font-size: 12px; }
+  .invasive-region-result article span { color: #047857; font-size: 14px; font-weight: 950; }
+  .invasive-region-result article p { margin: 0; font-size: 14px; }
   .invasive-partner-cta { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); align-items: start; gap: 14px; padding: 14px; border-radius: 8px; background: #10251a; }
   .invasive-partner-cta strong { color: #fff; }
   .invasive-partner-cta p { margin-top: 4px; color: rgba(255,255,255,.78); }
   .invasive-partner-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px; border-radius: 8px; background: rgba(255,255,255,.96); }
-  .invasive-partner-form label { display: grid; gap: 5px; color: #10251a; font-size: 12px; font-weight: 950; }
+  .invasive-partner-form label { display: grid; gap: 5px; color: #10251a; font-size: 14px; font-weight: 950; }
   .invasive-partner-form label.is-wide,
   .invasive-partner-form-actions { grid-column: 1 / -1; }
   .invasive-partner-form input,
-  .invasive-partner-form textarea { width: 100%; min-height: 40px; border: 1px solid rgba(15,23,42,.14); border-radius: 8px; padding: 8px 10px; color: #10251a; background: #fff; font: inherit; font-size: 13px; }
+  .invasive-partner-form textarea { width: 100%; min-height: 40px; border: 1px solid rgba(15,23,42,.14); border-radius: 8px; padding: 8px 10px; color: #10251a; background: #fff; font: inherit; font-size: 14px; }
   .invasive-partner-form textarea { min-height: 82px; resize: vertical; }
   .invasive-partner-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
   .invasive-partner-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-  .invasive-partner-form button { min-height: 40px; border: 0; border-radius: 999px; padding: 8px 14px; background: #10251a; color: #fff; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .invasive-partner-form button { min-height: 40px; border: 0; border-radius: 999px; padding: 8px 14px; background: #10251a; color: #fff; font-size: 14px; font-weight: 950; cursor: pointer; }
   .invasive-partner-form button:disabled { opacity: .56; cursor: wait; }
-  .invasive-partner-form-status { color: #475569; font-size: 12px; line-height: 1.6; font-weight: 800; }
+  .invasive-partner-form-status { color: #475569; font-size: 14px; line-height: 1.6; font-weight: 800; }
   .invasive-partner-form-status.is-ok { color: #047857; }
   .invasive-partner-form-status.is-error { color: #dc2626; }
   @media (max-width: 560px) {
