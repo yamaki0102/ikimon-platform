@@ -1,0 +1,77 @@
+{
+ "key": "ficus",
+ "en": {
+  "scientific_name": "Ficus",
+  "english_name": "Figs",
+  "rank": "genus",
+  "overview": "A diverse genus of woody trees, shrubs, and vines characterized by milky sap and unique enclosed fig fruits.",
+  "distinguishing_tips": [
+   "Milky white latex sap exudes when leaves or stems are broken",
+   "Distinctive enclosed, fleshy fig fruits (syconia) on branches or trunks",
+   "Prominent conical stipule scars encircling the twigs",
+   "Often develops aerial or prop roots in tropical species"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Mulberries",
+    "scientific_name": "Morus",
+    "distinction_point": "Mulberries have lobed or toothed leaves and aggregate berry-like fruits rather than enclosed figs."
+   },
+   {
+    "english_name": "Paper Mulberries",
+    "scientific_name": "Broussonetia",
+    "distinction_point": "Paper mulberries have hairy, often lobed leaves and spherical clusters of protruding orange-red fruits."
+   },
+   {
+    "english_name": "Loquats",
+    "scientific_name": "Eriobotrya",
+    "distinction_point": "Loquats lack milky sap and have thick, serrated leaves with rusty-woolly undersides."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a broken leaf stem showing milky white sap",
+   "Cross-section or close-up of the fig fruit attached to the branch",
+   "Underside of a leaf and twig showing stipule scars"
+  ],
+  "season_habitat": "Evergreen or deciduous; found year-round in warm coastal forests, subtropical islands, and urban parks across southern Japan."
+ },
+ "ja": {
+  "scientific_name": "Ficus",
+  "english_name": "イチジク属",
+  "rank": "属",
+  "overview": "乳液を含み、独特の袋状の果実（イチジク状果）をつける、木本性の高木、低木、つる植物からなる多様なグループです。",
+  "distinguishing_tips": [
+   "葉や茎を折ると、白い乳液が出てくる",
+   "枝や幹に、独特の肉厚な袋状の果実（隠頭花序）がつく",
+   "小枝を囲むように、円錐形の托葉痕が目立つ",
+   "熱帯性の種では、気根や支柱根が発達することが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Mulberries",
+    "scientific_name": "Morus",
+    "japanese_name": "クワ属",
+    "distinction_point": "クワ属は葉に切れ込みや鋸歯があり、果実はイチジクのような袋状ではなく、集合果（桑の実）になる。"
+   },
+   {
+    "english_name": "Paper Mulberries",
+    "scientific_name": "Broussonetia",
+    "japanese_name": "コウゾ属",
+    "distinction_point": "コウゾ属は葉に毛が多く、しばしば切れ込みが入る。果実は球状の集合体で、橙赤色の実が突き出す。"
+   },
+   {
+    "english_name": "Loquats",
+    "scientific_name": "Eriobotrya",
+    "japanese_name": "ビワ属",
+    "distinction_point": "ビワ属は乳液を出さず、厚みのある鋸歯状の葉を持ち、葉の裏面には錆色の綿毛がある。"
+   }
+  ],
+  "confirm_more": [
+   "折った葉柄から出る白い乳液の接写",
+   "枝についたイチジク状果の断面や接写",
+   "托葉痕が見える葉の裏側や小枝の様子"
+  ],
+  "season_habitat": "常緑または落葉性。南日本の温暖な沿岸林、亜熱帯の島々、都市部の公園などで一年中見られます。"
+ },
+ "costUsd": 0.00443375
+}

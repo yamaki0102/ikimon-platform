@@ -1,0 +1,46 @@
+{
+ "key": "habitat-河川・渓流",
+ "en": {
+  "habitat": "Rivers and Mountain Streams",
+  "overview": "Fast-flowing mountain streams and wider lowland rivers that support aquatic insects, fish, and riparian vegetation along rocky or gravelly banks.",
+  "what_to_look_for": [
+   "Clear, well-oxygenated water with visible riffles and pools",
+   "Aquatic insect larvae (caddisflies, mayflies) clinging to submerged stones",
+   "Riparian birds like brown dippers (Kawagarasu) or wagtails",
+   "Natural gravel bars and overhanging streamside trees"
+  ],
+  "confirm_more": [
+   "Wide shot from the bank showing water flow and riverbed structure",
+   "Close-up of submerged stones or gravel to show algae and sediment",
+   "Eye-level view of the riverbank vegetation and natural erosion"
+  ],
+  "management_signs": [
+   "Concrete embankments, tetrapods, or check dams (sabo)",
+   "Weirs or water intake structures altering natural flow",
+   "Litter or muddy runoff from nearby roads or construction"
+  ],
+  "seasonal_note": "Spring snowmelt and summer typhoons dramatically reshape gravel bars and water levels."
+ },
+ "ja": {
+  "habitat": "河川・渓流",
+  "overview": "水生昆虫や魚類が生息し、岩や砂利の河岸に沿って水辺の植物が茂る、流れの速い渓流や幅の広い平地河川。",
+  "what_to_look_for": [
+   "瀬や淵が見られる、透明度が高く酸素が豊富な水流",
+   "水中の石に張り付く水生昆虫の幼虫（トビケラ、カゲロウなど）",
+   "カワガラスやセキレイ類などの水辺の鳥",
+   "自然の砂礫堆（河原）や川岸に張り出した樹木"
+  ],
+  "confirm_more": [
+   "川の流れや河床の構造がわかる岸からの広角写真",
+   "藻類や堆積物の様子がわかる水中の石や砂利の接写",
+   "川岸の植生や自然な浸食の様子がわかる目線の高さの風景"
+  ],
+  "management_signs": [
+   "コンクリート護岸、テトラポッド、砂防ダム",
+   "自然な流れを変化させる堰や取水施設",
+   "ゴミの投棄や、近隣の道路・工事現場からの泥水の流出"
+  ],
+  "seasonal_note": "春の雪解けや夏の台風により、河原の形状や水位が劇的に変化します。"
+ },
+ "costUsd": 0.0076235
+}

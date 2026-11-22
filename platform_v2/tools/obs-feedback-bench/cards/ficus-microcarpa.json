@@ -1,0 +1,66 @@
+{
+ "key": "ficus-microcarpa",
+ "en": {
+  "scientific_name": "Ficus microcarpa",
+  "english_name": "Chinese banyan",
+  "rank": "species",
+  "overview": "An evergreen fig tree famous for its dense, hanging aerial roots and glossy, leathery oval leaves.",
+  "distinguishing_tips": [
+   "Numerous slender aerial roots hanging from branches",
+   "Small, glossy, dark green oval leaves with blunt tips",
+   "Small round figs growing in pairs at leaf axils",
+   "Smooth, pale gray bark with horizontal lenticels"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sea fig",
+    "scientific_name": "Ficus superba",
+    "distinction_point": "Has larger deciduous leaves and figs growing directly on the trunk or thick branches."
+   },
+   {
+    "english_name": "Weeping fig",
+    "scientific_name": "Ficus benjamina",
+    "distinction_point": "Has drooping branches and leaves with distinctly pointed, elongated tips."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf shape and tip",
+   "Figs attached at the base of the leaves",
+   "Base of the trunk showing aerial roots"
+  ],
+  "season_habitat": "Year-round in coastal forests, parks, and roadsides in Okinawa and southern Kyushu."
+ },
+ "ja": {
+  "scientific_name": "Ficus microcarpa",
+  "english_name": "ガジュマル",
+  "rank": "種",
+  "overview": "枝から垂れ下がる密な気根と、光沢のある革質で楕円形の葉が特徴的な常緑のイチジクの仲間です。",
+  "distinguishing_tips": [
+   "枝から多数の細い気根が垂れ下がっている",
+   "小さく光沢のある濃い緑色の楕円形の葉で、先端は丸みを帯びている",
+   "葉の付け根に小さな丸い実が対になってつく",
+   "滑らかで淡い灰色の樹皮に、横向きの皮目がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sea fig",
+    "scientific_name": "Ficus superba",
+    "japanese_name": "アコウ",
+    "distinction_point": "アコウは葉が大きく落葉性で、実は幹や太い枝に直接つく。"
+   },
+   {
+    "english_name": "Weeping fig",
+    "scientific_name": "Ficus benjamina",
+    "japanese_name": "ベンジャミン",
+    "distinction_point": "ベンジャミンは枝が垂れ下がり、葉の先端がはっきりと尖って細長い。"
+   }
+  ],
+  "confirm_more": [
+   "葉の形と先端のアップ",
+   "葉の付け根についている実",
+   "気根が見られる幹の根元"
+  ],
+  "season_habitat": "沖縄や九州南部の沿岸林、公園、街路樹などで一年中見られる。"
+ },
+ "costUsd": 0.00757075
+}

@@ -1,0 +1,77 @@
+{
+ "key": "sasa",
+ "en": {
+  "scientific_name": "Sasa",
+  "english_name": "Dwarf bamboo",
+  "rank": "genus",
+  "overview": "Evergreen dwarf bamboos forming dense undergrowth across Japanese forests and mountains, with persistent culm sheaths.",
+  "distinguishing_tips": [
+   "Persistent culm sheaths clinging to stems",
+   "Broad, flat leaves with prominent parallel veins",
+   "Pale, withered leaf margins often visible in winter",
+   "Single branch per node on upper stems"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Suzutake dwarf bamboo",
+    "scientific_name": "Sasamorpha",
+    "distinction_point": "Culm sheaths are longer than the internodes and wrap tightly around the stem."
+   },
+   {
+    "english_name": "Medake bamboo",
+    "scientific_name": "Pleioblastus",
+    "distinction_point": "Has multiple branches per node instead of just one."
+   },
+   {
+    "english_name": "Timber bamboo",
+    "scientific_name": "Phyllostachys",
+    "distinction_point": "Much taller with thick woody stems and two unequal branches per node."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a stem node showing branching",
+   "Underside of a leaf to check for fine hairs",
+   "Culm sheath and its hairiness"
+  ],
+  "season_habitat": "Year-round evergreen undergrowth in forests, mountain slopes, and roadsides nationwide."
+ },
+ "ja": {
+  "scientific_name": "Sasa",
+  "english_name": "Dwarf bamboo",
+  "rank": "属",
+  "overview": "日本の森林や山地に密生する常緑の小型の竹類。茎を包む皮（稈鞘）が枯れても落ちずに残るのが特徴です。",
+  "distinguishing_tips": [
+   "茎に稈鞘（かんしょう）が枯れても付着し続ける",
+   "幅が広く平らな葉で、平行脈が目立つ",
+   "冬場には葉の縁が白く枯れ込む様子がよく見られる",
+   "茎の上部では、節から出る枝が1本である"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Suzutake dwarf bamboo",
+    "scientific_name": "Sasamorpha",
+    "japanese_name": "スズタケ属",
+    "distinction_point": "稈鞘が節間よりも長く、茎をしっかりと包み込む。"
+   },
+   {
+    "english_name": "Medake bamboo",
+    "scientific_name": "Pleioblastus",
+    "japanese_name": "メダケ属",
+    "distinction_point": "節から出る枝が1本ではなく、複数に分かれる。"
+   },
+   {
+    "english_name": "Timber bamboo",
+    "scientific_name": "Phyllostachys",
+    "japanese_name": "マダケ属",
+    "distinction_point": "非常に背が高く、茎が太く木質化しており、節から大きさの異なる2本の枝が出る。"
+   }
+  ],
+  "confirm_more": [
+   "枝分かれの様子がわかる茎の節のアップ",
+   "葉の裏面の微細な毛の有無",
+   "稈鞘の形状と毛の生え方"
+  ],
+  "season_habitat": "一年中緑を保ち、全国の森林、山腹、道端などの林床に生育する。"
+ },
+ "costUsd": 0.011524
+}

@@ -1,0 +1,77 @@
+{
+ "key": "pteridophytes",
+ "en": {
+  "scientific_name": "Polypodiopsida",
+  "english_name": "Ferns",
+  "rank": "class",
+  "overview": "Vascular plants that reproduce via spores rather than seeds, characterized by feathery fronds that uncoil from fiddleheads.",
+  "distinguishing_tips": [
+   "Coiled young fronds (fiddleheads)",
+   "Spore-producing sori on frond undersides",
+   "Finely divided, feathery compound leaves",
+   "Absence of flowers, fruits, or seeds"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiopsida",
+    "distinction_point": "Have tiny, scale-like simple leaves on branching stems rather than large divided fronds."
+   },
+   {
+    "english_name": "Mosses",
+    "scientific_name": "Bryophyta",
+    "distinction_point": "Much smaller, lack true roots and vascular tissue, and form dense carpets."
+   },
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycadopsida",
+    "distinction_point": "Have thick woody trunks and stiff, leathery, palm-like leaves without sori."
+   }
+  ],
+  "confirm_more": [
+   "Underside of a mature frond showing sori",
+   "Base of the stem and rhizome scales",
+   "Young uncoiling fiddleheads"
+  ],
+  "season_habitat": "Year-round in Japan, thriving in damp, shaded forest floors, stream banks, and rocky crevices."
+ },
+ "ja": {
+  "scientific_name": "Polypodiopsida",
+  "english_name": "シダ植物（シダ綱）",
+  "rank": "綱",
+  "overview": "種子ではなく胞子で繁殖する維管束植物です。ゼンマイのような渦巻き状の若芽（ゼンマイ巻き）から、羽状の葉が展開するのが特徴です。",
+  "distinguishing_tips": [
+   "渦巻き状の若芽（ゼンマイ巻き）",
+   "葉の裏側にある胞子嚢群（ソーラス）",
+   "細かく分かれた羽状の複葉",
+   "花、果実、種子をつけない"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ヒカゲノカズラ類",
+    "scientific_name": "Lycopodiopsida",
+    "japanese_name": "ヒカゲノカズラ綱",
+    "distinction_point": "大きな羽状の葉ではなく、枝分かれした茎に小さな鱗片状の葉がつきます。"
+   },
+   {
+    "english_name": "コケ植物",
+    "scientific_name": "Bryophyta",
+    "japanese_name": "蘚苔植物門",
+    "distinction_point": "はるかに小型で、真の根や維管束を持たず、密なマット状に広がります。"
+   },
+   {
+    "english_name": "ソテツ類",
+    "scientific_name": "Cycadopsida",
+    "japanese_name": "ソテツ綱",
+    "distinction_point": "太い木質の幹を持ち、硬く革のようなヤシに似た葉をつけます。葉の裏に胞子嚢群はありません。"
+   }
+  ],
+  "confirm_more": [
+   "胞子嚢群（ソーラス）が見える成熟した葉の裏側",
+   "茎の基部と根茎の鱗片",
+   "渦巻き状にほどけていく若芽"
+  ],
+  "season_habitat": "日本では一年中見られます。湿った日陰の林床、渓流沿い、岩の隙間などを好みます。"
+ },
+ "costUsd": 0.0104265
+}

@@ -1,0 +1,77 @@
+{
+ "key": "alnus-japonica",
+ "en": {
+  "scientific_name": "Alnus japonica",
+  "english_name": "Japanese alder",
+  "rank": "species",
+  "overview": "A common deciduous tree of Japanese wetlands, easily recognized by its oblong-elliptic leaves and woody, cone-like fruiting catkins.",
+  "distinguishing_tips": [
+   "Oblong to elliptic leaves with finely serrated margins and acute tips.",
+   "Dark gray-brown bark with conspicuous horizontal lenticels.",
+   "Woody, cone-like female catkins persisting through winter.",
+   "Long, pendulous male catkins appearing before leaves in early spring."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Manchurian alder",
+    "scientific_name": "Alnus hirsuta",
+    "distinction_point": "Leaves are rounder with densely hairy undersides and shallower lobes."
+   },
+   {
+    "english_name": "Siebold's alder",
+    "scientific_name": "Alnus sieboldiana",
+    "distinction_point": "Typically a coastal tree with larger, broader leaves and more prominent parallel veins."
+   },
+   {
+    "english_name": "River alder",
+    "scientific_name": "Alnus serrulatoides",
+    "distinction_point": "Grows along rocky riverbeds and has smaller, obovate leaves with rounded tips."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf underside and margin serration.",
+   "Woody, cone-like fruiting catkins or pendulous male catkins.",
+   "Trunk bark showing horizontal lenticels."
+  ],
+  "season_habitat": "Flowers from February to April; common in marshes, riverbanks, and wet lowlands throughout Japan."
+ },
+ "ja": {
+  "scientific_name": "Alnus japonica",
+  "english_name": "ハンノキ",
+  "rank": "種",
+  "overview": "日本の湿地に広く自生する落葉高木です。長楕円形の葉と、木質化した松ぼっくりのような果穂が特徴で、容易に見分けることができます。",
+  "distinguishing_tips": [
+   "葉は長楕円形で、縁には細かい鋸歯があり、先端が尖っています。",
+   "樹皮は暗灰褐色で、横に並んだ皮目が目立ちます。",
+   "木質化した雌花序（果穂）は冬の間も枝に残ります。",
+   "早春、葉が出る前に長く垂れ下がった雄花序をつけます。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Manchurian alder",
+    "scientific_name": "Alnus hirsuta",
+    "japanese_name": "ケヤマハンノキ",
+    "distinction_point": "葉がより丸みを帯びており、裏面に密な毛が生え、浅い裂け目が見られます。"
+   },
+   {
+    "english_name": "Siebold's alder",
+    "scientific_name": "Alnus sieboldiana",
+    "japanese_name": "オオバヤシャブシ",
+    "distinction_point": "主に海岸沿いに生育し、葉がより大きく幅広で、平行な葉脈が顕著です。"
+   },
+   {
+    "english_name": "River alder",
+    "scientific_name": "Alnus serrulatoides",
+    "japanese_name": "カワラハンノキ",
+    "distinction_point": "岩の多い河原に生育し、葉は小さく倒卵形で、先端が丸みを帯びています。"
+   }
+  ],
+  "confirm_more": [
+   "葉の裏面と縁の鋸歯のアップ。",
+   "木質化した果穂、または垂れ下がった雄花序。",
+   "横向きの皮目が確認できる幹の樹皮。"
+  ],
+  "season_habitat": "2月から4月にかけて開花します。日本全国の湿地、川岸、湿った低地に広く分布しています。"
+ },
+ "costUsd": 0.00919025
+}

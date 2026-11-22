@@ -1,0 +1,77 @@
+{
+ "key": "ficedula-narcissina",
+ "en": {
+  "scientific_name": "Ficedula narcissina",
+  "english_name": "Narcissus Flycatcher",
+  "rank": "species",
+  "overview": "A striking, melodious summer visitor to Japanese forests, where males display bright yellow-orange throats and black upperparts.",
+  "distinguishing_tips": [
+   "Male has black upperparts with a bold white wing patch",
+   "Male shows a bright yellow eyebrow and orange-yellow throat",
+   "Female is plain olive-brown above with a pale throat",
+   "Short, thin black bill suited for catching insects"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Mugimaki Flycatcher",
+    "scientific_name": "Ficedula mugimaki",
+    "distinction_point": "Male has a white eyebrow behind the eye and a rufous-orange breast."
+   },
+   {
+    "english_name": "Yellow-rumped Flycatcher",
+    "scientific_name": "Ficedula zanthopygia",
+    "distinction_point": "Male has a crisp white eyebrow instead of a bright yellow one."
+   },
+   {
+    "english_name": "Asian Brown Flycatcher",
+    "scientific_name": "Muscicapa dauurica",
+    "distinction_point": "Similar to the female, but has a bolder white eye-ring and pale bill base."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head to show eyebrow color",
+   "Upperwing pattern to check for a white patch",
+   "Throat and breast coloration from a front angle"
+  ],
+  "season_habitat": "Common summer visitor from April to October in deciduous and mixed mountain forests across Japan."
+ },
+ "ja": {
+  "scientific_name": "Ficedula narcissina",
+  "english_name": "Narcissus Flycatcher",
+  "rank": "species",
+  "overview": "日本の森林に夏鳥として飛来する、鮮やかな黄色と黒のコントラストが美しい鳥です。オスは喉の鮮やかなオレンジ黄色が特徴で、美しいさえずりを聞かせてくれます。",
+  "distinguishing_tips": [
+   "オスは上面が黒く、翼に目立つ白い斑点がある",
+   "オスは鮮やかな黄色の眉斑と、オレンジ黄色の喉を持つ",
+   "メスは全体的に地味なオリーブ褐色で、喉は淡い色をしている",
+   "昆虫を捕らえるのに適した、短く細い黒い嘴を持つ"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Mugimaki Flycatcher",
+    "scientific_name": "Ficedula mugimaki",
+    "japanese_name": "ムギマキ",
+    "distinction_point": "オスは目の後ろに白い眉斑があり、胸が赤褐色をしている。"
+   },
+   {
+    "english_name": "Yellow-rumped Flycatcher",
+    "scientific_name": "Ficedula zanthopygia",
+    "japanese_name": "マダラヒタキ",
+    "distinction_point": "オスは眉斑が鮮やかな黄色ではなく、はっきりとした白色である。"
+   },
+   {
+    "english_name": "Asian Brown Flycatcher",
+    "scientific_name": "Muscicapa dauurica",
+    "japanese_name": "サメビタキ",
+    "distinction_point": "メスに似ているが、目の周りの白いアイリングがよりはっきりしており、嘴の付け根が淡い色をしている。"
+   }
+  ],
+  "confirm_more": [
+   "眉斑の色を確認するための頭部の横顔",
+   "白い斑点を確認するための翼の上面",
+   "喉と胸の色を確認するための正面からのアングル"
+  ],
+  "season_habitat": "4月から10月にかけて、日本各地の落葉広葉樹林や混交林に夏鳥として飛来する。"
+ },
+ "costUsd": 0.008117000000000001
+}

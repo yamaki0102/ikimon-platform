@@ -1,0 +1,66 @@
+{
+ "key": "phyllostachys-edulis",
+ "en": {
+  "scientific_name": "Phyllostachys edulis",
+  "english_name": "Moso bamboo",
+  "rank": "species",
+  "overview": "Giant bamboo naturalized in Japan, forming dense groves and prized for edible spring shoots.",
+  "distinguishing_tips": [
+   "Thick culms up to 20 cm wide with a single ring at each node",
+   "Young culms coated in velvety white powder",
+   "Small, delicate leaves compared to other giant bamboos",
+   "Dark brown, hairy culm sheaths on emerging shoots"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese timber bamboo",
+    "scientific_name": "Phyllostachys bambusoides",
+    "distinction_point": "Madake has two distinct rings at each node and hairless, spotted culm sheaths."
+   },
+   {
+    "english_name": "Henon bamboo",
+    "scientific_name": "Phyllostachys nigra var. henonis",
+    "distinction_point": "Hachiku has thinner culms, two nodal rings, and purplish-brown, hairless sheaths."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a culm node to count the nodal rings",
+   "Base of a young shoot showing hairy, dark culm sheaths",
+   "Overall grove view showing culm thickness and leaf size"
+  ],
+  "season_habitat": "Year-round evergreen in managed groves, hillsides, and abandoned farmland across Honshu, Shikoku, and Kyushu."
+ },
+ "ja": {
+  "scientific_name": "Phyllostachys edulis",
+  "english_name": "Moso bamboo",
+  "rank": "種",
+  "overview": "日本に帰化した大型の竹で、密生した竹林を形成します。春のタケノコは食用として珍重されています。",
+  "distinguishing_tips": [
+   "稈（かん）は直径20cmに達するほど太く、節の隆起線が1本である",
+   "若い稈は白い粉を帯びており、ビロードのような質感がある",
+   "他の大型の竹に比べて葉が小さく繊細である",
+   "タケノコの皮は暗褐色で、毛が生えている"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese timber bamboo",
+    "scientific_name": "Phyllostachys bambusoides",
+    "japanese_name": "マダケ",
+    "distinction_point": "マダケは節の隆起線が2本あり、タケノコの皮は毛がなく斑点がある。"
+   },
+   {
+    "english_name": "Henon bamboo",
+    "scientific_name": "Phyllostachys nigra var. henonis",
+    "japanese_name": "ハチク",
+    "distinction_point": "ハチクは稈がより細く、節の隆起線が2本あり、タケノコの皮は紫褐色で毛がない。"
+   }
+  ],
+  "confirm_more": [
+   "節の隆起線の数を確認するための稈の接写",
+   "毛が生えた暗褐色のタケノコの皮の基部",
+   "稈の太さや葉の大きさがわかる竹林全体の様子"
+  ],
+  "season_habitat": "本州、四国、九州の管理された竹林や丘陵地、放置された農地などで一年中見られる常緑植物。"
+ },
+ "costUsd": 0.0078315
+}

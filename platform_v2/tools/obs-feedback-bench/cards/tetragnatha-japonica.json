@@ -1,0 +1,66 @@
+{
+ "key": "tetragnatha-japonica",
+ "en": {
+  "scientific_name": "Tetragnatha japonica",
+  "english_name": "Long-jawed orb weaver",
+  "rank": "species",
+  "overview": "A slender, long-legged orb-weaving spider with elongated jaws, commonly seen stretched along grass stems near water.",
+  "distinguishing_tips": [
+   "Very long, slender body and legs stretched straight out at rest",
+   "Enlarged, projecting chelicerae (jaws) visible from above",
+   "Silvery-brown abdomen with faint dark markings",
+   "Builds horizontal orb webs with an open hub"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Long-jawed orb weaver",
+    "scientific_name": "Tetragnatha praedonia",
+    "distinction_point": "T. praedonia is generally larger with heavier jaws and slightly different cheliceral tooth arrangement."
+   },
+   {
+    "english_name": "Silver-sided long-jawed spider",
+    "scientific_name": "Tetragnatha maxillosa",
+    "distinction_point": "T. maxillosa has a more distinctly silvery abdomen and different male palp and chelicerae details."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the chelicerae (jaws) and their teeth from the front or underside",
+   "Dorsal view of the abdomen pattern",
+   "Whole orb web showing the open center"
+  ],
+  "season_habitat": "Active from spring to autumn in tall grass, reeds, and shrubs near ponds, rivers, and rice paddies."
+ },
+ "ja": {
+  "scientific_name": "Tetragnatha japonica",
+  "english_name": "アシナガグモ",
+  "rank": "種",
+  "overview": "水辺の草むらなどで、細長い体を草の茎に沿わせてじっとしている姿がよく見られる、アシナガグモ科のクモです。",
+  "distinguishing_tips": [
+   "静止時は体と脚を前後にまっすぐ伸ばす",
+   "上から見てもわかるほど発達した大きな牙（鋏角）",
+   "銀褐色をした腹部に、かすかな暗色の模様がある",
+   "中心に穴の開いた水平な円網を張る"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ヤサガタアシナガグモ",
+    "scientific_name": "Tetragnatha praedonia",
+    "japanese_name": "ヤサガタアシナガグモ",
+    "distinction_point": "ヤサガタアシナガグモの方が全体的に大きく、牙がより太く発達しており、牙の歯の並びも異なります。"
+   },
+   {
+    "english_name": "ハラダカアシナガグモ",
+    "scientific_name": "Tetragnatha maxillosa",
+    "japanese_name": "ハラダカアシナガグモ",
+    "distinction_point": "ハラダカアシナガグモは腹部の銀色がより鮮明で、オスの触肢や牙の細部が異なります。"
+   }
+  ],
+  "confirm_more": [
+   "正面や腹側から見た牙（鋏角）とその歯のアップ",
+   "腹部の模様がわかる背面からの写真",
+   "中心に穴が開いていることがわかる円網の全体像"
+  ],
+  "season_habitat": "春から秋にかけて活動し、池、川、水田の近くの背の高い草地、ヨシ原、低木などで見られます。"
+ },
+ "costUsd": 0.00639
+}

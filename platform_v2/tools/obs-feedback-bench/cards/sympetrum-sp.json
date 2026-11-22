@@ -1,0 +1,66 @@
+{
+ "key": "sympetrum-sp",
+ "en": {
+  "scientific_name": "Sympetrum",
+  "english_name": "Darters",
+  "rank": "genus",
+  "overview": "Small to medium-sized dragonflies, with mature males of most species turning bright red in autumn across Japan.",
+  "distinguishing_tips": [
+   "Mature males typically have red abdomens",
+   "Often perch with wings angled forward",
+   "Small to medium size (30-45 mm)",
+   "Black markings on thorax sides vary by species"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Scarlet Skimmer",
+    "scientific_name": "Crocothemis servilia",
+    "distinction_point": "Larger and stouter, with an entirely bright red body including legs and no black thoracic stripes."
+   },
+   {
+    "english_name": "Wandering Glider",
+    "scientific_name": "Pantala flavescens",
+    "distinction_point": "Larger with a yellowish-orange body, broader hindwings, and spends most of its time gliding."
+   }
+  ],
+  "confirm_more": [
+   "Side view of the thorax to show black stripe patterns",
+   "Close-up of the legs to check if they are black or striped",
+   "Top view of the abdomen and wing tips for markings"
+  ],
+  "season_habitat": "Common from summer to late autumn near rice paddies, ponds, and grassy fields."
+ },
+ "ja": {
+  "scientific_name": "Sympetrum",
+  "english_name": "アカネ属",
+  "rank": "属",
+  "overview": "小型から中型のトンボのグループです。日本では秋になると、多くの種で成熟したオスが鮮やかな赤色に変化します。",
+  "distinguishing_tips": [
+   "成熟したオスは腹部が赤くなるのが一般的",
+   "翅を前方に傾けて止まることが多い",
+   "小型から中型（30〜45mm）",
+   "胸部の側面の黒い模様は種によって異なる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ショウジョウトンボ",
+    "scientific_name": "Crocothemis servilia",
+    "japanese_name": "ショウジョウトンボ",
+    "distinction_point": "より大きく体格ががっしりしており、脚を含めて全身が真っ赤で、胸部に黒い筋模様がない。"
+   },
+   {
+    "english_name": "ウスバキトンボ",
+    "scientific_name": "Pantala flavescens",
+    "japanese_name": "ウスバキトンボ",
+    "distinction_point": "より大きく、体色は黄色からオレンジ色。後翅の付け根が広く、ほとんどの時間で滑空している。"
+   }
+  ],
+  "confirm_more": [
+   "胸部側面の黒い筋模様を確認する",
+   "脚の色が黒いか、縞模様があるかを確認する",
+   "腹部上面や翅の先端の模様を確認する"
+  ],
+  "season_habitat": "夏から晩秋にかけて、田んぼや池、草地などでよく見られます。"
+ },
+ "costUsd": 0.01184525
+}

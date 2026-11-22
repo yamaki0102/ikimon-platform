@@ -1,0 +1,14 @@
+{
+ "runId": "run5",
+ "version": "v1",
+ "configs": [
+  "card-gemma4",
+  "card-lite",
+  "card-g35lite",
+  "card-deepseek41"
+ ],
+ "items": 45,
+ "maxUsd": 4,
+ "spentUsd": 2.754639799999998,
+ "stoppedByCap": false
+}

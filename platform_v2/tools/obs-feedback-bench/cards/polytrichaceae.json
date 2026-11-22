@@ -1,0 +1,77 @@
+{
+ "key": "polytrichaceae",
+ "en": {
+  "scientific_name": "Polytrichaceae",
+  "english_name": "Haircap mosses",
+  "rank": "family",
+  "overview": "Tall, robust mosses resembling miniature pine trees, featuring stiff, spirally arranged leaves and distinctive hairy caps on their spore capsules.",
+  "distinguishing_tips": [
+   "Stiff, narrow leaves arranged spirally around upright stems.",
+   "Conspicuous, hairy calyptra (cap) covering the spore capsule.",
+   "Often forms dense, dark green or bluish-green cushions.",
+   "Distinctive central rib with photosynthetic lamellae on the upper leaf surface."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiaceae",
+    "distinction_point": "Vascular plants with true roots and larger, branching stems, lacking moss capsules."
+   },
+   {
+    "english_name": "Fork mosses",
+    "scientific_name": "Dicranaceae",
+    "distinction_point": "Usually have curved, sickle-shaped leaves and smooth, hairless capsule caps."
+   },
+   {
+    "english_name": "Thyme mosses",
+    "scientific_name": "Mniaceae",
+    "distinction_point": "Have broader, flatter, often translucent leaves rather than stiff, needle-like ones."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the spore capsule and its hairy cap (calyptra).",
+   "Side view of the upright stem showing leaf arrangement.",
+   "Top-down view of the star-like shoot tips."
+  ],
+  "season_habitat": "Year-round in Japan; common on moist soil, forest floors, and shaded banks."
+ },
+ "ja": {
+  "scientific_name": "Polytrichaceae",
+  "english_name": "スギゴケ科",
+  "rank": "科",
+  "overview": "小さな松の木のような見た目をした、背が高く頑丈なコケの仲間です。硬い葉が茎の周りにらせん状につき、胞子体の先端にある毛の生えたキャップが特徴です。",
+  "distinguishing_tips": [
+   "直立した茎の周りに、硬く細い葉がらせん状についている。",
+   "胞子体を覆う、毛の生えた目立つ帽（さく帽）がある。",
+   "しばしば濃い緑色や青緑色の密なクッション状の群落を作る。",
+   "葉の表面に光合成を行うひだ（薄板）があり、中央に明瞭な中肋がある。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiaceae",
+    "japanese_name": "ヒカゲノカズラ科",
+    "distinction_point": "維管束植物であり、本物の根を持ち、茎がより大きく分岐する。コケのような胞子体（さく）は持たない。"
+   },
+   {
+    "english_name": "Fork mosses",
+    "scientific_name": "Dicranaceae",
+    "japanese_name": "シッポゴケ科",
+    "distinction_point": "通常、鎌状に曲がった葉を持ち、胞子体のキャップには毛がなく滑らかである。"
+   },
+   {
+    "english_name": "Thyme mosses",
+    "scientific_name": "Mniaceae",
+    "japanese_name": "チョウチンゴケ科",
+    "distinction_point": "硬い針状の葉ではなく、より幅が広く平らで、半透明な葉を持つことが多い。"
+   }
+  ],
+  "confirm_more": [
+   "胞子体とその毛の生えたキャップ（さく帽）の接写。",
+   "茎の葉のつき方がわかる側面からの観察。",
+   "上から見た、星のような形をした茎の先端。"
+  ],
+  "season_habitat": "日本国内では一年中見られます。湿った土の上、林床、日陰の土手などでよく見かけます。"
+ },
+ "costUsd": 0.0085075
+}

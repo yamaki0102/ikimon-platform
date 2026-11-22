@@ -1,0 +1,77 @@
+{
+ "key": "coccinellidae",
+ "en": {
+  "scientific_name": "Coccinellidae",
+  "english_name": "Ladybird beetles",
+  "rank": "family",
+  "overview": "Small, dome-shaped beetles often brightly colored with spots, many of which are beneficial predators of aphids and other plant pests.",
+  "distinguishing_tips": [
+   "Hemispherical, dome-shaped body with a flat underside",
+   "Short, clubbed antennae often tucked under the head",
+   "Brightly colored wing covers, often with spots or stripes",
+   "Small head mostly hidden beneath the pronotum"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Leaf beetles",
+    "scientific_name": "Chrysomelidae",
+    "distinction_point": "Leaf beetles usually have longer, non-clubbed antennae and more elongated bodies."
+   },
+   {
+    "english_name": "Globular stink bugs",
+    "scientific_name": "Plataspidae",
+    "distinction_point": "Globular stink bugs have a single large scutellum covering the abdomen and piercing mouthparts."
+   },
+   {
+    "english_name": "Tortoise beetles",
+    "scientific_name": "Cassidinae",
+    "distinction_point": "Tortoise beetles have flattened, shield-like margins extending over the head and legs."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the antennae to check for short clubs",
+   "Dorsal view showing the pronotum pattern and wing cover spots",
+   "Underside view to see the tucked legs and chewing mouthparts"
+  ],
+  "season_habitat": "Common from spring to autumn on garden plants, crops, and forest edges across Japan."
+ },
+ "ja": {
+  "scientific_name": "Coccinellidae",
+  "english_name": "テントウムシ科",
+  "rank": "科",
+  "overview": "小さく半球形で、鮮やかな色と斑点を持つことが多い甲虫です。多くはアブラムシなどの害虫を食べる益虫として知られています。",
+  "distinguishing_tips": [
+   "半球形でドーム状の体、腹面は平ら",
+   "短く先端がこん棒状の触角（頭の下に隠れていることが多い）",
+   "鮮やかな色の翅鞘（ししょう）で、斑点や筋模様があることが多い",
+   "前胸背板の下にほとんど隠れている小さな頭部"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Leaf beetles",
+    "scientific_name": "Chrysomelidae",
+    "japanese_name": "ハムシ科",
+    "distinction_point": "ハムシ類は触角が長く、こん棒状ではなく、体もより細長い傾向があります。"
+   },
+   {
+    "english_name": "Globular stink bugs",
+    "scientific_name": "Plataspidae",
+    "japanese_name": "マルカメムシ科",
+    "distinction_point": "マルカメムシ類は腹部を覆う大きな小盾板を持ち、口は刺すための針状になっています。"
+   },
+   {
+    "english_name": "Tortoise beetles",
+    "scientific_name": "Cassidinae",
+    "japanese_name": "カメノコハムシ亜科",
+    "distinction_point": "カメノコハムシ類は、頭部や脚を覆うように平らな盾状の縁が広がっています。"
+   }
+  ],
+  "confirm_more": [
+   "触角の先端がこん棒状になっているか確認するための接写",
+   "前胸背板の模様と翅鞘の斑点を確認できる背面からの撮影",
+   "折りたたまれた脚と咀嚼口を確認できる腹面からの撮影"
+  ],
+  "season_habitat": "春から秋にかけて、日本全国の庭園、農作物、森林の縁などでよく見られます。"
+ },
+ "costUsd": 0.009010250000000001
+}

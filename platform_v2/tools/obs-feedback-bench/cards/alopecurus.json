@@ -1,0 +1,77 @@
+{
+ "key": "alopecurus",
+ "en": {
+  "scientific_name": "Alopecurus",
+  "english_name": "Foxtails",
+  "rank": "genus",
+  "overview": "Annual or perennial grasses featuring dense, cylindrical, spike-like flower heads that resemble soft fox tails.",
+  "distinguishing_tips": [
+   "Dense, cylindrical, spike-like panicles",
+   "Flattened spikelets containing a single flower",
+   "Soft, hairy glumes united at the base",
+   "Awns, when present, arise from the lemma"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Timothy grasses",
+    "scientific_name": "Phleum",
+    "distinction_point": "Phleum has two short, stiff points at the tip of each spikelet rather than a single awn."
+   },
+   {
+    "english_name": "Bristlegrasses",
+    "scientific_name": "Setaria",
+    "distinction_point": "Setaria has stiff bristles beneath the spikelets that remain on the stem after seeds drop."
+   },
+   {
+    "english_name": "Beard grasses",
+    "scientific_name": "Polypogon",
+    "distinction_point": "Polypogon has longer, finer awns on the glumes, giving the flower head a fuzzier appearance."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the cylindrical flower head showing individual spikelets",
+   "Detail of the leaf sheath and membranous ligule",
+   "Whole plant showing growth habit and surrounding habitat"
+  ],
+  "season_habitat": "Commonly found in wet meadows, paddy fields, and disturbed ground from spring to summer."
+ },
+ "ja": {
+  "scientific_name": "Alopecurus",
+  "english_name": "スズメノテッポウ属",
+  "rank": "属",
+  "overview": "キツネの尾のように柔らかく、密集した円柱状の穂をつける一年草または多年草のイネ科植物です。",
+  "distinguishing_tips": [
+   "密集した円柱状の穂（円錐花序）",
+   "扁平な小穂の中に花が一つだけある",
+   "基部で合着した柔らかい毛のある包穎",
+   "芒（のぎ）がある場合、護穎から伸びる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "アワガエリ属",
+    "scientific_name": "Phleum",
+    "japanese_name": "アワガエリ属",
+    "distinction_point": "アワガエリ属は小穂の先端に芒ではなく、2本の短く硬い突起があります。"
+   },
+   {
+    "english_name": "エノコログサ属",
+    "scientific_name": "Setaria",
+    "japanese_name": "エノコログサ属",
+    "distinction_point": "エノコログサ属は小穂の下に硬い剛毛があり、種子が落ちた後も茎に残ります。"
+   },
+   {
+    "english_name": "ヒゲシバ属",
+    "scientific_name": "Polypogon",
+    "japanese_name": "ヒゲシバ属",
+    "distinction_point": "ヒゲシバ属は包穎から長く繊細な芒が伸びており、穂全体がより毛羽立って見えます。"
+   }
+  ],
+  "confirm_more": [
+   "個々の小穂が確認できる円柱状の穂の接写",
+   "葉鞘と膜質の葉舌の細部",
+   "生育状況や周囲の環境がわかる植物全体の姿"
+  ],
+  "season_habitat": "春から夏にかけて、湿った草地や水田、荒れ地などでよく見られます。"
+ },
+ "costUsd": 0.009981
+}

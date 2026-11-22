@@ -1,0 +1,77 @@
+{
+ "key": "trifolium-sp",
+ "en": {
+  "scientific_name": "Trifolium",
+  "english_name": "Clovers",
+  "rank": "genus",
+  "overview": "Introduced herbaceous plants with three-parted leaves and dense, globe-shaped flower heads, widely naturalized across Japan.",
+  "distinguishing_tips": [
+   "Palmately compound leaves with three rounded leaflets",
+   "Leaflets often show a pale V-shaped chevron mark",
+   "Dense, spherical or oblong flower heads of tiny pea-like blooms",
+   "Creeping or upright stems with stipules at the leaf base"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Wood sorrels",
+    "scientific_name": "Oxalis",
+    "distinction_point": "Leaflets are heart-shaped and fold down at night, with five-petaled radially symmetrical flowers."
+   },
+   {
+    "english_name": "Medicks",
+    "scientific_name": "Medicago",
+    "distinction_point": "The central leaflet has a distinct short stalk, and flowers are usually small yellow clusters."
+   },
+   {
+    "english_name": "Bird's-foot trefoils",
+    "scientific_name": "Lotus",
+    "distinction_point": "Leaves appear to have five leaflets, with two basal leaflets resembling stipules."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a single leaf showing leaflet shape and markings",
+   "Side view of the flower head and calyx",
+   "Stem node showing the stipules at the petiole base"
+  ],
+  "season_habitat": "Blooms spring to autumn in lawns, roadsides, parks, and open grassy fields."
+ },
+ "ja": {
+  "scientific_name": "Trifolium",
+  "english_name": "シャジクソウ属（クローバー）",
+  "rank": "属",
+  "overview": "日本全国に広く帰化している草本植物で、3枚の小葉からなる葉と、球状に密集した花序が特徴です。",
+  "distinguishing_tips": [
+   "3枚の丸みを帯びた小葉からなる掌状複葉",
+   "小葉には白いV字型の斑紋が入ることが多い",
+   "小さな豆のような花が密集した、球形または楕円形の頭状花序",
+   "這うように伸びる、または直立する茎と、葉の付け根にある托葉"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Wood sorrels",
+    "scientific_name": "Oxalis",
+    "japanese_name": "カタバミ属",
+    "distinction_point": "小葉はハート形で夜になると閉じます。花は5枚の花弁を持ち、放射相称です。"
+   },
+   {
+    "english_name": "Medicks",
+    "scientific_name": "Medicago",
+    "japanese_name": "ウマゴヤシ属",
+    "distinction_point": "中央の小葉に短い柄があるのが特徴で、花は通常、小さな黄色い房状になります。"
+   },
+   {
+    "english_name": "Bird's-foot trefoils",
+    "scientific_name": "Lotus",
+    "japanese_name": "ミヤコグサ属",
+    "distinction_point": "葉は5枚の小葉があるように見え、基部の2枚は托葉のように見えます。"
+   }
+  ],
+  "confirm_more": [
+   "小葉の形や斑紋がわかる葉の接写",
+   "花序と萼（がく）の側面図",
+   "葉柄の付け根にある托葉が確認できる茎の節"
+  ],
+  "season_habitat": "春から秋にかけて開花し、芝生、道端、公園、開けた草地などで見られます。"
+ },
+ "costUsd": 0.00728125
+}

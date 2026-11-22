@@ -1,0 +1,77 @@
+{
+ "key": "emberiza-spodocephala",
+ "en": {
+  "scientific_name": "Emberiza spodocephala",
+  "english_name": "Black-faced Bunting",
+  "rank": "species",
+  "overview": "A common, olive-greenish bunting in Japan with a streaked back, yellowish underparts, and a dark face in breeding males.",
+  "distinguishing_tips": [
+   "Olive-gray head and neck with black lores and chin in males",
+   "Yellowish belly and undertail with dark flank streaks",
+   "Streaked brownish back and two pale wing bars",
+   "Conical bill with a pinkish-gray lower mandible"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Yellow Bunting",
+    "scientific_name": "Emberiza sulphurata",
+    "distinction_point": "Has a distinct white eye-ring and lacks the dark face."
+   },
+   {
+    "english_name": "Gray Bunting",
+    "scientific_name": "Emberiza variabilis",
+    "distinction_point": "Lacks white outer tail feathers and has more uniform slate-gray or brown plumage."
+   },
+   {
+    "english_name": "Yellow-throated Bunting",
+    "scientific_name": "Emberiza elegans",
+    "distinction_point": "Shows a prominent crest and bright yellow throat and eyebrow."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head to check for an eye-ring or facial pattern",
+   "Underparts and flanks to see yellow coloration and streaking",
+   "Spread tail to confirm white outer tail feathers"
+  ],
+  "season_habitat": "Breeds in northern Japan's forests and winters widely in lowland bushes, parks, and reedbeds."
+ },
+ "ja": {
+  "scientific_name": "Emberiza spodocephala",
+  "english_name": "Black-faced Bunting",
+  "rank": "species",
+  "overview": "日本でよく見られるホオジロの仲間で、全体的にオリーブ緑色を帯び、背には縦斑があり、腹部は黄色っぽく、繁殖期のオスは顔が黒いのが特徴です。",
+  "distinguishing_tips": [
+   "オスは頭部と頸部がオリーブ灰色で、目先と喉が黒い",
+   "腹部と下尾筒は黄色っぽく、脇腹に暗色の縦斑がある",
+   "背は褐色で縦斑があり、翼には2本の淡色の帯がある",
+   "くちばしは円錐形で、下くちばしはピンクがかった灰色"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Yellow Bunting",
+    "scientific_name": "Emberiza sulphurata",
+    "japanese_name": "ノジコ",
+    "distinction_point": "明瞭な白いアイリングがあり、顔が黒くならない。"
+   },
+   {
+    "english_name": "Gray Bunting",
+    "scientific_name": "Emberiza variabilis",
+    "japanese_name": "クロジ",
+    "distinction_point": "尾羽の外側に白い羽がなく、全体的に均一なスレート灰色や茶色の羽毛をしている。"
+   },
+   {
+    "english_name": "Yellow-throated Bunting",
+    "scientific_name": "Emberiza elegans",
+    "japanese_name": "ミヤマホオジロ",
+    "distinction_point": "目立つ冠羽があり、喉と眉斑が鮮やかな黄色をしている。"
+   }
+  ],
+  "confirm_more": [
+   "頭部の横顔を観察し、アイリングや顔の模様を確認する",
+   "腹部と脇腹を見て、黄色の色味と縦斑を確認する",
+   "尾羽を広げた際に、外側の尾羽が白いことを確認する"
+  ],
+  "season_habitat": "日本の北部の森林で繁殖し、冬は低地の茂み、公園、ヨシ原などで広く見られる。"
+ },
+ "costUsd": 0.009516499999999999
+}

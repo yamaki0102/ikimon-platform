@@ -1,0 +1,66 @@
+{
+ "key": "pinus-pumila",
+ "en": {
+  "scientific_name": "Pinus pumila",
+  "english_name": "Siberian dwarf pine",
+  "rank": "species",
+  "overview": "A prostrate, evergreen dwarf pine forming dense, wind-swept mats across Japan's high alpine ridges.",
+  "distinguishing_tips": [
+   "Creeping, multi-stemmed shrub habit",
+   "Needles in bundles of five",
+   "Blue-green needles with white inner bands",
+   "Small, egg-shaped cones that remain closed"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese white pine",
+    "scientific_name": "Pinus parviflora",
+    "distinction_point": "Grows as an upright tree at lower elevations with larger, open cones."
+   },
+   {
+    "english_name": "Alpine juniper",
+    "scientific_name": "Juniperus communis var. nipponica",
+    "distinction_point": "Has sharp, single-needle leaves in whorls of three rather than bundles of five."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a needle bundle showing five needles",
+   "Cones attached to the branch",
+   "Overall creeping growth habit on the alpine slope"
+  ],
+  "season_habitat": "Year-round evergreen found in high-altitude alpine zones and windswept ridges."
+ },
+ "ja": {
+  "scientific_name": "Pinus pumila",
+  "english_name": "ハイマツ",
+  "rank": "種",
+  "overview": "日本の高山帯の尾根筋に生育する、這うように広がる常緑の矮小なマツです。風雪に耐え、密なマット状の群落を形成します。",
+  "distinguishing_tips": [
+   "地面を這うように広がる多幹の低木状",
+   "5本ずつ束になって生える針葉",
+   "青緑色で、内側に白い気孔帯がある針葉",
+   "小さく卵形で、閉じたままの球果"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese white pine",
+    "scientific_name": "Pinus parviflora",
+    "japanese_name": "ゴヨウマツ",
+    "distinction_point": "より標高の低い場所に生育する直立した高木で、球果は大きく開きます。"
+   },
+   {
+    "english_name": "Alpine juniper",
+    "scientific_name": "Juniperus communis var. nipponica",
+    "japanese_name": "ミヤマネズ",
+    "distinction_point": "5本束の針葉ではなく、3輪生する鋭い単葉を持ちます。"
+   }
+  ],
+  "confirm_more": [
+   "5本の針葉が束になっている様子（接写）",
+   "枝に付いた球果",
+   "高山の斜面で地面を這うように広がる全体的な樹形"
+  ],
+  "season_habitat": "一年中緑を保つ常緑樹で、高山帯や風の強い尾根筋に生育します。"
+ },
+ "costUsd": 0.0077345
+}

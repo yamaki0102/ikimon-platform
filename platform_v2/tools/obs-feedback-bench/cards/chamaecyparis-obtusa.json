@@ -1,0 +1,77 @@
+{
+ "key": "chamaecyparis-obtusa",
+ "en": {
+  "scientific_name": "Chamaecyparis obtusa",
+  "english_name": "Hinoki cypress",
+  "rank": "species",
+  "overview": "A tall, evergreen conifer native to Japan, prized for its fragrant, rot-resistant timber and widely planted in forestry.",
+  "distinguishing_tips": [
+   "Blunt-tipped, scale-like leaves arranged in flat, fan-shaped sprays.",
+   "Distinctive white Y-shaped stomatal bands on the underside of the leaves.",
+   "Reddish-brown bark that peels off in long, fibrous vertical strips.",
+   "Small, woody, globular cones about 1 cm wide with 8 to 10 scales."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sawara cypress",
+    "scientific_name": "Chamaecyparis pisifera",
+    "distinction_point": "Sawara has sharply pointed scale leaves and smaller cones, with butterfly-like white markings underneath."
+   },
+   {
+    "english_name": "Japanese cedar",
+    "scientific_name": "Cryptomeria japonica",
+    "distinction_point": "Sugi has awl-shaped, spirally arranged needles rather than flat, scale-like sprays."
+   },
+   {
+    "english_name": "Hiba arborvitae",
+    "scientific_name": "Thujopsis dolabrata",
+    "distinction_point": "Hiba has much broader, thicker scale leaves with prominent white patches on the underside."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the underside of a leafy spray to show the white Y-shaped markings.",
+   "The trunk bark to show reddish-brown, vertically peeling strips.",
+   "Small, woody, globular cones attached to the branchlets."
+  ],
+  "season_habitat": "Evergreen; common in mountain forests and widespread plantations across Japan."
+ },
+ "ja": {
+  "scientific_name": "Chamaecyparis obtusa",
+  "english_name": "ヒノキ",
+  "rank": "種",
+  "overview": "日本原産の背の高い常緑針葉樹です。香りが良く耐朽性に優れた木材として重宝され、林業用として広く植林されています。",
+  "distinguishing_tips": [
+   "葉は鱗片状で先端が丸く、平らな扇状に広がります。",
+   "葉の裏側には、白いY字型の気孔帯がはっきりと見えます。",
+   "樹皮は赤褐色で、縦に長く繊維状に剥がれ落ちます。",
+   "直径約1cmの小さな木質の球果（実）をつけ、8〜10枚の鱗片からなります。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sawara cypress",
+    "scientific_name": "Chamaecyparis pisifera",
+    "japanese_name": "サワラ",
+    "distinction_point": "サワラは葉の先端が尖っており、球果がより小さく、葉の裏の白い模様が蝶のような形をしています。"
+   },
+   {
+    "english_name": "Japanese cedar",
+    "scientific_name": "Cryptomeria japonica",
+    "japanese_name": "スギ",
+    "distinction_point": "スギは平らな鱗片状の葉ではなく、錐状の葉がらせん状についています。"
+   },
+   {
+    "english_name": "Hiba arborvitae",
+    "scientific_name": "Thujopsis dolabrata",
+    "japanese_name": "アスナロ",
+    "distinction_point": "アスナロは葉がより幅広く厚みがあり、裏側には目立つ白い斑紋があります。"
+   }
+  ],
+  "confirm_more": [
+   "葉の裏側を接写し、白いY字型の模様を確認する。",
+   "幹の樹皮を観察し、赤褐色で縦に剥がれる様子を確認する。",
+   "枝についている小さな木質の球果を確認する。"
+  ],
+  "season_habitat": "常緑樹。日本の山林や各地の植林地で広く見られます。"
+ },
+ "costUsd": 0.009393
+}

@@ -1,0 +1,46 @@
+{
+ "key": "habitat-棚田",
+ "en": {
+  "habitat": "Terraced Paddy Fields (Tanada)",
+  "overview": "Stepped rice paddies carved into steep hillsides, supporting diverse aquatic and wetland species through traditional water management.",
+  "what_to_look_for": [
+   "Frogs and tadpoles in shallow water",
+   "Dragonflies and damselflies patrolling the paddies",
+   "Wetland plants and wildflowers along the earthen levees",
+   "Stone or earthen retaining walls with moss and ferns"
+  ],
+  "confirm_more": [
+   "Wide landscape shot showing the stepped tiers and surrounding slope",
+   "Close-up of the water surface, aquatic life, or rice plants",
+   "Detail of the retaining wall structure and levee vegetation"
+  ],
+  "management_signs": [
+   "Mowed or cleared grass along the earthen levees",
+   "Intact water inlet/outlet pipes and irrigation channels",
+   "Signs of abandonment such as overgrown shrubs or collapsed walls"
+  ],
+  "seasonal_note": "Flooded in spring for planting, lush green in summer, golden before autumn harvest, and often drained in winter."
+ },
+ "ja": {
+  "habitat": "棚田",
+  "overview": "急斜面を切り開いて作られた階段状の水田です。伝統的な水管理によって、多様な水生生物や湿地性の生き物を育んでいます。",
+  "what_to_look_for": [
+   "浅瀬にいるカエルやオタマジャクシ",
+   "水田の上を飛び回るトンボやイトトンボ",
+   "あぜ道に咲く湿地植物や野草",
+   "コケやシダに覆われた石積みや土留めの壁"
+  ],
+  "confirm_more": [
+   "階段状の景観と周囲の斜面がわかる広角写真",
+   "水面、水生生物、または稲のクローズアップ",
+   "石積みやあぜ道の植生の詳細"
+  ],
+  "management_signs": [
+   "あぜ道の草刈りや整備の跡",
+   "維持管理された取排水口や水路",
+   "放棄された場所に見られる低木の繁茂や石積みの崩落"
+  ],
+  "seasonal_note": "春は田植えのための湛水、夏は青々とした緑、秋の収穫前は黄金色に輝き、冬は水が抜かれることが多いです。"
+ },
+ "costUsd": 0.0065587499999999995
+}

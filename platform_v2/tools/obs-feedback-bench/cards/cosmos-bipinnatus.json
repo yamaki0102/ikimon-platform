@@ -1,0 +1,66 @@
+{
+ "key": "cosmos-bipinnatus",
+ "en": {
+  "scientific_name": "Cosmos bipinnatus",
+  "english_name": "Garden Cosmos",
+  "rank": "species",
+  "overview": "An introduced annual herb widely cultivated and naturalized across Japan, famous for its delicate, colorful daisy-like flowers blooming in autumn.",
+  "distinguishing_tips": [
+   "Pink, white, or magenta ray florets with notched tips",
+   "Bright yellow central disk",
+   "Finely divided, thread-like bipinnate leaves",
+   "Tall, slender, branching stems"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sulfur Cosmos",
+    "scientific_name": "Cosmos sulphureus",
+    "distinction_point": "Has bright orange or yellow flowers and broader, less thread-like leaf segments."
+   },
+   {
+    "english_name": "Plains Coreopsis",
+    "scientific_name": "Coreopsis tinctoria",
+    "distinction_point": "Features smaller yellow flowers with a prominent dark maroon-red center."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the finely divided, thread-like leaves",
+   "Front view of the flower head showing notched petal tips",
+   "Side view of the green bracts beneath the flower"
+  ],
+  "season_habitat": "Blooms from summer to late autumn in parks, roadsides, and fallow fields."
+ },
+ "ja": {
+  "scientific_name": "Cosmos bipinnatus",
+  "english_name": "Garden Cosmos",
+  "rank": "species",
+  "overview": "日本全国で広く栽培・帰化している一年草です。秋に咲く、繊細で色鮮やかなキク科の花として親しまれています。",
+  "distinguishing_tips": [
+   "花びら（舌状花）の先端がギザギザに割れている（ピンク、白、赤紫など）",
+   "中心部（筒状花）は鮮やかな黄色",
+   "葉は細かく裂けており、糸のように繊細な羽状複葉",
+   "背が高く、細い茎がよく枝分かれする"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sulfur Cosmos",
+    "scientific_name": "Cosmos sulphureus",
+    "japanese_name": "キバナコスモス",
+    "distinction_point": "花の色が鮮やかなオレンジや黄色で、葉の裂片がコスモスよりも幅広いです。"
+   },
+   {
+    "english_name": "Plains Coreopsis",
+    "scientific_name": "Coreopsis tinctoria",
+    "japanese_name": "ハルシャギク",
+    "distinction_point": "花は小さめで、中心部が濃い赤褐色をしているのが特徴です。"
+   }
+  ],
+  "confirm_more": [
+   "細かく裂けた糸状の葉のアップ",
+   "花びらの先端が割れている様子がわかる正面からの写真",
+   "花の下にある緑色の総苞（そうほう）の側面写真"
+  ],
+  "season_habitat": "夏から晩秋にかけて、公園や道端、休耕田などで見られます。"
+ },
+ "costUsd": 0.0114545
+}

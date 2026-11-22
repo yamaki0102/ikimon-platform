@@ -1,0 +1,46 @@
+{
+ "key": "habitat-都市公園",
+ "en": {
+  "habitat": "Urban Park",
+  "overview": "Man-made green spaces in cities featuring lawns, planted trees, and ponds that provide vital refuges for adaptable urban wildlife.",
+  "what_to_look_for": [
+   "Planted park trees like sakura or zelkova",
+   "Adaptable birds such as tree sparrows and brown-eared bulbuls",
+   "Artificial ponds supporting dragonflies and turtles",
+   "Lawns and flowerbeds with common urban weeds"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing the mix of trees, lawns, and surrounding buildings",
+   "Close-up of tree bark or planted shrubs for species identification",
+   "Eye-level view of pond edges or water features"
+  ],
+  "management_signs": [
+   "Mowed lawns and neatly trimmed hedges",
+   "Pruned tree branches or protective stakes",
+   "Paved walkways, benches, and lighting"
+  ],
+  "seasonal_note": "Spring cherry blossoms and autumn foliage attract both crowds and migrating birds."
+ },
+ "ja": {
+  "habitat": "都市公園",
+  "overview": "都市部にある人工的な緑地で、芝生や植栽された樹木、池などが整備されています。環境に適応した野生生物にとって重要な避難場所となっています。",
+  "what_to_look_for": [
+   "サクラやケヤキなどの植栽された公園樹",
+   "スズメやヒヨドリといった都市に適応した野鳥",
+   "トンボやカメが生息する人工池",
+   "身近な雑草が見られる芝生や花壇"
+  ],
+  "confirm_more": [
+   "樹木、芝生、周囲の建物が混在する様子がわかる広角写真",
+   "樹皮や植栽された低木のクローズアップ（種を特定するため）",
+   "池の縁や水辺の様子がわかる目線の高さでの写真"
+  ],
+  "management_signs": [
+   "手入れされた芝生やきれいに刈り込まれた生垣",
+   "剪定された枝や樹木の支柱",
+   "舗装された歩道、ベンチ、街灯"
+  ],
+  "seasonal_note": "春の桜や秋の紅葉は、多くの人々だけでなく渡り鳥も引き寄せます。"
+ },
+ "costUsd": 0.00566975
+}

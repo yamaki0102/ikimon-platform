@@ -1,0 +1,77 @@
+{
+ "key": "milvus-migrans",
+ "en": {
+  "scientific_name": "Milvus migrans",
+  "english_name": "Black Kite",
+  "rank": "species",
+  "overview": "A common, medium-sized raptor in Japan, easily recognized by its forked tail and effortless soaring over coasts and cities.",
+  "distinguishing_tips": [
+   "Distinctive shallowly forked tail that looks triangular when spread",
+   "Dark brown plumage with pale, mottled underwings",
+   "Noticeable pale patch at the base of the primaries",
+   "Long, angled wings held slightly arched while gliding"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Eastern Buzzard",
+    "scientific_name": "Buteo japonicus",
+    "distinction_point": "Has a rounded, fan-shaped tail and much paler, streaked underparts."
+   },
+   {
+    "english_name": "Osprey",
+    "scientific_name": "Pandion haliaetus",
+    "distinction_point": "Shows striking white underparts and head with a dark eye-stripe, plus a rounded tail."
+   },
+   {
+    "english_name": "Oriental Honey-buzzard",
+    "scientific_name": "Pernis ptilorhynchus",
+    "distinction_point": "Has a rounded tail with dark bands and a smaller, pigeon-like head."
+   }
+  ],
+  "confirm_more": [
+   "Underside of the spread tail to confirm the forked shape",
+   "Underwing pattern in flight showing the pale primary patches",
+   "Profile of the head and bill while perched"
+  ],
+  "season_habitat": "Year-round resident across Japan, common along coasts, rivers, and urban areas."
+ },
+ "ja": {
+  "scientific_name": "Milvus migrans",
+  "english_name": "Black Kite",
+  "rank": "species",
+  "overview": "日本で最もよく見られる中型の猛禽類です。二股に分かれた尾羽と、海岸や都市部の上空を優雅に滑空する姿が特徴です。",
+  "distinguishing_tips": [
+   "尾羽が浅く二股に分かれており、広げると三角形に見える",
+   "全体的に暗褐色で、翼の裏側は淡い斑模様がある",
+   "初列風切羽の付け根に目立つ淡色の斑点がある",
+   "長く角度のある翼を持ち、滑空時はわずかに弓なりに保つ"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Eastern Buzzard",
+    "scientific_name": "Buteo japonicus",
+    "japanese_name": "トビ",
+    "distinction_point": "尾羽が丸く扇形で、体の下面はより白っぽく、縦斑がある。"
+   },
+   {
+    "english_name": "Osprey",
+    "scientific_name": "Pandion haliaetus",
+    "japanese_name": "ミサゴ",
+    "distinction_point": "体の下面と頭部が白く、目の周りに黒い過眼線があり、尾羽は丸い。"
+   },
+   {
+    "english_name": "Oriental Honey-buzzard",
+    "scientific_name": "Pernis ptilorhynchus",
+    "japanese_name": "ハチクマ",
+    "distinction_point": "尾羽は丸く黒い帯模様があり、頭部が小さくハトのように見える。"
+   }
+  ],
+  "confirm_more": [
+   "広げた尾羽の裏側を見て、二股の形状を確認する",
+   "飛行中の翼の裏側を見て、初列風切羽の淡色斑を確認する",
+   "止まっている時の頭部とくちばしの輪郭を観察する"
+  ],
+  "season_habitat": "日本全国に一年中生息しており、海岸、河川、都市部でよく見られる。"
+ },
+ "costUsd": 0.01066075
+}

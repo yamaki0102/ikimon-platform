@@ -1,0 +1,66 @@
+{
+ "key": "camellia-japonica",
+ "en": {
+  "scientific_name": "Camellia japonica",
+  "english_name": "Japanese camellia",
+  "rank": "species",
+  "overview": "An evergreen broad-leaved tree or shrub native to Japan, famous for its glossy leaves and showy red flowers.",
+  "distinguishing_tips": [
+   "Thick, glossy, dark green leaves with finely serrated edges",
+   "Cup-shaped red flowers with five to seven petals",
+   "Stamens fused at the base into a prominent yellow-tipped tube",
+   "Whole flowers drop intact onto the ground when spent"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sasanqua camellia",
+    "scientific_name": "Camellia sasanqua",
+    "distinction_point": "Petals fall individually rather than as a whole flower, and young twigs are hairy."
+   },
+   {
+    "english_name": "Snow camellia",
+    "scientific_name": "Camellia rusticana",
+    "distinction_point": "Grows as a low, spreading shrub on the snowy Sea of Japan side with flatter flowers and spreading stamens."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower center showing the fused stamen tube",
+   "Underside of a young twig and leaf midrib to check for hairs",
+   "Fallen flowers on the ground to see if they dropped intact"
+  ],
+  "season_habitat": "Blooms from winter to spring in coastal forests, lowland woodlands, and gardens across Japan."
+ },
+ "ja": {
+  "scientific_name": "Camellia japonica",
+  "english_name": "ヤブツバキ",
+  "rank": "種",
+  "overview": "日本原産の常緑広葉樹で、光沢のある葉と鮮やかな赤い花が特徴です。",
+  "distinguishing_tips": [
+   "厚みがあり、光沢のある濃い緑色の葉。縁には細かい鋸歯がある",
+   "5〜7枚の花弁からなるカップ状の赤い花",
+   "雄しべの基部が合着し、黄色い葯が目立つ筒状になっている",
+   "花が終わると、花ごと丸ごと地面に落ちる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sasanqua camellia",
+    "scientific_name": "Camellia sasanqua",
+    "japanese_name": "サザンカ",
+    "distinction_point": "花弁がバラバラに散るのが特徴。また、若い枝に毛が生えている。"
+   },
+   {
+    "english_name": "Snow camellia",
+    "scientific_name": "Camellia rusticana",
+    "japanese_name": "ユキツバキ",
+    "distinction_point": "日本海側の多雪地帯に自生する低木。花が平開し、雄しべが広がっている。"
+   }
+  ],
+  "confirm_more": [
+   "花の中心部を拡大し、雄しべが筒状に合着しているか確認する",
+   "若い枝や葉の裏の中肋に毛が生えていないか確認する",
+   "地面に落ちている花が、花ごと丸ごと落ちているか確認する"
+  ],
+  "season_habitat": "冬から春にかけて、日本各地の沿岸林や低地の森林、庭園などで見られます。"
+ },
+ "costUsd": 0.0050535
+}

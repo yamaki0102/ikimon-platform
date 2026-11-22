@@ -1,0 +1,46 @@
+{
+ "key": "habitat-スギ・ヒノキ人工林",
+ "en": {
+  "habitat": "Cedar and Cypress Plantation",
+  "overview": "A densely planted conifer forest of Japanese cedar and cypress, often with a dark, shaded understory and sparse ground vegetation.",
+  "what_to_look_for": [
+   "Ferns and shade-tolerant mosses on the forest floor",
+   "Thick layer of fallen cedar or cypress needles",
+   "Understory shrubs like aucuba indicating light gaps",
+   "Bark stripping by deer on young trunks"
+  ],
+  "confirm_more": [
+   "Wide shot from eye level showing tree spacing and straight trunks",
+   "Upward shot of the canopy to document light penetration",
+   "Close-up of the forest floor to show needle litter or undergrowth"
+  ],
+  "management_signs": [
+   "Stumps from selective thinning",
+   "Pruned lower branches on tree trunks",
+   "Plastic deer-protection nets around young saplings"
+  ],
+  "seasonal_note": "Cedar pollen is heavily released in early spring, while autumn brings little color change."
+ },
+ "ja": {
+  "habitat": "スギ・ヒノキの人工林",
+  "overview": "スギやヒノキが密集して植えられた針葉樹林です。林内は日陰が多く、地面の植生はまばらなのが特徴です。",
+  "what_to_look_for": [
+   "林床に生えるシダ類や日陰を好むコケ類",
+   "厚く堆積したスギやヒノキの落ち葉（針葉）",
+   "光が差し込む場所に生えるアオキなどの低木",
+   "若い木の幹に見られるシカによる樹皮剥ぎの跡"
+  ],
+  "confirm_more": [
+   "目線の高さから、木の間隔や真っ直ぐな幹がわかるような引きの構図",
+   "林冠を見上げ、光の差し込み具合を記録した写真",
+   "林床の落ち葉や下草の様子がわかる接写"
+  ],
+  "management_signs": [
+   "間伐によって残された切り株",
+   "幹の下部が剪定された跡",
+   "若い苗木を保護するためのプラスチック製の防護ネット"
+  ],
+  "seasonal_note": "春先にはスギ花粉が大量に飛散しますが、秋になっても紅葉による大きな色の変化はほとんどありません。"
+ },
+ "costUsd": 0.00719075
+}

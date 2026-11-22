@@ -1,0 +1,77 @@
+{
+ "key": "cyprinus-rubrofuscus",
+ "en": {
+  "scientific_name": "Cyprinus rubrofuscus",
+  "english_name": "Koi",
+  "rank": "species",
+  "overview": "A large, colorful ornamental carp bred in Japan, easily recognized by its vibrant patterns and two pairs of mouth barbels.",
+  "distinguishing_tips": [
+   "Brightly patterned scales in white, red, orange, black, or gold",
+   "Two pairs of fleshy barbels near the corners of the mouth",
+   "Stout, elongated body with a single long dorsal fin",
+   "Subterminal mouth adapted for bottom feeding"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Common Carp",
+    "scientific_name": "Cyprinus carpio",
+    "distinction_point": "Common carp are typically dull brownish-olive without bright ornamental patterns."
+   },
+   {
+    "english_name": "Goldfish",
+    "scientific_name": "Carassius auratus",
+    "distinction_point": "Goldfish are generally smaller and lack the fleshy barbels around the mouth."
+   },
+   {
+    "english_name": "Crucian Carp",
+    "scientific_name": "Carassius langsdorfii",
+    "distinction_point": "Crucian carp have plain silvery-brown bodies and no mouth barbels."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the mouth to show the two pairs of barbels",
+   "Top-down view of the back to capture the full color pattern",
+   "Side profile showing the long dorsal fin and body shape"
+  ],
+  "season_habitat": "Found year-round in ornamental ponds, castle moats, and slow-moving rivers across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cyprinus rubrofuscus",
+  "english_name": "錦鯉",
+  "rank": "種",
+  "overview": "日本で品種改良された大型で色鮮やかな観賞用のコイです。鮮やかな模様と、口元にある2対のひげが特徴です。",
+  "distinguishing_tips": [
+   "白、赤、橙、黒、金など、鮮やかな模様の鱗",
+   "口の端にある2対の肉質のひげ",
+   "背びれが長く、がっしりとした細長い体型",
+   "底生生物を食べるのに適した、下向きの口"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Common Carp",
+    "scientific_name": "Cyprinus carpio",
+    "japanese_name": "コイ",
+    "distinction_point": "マゴイ（野生のコイ）は地味な茶褐色で、錦鯉のような鮮やかな模様はありません。"
+   },
+   {
+    "english_name": "Goldfish",
+    "scientific_name": "Carassius auratus",
+    "japanese_name": "キンギョ",
+    "distinction_point": "キンギョは一般的に体が小さく、口元にひげがありません。"
+   },
+   {
+    "english_name": "Crucian Carp",
+    "scientific_name": "Carassius langsdorfii",
+    "japanese_name": "ギンブナ",
+    "distinction_point": "フナ類は銀褐色で地味な体色をしており、口元にひげはありません。"
+   }
+  ],
+  "confirm_more": [
+   "2対のひげが確認できる口元のアップ",
+   "全身の模様がわかる背中側からの写真",
+   "長い背びれと体型がわかる横からの写真"
+  ],
+  "season_habitat": "日本全国の観賞用池、城の堀、流れの緩やかな河川などで一年中見られます。"
+ },
+ "costUsd": 0.00894525
+}

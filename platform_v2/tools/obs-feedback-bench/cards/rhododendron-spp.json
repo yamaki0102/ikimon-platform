@@ -1,0 +1,77 @@
+{
+ "key": "rhododendron-spp",
+ "en": {
+  "scientific_name": "Rhododendron",
+  "english_name": "Azaleas and Rhododendrons",
+  "rank": "genus",
+  "overview": "Diverse woody shrubs and small trees famous for showy, funnel-shaped spring flowers and leathery, often evergreen leaves.",
+  "distinguishing_tips": [
+   "Funnel- or bell-shaped flowers with 5 to 10 prominent stamens.",
+   "Simple, alternate leaves often clustered near branch tips.",
+   "Fine hairs or scales frequently cover young shoots and leaves.",
+   "Dry, woody 5-valved seed capsules persisting after bloom."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Enkianthus",
+    "scientific_name": "Enkianthus",
+    "distinction_point": "Flowers are small and urn-shaped, hanging in clusters rather than large and funnel-shaped."
+   },
+   {
+    "english_name": "Japanese Andromeda",
+    "scientific_name": "Pieris japonica",
+    "distinction_point": "Produces drooping panicles of small, white, urn-shaped flowers and lacks large, showy blooms."
+   },
+   {
+    "english_name": "Weigela",
+    "scientific_name": "Weigela",
+    "distinction_point": "Leaves are opposite along the stem, whereas Rhododendron leaves are alternate."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a flower showing stamen count and corolla shape.",
+   "Underside of a leaf and young twig to check hairs or scales.",
+   "Overall growth habit and leaf arrangement at the branch tip."
+  ],
+  "season_habitat": "Blooms mainly from spring to early summer in mountain forests, rocky slopes, and urban gardens."
+ },
+ "ja": {
+  "scientific_name": "Rhododendron",
+  "english_name": "ツツジ属",
+  "rank": "属",
+  "overview": "春に咲く華やかな漏斗状の花と、革質で常緑のものが多い葉が特徴的な、多様な低木および小高木のグループです。",
+  "distinguishing_tips": [
+   "5〜10本の目立つ雄しべを持つ、漏斗状または鐘状の花。",
+   "単葉で互生し、枝先に集まってつくことが多い葉。",
+   "若い枝や葉に細かい毛や鱗片が密生していることが多い。",
+   "開花後も残る、5つに裂ける乾燥した木質の蒴果。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Enkianthus",
+    "scientific_name": "Enkianthus",
+    "japanese_name": "ドウダンツツジ属",
+    "distinction_point": "花は小さく壺型で、大きな漏斗状の花とは異なり房状に垂れ下がります。"
+   },
+   {
+    "english_name": "Japanese Andromeda",
+    "scientific_name": "Pieris japonica",
+    "japanese_name": "アセビ",
+    "distinction_point": "小さな白い壺型の花が総状花序になって垂れ下がり、大きく華やかな花はつけません。"
+   },
+   {
+    "english_name": "Weigela",
+    "scientific_name": "Weigela",
+    "japanese_name": "タニウツギ属",
+    "distinction_point": "葉は茎に対して対生しますが、ツツジ属の葉は互生します。"
+   }
+  ],
+  "confirm_more": [
+   "雄しべの数と花冠の形がわかる花のクローズアップ写真。",
+   "毛や鱗片を確認するための葉の裏側と若い枝。",
+   "全体の樹形と枝先での葉のつき方。"
+  ],
+  "season_habitat": "主に春から初夏にかけて開花し、山地の森林、岩場、都市部の庭園などで見られます。"
+ },
+ "costUsd": 0.01033
+}

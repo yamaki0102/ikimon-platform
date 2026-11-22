@@ -1,0 +1,77 @@
+{
+ "key": "fagus",
+ "en": {
+  "scientific_name": "Fagus",
+  "english_name": "Beeches",
+  "rank": "genus",
+  "overview": "Deciduous canopy trees of Japanese temperate forests, recognized by smooth gray bark, long pointed winter buds, and pleated leaves.",
+  "distinguishing_tips": [
+   "Smooth, pale gray bark, often with lichen patches",
+   "Slender, cigar-shaped, sharply pointed winter buds",
+   "Alternate, oval leaves with prominent parallel veins",
+   "Spiny four-lobed cupules enclosing triangular nuts"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Hornbeams",
+    "scientific_name": "Carpinus",
+    "distinction_point": "Hornbeams have fluted trunks and doubly serrated leaves, unlike beech's smooth bark and wavy margins."
+   },
+   {
+    "english_name": "Oaks",
+    "scientific_name": "Quercus",
+    "distinction_point": "Oaks have clustered terminal buds and acorns in scaly cups, not single slender buds."
+   },
+   {
+    "english_name": "Chestnuts",
+    "scientific_name": "Castanea",
+    "distinction_point": "Chestnuts have deeply furrowed bark and long, coarsely toothed leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the smooth gray trunk bark",
+   "Underside of a leaf showing parallel veins",
+   "Fallen spiky nut husks on the forest floor"
+  ],
+  "season_habitat": "Widespread in cool-temperate mountain forests across Japan, with foliage from spring to autumn."
+ },
+ "ja": {
+  "scientific_name": "Fagus",
+  "english_name": "ブナ属",
+  "rank": "属",
+  "overview": "日本の温帯林を代表する落葉高木。滑らかな灰色の樹皮、長く尖った冬芽、そして側脈が目立つ葉が特徴です。",
+  "distinguishing_tips": [
+   "地衣類が付着することの多い、滑らかで淡い灰色の樹皮",
+   "細長く、葉巻のような形をした鋭い冬芽",
+   "互生する卵形の葉で、平行に走る側脈が目立つ",
+   "4つに裂け、トゲに覆われた殻斗（実を包む殻）の中に三角形の堅果が入る"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Hornbeams",
+    "scientific_name": "Carpinus",
+    "japanese_name": "クマシデ属",
+    "distinction_point": "クマシデ属は幹に縦筋が入り、葉の縁に二重の鋸歯がある点で、滑らかな樹皮と波状の葉縁を持つブナ属と異なります。"
+   },
+   {
+    "english_name": "Oaks",
+    "scientific_name": "Quercus",
+    "japanese_name": "コナラ属",
+    "distinction_point": "コナラ属は枝先に冬芽が密集し、鱗片に覆われたドングリをつけるため、単独で細長い冬芽を持つブナ属とは異なります。"
+   },
+   {
+    "english_name": "Chestnuts",
+    "scientific_name": "Castanea",
+    "japanese_name": "クリ属",
+    "distinction_point": "クリ属は樹皮が深く裂け、長く粗い鋸歯のある葉を持つため、ブナ属とは容易に区別できます。"
+   }
+  ],
+  "confirm_more": [
+   "滑らかな灰色の幹の樹皮のアップ",
+   "平行な側脈が確認できる葉の裏面",
+   "林床に落ちているトゲのある殻斗"
+  ],
+  "season_habitat": "日本の冷温帯の山地に広く分布し、春から秋にかけて葉を茂らせます。"
+ },
+ "costUsd": 0.0074425
+}

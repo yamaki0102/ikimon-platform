@@ -1,0 +1,77 @@
+{
+ "key": "veronica",
+ "en": {
+  "scientific_name": "Veronica",
+  "english_name": "Speedwells",
+  "rank": "genus",
+  "overview": "Low-growing herbaceous plants with small, four-lobed blue, purple, or white flowers and distinctive notched, heart-shaped seed capsules.",
+  "distinguishing_tips": [
+   "Four-lobed flowers, often with one lobe slightly smaller",
+   "Two protruding stamens per flower",
+   "Flattened, heart-shaped or notched seed capsules",
+   "Opposite lower leaves, often toothed or lobed"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Deadnettles",
+    "scientific_name": "Lamium",
+    "distinction_point": "Deadnettles have square stems and hooded, two-lipped flowers rather than flat, four-lobed flowers."
+   },
+   {
+    "english_name": "Ground Ivy",
+    "scientific_name": "Glechoma hederacea",
+    "distinction_point": "Ground ivy has creeping stems, kidney-shaped leaves, and tubular two-lipped flowers."
+   },
+   {
+    "english_name": "Violets",
+    "scientific_name": "Viola",
+    "distinction_point": "Violets have five-petaled irregular flowers with a distinct rear spur."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower face showing the four lobes and two stamens",
+   "Side or front view of the flattened, notched seed capsule",
+   "Stem and leaf arrangement, especially lower opposite leaves"
+  ],
+  "season_habitat": "Blooms mainly in spring to early summer in sunny lawns, roadsides, fields, and disturbed ground."
+ },
+ "ja": {
+  "scientific_name": "Veronica",
+  "english_name": "クワガタソウ属（スピードウェル）",
+  "rank": "属",
+  "overview": "背の低い草本で、青、紫、または白の小さな4弁の花を咲かせます。ハート型で先端がくぼんだ特徴的な種子（蒴果）をつけます。",
+  "distinguishing_tips": [
+   "4つに分かれた花弁（しばしば1枚がわずかに小さい）",
+   "花から突き出た2本の雄しべ",
+   "平らでハート型、または先端がくぼんだ種子",
+   "対生する下部の葉（多くは鋸歯があるか、裂けている）"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Deadnettles",
+    "scientific_name": "Lamium",
+    "japanese_name": "オドリコソウ属",
+    "distinction_point": "オドリコソウ属は茎が四角形で、花は平らな4弁ではなく、唇形（上下に分かれた形）をしています。"
+   },
+   {
+    "english_name": "Ground Ivy",
+    "scientific_name": "Glechoma hederacea",
+    "japanese_name": "カキドオシ",
+    "distinction_point": "カキドオシは茎が地面を這い、腎臓形の葉を持ち、筒状の唇形花を咲かせます。"
+   },
+   {
+    "english_name": "Violets",
+    "scientific_name": "Viola",
+    "japanese_name": "スミレ属",
+    "distinction_point": "スミレ属は5枚の花弁からなる不規則な花で、後ろ側に特徴的な距（きょ）があります。"
+   }
+  ],
+  "confirm_more": [
+   "4枚の花弁と2本の雄しべがはっきりとわかる花のアップ写真",
+   "平らでくぼみのある種子の側面または正面からの写真",
+   "茎と葉の付き方（特に下部の対生する葉）"
+  ],
+  "season_habitat": "主に春から初夏にかけて、日当たりの良い芝生、道端、野原、荒れ地などで見られます。"
+ },
+ "costUsd": 0.0087355
+}

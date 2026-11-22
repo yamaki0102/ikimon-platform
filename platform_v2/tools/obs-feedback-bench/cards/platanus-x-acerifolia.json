@@ -1,0 +1,77 @@
+{
+ "key": "platanus-x-acerifolia",
+ "en": {
+  "scientific_name": "Platanus x acerifolia",
+  "english_name": "London plane",
+  "rank": "species",
+  "overview": "A tall deciduous hybrid tree widely planted in Japan, famous for its mottled flaking bark and maple-like leaves.",
+  "distinguishing_tips": [
+   "Mottled bark peeling in large flakes, revealing cream, gray, and brown patches",
+   "Large alternate leaves with 3 to 5 pointed lobes",
+   "Spherical bristly seed balls hanging in pairs on long stalks",
+   "Swollen petiole base covering the axillary bud"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Oriental plane",
+    "scientific_name": "Platanus orientalis",
+    "distinction_point": "Oriental plane has deeper leaf lobes and 3 to 6 seed balls per stalk."
+   },
+   {
+    "english_name": "American sycamore",
+    "scientific_name": "Platanus occidentalis",
+    "distinction_point": "American sycamore has shallower leaf lobes and usually only one seed ball per stalk."
+   },
+   {
+    "english_name": "Sweetgum",
+    "scientific_name": "Liquidambar styraciflua",
+    "distinction_point": "Sweetgum has corky-ridged bark and star-shaped leaves without flaking mottled patches."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the mottled, peeling bark on the trunk",
+   "Hanging seed balls showing how many grow on a single stalk",
+   "Flat view of a mature leaf showing lobe depth"
+  ],
+  "season_habitat": "Deciduous tree commonly planted along city streets and in parks across Japan."
+ },
+ "ja": {
+  "scientific_name": "Platanus x acerifolia",
+  "english_name": "London plane",
+  "rank": "種",
+  "overview": "日本各地の街路樹や公園で広く見られる落葉高木です。樹皮がまだら模様に剥がれ落ちる様子や、カエデに似た大きな葉が特徴です。",
+  "distinguishing_tips": [
+   "樹皮が大きく剥がれ落ち、クリーム色、灰色、茶色のまだら模様になる",
+   "3〜5つに裂けた大きな互生の葉",
+   "長い柄の先に球状のトゲトゲした実がペアでぶら下がる",
+   "葉柄の付け根が膨らんでおり、その中に冬芽が隠れている"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Oriental plane",
+    "scientific_name": "Platanus orientalis",
+    "japanese_name": "スズカケノキ",
+    "distinction_point": "スズカケノキは葉の切れ込みがより深く、1本の柄に3〜6個の実がつきます。"
+   },
+   {
+    "english_name": "American sycamore",
+    "scientific_name": "Platanus occidentalis",
+    "japanese_name": "アメリカスズカケノキ",
+    "distinction_point": "アメリカスズカケノキは葉の切れ込みが浅く、通常1本の柄に実が1個だけつきます。"
+   },
+   {
+    "english_name": "Sweetgum",
+    "scientific_name": "Liquidambar styraciflua",
+    "japanese_name": "モミジバフウ",
+    "distinction_point": "モミジバフウは樹皮にコルク質のひだがあり、星形の葉をつけますが、樹皮がまだら模様に剥がれることはありません。"
+   }
+  ],
+  "confirm_more": [
+   "幹のまだら模様に剥がれた樹皮のアップ",
+   "1本の柄にいくつ実がついているかを確認できる写真",
+   "成熟した葉を平らに広げた、切れ込みの深さがわかる写真"
+  ],
+  "season_habitat": "日本全国の街路や公園に植栽される落葉高木。"
+ },
+ "costUsd": 0.009467999999999999
+}

@@ -62,5 +62,5 @@ test("bench spec items carry conditions and adding a model is two config lines",
   const cats = new Set(spec.items.map((i: { category: string }) => i.category));
   for (const c of ["organism", "landscape", "environment", "built", "hard"]) assert.ok(cats.has(c), c);
   const cfg = JSON.parse(readFileSync(new URL("../../tools/obs-feedback-bench/configs.json", import.meta.url), "utf8"));
-  for (const c of cfg.configs) for (const m of [c.extract, c.summary, c.sweep].filter(Boolean)) assert.ok(cfg.prices[m], m);
+  for (const c of cfg.configs) for (const m of [c.extract, c.summary, c.sweep, c.card, c.translate, c.verify].filter(Boolean)) assert.ok(cfg.prices[m], m);
 });

@@ -1,0 +1,77 @@
+{
+ "key": "helianthus-annuus",
+ "en": {
+  "scientific_name": "Helianthus annuus",
+  "english_name": "Common Sunflower",
+  "rank": "species",
+  "overview": "A tall, annual herb widely cultivated in Japan, famous for its large, bright yellow flower heads that track the sun.",
+  "distinguishing_tips": [
+   "Large flower head with bright yellow ray florets and a dark brown central disk.",
+   "Stout, hairy stem that is usually unbranched.",
+   "Broad, rough-textured, heart-shaped to ovate leaves with toothed margins.",
+   "Green, overlapping, pointed bracts beneath the flower head."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Jerusalem Artichoke",
+    "scientific_name": "Helianthus tuberosus",
+    "distinction_point": "Has much smaller flower heads with a yellow central disk and narrower leaves."
+   },
+   {
+    "english_name": "Mexican Sunflower",
+    "scientific_name": "Tithonia rotundifolia",
+    "distinction_point": "Features bright orange-red flowers and a swollen, hollow stem just below the head."
+   },
+   {
+    "english_name": "Cutleaf Coneflower",
+    "scientific_name": "Rudbeckia laciniata",
+    "distinction_point": "Has drooping yellow petals around a greenish-yellow cone and deeply lobed leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower head center showing the disk florets.",
+   "Upper surface and margin of a middle stem leaf.",
+   "Side view of the green bracts beneath the flower head."
+  ],
+  "season_habitat": "Blooms from July to September in gardens, parks, and agricultural fields across Japan."
+ },
+ "ja": {
+  "scientific_name": "Helianthus annuus",
+  "english_name": "ヒマワリ",
+  "rank": "種",
+  "overview": "日本で広く栽培されている背の高い一年草で、太陽を追うように動く大きな鮮やかな黄色の花が特徴です。",
+  "distinguishing_tips": [
+   "鮮やかな黄色の舌状花と暗褐色の筒状花からなる大きな花頭。",
+   "太く毛が生えており、通常は枝分かれしない茎。",
+   "幅広くざらついた質感で、心臓形から卵形の葉。縁には鋸歯がある。",
+   "花頭の下にある、緑色で重なり合った尖った総苞片。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "キクイモ",
+    "scientific_name": "Helianthus tuberosus",
+    "japanese_name": "キクイモ",
+    "distinction_point": "花頭がはるかに小さく、中心部が黄色い。葉もより細い。"
+   },
+   {
+    "english_name": "メキシコヒマワリ",
+    "scientific_name": "Tithonia rotundifolia",
+    "japanese_name": "メキシコヒマワリ",
+    "distinction_point": "鮮やかなオレンジ赤色の花を咲かせ、花頭のすぐ下の茎が膨らんで中空になっている。"
+   },
+   {
+    "english_name": "オオハンゴンソウ",
+    "scientific_name": "Rudbeckia laciniata",
+    "japanese_name": "オオハンゴンソウ",
+    "distinction_point": "緑がかった黄色の円錐状の花芯の周りに、垂れ下がった黄色の花びらがあり、葉は深く裂けている。"
+   }
+  ],
+  "confirm_more": [
+   "筒状花が見える花頭中心部のクローズアップ。",
+   "茎の中ほどにある葉の表面と縁の様子。",
+   "花頭の下にある総苞片の側面図。"
+  ],
+  "season_habitat": "7月から9月にかけて開花し、日本全国の庭園、公園、農地などで見られます。"
+ },
+ "costUsd": 0.0100885
+}

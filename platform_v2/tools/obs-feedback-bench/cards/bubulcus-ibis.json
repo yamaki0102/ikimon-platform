@@ -1,0 +1,77 @@
+{
+ "key": "bubulcus-ibis",
+ "en": {
+  "scientific_name": "Bubulcus ibis",
+  "english_name": "Cattle Egret",
+  "rank": "species",
+  "overview": "A compact, stocky egret often seen foraging near livestock or in dry fields, turning bright orange-buff during the breeding season.",
+  "distinguishing_tips": [
+   "Orange-buff plumes on head, neck, and back in breeding plumage.",
+   "Short, thick yellow-orange bill.",
+   "Stocky build with a relatively short neck and legs.",
+   "All-white plumage in non-breeding season."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Little Egret",
+    "scientific_name": "Egretta garzetta",
+    "distinction_point": "Has a slender black bill, black legs, and yellow feet."
+   },
+   {
+    "english_name": "Intermediate Egret",
+    "scientific_name": "Ardea intermedia",
+    "distinction_point": "Larger with a longer neck, longer legs, and lacks orange-buff breeding plumes."
+   },
+   {
+    "english_name": "Great Egret",
+    "scientific_name": "Ardea alba",
+    "distinction_point": "Much larger with a very long S-curved neck and long black legs."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the bill and head to check bill thickness and color.",
+   "Full-body side profile to assess neck length and overall stockiness.",
+   "Habitat shot showing if it is foraging in dry fields or near cattle."
+  ],
+  "season_habitat": "Summer visitor to Japan, inhabiting rice paddies, grasslands, and agricultural fields."
+ },
+ "ja": {
+  "scientific_name": "Bubulcus ibis",
+  "english_name": "Cattle Egret",
+  "rank": "種",
+  "overview": "家畜の近くや乾いた畑でよく見られる、ずんぐりとした小型のサギです。繁殖期には体色が鮮やかなオレンジ色を帯びたバフ色に変化します。",
+  "distinguishing_tips": [
+   "繁殖羽では頭部、首、背中にオレンジがかったバフ色の飾り羽が出る。",
+   "短く太い、黄色からオレンジ色のくちばし。",
+   "首と足が比較的短く、ずんぐりとした体型。",
+   "非繁殖期は全身が真っ白。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Little Egret",
+    "scientific_name": "Egretta garzetta",
+    "japanese_name": "コサギ",
+    "distinction_point": "細長い黒いくちばし、黒い足、黄色い足指を持つ。"
+   },
+   {
+    "english_name": "Intermediate Egret",
+    "scientific_name": "Ardea intermedia",
+    "japanese_name": "チュウサギ",
+    "distinction_point": "より大型で首と足が長く、繁殖期のオレンジ色の飾り羽がない。"
+   },
+   {
+    "english_name": "Great Egret",
+    "scientific_name": "Ardea alba",
+    "japanese_name": "ダイサギ",
+    "distinction_point": "非常に大型で、S字に曲がる長い首と長い黒い足を持つ。"
+   }
+  ],
+  "confirm_more": [
+   "くちばしの厚みと色を確認するための頭部のアップ。",
+   "首の長さと全体的なずんぐりとした体型を確認するための全身の側面写真。",
+   "乾いた畑や家畜の近くで採餌している様子がわかる生息環境の写真。"
+  ],
+  "season_habitat": "日本では夏鳥として渡来し、水田、草原、農耕地などに生息します。"
+ },
+ "costUsd": 0.0083015
+}

@@ -1,0 +1,46 @@
+{
+ "key": "habitat-湿地・ヨシ原",
+ "en": {
+  "habitat": "Wetlands and Reedbeds",
+  "overview": "Shallow waterlogged areas dominated by tall reeds, supporting diverse aquatic plants, insects, and wetland birds.",
+  "what_to_look_for": [
+   "Common reed (Phragmites australis) stands",
+   "Marsh birds such as reed warblers",
+   "Standing water or saturated mud",
+   "Dragonflies and damselflies"
+  ],
+  "confirm_more": [
+   "Wide landscape shot showing reedbed extent and water edge",
+   "Close-up of reed stems, leaves, or seed heads",
+   "Ground-level view of water depth and mud substrate"
+  ],
+  "management_signs": [
+   "Controlled burning scars or cut reed bundles",
+   "Wooden boardwalks or observation hides",
+   "Drainage ditches or invasive plant patches"
+  ],
+  "seasonal_note": "Reeds turn golden-brown in autumn and are often cut or burned in winter to maintain open wetland."
+ },
+ "ja": {
+  "habitat": "湿地・ヨシ原",
+  "overview": "背の高いヨシが茂る浅い湿地帯で、多様な水生植物や昆虫、水鳥の生息地となっています。",
+  "what_to_look_for": [
+   "ヨシ（Phragmites australis）の群落",
+   "ヨシキリなどの湿地性の鳥類",
+   "水たまりや湿った泥地",
+   "トンボやイトトンボの仲間"
+  ],
+  "confirm_more": [
+   "ヨシ原の広がりや水辺がわかる風景写真",
+   "ヨシの茎、葉、穂のクローズアップ",
+   "水深や泥の状態がわかる地面付近の様子"
+  ],
+  "management_signs": [
+   "野焼きの跡や刈り取られたヨシの束",
+   "木道や観察小屋",
+   "排水溝や外来植物の除去跡"
+  ],
+  "seasonal_note": "秋にはヨシが黄金色に変わり、冬には湿地を維持するために刈り取りや野焼きが行われることがあります。"
+ },
+ "costUsd": 0.0067469999999999995
+}

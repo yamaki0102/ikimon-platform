@@ -1,0 +1,66 @@
+{
+ "key": "cassiope-lycopodioides",
+ "en": {
+  "scientific_name": "Cassiope lycopodioides",
+  "english_name": "Clubmoss cassiope",
+  "rank": "species",
+  "overview": "A tiny, prostrate alpine shrublet with scale-like leaves and nodding white bell-shaped flowers on slender stalks.",
+  "distinguishing_tips": [
+   "Appressed, scale-like leaves in 4 rows",
+   "Solitary, nodding white bell-shaped flowers",
+   "Slender, reddish flower stalks",
+   "Mat-forming, creeping woody stems"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Steller's cassiope",
+    "scientific_name": "Harrimanella stelleriana",
+    "distinction_point": "Has spreading, needle-like leaves rather than tightly appressed scale-like leaves."
+   },
+   {
+    "english_name": "Aleutian mountainheath",
+    "scientific_name": "Phyllodoce aleutica",
+    "distinction_point": "Larger shrub with needle-like leaves and greenish-white urn-shaped flowers in clusters."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the 4-ranked scale-like leaves",
+   "Side view of the nodding bell-shaped flower",
+   "Overall mat-forming growth habit on rocks"
+  ],
+  "season_habitat": "Blooms in summer (July–August) on exposed alpine rocky slopes and ridges."
+ },
+ "ja": {
+  "scientific_name": "Cassiope lycopodioides",
+  "english_name": "Clubmoss cassiope",
+  "rank": "種",
+  "overview": "鱗片状の葉を持ち、細い茎の先に白い鐘形の小さな花をうつむき加減に咲かせる、這い性の小さな高山植物です。",
+  "distinguishing_tips": [
+   "4列に密着して並ぶ鱗片状の葉",
+   "単生し、うつむいて咲く白い鐘形の小花",
+   "赤みを帯びた細い花柄",
+   "岩場を這うように広がるマット状の樹木"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Steller's cassiope",
+    "scientific_name": "Harrimanella stelleriana",
+    "japanese_name": "イワヒゲ",
+    "distinction_point": "葉が密着した鱗片状ではなく、針状に開いています。"
+   },
+   {
+    "english_name": "Aleutian mountainheath",
+    "scientific_name": "Phyllodoce aleutica",
+    "japanese_name": "アオノツガザクラ",
+    "distinction_point": "より大型の低木で、針状の葉を持ち、緑白色の壺形の花を房状に咲かせます。"
+   }
+  ],
+  "confirm_more": [
+   "4列に並ぶ鱗片状の葉の接写",
+   "うつむいて咲く鐘形の花の側面",
+   "岩場にマット状に広がる全体の生育状況"
+  ],
+  "season_habitat": "夏（7月〜8月）に開花し、日当たりの良い高山の岩場や尾根筋に見られます。"
+ },
+ "costUsd": 0.00736675
+}

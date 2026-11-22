@@ -1,0 +1,66 @@
+{
+ "key": "commelina-communis",
+ "en": {
+  "scientific_name": "Commelina communis",
+  "english_name": "Asiatic dayflower",
+  "rank": "species",
+  "overview": "A common annual herb with striking two-petaled bright blue flowers emerging from folded green bracts in summer and autumn.",
+  "distinguishing_tips": [
+   "Two large bright blue upper petals and one tiny white lower petal",
+   "Boat-shaped green bract enclosing the flower bud",
+   "Yellow X-shaped sterile stamens in the center",
+   "Alternate, lance-shaped leaves with sheathing bases"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Benghal dayflower",
+    "scientific_name": "Commelina benghalensis",
+    "distinction_point": "Has broader, oval leaves and reddish-brown hairs on the leaf sheath."
+   },
+   {
+    "english_name": "Marsh dewflower",
+    "scientific_name": "Murdannia keisak",
+    "distinction_point": "Has three equal-sized pale pinkish-purple petals instead of two large blue ones."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the front of the flower showing petals and yellow stamens",
+   "Side view of the folded green bract below the flower",
+   "Leaf base and stem sheath to check for hairs"
+  ],
+  "season_habitat": "Blooms from June to October in disturbed ground, roadsides, and fields across Japan."
+ },
+ "ja": {
+  "scientific_name": "Commelina communis",
+  "english_name": "Asiatic dayflower",
+  "rank": "種",
+  "overview": "夏から秋にかけて、折りたたまれた緑色の苞（ほう）から鮮やかな青い2枚の花びらを持つ花を咲かせる、ごく一般的な一年草です。",
+  "distinguishing_tips": [
+   "鮮やかな青い大きな上側の花びら2枚と、小さな白い下側の花びら1枚",
+   "つぼみを包む舟形の緑色の苞",
+   "中央にある黄色いX字型の仮雄しべ",
+   "互生する披針形の葉と、茎を包み込む葉鞘（ようしょう）"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Benghal dayflower",
+    "scientific_name": "Commelina benghalensis",
+    "japanese_name": "マルバツユクサ",
+    "distinction_point": "葉がより幅広く卵形で、葉鞘に赤褐色の毛がある。"
+   },
+   {
+    "english_name": "Marsh dewflower",
+    "scientific_name": "Murdannia keisak",
+    "japanese_name": "イボクサ",
+    "distinction_point": "青い大きな花びらではなく、淡いピンクがかった紫色の同じ大きさの花びらが3枚ある。"
+   }
+  ],
+  "confirm_more": [
+   "花びらと黄色い雄しべがよく見える花の正面のクローズアップ",
+   "花の下にある折りたたまれた緑色の苞の側面図",
+   "毛の有無を確認するための葉の付け根と茎の鞘部分"
+  ],
+  "season_habitat": "6月から10月にかけて開花。日本全国の荒れ地、道端、畑などで見られます。"
+ },
+ "costUsd": 0.008151
+}

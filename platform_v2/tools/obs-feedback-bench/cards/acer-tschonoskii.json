@@ -1,0 +1,77 @@
+{
+ "key": "acer-tschonoskii",
+ "en": {
+  "scientific_name": "Acer tschonoskii",
+  "english_name": "Tschonoski's Maple",
+  "rank": "species",
+  "overview": "A small deciduous mountain maple of Japan with five-lobed leaves, double-serrated margins, and bright yellow to red autumn foliage.",
+  "distinguishing_tips": [
+   "Leaves have 5 pointed lobes with double-serrated edges",
+   "Slender reddish-purple petioles and young twigs",
+   "Small greenish-yellow flowers in hanging racemes",
+   "Samaras (winged seeds) spread at an obtuse angle"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Fullmoon Maple",
+    "scientific_name": "Acer japonicum",
+    "distinction_point": "Acer japonicum has larger leaves with 7 to 11 lobes instead of 5."
+   },
+   {
+    "english_name": "Red-vein Maple",
+    "scientific_name": "Acer rufinerve",
+    "distinction_point": "Acer rufinerve has 3-lobed leaves and distinctive green bark with white vertical stripes."
+   },
+   {
+    "english_name": "Painted Maple",
+    "scientific_name": "Acer pictum",
+    "distinction_point": "Acer pictum has smooth, untoothed leaf margins, whereas Tschonoski's Maple has serrated edges."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a single leaf showing the 5 lobes and serrated margin",
+   "Underside of the leaf and the reddish petiole attachment",
+   "Winged fruits (samaras) or bark of the main trunk"
+  ],
+  "season_habitat": "Found in subalpine and cool-temperate mountain forests across Japan, peaking in autumn color from September to November."
+ },
+ "ja": {
+  "scientific_name": "Acer tschonoskii",
+  "english_name": "ミネカエデ",
+  "rank": "種",
+  "overview": "日本に自生する小型の落葉高木で、5つに裂けた葉と重鋸歯（じゅうきょし）が特徴です。秋には鮮やかな黄色から赤色に紅葉します。",
+  "distinguishing_tips": [
+   "葉は5つに裂け、縁には重鋸歯がある",
+   "赤紫色の細い葉柄と若い枝",
+   "垂れ下がる総状花序につく小さな黄緑色の花",
+   "鈍角に開く翼果（種子）"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Fullmoon Maple",
+    "scientific_name": "Acer japonicum",
+    "japanese_name": "ハウチワカエデ",
+    "distinction_point": "ハウチワカエデは葉が大きく、裂片が5つではなく7〜11個あります。"
+   },
+   {
+    "english_name": "Red-vein Maple",
+    "scientific_name": "Acer rufinerve",
+    "japanese_name": "ウリハダカエデ",
+    "distinction_point": "ウリハダカエデは葉が3裂し、緑色の樹皮に白い縦縞が入るのが特徴です。"
+   },
+   {
+    "english_name": "Painted Maple",
+    "scientific_name": "Acer pictum",
+    "japanese_name": "イタヤカエデ",
+    "distinction_point": "イタヤカエデの葉の縁は滑らかで鋸歯がありませんが、ミネカエデには鋸歯があります。"
+   }
+  ],
+  "confirm_more": [
+   "5つの裂片と縁の鋸歯がわかる葉のクローズアップ",
+   "葉の裏側と赤みを帯びた葉柄の付け根",
+   "翼果（種子）または幹の樹皮"
+  ],
+  "season_habitat": "日本の亜高山帯から冷温帯の山林に自生し、9月から11月にかけて紅葉が見頃を迎えます。"
+ },
+ "costUsd": 0.0037147499999999997
+}

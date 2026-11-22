@@ -1,0 +1,77 @@
+{
+ "key": "plantaginaceae",
+ "en": {
+  "scientific_name": "Plantaginaceae",
+  "english_name": "Plantain family",
+  "rank": "family",
+  "overview": "A diverse family of mostly herbaceous plants, including common roadside plantains and many former snapdragon relatives with tubular or spike-like flowers.",
+  "distinguishing_tips": [
+   "Basal rosettes with parallel-veined leaves in Plantago",
+   "Dense upright flower spikes or tubular two-lipped flowers",
+   "Opposite or alternate simple leaves without stipules",
+   "Capsular fruits splitting open to release many small seeds"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Figwort family",
+    "scientific_name": "Scrophulariaceae",
+    "distinction_point": "Often has more strongly bilateral flowers with five-lobed calyxes and lacks parallel-veined basal rosettes."
+   },
+   {
+    "english_name": "Mint family",
+    "scientific_name": "Lamiaceae",
+    "distinction_point": "Typically has square stems, aromatic foliage, and four-nutlet fruits rather than capsules."
+   },
+   {
+    "english_name": "Broomrape family",
+    "scientific_name": "Orobanchaceae",
+    "distinction_point": "Usually parasitic plants, often lacking chlorophyll or having distinctive hooded upper flower lips."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower from the front and side",
+   "Basal leaves or stem leaf arrangement",
+   "Whole plant habit showing stems and root base"
+  ],
+  "season_habitat": "Spring to autumn in roadsides, meadows, wetlands, and disturbed areas across Japan."
+ },
+ "ja": {
+  "scientific_name": "Plantaginaceae",
+  "english_name": "オオバコ科",
+  "rank": "科",
+  "overview": "道端で見かけるオオバコや、かつてゴマノハグサ科に分類されていた筒状花や穂状花をつける植物など、多様な草本を含むグループです。",
+  "distinguishing_tips": [
+   "オオバコ属は根生葉（ロゼット）で、葉脈が平行に走る",
+   "直立する密な穂状花序、または筒状の唇形花をつける",
+   "葉は対生または互生し、托葉はない",
+   "果実は蒴果で、裂開して小さな種子を多数放出する"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Figwort family",
+    "scientific_name": "Scrophulariaceae",
+    "japanese_name": "ゴマノハグサ科",
+    "distinction_point": "より強い左右相称の花を持ち、萼が5裂することが多い。また、平行脈を持つ根生葉のロゼットは見られない。"
+   },
+   {
+    "english_name": "Mint family",
+    "scientific_name": "Lamiaceae",
+    "japanese_name": "シソ科",
+    "distinction_point": "茎が四角形で、芳香のある葉を持ち、果実は蒴果ではなく4個の分果になる。"
+   },
+   {
+    "english_name": "Broomrape family",
+    "scientific_name": "Orobanchaceae",
+    "japanese_name": "ハマウツボ科",
+    "distinction_point": "多くは寄生植物で、葉緑素を持たないか、花の上唇が特徴的な兜状になる。"
+   }
+  ],
+  "confirm_more": [
+   "花を正面および側面から撮影したクローズアップ写真",
+   "根生葉または茎葉の付き方",
+   "茎や根元を含む植物全体の姿"
+  ],
+  "season_habitat": "春から秋にかけて、日本全国の道端、草地、湿地、荒れ地などで見られます。"
+ },
+ "costUsd": 0.0084625
+}

@@ -1,0 +1,46 @@
+{
+ "key": "habitat-海岸砂丘",
+ "en": {
+  "habitat": "Coastal Sand Dunes",
+  "overview": "Wind-sculpted sandy ridges along Japan's coasts, supporting specialized salt-tolerant plants and dynamic, shifting habitats.",
+  "what_to_look_for": [
+   "Sea bindweed (Calystegia soldanella) creeping on sand",
+   "Asiatic sand sedge (Carex kobomugi) stabilizing dunes",
+   "Tiger beetles or wolf spiders on open sand",
+   "Wind-rippled sand surfaces and dune crests"
+  ],
+  "confirm_more": [
+   "Wide shot from the beach showing dune profile",
+   "Close-up of creeping plant roots binding sand",
+   "Low-angle view of sand ripples and wind direction"
+  ],
+  "management_signs": [
+   "Wooden sand fences or windbreak nets",
+   "Planted black pine (Pinus thunbergii) belts",
+   "Vehicle tracks or heavy foot-trampling paths"
+  ],
+  "seasonal_note": "Late spring brings pink sea bindweed blooms, while winter winds reshape the bare sand."
+ },
+ "ja": {
+  "habitat": "海岸砂丘",
+  "overview": "日本の海岸線に沿って広がる、風によって形作られた砂の尾根です。塩分に強い特殊な植物が生育し、常に変化し続けるダイナミックな環境です。",
+  "what_to_look_for": [
+   "砂の上を這うハマヒルガオ",
+   "砂丘を固定するコウボウムギ",
+   "開けた砂地で見られるハンミョウやコモリグモ",
+   "風紋が刻まれた砂の表面や砂丘の頂上"
+  ],
+  "confirm_more": [
+   "砂丘の断面がわかるビーチからの広角ショット",
+   "砂を固定している植物の根元のクローズアップ",
+   "風紋と風向きがわかるローアングルでの撮影"
+  ],
+  "management_signs": [
+   "木製の砂留め柵や防風ネット",
+   "植栽されたクロマツの防風林",
+   "車両の轍や激しい踏み荒らしの跡"
+  ],
+  "seasonal_note": "晩春にはハマヒルガオがピンク色の花を咲かせ、冬には強い季節風がむき出しの砂を再形成します。"
+ },
+ "costUsd": 0.0057220000000000005
+}

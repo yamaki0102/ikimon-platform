@@ -1,0 +1,77 @@
+{
+ "key": "libellulidae",
+ "en": {
+  "scientific_name": "Libellulidae",
+  "english_name": "Skimmers",
+  "rank": "family",
+  "overview": "A diverse family of medium-sized dragonflies that frequently perch on exposed twigs or grass tips in sunny open habitats.",
+  "distinguishing_tips": [
+   "Eyes meet broadly at the top of the head",
+   "Often perch horizontally with wings angled forward",
+   "Hindwings noticeably broader at the base than forewings",
+   "Many species show bright red, yellow, or patterned wings"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Emeralds",
+    "scientific_name": "Corduliidae",
+    "distinction_point": "Usually have metallic green bodies and eyes, whereas most skimmers lack metallic coloration."
+   },
+   {
+    "english_name": "Clubtails",
+    "scientific_name": "Gomphidae",
+    "distinction_point": "Eyes are clearly separated on top of the head, not touching like skimmers."
+   },
+   {
+    "english_name": "Darners",
+    "scientific_name": "Aeshnidae",
+    "distinction_point": "Larger with elongated abdomens and typically hang vertically rather than perching horizontally."
+   }
+  ],
+  "confirm_more": [
+   "Top-down view of the head to check eye contact",
+   "Side view of the thorax and abdomen markings",
+   "Close-up of wing venation and basal wing spots"
+  ],
+  "season_habitat": "Active from spring to late autumn around ponds, marshes, rice paddies, and open grasslands."
+ },
+ "ja": {
+  "scientific_name": "Libellulidae",
+  "english_name": "トンボ科",
+  "rank": "科",
+  "overview": "日当たりの良い開けた環境を好み、枝先や草の先端によく止まる、中型のトンボの多様なグループです。",
+  "distinguishing_tips": [
+   "頭頂部で複眼が広く接している",
+   "水平に止まり、翅を前方に傾けることが多い",
+   "後翅の付け根が前翅よりも明らかに幅広くなっている",
+   "鮮やかな赤や黄色、または模様のある翅を持つ種が多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "エゾトンボ科",
+    "scientific_name": "Corduliidae",
+    "japanese_name": "エゾトンボ科",
+    "distinction_point": "体や複眼が金属光沢を持つものが多い。多くのトンボ科にはこのような金属光沢がない。"
+   },
+   {
+    "english_name": "サナエトンボ科",
+    "scientific_name": "Gomphidae",
+    "japanese_name": "サナエトンボ科",
+    "distinction_point": "頭頂部で複眼がはっきりと離れており、トンボ科のように接していない。"
+   },
+   {
+    "english_name": "ヤンマ科",
+    "scientific_name": "Aeshnidae",
+    "japanese_name": "ヤンマ科",
+    "distinction_point": "体が大きく腹部が長い。トンボ科のように水平に止まることは少なく、通常は垂直にぶら下がる。"
+   }
+  ],
+  "confirm_more": [
+   "頭部を上から見て複眼の接し方を確認する",
+   "胸部と腹部の模様を横から観察する",
+   "翅の脈や付け根の斑紋を接写する"
+  ],
+  "season_habitat": "春から晩秋にかけて、池、沼、水田、開けた草原などで活動する。"
+ },
+ "costUsd": 0.00880525
+}

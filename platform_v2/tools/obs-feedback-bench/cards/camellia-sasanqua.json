@@ -1,0 +1,66 @@
+{
+ "key": "camellia-sasanqua",
+ "en": {
+  "scientific_name": "Camellia sasanqua",
+  "english_name": "Sasanqua camellia",
+  "rank": "species",
+  "overview": "An evergreen shrub native to southern Japan, prized for its fragrant, flat-petaled flowers that bloom from autumn into early winter.",
+  "distinguishing_tips": [
+   "Petals fall individually, scattering on the ground",
+   "Young stems and leaf midribs are finely hairy",
+   "Flowers open flat with spreading petals",
+   "Leaves are glossy, dark green with finely serrated edges"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese camellia",
+    "scientific_name": "Camellia japonica",
+    "distinction_point": "Drops whole flowers intact rather than individual petals, and has hairless young shoots."
+   },
+   {
+    "english_name": "Tea plant",
+    "scientific_name": "Camellia sinensis",
+    "distinction_point": "Has smaller, nodding white flowers and duller, more deeply veined leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of fallen petals on the ground beneath the shrub",
+   "Young twigs and the underside of leaf midribs to show fine hairs",
+   "Side view of an open flower showing petal attachment"
+  ],
+  "season_habitat": "Blooms October to December in coastal forests of southern Japan, and widely planted in parks and gardens nationwide."
+ },
+ "ja": {
+  "scientific_name": "Camellia sasanqua",
+  "english_name": "Sasanqua camellia",
+  "rank": "species",
+  "overview": "日本南部原産の常緑低木。秋から初冬にかけて咲く、香り高い平開した花が特徴です。",
+  "distinguishing_tips": [
+   "花びらが一枚ずつ散る",
+   "若い枝や葉の主脈に細かい毛が生えている",
+   "花びらが平らに開く",
+   "葉は光沢のある濃い緑色で、縁に細かい鋸歯がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese camellia",
+    "scientific_name": "Camellia japonica",
+    "japanese_name": "ヤブツバキ",
+    "distinction_point": "花が花びらごとに散らず、花ごとポトリと落ちる。また、若い枝に毛がない。"
+   },
+   {
+    "english_name": "Tea plant",
+    "scientific_name": "Camellia sinensis",
+    "japanese_name": "チャノキ",
+    "distinction_point": "より小さくうつむき加減に咲く白い花をつけ、葉は光沢が少なく、葉脈がより深く目立つ。"
+   }
+  ],
+  "confirm_more": [
+   "木の下に落ちている花びらの様子",
+   "若い枝や葉の裏の主脈にある細かい毛",
+   "花びらの付き方がわかる、開いた花の横からの姿"
+  ],
+  "season_habitat": "10月から12月にかけて開花。日本南部の沿岸林に自生し、全国の公園や庭園にも広く植栽されている。"
+ },
+ "costUsd": 0.00762
+}

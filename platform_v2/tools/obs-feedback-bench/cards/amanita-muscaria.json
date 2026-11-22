@@ -1,0 +1,77 @@
+{
+ "key": "amanita-muscaria",
+ "en": {
+  "scientific_name": "Amanita muscaria",
+  "english_name": "Fly agaric",
+  "rank": "species",
+  "overview": "A toxic, iconic mushroom with a bright red cap dotted with white warts, found in Japan's cool highland birch and conifer forests.",
+  "distinguishing_tips": [
+   "Bright red to orange-red cap with white warts",
+   "White gills and white stem with a skirt-like ring",
+   "Bulbous stem base with concentric rings of warts",
+   "Striated cap margin in mature specimens"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Caesar's mushroom",
+    "scientific_name": "Amanita caesareoides",
+    "distinction_point": "Lacks white warts on the cap and has yellow gills and stem."
+   },
+   {
+    "english_name": "Panther cap",
+    "scientific_name": "Amanita pantherina",
+    "distinction_point": "Has a brown to grayish-brown cap instead of bright red."
+   },
+   {
+    "english_name": "The sickener",
+    "scientific_name": "Russula emetica",
+    "distinction_point": "Lacks warts on the cap, a ring on the stem, and a bulbous base."
+   }
+  ],
+  "confirm_more": [
+   "Top of the cap showing white warts and margin striations",
+   "Underside showing white gills and the stem ring",
+   "Base of the stem dug out to show the bulbous volva"
+  ],
+  "season_habitat": "Late summer to autumn in highland birch, pine, and fir forests."
+ },
+ "ja": {
+  "scientific_name": "Amanita muscaria",
+  "english_name": "ベニテングタケ",
+  "rank": "種",
+  "overview": "鮮やかな赤色の傘に白いイボが点在する、毒を持つ象徴的なキノコです。日本の冷涼な高地のシラカバや針葉樹の林で見られます。",
+  "distinguishing_tips": [
+   "鮮やかな赤色から赤橙色の傘に白いイボがある",
+   "白いヒダと、スカート状のツバがある白い柄",
+   "柄の根元が膨らんでおり、同心円状のイボがある",
+   "成熟すると傘の縁に条線（溝）が現れる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Caesar's mushroom",
+    "scientific_name": "Amanita caesareoides",
+    "japanese_name": "タマゴタケ",
+    "distinction_point": "傘に白いイボがなく、ヒダと柄が黄色い。"
+   },
+   {
+    "english_name": "Panther cap",
+    "scientific_name": "Amanita pantherina",
+    "japanese_name": "テングタケ",
+    "distinction_point": "傘の色が鮮やかな赤ではなく、褐色から灰褐色である。"
+   },
+   {
+    "english_name": "The sickener",
+    "scientific_name": "Russula emetica",
+    "japanese_name": "ドクベニタケ",
+    "distinction_point": "傘にイボがなく、柄にツバがなく、根元も膨らんでいない。"
+   }
+  ],
+  "confirm_more": [
+   "白いイボと傘の縁の条線が確認できる傘の上面",
+   "白いヒダと柄のツバが確認できる裏面",
+   "掘り起こして膨らんだツボ（根元）を確認する"
+  ],
+  "season_habitat": "晩夏から秋にかけて、高地のシラカバ、マツ、モミの林に生息。"
+ },
+ "costUsd": 0.008882
+}

@@ -1,0 +1,77 @@
+{
+ "key": "pinopsida",
+ "en": {
+  "scientific_name": "Pinopsida",
+  "english_name": "Conifers",
+  "rank": "class",
+  "overview": "Evergreen or deciduous woody plants bearing cones and needle-like or scale-like leaves, dominating many cool-temperate and subalpine forests in Japan.",
+  "distinguishing_tips": [
+   "Needle-like, linear, or scale-like leaves",
+   "Woody or fleshy cones instead of true flowers",
+   "Resinous bark and aromatic crushed foliage",
+   "Typically conical or pyramidal crown shape"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgopsida",
+    "distinction_point": "Has fan-shaped, notched leaves and fleshy plum-like seeds rather than needles and woody cones."
+   },
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycadopsida",
+    "distinction_point": "Features a palm-like crown of stiff, pinnate fronds on a stout, unbranched trunk."
+   },
+   {
+    "english_name": "She-oaks",
+    "scientific_name": "Casuarinaceae",
+    "distinction_point": "Possesses jointed, green twigs with tiny whorled leaf scales and small, woody, cone-like fruits."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of needles or scales showing their arrangement on the twig",
+   "Mature seed cones or pollen cones",
+   "Bark texture and overall tree silhouette"
+  ],
+  "season_habitat": "Year-round across Japan, from coastal lowlands and temple grounds to subalpine mountain forests."
+ },
+ "ja": {
+  "scientific_name": "Pinopsida",
+  "english_name": "針葉樹類",
+  "rank": "綱",
+  "overview": "球果（松ぼっくりなど）をつけ、針状または鱗片状の葉を持つ常緑または落葉性の木本植物です。日本の冷温帯から亜高山帯の森林の多くを占めています。",
+  "distinguishing_tips": [
+   "針状、線状、または鱗片状の葉",
+   "花ではなく、木質または多肉質の球果をつける",
+   "樹脂を含む樹皮と、揉むと芳香がする葉",
+   "一般的に円錐形またはピラミッド型の樹形"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgopsida",
+    "japanese_name": "イチョウ綱",
+    "distinction_point": "針葉や木質の球果ではなく、扇形で切れ込みのある葉と、プラムのような多肉質の種子を持つ。"
+   },
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycadopsida",
+    "japanese_name": "ソテツ綱",
+    "distinction_point": "枝分かれしない太い幹の頂部に、硬い羽状複葉がヤシのように広がる。"
+   },
+   {
+    "english_name": "She-oaks",
+    "scientific_name": "Casuarinaceae",
+    "japanese_name": "モクマオウ科",
+    "distinction_point": "節のある緑色の小枝に、輪生する小さな鱗片状の葉がつき、小さな木質の球果状の果実をつける。"
+   }
+  ],
+  "confirm_more": [
+   "小枝における葉のつき方がわかる針葉や鱗片の接写",
+   "成熟した種子球果または雄花（花粉球果）",
+   "樹皮の質感と木全体のシルエット"
+  ],
+  "season_habitat": "日本全国で一年中見られ、沿岸の低地や寺社の境内から亜高山帯の山林まで広く分布する。"
+ },
+ "costUsd": 0.009904
+}

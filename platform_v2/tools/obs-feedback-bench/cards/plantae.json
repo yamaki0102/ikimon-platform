@@ -1,0 +1,66 @@
+{
+ "key": "plantae",
+ "en": {
+  "scientific_name": "Plantae",
+  "english_name": "Plants",
+  "rank": "kingdom",
+  "overview": "Multicellular, mostly photosynthetic organisms including trees, shrubs, herbs, ferns, and mosses found across all terrestrial and freshwater habitats in Japan.",
+  "distinguishing_tips": [
+   "Green leaves or stems containing chlorophyll",
+   "Anchored by roots or rhizoids to soil, rock, or bark",
+   "Rigid, non-motile body structure",
+   "Distinct organs such as leaves, stems, flowers, or cones"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Fungi",
+    "scientific_name": "Fungi",
+    "distinction_point": "Fungi lack green chlorophyll and never produce true leaves or flowers."
+   },
+   {
+    "english_name": "Brown algae",
+    "scientific_name": "Phaeophyceae",
+    "distinction_point": "Marine seaweeds that lack true roots, stems, and vascular tissues."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of leaves, needles, or fronds",
+   "Flowers, cones, or spore-bearing structures",
+   "Overall growth form and attachment to substrate"
+  ],
+  "season_habitat": "Present year-round across forests, grasslands, wetlands, and urban areas throughout Japan."
+ },
+ "ja": {
+  "scientific_name": "Plantae",
+  "english_name": "植物界",
+  "rank": "界",
+  "overview": "樹木、低木、草本、シダ、コケなど、光合成を行う多細胞生物の総称です。日本全国の陸上および淡水域に広く生息しています。",
+  "distinguishing_tips": [
+   "葉や茎に葉緑体を含み、緑色をしている",
+   "根や仮根によって土壌、岩、樹皮などに固着している",
+   "硬い体構造を持ち、自力で移動しない",
+   "葉、茎、花、球果などの明確な器官を持つ"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "菌類",
+    "scientific_name": "Fungi",
+    "japanese_name": "菌界",
+    "distinction_point": "葉緑体を持たず、光合成を行いません。また、本物の葉や花をつけることもありません。"
+   },
+   {
+    "english_name": "褐藻類",
+    "scientific_name": "Phaeophyceae",
+    "japanese_name": "褐藻綱",
+    "distinction_point": "主に海に生息する海藻で、陸上植物のような本物の根、茎、維管束を持ちません。"
+   }
+  ],
+  "confirm_more": [
+   "葉、針葉、シダの葉のクローズアップ",
+   "花、球果、胞子を形成する構造",
+   "全体の成長形態と、何に付着しているか"
+  ],
+  "season_habitat": "日本全国の森林、草原、湿地、都市部など、一年を通じて観察できます。"
+ },
+ "costUsd": 0.00894825
+}

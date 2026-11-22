@@ -1,0 +1,77 @@
+{
+ "key": "acer",
+ "en": {
+  "scientific_name": "Acer",
+  "english_name": "Maples",
+  "rank": "genus",
+  "overview": "Deciduous trees and shrubs famous for vibrant autumn foliage, opposite palmate leaves, and distinctive paired winged samara fruits.",
+  "distinguishing_tips": [
+   "Opposite leaves, mostly palmately lobed or compound",
+   "Paired winged fruits (samaras) hanging in clusters",
+   "Smooth or shallowly fissured gray-brown bark",
+   "Brilliant red, orange, or yellow autumn foliage"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Castor aralia",
+    "scientific_name": "Kalopanax septemlobus",
+    "distinction_point": "Has alternate leaves and stout thorns on the trunk and twigs."
+   },
+   {
+    "english_name": "Sweetgums",
+    "scientific_name": "Liquidambar",
+    "distinction_point": "Has alternate leaves and spiky spherical fruits instead of winged samaras."
+   },
+   {
+    "english_name": "Japanese aralia",
+    "scientific_name": "Fatsia japonica",
+    "distinction_point": "An evergreen shrub with thick, glossy alternate leaves and round berry clusters."
+   }
+  ],
+  "confirm_more": [
+   "Leaf arrangement on the twig to confirm opposite pairs",
+   "Underside of the leaf and petiole attachment",
+   "Close-up of any paired winged seeds (samaras)"
+  ],
+  "season_habitat": "Widely found in mountain forests, parks, and gardens across Japan, especially conspicuous in spring and autumn."
+ },
+ "ja": {
+  "scientific_name": "Acer",
+  "english_name": "カエデ属",
+  "rank": "属",
+  "overview": "鮮やかな紅葉、対生する掌状の葉、そして特徴的な対になった翼果（プロペラ状の種子）で知られる落葉高木および低木です。",
+  "distinguishing_tips": [
+   "葉は対生し、多くは掌状に裂けるか複葉になる",
+   "対になった翼果（種子）が房状にぶら下がる",
+   "樹皮は滑らかか、浅く裂け目が入る灰褐色",
+   "秋には鮮やかな赤、オレンジ、黄色に紅葉する"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ハリギリ",
+    "scientific_name": "Kalopanax septemlobus",
+    "japanese_name": "ハリギリ",
+    "distinction_point": "葉は互生し、幹や枝に太い棘がある。"
+   },
+   {
+    "english_name": "フウ属",
+    "scientific_name": "Liquidambar",
+    "japanese_name": "フウ属",
+    "distinction_point": "葉は互生し、翼果ではなくトゲのある球状の果実をつける。"
+   },
+   {
+    "english_name": "ヤツデ",
+    "scientific_name": "Fatsia japonica",
+    "japanese_name": "ヤツデ",
+    "distinction_point": "厚みのある光沢を持った葉が互生する常緑低木で、丸い果実の房をつける。"
+   }
+  ],
+  "confirm_more": [
+   "枝の葉の付き方が対生しているか確認する",
+   "葉の裏側と葉柄の付け根を観察する",
+   "対になった翼果（種子）を接写する"
+  ],
+  "season_habitat": "日本の山林、公園、庭園などで広く見られ、特に春の新緑と秋の紅葉の時期に目立ちます。"
+ },
+ "costUsd": 0.0070065
+}

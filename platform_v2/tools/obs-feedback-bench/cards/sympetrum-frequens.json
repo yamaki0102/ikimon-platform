@@ -1,0 +1,77 @@
+{
+ "key": "sympetrum-frequens",
+ "en": {
+  "scientific_name": "Sympetrum frequens",
+  "english_name": "Autumn darter",
+  "rank": "species",
+  "overview": "A classic Japanese red dragonfly that migrates to cool mountains in summer and returns to lowland fields in autumn.",
+  "distinguishing_tips": [
+   "Mature males have a bright red abdomen and a brownish-red thorax.",
+   "Face remains pale brownish-yellow, never turning bright red.",
+   "Wings are clear with no dark patches at the tips.",
+   "Black stripes on the side of the thorax are thin and pointed."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Darwin's darter",
+    "scientific_name": "Sympetrum darwinianum",
+    "distinction_point": "Mature males turn bright red on the thorax and face as well as the abdomen."
+   },
+   {
+    "english_name": "Infuscated darter",
+    "scientific_name": "Sympetrum infuscatum",
+    "distinction_point": "Has distinct dark brown patches at the tips of all four wings."
+   },
+   {
+    "english_name": "Erotic darter",
+    "scientific_name": "Sympetrum eroticum",
+    "distinction_point": "Smaller, with two black spots on the front of the face resembling eyebrows."
+   }
+  ],
+  "confirm_more": [
+   "Side view of the thorax to clearly show the black stripe pattern.",
+   "Close-up of the face from the front to check its color and markings.",
+   "Top-down view of the wings to confirm the absence of dark wingtip patches."
+  ],
+  "season_habitat": "Common from summer to late autumn in rice paddies, grasslands, and open fields across Japan."
+ },
+ "ja": {
+  "scientific_name": "Sympetrum frequens",
+  "english_name": "Autumn darter",
+  "rank": "species",
+  "overview": "日本の秋を代表する赤トンボです。夏の間は涼しい山地で過ごし、秋になると平地の田んぼや野原に戻ってきます。",
+  "distinguishing_tips": [
+   "成熟したオスは腹部が鮮やかな赤色、胸部が赤褐色になります。",
+   "顔は赤くならず、淡い茶黄色を保ちます。",
+   "翅は透明で、先端に黒い斑紋はありません。",
+   "胸部の側面にある黒い筋模様は細く、先が尖っています。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Darwin's darter",
+    "scientific_name": "Sympetrum darwinianum",
+    "japanese_name": "ナツアカネ",
+    "distinction_point": "成熟したオスは腹部だけでなく、胸部や顔まで真っ赤になります。"
+   },
+   {
+    "english_name": "Infuscated darter",
+    "scientific_name": "Sympetrum infuscatum",
+    "japanese_name": "ノシメトンボ",
+    "distinction_point": "翅の先端すべてに、はっきりとした暗褐色の斑紋があります。"
+   },
+   {
+    "english_name": "Erotic darter",
+    "scientific_name": "Sympetrum eroticum",
+    "japanese_name": "マイコアカネ",
+    "distinction_point": "体が小さく、顔の正面に眉毛のような2つの黒い斑点があります。"
+   }
+  ],
+  "confirm_more": [
+   "胸部の側面を横から撮影し、黒い筋模様の形を確認する。",
+   "顔を正面から接写し、色や模様を確認する。",
+   "翅を真上から撮影し、先端に斑紋がないことを確認する。"
+  ],
+  "season_habitat": "夏から晩秋にかけて、日本全国の田んぼ、草原、開けた野原でよく見られます。"
+ },
+ "costUsd": 0.011294
+}

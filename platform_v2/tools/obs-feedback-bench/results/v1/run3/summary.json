@@ -1,0 +1,164 @@
+[
+ {
+  "id": "single-gemma4",
+  "n": 45,
+  "quality": 97.9,
+  "p50ms": 47674,
+  "p95ms": 64302,
+  "costPer1000Usd": 1.59,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.27,
+  "byCategory": {
+   "organism": 100,
+   "environment": 99,
+   "landscape": 96,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 100
+  }
+ },
+ {
+  "id": "single-deepseek41",
+  "n": 45,
+  "quality": 97,
+  "p50ms": 16801,
+  "p95ms": 33638,
+  "costPer1000Usd": 5.97,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.33,
+  "byCategory": {
+   "organism": 100,
+   "environment": 100,
+   "landscape": 96,
+   "built": 97,
+   "hard": 98,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "prod",
+  "n": 45,
+  "quality": 95.9,
+  "p50ms": 17995,
+  "p95ms": 25642,
+  "costPer1000Usd": 44.31,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 100,
+   "environment": 95,
+   "landscape": 100,
+   "built": 100,
+   "hard": 87,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "single-g35lite",
+  "n": 45,
+  "quality": 95.9,
+  "p50ms": 7252,
+  "p95ms": 8887,
+  "costPer1000Usd": 8.58,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.3,
+  "byCategory": {
+   "organism": 100,
+   "environment": 99,
+   "landscape": 98,
+   "built": 100,
+   "hard": 88,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "slim-g35lite",
+  "n": 45,
+  "quality": 94.9,
+  "p50ms": 8571,
+  "p95ms": 10379,
+  "costPer1000Usd": 10.78,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.24,
+  "byCategory": {
+   "environment": 98,
+   "organism": 98,
+   "landscape": 98,
+   "built": 94,
+   "hard": 84,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "slim-lite",
+  "n": 45,
+  "quality": 94,
+  "p50ms": 8560,
+  "p95ms": 9496,
+  "costPer1000Usd": 6.88,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.3,
+  "byCategory": {
+   "environment": 93,
+   "organism": 97,
+   "landscape": 98,
+   "built": 97,
+   "hard": 87,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "slim-deepseek41",
+  "n": 45,
+  "quality": 94,
+  "p50ms": 24527,
+  "p95ms": 31236,
+  "costPer1000Usd": 8.23,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.39,
+  "byCategory": {
+   "organism": 96,
+   "environment": 98,
+   "landscape": 98,
+   "built": 100,
+   "hard": 84,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "slim-prod",
+  "n": 45,
+  "quality": 93.8,
+  "p50ms": 13053,
+  "p95ms": 16034,
+  "costPer1000Usd": 18.21,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.39,
+  "byCategory": {
+   "environment": 95,
+   "organism": 100,
+   "landscape": 90,
+   "built": 96,
+   "hard": 84,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "single-lite",
+  "n": 45,
+  "quality": 93.2,
+  "p50ms": 5813,
+  "p95ms": 6964,
+  "costPer1000Usd": 5.24,
+  "failureRate": 0.022222222222222223,
+  "winRateVsBaseline": 0.2,
+  "byCategory": {
+   "organism": 100,
+   "environment": 96,
+   "landscape": 94,
+   "built": 80,
+   "hard": 88,
+   "hidden-subject": 70
+  }
+ }
+]

@@ -1,0 +1,77 @@
+{
+ "key": "tetragnatha",
+ "en": {
+  "scientific_name": "Tetragnatha",
+  "english_name": "Long-jawed Orbweavers",
+  "rank": "genus",
+  "overview": "Slender, elongated orb-weaving spiders with notably long legs and large, projecting chelicerae, commonly seen resting stretched along vegetation near water.",
+  "distinguishing_tips": [
+   "Very slender, elongated abdomen and carapace.",
+   "Extremely long legs, often held stretched straight forward and backward.",
+   "Large, prominent jaws (chelicerae) projecting forward.",
+   "Horizontal or tilted orb webs with an open hub."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Thick-jawed Spiders",
+    "scientific_name": "Pachygnatha",
+    "distinction_point": "Has a shorter, rounder abdomen and does not build orb webs as adults."
+   },
+   {
+    "english_name": "Orchard Orbweavers",
+    "scientific_name": "Leucauge",
+    "distinction_point": "Has a plumper, metallic-silver abdomen and much shorter jaws."
+   },
+   {
+    "english_name": "Feather-legged Orbweavers",
+    "scientific_name": "Uloborus",
+    "distinction_point": "Lacks large projecting jaws and has hairy, tufted front legs."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the face and jaws (chelicerae) from the front or side.",
+   "Dorsal view of the abdomen pattern and spinnerets.",
+   "Wide shot showing the horizontal orb web structure."
+  ],
+  "season_habitat": "Active from spring to autumn in tall grass, wetlands, and vegetation near streams or ponds."
+ },
+ "ja": {
+  "scientific_name": "Tetragnatha",
+  "english_name": "アシナガグモ属",
+  "rank": "属",
+  "overview": "細長く伸びた体と非常に長い脚、そして突き出した大きな牙（鋏角）が特徴のアシナガグモの仲間です。水辺の植物の上で、体を一直線に伸ばして静止している姿がよく見られます。",
+  "distinguishing_tips": [
+   "腹部と頭胸部が非常に細長い。",
+   "脚が極めて長く、前後にまっすぐ伸ばして静止することが多い。",
+   "前方に突き出した大きく目立つ牙（鋏角）を持つ。",
+   "中心部が空いた、水平または傾いた円網（クモの巣）を張る。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Thick-jawed Spiders",
+    "scientific_name": "Pachygnatha",
+    "japanese_name": "アゴブトグモ属",
+    "distinction_point": "腹部が短く丸みを帯びており、成体は円網を張らない。"
+   },
+   {
+    "english_name": "Orchard Orbweavers",
+    "scientific_name": "Leucauge",
+    "japanese_name": "チュウガタコガネグモ属",
+    "distinction_point": "腹部がふっくらとしており、金属光沢がある。牙は非常に小さい。"
+   },
+   {
+    "english_name": "Feather-legged Orbweavers",
+    "scientific_name": "Uloborus",
+    "japanese_name": "ウズグモ属",
+    "distinction_point": "前方に突き出した大きな牙はなく、前脚に毛の束がある。"
+   }
+  ],
+  "confirm_more": [
+   "正面または横からの顔と牙（鋏角）のクローズアップ写真。",
+   "腹部の模様と糸疣（いとイボ）が確認できる背面からの写真。",
+   "水平に張られた円網の構造全体がわかる引きの構図。"
+  ],
+  "season_habitat": "春から秋にかけて活動し、背の高い草地や湿地、小川や池の周辺の植物で見られます。"
+ },
+ "costUsd": 0.0104075
+}

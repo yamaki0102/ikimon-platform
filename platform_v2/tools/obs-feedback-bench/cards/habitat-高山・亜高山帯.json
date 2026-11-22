@@ -1,0 +1,51 @@
+{
+ "key": "habitat-高山・亜高山帯",
+ "en": {
+  "habitat": "Alpine and Subalpine Zone",
+  "overview": "High-elevation mountain environments in Japan characterized by stunted pines, alpine meadows, and harsh, snowy winters.",
+  "what_to_look_for": [
+   "Dwarf stone pine (Pinus pumila) mats",
+   "Rock ptarmigan (Lagopus muta)",
+   "Alpine cushion plants and wildflowers",
+   "Periglacial patterned ground or scree slopes"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing the treeline transition and slope",
+   "Close-up of cushion plant leaves or flowers",
+   "Detail of weathered rock surfaces and lichen cover"
+  ],
+  "management_signs": [
+   "Wooden boardwalks or roped trail boundaries",
+   "Erosion control netting on bare slopes",
+   "Trampled vegetation along informal paths"
+  ],
+  "seasonal_note": "Snowmelt in early summer triggers a brief, intense blooming period before autumn frosts arrive."
+ },
+ "ja": {
+  "habitat": "高山帯・亜高山帯",
+  "overview": "ハイマツが広がり、高山植物が咲き誇る、冬の厳しい寒さと雪に覆われた日本の高標高な山岳環境です。",
+  "what_to_look_for": [
+   "ハイマツの群落",
+   "ライチョウ",
+   "高山植物のクッション状の草花",
+   "周氷河地形やガレ場"
+  ],
+  "confirm_more": [
+   "森林限界から山頂へ続く斜面の広角写真",
+   "クッション状の植物の葉や花の接写",
+   "風化した岩肌や地衣類の様子"
+  ],
+  "management_signs": [
+   "木道やロープによる登山道の境界",
+   "裸地斜面の侵食防止ネット",
+   "踏み荒らされた植生跡"
+  ],
+  "seasonal_note": "初夏の雪解けとともに短い期間で一斉に花が咲き、秋の霜が降りるまでが活動のピークです。",
+  "confusable_groups": [
+   {
+    "japanese_name": "ライチョウ"
+   }
+  ]
+ },
+ "costUsd": 0.006645
+}

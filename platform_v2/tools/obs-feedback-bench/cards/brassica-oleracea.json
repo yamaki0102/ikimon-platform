@@ -1,0 +1,66 @@
+{
+ "key": "brassica-oleracea",
+ "en": {
+  "scientific_name": "Brassica oleracea",
+  "english_name": "Cabbage",
+  "rank": "species",
+  "overview": "A widely cultivated biennial leafy vegetable forming a dense, rounded head of overlapping smooth or crinkled leaves.",
+  "distinguishing_tips": [
+   "Tightly packed, rounded head of overlapping leaves",
+   "Thick, waxy, pale-green to bluish-green leaves",
+   "Prominent pale, thick central leaf veins",
+   "Stout, short stem beneath the outer spreading leaves"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Napa cabbage",
+    "scientific_name": "Brassica rapa",
+    "distinction_point": "Napa cabbage forms an elongated, cylindrical head with thinner, crinkled, yellowish-green leaves."
+   },
+   {
+    "english_name": "Lettuce",
+    "scientific_name": "Lactuca sativa",
+    "distinction_point": "Lettuce has thinner, softer leaves without a waxy coating and lacks thick, tough central veins."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf surface to show the waxy texture and thick veins",
+   "Side view of the whole head to show its rounded shape",
+   "Base of the plant showing the stout stem and outer leaves"
+  ],
+  "season_habitat": "Cultivated year-round in agricultural fields and home gardens across Japan, with peak harvests in spring and winter."
+ },
+ "ja": {
+  "scientific_name": "Brassica oleracea",
+  "english_name": "Cabbage",
+  "rank": "種",
+  "overview": "広く栽培されている越年草の葉菜で、滑らかまたは縮れた葉が重なり合い、密で丸い球状を形成します。",
+  "distinguishing_tips": [
+   "葉が重なり合ってできた、硬く締まった丸い球状",
+   "厚みがあり、蝋質（ワックス状）で淡緑色から青緑色の葉",
+   "目立つ淡色で太い葉脈",
+   "外側に広がる葉の下にある、太く短い茎"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Napa cabbage",
+    "scientific_name": "Brassica rapa",
+    "japanese_name": "ハクサイ",
+    "distinction_point": "ハクサイは細長い円筒形の球を形成し、葉はより薄く、縮れており、黄緑色をしています。"
+   },
+   {
+    "english_name": "Lettuce",
+    "scientific_name": "Lactuca sativa",
+    "japanese_name": "レタス",
+    "distinction_point": "レタスは葉が薄くて柔らかく、蝋質のコーティングがなく、太くて硬い葉脈もありません。"
+   }
+  ],
+  "confirm_more": [
+   "蝋質の質感と太い葉脈がわかる葉の表面のクローズアップ",
+   "丸い形状がわかる株全体の側面図",
+   "太い茎と外側の葉がわかる株の基部"
+  ],
+  "season_habitat": "日本全国の農地や家庭菜園で一年中栽培されており、春と冬に収穫の最盛期を迎えます。"
+ },
+ "costUsd": 0.010130749999999999
+}

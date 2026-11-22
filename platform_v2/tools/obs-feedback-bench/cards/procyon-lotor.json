@@ -1,0 +1,77 @@
+{
+ "key": "procyon-lotor",
+ "en": {
+  "scientific_name": "Procyon lotor",
+  "english_name": "Raccoon",
+  "rank": "species",
+  "overview": "An introduced nocturnal mammal in Japan, easily recognized by its black facial mask and bushy, ringed tail.",
+  "distinguishing_tips": [
+   "Black mask across eyes bordered by white",
+   "Bushy tail with 5 to 7 dark rings",
+   "Rounded ears with white edges",
+   "Five-toed, hand-like front paws"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Raccoon dog",
+    "scientific_name": "Nyctereutes procyonoides",
+    "distinction_point": "Lacks tail rings and has a darker, less sharply bordered facial mask."
+   },
+   {
+    "english_name": "Masked palm civet",
+    "scientific_name": "Paguma larvata",
+    "distinction_point": "Has a white stripe down the forehead and a long, unringed tail."
+   },
+   {
+    "english_name": "Japanese badger",
+    "scientific_name": "Meles anakuma",
+    "distinction_point": "Shorter, unringed tail and dark vertical stripes through the eyes."
+   }
+  ],
+  "confirm_more": [
+   "Full-length view of the tail showing rings",
+   "Clear front view of the face and ears",
+   "Close-up of footprints showing five long toes"
+  ],
+  "season_habitat": "Active year-round, mostly nocturnal, inhabiting forests, farmlands, and urban areas near water."
+ },
+ "ja": {
+  "scientific_name": "Procyon lotor",
+  "english_name": "Raccoon",
+  "rank": "species",
+  "overview": "日本に外来種として定着している夜行性の哺乳類です。目の周りの黒いマスク模様と、縞模様のあるふさふさした尻尾が特徴です。",
+  "distinguishing_tips": [
+   "目の周りに白い縁取りのある黒いマスク模様",
+   "5〜7本の暗色の輪があるふさふさした尻尾",
+   "白い縁取りがある丸い耳",
+   "5本の指があり、手のような形をした前足"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Raccoon dog",
+    "scientific_name": "Nyctereutes procyonoides",
+    "japanese_name": "タヌキ",
+    "distinction_point": "尻尾に輪模様がなく、顔のマスク模様も境界が不明瞭で全体的に暗い色をしています。"
+   },
+   {
+    "english_name": "Masked palm civet",
+    "scientific_name": "Paguma larvata",
+    "japanese_name": "ハクビシン",
+    "distinction_point": "額から鼻にかけて白い筋があり、尻尾は長く、輪模様はありません。"
+   },
+   {
+    "english_name": "Japanese badger",
+    "scientific_name": "Meles anakuma",
+    "japanese_name": "ニホンアナグマ",
+    "distinction_point": "尻尾は短く輪模様はありません。目を通る縦方向の黒い帯状の模様が特徴です。"
+   }
+  ],
+  "confirm_more": [
+   "輪模様がはっきりと確認できる尻尾の全体像",
+   "顔と耳がはっきりと写った正面からの写真",
+   "5本の長い指が写った足跡のクローズアップ"
+  ],
+  "season_habitat": "一年中活動し、主に夜行性です。森林、農耕地、水辺に近い都市部などに生息しています。"
+ },
+ "costUsd": 0.00724475
+}

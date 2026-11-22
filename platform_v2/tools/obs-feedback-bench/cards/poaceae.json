@@ -1,0 +1,66 @@
+{
+ "key": "poaceae",
+ "en": {
+  "scientific_name": "Poaceae",
+  "english_name": "True grasses",
+  "rank": "family",
+  "overview": "A vast family of flowering plants with hollow, jointed stems, narrow leaves, and inconspicuous wind-pollinated flowers arranged in spikelets.",
+  "distinguishing_tips": [
+   "Hollow, cylindrical stems with solid, swollen nodes",
+   "Leaves arranged in two opposite vertical rows",
+   "Membranous or hairy ligule at the leaf base",
+   "Tiny flowers grouped into spikelets without showy petals"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sedges",
+    "scientific_name": "Cyperaceae",
+    "distinction_point": "Sedges usually have solid, triangular stems without nodes and leaves in three rows."
+   },
+   {
+    "english_name": "Rushes",
+    "scientific_name": "Juncaceae",
+    "distinction_point": "Rushes have solid, round stems without nodes and flowers with six small, scale-like tepals."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the stem node and the ligule at the leaf base",
+   "Cross-section of the stem to show if it is hollow and round",
+   "Detailed view of the spikelets against a plain background"
+  ],
+  "season_habitat": "Found year-round across Japan in grasslands, wetlands, roadsides, and forest edges, flowering mostly from spring to autumn."
+ },
+ "ja": {
+  "scientific_name": "Poaceae",
+  "english_name": "イネ科",
+  "rank": "科",
+  "overview": "中空で節のある茎、細長い葉、そして花びらが目立たない風媒花を小穂（しょうすい）につける、非常に大きな被子植物のグループです。",
+  "distinguishing_tips": [
+   "中空で円筒形の茎を持ち、節が膨らんでいる",
+   "葉が茎に対して左右交互に2列に並ぶ",
+   "葉の付け根に膜状または毛状の葉舌（ようぜつ）がある",
+   "目立つ花びらを持たない小さな花が、小穂という単位にまとまっている"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "カヤツリグサ科",
+    "scientific_name": "Cyperaceae",
+    "japanese_name": "カヤツリグサ科",
+    "distinction_point": "カヤツリグサ科の茎は中実で断面が三角形であることが多く、節がなく、葉は3方向に並びます。"
+   },
+   {
+    "english_name": "イグサ科",
+    "scientific_name": "Juncaceae",
+    "japanese_name": "イグサ科",
+    "distinction_point": "イグサ科の茎は中実で丸く、節がなく、花には6枚の小さな鱗片状の花被片があります。"
+   }
+  ],
+  "confirm_more": [
+   "茎の節と、葉の付け根にある葉舌のクローズアップ",
+   "茎の断面を観察し、中空で丸いかどうかを確認する",
+   "無地の背景で小穂の詳細を観察する"
+  ],
+  "season_habitat": "日本全国の草原、湿地、道端、林縁などで一年中見られ、主に春から秋にかけて開花します。"
+ },
+ "costUsd": 0.00777375
+}

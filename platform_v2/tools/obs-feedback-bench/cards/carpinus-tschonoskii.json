@@ -1,0 +1,77 @@
+{
+ "key": "carpinus-tschonoskii",
+ "en": {
+  "scientific_name": "Carpinus tschonoskii",
+  "english_name": "Yeddo hornbeam",
+  "rank": "species",
+  "overview": "A common deciduous tree in Japan with dark gray, vertically fissured bark and doubly serrated leaves.",
+  "distinguishing_tips": [
+   "Dark gray bark with shallow vertical fissures",
+   "Leaves doubly serrated with 12-16 pairs of parallel veins",
+   "Leaf undersides and petioles noticeably hairy",
+   "Pendulous fruiting catkins with asymmetrical, lobed bracts"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Loose-flower hornbeam",
+    "scientific_name": "Carpinus laxiflora",
+    "distinction_point": "Has smoother gray bark, hairless leaves, and long-acuminate leaf tips."
+   },
+   {
+    "english_name": "Japanese hornbeam",
+    "scientific_name": "Carpinus japonica",
+    "distinction_point": "Leaves are narrower with 20-24 pairs of veins and deeply impressed venation."
+   },
+   {
+    "english_name": "Heartleaf hornbeam",
+    "scientific_name": "Carpinus cordata",
+    "distinction_point": "Leaves are much larger with a deeply heart-shaped base."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf underside and petiole to check for hairs",
+   "Close-up of the bark texture on the main trunk",
+   "Fruiting catkins showing the shape of the leaf-like bracts"
+  ],
+  "season_habitat": "Common in temperate deciduous forests and mountain slopes across Japan, fruiting in autumn."
+ },
+ "ja": {
+  "scientific_name": "Carpinus tschonoskii",
+  "english_name": "Yeddo hornbeam",
+  "rank": "種",
+  "overview": "日本各地の山地に広く見られる落葉高木。樹皮は暗灰色で縦に裂け目が入るのが特徴で、葉は縁が二重鋸歯状になっています。",
+  "distinguishing_tips": [
+   "暗灰色の樹皮には浅い縦の裂け目がある",
+   "葉は二重鋸歯で、12〜16対の平行な側脈がある",
+   "葉の裏面と葉柄には目立つ毛が生えている",
+   "垂れ下がる果穂には、非対称で裂片のある苞（ほう）がつく"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Loose-flower hornbeam",
+    "scientific_name": "Carpinus laxiflora",
+    "japanese_name": "アカシデ",
+    "distinction_point": "樹皮はより滑らかで灰色。葉に毛がなく、先端が長く尖る。"
+   },
+   {
+    "english_name": "Japanese hornbeam",
+    "scientific_name": "Carpinus japonica",
+    "japanese_name": "クマシデ",
+    "distinction_point": "葉がより細長く、側脈が20〜24対と多く、葉脈が深くくぼむ。"
+   },
+   {
+    "english_name": "Heartleaf hornbeam",
+    "scientific_name": "Carpinus cordata",
+    "japanese_name": "サワシバ",
+    "distinction_point": "葉が非常に大きく、基部が深く心臓形になる。"
+   }
+  ],
+  "confirm_more": [
+   "葉の裏面と葉柄の毛の有無を確認するための接写",
+   "幹の樹皮の質感を確認するための接写",
+   "葉状の苞の形を確認するための果穂の接写"
+  ],
+  "season_habitat": "日本全国の温帯落葉広葉樹林や山腹に広く分布し、秋に果実をつける。"
+ },
+ "costUsd": 0.0034132499999999996
+}

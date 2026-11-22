@@ -1,0 +1,92 @@
+[
+ {
+  "id": "card-lite",
+  "n": 45,
+  "quality": 97.7,
+  "p50ms": 7497,
+  "p95ms": 29279,
+  "costPer1000Usd": 2.49,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.34,
+  "byCategory": {
+   "environment": 100,
+   "organism": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 50
+  }
+ },
+ {
+  "id": "card-gemma4",
+  "n": 45,
+  "quality": 97.2,
+  "p50ms": 16674,
+  "p95ms": 61453,
+  "costPer1000Usd": 1.36,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.26,
+  "byCategory": {
+   "organism": 100,
+   "environment": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 88,
+   "hidden-subject": 50
+  }
+ },
+ {
+  "id": "prod",
+  "n": 45,
+  "quality": 95.9,
+  "p50ms": 17995,
+  "p95ms": 25642,
+  "costPer1000Usd": 44.31,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 100,
+   "environment": 95,
+   "landscape": 100,
+   "built": 100,
+   "hard": 87,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "card-deepseek41",
+  "n": 45,
+  "quality": 95.7,
+  "p50ms": 11546,
+  "p95ms": 35608,
+  "costPer1000Usd": 2.23,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.4,
+  "byCategory": {
+   "organism": 96,
+   "environment": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 84,
+   "hidden-subject": 50
+  }
+ },
+ {
+  "id": "card-g35lite",
+  "n": 45,
+  "quality": 95.4,
+  "p50ms": 6694,
+  "p95ms": 29334,
+  "costPer1000Usd": 3.08,
+  "failureRate": 0.022222222222222223,
+  "winRateVsBaseline": 0.21,
+  "byCategory": {
+   "organism": 100,
+   "environment": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 74,
+   "hidden-subject": 50
+  }
+ }
+]

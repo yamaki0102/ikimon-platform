@@ -1,0 +1,77 @@
+{
+ "key": "alnus",
+ "en": {
+  "scientific_name": "Alnus",
+  "english_name": "Alders",
+  "rank": "genus",
+  "overview": "Deciduous trees and shrubs of wetlands and mountains, easily recognized by persistent woody, cone-like female catkins.",
+  "distinguishing_tips": [
+   "Small, woody, cone-like female catkins persist on branches",
+   "Pendulous male catkins appear before leaves in early spring",
+   "Alternate, serrated leaves with prominent parallel lateral veins",
+   "Distinctly stalked winter buds in most species"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Birches",
+    "scientific_name": "Betula",
+    "distinction_point": "Birch female catkins fall apart at maturity instead of remaining as woody cones."
+   },
+   {
+    "english_name": "Hornbeams",
+    "scientific_name": "Carpinus",
+    "distinction_point": "Hornbeams produce hop-like clusters of leafy bracts rather than woody cones."
+   },
+   {
+    "english_name": "Hazels",
+    "scientific_name": "Corylus",
+    "distinction_point": "Hazels bear large nuts in leafy husks instead of small woody cones."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the persistent woody cone-like fruits",
+   "Winter twig showing stalked buds",
+   "Leaf underside to show parallel lateral veins"
+  ],
+  "season_habitat": "Widespread in wet lowlands, riverbanks, and mountain slopes across Japan, blooming in early spring."
+ },
+ "ja": {
+  "scientific_name": "Alnus",
+  "english_name": "ハンノキ属",
+  "rank": "属",
+  "overview": "湿地や山地に生育する落葉高木または低木で、木質化した松ぼっくりのような雌花序が枝に残るのが大きな特徴です。",
+  "distinguishing_tips": [
+   "木質化した小さな松ぼっくり状の雌花序が枝に残る",
+   "春先に葉が出る前、垂れ下がった雄花序をつける",
+   "互生する葉には鋸歯があり、側脈が平行に目立つ",
+   "多くの種で、冬芽に柄がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Birches",
+    "scientific_name": "Betula",
+    "japanese_name": "カバノキ属",
+    "distinction_point": "カバノキ属の雌花序は成熟すると木質の果穂にならず、バラバラに崩れ落ちます。"
+   },
+   {
+    "english_name": "Hornbeams",
+    "scientific_name": "Carpinus",
+    "japanese_name": "クマシデ属",
+    "distinction_point": "クマシデ属は木質の果穂ではなく、ホップのような葉状の苞に包まれた果実をつけます。"
+   },
+   {
+    "english_name": "Hazels",
+    "scientific_name": "Corylus",
+    "japanese_name": "ハシバミ属",
+    "distinction_point": "ハシバミ属は木質の果穂ではなく、葉状の総苞に包まれた大きな堅果をつけます。"
+   }
+  ],
+  "confirm_more": [
+   "枝に残った木質の松ぼっくり状の果実の接写",
+   "柄のある冬芽がついた冬枝",
+   "平行な側脈が確認できる葉の裏面"
+  ],
+  "season_habitat": "日本各地の湿った低地、川岸、山腹に広く分布し、早春に開花します。"
+ },
+ "costUsd": 0.00967525
+}

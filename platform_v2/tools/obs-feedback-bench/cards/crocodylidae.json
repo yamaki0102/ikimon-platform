@@ -1,0 +1,66 @@
+{
+ "key": "crocodylidae",
+ "en": {
+  "scientific_name": "Crocodylidae",
+  "english_name": "True Crocodiles",
+  "rank": "family",
+  "overview": "Large, semi-aquatic predatory reptiles with armored skin, powerful jaws, and V-shaped snouts, primarily seen in zoos or aquariums in Japan.",
+  "distinguishing_tips": [
+   "Narrow, V-shaped snout tapering toward the tip",
+   "Fourth lower tooth visible when mouth is closed",
+   "Bony, armored scales along the back",
+   "Vertically flattened, muscular swimming tail"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Alligators and Caimans",
+    "scientific_name": "Alligatoridae",
+    "distinction_point": "Have broader, U-shaped snouts and hide their lower teeth when the mouth is closed."
+   },
+   {
+    "english_name": "Gharials",
+    "scientific_name": "Gavialidae",
+    "distinction_point": "Have extremely long, slender snouts that are much narrower than a crocodile's."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the closed mouth to check tooth visibility",
+   "Top-down view of the head to see snout shape",
+   "Full body shot showing dorsal scales and tail"
+  ],
+  "season_habitat": "Not native to Japan; observed year-round in zoos, aquariums, or reptile parks."
+ },
+ "ja": {
+  "scientific_name": "Crocodylidae",
+  "english_name": "True Crocodiles",
+  "rank": "科",
+  "overview": "大型の半水生肉食爬虫類で、鎧のような皮膚、強力な顎、V字型の吻（口先）が特徴です。日本では主に動物園や水族館で見ることができます。",
+  "distinguishing_tips": [
+   "先端に向かって細くなるV字型の吻",
+   "口を閉じた時に下の第4歯が見える",
+   "背中に並ぶ骨質の鎧のような鱗",
+   "筋肉質で左右に平たい遊泳用の尾"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Alligators and Caimans",
+    "scientific_name": "Alligatoridae",
+    "japanese_name": "アリゲーター科",
+    "distinction_point": "吻がより幅広くU字型をしており、口を閉じると下の歯が見えません。"
+   },
+   {
+    "english_name": "Gharials",
+    "scientific_name": "Gavialidae",
+    "japanese_name": "ガビアル科",
+    "distinction_point": "非常に長く細い吻を持ち、クロコダイルよりもはるかに細身です。"
+   }
+  ],
+  "confirm_more": [
+   "口を閉じた状態の横顔（歯の視認確認）",
+   "頭部を真上から見た様子（吻の形状確認）",
+   "全身写真（背中の鱗と尾の確認）"
+  ],
+  "season_habitat": "日本には生息していません。動物園、水族館、爬虫類園などで一年中観察可能です。"
+ },
+ "costUsd": 0.009722999999999999
+}

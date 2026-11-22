@@ -1,0 +1,77 @@
+{
+ "key": "cerasus-x-yedoensis-somei-yoshino",
+ "en": {
+  "scientific_name": "Cerasus x yedoensis 'Somei-yoshino'",
+  "english_name": "Yoshino Cherry",
+  "rank": "species",
+  "overview": "Japan's most iconic spring-blooming cherry tree, widely planted in parks and along riversides, producing abundant pale pink-white flowers before leaves emerge.",
+  "distinguishing_tips": [
+   "Pale pink to nearly white five-petaled flowers",
+   "Blooms profusely before green leaves appear",
+   "Hairy, urn-shaped calyx tube and flower stalks",
+   "Smooth gray bark with horizontal lenticels"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Oshima Cherry",
+    "scientific_name": "Cerasus speciosa",
+    "distinction_point": "Blooms with pure white flowers simultaneously with emerging green leaves and has hairless flower stalks."
+   },
+   {
+    "english_name": "Edo-higan",
+    "scientific_name": "Cerasus spachiana f. ascendens",
+    "distinction_point": "Has a distinctly swollen, rounded calyx base and typically blooms slightly earlier."
+   },
+   {
+    "english_name": "Japanese Hill Cherry",
+    "scientific_name": "Cerasus jamasakura",
+    "distinction_point": "Reddish-brown young leaves emerge together with the flowers, and flower stalks are hairless."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the underside of a flower showing the hairy calyx tube",
+   "Side view of a blooming branchlet to check for absence of leaves",
+   "Bark texture showing horizontal lenticels on the main trunk"
+  ],
+  "season_habitat": "Blooms in late March to early April; widely cultivated in parks, schoolyards, and along riversides across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cerasus x yedoensis 'Somei-yoshino'",
+  "english_name": "ソメイヨシノ",
+  "rank": "種",
+  "overview": "日本を代表する春の桜で、公園や川沿いに広く植栽されています。葉が出る前に、淡いピンクから白の花を枝いっぱいに咲かせます。",
+  "distinguishing_tips": [
+   "淡いピンクからほぼ白の5枚の花びら",
+   "緑の葉が出る前に花が満開になる",
+   "萼筒（がくとう）と花柄に毛が生えている",
+   "滑らかな灰色の樹皮に横長の皮目（ひもく）がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Oshima Cherry",
+    "scientific_name": "Cerasus speciosa",
+    "japanese_name": "オオシマザクラ",
+    "distinction_point": "純白の花が緑の葉と同時に開き、花柄に毛がない。"
+   },
+   {
+    "english_name": "Edo-higan",
+    "scientific_name": "Cerasus spachiana f. ascendens",
+    "japanese_name": "エドヒガン",
+    "distinction_point": "萼筒の付け根が丸く膨らんでおり、ソメイヨシノより開花がやや早い。"
+   },
+   {
+    "english_name": "Japanese Hill Cherry",
+    "scientific_name": "Cerasus jamasakura",
+    "japanese_name": "ヤマザクラ",
+    "distinction_point": "花と同時に赤褐色の若葉が展開し、花柄に毛がない。"
+   }
+  ],
+  "confirm_more": [
+   "萼筒に毛が生えているか、花の裏側を接写する",
+   "枝を横から見て、葉が出ていないか確認する",
+   "幹の樹皮にある横長の皮目を観察する"
+  ],
+  "season_habitat": "3月下旬から4月上旬に開花。日本全国の公園、学校、川沿いなどで広く栽培されている。"
+ },
+ "costUsd": 0.0086145
+}

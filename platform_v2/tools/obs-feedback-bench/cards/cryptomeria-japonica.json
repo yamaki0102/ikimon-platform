@@ -1,0 +1,77 @@
+{
+ "key": "cryptomeria-japonica",
+ "en": {
+  "scientific_name": "Cryptomeria japonica",
+  "english_name": "Japanese Cedar",
+  "rank": "species",
+  "overview": "A tall, evergreen conifer native to Japan, widely planted for timber and prized for its straight trunk and fibrous reddish-brown bark.",
+  "distinguishing_tips": [
+   "Thick, reddish-brown bark peeling in long vertical strips.",
+   "Straight, columnar trunk tapering gradually.",
+   "Awl-shaped, spirally arranged needles curving inward.",
+   "Small, woody, globose cones with pointed scales."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Hinoki Cypress",
+    "scientific_name": "Chamaecyparis obtusa",
+    "distinction_point": "Hinoki has flatter, scale-like foliage in fan-shaped sprays and smoother, more grayish-brown bark."
+   },
+   {
+    "english_name": "Sawara Cypress",
+    "scientific_name": "Chamaecyparis pisifera",
+    "distinction_point": "Sawara has sharper, pointed scale-like leaves with white markings underneath and smaller cones."
+   },
+   {
+    "english_name": "Hiba Arborvitae",
+    "scientific_name": "Thujopsis dolabrata",
+    "distinction_point": "Hiba features much broader, glossy scale-like leaves with distinct white patches below."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the foliage and needle arrangement.",
+   "Cones on the branches or fallen on the ground.",
+   "Overall tree silhouette showing the crown."
+  ],
+  "season_habitat": "Evergreen; common in mountain forests, plantations, and temple grounds across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cryptomeria japonica",
+  "english_name": "スギ",
+  "rank": "種",
+  "overview": "日本原産の常緑針葉樹で、木材として広く植林されています。真っ直ぐに伸びる幹と、繊維状に剥がれる赤褐色の樹皮が特徴です。",
+  "distinguishing_tips": [
+   "赤褐色の厚い樹皮が、縦に長く剥がれ落ちる。",
+   "真っ直ぐな円柱状の幹が、上部に向かって緩やかに細くなる。",
+   "針状の葉が螺旋状につき、内側に少し曲がっている。",
+   "小さく木質で、尖った鱗片を持つ球果（松ぼっくり）。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Hinoki Cypress",
+    "scientific_name": "Chamaecyparis obtusa",
+    "japanese_name": "ヒノキ",
+    "distinction_point": "ヒノキは葉が平らな鱗片状で扇状に広がり、樹皮はより滑らかで灰褐色をしています。"
+   },
+   {
+    "english_name": "Sawara Cypress",
+    "scientific_name": "Chamaecyparis pisifera",
+    "japanese_name": "サワラ",
+    "distinction_point": "サワラは葉の先端がより鋭く尖っており、裏面に白い気孔帯があり、球果もスギより小さいです。"
+   },
+   {
+    "english_name": "Hiba Arborvitae",
+    "scientific_name": "Thujopsis dolabrata",
+    "japanese_name": "アスナロ",
+    "distinction_point": "アスナロは葉がより幅広く光沢があり、裏面に目立つ白い模様があります。"
+   }
+  ],
+  "confirm_more": [
+   "葉の形やつき方のアップ。",
+   "枝についている、または地面に落ちている球果。",
+   "樹冠を含む木全体のシルエット。"
+  ],
+  "season_habitat": "常緑樹。日本各地の山林、植林地、寺社の境内などでよく見られます。"
+ },
+ "costUsd": 0.008244
+}

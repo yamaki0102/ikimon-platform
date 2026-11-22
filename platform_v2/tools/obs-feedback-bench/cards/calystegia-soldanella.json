@@ -1,0 +1,77 @@
+{
+ "key": "calystegia-soldanella",
+ "en": {
+  "scientific_name": "Calystegia soldanella",
+  "english_name": "Sea bindweed",
+  "rank": "species",
+  "overview": "A prostrate coastal perennial vine with thick, kidney-shaped leaves and large pink funnel-shaped flowers blooming on sandy beaches.",
+  "distinguishing_tips": [
+   "Thick, glossy, kidney-shaped leaves",
+   "Large pink funnel-shaped flowers with white stripes",
+   "Prostrate stems creeping along sand",
+   "Two large bracts enclosing the calyx"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese bindweed",
+    "scientific_name": "Calystegia japonica",
+    "distinction_point": "Has arrowhead-shaped leaves and grows inland rather than on sandy beaches."
+   },
+   {
+    "english_name": "Small bindweed",
+    "scientific_name": "Calystegia hederacea",
+    "distinction_point": "Has smaller flowers and deeply lobed, arrow-shaped leaves in inland areas."
+   },
+   {
+    "english_name": "Railroad vine",
+    "scientific_name": "Ipomoea pes-caprae",
+    "distinction_point": "Has notched, two-lobed leaves and purple-pink flowers, mostly in southern Japan."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the thick, kidney-shaped leaf",
+   "Side view of the flower showing the two large bracts",
+   "Overall creeping habit on the sandy beach"
+  ],
+  "season_habitat": "Blooms from May to June on sandy beaches and coastal dunes across Japan."
+ },
+ "ja": {
+  "scientific_name": "Calystegia soldanella",
+  "english_name": "Sea bindweed",
+  "rank": "species",
+  "overview": "砂浜に生育する多年草のつる植物です。厚みのある腎臓形の葉と、大きなピンク色の漏斗状の花が特徴で、海岸の砂地を這うように広がります。",
+  "distinguishing_tips": [
+   "厚みがあり、光沢のある腎臓形の葉",
+   "白い筋が入った、大きなピンク色の漏斗状の花",
+   "砂の上を這うように伸びる茎",
+   "萼を包み込む2枚の大きな苞葉"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese bindweed",
+    "scientific_name": "Calystegia japonica",
+    "japanese_name": "ヒルガオ",
+    "distinction_point": "葉が矢じり形で、砂浜ではなく内陸部に生育します。"
+   },
+   {
+    "english_name": "Small bindweed",
+    "scientific_name": "Calystegia hederacea",
+    "japanese_name": "コヒルガオ",
+    "distinction_point": "花が小さく、葉は深く裂けた矢じり形で、内陸部に生育します。"
+   },
+   {
+    "english_name": "Railroad vine",
+    "scientific_name": "Ipomoea pes-caprae",
+    "japanese_name": "グンバイヒルガオ",
+    "distinction_point": "葉の先端が2つに割れており、主に南日本に分布する紫ピンク色の花です。"
+   }
+  ],
+  "confirm_more": [
+   "厚みのある腎臓形の葉のクローズアップ",
+   "2枚の大きな苞葉が見える花の側面",
+   "砂浜を這う全体の様子"
+  ],
+  "season_habitat": "5月から6月にかけて、日本全国の砂浜や海岸の砂丘で開花します。"
+ },
+ "costUsd": 0.007358249999999999
+}

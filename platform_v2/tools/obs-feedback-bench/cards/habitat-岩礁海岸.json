@@ -1,0 +1,46 @@
+{
+ "key": "habitat-岩礁海岸",
+ "en": {
+  "habitat": "Rocky Shore",
+  "overview": "Wave-battered rocky coastlines featuring tide pools and distinct vertical zones of marine life adapted to changing tides.",
+  "what_to_look_for": [
+   "Barnacles and mussels forming distinct intertidal bands",
+   "Seaweeds like kelp or Sargassum in lower zones",
+   "Tide pool inhabitants such as sea anemones and crabs",
+   "Coastal cliff plants like Japanese pittosporum"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing the intertidal zonation from sea to cliff",
+   "Close-up of a tide pool looking straight down",
+   "Detail of barnacles or seaweed attached to rock surfaces"
+  ],
+  "management_signs": [
+   "Concrete tetrapods or seawalls altering natural wave action",
+   "Washed-up marine debris or plastic litter in crevices",
+   "Trampled algae or disturbed rocks from heavy foot traffic"
+  ],
+  "seasonal_note": "Spring and summer low tides reveal the richest tide pool biodiversity."
+ },
+ "ja": {
+  "habitat": "岩礁海岸",
+  "overview": "波が打ち寄せる岩場が続く海岸線です。潮の満ち引きによって環境が変化するため、それぞれの高さに適応した多様な海洋生物が帯状に分布し、潮だまり（タイドプール）も見られます。",
+  "what_to_look_for": [
+   "岩の表面に帯状に付着するフジツボやイガイ類",
+   "低い潮位帯に見られるコンブやホンダワラなどの海藻",
+   "潮だまりに潜むイソギンチャクやカニなどの生き物",
+   "海岸の崖地に自生するトベラなどの植物"
+  ],
+  "confirm_more": [
+   "海から崖まで、潮間帯の分布がわかる広角写真",
+   "潮だまりを真上から捉えたクローズアップ写真",
+   "岩に付着したフジツボや海藻の細部写真"
+  ],
+  "management_signs": [
+   "自然の波の動きを妨げているコンクリート製の消波ブロックや防波堤",
+   "岩の隙間に漂着した海洋ゴミやプラスチック片",
+   "多くの人が歩いたことによる海藻の踏み荒らしや、動かされた岩"
+  ],
+  "seasonal_note": "春から夏にかけての干潮時には、潮だまりで最も豊かな生物多様性を観察できます。"
+ },
+ "costUsd": 0.0067885
+}

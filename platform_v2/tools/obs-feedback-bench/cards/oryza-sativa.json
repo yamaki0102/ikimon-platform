@@ -1,0 +1,77 @@
+{
+ "key": "oryza-sativa",
+ "en": {
+  "scientific_name": "Oryza sativa",
+  "english_name": "Asian rice",
+  "rank": "species",
+  "overview": "A widely cultivated annual grass in Japanese paddy fields, bearing drooping panicles of golden-yellow grains in autumn.",
+  "distinguishing_tips": [
+   "Drooping panicles with flattened, awned or awnless spikelets.",
+   "Long, narrow, rough-margined leaves with a prominent midrib.",
+   "Membranous, often two-cleft ligule at the leaf base.",
+   "Grows in flooded, orderly rows in paddy fields."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Barnyard grass",
+    "scientific_name": "Echinochloa crus-galli",
+    "distinction_point": "Lacks a ligule and has purplish, bristly panicles rather than golden rice grains."
+   },
+   {
+    "english_name": "Japanese cutgrass",
+    "scientific_name": "Leersia japonica",
+    "distinction_point": "Has creeping rhizomes and smaller, flattened spikelets in looser, spreading panicles."
+   },
+   {
+    "english_name": "Manchurian wild rice",
+    "scientific_name": "Zizania latifolia",
+    "distinction_point": "Much taller, robust perennial with broader leaves and large, feathery panicles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf-sheath junction showing the ligule and auricles.",
+   "Macro shot of individual spikelets on the panicle.",
+   "Wide view of the plant's growth habit in the paddy."
+  ],
+  "season_habitat": "Cultivated in flooded paddy fields across Japan, flowering in summer and maturing in autumn."
+ },
+ "ja": {
+  "scientific_name": "Oryza sativa",
+  "english_name": "イネ",
+  "rank": "種",
+  "overview": "日本の水田で広く栽培されている一年草のイネ科植物で、秋になると黄金色の実をつけた穂が垂れ下がります。",
+  "distinguishing_tips": [
+   "穂は垂れ下がり、扁平な小穂には芒（のぎ）があるものとないものがある。",
+   "長く細い葉にはざらついた縁があり、中央に目立つ中肋がある。",
+   "葉の付け根には膜状で、しばしば二裂する葉舌がある。",
+   "水田で整然と列をなして生育する。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Barnyard grass",
+    "scientific_name": "Echinochloa crus-galli",
+    "japanese_name": "イヌビエ",
+    "distinction_point": "葉舌がなく、イネの黄金色の穂とは異なり、紫がかった剛毛のある穂をつける。"
+   },
+   {
+    "english_name": "Japanese cutgrass",
+    "scientific_name": "Leersia japonica",
+    "japanese_name": "サヤヌカグサ",
+    "distinction_point": "地下茎を伸ばして広がり、より小さく扁平な小穂をまばらな穂につける。"
+   },
+   {
+    "english_name": "Manchurian wild rice",
+    "scientific_name": "Zizania latifolia",
+    "japanese_name": "マコモ",
+    "distinction_point": "より背が高く頑丈な多年草で、葉が幅広く、大きな羽毛状の穂をつける。"
+   }
+  ],
+  "confirm_more": [
+   "葉鞘と葉身の接合部にある葉舌と葉耳のクローズアップ。",
+   "穂についた個々の小穂のマクロ撮影。",
+   "水田での生育状況がわかる全体像。"
+  ],
+  "season_habitat": "日本各地の水田で栽培され、夏に開花し、秋に成熟する。"
+ },
+ "costUsd": 0.00905675
+}

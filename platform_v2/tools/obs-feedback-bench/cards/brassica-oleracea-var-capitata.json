@@ -1,0 +1,77 @@
+{
+ "key": "brassica-oleracea-var-capitata",
+ "en": {
+  "scientific_name": "Brassica oleracea var. capitata",
+  "english_name": "Cabbage",
+  "rank": "variety",
+  "overview": "A widely cultivated leafy vegetable forming a dense, rounded head of tightly overlapping, waxy green or purple leaves.",
+  "distinguishing_tips": [
+   "Tightly packed, spherical or flattened-round central head",
+   "Thick, smooth, waxy blue-green outer leaves",
+   "Prominent, pale, branching leaf veins",
+   "Short, stout central stem beneath the head"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Napa Cabbage",
+    "scientific_name": "Brassica rapa subsp. pekinensis",
+    "distinction_point": "Forms an elongated, barrel-shaped head with thinner, crinkled, yellow-green leaves."
+   },
+   {
+    "english_name": "Lettuce",
+    "scientific_name": "Lactuca sativa",
+    "distinction_point": "Has thinner, crisper, non-waxy leaves that lack the thick, leathery texture of cabbage."
+   },
+   {
+    "english_name": "Kale",
+    "scientific_name": "Brassica oleracea var. sabellica",
+    "distinction_point": "Grows as a loose rosette of curly or flat leaves without forming a central head."
+   }
+  ],
+  "confirm_more": [
+   "Top-down view showing the tightly overlapping central head",
+   "Close-up of the waxy leaf surface and thick veins",
+   "Side view of the base and outer spreading leaves"
+  ],
+  "season_habitat": "Cultivated year-round in agricultural fields and home gardens across Japan."
+ },
+ "ja": {
+  "scientific_name": "Brassica oleracea var. capitata",
+  "english_name": "キャベツ",
+  "rank": "変種",
+  "overview": "広く栽培されている葉野菜で、ワックス状の緑色または紫色の葉が重なり合い、硬く丸い結球を形成します。",
+  "distinguishing_tips": [
+   "硬く詰まった、球形または扁平な中心部",
+   "厚みがあり、滑らかでワックス状の青緑色の外葉",
+   "目立つ淡色の枝分かれした葉脈",
+   "結球の下にある短く太い茎"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Napa Cabbage",
+    "scientific_name": "Brassica rapa subsp. pekinensis",
+    "japanese_name": "ハクサイ",
+    "distinction_point": "細長い樽型に結球し、葉は薄く、縮れており、黄緑色をしています。"
+   },
+   {
+    "english_name": "Lettuce",
+    "scientific_name": "Lactuca sativa",
+    "japanese_name": "レタス",
+    "distinction_point": "葉が薄くパリッとしており、キャベツのような厚みや革のような質感はありません。"
+   },
+   {
+    "english_name": "Kale",
+    "scientific_name": "Brassica oleracea var. sabellica",
+    "japanese_name": "ケール",
+    "distinction_point": "結球せず、縮れた葉や平らな葉がロゼット状に広がって育ちます。"
+   }
+  ],
+  "confirm_more": [
+   "中心部で葉が硬く重なり合っている様子を上から見たもの",
+   "ワックス状の葉の表面と太い葉脈のクローズアップ",
+   "基部と外側に広がる葉を横から見たもの"
+  ],
+  "season_habitat": "日本全国の農地や家庭菜園で一年中栽培されています。"
+ },
+ "costUsd": 0.0064115
+}

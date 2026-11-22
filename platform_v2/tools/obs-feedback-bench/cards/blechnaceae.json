@@ -1,0 +1,77 @@
+{
+ "key": "blechnaceae",
+ "en": {
+  "scientific_name": "Blechnaceae",
+  "english_name": "Chain ferns",
+  "rank": "family",
+  "overview": "A family of terrestrial ferns with leathery, pinnate fronds and linear sori arranged parallel to the midrib.",
+  "distinguishing_tips": [
+   "Leathery, once-pinnate fronds arranged in a rosette",
+   "Linear sori running parallel along the pinna midrib",
+   "Often dimorphic with narrower, upright fertile fronds",
+   "Young fronds frequently tinged reddish or bronze"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Wood ferns",
+    "scientific_name": "Dryopteridaceae",
+    "distinction_point": "Sori are round and scattered or in rows, not linear along the midrib."
+   },
+   {
+    "english_name": "Lady ferns",
+    "scientific_name": "Athyriaceae",
+    "distinction_point": "Fronds are usually softer, more finely divided, and lack leathery texture."
+   },
+   {
+    "english_name": "Bracken",
+    "scientific_name": "Dennstaedtiaceae",
+    "distinction_point": "Fronds are large, triangular, and multi-pinnate with sori along the leaf margins."
+   }
+  ],
+  "confirm_more": [
+   "Underside of a fertile frond showing sorus shape",
+   "Base of the stipe and rhizome scales",
+   "Comparison of fertile and sterile frond shapes"
+  ],
+  "season_habitat": "Evergreen ferns found year-round on shaded forest floors and stream banks."
+ },
+ "ja": {
+  "scientific_name": "Blechnaceae",
+  "english_name": "シシガシラ科",
+  "rank": "科",
+  "overview": "革質で羽状の葉を持ち、中肋に平行に並ぶ線形の胞子嚢群（ソーラス）が特徴の地生シダ植物のグループです。",
+  "distinguishing_tips": [
+   "革質で一回羽状の葉がロゼット状に広がる",
+   "羽片の中肋に沿って線形の胞子嚢群が並ぶ",
+   "不稔葉と胞子葉で形が異なる（異形葉）ことが多い",
+   "若葉は赤やブロンズ色を帯びることが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Wood ferns",
+    "scientific_name": "Dryopteridaceae",
+    "japanese_name": "オシダ科",
+    "distinction_point": "胞子嚢群は円形で、中肋に沿った線形ではなく、散在するか列状に並びます。"
+   },
+   {
+    "english_name": "Lady ferns",
+    "scientific_name": "Athyriaceae",
+    "japanese_name": "メシダ科",
+    "distinction_point": "葉は一般的に柔らかく、より細かく分裂しており、革質ではありません。"
+   },
+   {
+    "english_name": "Bracken",
+    "scientific_name": "Dennstaedtiaceae",
+    "japanese_name": "コバノイシカグマ科",
+    "distinction_point": "葉は大きく三角形で多回羽状に分裂し、胞子嚢群は葉の縁に沿ってつきます。"
+   }
+  ],
+  "confirm_more": [
+   "胞子葉の裏側に見られる胞子嚢群の形状",
+   "葉柄の基部と根茎の鱗片",
+   "不稔葉と胞子葉の形状の比較"
+  ],
+  "season_habitat": "一年中見られる常緑性のシダで、日陰の林床や渓流沿いに生育します。"
+ },
+ "costUsd": 0.0089485
+}

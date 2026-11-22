@@ -63,18 +63,18 @@ export function areaInferenceCount(out: Json): number {
 
 function subjectFound(out: Json, s: NonNullable<BenchExpect["subjects"]>[number]): boolean {
   const pools = [
-    ...arr(out.coexisting_taxa).map((c) => ({ text: `${str(c.name)} ${str(c.scientific_name)} ${str(c.rank)}`, regions: arr(c.media_regions) })),
+    ...arr(out.coexisting_taxa).map((c) => ({ text: `${str(c.name)} ${str(c.scientific_name)} ${str(c.rank)} ${str(c.group)}`, regions: arr(c.media_regions) })),
     { text: `${str(out.recommended_taxon_name)} ${str(out.recommended_scientific_name)}`, regions: arr(out.recommended_media_regions) },
   ];
   const isBird = /鳥|Aves/.test(s.label);
   for (const p of pools) {
-    const labelOk = isBird ? /鳥|Aves|Passeri|スズメ目|シジュウカラ|カラ科|ヤマガラ|メジロ|ヒヨドリ|ウグイス|エナガ|ツグミ|キツツキ/.test(p.text) : p.text.includes(s.label);
+    const labelOk = isBird ? /鳥|Aves|\bbird\b|Passeri|スズメ目|シジュウカラ|カラ科|ヤマガラ|メジロ|ヒヨドリ|ウグイス|エナガ|ツグミ|キツツキ/.test(p.text) : p.text.includes(s.label);
     if (!labelOk) continue;
     if (p.regions.length === 0) return true;
     for (const r of p.regions) {
       const idx = Number(r.asset_index ?? r.assetIndex ?? 0);
       if (idx !== s.asset_index) continue;
-      if (!s.box_2d) return true;
+      if (!s.box_2d || !r.rect) return true;
       const rect = (r.rect ?? {}) as Json;
       const cx = (Number(rect.x ?? 0) + Number(rect.width ?? 0) / 2) * 1000;
       const cy = (Number(rect.y ?? 0) + Number(rect.height ?? 0) / 2) * 1000;

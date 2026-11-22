@@ -1,0 +1,77 @@
+{
+ "key": "miscanthus",
+ "en": {
+  "scientific_name": "Miscanthus",
+  "english_name": "Silvergrass",
+  "rank": "genus",
+  "overview": "Tall, clump-forming perennial grasses with sharp-edged leaves and feathery, fan-shaped autumn plumes, iconic in Japanese grasslands.",
+  "distinguishing_tips": [
+   "Fan-shaped panicle with silky white or pinkish-purple hairs",
+   "Long, narrow leaves with a prominent white midrib",
+   "Dense, tussock-forming base rather than spreading single stems",
+   "Sharp, serrated leaf margins that can cut skin"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Common reed",
+    "scientific_name": "Phragmites australis",
+    "distinction_point": "Grows in wetter marshy soils and has broader leaves without a prominent white midrib."
+   },
+   {
+    "english_name": "Pampas grass",
+    "scientific_name": "Cortaderia selloana",
+    "distinction_point": "Much larger overall with denser, stiffer, cream-white plumes and wider basal tussocks."
+   },
+   {
+    "english_name": "Cogongrass",
+    "scientific_name": "Imperata cylindrica",
+    "distinction_point": "Shorter grass with cylindrical, spike-like white flower heads blooming in late spring."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the fan-shaped flower plume and silky spikelets",
+   "Upper leaf surface showing the white central midrib",
+   "Base of the plant showing the dense clumping habit"
+  ],
+  "season_habitat": "Blooms from late summer to autumn in sunny meadows, roadsides, and hillsides across Japan."
+ },
+ "ja": {
+  "scientific_name": "Miscanthus",
+  "english_name": "ススキ属",
+  "rank": "属",
+  "overview": "日本の草原を象徴する、背が高く株立ちする多年草です。鋭い縁を持つ葉と、秋に咲く羽毛のような扇形の穂が特徴です。",
+  "distinguishing_tips": [
+   "絹のような白や赤紫色の毛が生えた、扇形の円錐花序",
+   "中央に白い中肋（ちゅうろく）が目立つ、長く細い葉",
+   "茎が単独で広がるのではなく、根元が密集した株立ちになる",
+   "皮膚を切ることもある、鋭い鋸歯状の葉の縁"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Common reed",
+    "scientific_name": "Phragmites australis",
+    "japanese_name": "ヨシ",
+    "distinction_point": "より湿った湿地帯に生育し、葉が幅広く、中央の白い中肋が目立ちません。"
+   },
+   {
+    "english_name": "Pampas grass",
+    "scientific_name": "Cortaderia selloana",
+    "japanese_name": "シロガネヨシ",
+    "distinction_point": "全体的により大型で、より密度が高く硬いクリーム色の穂を持ち、根元の株もより大きく発達します。"
+   },
+   {
+    "english_name": "Cogongrass",
+    "scientific_name": "Imperata cylindrica",
+    "japanese_name": "チガヤ",
+    "distinction_point": "草丈が低く、春の終わり頃に円柱状の白い穂をつけます。"
+   }
+  ],
+  "confirm_more": [
+   "扇形の穂と絹のような小穂のクローズアップ",
+   "葉の表面に見られる白い中央の中肋",
+   "密集した株立ちの様子がわかる根元部分"
+  ],
+  "season_habitat": "夏の終わりから秋にかけて、日本全国の日当たりの良い草原、道端、丘陵地などで開花します。"
+ },
+ "costUsd": 0.01083225
+}

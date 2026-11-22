@@ -24,6 +24,18 @@
     {"id": "wai-gemma4", "extract": "wai:@cf/google/gemma-4-26b-a4b-it", "summary": "wai:@cf/google/gemma-4-26b-a4b-it"},
     {"id": "wai-qwen38", "extract": "wai:@cf/qwen/qwen3.8-27b", "summary": "wai:@cf/qwen/qwen3.8-27b"},
     {"id": "wai-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017"},
-    {"id": "wai-llama4scout", "extract": "wai:@cf/meta/llama-4-scout-17b-16e-instruct", "summary": "wai:@cf/meta/llama-4-scout-17b-16e-instruct"}
+    {"id": "wai-llama4scout", "extract": "wai:@cf/meta/llama-4-scout-17b-16e-instruct", "summary": "wai:@cf/meta/llama-4-scout-17b-16e-instruct"},
+    {"id": "single-lite", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite", "mode": "single"},
+    {"id": "single-g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "single"},
+    {"id": "single-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "mode": "single"},
+    {"id": "single-gemma4", "extract": "wai:@cf/google/gemma-4-26b-a4b-it", "summary": "wai:@cf/google/gemma-4-26b-a4b-it", "mode": "single"},
+    {"id": "slim-prod", "extract": "gemini:gemini-3.5-flash", "summary": "gemini:gemini-3.1-flash-lite", "mode": "slim"},
+    {"id": "slim-lite", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite", "mode": "slim"},
+    {"id": "slim-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "mode": "slim"},
+    {"id": "slim-g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "slim"},
+    {"id": "card-gemma4", "extract": "wai:@cf/google/gemma-4-26b-a4b-it", "summary": "wai:@cf/google/gemma-4-26b-a4b-it", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"},
+    {"id": "card-lite", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"},
+    {"id": "card-g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"},
+    {"id": "card-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"}
   ]
 }

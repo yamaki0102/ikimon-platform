@@ -1,0 +1,66 @@
+{
+ "key": "coccinella-septempunctata",
+ "en": {
+  "scientific_name": "Coccinella septempunctata",
+  "english_name": "Seven-spotted Ladybug",
+  "rank": "species",
+  "overview": "A common, medium-sized ladybug with bright red wing covers bearing seven distinct black spots.",
+  "distinguishing_tips": [
+   "Bright red elytra with exactly seven black spots",
+   "Black pronotum with white spots at the front corners",
+   "Smooth, shiny, domed body without fine hairs",
+   "Black legs and underside"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Asian Ladybird",
+    "scientific_name": "Harmonia axyridis",
+    "distinction_point": "Has a highly variable number of spots and often a small ridge near the rear of the wing covers."
+   },
+   {
+    "english_name": "Twenty-eight-spotted Ladybird",
+    "scientific_name": "Henosepilachna vigintioctopunctata",
+    "distinction_point": "Duller orange-brown color with fine hairs and many more black spots."
+   }
+  ],
+  "confirm_more": [
+   "Dorsal view showing all seven spots clearly",
+   "Close-up of the pronotum pattern",
+   "Side view to check for wing cover ridges"
+  ],
+  "season_habitat": "Active from spring to autumn in grasslands, gardens, and agricultural fields."
+ },
+ "ja": {
+  "scientific_name": "Coccinella septempunctata",
+  "english_name": "ナナホシテントウ",
+  "rank": "種",
+  "overview": "鮮やかな赤色の翅に7つの黒い斑点がある、中型の一般的なテントウムシです。",
+  "distinguishing_tips": [
+   "鮮やかな赤色の翅に、正確に7つの黒い斑点がある",
+   "前胸背板は黒く、前方の両角に白い斑点がある",
+   "体は滑らかで光沢があり、毛がなくドーム型をしている",
+   "脚と腹面は黒色"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Asian Ladybird",
+    "scientific_name": "Harmonia axyridis",
+    "japanese_name": "ナミテントウ",
+    "distinction_point": "斑点の数が非常に多様で、翅の末端付近に小さな隆起があることが多い。"
+   },
+   {
+    "english_name": "Twenty-eight-spotted Ladybird",
+    "scientific_name": "Henosepilachna vigintioctopunctata",
+    "japanese_name": "ニジュウヤホシテントウ",
+    "distinction_point": "全体的にくすんだオレンジ褐色で、細かい毛が生えており、黒い斑点が非常に多い。"
+   }
+  ],
+  "confirm_more": [
+   "7つの斑点がすべて見える背面からの観察",
+   "前胸背板の模様のクローズアップ",
+   "翅の隆起を確認するための側面からの観察"
+  ],
+  "season_habitat": "春から秋にかけて活動し、草原、庭、農耕地などで見られます。"
+ },
+ "costUsd": 0.01105025
+}

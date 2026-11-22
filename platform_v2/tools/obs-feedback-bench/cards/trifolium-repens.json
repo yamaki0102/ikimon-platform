@@ -1,0 +1,77 @@
+{
+ "key": "trifolium-repens",
+ "en": {
+  "scientific_name": "Trifolium repens",
+  "english_name": "White Clover",
+  "rank": "species",
+  "overview": "A low-growing, creeping perennial herb with trifoliate leaves and round white flower heads, widely naturalized across Japan.",
+  "distinguishing_tips": [
+   "Three oval leaflets often marked with a pale V-shaped chevron",
+   "Creeping stems that root at the nodes along the ground",
+   "Globular white flower heads on long, leafless stalks",
+   "Outer florets turn brown and droop downward after blooming"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Red Clover",
+    "scientific_name": "Trifolium pratense",
+    "distinction_point": "Has larger pink-to-purple flower heads and upright, hairy stems rather than creeping ones."
+   },
+   {
+    "english_name": "Creeping Woodsorrel",
+    "scientific_name": "Oxalis corniculata",
+    "distinction_point": "Has heart-shaped leaflets and small yellow five-petaled flowers."
+   },
+   {
+    "english_name": "Black Medick",
+    "scientific_name": "Medicago lupulina",
+    "distinction_point": "Features tiny yellow flower clusters and a short stalk on the middle leaflet."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the three-part leaf showing the pale V-shaped marking",
+   "Side view of the creeping stem rooting along the ground",
+   "Close-up of a flower head showing individual florets"
+  ],
+  "season_habitat": "Blooms from spring to autumn in lawns, parks, roadsides, and open grassy fields."
+ },
+ "ja": {
+  "scientific_name": "Trifolium repens",
+  "english_name": "シロツメクサ",
+  "rank": "種",
+  "overview": "地面を這うように広がる多年草で、3枚の小葉からなる葉と丸い白い花が特徴です。日本全国に広く帰化しています。",
+  "distinguishing_tips": [
+   "3枚の卵形の小葉には、しばしば白いV字型の斑紋が入る",
+   "茎が地面を這い、節から根を出す",
+   "長い花柄の先に球状の白い花をつける",
+   "花が終わると外側の小花から茶色く変色し、下を向く"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Red Clover",
+    "scientific_name": "Trifolium pratense",
+    "japanese_name": "アカツメクサ",
+    "distinction_point": "花が大きくピンクから紫色で、茎は這わずに直立し、毛が生えている。"
+   },
+   {
+    "english_name": "Creeping Woodsorrel",
+    "scientific_name": "Oxalis corniculata",
+    "japanese_name": "カタバミ",
+    "distinction_point": "葉がハート形で、小さな黄色い5弁の花をつける。"
+   },
+   {
+    "english_name": "Black Medick",
+    "scientific_name": "Medicago lupulina",
+    "japanese_name": "コメツブウマゴヤシ",
+    "distinction_point": "小さな黄色い花が集まって咲き、中央の小葉に短い柄がある。"
+   }
+  ],
+  "confirm_more": [
+   "白いV字型の斑紋がある3枚の葉のクローズアップ",
+   "地面を這い、節から根を出している茎の側面図",
+   "個々の小花が確認できる花頭のクローズアップ"
+  ],
+  "season_habitat": "春から秋にかけて、芝生、公園、道端、開けた草地などで見られます。"
+ },
+ "costUsd": 0.00850325
+}

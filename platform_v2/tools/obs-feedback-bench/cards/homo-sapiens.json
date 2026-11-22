@@ -1,0 +1,66 @@
+{
+ "key": "homo-sapiens",
+ "en": {
+  "scientific_name": "Homo sapiens",
+  "english_name": "Human",
+  "rank": "species",
+  "overview": "A bipedal primate widely distributed across Japan, easily recognized by upright posture, minimal body hair, and habitual use of clothing.",
+  "distinguishing_tips": [
+   "Bipedal upright posture",
+   "Minimal body hair, mostly on head",
+   "Habitually wears clothing and footwear",
+   "Flat face with prominent chin"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese macaque",
+    "scientific_name": "Macaca fuscata",
+    "distinction_point": "Smaller, covered in thick fur, walks on all fours, and has a short tail."
+   },
+   {
+    "english_name": "Asian black bear",
+    "scientific_name": "Ursus thibetanus",
+    "distinction_point": "Much bulkier, covered in black fur, and rarely walks upright for long."
+   }
+  ],
+  "confirm_more": [
+   "Full-body profile showing upright bipedal stance",
+   "Close-up of face or hands",
+   "Footprints showing flat soles and forward-pointing toes"
+  ],
+  "season_habitat": "Present year-round in nearly all habitats, especially urban, suburban, and agricultural areas."
+ },
+ "ja": {
+  "scientific_name": "Homo sapiens",
+  "english_name": "ヒト",
+  "rank": "種",
+  "overview": "日本全国に広く分布する二足歩行の霊長類。直立した姿勢、体毛の少なさ、そして衣服を着用する習慣が特徴です。",
+  "distinguishing_tips": [
+   "直立二足歩行",
+   "体毛が少なく、主に頭部に集中している",
+   "衣服や履物を着用する習慣がある",
+   "平坦な顔立ちと突き出た顎"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese macaque",
+    "scientific_name": "Macaca fuscata",
+    "japanese_name": "ニホンザル",
+    "distinction_point": "ヒトより小型で、全身が厚い毛に覆われており、四足歩行で短い尾を持つ。"
+   },
+   {
+    "english_name": "Asian black bear",
+    "scientific_name": "Ursus thibetanus",
+    "japanese_name": "ツキノワグマ",
+    "distinction_point": "体格がはるかに大きく、黒い毛に覆われており、長時間直立して歩くことはほとんどない。"
+   }
+  ],
+  "confirm_more": [
+   "直立二足歩行の全身像",
+   "顔や手のアップ",
+   "平らな足裏と前を向いた指が確認できる足跡"
+  ],
+  "season_habitat": "ほぼすべての環境で一年中見られ、特に都市部、郊外、農耕地でよく観察されます。"
+ },
+ "costUsd": 0.0083325
+}

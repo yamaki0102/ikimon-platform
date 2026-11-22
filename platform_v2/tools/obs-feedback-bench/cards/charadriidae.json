@@ -1,0 +1,66 @@
+{
+ "key": "charadriidae",
+ "en": {
+  "scientific_name": "Charadriidae",
+  "english_name": "Plovers and Lapwings",
+  "rank": "family",
+  "overview": "Compact, short-billed shorebirds that forage with a characteristic run-and-stop motion across Japan's mudflats, beaches, and open fields.",
+  "distinguishing_tips": [
+   "Short, straight, pigeon-like bill",
+   "Large dark eyes on a rounded head",
+   "Distinctive run-stop-peck foraging behavior",
+   "Often have bold breast bands or facial markings"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sandpipers",
+    "scientific_name": "Scolopacidae",
+    "distinction_point": "Sandpipers typically have longer, thinner bills and probe continuously rather than running and stopping."
+   },
+   {
+    "english_name": "Pratincoles",
+    "scientific_name": "Glareolidae",
+    "distinction_point": "Pratincoles have shorter legs, forked tails, and hawk insects in flight like swallows."
+   }
+  ],
+  "confirm_more": [
+   "Side profile showing bill length and head shape",
+   "Clear view of breast and facial markings",
+   "Leg color and relative leg length"
+  ],
+  "season_habitat": "Found year-round in Japan, inhabiting coastal mudflats, sandy beaches, riverbanks, and agricultural fields."
+ },
+ "ja": {
+  "scientific_name": "Charadriidae",
+  "english_name": "チドリ科",
+  "rank": "科",
+  "overview": "日本の干潟や海岸、開けた農耕地などで見られる、短いくちばしを持つ小型のシギ・チドリの仲間です。走っては止まるという独特の動作で餌を探すのが特徴です。",
+  "distinguishing_tips": [
+   "短くまっすぐな、ハトのような形のくちばし",
+   "丸い頭に大きな黒い目",
+   "走っては止まり、ついばむという独特の採餌行動",
+   "胸の帯状の模様や顔の模様が目立つことが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sandpipers",
+    "scientific_name": "Scolopacidae",
+    "japanese_name": "シギ科",
+    "distinction_point": "シギ類はくちばしが長く細いものが多く、走っては止まる動作よりも、連続して地面をつついて餌を探す傾向があります。"
+   },
+   {
+    "english_name": "Pratincoles",
+    "scientific_name": "Glareolidae",
+    "japanese_name": "ツバメチドリ科",
+    "distinction_point": "ツバメチドリ類は足が短く尾が二股に分かれており、ツバメのように飛びながら昆虫を捕食します。"
+   }
+  ],
+  "confirm_more": [
+   "くちばしの長さと頭の形がわかる横からの姿",
+   "胸や顔の模様がはっきりと見えること",
+   "足の色と相対的な足の長さ"
+  ],
+  "season_habitat": "日本国内では一年を通じて見られ、海岸の干潟、砂浜、河川敷、農耕地などに生息しています。"
+ },
+ "costUsd": 0.008376749999999999
+}
