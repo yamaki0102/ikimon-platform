@@ -2567,3 +2567,11 @@ test("a tile lost on a weak connection makes the map ask its source again, at mo
   assert.match(script, /tileRetry\.count >= 3/);
   assert.match(script, /source\.reload\(\)/);
 });
+
+test("attribution starts collapsed on narrow widths", () => {
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  assert.match(script, /window\.innerWidth < 768/);
+  assert.match(script, /classList\.remove\('maplibregl-compact-show'\)/);
+  assert.match(script, /state\.map\.once\('idle', collapseAttrib\)/);
+  assert.match(script, /attribUserOpened/);
+});

@@ -2966,7 +2966,23 @@ ${MAP_EXPLORER_BASEMAPS_JS}
     }
     if (window.maplibregl.AttributionControl) {
       state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-      if (window.innerWidth < 768) setTimeout(function () { var el = document.querySelector('.map-explorer .maplibregl-ctrl-attrib'); if (el) el.classList.remove('maplibregl-compact-show'); el && el.removeAttribute('open'); }, 0);
+      if (window.innerWidth < 768) {
+        var attribUserOpened = false;
+        var collapseAttrib = function () {
+          var el = document.querySelector('.map-explorer .maplibregl-ctrl-attrib');
+          if (!el) return false;
+          if (!attribUserOpened) el.classList.remove('maplibregl-compact-show');
+          if (!el.__meAttribWatch) {
+            el.__meAttribWatch = true;
+            var btn = el.querySelector('.maplibregl-ctrl-attrib-button');
+            if (btn) btn.addEventListener('click', function () { attribUserOpened = true; }, true);
+            if (window.MutationObserver) new MutationObserver(function () { if (!attribUserOpened && el.classList.contains('maplibregl-compact-show')) el.classList.remove('maplibregl-compact-show'); }).observe(el, { attributes: true, attributeFilter: ['class'] });
+          }
+          return true;
+        };
+        setTimeout(collapseAttrib, 0);
+        if (typeof state.map.once === 'function') { state.map.once('load', collapseAttrib); state.map.once('idle', collapseAttrib); }
+      }
     }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     var tileRetry = { count: 0, pending: false };
@@ -15509,7 +15525,7 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px;padding:0}
   .map-explorer .maplibregl-ctrl-attrib,.map-explorer .maplibregl-ctrl-attrib a,.map-explorer .maplibregl-ctrl-attrib-inner{font-size:14px;line-height:1.3}
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:calc(100% - 20px);white-space:normal}
-  @media (max-width:767px){.map-explorer .maplibregl-ctrl-bottom-right{bottom:calc(env(safe-area-inset-bottom,0px) + 96px);max-width:calc(100% - 20px)}}
+  @media (max-width:767px){.map-explorer .maplibregl-ctrl-bottom-right{bottom:calc(env(safe-area-inset-bottom,0px) + 96px);max-width:calc(100% - 20px);display:flex;flex-direction:column-reverse;align-items:flex-end}.map-explorer .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show{position:relative;z-index:0;max-width:min(260px,calc(100vw - 140px))}}
   .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}
