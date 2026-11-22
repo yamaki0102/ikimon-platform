@@ -176,6 +176,8 @@ import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOr
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
+import { normalizeSafePublicAreaLabelCandidate } from "./publicAreaLabel";
+import { handlePlaceYearReadRequest } from "./placeYearRead";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, claimObservationEventGuestParticipant, findObservationEventParticipant, generateNativeObservationEventQuests, getObservationEventSessionById, mapObservationEventSession, observationEventGuestCredentialDigest, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventServerFunnelMetric, type ObservationEventSessionD1Row } from "./programs/runtime";
 export { observationEventPageHtml, renderObservationEventCreatePage, renderObservationEventRecapPage } from "./programs/pages";
 
@@ -843,9 +845,6 @@ const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "
 const HOME_RECORD_FEED_INITIAL_LIMIT = 36;
 const HOME_RECORD_FEED_MAX_DOM_CARDS = 96;
 const HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS = [2, 6, 10, 14, 18];
-const PUBLIC_AREA_LABEL_MAX_LENGTH = 40;
-const PUBLIC_AREA_LABEL_SENSITIVE_PATTERN = /(学校|小学校|中学校|高校|高等学校|幼稚園|保育園|こども園|児童|自宅|住所|番地|丁目|号室|マンション|アパート|寮|private|school|home|residence|address|apartment|condo|nursery|kindergarten)/i;
-const PUBLIC_AREA_LABEL_ADDRESS_PATTERN = /[0-9]|[-.,;:/\\@#]|[!?"$%&'()*+<=>\[\]^_`{|}~]/;
 const PUBLIC_STREAM_ALLOWED_LOCATION_PRECISIONS = new Set(["municipality", "mesh"]);
 interface PublicMapPhotoRow {
   observation_id: string;
@@ -2350,6 +2349,11 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/cells") {
         return getPublicMapCells(url, env);
+      }
+
+      if (request.method === "GET" && nativePathname.startsWith("/api/v1/places/")) {
+        const response = await handlePlaceYearReadRequest(request, env.OBS_DB, nativePathname);
+        if (response) return response;
       }
 
       if (request.method === "GET" && nativePathname.startsWith("/api/v1/publication-feeds/")) {
@@ -26863,16 +26867,6 @@ async function legacyObservationRequestFingerprint(input: LegacyObservationUpser
     materialSourcePayload: legacyObservationMaterialSourcePayload(input)
   };
   return `v2:${await sha256Hex(textToArrayBuffer(stableJson(payload)))}`;
-}
-
-function normalizeSafePublicAreaLabelCandidate(value: unknown): string | null {
-  const text = normalizeOptionalText(value);
-  if (!text) return null;
-  const normalized = text.normalize("NFKC").replace(/\s+/g, "");
-  if (!normalized || normalized.length > PUBLIC_AREA_LABEL_MAX_LENGTH) return null;
-  if (PUBLIC_AREA_LABEL_SENSITIVE_PATTERN.test(normalized)) return null;
-  if (PUBLIC_AREA_LABEL_ADDRESS_PATTERN.test(normalized)) return null;
-  return normalized;
 }
 
 function shouldCoarsenPublicAreaLabel(label: string): boolean {
