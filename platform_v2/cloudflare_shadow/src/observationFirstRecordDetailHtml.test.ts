@@ -960,7 +960,7 @@ test("record detail resolves the 7 UX polish items: open capture, readable media
   });
   assert.match(rendered, /<details class="of-capture" open>/);
   assert.doesNotMatch(rendered, /\.of-media-nav\{[^}]*position:absolute/);
-  assert.match(rendered, /@media\(min-width:900px\)\{\.of-media-slide img\{width:100%/);
+  assert.match(rendered, /@media\(min-width:900px\)\{.*\.of-media-slide img\{width:100%/);
   assert.doesNotMatch(rendered, /<span>◉<\/span>|<span>◌<\/span>/);
   assert.doesNotMatch(rendered, /位置はぼかして表示/);
   assert.match(rendered, /名前はこれから/);
@@ -989,4 +989,23 @@ test("existing landscape record without aiFeedback renders grounded environment 
   assert.match(rendered, /data-ai-feedback/);
   assert.match(rendered, /水辺のよう/);
   assert.doesNotMatch(rendered, /生きものの姿は見つかりませんでした/);
+});
+
+test("record detail fixes media-nav contrast after appExperience, desktop image height, and ai-feedback card framing", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "水辺の観察",
+    observedLabel: "2026/11/22 08:15",
+    note: null,
+    aiFeedback: "水辺の植生が見えます。",
+    media: [
+      { mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" },
+      { mediaId: "p2", mediaKind: "photo", url: "https://media.example/2.webp" },
+    ],
+    actionNonce: "nonce-3fixes",
+    viewerAuthenticated: false,
+  });
+  assert.match(rendered, /\.of-media-nav a\{[^}]*color:var\(--ink\)/);
+  assert.match(rendered, /@media\(min-width:900px\)\{\.of-media-stage\{min-height:0\}\.of-media-slide img\{width:100%;height:calc\(100vh - 96px\);object-fit:contain\}\}/);
+  assert.match(rendered, /\.of-note\[data-ai-feedback\]\{[^}]*border:1px solid var\(--green\);border-radius:17px/);
 });
