@@ -2966,6 +2966,7 @@ ${MAP_EXPLORER_BASEMAPS_JS}
     }
     if (window.maplibregl.AttributionControl) {
       state.map.addControl(new window.maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+      if (window.innerWidth < 768) setTimeout(function () { var el = document.querySelector('.map-explorer .maplibregl-ctrl-attrib'); if (el) el.classList.remove('maplibregl-compact-show'); el && el.removeAttribute('open'); }, 0);
     }
     state.map.addControl(new window.maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     var tileRetry = { count: 0, pending: false };
@@ -13191,10 +13192,20 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     min-width: 38px;
     min-height: 38px;
     padding: 0;
-    font-size: 0;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    text-indent: -200px;
+    color: transparent;
   }
   .me-legend.is-collapsed .me-legend-toggle::after {
     content: "?";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    text-indent: 0;
+    color: #fff;
     margin-left: 0;
     font-size: 15px;
   }
@@ -15496,6 +15507,9 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact{min-height:44px;display:flex;align-items:center}
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact.maplibregl-compact-show{padding:0 48px 0 10px}
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show){width:44px;padding:0}
+  .map-explorer .maplibregl-ctrl-attrib,.map-explorer .maplibregl-ctrl-attrib a,.map-explorer .maplibregl-ctrl-attrib-inner{font-size:14px;line-height:1.3}
+  .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:calc(100% - 20px);white-space:normal}
+  @media (max-width:767px){.map-explorer .maplibregl-ctrl-bottom-right{bottom:calc(env(safe-area-inset-bottom,0px) + 96px);max-width:calc(100% - 20px)}}
   .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}
