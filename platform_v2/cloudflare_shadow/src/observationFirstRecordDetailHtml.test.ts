@@ -1201,7 +1201,8 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
   assert.match(visibleText, /この説明はAIが作成しました/);
   assert.match(visibleText, /この場所のようすはAIが読み取りました/);
   assert.equal((bodyHtml.match(/class="of-ai-note"/g) ?? []).length, 3);
-  assert.match(rendered, /この記録について/);
+  assert.equal((bodyHtml.match(/AIのコメント/g) ?? []).length, 1);
+  assert.match(rendered, /確認の印がない名前と場所のようすは、AIが推定したものです。/);
   assert.doesNotMatch(rendered, /of-ai-badge|AIの見立て|AIからの短いメモ|AIが見つけた/);
   assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
   assert.doesNotMatch(rendered, /未確認/);
