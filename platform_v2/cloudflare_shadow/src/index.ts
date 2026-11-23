@@ -9251,7 +9251,7 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
       }, {});
       return {
         type: "Feature",
-        geometry: { type: "Polygon", coordinates: [publicCellPolygon(parsed.lat, parsed.lng)] },
+        geometry: { type: "Polygon", coordinates: [publicCellPolygon(parsed.lat, parsed.lng, publicCellHalfStep(publicCell))] },
         properties: {
           cellId: publicCellToCellId(publicCell),
           label: "位置をぼかしています",
@@ -10686,18 +10686,20 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
   const rawYear = numberFromSearchParam(url.searchParams.get("year"));
   const year = rawYear !== null && Number.isInteger(rawYear) && rawYear >= 2000 && rawYear <= 2100 ? rawYear : null;
   const rows = await queryPublicMapRows(env);
-  const grouped = new Map<string, { lat: number; lng: number; count: number }>();
+  const grouped = new Map<string, { lat: number; lng: number; count: number; halfStep: number }>();
   for (const row of rows) {
     if (year !== null && !row.observed_at.startsWith(String(year))) continue;
     if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
     const parsed = parsePublicCell(row.public_cell);
     if (!parsed) continue;
-    const lat = Math.round(parsed.lat * 100) / 100;
-    const lng = Math.round(parsed.lng * 100) / 100;
-    const mesh = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    const halfStep = publicCellHalfStep(row.public_cell);
+    const coarse = halfStep > 0.005;
+    const lat = coarse ? parsed.lat : Math.round(parsed.lat * 100) / 100;
+    const lng = coarse ? parsed.lng : Math.round(parsed.lng * 100) / 100;
+    const mesh = coarse ? `${lat.toFixed(1)},${lng.toFixed(1)}` : `${lat.toFixed(2)},${lng.toFixed(2)}`;
     const current = grouped.get(mesh);
     if (current) current.count += 1;
-    else grouped.set(mesh, { lat, lng, count: 1 });
+    else grouped.set(mesh, { lat, lng, count: 1, halfStep });
   }
   const features = [...grouped.entries()]
     .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
@@ -10706,7 +10708,7 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
       type: "Feature" as const,
       geometry: {
         type: "Polygon" as const,
-        coordinates: [publicCellPolygon(group.lat, group.lng)]
+        coordinates: [publicCellPolygon(group.lat, group.lng, group.halfStep)]
       },
       properties: {
         mesh,
@@ -23743,7 +23745,7 @@ async function getShadowVideoThumbnail(uid: string, env: Env): Promise<Response>
 
 async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
   const snapshotRows = await queryPublicMapSnapshotRows(env);
-  if (snapshotRows.length > 0) return snapshotRows;
+  if (snapshotRows.length > 0) return coarsenSparsePublicCells(env, snapshotRows);
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label
@@ -23757,7 +23759,7 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
-    return rows.results;
+    return coarsenSparsePublicCells(env, rows.results);
   } catch (error) {
     if (!(error instanceof Error) || !/no such column: public_area_label/i.test(error.message)) throw error;
     const rows = await env.OBS_DB.prepare(
@@ -23772,8 +23774,55 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
-    return rows.results.map((row) => ({ ...row, public_area_label: null }));
+    return coarsenSparsePublicCells(env, rows.results.map((row) => ({ ...row, public_area_label: null })));
   }
+}
+
+// Cells with fewer than 3 distinct recorders are published at 10km (0.1 degree) instead of 1km.
+async function coarsenSparsePublicCells(env: Env, rows: PublicMapRow[]): Promise<PublicMapRow[]> {
+  const ids = [...new Set(rows.map((row) => row.observation_id))];
+  const owners = new Map<string, string | null>();
+  let lookupFailed = false;
+  try {
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 90) chunks.push(ids.slice(i, i + 90));
+    for (let i = 0; i < chunks.length; i += 8) {
+      const results = await Promise.all(chunks.slice(i, i + 8).map((chunk) =>
+        env.OBS_DB.prepare(
+          `SELECT observation_id, owner_user_id FROM observations WHERE observation_id IN (${chunk.map(() => "?").join(",")})`
+        ).bind(...chunk).all<{ observation_id: string; owner_user_id: string | null }>()
+      ));
+      for (const result of results) {
+        for (const row of result.results) owners.set(row.observation_id, row.owner_user_id);
+      }
+    }
+  } catch {
+    lookupFailed = true;
+  }
+  const cellKey = (publicCell: string): { lat: number; lng: number; key: string } | null => {
+    const parsed = parsePublicCell(publicCell);
+    if (!parsed) return null;
+    const key = `${(Math.round(parsed.lat * 100) / 100).toFixed(2)},${(Math.round(parsed.lng * 100) / 100).toFixed(2)}`;
+    return { ...parsed, key };
+  };
+  const authorsByCell = new Map<string, Set<string>>();
+  if (!lookupFailed) {
+    for (const row of rows) {
+      const cell = cellKey(row.public_cell);
+      if (!cell) continue;
+      const author = owners.get(row.observation_id) || `anon:${row.observation_id}`;
+      const authors = authorsByCell.get(cell.key) ?? new Set<string>();
+      authors.add(author);
+      authorsByCell.set(cell.key, authors);
+    }
+  }
+  return rows.map((row) => {
+    const cell = cellKey(row.public_cell);
+    if (!cell) return row;
+    if (!lookupFailed && (authorsByCell.get(cell.key)?.size ?? 0) >= 3) return row;
+    const coarse = `${(Math.round(cell.lat * 10) / 10).toFixed(1)},${(Math.round(cell.lng * 10) / 10).toFixed(1)}`;
+    return { ...row, public_cell: row.public_cell.startsWith("cell:") ? `cell:${coarse}` : coarse };
+  });
 }
 
 async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
@@ -33526,8 +33575,12 @@ function publicMediaUrl(key: string | null): string {
   return key ? `/${key}` : "";
 }
 
-function publicCellPolygon(lat: number, lng: number): [number, number][] {
-  const halfStep = 0.005;
+function publicCellHalfStep(publicCell: string): number {
+  const latRaw = publicCell.replace(/^cell:/, "").split(",")[0] ?? "";
+  return /^-?\d+\.\d$/.test(latRaw) ? 0.05 : 0.005;
+}
+
+function publicCellPolygon(lat: number, lng: number, halfStep = 0.005): [number, number][] {
   return [
     [lng - halfStep, lat - halfStep],
     [lng + halfStep, lat - halfStep],

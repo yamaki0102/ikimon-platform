@@ -7658,6 +7658,13 @@ class FakeStatement {
         .map(({ payload_json, created_at }) => ({ payload_json, created_at }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT observation_id, owner_user_id FROM observations WHERE observation_id IN")) {
+      const observationIds = new Set(this.values.map(string));
+      const rows = [...this.db.observations.values()]
+        .filter((row) => observationIds.has(row.observation_id))
+        .map((row) => ({ observation_id: row.observation_id, owner_user_id: row.owner_user_id }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label FROM readmodel_public_observations")
       || normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
@@ -31335,6 +31342,73 @@ test("public map and public detail redact exact timestamps, hidden cells, and 24
   const detailHtml = await detailDelayed.text();
   assert.match(detailHtml, /位置は24時間後に公開されます/);
   assert.doesNotMatch(detailHtml, /35\.6812|139\.7671/);
+});
+
+test("public map coarsens cells with fewer than three recorders to 10km on every public exit", async () => {
+  const { env, obs } = createEnv();
+  const observedAt = "2026-10-15T14:23:45.000Z";
+  const addRecord = (observationId: string, ownerUserId: string, publicCell: string) => {
+    obs.observations.set(observationId, {
+      observation_id: observationId,
+      draft_id: `d-${observationId}`,
+      owner_user_id: ownerUserId,
+      observed_at: observedAt,
+      partition_month: "2026-10",
+      taxon_label: "ヤツデ",
+      note: null,
+      exact_lat: 35.6812,
+      exact_lng: 139.7671,
+      location_accuracy_m: 10,
+      public_cell: `cell:${publicCell}`,
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "accepted",
+      public_area_label: "東京都千代田区"
+    });
+    obs.readmodel.set(observationId, {
+      observation_id: observationId,
+      public_cell: publicCell,
+      observed_at: observedAt,
+      taxon_label: "ヤツデ",
+      asset_count: 0,
+      partition_month: "2026-10",
+      public_area_label: "東京都千代田区"
+    });
+  };
+  addRecord("obs-sparse-1", "owner-1", "35.68,139.77");
+  addRecord("obs-sparse-2", "owner-1", "35.68,139.77");
+  addRecord("obs-dense-1", "owner-a", "35.52,139.52");
+  addRecord("obs-dense-2", "owner-b", "35.52,139.52");
+  addRecord("obs-dense-3", "owner-c", "35.52,139.52");
+
+  const bbox = "139.0,35.0,140.0,36.0";
+  const cellsBody = await (await worker.fetch(new Request(`https://zukan.earth/api/v1/map/cells?bbox=${bbox}`), env)).json() as {
+    features: Array<{ geometry: { coordinates: number[][][] }; properties: { cellId: string; count: number } }>;
+  };
+  const sparse = cellsBody.features.find((f) => f.properties.cellId === "cell:35.7,139.8")!;
+  assert.ok(sparse, "sparse cell should be coarsened to 0.1 degree");
+  assert.equal(sparse.properties.count, 2);
+  const sparseXs = sparse.geometry.coordinates[0]!.map((p) => p[0]!);
+  assert.ok(Math.abs((Math.max(...sparseXs) - Math.min(...sparseXs)) - 0.1) < 1e-9);
+  assert.equal(cellsBody.features.some((f) => f.properties.cellId === "cell:35.68,139.77"), false);
+  const dense = cellsBody.features.find((f) => f.properties.cellId === "cell:35.52,139.52")!;
+  assert.ok(dense, "three-recorder cell should stay at 0.01 degree");
+  const denseXs = dense.geometry.coordinates[0]!.map((p) => p[0]!);
+  assert.ok(Math.abs((Math.max(...denseXs) - Math.min(...denseXs)) - 0.01) < 1e-9);
+
+  const observationsBody = await (await worker.fetch(new Request(`https://zukan.earth/api/v1/map/observations?bbox=${bbox}`), env)).json() as {
+    items: Array<{ visitId: string; publicCellId: string | null }>;
+  };
+  const sparseItem = observationsBody.items.find((x) => x.visitId === "obs-sparse-1")!;
+  assert.equal(sparseItem.publicCellId, "cell:35.7,139.8");
+  const denseItem = observationsBody.items.find((x) => x.visitId === "obs-dense-1")!;
+  assert.equal(denseItem.publicCellId, "cell:35.52,139.52");
+
+  const coverageBody = await (await worker.fetch(new Request("https://zukan.earth/api/v1/map/coverage?year=2026"), env)).json() as {
+    features: Array<{ properties: { mesh: string; count: number } }>;
+  };
+  assert.equal(coverageBody.features.some((f) => f.properties.mesh === "35.7,139.8" && f.properties.count === 2), true);
+  assert.equal(coverageBody.features.some((f) => f.properties.mesh === "35.52,139.52" && f.properties.count === 3), true);
 });
 
 test("fixed-point station creation and record creation require authentication and place manager/admin authorization", async () => {
