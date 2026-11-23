@@ -432,7 +432,7 @@ export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Ar
     }),
     environment_summary: fit([str(id.simple_summary, 200), str(habitat?.overview, 200)], CARD_PUBLIC_TEXT_MAX),
     interaction_summary: list(habitat?.what_to_look_for, 4, 120).length ? `この環境で注目するとよいもの: ${list(habitat?.what_to_look_for, 4, 120).join("／")}` : "",
-    observer_feedback: fit([measure?.scene?.qualityLabel ? `写真の情報量: ${measure.scene.qualityLabel}。` : "", str(id.observer_boost, 200), ...(candidates.length === 0 ? list(habitat?.confirm_more, 2, 120).map((x, k) => (k === 0 ? `次に撮るなら: ${x}` : `／${x}`)) : [])], CARD_PUBLIC_TEXT_MAX, ""),
+    observer_feedback: fit([measure?.scene?.qualityLabel && main && !isEnvironment && ["single", "multi"].includes(measure.scene.kind) ? `写真の情報量: ${measure.scene.qualityLabel}。` : "", str(id.observer_boost, 200), ...(candidates.length === 0 ? list(habitat?.confirm_more, 2, 120).map((x, k) => (k === 0 ? `次に撮るなら: ${x}` : `／${x}`)) : [])], CARD_PUBLIC_TEXT_MAX, ""),
   };
   return applyGeminiObservationSummary(merged, summary);
 }

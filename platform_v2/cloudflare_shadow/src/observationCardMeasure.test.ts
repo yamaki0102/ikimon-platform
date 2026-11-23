@@ -78,6 +78,8 @@ test("measure failures never break the card result and cached lookalike cards ar
   const many = await runObservationCardPipeline({ observedAt: null, images: [image] }, deps({ measure: async (_i, q) => (q.kind ? sceneAnswers() : { s0: { noul: 0.9 }, pick: { choice: "zz_other", probabilities: { c0: 0.1, c1: 0.1, zz_other: 0.8 } } }) }).deps);
   assert.equal(many.merged.topCandidates[0]!.name, "ハシボソガラス");
   assert.equal(many.merged.topCandidates.length, 1);
+  const scene = await runObservationCardPipeline({ observedAt: null, images: [image] }, deps({ measure: async (_i, q): Promise<Record<string, DecisionAnswer>> => (q.kind ? { ...sceneAnswers("scene", 0.9), quality: { score: 0.2 } } : { s0: { noul: 0.9 } }) }).deps);
+  assert.doesNotMatch(scene.merged.summary!.observer_feedback, /写真の情報量/);
 });
 
 test("scene is accepted only for one clear subject with a listed family", () => {
