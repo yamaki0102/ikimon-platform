@@ -1096,7 +1096,7 @@ test("card mode renders each heading and candidate once without advice prose, co
   );
   assert.equal((rendered.match(/ナミアゲハかもしれません/g) ?? []).length, 1);
   assert.equal((rendered.match(/ログインして名前を提案する/g) ?? []).length, 1);
-  assert.equal((rendered.match(/AIが見つけた候補|AIが見つけたもの/g) ?? []).length, 1);
+  assert.equal((rendered.match(/<small>候補<\/small>/g) ?? []).length, 1);
   assert.doesNotMatch(rendered, /写っているもの/);
   assert.doesNotMatch(rendered, /写真から見える特徴と、まだ確認できない点を並べています/);
   assert.doesNotMatch(rendered, /名前はこれから/);
@@ -1194,9 +1194,57 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
       viewerAuthenticated: false,
     },
   );
-  assert.match(rendered, /AIの見立て|of-ai-badge/);
+  const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
+  const visibleText = bodyHtml.replace(/<[^>]*>/gu, " ");
+  assert.equal((visibleText.match(/AI/g) ?? []).length, 1);
+  assert.match(rendered, /data-ai-assessment/);
+  assert.match(rendered, /AIの見立て/);
+  assert.doesNotMatch(rendered, /of-ai-badge|AIが見つけた/);
   assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
   assert.doesNotMatch(rendered, /未確認/);
   assert.match(rendered, /次に撮るとよい写真：実物の生体や周囲の自然環境<\/p>/);
   assert.doesNotMatch(rendered, /の詳細が分かる部位・角度/);
+});
+
+test("signboard record with saved illustration-deer candidate suppresses organism candidate and shows 案内板", () => {
+  const signCard = {
+    ...detail.observations[0]!,
+    aiSuggestions: [
+      {
+        suggestionId: "ai-sign",
+        proposedName: "案内板のイラストのシカ",
+        proposedScientificName: null,
+        proposedRank: "species",
+        visualEvidence: ["案内板のイラスト"],
+        shootingAdvice: [],
+        provisional: true as const,
+      },
+    ],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [signCard] },
+    {
+      lang: "ja",
+      title: "四日市市少年自然の家パノラマ図",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: null,
+      aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
+      aiCandidateInsights: [
+        {
+          name: "案内板のイラストのシカ",
+          scientificName: null,
+          supportingFeatures: ["案内板のイラスト"],
+          missingFeatures: [],
+          contradictions: [],
+        },
+      ],
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-signboard",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.doesNotMatch(rendered, /シカかもしれません|案内板のイラストのシカ/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真：実物の生体/);
+  assert.match(rendered, /写っているもの：案内板/);
 });

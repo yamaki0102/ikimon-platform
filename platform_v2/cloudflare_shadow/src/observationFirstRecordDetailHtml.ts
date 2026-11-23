@@ -303,7 +303,7 @@ function renderLearning(
   if (!suggestion) return "";
   const visible = suggestion.visualEvidence.slice(0, 2);
   const advice = suggestion.shootingAdvice.slice(0, 2);
-  return `<section class="of-learning" aria-labelledby="of-learning-title"><h3 id="of-learning-title"><span class="of-ai-badge">AI</span> ${escapeHtml(copy.learning)}</h3>
+  return `<section class="of-learning" aria-labelledby="of-learning-title"><h3 id="of-learning-title">${escapeHtml(copy.learning)}</h3>
     ${visible.length ? `<section><h4>${escapeHtml(copy.distinguishingPoints)}</h4><ul>${visible.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}
     ${advice.length ? `<section><h4>${escapeHtml(copy.shootingAdvice)}</h4><ul>${advice.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}
   </section>`;
@@ -319,7 +319,7 @@ function renderAiCandidateComparison(
   const candidates = presentation.aiCandidateInsights
     .filter((candidate) => isPublicObservationAiSubjectEligible(candidate.name, presentation.aiPersonPrimaryNames, candidate.scientificName)).slice(0, 3);
   if (candidates.length === 0) return "";
-  return `<section class="of-candidate-comparison" aria-labelledby="of-candidate-comparison-title"><h3 id="of-candidate-comparison-title"><span class="of-ai-badge">AI</span> ${escapeHtml(copy.compareCandidates)}</h3><ul>${candidates.map((candidate) => {
+  return `<section class="of-candidate-comparison" aria-labelledby="of-candidate-comparison-title"><h3 id="of-candidate-comparison-title">${escapeHtml(copy.compareCandidates)}</h3><ul>${candidates.map((candidate) => {
     const scientificName = candidate.scientificName && candidate.scientificName !== candidate.name
       ? `<small><i>${escapeHtml(candidate.scientificName)}</i></small>`
       : "";
@@ -381,11 +381,30 @@ function conciseNextPhotoItem(value: string): string {
 
 const adviceProsePattern = /(?:おすすめします|伝わりやすくなります|比べやすくなります|残すと|撮影することで|確認すると)/u;
 
+const SIGNBOARD_CANDIDATE_PATTERN = /案内板|看板|イラスト|パノラマ図|案内図|標柱|掲示板|ポスター|パンフレット|signboard|illustration|diagram/u;
+
+function isSignboardRecord(detail: ObservationFirstRecordDetail, presentation: ObservationFirstRecordPresentation): boolean {
+  const hasHumanAccepted = detail.observations.some((card) => card.state === "active" && Boolean(publicSubjectName(card.acceptedIdentification?.proposedName)));
+  if (hasHumanAccepted) return false;
+  if (SIGNBOARD_CANDIDATE_PATTERN.test(presentation.title)) return true;
+  for (const c of presentation.aiCandidateInsights ?? []) {
+    if (SIGNBOARD_CANDIDATE_PATTERN.test(c.name)) return true;
+  }
+  for (const card of detail.observations) {
+    if (card.state !== "active") continue;
+    for (const s of card.aiSuggestions) {
+      if (s.proposedName && SIGNBOARD_CANDIDATE_PATTERN.test(s.proposedName)) return true;
+    }
+  }
+  return false;
+}
+
 function renderAiFeedback(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
   copy: ObservationFirstRecordDetailCopy,
 ): string {
+  if (isSignboardRecord(detail, presentation)) return "";
   const lang = presentation.lang ?? "ja";
   const subjects = detail.observations.filter((card) => card.state === "active").flatMap((card) => [
     ...card.aiSuggestions,
@@ -406,10 +425,10 @@ function renderAiFeedback(
     ?? defaultEnvironmentNextPhoto;
   const nextPhoto = rawNextPhoto ? conciseNextPhotoItem(rawNextPhoto) : null;
   if (nextPhoto) {
-    return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiSectionLabel)}</h2><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p></section>`;
+    return `<div class="of-note" data-ai-feedback><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p></div>`;
   }
   if (!feedback) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiSectionLabel)}</h2><p>${escapeHtml(feedback)}</p></section>`;
+  return `<div class="of-note" data-ai-feedback><p>${escapeHtml(feedback)}</p></div>`;
 }
 
 function renderIdentificationForm(
@@ -473,6 +492,11 @@ function renderObservationSummary(
   action: string,
   copy: ObservationFirstRecordDetailCopy,
 ): string {
+  if (isSignboardRecord(detail, presentation)) {
+    const lang = presentation.lang ?? "ja";
+    const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
+    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p></section>`;
+  }
   const active = detail.observations.filter((card) => card.state === "active"
     && (card.assertionStatus === "human_asserted" || card.acceptedIdentification || card.communityIdentifications.length > 0 || !isHumanOnlyAiCard(card, presentation.aiPersonPrimaryNames)));
   if (active.length === 0) return "";
@@ -539,7 +563,7 @@ function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentati
   if (!state && elements.length === 0) return "";
   if (state === "detected" && elements.length === 0) return "";
   const stateMessage = state === "not_detected" ? copy.notDetected : state === "not_assessable" ? copy.notAssessable : "";
-  return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title"><span class="of-ai-badge">AI</span> ${escapeHtml(copy.sceneFound)}</h2>${elements.length ? `<ul>${elements.map((item) => `<li>${escapeHtml(copy.sceneElements[item])}</li>`).join("")}</ul>` : ""}${stateMessage ? `<p class="of-detection-state" data-detection-state="${escapeHtml(state ?? "")}">${escapeHtml(stateMessage)}</p>` : ""}</section>`;
+  return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2>${elements.length ? `<ul>${elements.map((item) => `<li>${escapeHtml(copy.sceneElements[item])}</li>`).join("")}</ul>` : ""}${stateMessage ? `<p class="of-detection-state" data-detection-state="${escapeHtml(state ?? "")}">${escapeHtml(stateMessage)}</p>` : ""}</section>`;
 }
 
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
@@ -559,8 +583,7 @@ function renderEnvironment(environment: Record<string, string> | null | undefine
   if (!headline && rows.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  const titleHtml = inferred ? `<span class="of-ai-badge">AI</span> ${escapeHtml(copy.placeSummary)}` : escapeHtml(copy.placeSummary);
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${titleHtml}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}</section>`;
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}</section>`;
 }
 
 function selectOptions(values: Record<string, string>, selected?: string): string {
@@ -577,6 +600,11 @@ function renderOwnerManagement(
   if (!detail.owner) return "";
   const lang = presentation.lang ?? "ja";
   const returnLang = hidden("return_lang", lang);
+  if (isSignboardRecord(detail, presentation)) {
+    const lang = presentation.lang ?? "ja";
+    const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
+    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p></section>`;
+  }
   const active = detail.observations.filter((card) => card.state === "active");
   const subjectTypes = {
     unknown_subject: copy.subjectTypes.unknown_subject,
@@ -719,6 +747,26 @@ export function renderObservationFirstRecordDetailHtml(
   const aiFeedback = renderAiFeedback(detail, presentation, copy);
   const scene = renderSceneUnderstanding(presentation, copy);
   const environment = renderEnvironment(presentation.environment, copy);
+  const signboard = isSignboardRecord(detail, presentation);
+  const summaryIsAi = !signboard && Boolean(summary) && (
+    Boolean(presentation.aiCandidateInsights?.length)
+    || detail.observations.some((card) => card.state === "active" && !publicSubjectName(card.acceptedIdentification?.proposedName) && displayAiSuggestions(card, presentation.aiPersonPrimaryNames).length > 0)
+  );
+  const envIsAi = Boolean(environment) && (
+    presentation.environment?.environment_record_status === "auto_draft"
+    || Object.keys(presentation.environment ?? {}).some((key) => key.endsWith("_source") && presentation.environment?.[key] === "derived")
+  );
+  const aiParts = [
+    summaryIsAi ? summary : "",
+    aiFeedback,
+    scene,
+    envIsAi ? environment : "",
+  ].filter(Boolean);
+  const aiSection = aiParts.length > 0
+    ? `<section class="of-ai-box" data-ai-assessment aria-labelledby="of-ai-box-title"><h2 id="of-ai-box-title">${escapeHtml(copy.aiSectionLabel)}</h2>${aiParts.join("")}</section>`
+    : "";
+  const nonAiSummary = !summaryIsAi ? summary : "";
+  const nonAiEnvironment = !envIsAi ? environment : "";
   const comparison = renderComparison(presentation.comparison, lang, copy);
   const note = presentation.note?.trim() ? `<section class="of-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
   const publicationReturn = renderOwnerPublicationReturn(detail, { ...presentation, lang }, copy);
@@ -746,7 +794,7 @@ export function renderObservationFirstRecordDetailHtml(
   .of-action.is-primary,.of-propose button,.of-manage button{color:var(--zukan-on-action-primary,#fff)}
   [data-ai-feedback]{border-color:var(--green);background:var(--soft)}
   body[data-zukan-app-experience] .of-note[data-ai-feedback]{margin-top:14px;padding:17px;border:1px solid var(--green);border-radius:17px;background:var(--soft);background-image:linear-gradient(150deg,rgba(36,92,58,.08),transparent 70%)}
-  .of-ai-badge{display:inline-flex;align-items:center;padding:1px 8px;margin-right:6px;border-radius:999px;background:var(--soft);border:1px solid var(--line);color:var(--green);font-size:14px;font-weight:800;vertical-align:middle}
+  .of-ai-box{margin-top:14px;padding:17px;border:1px solid var(--green);border-radius:17px;background:var(--soft)}.of-ai-box>h2{margin:0 0 10px;font-size:19px}
   .of-media-nav{display:flex;justify-content:center;gap:8px;padding:10px 12px;background:var(--paper);border-top:1px solid var(--line)}.of-media-nav a{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--ink);font-weight:800;text-decoration:none}.of-media-nav a:hover,.of-media-nav a:focus-visible{background:var(--green);color:var(--zukan-on-action-primary,#fff)}
   @media(min-width:900px){body[data-zukan-app-experience] .of-media-stage{min-height:0}body[data-zukan-app-experience] .of-media-slide{min-height:calc(100vh - 96px);aspect-ratio:auto}body[data-zukan-app-experience] .of-media-slide a{min-height:calc(100vh - 96px)}body[data-zukan-app-experience] .of-media-slide :is(img,video){width:100%;height:calc(100vh - 96px);max-height:calc(100vh - 96px);object-fit:contain}}
   @media(max-width:899px){.of-page{margin-bottom:calc(88px + env(safe-area-inset-bottom,0px))}.of-observation-details[open],.of-manage[open],.of-observation-details[open]>summary,.of-manage[open]>summary{background:var(--paper)}}
@@ -754,5 +802,5 @@ export function renderObservationFirstRecordDetailHtml(
   .of-meta-visibility{display:inline-flex;align-items:center;width:fit-content;padding:2px 10px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--ink);font-size:13px;font-weight:800}
   :focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
-  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<h1>${escapeHtml(title)}</h1><div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(publicLocation)}</p>${locationProtection ? `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>` : ""}<p class="of-meta-visibility">${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${summary}${aiFeedback}${scene}${environment}${comparison}${publicationReturn}${management}${capture}</aside></div>${related}</main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}</body></html>`;
+  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<h1>${escapeHtml(title)}</h1><div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(publicLocation)}</p>${locationProtection ? `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>` : ""}<p class="of-meta-visibility">${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${nonAiSummary}${aiSection}${nonAiEnvironment}${comparison}${publicationReturn}${management}${capture}</aside></div>${related}</main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}</body></html>`;
 }
