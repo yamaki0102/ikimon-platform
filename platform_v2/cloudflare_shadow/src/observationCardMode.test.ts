@@ -187,3 +187,38 @@ test("worker routes interactive requests to card mode only behind the staging sw
   const parsed = JSON.parse(config) as { env?: { production?: { vars?: Record<string, string> } } };
   assert.equal(parsed.env?.production?.vars?.OBSERVATION_AI_MODE, "card_v1");
 });
+
+test("card pipeline keeps signboard, building, food, and group-of-people photos free of organism candidates", async () => {
+  for (const [recordClass, summaryText, subjectName] of [
+    ["document", "四日市市少年自然の家パノラマ図", "案内板のイラストのシカ"],
+    ["object", "公園の東屋", "木造建物"],
+    ["food", "昼食の弁当", "弁当"],
+    ["person", "観察会の集合写真", "ヒト"],
+  ] as const) {
+    let tileCalled = false;
+    const result = await runObservationCardPipeline(
+      { observedAt: "2026-11-23T00:00:00Z", images: [image] },
+      {
+        gemini: async () => JSON.stringify({
+          record_class: recordClass,
+          main_theme: "environment",
+          inventory: [subjectName],
+          habitat_type: "都市公園",
+          subjects: [{ name: subjectName, scientific_name: "Cervus nippon", role: "main", group: "mammal", rank: "species", confidence_band: "high", view: "mid", asset_indexes: [0], features_seen: ["角"], missing_evidence: ["全身"] }],
+          area_inference: {},
+          narrative: summaryText,
+          simple_summary: summaryText,
+          observer_boost: "",
+        }),
+        tileModel: async () => { tileCalled = true; return "{}"; },
+        tileSource: async () => new Uint8Array([1]),
+        loadCard: async () => null,
+        saveCard: async () => {},
+      },
+    );
+    assert.equal(tileCalled, false, `${recordClass} must skip tile sweep`);
+    assert.equal(result.merged.recordClass, recordClass);
+    assert.equal(result.merged.topCandidates.length, 0, `${recordClass} must emit no organism candidates`);
+    assert.equal(result.merged.summary?.subject_explanations.length ?? 0, 0);
+  }
+});

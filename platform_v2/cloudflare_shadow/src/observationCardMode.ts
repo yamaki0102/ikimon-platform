@@ -19,7 +19,8 @@ export const CARD_STORE_PREFIX = "ai-cards/v1/";
 export const CARD_TILE_GRID = 5;
 export const CARD_TILE_MAX_IMAGES = 2;
 export const CARD_TILE_BUDGET_MS = 45_000;
-export const CARD_TILE_SKIP_CLASSES = ["person", "document", "food"];
+export const CARD_TILE_SKIP_CLASSES = ["person", "document", "food", "object"];
+const NON_ORGANISM_CLASSES = new Set(["person", "document", "food", "object"]);
 export const CARD_PUBLIC_EVIDENCE_MAX = 160;
 export const CARD_PUBLIC_TEXT_MAX = 220;
 
@@ -91,7 +92,7 @@ const ID_PROMPT = (ctx: string) => `${ctx}
 "narrative":"160字以内厳守。何がどう写り、どう読めるか。日時・場所は繰り返さず、情緒的な描写はしない",
 "simple_summary":"80字以内",
 "observer_boost":"70字以内の1文。この記録ですでに良い点。大げさな賞賛は禁止"}
-- record_class は写真全体の分類。人物が主役なら person、料理・食品なら food、紙面・画面・看板の文字が主役なら document、生きものでない物が主役なら object、風景・環境が主役なら environment、生きものが主役なら organism、複数が同程度なら mixed。人物の容姿・属性・個人情報はどの欄にも書かない。
+- record_class は写真全体の分類。人物が主役なら person、料理・食品なら food、看板・案内板・地図・紙面・画面が主役なら document、建物・人工物が主役なら object、風景・環境が主役なら environment、生きものが主役なら organism、複数が同程度なら mixed。看板や案内板に描かれた動物のイラストは生きものとして subjects に入れない。看板・案内板の文字が読めるなら simple_summary にその題名を書く。人物の容姿・属性・個人情報はどの欄にも書かない。
 - 最初に inventory を書く。写真を隅まで見て、次の順に見えるものを1行ずつ書き出す。そのあと inventory の各行に1件ずつ subjects を対応させて同定する（行を飛ばさない。最大8件）: (1) 主役の生きもの (2) 主役が止まる・食べる・隠れる植物など host (3) ほかの動物 other_animal（小さな写り込み、枝葉に隠れた鳥や虫、遠くの個体） (4) 背景や足元の植生 background（樹林、草地、コケ、シダ、水草など、まとまりごとに1件）。同じ生きものが複数枚に写るなら asset_indexes にまとめる。
 - background の植生は、決め手が見えない限り「落葉広葉樹」「イネ科草本」「コケ植物」のような粗い名前にし、rank は family/order/class、view は mid か far。
 - 例（カマキリが黄色い花穂に止まり、奥がススキの草地の写真）: inventory=["緑色の大きなカマキリ","カマキリが止まる黄色い花穂の草","奥に広がる穂の出たススキ状の草"] → subjects は オオカマキリ(main)、セイタカアワダチソウ(host)、ススキ類(background, genus) の3件。
@@ -397,24 +398,25 @@ export async function runObservationCardPipeline(input: CardInput, deps: CardDep
   const ctx = cardContext(input);
   const id = parseCardJson(await deps.gemini(CARD_ID_MODEL, [...cardImageParts(input.images), { text: ID_PROMPT(ctx) }], { temperature: 0.1, thinkingLevel: "minimal" }));
   if (!id) throw new Error("card_identification_invalid_json");
-  const subjects = id.record_class === "person" ? [] : normalizeCardSubjects(id.subjects, input.images.length);
+  const isNonOrganism = NON_ORGANISM_CLASSES.has(String(id.record_class));
+  const subjects = isNonOrganism ? [] : normalizeCardSubjects(id.subjects, input.images.length);
   const lead = subjects[0];
   const [found, second] = await Promise.all([
     CARD_TILE_SKIP_CLASSES.includes(String(id.record_class)) ? Promise.resolve([] as Json[]) : tileSweep(input, deps, subjects, stats).catch((error: unknown) => {
       stats.tileError = (error instanceof Error ? error.message : String(error)).slice(0, 120);
       return [] as Json[];
     }),
-    lead && lead.rank === "species" && id.main_theme !== "environment"
+    !isNonOrganism && lead && lead.rank === "species" && id.main_theme !== "environment"
       ? deps.gemini(CARD_ID_MODEL, [...cardImageParts(input.images), { text: SECOND_PROMPT(ctx) }], { temperature: 0.1, thinkingLevel: "minimal" }).then(parseCardJson).catch(() => null)
       : Promise.resolve(null),
   ]);
   if (lead) stats.secondCheck = applySecondCheck(lead, second);
-  subjects.push(...found.slice(0, Math.max(0, 8 - subjects.length)));
+  if (!isNonOrganism) subjects.push(...found.slice(0, Math.max(0, 8 - subjects.length)));
   stats.subjects = subjects.length;
   const habitatType = str(id.habitat_type);
   const [cards, habitat] = await Promise.all([
     Promise.all(subjects.map((sub, i) => (i < 4 ? getCard(deps, cardKey(str(sub.scientific_name), String(sub.name)), TAXON_PROMPT(str(sub.scientific_name), String(sub.name), str(sub.rank)), stats) : Promise.resolve(null)))),
-    CARD_HABITATS.includes(habitatType) ? getCard(deps, cardKey("", `habitat-${habitatType}`), HABITAT_PROMPT(habitatType), stats) : Promise.resolve(null),
+    !isNonOrganism && CARD_HABITATS.includes(habitatType) ? getCard(deps, cardKey("", `habitat-${habitatType}`), HABITAT_PROMPT(habitatType), stats) : Promise.resolve(null),
   ]);
   return { merged: buildCardMergedObservation(id, subjects, cards, habitat), stats, subjects, id };
 }
