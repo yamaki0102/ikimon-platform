@@ -432,7 +432,7 @@ export async function loadEventSectionWithFallback(
         title: e.title,
         dateLabel: formatMonthDay(e.started_at, lang),
         organizerLabel: lang === "en" ? "Local guide" : "地域の案内",
-        href: `${prefix}/events/${encodeURIComponent(e.session_id)}`
+        href: `${prefix}/community/events`
       }));
     if (upcoming.length > 0) {
       return {
@@ -672,7 +672,7 @@ export function renderZukanTopPage(
   }
 
   const eventFallbackAction = options.authenticated
-    ? `<a class="zt-inline-link" href="${prefix}/events/new">${isEn ? "Host an event" : "イベントを開く"}</a>`
+    ? `<a class="zt-inline-link" href="${prefix}/community/events/new">${isEn ? "Host an event" : "イベントを開く"}</a>`
     : `<a class="zt-inline-link" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>`;
 
   const placesStripHtml = data.placesStrip.length > 0
@@ -690,7 +690,7 @@ export function renderZukanTopPage(
     ${heroHtml}
     <div class="zt-cta-row">
       <a class="zt-btn-primary" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>
-      <a class="zt-btn-outline" href="${prefix}/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
+      <a class="zt-btn-outline" href="${prefix}/community/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
     </div>
     <section class="zt-section" aria-labelledby="zt-events-heading">
       <h2 id="zt-events-heading">${escapeHtml(isEn && data.eventSectionHeading === "最近の記録" ? "Recent records" : data.eventSectionHeading)}</h2>
@@ -760,7 +760,7 @@ export function renderZukanTopPage(
       </header>`
     : `<header class="zt-topbar">
         <a class="zt-logo" href="${prefix}/">ZUKAN</a>
-        <a class="zt-login-btn" href="/auth/login">ログイン</a>
+        <a class="zt-login-btn" href="${prefix}/login">${isEn ? "Log in" : "ログイン"}</a>
       </header>`;
 
   const popTitleJs = isEn ? `"Add " + currentPlaceName + " to ZUKAN"` : `currentPlaceName + "の図鑑に載せる"`;
@@ -896,10 +896,10 @@ export function renderZukanTopPage(
 <body>
   <div class="zt-shell">
     <aside class="zt-sidebar" aria-label="${isEn ? "Navigation" : "ナビ"}">
-      <a class="zt-btn-capture" href="${prefix}/capture" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${isEn ? "Capture" : "撮る"}</a>
+      <a class="zt-btn-capture" href="${prefix}/record" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${isEn ? "Capture" : "撮る"}</a>
       <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-      <a class="zt-nav-item" href="${prefix}/events">${isEn ? "Events" : "イベント"}</a>
-      <a class="zt-nav-item" href="${prefix}/places">${isEn ? "Places" : "場所"}</a>
+      <a class="zt-nav-item" href="${prefix}/community/events">${isEn ? "Events" : "イベント"}</a>
+      <a class="zt-nav-item" href="${prefix}/map">${isEn ? "Places" : "場所"}</a>
       <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
     </aside>
     <div>
@@ -911,9 +911,9 @@ export function renderZukanTopPage(
   </div>
   <nav class="zt-bottom-nav" aria-label="${isEn ? "Menu" : "メニュー"}">
     <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-    <a class="zt-nav-item" href="${prefix}/events">${isEn ? "Events" : "イベント"}</a>
-    <a class="zt-nav-item zt-nav-capture" href="${prefix}/capture">${isEn ? "Capture" : "撮る"}</a>
-    <a class="zt-nav-item" href="${prefix}/places">${isEn ? "Places" : "場所"}</a>
+    <a class="zt-nav-item" href="${prefix}/community/events">${isEn ? "Events" : "イベント"}</a>
+    <a class="zt-nav-item zt-nav-capture" href="${prefix}/record">${isEn ? "Capture" : "撮る"}</a>
+    <a class="zt-nav-item" href="${prefix}/map">${isEn ? "Places" : "場所"}</a>
     <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
   </nav>
   ${publishScript}

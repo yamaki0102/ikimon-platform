@@ -31742,4 +31742,5 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   assert.doesNotMatch(enHtml, /浜松市・11月23日|href="\/ja\/observations\//);
   assert.match(enHtml, />Events</);
   assert.doesNotMatch(enHtml, />イベント<|>場所<|近くの場所|祭り・川|aria-label="ナビ"|aria-label="メニュー"/);
+  assert.doesNotMatch(enHtml, /href="\/en\/(events|places|capture)["\/]|href="\/auth\/login"/);
 });
