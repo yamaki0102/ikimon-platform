@@ -29099,13 +29099,23 @@ test("guide voice console syncs 10 voice entries, allows 2nd recorder via event 
   const sessionId = "evt_guide_voice_10";
   obs.observationEventSessions.set(sessionId, {
     session_id: sessionId,
+    legacy_event_id: null,
+    event_code: "YATSUDE-10",
     title: "ヤツデ観察会",
     organizer_user_id: "guide-organizer-1",
-    event_code: "YATSUDE-10",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "guide_voice",
+    active_modes_json: JSON.stringify(["guide_voice"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
     started_at: "2026-11-23T09:00:00.000Z",
-    ends_at: "2026-11-23T12:00:00.000Z",
-    status: "active",
+    ended_at: null,
+    target_species_json: "[]",
     config_json: JSON.stringify({ nextEventNote: "次回は12月14日 9:30集合" }),
+    field_id: null,
+    template_source_session_id: null,
     created_at: "2026-11-23T00:00:00.000Z",
     updated_at: "2026-11-23T00:00:00.000Z"
   });

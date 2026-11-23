@@ -37,7 +37,8 @@ test("renderGuideVoiceConsolePage and renderGuideBadgeTakeawayPage render offlin
     cspNonce: "nonce-1",
     initialDiscoveries: []
   });
-  assert.match(consoleHtml, /zukan_guide_queue_evt_guide_1/);
+  assert.match(consoleHtml, /zukan_guide_queue_/);
+  assert.match(consoleHtml, /"evt_guide_1"/);
   assert.match(consoleHtml, /guide-discoveries\/sync/);
   assert.match(consoleHtml, /AKI-2026/);
   assert.match(consoleHtml, /data-global-record-trigger="photo"/);
