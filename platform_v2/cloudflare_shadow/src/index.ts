@@ -37,7 +37,7 @@ import {
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
 import * as bcrypt from "bcryptjs";
 import {
@@ -1501,23 +1501,71 @@ function publicEntryRedirectResponse(url: URL, nativePathname: string): Response
   });
 }
 
-function barePathJapaneseRedirectResponse(url: URL): Response | null {
+function normalizePublicLang(value: unknown): "ja" | "en" | "es" | "pt-br" | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === "ja" || trimmed === "en" || trimmed === "es" || trimmed === "pt-br") return trimmed;
+  if (trimmed.startsWith("pt")) return "pt-br";
+  if (trimmed.startsWith("es")) return "es";
+  if (trimmed.startsWith("en")) return "en";
+  if (trimmed.startsWith("ja")) return "ja";
+  return null;
+}
+
+function readIkimonLangCookie(request: Request): "ja" | "en" | "es" | "pt-br" | null {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  for (const part of cookieHeader.split(";")) {
+    const [rawKey, ...rawVal] = part.trim().split("=");
+    if (rawKey === "ikimon_lang") {
+      return normalizePublicLang(decodeURIComponent(rawVal.join("=")));
+    }
+  }
+  return null;
+}
+
+function resolvePreferredPublicLang(request: Request): "ja" | "en" | "es" | "pt-br" {
+  const cookieLang = readIkimonLangCookie(request);
+  if (cookieLang) return cookieLang;
+  const acceptLanguage = request.headers.get("accept-language") ?? "";
+  for (const item of acceptLanguage.split(",")) {
+    const tag = item.split(";")[0]?.trim() ?? "";
+    const matched = normalizePublicLang(tag);
+    if (matched) return matched;
+  }
+  return "ja";
+}
+
+function barePathJapaneseRedirectResponse(url: URL, request?: Request): Response | null {
+  const preferredLang = request ? resolvePreferredPublicLang(request) : "ja";
+  const preferredPrefix = `/${preferredLang}`;
   const langPrefix = publicLangFromPath(url.pathname);
   if (langPrefix === null) {
-    if (url.pathname === "/observations") {
+    if (url.pathname === "/" && preferredLang !== "ja") {
       return new Response(null, {
-        status: 301,
+        status: 302,
         headers: {
-          location: `/ja/records${url.search}`,
+          location: `${preferredPrefix}/${url.search}`,
+          "vary": "cookie, accept-language",
           "cache-control": "no-store"
         }
       });
     }
-    if (url.pathname !== "/" && !isOriginalUiHtmlPath(url.pathname) && isOriginalUiHtmlPath(`/ja${url.pathname}`)) {
+    if (url.pathname === "/observations") {
       return new Response(null, {
-        status: 301,
+        status: preferredLang === "ja" ? 301 : 302,
         headers: {
-          location: `/ja${url.pathname}${url.search}`,
+          location: `${preferredPrefix}/records${url.search}`,
+          "vary": "cookie, accept-language",
+          "cache-control": "no-store"
+        }
+      });
+    }
+    if (url.pathname !== "/" && ((preferredLang !== "ja" && isOriginalUiHtmlPath(`${preferredPrefix}${url.pathname}`)) || (!isOriginalUiHtmlPath(url.pathname) && isOriginalUiHtmlPath(`/ja${url.pathname}`)))) {
+      return new Response(null, {
+        status: preferredLang === "ja" ? 301 : 302,
+        headers: {
+          location: `${preferredPrefix}${url.pathname}${url.search}`,
+          "vary": "cookie, accept-language",
           "cache-control": "no-store"
         }
       });
@@ -2810,6 +2858,11 @@ export const worker = {
         if (publicEntryRedirect) return publicEntryRedirect;
       }
 
+      if (request.method === "GET" || request.method === "HEAD") {
+        const barePathRedirect = barePathJapaneseRedirectResponse(url, request);
+        if (barePathRedirect) return barePathRedirect;
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
         return getSessionAwareRecordHtml(request, url, env);
       }
@@ -3292,6 +3345,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/language") {
+        return handleProfileLanguagePreference(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/location-privacy/preview") {
@@ -21831,6 +21888,63 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
 </html>`;
 }
 
+async function handleProfileLanguagePreference(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+
+  let requestedLang: unknown = "";
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const body = await readJson<{ lang?: unknown }>(request);
+    requestedLang = body.lang;
+  } else {
+    const form = await request.formData().catch(() => null);
+    requestedLang = form?.get("lang") ?? "";
+  }
+
+  const normalized = normalizePublicLang(requestedLang);
+  if (!normalized) {
+    return json({ ok: false, error: "invalid_language" }, 400, { "cache-control": "no-store" });
+  }
+
+  try {
+    await env.CORE_DB.prepare(
+      "CREATE TABLE IF NOT EXISTS user_language_preferences (user_id TEXT PRIMARY KEY, preferred_lang TEXT NOT NULL, updated_at INTEGER NOT NULL)"
+    ).run();
+    await env.CORE_DB.prepare(
+      `INSERT INTO user_language_preferences (user_id, preferred_lang, updated_at)
+       VALUES (?1, ?2, ?3)
+       ON CONFLICT(user_id) DO UPDATE SET preferred_lang = excluded.preferred_lang, updated_at = excluded.updated_at`
+    ).bind(session.userId, normalized, Date.now()).run();
+  } catch {
+    return json({ ok: false, error: "language_preference_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+
+  const url = new URL(request.url);
+  const secureFlag = url.protocol === "https:" ? "; Secure" : "";
+  const cookie = `ikimon_lang=${normalized}; Path=/; Max-Age=31536000; SameSite=Lax${secureFlag}`;
+  const wantsJson = contentType.includes("application/json") || (request.headers.get("accept") ?? "").includes("application/json");
+  if (wantsJson) {
+    return json({ ok: true, lang: normalized }, 200, {
+      "set-cookie": cookie,
+      "cache-control": "no-store"
+    });
+  }
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: `/${normalized}/profile/settings?saved=language`,
+      "set-cookie": cookie,
+      "cache-control": "no-store"
+    }
+  });
+}
+
 async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env);
   if (!session || session.banned) {
@@ -21920,6 +22034,18 @@ function renderCloudflareProfileHtml(
           <p>${escapeHtml(copy.settingsLead)}</p>
         </div>
         <dl><div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div></dl>
+        <form class="cf-profile-lang-form" action="/api/v1/profile/language" method="post">
+          <label for="cf-profile-lang">${escapeHtml(lang === "ja" ? "表示言語" : lang === "es" ? "Idioma" : lang === "pt-br" ? "Idioma" : "Display language")}</label>
+          <div class="cf-profile-lang-row">
+            <select id="cf-profile-lang" name="lang">
+              <option value="ja"${lang === "ja" ? " selected" : ""}>日本語</option>
+              <option value="en"${lang === "en" ? " selected" : ""}>English</option>
+              <option value="es"${lang === "es" ? " selected" : ""}>Español</option>
+              <option value="pt-br"${lang === "pt-br" ? " selected" : ""}>Português</option>
+            </select>
+            <button type="submit">${escapeHtml(lang === "ja" ? "保存" : lang === "es" ? "Guardar" : lang === "pt-br" ? "Salvar" : "Save")}</button>
+          </div>
+        </form>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
       </section>`
     : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
@@ -21934,6 +22060,7 @@ function renderCloudflareProfileHtml(
         <nav class="cf-profile-destinations" aria-label="${escapeHtml(copy.title)}">
           ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
           ${renderCloudflareProfileAction(`${prefix}/community/events`, copy.participation, copy.participationLead)}
+          ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead)}
         </nav>
       </section>`;
 
@@ -22030,6 +22157,11 @@ function renderCloudflareProfileHtml(
     .cf-profile-settings dt{color:var(--muted);font-size:14px;font-weight:600}
     .cf-profile-settings dd{margin:4px 0 0;font-size:16px;overflow-wrap:anywhere}
     .cf-profile-settings p[role="status"]{margin:0;color:var(--muted);font-size:16px}
+    .cf-profile-lang-form{display:grid;gap:8px}
+    .cf-profile-lang-form label{font-size:14px;font-weight:700;color:var(--ink)}
+    .cf-profile-lang-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .cf-profile-lang-row select{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+    .cf-profile-lang-row button{min-height:44px;padding:8px 18px;border:0;border-radius:8px;background:var(--action);color:#fff;font:inherit;font-weight:750;cursor:pointer}
     .cf-profile-shell a:focus-visible{outline:2px solid var(--action);outline-offset:2px;box-shadow:0 0 0 4px #fff}
     @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:44px;padding:10px 12px}}
     @media (max-width:720px){.cf-profile-shell{width:calc(100% - 40px);margin:24px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy h1{font-size:28px}}
@@ -22051,13 +22183,11 @@ function renderCloudflareProfileAction(href: string, title: string, body: string
 function renderCloudflareProfileHeader(prefix: string): string {
   const safePrefix = escapeHtml(prefix);
   const lang = prefix.replace(/^\//, "") || "ja";
-  const langSwitch = renderAppExperienceLanguageSwitch(lang, `${prefix}/profile`);
-  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "__LANG_SWITCH__")
+  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "")
     .replace('href="/ja/login?redirect=%2Fprofile"', `href="${safePrefix}/profile"`)
     .replace('href="/ja/login?redirect=%2Fprofile%2Fsettings"', `href="${safePrefix}/profile/settings"`)
     .replaceAll('href="/ja/', `href="${safePrefix}/`)
-    .replaceAll('action="/ja/', `action="${safePrefix}/`)
-    .replace("__LANG_SWITCH__", langSwitch);
+    .replaceAll('action="/ja/', `action="${safePrefix}/`);
 }
 
 function renderCloudflareProfileRecordCard(
@@ -22903,33 +23033,32 @@ function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRe
   return selected;
 }
 
+function hideMaterializedLangSwitchers(html: string): string {
+  if (html.includes("data-zukan-hide-lang-switch")) return html;
+  const styleTag = `<style data-zukan-hide-lang-switch>.lang-switch,.zukan-app-lang,.cf-header-menu-languages{display:none!important}</style>`;
+  return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${styleTag}</head>`) : html;
+}
+
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
-  if (html.includes('data-zukan-app-experience="v1"')) return html;
+  const cleanHtml = hideMaterializedLangSwitchers(html);
+  if (cleanHtml.includes('data-zukan-app-experience="v1"')) return cleanHtml;
   const menuPath = url.pathname.replace(/^\/(?:ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
-  const hasRenderedLearnCatalog = /<section\b(?=[^>]*\bdata-learn-catalog(?:\s|=|>))[^>]*>/i.test(html);
-  if (html.includes("data-cloudflare-header-menu")) return html;
+  const hasRenderedLearnCatalog = /<section\b(?=[^>]*\bdata-learn-catalog(?:\s|=|>))[^>]*>/i.test(cleanHtml);
+  if (cleanHtml.includes("data-cloudflare-header-menu")) return cleanHtml;
   // The rendered Learn catalog already ships these shared controls; keep its
   // native shell only when both navigation controls are present.
-  const hasDesktopSideNavToggle = /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/i.test(html);
-  const hasMobileSideNavMenu = /<details\b[^>]*\bclass=["'][^"']*\bsite-mobile-menu\b[^"']*["'][^>]*>/i.test(html);
-  if (menuPath === "/learn" && hasRenderedLearnCatalog && hasDesktopSideNavToggle && hasMobileSideNavMenu) return html;
-  if (!html.includes("site-header-actions")) return html;
+  const hasDesktopSideNavToggle = /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/i.test(cleanHtml);
+  const hasMobileSideNavMenu = /<details\b[^>]*\bclass=["'][^"']*\bsite-mobile-menu\b[^"']*["'][^>]*>/i.test(cleanHtml);
+  if (menuPath === "/learn" && hasRenderedLearnCatalog && hasDesktopSideNavToggle && hasMobileSideNavMenu) return cleanHtml;
+  if (!cleanHtml.includes("site-header-actions")) return cleanHtml;
   const lang = publicLangFromPath(url.pathname) ?? "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const isSignedInShell = Boolean(session && !session.banned) || !html.includes("site-login-link");
+  const isSignedInShell = Boolean(session && !session.banned) || !cleanHtml.includes("site-login-link");
   const copy = lang === "ja"
-    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", settings: "設定", language: "言語" }
-    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", settings: "Settings", language: "Language" };
+    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", settings: "設定" }
+    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", settings: "Settings" };
   const accountHref = isSignedInShell ? `${prefix}/profile` : `${prefix}/login?redirect=%2Fprofile`;
   const settingsHref = `${prefix}/profile/settings`;
-  const japaneseOnlyLearn = isJapaneseLearnHtmlPath(url.pathname);
-  const languageLinks = [
-    { code: "JP", name: "日本語", href: "/ja/", active: lang === "ja" },
-    { code: "EN", name: "English", href: "/en/", active: lang === "en" },
-    { code: "ES", name: "Español", href: "/es/", active: lang === "es" },
-    { code: "PT", name: "Português", href: "/pt-br/", active: lang === "pt-br" }
-  ].filter((item) => !japaneseOnlyLearn || item.code === "JP")
-    .map((item) => `<a class="cf-header-menu-lang${item.active ? " is-active" : ""}" href="${escapeHtml(item.href)}"${item.active ? " aria-current=\"true\"" : ""}><span>${escapeHtml(item.code)}</span><span>${escapeHtml(item.name)}</span></a>`).join("");
   const menu = `<details class="cf-header-menu" data-cloudflare-header-menu>
         <summary aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
         <div class="cf-header-menu-panel" role="menu">
@@ -22938,7 +23067,6 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
           ${isSignedInShell ? `<a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(settingsHref)}">${escapeHtml(copy.settings)}</a>` : ""}
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/records`)}">${escapeHtml(copy.records)}</a>
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.map)}</a>
-          <div class="cf-header-menu-languages" aria-label="${escapeHtml(copy.language)}">${languageLinks}</div>
         </div>
       </details>`;
   const withMenu = html.replace(/(\s*)<\/div>\s*<\/header>/i, `${menu}$1</div>\n  </header>`);
@@ -35583,8 +35711,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail, rec
   };
 }
 
-function renderVpsImageHeader(recordsHref = "/ja/records", lang = "ja", currentPath?: string, langSwitchHtml?: string): string {
-  const langSwitch = langSwitchHtml ?? renderAppExperienceLanguageSwitch(lang, currentPath);
+function renderVpsImageHeader(recordsHref = "/ja/records", _lang = "ja", _currentPath?: string, langSwitchHtml?: string): string {
+  const langSwitch = langSwitchHtml ?? "";
   return `<header class="site-header">
   <div class="site-header-inner">
     <div class="site-brand-cluster">

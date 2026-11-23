@@ -3,6 +3,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { runWithCspNonce } from "../services/cspNonce.js";
 import { getSiteShellLayoutForPath } from "../siteMap.js";
+import { renderAppExperienceLanguageSwitch } from "./appExperience.js";
 import { globalRecordEntryAsset, renderSiteDocument } from "./siteShell.js";
 import { renderPublicContextActions } from "./collaborationContext.js";
 import { compactMaterializedCapture } from "../../cloudflare_shadow/scripts/compact-materialized-capture.mjs";
@@ -415,14 +416,15 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   });
   const head = html.slice(0, html.indexOf("</head>"));
 
-  assert.match(html, /class="lang-switch-label"/);
-  assert.match(html, /class="lang-switch-current">EN<\/span>/);
-  assert.match(html, /<span class="lang-switch-name">English<\/span>/);
-  assert.match(html, /<details class="lang-switch lang-switch-desktop[^"]*" data-language-disclosure>/);
-  assert.match(html, /<summary class="lang-switch-label" aria-label="Language: English">/);
+  const switcher = renderAppExperienceLanguageSwitch("en", "/?lang=en");
+  assert.match(switcher, /class="lang-switch-label"/);
+  assert.match(switcher, /class="lang-switch-current">EN<\/span>/);
+  assert.match(switcher, /<span class="lang-switch-name">English<\/span>/);
+  assert.match(switcher, /<details class="lang-switch lang-switch-desktop[^"]*" data-language-disclosure>/);
+  assert.match(switcher, /<summary class="lang-switch-label" aria-label="Language: English">/);
+  assert.match(switcher, /aria-current="true"/);
   assert.match(html, /\.lang-switch\[open\] \.lang-switch-options/);
   assert.doesNotMatch(html, /\.lang-switch:hover|\.lang-switch:focus-within/);
-  assert.match(html, /aria-current="true"/);
   assert.match(head, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/" \/>/);
   assert.match(head, /<meta name="robots" content="noindex,follow" \/>/);
   assert.match(head, /hreflang="ja"/);
@@ -430,20 +432,18 @@ test("language switch is user-facing while SEO stays Japanese canonical", () => 
   assert.doesNotMatch(head, /hreflang="en"/);
 });
 
-test("language disclosure preserves localized deep links and always-visible mobile choices", () => {
-  const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "es", currentPath: "/es/learn/field-loop?tab=places&q=renri#nearby" });
-  const desktop = html.match(/<details class="lang-switch lang-switch-desktop"[\s\S]*?<\/details>/)?.[0];
-  const mobile = html.match(/<div class="lang-switch lang-switch-mobile"[\s\S]*?<\/div>\s*<\/div>/)?.[0];
+test("language disclosure preserves localized deep links and page has no mobile switch", () => {
+  const currentPath = "/es/learn/field-loop?tab=places&q=renri#nearby";
+  const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "es", currentPath });
+  const desktop = renderAppExperienceLanguageSwitch("es", currentPath);
   assert.ok(desktop);
-  assert.ok(mobile);
   for (const locale of ["ja", "en", "es", "pt-br"]) {
     assert.match(desktop, new RegExp(`href="/${locale}/learn/field-loop\\?tab=places&amp;q=renri#nearby"`));
-    assert.match(mobile, new RegExp(`href="/${locale}/learn/field-loop\\?tab=places&amp;q=renri#nearby"`));
   }
   assert.match(desktop, /<summary[^>]*aria-label="Idioma: Español"/);
   assert.match(desktop, /lang="es"[^>]*aria-current="true"/);
   assert.doesNotMatch(desktop, /aria-expanded=/, "native details owns its expanded state");
-  assert.doesNotMatch(mobile, /<summary|data-language-disclosure/);
+  assert.doesNotMatch(html, /class="lang-switch lang-switch-mobile"/);
   assert.match(html, /\.lang-switch-label \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
   assert.match(html, /\.lang-switch-link \{[^}]*min-width: 44px;[^}]*min-height: 44px;/);
   assert.match(html, /\.lang-switch-label:focus-visible/);
@@ -1592,7 +1592,7 @@ test("site shell shares one in-flight /api/v1/auth/session?optional=1 promise ac
   assert.equal(sessionFetchCount, 1, "expected only one /api/v1/auth/session?optional=1 request");
 });
 
-test("language switcher hides languages that are unavailable for the current page", () => {
+test("site document renders no language switch links on pages with limited languages", () => {
   const html = renderSiteDocument({
     basePath: "",
     title: "用語集",
@@ -1601,10 +1601,7 @@ test("language switcher hides languages that are unavailable for the current pag
     alternateLangs: ["ja"],
     body: "<p>test</p>",
   });
-  assert.match(html, /class="lang-switch-link is-active" href="\/ja\/learn\/glossary"/);
-  assert.doesNotMatch(html, /class="lang-switch-link" href="\/en\/"/);
-  assert.doesNotMatch(html, /class="lang-switch-link" href="\/es\/"/);
-  assert.doesNotMatch(html, /class="lang-switch-link" href="\/pt-br\/"/);
+  assert.doesNotMatch(html, /class="lang-switch-link/);
 });
 
 test("site shell includes global record trigger on /guide and 1-tap opens native capture=environment immediately", () => {
