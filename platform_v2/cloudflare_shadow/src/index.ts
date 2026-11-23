@@ -25041,6 +25041,12 @@ class OAuthEmailConflictError extends Error {
   }
 }
 
+class OAuthRegistrationClosedError extends Error {
+  constructor(message = "registration_closed_waitlist_only") {
+    super(message);
+  }
+}
+
 const OAUTH_EMAIL_CONFLICT_CODE = "oauth_email_conflict";
 
 async function handleOAuthCallback(request: Request, providerInput: unknown, env: Env): Promise<Response> {
@@ -25102,6 +25108,14 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       error: error instanceof Error ? error.message : "unknown"
     }));
     if (error instanceof OAuthEmailConflictError) return oauthEmailConflictRedirect(env, conflictState);
+    if (error instanceof OAuthRegistrationClosedError) {
+      const headers = new Headers({
+        location: "/ja/waitlist?from=oauth",
+        "cache-control": "no-store"
+      });
+      headers.append("set-cookie", buildClearedOAuthStateCookie(env));
+      return new Response(null, { status: 303, headers });
+    }
     return oauthErrorRedirect(env, true);
   }
 }
@@ -25780,19 +25794,7 @@ async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<A
 
   const email = normalizeEmail(profile.email);
   if (email && await findAuthUserByEmail(email, env)) throw new OAuthEmailConflictError();
-  const userId = `user_${crypto.randomUUID()}`;
-  const displayName = normalizeOptionalText(profile.name) ?? "ikimon user";
-  await env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
-  await upsertOAuthAccount(userId, profile, displayName, "Observer", "観察者", 0, env);
-  return {
-    user_id: userId,
-    email,
-    password_hash: null,
-    display_name: displayName,
-    role_name: "Observer",
-    rank_label: "観察者",
-    banned: 0
-  };
+  throw new OAuthRegistrationClosedError("registration_closed_waitlist_only");
 }
 
 async function findOAuthAccount(provider: OAuthProvider, providerUserId: string, env: Env): Promise<OAuthAccountRow | null> {

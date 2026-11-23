@@ -13231,6 +13231,22 @@ test("v1 auth register is closed in favor of the waitlist and never creates acco
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
 });
 
+test("first-time OAuth login redirects to waitlist and does not create a user account", async () => {
+  const { env, core } = createEnv();
+  const callback = await runOAuthCallback(env, {
+    provider: "google",
+    id: "brand-new-oauth-user",
+    email: "brand-new-oauth@example.test",
+    verified: true
+  });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.users.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  assert.equal(core.authSessions.size, 0);
+});
+
 test("register and waitlist pages serve minimal waitlist form and store submissions with admin summary", async () => {
   const { env, core } = createEnv();
 
@@ -13421,6 +13437,22 @@ test("v1 auth login keeps original form contract with Cloudflare-native sessions
   }), env);
   assert.equal(crossOriginResponse.status, 403);
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("first-time OAuth login redirects to waitlist and does not create a user account", async () => {
+  const { env, core } = createEnv();
+  const callback = await runOAuthCallback(env, {
+    provider: "google",
+    id: "brand-new-oauth-user",
+    email: "brand-new-oauth@example.test",
+    verified: true
+  });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.users.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
@@ -19095,6 +19127,20 @@ test("production oauth callback creates Cloudflare-native session from provider 
   const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
   assert.ok(state);
 
+  core.users.add("existing-google-user-1");
+  core.oauthAccounts.set("google:google-user-1", {
+    user_id: "existing-google-user-1",
+    provider: "google",
+    provider_user_id: "google-user-1",
+    provider_email: "google-user@example.test",
+    display_name: "Google User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: null
+  });
+
   const originalFetch = globalThis.fetch;
   const seen: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -19153,6 +19199,20 @@ test("production app oauth returns an exchange code instead of a raw session tok
 
   const start = await worker.fetch(new Request("https://ikimon.life/app_oauth_start.php?provider=google&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-1&platform=android&app_version=0.8.1"), productionEnv);
   assert.equal(start.status, 303);
+
+  core.users.add("existing-google-app-user-1");
+  core.oauthAccounts.set("google:google-app-user-1", {
+    user_id: "existing-google-app-user-1",
+    provider: "google",
+    provider_user_id: "google-app-user-1",
+    provider_email: "google-app-user@example.test",
+    display_name: "Google App User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: null
+  });
   const stateCookie = start.headers.get("set-cookie") ?? "";
   assert.match(stateCookie, /^ikimon_oauth_state=/);
   const startLocation = new URL(start.headers.get("location") ?? "");
@@ -19332,17 +19392,15 @@ test("oauth app callback reports the email conflict without issuing an exchange 
   assert.equal(core.oauthAccounts.size, 0);
 });
 
-test("oauth callback still creates a new user when the Google email matches no account", async () => {
+test("oauth callback redirects to waitlist instead of creating a new user when the Google email matches no account", async () => {
   const { env, core } = createEnv();
   seedPasswordAccount(core, "someone-else@example.test");
   const callback = await runOAuthCallback(env, { provider: "google", id: "google-fresh-1", email: "fresh@example.test" });
   assert.equal(callback.status, 303);
-  assert.equal(callback.headers.get("location"), "/record");
-  assert.match(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=/);
-  const linked = core.oauthAccounts.get("google:google-fresh-1");
-  assert.ok(linked?.user_id);
-  assert.notEqual(linked.user_id, "preclaimed-user");
-  assert.equal(core.authSessions.size, 1);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.oauthAccounts.get("google:google-fresh-1"), undefined);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("oauth callback still logs in an already linked identity", async () => {
@@ -19368,16 +19426,14 @@ test("oauth callback still logs in an already linked identity", async () => {
   assert.deepEqual([...core.authSessions.values()].map((session) => session.user_id), ["linked-user"]);
 });
 
-test("oauth twitter identity without email never links by email", async () => {
+test("oauth twitter identity without email never links by email and redirects to waitlist", async () => {
   const { env, core } = createEnv();
   seedPasswordAccount(core, "victim@example.test");
   const callback = await runOAuthCallback(env, { provider: "twitter", id: "x-user-1", email: null });
   assert.equal(callback.status, 303);
-  assert.equal(callback.headers.get("location"), "/record");
-  const linked = core.oauthAccounts.get("twitter:x-user-1");
-  assert.ok(linked?.user_id);
-  assert.notEqual(linked.user_id, "preclaimed-user");
-  assert.equal(core.authSessions.size, 1);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.equal(core.oauthAccounts.get("twitter:x-user-1"), undefined);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("production oauth start fails closed when provider secrets are not configured", async () => {
