@@ -823,7 +823,8 @@ export function renderZukanTopPage(
     .zt-avatar{background:var(--surface);border:1px solid var(--line)}
     .zt-search{flex:1;max-width:460px}
     .zt-search input{width:100%;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font:inherit;font-size:14px}
-    .zt-main{max-width:1120px;margin:0 auto;padding:16px;display:grid;gap:24px}
+    .zt-main{max-width:1120px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+    .zt-main>*,.zt-shell>*{min-width:0}
     .zt-hero-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto}
     .zt-hero-card{position:relative;display:block;border-radius:10px;overflow:hidden;background:var(--surface);aspect-ratio:4/3;text-decoration:none}
     .zt-hero-card img{width:100%;height:100%;object-fit:cover;display:block}
