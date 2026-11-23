@@ -1,11 +1,8 @@
 import {
   computePublicLocationView,
-  formatGridCell,
   formatPublicDateOnly,
   isLocationDelayed24Hours,
-  isNightOrEarlyMorningJst,
   normalizeLocationShareMode,
-  stripJpegExifAndGpsMetadata,
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
@@ -9155,67 +9152,17 @@ function researchCsvCell(value: unknown): string {
   return `"${raw.replaceAll("\"", "\"\"")}"`;
 }
 
-async function loadOwnerNightPoints(env: Env, ownerUserId: string | null | undefined): Promise<Array<{ lat: number; lng: number }>> {
-  if (!ownerUserId) return [];
-  try {
-    const res = await env.OBS_DB.prepare(
-      `SELECT exact_lat, exact_lng, observed_at
-       FROM observations
-       WHERE owner_user_id = ?
-         AND exact_lat IS NOT NULL
-         AND exact_lng IS NOT NULL
-       ORDER BY observed_at DESC
-       LIMIT 100`
-    ).bind(ownerUserId).all<{ exact_lat: number; exact_lng: number; observed_at: string }>();
-    const pts: Array<{ lat: number; lng: number }> = [];
-    for (const r of res.results ?? []) {
-      if (Number.isFinite(r.exact_lat) && Number.isFinite(r.exact_lng) && isNightOrEarlyMorningJst(r.observed_at)) {
-        pts.push({ lat: r.exact_lat, lng: r.exact_lng });
-      }
-    }
-    return pts;
-  } catch {
-    return [];
-  }
-}
-
-async function countDistinctAuthorsIn1kmCell(env: Env, publicCell: string): Promise<number> {
-  if (!publicCell || publicCell === "hidden" || publicCell === "unknown") return 0;
-  try {
-    const normalized = publicCell.replace(/^cell:/, "");
-    const row = await env.OBS_DB.prepare(
-      `SELECT COUNT(DISTINCT owner_user_id) AS cnt
-       FROM observations
-       WHERE public_cell IN (?, ?)
-         AND COALESCE(visibility, 'public') = 'public'`
-    ).bind(normalized, `cell:${normalized}`).first<{ cnt: number }>();
-    return typeof row?.cnt === "number" && row.cnt > 0 ? row.cnt : 3;
-  } catch {
-    return 3;
-  }
-}
-
 async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
   const rows = await queryPublicMapRows(env);
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   const scopedRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
-  const authorCounts = new Map<string, number>();
   const groups = new Map<string, PublicMapRow[]>();
   for (const row of scopedRows) {
     if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
-    const parsed = parsePublicCell(row.public_cell);
-    if (!parsed) continue;
-    let authors = authorCounts.get(row.public_cell);
-    if (authors === undefined) {
-      authors = await countDistinctAuthorsIn1kmCell(env, row.public_cell);
-      authorCounts.set(row.public_cell, authors);
-    }
-    const effectiveCell = authors < 3
-      ? formatGridCell(parsed.lat, parsed.lng, 0.1).replace(/^cell:/, "")
-      : row.public_cell;
-    const existing = groups.get(effectiveCell) ?? [];
+    if (!parsePublicCell(row.public_cell)) continue;
+    const existing = groups.get(row.public_cell) ?? [];
     existing.push(row);
-    groups.set(effectiveCell, existing);
+    groups.set(row.public_cell, existing);
   }
 
   const features = [...groups.entries()]
@@ -27756,32 +27703,21 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const partition = resolveObservationPartition(input.observedAt, env);
   const occurrenceIds = resolveLegacyOccurrenceIds(visitId, input);
   const occurrenceId = occurrenceIds[0] ?? `occ:${visitId}:0`;
-  const locationShareMode = normalizeLocationShareMode(
-    (input as { locationShareMode?: unknown }).locationShareMode ?? input.sourcePayload?.locationShareMode
-  );
-  const nearbyPublicPlace = input.siteId && input.siteName
-    ? { placeId: String(input.siteId), name: String(input.siteName), distanceM: 0 }
+  const explicitShareMode = (input as { locationShareMode?: unknown }).locationShareMode ?? input.sourcePayload?.locationShareMode;
+  const locationShareMode = explicitShareMode !== undefined && explicitShareMode !== null
+    ? normalizeLocationShareMode(explicitShareMode)
     : null;
-  const ownerNightPoints = await loadOwnerNightPoints(env, input.userId);
-  const publicLocationView = computePublicLocationView({
-    lat: input.latitude,
-    lng: input.longitude,
-    observedAt: input.observedAt,
-    locationShareMode,
-    nearbyPublicPlace,
-    ownerNightPoints,
-  });
-  const publicCell = publicLocationView.mode === "hidden"
+  const publicCell = locationShareMode === "hidden"
     ? "hidden"
-    : (publicLocationView.publicCell ? publicLocationView.publicCell.replace(/^cell:/, "") : blurLocation(input.latitude, input.longitude));
+    : blurLocation(input.latitude, input.longitude);
   const taxonLabel = resolveLegacyTaxonLabel(input);
   const placeName = normalizeOptionalText(input.siteName)
     ?? normalizeOptionalText(input.municipality)
     ?? normalizeOptionalText(input.prefecture)
     ?? "unknown place";
-  const placeId = publicLocationView.placeId ?? normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
+  const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const visibility = input.visibility === "private" ? "private" : "public";
-  const publicAreaLabel = visibility === "public" && publicLocationView.mode !== "hidden"
+  const publicAreaLabel = visibility === "public" && locationShareMode !== "hidden"
     ? resolveSafePublicAreaLabel(input)
     : null;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
