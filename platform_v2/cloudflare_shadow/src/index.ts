@@ -1,5 +1,12 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
+import {
+  compute25mGridCell,
+  isEventActiveWindow,
+  loadEventLiveMapState,
+  recordEventLiveMapEntry,
+  renderEventLiveMapPage
+} from "./eventLiveMap";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -2279,6 +2286,45 @@ async function getGlobalPlaceDetailPage(
   return request.method === "HEAD" ? new Response(null, { status: response.status, headers: response.headers }) : response;
 }
 
+type EventLiveMapSessionRow = {
+  session_id: string;
+  title: string;
+  organizer_user_id: string;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_radius_m: number;
+  started_at: string;
+  ended_at: string | null;
+};
+
+async function requireEventLiveMapAccess(
+  request: Request,
+  env: Env,
+  sessionId: string
+): Promise<{ ok: true; session: SessionSnapshot; eventRow: EventLiveMapSessionRow } | { ok: false; response: Response }> {
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session?.userId || session.banned) {
+    return { ok: false, response: json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" }) };
+  }
+  const eventRow = await env.OBS_DB.prepare(
+    `SELECT session_id, title, organizer_user_id, location_lat, location_lng, location_radius_m, started_at, ended_at
+     FROM observation_event_sessions WHERE session_id = ? LIMIT 1`
+  ).bind(sessionId).first<EventLiveMapSessionRow>();
+  if (!eventRow) {
+    return { ok: false, response: json({ ok: false, error: "event_not_found" }, 404, { "cache-control": "no-store" }) };
+  }
+  const isOrganizer = eventRow.organizer_user_id === session.userId || isMunicipalWalkMapAdminRole(session);
+  if (!isOrganizer) {
+    const participant = await env.OBS_DB.prepare(
+      "SELECT 1 AS ok FROM observation_event_participants WHERE session_id = ? AND user_id = ? LIMIT 1"
+    ).bind(sessionId, session.userId).first();
+    if (!participant) {
+      return { ok: false, response: json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" }) };
+    }
+  }
+  return { ok: true, session, eventRow };
+}
+
 export const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext = { waitUntil() {} }): Promise<Response> {
     let journeyReadOnly = false;
@@ -2692,6 +2738,76 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/register" || nativePathname === "/waitlist")) {
         return getZukanWaitlistHtml(request, url, env);
+      }
+
+      const liveMapPageMatch = nativePathname.match(/^\/events\/([^/]+)\/live-map$/);
+      if ((request.method === "GET" || request.method === "HEAD") && liveMapPageMatch?.[1]) {
+        const sessionId = decodeURIComponent(liveMapPageMatch[1]);
+        const auth = await requireEventLiveMapAccess(request, env, sessionId);
+        if (!auth.ok) return auth.response;
+        const state = await loadEventLiveMapState(env, auth.eventRow);
+        const cspNonce = createHtmlCspNonce();
+        const page = renderEventLiveMapPage(state, { bigScreen: url.searchParams.get("screen") === "1", cspNonce });
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store"
+          }
+        });
+      }
+
+      const liveMapGetMatch = nativePathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/live-map$/);
+      if (request.method === "GET" && liveMapGetMatch?.[1]) {
+        const sessionId = decodeURIComponent(liveMapGetMatch[1]);
+        const auth = await requireEventLiveMapAccess(request, env, sessionId);
+        if (!auth.ok) return auth.response;
+        const state = await loadEventLiveMapState(env, auth.eventRow);
+        return json({ ok: true, ...state }, 200, { "cache-control": "no-store" });
+      }
+
+      const liveMapPostMatch = nativePathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/live-map\/entries$/);
+      if (request.method === "POST" && liveMapPostMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const sessionId = decodeURIComponent(liveMapPostMatch[1]);
+        const auth = await requireEventLiveMapAccess(request, env, sessionId);
+        if (!auth.ok) return auth.response;
+        if (!isEventActiveWindow(auth.eventRow)) {
+          return json({ ok: false, error: "event_ended" }, 409, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{
+          lat?: unknown;
+          lng?: unknown;
+          entryKind?: unknown;
+          taxonLabel?: unknown;
+          summaryText?: unknown;
+          badgeNumber?: unknown;
+        }>(request);
+        const centerLat = typeof auth.eventRow.location_lat === "number" ? auth.eventRow.location_lat : 35.68;
+        const centerLng = typeof auth.eventRow.location_lng === "number" ? auth.eventRow.location_lng : 139.76;
+        const radiusM = typeof auth.eventRow.location_radius_m === "number" && auth.eventRow.location_radius_m > 0
+          ? auth.eventRow.location_radius_m
+          : 500;
+        const lat = typeof body.lat === "number" ? body.lat : Number.NaN;
+        const lng = typeof body.lng === "number" ? body.lng : Number.NaN;
+        const cellKey = compute25mGridCell(centerLat, centerLng, lat, lng, radiusM);
+        if (!cellKey) {
+          return json({ ok: false, error: "outside_event_area" }, 400, { "cache-control": "no-store" });
+        }
+        const entryKind = body.entryKind === "photo" || body.entryKind === "voice" || body.entryKind === "count" || body.entryKind === "zero"
+          ? body.entryKind
+          : "note";
+        const entry = await recordEventLiveMapEntry(env, {
+          sessionId,
+          cellKey,
+          entryKind,
+          taxonLabel: typeof body.taxonLabel === "string" ? body.taxonLabel : "",
+          summaryText: typeof body.summaryText === "string" ? body.summaryText : "",
+          badgeNumber: typeof body.badgeNumber === "number" ? body.badgeNumber : 1
+        });
+        return json({ ok: true, entry }, 201, { "cache-control": "no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
