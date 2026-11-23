@@ -963,7 +963,7 @@ test("record detail resolves the 7 UX polish items: open capture, readable media
   assert.match(rendered, /@media\(min-width:900px\)\{.*body\[data-zukan-app-experience\] \.of-media-slide :is\(img,video\)\{width:100%/);
   assert.doesNotMatch(rendered, /<span>◉<\/span>|<span>◌<\/span>/);
   assert.doesNotMatch(rendered, /位置はぼかして表示/);
-  assert.match(rendered, /名前はこれから/);
+  assert.doesNotMatch(rendered, /名前はこれから/);
 });
 
 test("existing landscape record without aiFeedback renders grounded environment feedback and avoids absence wording", () => {
@@ -1051,4 +1051,54 @@ test("rendered desktop 1440x900 page scales portrait photo height >= 600 and fra
   } finally {
     await browser.close();
   }
+});
+
+test("card mode renders each heading and candidate once without advice prose, comparison lead, or awaiting placeholder", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(
+    {
+      ...detail,
+      owner: false,
+      observationCount: 2,
+      observations: [
+        detail.observations[0]!,
+        {
+          ...detail.observations[0]!,
+          observationId: "obs-2",
+          subjectLabel: "写っているもの",
+          acceptedIdentification: null,
+          aiSuggestions: [],
+          communityIdentifications: [],
+        },
+      ],
+    },
+    {
+      lang: "ja",
+      title: "ナミアゲハ",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: null,
+      aiNextPhoto: "腹部の裏面",
+      aiCandidateInsights: [
+        {
+          name: "ナミアゲハ",
+          scientificName: "Papilio xuthus",
+          supportingFeatures: ["前翅の黒と黄の模様"],
+          missingFeatures: ["腹部の裏面"],
+          contradictions: [],
+        },
+      ],
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-dedup",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.equal((rendered.match(/ナミアゲハかもしれません/g) ?? []).length, 1);
+  assert.equal((rendered.match(/ログインして名前を提案する/g) ?? []).length, 1);
+  assert.equal((rendered.match(/AIが見つけた候補|AIが見つけたもの/g) ?? []).length, 1);
+  assert.doesNotMatch(rendered, /写っているもの/);
+  assert.doesNotMatch(rendered, /写真から見える特徴と、まだ確認できない点を並べています/);
+  assert.doesNotMatch(rendered, /名前はこれから/);
+  assert.match(rendered, /次に撮るとよい写真：腹部の裏面/);
+  const feedbackBlock = rendered.match(/data-ai-feedback[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.doesNotMatch(feedbackBlock, /比べやすくなります/);
 });
