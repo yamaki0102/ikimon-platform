@@ -31491,7 +31491,58 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
       return Reflect.get(target, prop, receiver);
     }
   });
-  const env = { ...baseEnv, CORE_DB: coreWithTop };
+  const obsSqlite = new DatabaseSync(":memory:");
+  obsSqlite.exec(`
+    CREATE TABLE observations (
+      observation_id TEXT PRIMARY KEY,
+      owner_user_id TEXT NOT NULL,
+      observed_at TEXT NOT NULL,
+      taxon_label TEXT,
+      public_area_label TEXT,
+      visibility TEXT,
+      emergency_hidden INTEGER DEFAULT 0
+    );
+    CREATE TABLE asset_ledger (
+      asset_id TEXT PRIMARY KEY,
+      observation_id TEXT NOT NULL,
+      mime TEXT,
+      processing_state TEXT,
+      public_derivative_key TEXT,
+      public_derivative_verified_at TEXT,
+      public_derivative_metadata_json TEXT,
+      exif_scrub_state TEXT,
+      public_ready_at TEXT,
+      uploaded_at TEXT
+    );
+    CREATE TABLE observation_event_sessions (
+      session_id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT,
+      organizer_user_id TEXT
+    );
+  `);
+  const obsWithTop = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\basset_ledger\b|\bobservation_event_sessions\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return obsSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: obsSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(obsSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithTop, OBS_DB: obsWithTop };
 
   const ownerToken = "top-owner-token";
   const ownerHash = createHash("sha256").update(ownerToken).digest("hex");
@@ -31536,6 +31587,58 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     processing_state: "accepted",
     public_area_label: "常盤公園"
   });
+  obs.assets.set("asset-top-1", {
+    asset_id: "asset-top-1",
+    draft_id: "draft-top-1",
+    observation_id: "obs-top-1",
+    owner_user_id: "top-owner-1",
+    object_key: "original/obs-top-1/photo.jpg",
+    partition_month: "2026-11",
+    sha256: "sha-top-1",
+    mime: "image/jpeg",
+    bytes: 12000,
+    width: 1200,
+    height: 900,
+    processing_state: "uploaded",
+    public_derivative_key: "derived/obs-top-1/display.webp",
+    public_derivative_sha256: "sha-deriv-top-1",
+    public_derivative_verified_at: "2026-11-22T09:01:00.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", scannedContainer: "webp" }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-11-22T09:01:00.000Z"
+  });
+  obs.observationEventSessions.set("evt_pr973", {
+    session_id: "evt_pr973",
+    legacy_event_id: null,
+    event_code: "PR973",
+    title: "PR973 prod rally",
+    organizer_user_id: "top-owner-1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "live_map",
+    active_modes_json: JSON.stringify(["live_map"]),
+    location_lat: 35.68,
+    location_lng: 139.76,
+    location_radius_m: 500,
+    started_at: "2026-06-25T09:00:00.000Z",
+    ended_at: "2026-06-25T12:00:00.000Z",
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-06-25T09:00:00.000Z",
+    updated_at: "2026-06-25T12:00:00.000Z"
+  });
+
+  obsSqlite.prepare(
+    "INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, visibility, emergency_hidden) VALUES (?, ?, ?, ?, ?, ?, ?)"
+  ).run("obs-top-1", "top-owner-1", "2026-11-22T09:00:00.000Z", "ヤツデ", "常盤公園", "public", 0);
+  obsSqlite.prepare(
+    "INSERT INTO asset_ledger (asset_id, observation_id, mime, processing_state, public_derivative_key, public_derivative_verified_at, public_derivative_metadata_json, exif_scrub_state, public_ready_at, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("asset-top-1", "obs-top-1", "image/jpeg", "uploaded", "derived/obs-top-1/display.webp", "2026-11-22T09:01:00.000Z", JSON.stringify({ contentType: "image/webp", scannedContainer: "webp" }), "scrubbed", "2026-11-22T09:01:00.000Z", "2026-11-22T09:00:30.000Z");
+  obsSqlite.prepare(
+    "INSERT INTO observation_event_sessions (session_id, title, started_at, ended_at, organizer_user_id) VALUES (?, ?, ?, ?, ?)"
+  ).run("evt_pr973", "PR973 prod rally", "2026-06-25T09:00:00.000Z", "2026-06-25T12:00:00.000Z", "top-owner-1");
 
   const guestTop = await worker.fetch(new Request("https://zukan.earth/ja/"), env);
   assert.equal(guestTop.status, 200);
@@ -31607,6 +31710,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.equal(prodRes.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2", topUrl);
     const prodHtml = await prodRes.text();
     assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
-    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ/, topUrl);
+    assert.match(prodHtml, /<img\s+src="\/media\/derived\/obs-top-1\/display\.webp"/, topUrl);
+    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally/, topUrl);
   }
 });
