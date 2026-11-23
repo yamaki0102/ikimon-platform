@@ -28865,6 +28865,21 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
 });
 
+test("records public section renders direct links to public place pages when available", () => {
+  const html = renderRecordsProductSection(
+    [],
+    new URL("https://zukan.earth/ja/records?view=public"),
+    "public",
+    null,
+    false,
+    null,
+    [{ placeId: "plc_e3293ec4bb9288a0", name: "常盤公園" }]
+  );
+  assert.match(html, /class="cf-records-places"/);
+  assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
+  assert.match(html, />常盤公園</);
+});
+
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
   const { env } = createEnv();
   const productionEnv = {
