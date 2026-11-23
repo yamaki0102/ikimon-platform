@@ -5002,7 +5002,8 @@ ${alternateLinks}
         radial-gradient(circle at top right, rgba(14,165,233,.05), transparent 30%),
         linear-gradient(180deg, #f9fffe 0%, var(--bg) 100%);
     }
-    a { color: inherit; text-decoration: none; }
+    html{scroll-padding-top:80px}
+    a:where(:link,:visited){color:inherit;text-decoration:none}
     .site-shell { min-height: 100vh; }
     .shell {
       --ikimon-shell-target-max: var(--ikimon-content-max);
@@ -5901,7 +5902,8 @@ ${alternateLinks}
       text-overflow: ellipsis;
     }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border-radius: 999px; font-weight: 850; border: 1px solid transparent; text-align: center; line-height: 1.25; }
-    .btn-solid { background: #059669; color: white; box-shadow: 0 9px 20px rgba(5,150,105,.18); }
+    .btn-solid { background: #047857; color: white; box-shadow: 0 9px 20px rgba(5,150,105,.18); }
+    .btn-solid:hover { background: #065f46; }
     .btn-solid-on-light { background: #059669; color: white; box-shadow: 0 10px 22px rgba(5,150,105,.18); }
     .btn-ghost { background: rgba(255,255,255,.86); border-color: var(--border); color: var(--ink); }
     .btn-ghost-on-dark { background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.32); color: white; backdrop-filter: blur(4px); }

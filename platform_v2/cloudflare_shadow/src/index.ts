@@ -9308,19 +9308,19 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
       }, {});
       return {
         type: "Feature",
-        geometry: { type: "Polygon", coordinates: [publicCellPolygon(parsed.lat, parsed.lng)] },
+        geometry: { type: "Polygon", coordinates: [publicCellPolygon(parsed.lat, parsed.lng, publicCellHalfStep(publicCell))] },
         properties: {
           cellId: publicCellToCellId(publicCell),
           label: "位置をぼかしています",
           albumName: "このあたりの記録",
           localityLabel: "位置をぼかしています",
           themeLabel: "最近の発見",
-          scaleLabel: `${MAP_DEFAULT_GRID_M}m`,
+          scaleLabel: `${publicCellHalfStep(publicCell) > 0.01 ? 10000 : MAP_DEFAULT_GRID_M}m`,
           nearbyAreaName: null,
           nameEraLabel: null,
           scope: "blurred",
-          gridM: MAP_DEFAULT_GRID_M,
-          radiusM: MAP_DEFAULT_GRID_M,
+          gridM: publicCellHalfStep(publicCell) > 0.01 ? 10000 : MAP_DEFAULT_GRID_M,
+          radiusM: publicCellHalfStep(publicCell) > 0.01 ? 10000 : MAP_DEFAULT_GRID_M,
           count: group.length,
           firstObservedAt: formatPublicDateOnly(earliestObservedAt(group) ?? ""),
           latestObservedAt: formatPublicDateOnly(latestObservedAt(group)),
@@ -9660,6 +9660,7 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   const rows = await queryPublicMapRows(env);
   const areaAndPeriodRows = rows
     .filter((row) => {
+      if ((selectedCell || effectiveBbox) && (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now()))) return false;
       if (selectedCell && row.public_cell !== selectedCell) return false;
       if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
       if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
@@ -10742,17 +10743,20 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
   const rawYear = numberFromSearchParam(url.searchParams.get("year"));
   const year = rawYear !== null && Number.isInteger(rawYear) && rawYear >= 2000 && rawYear <= 2100 ? rawYear : null;
   const rows = await queryPublicMapRows(env);
-  const grouped = new Map<string, { lat: number; lng: number; count: number }>();
+  const grouped = new Map<string, { lat: number; lng: number; count: number; halfStep: number }>();
   for (const row of rows) {
     if (year !== null && !row.observed_at.startsWith(String(year))) continue;
+    if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
     const parsed = parsePublicCell(row.public_cell);
     if (!parsed) continue;
-    const lat = Math.round(parsed.lat * 100) / 100;
-    const lng = Math.round(parsed.lng * 100) / 100;
-    const mesh = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    const halfStep = publicCellHalfStep(row.public_cell);
+    const coarse = halfStep > 0.005;
+    const lat = coarse ? parsed.lat : Math.round(parsed.lat * 100) / 100;
+    const lng = coarse ? parsed.lng : Math.round(parsed.lng * 100) / 100;
+    const mesh = coarse ? `${lat.toFixed(1)},${lng.toFixed(1)}` : `${lat.toFixed(2)},${lng.toFixed(2)}`;
     const current = grouped.get(mesh);
     if (current) current.count += 1;
-    else grouped.set(mesh, { lat, lng, count: 1 });
+    else grouped.set(mesh, { lat, lng, count: 1, halfStep });
   }
   const features = [...grouped.entries()]
     .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
@@ -10761,7 +10765,7 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
       type: "Feature" as const,
       geometry: {
         type: "Polygon" as const,
-        coordinates: [publicCellPolygon(group.lat, group.lng)]
+        coordinates: [publicCellPolygon(group.lat, group.lng, group.halfStep)]
       },
       properties: {
         mesh,
@@ -21004,7 +21008,7 @@ async function getNativeZukanTopHtmlIfAvailable(
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
-  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
+  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
   const body = renderZukanTopPage(data, {
     lang,
@@ -22431,11 +22435,11 @@ export function renderRecordsProductSection(
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query ? scopeCopy.noMatch(query) : scopeCopy.empty)}</strong>${query ? `<p class="cf-records-native-empty-hint">${escapeHtml(scopeCopy.searchHint)}</p>` : ""}<div class="cf-records-native-empty-actions"><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? scopeCopy.clearSearch : scopeCopy.createRecord)}</a><a class="cf-records-native-empty-secondary" href="${escapeHtml(mode === "public" ? `${prefix}/map?tab=places` : `${prefix}/records?view=public`)}">${escapeHtml(mode === "public" ? scopeCopy.browsePlaces : scopeCopy.browsePublic)}</a></div></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a{min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a{min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-native-tabs{scroll-margin-top:80px}.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){color:#fff}.cf-records-saved-link{margin:0 0 8px}.cf-records-saved-link a{display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:8px;bottom:8px;min-width:44px;min-height:44px;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     </style>
-    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
+    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
-    ${session && savedStates !== null ? `<a class="qh-entrances" href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a>` : ""}
+    ${session && savedStates !== null ? `<p class="cf-records-saved-link"><a href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a></p>` : ""}
     ${cards}
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>${renderSavedItemsScript(lang)}` : ""}
   </section>`;
@@ -23869,7 +23873,7 @@ async function getShadowVideoThumbnail(uid: string, env: Env): Promise<Response>
 
 async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
   const snapshotRows = await queryPublicMapSnapshotRows(env);
-  if (snapshotRows.length > 0) return snapshotRows;
+  if (snapshotRows.length > 0) return coarsenSparsePublicCells(env, snapshotRows);
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label
@@ -23883,7 +23887,7 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
-    return rows.results;
+    return coarsenSparsePublicCells(env, rows.results);
   } catch (error) {
     if (!(error instanceof Error) || !/no such column: public_area_label/i.test(error.message)) throw error;
     const rows = await env.OBS_DB.prepare(
@@ -23898,8 +23902,55 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
-    return rows.results.map((row) => ({ ...row, public_area_label: null }));
+    return coarsenSparsePublicCells(env, rows.results.map((row) => ({ ...row, public_area_label: null })));
   }
+}
+
+// Cells with fewer than 3 distinct recorders are published at 10km (0.1 degree) instead of 1km.
+async function coarsenSparsePublicCells(env: Env, rows: PublicMapRow[]): Promise<PublicMapRow[]> {
+  const ids = [...new Set(rows.map((row) => row.observation_id))];
+  const owners = new Map<string, string | null>();
+  let lookupFailed = false;
+  try {
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 90) chunks.push(ids.slice(i, i + 90));
+    for (let i = 0; i < chunks.length; i += 8) {
+      const results = await Promise.all(chunks.slice(i, i + 8).map((chunk) =>
+        env.OBS_DB.prepare(
+          `SELECT observation_id, owner_user_id FROM observations WHERE observation_id IN (${chunk.map(() => "?").join(",")})`
+        ).bind(...chunk).all<{ observation_id: string; owner_user_id: string | null }>()
+      ));
+      for (const result of results) {
+        for (const row of result.results) owners.set(row.observation_id, row.owner_user_id);
+      }
+    }
+  } catch {
+    lookupFailed = true;
+  }
+  const cellKey = (publicCell: string): { lat: number; lng: number; key: string } | null => {
+    const parsed = parsePublicCell(publicCell);
+    if (!parsed) return null;
+    const key = `${(Math.round(parsed.lat * 100) / 100).toFixed(2)},${(Math.round(parsed.lng * 100) / 100).toFixed(2)}`;
+    return { ...parsed, key };
+  };
+  const authorsByCell = new Map<string, Set<string>>();
+  if (!lookupFailed) {
+    for (const row of rows) {
+      const cell = cellKey(row.public_cell);
+      if (!cell) continue;
+      const author = owners.get(row.observation_id) || `anon:${row.observation_id}`;
+      const authors = authorsByCell.get(cell.key) ?? new Set<string>();
+      authors.add(author);
+      authorsByCell.set(cell.key, authors);
+    }
+  }
+  return rows.map((row) => {
+    const cell = cellKey(row.public_cell);
+    if (!cell) return row;
+    if (!lookupFailed && (authorsByCell.get(cell.key)?.size ?? 0) >= 3) return row;
+    const coarse = `${(Math.round(cell.lat * 10) / 10).toFixed(1)},${(Math.round(cell.lng * 10) / 10).toFixed(1)}`;
+    return { ...row, public_cell: row.public_cell.startsWith("cell:") ? `cell:${coarse}` : coarse };
+  });
 }
 
 async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
@@ -25189,8 +25240,10 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       mediaRole: "observation_audio",
     }));
   const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
-  const relatedRows = (await queryPublicMapRows(env))
-    .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
+  const publicRows = await queryPublicMapRows(env);
+  const ownPublicCell = publicRows.find((candidate) => candidate.observation_id === visitId)?.public_cell ?? row.public_cell;
+  const relatedRows = publicRows
+    .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
@@ -33652,8 +33705,12 @@ function publicMediaUrl(key: string | null): string {
   return key ? `/${key}` : "";
 }
 
-function publicCellPolygon(lat: number, lng: number): [number, number][] {
-  const halfStep = 0.005;
+function publicCellHalfStep(publicCell: string): number {
+  const latRaw = publicCell.replace(/^cell:/, "").split(",")[0] ?? "";
+  return /^-?\d+\.\d$/.test(latRaw) ? 0.05 : 0.005;
+}
+
+function publicCellPolygon(lat: number, lng: number, halfStep = 0.005): [number, number][] {
   return [
     [lng - halfStep, lat - halfStep],
     [lng + halfStep, lat - halfStep],

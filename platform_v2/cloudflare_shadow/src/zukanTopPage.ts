@@ -1,7 +1,144 @@
 import type { Env } from "./core/env";
 
-function publicMediaUrl(key: string): string {
-  return `/media/${key.replace(/^\/+/, "")}`;
+function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
+  const cleanKey = key.replace(/^\/+/, "");
+  if (
+    cleanKey.startsWith("derived/") &&
+    cleanKey.endsWith("/display.webp") &&
+    !cleanKey.includes("..") &&
+    !cleanKey.includes("\\") &&
+    !cleanKey.includes("//") &&
+    !cleanKey.includes("%")
+  ) {
+    return `/derived-transform/w${width}/${cleanKey}`;
+  }
+  return `/${cleanKey}`;
+}
+
+function topImageSrcsetAttr(photoUrl: string): string {
+  if (!photoUrl.startsWith("/derived-transform/w360/")) return "";
+  const w680 = photoUrl.replace("/derived-transform/w360/", "/derived-transform/w680/");
+  return ` srcset="${escapeHtml(photoUrl)} 360w, ${escapeHtml(w680)} 680w" sizes="(max-width: 600px) 260px, 340px"`;
+}
+
+function coarsePlaceOrMunicipalityLabel(raw: string | null | undefined): string {
+  const cleaned = String(raw ?? "").trim();
+  if (!cleaned) return "";
+  const stripped = cleaned
+    .replace(/\s*\d+\s*丁目.*$/u, "")
+    .replace(/\s*\d+\s*番(?:地)?.*$/u, "")
+    .replace(/\s*\d+\s*[-−ー]\s*\d+.*$/u, "")
+    .trim();
+  return stripped || cleaned;
+}
+
+const MUNICIPALITY_BOXES: Array<{ ja: string; en: string; minLat: number; maxLat: number; minLng: number; maxLng: number }> = [
+  { ja: "浜松市", en: "Hamamatsu", minLat: 34.65, maxLat: 35.15, minLng: 137.55, maxLng: 137.95 },
+  { ja: "静岡市", en: "Shizuoka", minLat: 34.9, maxLat: 35.4, minLng: 138.2, maxLng: 138.55 },
+  { ja: "四日市市", en: "Yokkaichi", minLat: 34.9, maxLat: 35.06, minLng: 136.45, maxLng: 136.7 },
+  { ja: "名古屋市", en: "Nagoya", minLat: 35.03, maxLat: 35.26, minLng: 136.79, maxLng: 137.06 },
+  { ja: "東京都区部", en: "Tokyo", minLat: 35.55, maxLat: 35.82, minLng: 139.56, maxLng: 139.92 },
+  { ja: "横浜市", en: "Yokohama", minLat: 35.34, maxLat: 35.59, minLng: 139.46, maxLng: 139.74 },
+  { ja: "京都市", en: "Kyoto", minLat: 34.88, maxLat: 35.18, minLng: 135.63, maxLng: 135.86 },
+  { ja: "大阪市", en: "Osaka", minLat: 34.58, maxLat: 34.77, minLng: 135.37, maxLng: 135.6 },
+  { ja: "静岡県", en: "Shizuoka", minLat: 34.58, maxLat: 35.65, minLng: 137.47, maxLng: 139.18 },
+  { ja: "三重県", en: "Mie", minLat: 33.7, maxLat: 35.26, minLng: 135.85, maxLng: 136.98 },
+  { ja: "愛知県", en: "Aichi", minLat: 34.57, maxLat: 35.42, minLng: 136.67, maxLng: 137.84 },
+  { ja: "東京都", en: "Tokyo", minLat: 35.5, maxLat: 35.9, minLng: 138.94, maxLng: 139.92 },
+  { ja: "神奈川県", en: "Kanagawa", minLat: 35.12, maxLat: 35.67, minLng: 138.91, maxLng: 139.8 }
+];
+
+function localizePlaceLabel(label: string, lang: ZukanTopLang): string {
+  if (lang !== "en") return label;
+  const match = MUNICIPALITY_BOXES.find((b) => b.ja === label);
+  return match ? match.en : label;
+}
+
+function coarseMunicipalityFromPublicCell(publicCell: string | null | undefined, lang: ZukanTopLang = "ja"): string {
+  const cleaned = String(publicCell ?? "").replace(/^cell:/, "").trim();
+  const [latStr, lngStr] = cleaned.split(",");
+  const lat = Number(latStr);
+  const lng = Number(lngStr);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  for (const box of MUNICIPALITY_BOXES) {
+    if (lat >= box.minLat && lat <= box.maxLat && lng >= box.minLng && lng <= box.maxLng) {
+      return lang === "en" ? box.en : box.ja;
+    }
+  }
+  return "";
+}
+
+async function resolveObservationPlaceLinks(
+  env: Env,
+  observationIds: string[]
+): Promise<Map<string, { placeId?: string; placeName: string }>> {
+  const map = new Map<string, { placeId?: string; placeName: string }>();
+  if (observationIds.length === 0) return map;
+  const placeholders = observationIds.map(() => "?").join(", ");
+  try {
+    const res = await env.OBS_DB.prepare(
+      `SELECT c.visit_id, p.place_id, p.canonical_name
+       FROM civic_observation_contexts c
+       JOIN places p ON p.place_id = c.field_id
+       WHERE c.visit_id IN (${placeholders})
+         AND p.public_profile_status = 'published'`
+    ).bind(...observationIds).all<{ visit_id: string; place_id: string; canonical_name: string }>();
+    for (const row of res.results ?? []) {
+      if (row.visit_id && row.place_id && row.canonical_name) {
+        map.set(row.visit_id, { placeId: row.place_id, placeName: row.canonical_name });
+      }
+    }
+  } catch {
+    // Ignore when civic_observation_contexts or places schema is absent in minimal fixtures
+  }
+  try {
+    const rmRes = await env.OBS_DB.prepare(
+      `SELECT observation_id, public_area_label
+       FROM readmodel_public_observations
+       WHERE observation_id IN (${placeholders})
+         AND public_area_label IS NOT NULL`
+    ).bind(...observationIds).all<{ observation_id: string; public_area_label: string }>();
+    for (const row of rmRes.results ?? []) {
+      if (!map.has(row.observation_id) && row.public_area_label) {
+        const label = coarsePlaceOrMunicipalityLabel(row.public_area_label);
+        if (label) map.set(row.observation_id, { placeName: label });
+      }
+    }
+  } catch {
+    // Ignore when readmodel_public_observations is absent in minimal fixtures
+  }
+  return map;
+}
+
+function selectDiverseTopItems<T extends { placeName: string; dateLabel: string; hasNamedPlace: boolean }>(
+  candidates: T[],
+  limit: number
+): T[] {
+  const ordered = [...candidates].sort((a, b) => Number(b.hasNamedPlace) - Number(a.hasNamedPlace));
+  const picked: T[] = [];
+  const usedPairKeys = new Set<string>();
+  const usedPlaces = new Set<string>();
+  const usedDates = new Set<string>();
+
+  for (let i = 0; i < ordered.length && picked.length < limit; i += 1) {
+    const item = ordered[i]!;
+    const pairKey = `${item.placeName}__${item.dateLabel}`;
+    if (!usedPairKeys.has(pairKey) && !usedPlaces.has(item.placeName) && !usedDates.has(item.dateLabel)) {
+      picked.push(item);
+      usedPairKeys.add(pairKey);
+      usedPlaces.add(item.placeName);
+      usedDates.add(item.dateLabel);
+    }
+  }
+  for (let i = 0; i < ordered.length && picked.length < limit; i += 1) {
+    const item = ordered[i]!;
+    const pairKey = `${item.placeName}__${item.dateLabel}`;
+    if (!usedPairKeys.has(pairKey)) {
+      picked.push(item);
+      usedPairKeys.add(pairKey);
+    }
+  }
+  return picked;
 }
 
 export type ZukanTopLang = "ja" | "en" | "es" | "pt-br";
@@ -96,10 +233,15 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function formatMonthDayJa(iso: string): string {
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function formatMonthDay(iso: string, lang: ZukanTopLang = "ja"): string {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return iso.slice(0, 10);
   const d = new Date(ms + 9 * 60 * 60 * 1000);
+  if (lang === "en") {
+    return `${MONTHS_EN[d.getUTCMonth()] ?? ""} ${d.getUTCDate()}`;
+  }
   return `${d.getUTCMonth() + 1}月${d.getUTCDate()}日`;
 }
 
@@ -118,97 +260,144 @@ function formatYearMonthJa(iso: string): string {
   return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月`;
 }
 
-export async function loadOwnerHeroPhotos(env: Env, limit = 5): Promise<TopHeroPhoto[]> {
-  try {
-    const ownerUserId = (env as unknown as Record<string, string | undefined>).ZUKAN_OWNER_USER_ID?.trim() || "";
+const ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY = `(
+  SELECT a.public_derivative_key
+    FROM asset_ledger a
+   WHERE a.observation_id = o.observation_id
+     AND a.processing_state = 'uploaded'
+     AND a.public_derivative_key IS NOT NULL
+     AND a.public_derivative_verified_at IS NOT NULL
+     AND COALESCE(a.public_derivative_metadata_json, '') NOT LIKE '%"scannedContainer":"svg+xml"%'
+     AND COALESCE(a.public_derivative_metadata_json, '') NOT LIKE '%"contentType":"image/svg%'
+     AND a.exif_scrub_state = 'scrubbed'
+     AND a.public_ready_at IS NOT NULL
+     AND a.mime LIKE 'image/%'
+   ORDER BY COALESCE(a.public_ready_at, a.public_derivative_verified_at, a.uploaded_at, '') DESC
+   LIMIT 1
+)`;
+
+function isSyntheticOrTestEventTitle(title: string, sessionId = ""): boolean {
+  const combined = `${title} ${sessionId}`;
+  return /\b(?:PR\d+|prod[\s_-]*rally|smoke|canary|e2e|dummy|sandbox)\b|テスト|試験/iu.test(combined);
+}
+
+export async function loadOwnerHeroPhotos(env: Env, limit = 5, lang: ZukanTopLang = "ja"): Promise<TopHeroPhoto[]> {
+  const prefix = `/${lang === "ja" ? "ja" : lang}`;
+  const queryPhotos = async (ownerUserId: string): Promise<TopHeroPhoto[]> => {
     const rows = await env.OBS_DB.prepare(
-      `SELECT o.observation_id, o.observed_at, o.public_area_label, o.taxon_label,
-              (SELECT a.public_derivative_key FROM observation_assets a
-                WHERE a.observation_id = o.observation_id
-                  AND a.public_derivative_key IS NOT NULL
-                  AND a.mime LIKE 'image/%'
-                LIMIT 1) AS derivative_key
+      `SELECT o.observation_id, o.observed_at, o.public_area_label, o.public_cell, o.taxon_label,
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE COALESCE(o.visibility, 'public') = 'public'
          AND COALESCE(o.emergency_hidden, 0) = 0
          ${ownerUserId ? "AND o.owner_user_id = ?1" : ""}
-       ORDER BY o.observed_at DESC
-       LIMIT 24`
+       ORDER BY CASE WHEN NULLIF(TRIM(COALESCE(o.public_area_label, '')), '') IS NOT NULL THEN 0 ELSE 1 END,
+                o.observed_at DESC
+       LIMIT 60`
     ).bind(...(ownerUserId ? [ownerUserId] : [])).all<{
       observation_id: string;
       observed_at: string;
       public_area_label: string | null;
+      public_cell: string | null;
       taxon_label: string | null;
       derivative_key: string | null;
     }>();
 
-    const photos: TopHeroPhoto[] = [];
-    for (const r of rows.results ?? []) {
-      if (!r.derivative_key) continue;
-      photos.push({
+    const rawResults = (rows.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, 30);
+    const placeLinks = await resolveObservationPlaceLinks(env, rawResults.map((r) => r.observation_id));
+    const candidates = rawResults.map((r) => {
+      const linked = placeLinks.get(r.observation_id);
+      const rawExplicit = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label);
+      const explicitLabel = rawExplicit ? localizePlaceLabel(rawExplicit, lang) : "";
+      const cellLabel = explicitLabel ? "" : coarseMunicipalityFromPublicCell(r.public_cell, lang);
+      const placeName = explicitLabel || cellLabel || (lang === "en" ? "Local nature" : "身近な自然");
+      const placeHref = linked?.placeId
+        ? `${prefix}/places/${encodeURIComponent(linked.placeId)}`
+        : `${prefix}/observations/${encodeURIComponent(r.observation_id)}`;
+      return {
         observationId: r.observation_id,
-        photoUrl: publicMediaUrl(r.derivative_key),
-        placeName: (r.public_area_label ?? "").trim() || "身近な自然",
-        placeHref: `/ja/observations/${encodeURIComponent(r.observation_id)}`,
-        dateLabel: formatMonthDayJa(r.observed_at)
-      });
-      if (photos.length >= limit) break;
-    }
-    return photos;
+        photoUrl: publicMediaUrl(r.derivative_key!, 360),
+        placeName,
+        placeHref,
+        dateLabel: formatMonthDay(r.observed_at, lang),
+        hasNamedPlace: Boolean(explicitLabel || cellLabel)
+      };
+    });
+    return selectDiverseTopItems(candidates, limit).map(({ hasNamedPlace: _unused, ...rest }) => rest);
+  };
+
+  try {
+    const ownerUserId = (env as unknown as Record<string, string | undefined>).ZUKAN_OWNER_USER_ID?.trim() || "";
+    const primary = await queryPhotos(ownerUserId);
+    if (primary.length > 0 || !ownerUserId) return primary;
+    return await queryPhotos("");
   } catch {
     return [];
   }
 }
 
-export async function loadPublicPlacesStrip(env: Env, limit = 6): Promise<TopPlaceCard[]> {
+export async function loadPublicPlacesStrip(env: Env, limit = 6, lang: ZukanTopLang = "ja"): Promise<TopPlaceCard[]> {
+  const prefix = `/${lang === "ja" ? "ja" : lang}`;
   try {
     const res = await env.OBS_DB.prepare(
       `SELECT p.place_id, p.canonical_name
        FROM places p
        WHERE p.public_profile_status = 'published'
-         AND COALESCE(p.place_visibility, 'public') = 'public'
+         AND p.valid_to IS NULL
+         AND p.superseded_by_place_id IS NULL
        ORDER BY p.updated_at DESC
        LIMIT ?1`
     ).bind(limit).all<{ place_id: string; canonical_name: string }>();
     return (res.results ?? []).map((row) => ({
       placeId: row.place_id,
-      name: row.canonical_name,
+      name: localizePlaceLabel(row.canonical_name, lang),
       photoUrl: null,
-      href: `/ja/places/${encodeURIComponent(row.place_id)}`
+      href: `${prefix}/places/${encodeURIComponent(row.place_id)}`
     }));
   } catch {
     return [];
   }
 }
 
-export async function loadRecentPublicRecords(env: Env, limit = 6): Promise<TopPublicRecordThumb[]> {
+export async function loadRecentPublicRecords(env: Env, limit = 6, lang: ZukanTopLang = "ja"): Promise<TopPublicRecordThumb[]> {
+  const prefix = `/${lang === "ja" ? "ja" : lang}`;
   try {
     const res = await env.OBS_DB.prepare(
-      `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
-              (SELECT a.public_derivative_key FROM observation_assets a
-                WHERE a.observation_id = o.observation_id
-                  AND a.public_derivative_key IS NOT NULL
-                  AND a.mime LIKE 'image/%'
-                LIMIT 1) AS derivative_key
+      `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label, o.public_cell,
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE COALESCE(o.visibility, 'public') = 'public'
          AND COALESCE(o.emergency_hidden, 0) = 0
-       ORDER BY o.observed_at DESC
-       LIMIT ?1`
-    ).bind(limit).all<{
+       ORDER BY CASE WHEN NULLIF(TRIM(COALESCE(o.public_area_label, '')), '') IS NOT NULL THEN 0 ELSE 1 END,
+                o.observed_at DESC
+       LIMIT 48`
+    ).all<{
       observation_id: string;
       observed_at: string;
       taxon_label: string | null;
       public_area_label: string | null;
+      public_cell: string | null;
       derivative_key: string | null;
     }>();
-    return (res.results ?? []).map((r) => ({
-      observationId: r.observation_id,
-      title: (r.taxon_label ?? "").trim() || (r.public_area_label ?? "").trim() || "自然の記録",
-      photoUrl: r.derivative_key ? publicMediaUrl(r.derivative_key) : null,
-      dateLabel: formatMonthDayJa(r.observed_at),
-      href: `/ja/observations/${encodeURIComponent(r.observation_id)}`
-    }));
+    const rawResults = (res.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, 30);
+    const placeLinks = await resolveObservationPlaceLinks(env, rawResults.map((r) => r.observation_id));
+    const candidates = rawResults.map((r) => {
+      const linked = placeLinks.get(r.observation_id);
+      const rawExplicit = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label);
+      const explicitLabel = rawExplicit ? localizePlaceLabel(rawExplicit, lang) : "";
+      const cellLabel = explicitLabel ? "" : coarseMunicipalityFromPublicCell(r.public_cell, lang);
+      const placeName = explicitLabel || cellLabel || (lang === "en" ? "Local nature" : "身近な自然");
+      return {
+        observationId: r.observation_id,
+        title: placeName,
+        placeName,
+        photoUrl: publicMediaUrl(r.derivative_key!, 360),
+        dateLabel: formatMonthDay(r.observed_at, lang),
+        href: linked?.placeId ? `${prefix}/places/${encodeURIComponent(linked.placeId)}` : `${prefix}/observations/${encodeURIComponent(r.observation_id)}`,
+        hasNamedPlace: Boolean(explicitLabel || cellLabel)
+      };
+    });
+    return selectDiverseTopItems(candidates, limit).map(({ hasNamedPlace: _unused, placeName: _pn, ...rest }) => rest);
   } catch {
     return [];
   }
@@ -218,13 +407,15 @@ export async function loadEventSectionWithFallback(
   env: Env,
   heroPhotos: TopHeroPhoto[],
   recentPublicRecords: TopPublicRecordThumb[],
-  nowIso = new Date().toISOString()
+  nowIso = new Date().toISOString(),
+  lang: ZukanTopLang = "ja"
 ): Promise<{
   heading: string;
   tier: "upcoming" | "past_scenery" | "recent_records" | "owner_photos";
   upcomingEvents: TopEventItem[];
   pastEventCards: TopEventItem[];
 }> {
+  const prefix = `/${lang === "ja" ? "ja" : lang}`;
   try {
     const upcomingRes = await env.OBS_DB.prepare(
       `SELECT session_id, title, started_at, organizer_user_id
@@ -234,43 +425,21 @@ export async function loadEventSectionWithFallback(
        LIMIT 3`
     ).bind(nowIso).all<{ session_id: string; title: string; started_at: string; organizer_user_id: string }>();
 
-    const upcoming = (upcomingRes.results ?? []).map((e) => ({
-      sessionId: e.session_id,
-      title: e.title,
-      dateLabel: formatMonthDayJa(e.started_at),
-      organizerLabel: "地域の案内",
-      href: `/ja/events/${encodeURIComponent(e.session_id)}`
-    }));
+    const upcoming = (upcomingRes.results ?? [])
+      .filter((e) => !isSyntheticOrTestEventTitle(e.title, e.session_id))
+      .map((e) => ({
+        sessionId: e.session_id,
+        title: e.title,
+        dateLabel: formatMonthDay(e.started_at, lang),
+        organizerLabel: lang === "en" ? "Local guide" : "地域の案内",
+        href: `${prefix}/community/events`
+      }));
     if (upcoming.length > 0) {
       return {
-        heading: "近くのイベント",
+        heading: lang === "en" ? "Nearby events" : "近くのイベント",
         tier: "upcoming",
         upcomingEvents: upcoming,
         pastEventCards: []
-      };
-    }
-
-    const pastRes = await env.OBS_DB.prepare(
-      `SELECT session_id, title, started_at, organizer_user_id
-       FROM observation_event_sessions
-       WHERE ended_at IS NOT NULL OR started_at < ?1
-       ORDER BY started_at DESC
-       LIMIT 4`
-    ).bind(nowIso).all<{ session_id: string; title: string; started_at: string; organizer_user_id: string }>();
-
-    const past = (pastRes.results ?? []).map((e) => ({
-      sessionId: e.session_id,
-      title: e.title,
-      dateLabel: formatMonthDayJa(e.started_at),
-      organizerLabel: "過去の行事",
-      href: `/ja/events/${encodeURIComponent(e.session_id)}`
-    }));
-    if (past.length > 0) {
-      return {
-        heading: "過去の行事の景色",
-        tier: "past_scenery",
-        upcomingEvents: [],
-        pastEventCards: past
       };
     }
   } catch {
@@ -279,7 +448,7 @@ export async function loadEventSectionWithFallback(
 
   if (recentPublicRecords.length > 0) {
     return {
-      heading: "最近の記録",
+      heading: lang === "en" ? "Recent records" : "最近の記録",
       tier: "recent_records",
       upcomingEvents: [],
       pastEventCards: []
@@ -287,7 +456,7 @@ export async function loadEventSectionWithFallback(
   }
 
   return {
-    heading: heroPhotos.length > 0 ? "場所" : "最近の記録",
+    heading: heroPhotos.length > 0 ? (lang === "en" ? "Places" : "場所") : (lang === "en" ? "Recent records" : "最近の記録"),
     tier: "owner_photos",
     upcomingEvents: [],
     pastEventCards: []
@@ -302,11 +471,7 @@ export async function loadUserLibraryData(
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
-              (SELECT a.public_derivative_key FROM observation_assets a
-                WHERE a.observation_id = o.observation_id
-                  AND a.public_derivative_key IS NOT NULL
-                  AND a.mime LIKE 'image/%'
-                LIMIT 1) AS derivative_key
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE o.owner_user_id = ?1
        ORDER BY o.observed_at DESC
@@ -433,16 +598,17 @@ export async function loadUserLibraryData(
 export async function loadZukanTopPageData(
   env: Env,
   userId: string | null,
-  searchQuery = ""
+  searchQuery = "",
+  lang: ZukanTopLang = "ja"
 ): Promise<ZukanTopPageData> {
   const [heroPhotos, placesStrip, recentPublicRecords, library] = await Promise.all([
-    loadOwnerHeroPhotos(env, 5),
-    loadPublicPlacesStrip(env, 6),
-    loadRecentPublicRecords(env, 6),
+    loadOwnerHeroPhotos(env, 5, lang),
+    loadPublicPlacesStrip(env, 6, lang),
+    loadRecentPublicRecords(env, 6, lang),
     userId ? loadUserLibraryData(env, userId, searchQuery) : Promise.resolve({ groups: [], oneYearPair: null })
   ]);
 
-  const eventSection = await loadEventSectionWithFallback(env, heroPhotos, recentPublicRecords);
+  const eventSection = await loadEventSectionWithFallback(env, heroPhotos, recentPublicRecords, new Date().toISOString(), lang);
 
   return {
     heroPhotos,
@@ -467,14 +633,16 @@ export function renderZukanTopPage(
     cspNonce?: string;
   }
 ): string {
+  const isEn = options.lang === "en";
   const prefix = `/${options.lang === "ja" ? "ja" : options.lang}`;
   const nonceAttr = options.cspNonce ? ` nonce="${escapeHtml(options.cspNonce)}"` : "";
-  const homeLabel = options.authenticated ? "ライブラリ" : "ホーム";
+  const homeLabel = options.authenticated ? (isEn ? "Library" : "ライブラリ") : (isEn ? "Home" : "ホーム");
+  const labelSep = isEn ? " · " : "・";
   const heroHtml = data.heroPhotos.length > 0
-    ? `<section class="zt-hero" aria-label="写真">
+    ? `<section class="zt-hero" aria-label="${isEn ? "Photos" : "写真"}">
         <div class="zt-hero-strip">${data.heroPhotos.map((p, idx) => `<a class="zt-hero-card" href="${escapeHtml(p.placeHref)}">
-          <img src="${escapeHtml(p.photoUrl)}" alt="${escapeHtml(`${p.placeName} ${p.dateLabel}`)}" loading="${idx === 0 ? "eager" : "lazy"}"${idx === 0 ? ' fetchpriority="high"' : ""}>
-          <span class="zt-hero-label">${escapeHtml(`${p.placeName}・${p.dateLabel}`)}</span>
+          <img src="${escapeHtml(p.photoUrl)}"${topImageSrcsetAttr(p.photoUrl)} alt="${escapeHtml(`${p.placeName} ${p.dateLabel}`)}" loading="${idx === 0 ? "eager" : "lazy"}"${idx === 0 ? ' fetchpriority="high"' : ""}>
+          <span class="zt-hero-label">${escapeHtml(`${p.placeName}${labelSep}${p.dateLabel}`)}</span>
         </a>`).join("")}</div>
       </section>`
     : "";
@@ -486,32 +654,30 @@ export function renderZukanTopPage(
       <span class="zt-event-main"><strong>${escapeHtml(ev.title)}</strong><span>${escapeHtml(ev.organizerLabel)}</span></span>
       <span aria-hidden="true">›</span>
     </a></li>`).join("")}</ul>`;
-  } else if (data.eventFallbackTier === "past_scenery" && data.pastEventCards.length > 0) {
-    eventBlockBody = `<div class="zt-thumb-grid">${data.pastEventCards.map((ev) => `<a class="zt-thumb-card" href="${escapeHtml(ev.href)}">
-      <div class="zt-thumb-placeholder"><span>${escapeHtml(ev.title)}</span></div>
-      <span class="zt-thumb-label">${escapeHtml(`${ev.title}・${ev.dateLabel}`)}</span>
+  } else if (data.eventFallbackTier === "past_scenery" && data.pastEventCards.some((ev) => Boolean(ev.photoUrl))) {
+    eventBlockBody = `<div class="zt-thumb-grid">${data.pastEventCards.filter((ev) => Boolean(ev.photoUrl)).map((ev) => `<a class="zt-thumb-card" href="${escapeHtml(ev.href)}">
+      <img src="${escapeHtml(ev.photoUrl!)}" alt="${escapeHtml(ev.title)}" loading="lazy">
+      <span class="zt-thumb-label">${escapeHtml(`${ev.title}${labelSep}${ev.dateLabel}`)}</span>
     </a>`).join("")}</div>`;
-  } else if (data.recentPublicRecords.length > 0) {
-    eventBlockBody = `<div class="zt-thumb-grid">${data.recentPublicRecords.map((rec) => `<a class="zt-thumb-card" href="${escapeHtml(rec.href)}">
-      ${rec.photoUrl
-        ? `<img src="${escapeHtml(rec.photoUrl)}" alt="${escapeHtml(rec.title)}" loading="lazy">`
-        : `<div class="zt-thumb-placeholder"><span>${escapeHtml(rec.title)}</span></div>`}
-      <span class="zt-thumb-label">${escapeHtml(`${rec.title}・${rec.dateLabel}`)}</span>
+  } else if (data.recentPublicRecords.some((rec) => Boolean(rec.photoUrl))) {
+    eventBlockBody = `<div class="zt-thumb-grid">${data.recentPublicRecords.filter((rec) => Boolean(rec.photoUrl)).map((rec) => `<a class="zt-thumb-card" href="${escapeHtml(rec.href)}">
+      <img src="${escapeHtml(rec.photoUrl!)}" alt="${escapeHtml(rec.title)}" loading="lazy">
+      <span class="zt-thumb-label">${escapeHtml(`${rec.title}${labelSep}${rec.dateLabel}`)}</span>
     </a>`).join("")}</div>`;
   } else if (data.heroPhotos.length > 0) {
     eventBlockBody = `<div class="zt-thumb-grid">${data.heroPhotos.map((p) => `<a class="zt-thumb-card" href="${escapeHtml(p.placeHref)}">
       <img src="${escapeHtml(p.photoUrl)}" alt="${escapeHtml(p.placeName)}" loading="lazy">
-      <span class="zt-thumb-label">${escapeHtml(`${p.placeName}・${p.dateLabel}`)}</span>
+      <span class="zt-thumb-label">${escapeHtml(`${p.placeName}${labelSep}${p.dateLabel}`)}</span>
     </a>`).join("")}</div>`;
   }
 
   const eventFallbackAction = options.authenticated
-    ? `<a class="zt-inline-link" href="${prefix}/events/new">イベントを開く</a>`
-    : `<a class="zt-inline-link" href="${prefix}/waitlist">ウェイティングリストに登録</a>`;
+    ? `<a class="zt-inline-link" href="${prefix}/community/events/new">${isEn ? "Host an event" : "イベントを開く"}</a>`
+    : `<a class="zt-inline-link" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>`;
 
   const placesStripHtml = data.placesStrip.length > 0
     ? `<section class="zt-section" aria-labelledby="zt-places-heading">
-        <h2 id="zt-places-heading">場所</h2>
+        <h2 id="zt-places-heading">${isEn ? "Places" : "場所"}</h2>
         <div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}">
           ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="${escapeHtml(pl.name)}" loading="lazy">` : `<div class="zt-place-fallback" aria-hidden="true"></div>`}
           <span>${escapeHtml(pl.name)}</span>
@@ -523,11 +689,11 @@ export function renderZukanTopPage(
     <h1 class="zt-sr-only">ZUKAN</h1>
     ${heroHtml}
     <div class="zt-cta-row">
-      <a class="zt-btn-primary" href="${prefix}/waitlist">ウェイティングリストに登録</a>
-      <a class="zt-btn-outline" href="${prefix}/events">近くのイベントを見る</a>
+      <a class="zt-btn-primary" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>
+      <a class="zt-btn-outline" href="${prefix}/community/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
     </div>
     <section class="zt-section" aria-labelledby="zt-events-heading">
-      <h2 id="zt-events-heading">${escapeHtml(data.eventSectionHeading)}</h2>
+      <h2 id="zt-events-heading">${escapeHtml(isEn && data.eventSectionHeading === "最近の記録" ? "Recent records" : data.eventSectionHeading)}</h2>
       ${eventBlockBody}
       <div class="zt-section-foot">${eventFallbackAction}</div>
     </section>
@@ -551,8 +717,8 @@ export function renderZukanTopPage(
           <h2>${escapeHtml(grp.headerLabel)}</h2>
           <div class="zt-group-actions">
             ${grp.published
-              ? `<button type="button" class="zt-chip-published" data-zukan-unpublish="${escapeHtml(grp.groupKey)}">図鑑に掲載中</button>`
-              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-name="${escapeHtml(grp.placeName)}">図鑑に載せる</button>`}
+              ? `<button type="button" class="zt-chip-published" data-zukan-unpublish="${escapeHtml(grp.groupKey)}">${isEn ? "In ZUKAN" : "図鑑に掲載中"}</button>`
+              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-name="${escapeHtml(grp.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`}
           </div>
         </div>
         <div class="zt-lib-grid">${grp.photos.map((ph) => `<a class="zt-lib-thumb" href="${prefix}/observations/${encodeURIComponent(ph.observationId)}" data-obs-id="${escapeHtml(ph.observationId)}">
@@ -561,24 +727,24 @@ export function renderZukanTopPage(
       </section>`).join("")
     : `<section class="zt-section">
         <div class="zt-capture-row">
-          <button type="button" class="zt-btn-capture" data-global-record-trigger="photo">撮る</button>
+          <button type="button" class="zt-btn-capture" data-global-record-trigger="photo">${isEn ? "Capture" : "撮る"}</button>
         </div>
-        ${data.placesStrip.length > 0 ? `<h2 class="zt-subhead">近くの場所</h2><div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}"><div class="zt-place-fallback" aria-hidden="true"></div><span>${escapeHtml(pl.name)}</span></a>`).join("")}</div>` : ""}
+        ${data.placesStrip.length > 0 ? `<h2 class="zt-subhead">${isEn ? "Nearby places" : "近くの場所"}</h2><div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}"><div class="zt-place-fallback" aria-hidden="true"></div><span>${escapeHtml(pl.name)}</span></a>`).join("")}</div>` : ""}
         <h2 class="zt-subhead">${escapeHtml(data.eventSectionHeading)}</h2>
         ${eventBlockBody}
       </section>`;
 
   const loggedInMain = `
-    <h1 class="zt-sr-only">ZUKAN ライブラリ</h1>
+    <h1 class="zt-sr-only">${isEn ? "ZUKAN library" : "ZUKAN ライブラリ"}</h1>
     ${oneYearHtml}
     ${libraryBodyHtml}
     <dialog class="zt-popover" id="zt-publish-dialog" aria-labelledby="zt-popover-title">
       <form method="dialog" id="zt-publish-form">
-        <h2 id="zt-popover-title">図鑑に載せる</h2>
+        <h2 id="zt-popover-title">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</h2>
         <div class="zt-popover-thumbs" id="zt-popover-thumbs"></div>
         <div class="zt-popover-actions">
-          <button type="submit" class="zt-btn-primary" id="zt-publish-submit">載せる</button>
-          <button type="button" class="zt-btn-text" id="zt-publish-cancel">やめる</button>
+          <button type="submit" class="zt-btn-primary" id="zt-publish-submit">${isEn ? "Add" : "載せる"}</button>
+          <button type="button" class="zt-btn-text" id="zt-publish-cancel">${isEn ? "Cancel" : "やめる"}</button>
         </div>
       </form>
     </dialog>
@@ -588,15 +754,16 @@ export function renderZukanTopPage(
     ? `<header class="zt-topbar">
         <a class="zt-logo" href="${prefix}/">ZUKAN</a>
         <form class="zt-search" action="${prefix}/" method="get">
-          <input type="search" name="q" value="${escapeHtml(options.searchQuery ?? "")}" placeholder="祭り・川・去年の秋で探す" aria-label="検索">
+          <input type="search" name="q" value="${escapeHtml(options.searchQuery ?? "")}" placeholder="${isEn ? "Search: festival, river, last autumn" : "祭り・川・去年の秋で探す"}" aria-label="${isEn ? "Search" : "検索"}">
         </form>
-        <a class="zt-avatar" href="${prefix}/profile" aria-label="自分">${escapeHtml((options.displayName ?? "私").slice(0, 1))}</a>
+        <a class="zt-avatar" href="${prefix}/profile" aria-label="${isEn ? "Me" : "自分"}">${escapeHtml((options.displayName ?? (isEn ? "M" : "私")).slice(0, 1))}</a>
       </header>`
     : `<header class="zt-topbar">
         <a class="zt-logo" href="${prefix}/">ZUKAN</a>
-        <a class="zt-login-btn" href="/auth/login">ログイン</a>
+        <a class="zt-login-btn" href="${prefix}/login">${isEn ? "Log in" : "ログイン"}</a>
       </header>`;
 
+  const popTitleJs = isEn ? `"Add " + currentPlaceName + " to ZUKAN"` : `currentPlaceName + "の図鑑に載せる"`;
   const publishScript = options.authenticated
     ? `<script${nonceAttr}>
       (() => {
@@ -612,15 +779,15 @@ export function renderZukanTopPage(
           const openBtn = ev.target.closest("[data-zukan-open-popover]");
           if (openBtn) {
             currentGroupKey = openBtn.getAttribute("data-zukan-open-popover") || "";
-            currentPlaceName = openBtn.getAttribute("data-place-name") || "場所";
-            titleEl.textContent = currentPlaceName + "の図鑑に載せる";
+            currentPlaceName = openBtn.getAttribute("data-place-name") || "${isEn ? "Places" : "場所"}";
+            titleEl.textContent = ${popTitleJs};
             const group = openBtn.closest("[data-group-key]");
             const links = group ? [...group.querySelectorAll("[data-obs-id]")] : [];
             thumbsEl.innerHTML = links.map((a) => {
               const id = a.getAttribute("data-obs-id") || "";
               const img = a.querySelector("img");
               const src = img ? img.getAttribute("src") || "" : "";
-              return '<label class="zt-pop-item"><input type="checkbox" name="obsId" value="' + id.replace(/"/g, "&quot;") + '" checked>' + (src ? '<img src="' + src.replace(/"/g, "&quot;") + '" alt="">' : '<span>記録</span>') + '</label>';
+              return '<label class="zt-pop-item"><input type="checkbox" name="obsId" value="' + id.replace(/"/g, "&quot;") + '" checked>' + (src ? '<img src="' + src.replace(/"/g, "&quot;") + '" alt="">' : '<span>${isEn ? "Record" : "記録"}</span>') + '</label>';
             }).join("");
             if (typeof dialog.showModal === "function") dialog.showModal();
             else dialog.setAttribute("open", "");
@@ -674,7 +841,8 @@ export function renderZukanTopPage(
     .zt-avatar{background:var(--surface);border:1px solid var(--line)}
     .zt-search{flex:1;max-width:460px}
     .zt-search input{width:100%;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font:inherit;font-size:14px}
-    .zt-main{max-width:1120px;margin:0 auto;padding:16px;display:grid;gap:24px}
+    .zt-main{max-width:1120px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
+    .zt-main>*,.zt-shell>*{min-width:0}
     .zt-hero-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto}
     .zt-hero-card{position:relative;display:block;border-radius:10px;overflow:hidden;background:var(--surface);aspect-ratio:4/3;text-decoration:none}
     .zt-hero-card img{width:100%;height:100%;object-fit:cover;display:block}
@@ -727,12 +895,12 @@ export function renderZukanTopPage(
 </head>
 <body>
   <div class="zt-shell">
-    <aside class="zt-sidebar" aria-label="ナビ">
-      <a class="zt-btn-capture" href="${prefix}/capture" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">撮る</a>
+    <aside class="zt-sidebar" aria-label="${isEn ? "Navigation" : "ナビ"}">
+      <a class="zt-btn-capture" href="${prefix}/record" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${isEn ? "Capture" : "撮る"}</a>
       <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-      <a class="zt-nav-item" href="${prefix}/events">イベント</a>
-      <a class="zt-nav-item" href="${prefix}/places">場所</a>
-      <a class="zt-nav-item" href="${prefix}/profile">自分</a>
+      <a class="zt-nav-item" href="${prefix}/community/events">${isEn ? "Events" : "イベント"}</a>
+      <a class="zt-nav-item" href="${prefix}/map">${isEn ? "Places" : "場所"}</a>
+      <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
     </aside>
     <div>
       ${topBar}
@@ -741,12 +909,12 @@ export function renderZukanTopPage(
       </main>
     </div>
   </div>
-  <nav class="zt-bottom-nav" aria-label="メニュー">
+  <nav class="zt-bottom-nav" aria-label="${isEn ? "Menu" : "メニュー"}">
     <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-    <a class="zt-nav-item" href="${prefix}/events">イベント</a>
-    <a class="zt-nav-item zt-nav-capture" href="${prefix}/capture">撮る</a>
-    <a class="zt-nav-item" href="${prefix}/places">場所</a>
-    <a class="zt-nav-item" href="${prefix}/profile">自分</a>
+    <a class="zt-nav-item" href="${prefix}/community/events">${isEn ? "Events" : "イベント"}</a>
+    <a class="zt-nav-item zt-nav-capture" href="${prefix}/record">${isEn ? "Capture" : "撮る"}</a>
+    <a class="zt-nav-item" href="${prefix}/map">${isEn ? "Places" : "場所"}</a>
+    <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
   </nav>
   ${publishScript}
 </body>
