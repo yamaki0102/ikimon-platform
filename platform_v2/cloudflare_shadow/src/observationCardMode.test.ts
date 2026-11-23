@@ -9,8 +9,11 @@ import {
   CARD_TILE_GRID,
   CARD_TILE_MAX_IMAGES,
   CARD_WRITER_MODEL,
+  CARD_DECISION_MODEL,
+  applyDecisionCheck,
   applySecondCheck,
   buildCardMergedObservation,
+  callCardDecision,
   callCardGemini,
   cardContext,
   normalizeCardSubjects,
@@ -153,6 +156,45 @@ test("tile sweep adds a small animal as a coarse unconfirmed subject and stops a
   assert.deepEqual([limited.stats.tileCalls, limited.stats.tileError], [3, "tile_budget_exceeded"]);
   const broken = await runObservationCardPipeline({ observedAt: null, images: [image] }, fakeDeps(id, { tileSource: async () => new Uint8Array(64), tileModel: async () => "{}" }).deps);
   assert.deepEqual([broken.stats.subjects, broken.stats.tileError], [1, "png_signature_invalid"]);
+});
+
+test("species re-check uses the decision model probability and falls back to skipped on failure", async () => {
+  const keep = subject();
+  assert.equal(applyDecisionCheck(keep, 0.91), "agree");
+  assert.equal(keep.confidence_band, "high");
+  const soft = subject();
+  assert.deepEqual([applyDecisionCheck(soft, 0.6), soft.confidence_band], ["coarser", "medium"]);
+  const doubt = subject();
+  assert.deepEqual([applyDecisionCheck(doubt, 0.2), doubt.confidence_band, doubt.name, doubt.alt_candidate ?? null], ["conflict", "low", "オオカマキリ", null]);
+  assert.match((doubt.missing_evidence as string[]).join(" "), /決め手の確認が必要/);
+  assert.equal(applyDecisionCheck(subject(), null), "skipped");
+
+  const id = { record_class: "organism", main_theme: "organism", habitat_type: "草地", subjects: [subject()], narrative: "", observer_boost: "" };
+  const asked: string[] = [];
+  const viaDecision = fakeDeps(id, { decide: async (images, q) => { asked.push(`${images.length}:${q}`); return 0.3; } });
+  const out = await runObservationCardPipeline({ observedAt: null, images: [image] }, viaDecision.deps);
+  assert.deepEqual([out.stats.secondCheck, out.subjects[0]!.confidence_band], ["conflict", "low"]);
+  assert.deepEqual(asked, ["1:Does this photo show オオカマキリ (Tenodera sinensis)? Answer yes only if the visible organism is this species."]);
+  assert.equal(viaDecision.calls.filter((c) => c.text.includes("いちばん大きくはっきり")).length, 0);
+  const failing = await runObservationCardPipeline({ observedAt: null, images: [image] }, fakeDeps(id, { decide: async () => { throw new Error("down"); } }).deps);
+  assert.deepEqual([failing.stats.secondCheck, failing.subjects[0]!.confidence_band], ["skipped", "high"]);
+});
+
+test("decision call sends images once, returns the yes probability and never retries client errors", async () => {
+  let n = 0;
+  const bad = (async () => { n++; return new Response("{}", { status: 400 }); }) as unknown as typeof fetch;
+  await assert.rejects(callCardDecision("k", [image], "q", bad), /card_decision_api_failed:400/);
+  assert.equal(n, 1);
+  const ok = (async (url: unknown, init?: RequestInit) => {
+    assert.equal(String(url), "https://generativelanguage.googleapis.com/v1beta/decisions");
+    assert.equal(new Headers(init?.headers).get("x-goog-api-key"), "k");
+    const body = JSON.parse(String(init?.body));
+    assert.deepEqual([body.model, body.input.length, body.input[0].type, body.input[0].mime_type, body.questions.q.type], [CARD_DECISION_MODEL, 2, "image", "image/webp", "noul"]);
+    return new Response(JSON.stringify({ answers: { q: { type: "noul", noul: 0.73, confidence: 0.73 } } }), { status: 200 });
+  }) as unknown as typeof fetch;
+  assert.equal(await callCardDecision("k", [image, image], "Is it?", ok), 0.73);
+  const empty = (async () => new Response(JSON.stringify({ answers: {} }), { status: 200 })) as unknown as typeof fetch;
+  await assert.rejects(callCardDecision("k", [image], "q", empty), /card_decision_answer_missing/);
 });
 
 test("card model calls are limited to the two card models and never retry client errors", async () => {

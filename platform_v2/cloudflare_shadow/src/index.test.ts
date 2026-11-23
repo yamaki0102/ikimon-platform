@@ -14,7 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
-import { worker } from "./index";
+import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -14578,6 +14578,62 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
   assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
 });
 
+test("record title round-trip saves to record-title/${recordId}.json and renders updated title on reload", async () => {
+  const { env: baseEnv } = createEnv();
+  const env = { ...baseEnv, OBSERVATION_DUAL_WRITE_MODE: "on", OBSERVATION_READ_CUTOVER_MODE: "on" };
+  const recordId = "title-roundtrip-record";
+  const ownerId = "title-roundtrip-owner";
+  const rawToken = "title-roundtrip-token";
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerId,
+      rawToken,
+      displayName: "Title Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const cookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const upsert = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: recordId,
+      userId: ownerId,
+      observedAt: "2026-11-23T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "public",
+      note: "",
+      taxon: { vernacularName: "初期タイトル", rank: "species" },
+      sourcePayload: { source: "title_roundtrip_test" }
+    })
+  }), baseEnv);
+  assert.equal(upsert.status, 201);
+
+  const saveRes = await worker.fetch(new Request(`https://shadow.test/api/v1/records/${recordId}/observation-actions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie
+    },
+    body: new URLSearchParams({
+      action: "set_title",
+      title: "ヤツデの葉の観察",
+      operation_id: "title-roundtrip-op-1",
+      return_lang: "ja"
+    })
+  }), env);
+  assert.equal(saveRes.status, 303);
+  const storedTitle = await env.ASSET_BUCKET.get(`record-title/${recordId}.json`);
+  assert.ok(storedTitle);
+  const storedJson = JSON.parse(await new Response(storedTitle.body).text()) as { title?: string };
+  assert.equal(storedJson.title, "ヤツデの葉の観察");
+});
+
 test("Cloudflare personal alerts page past suppressed rows to return older visible updates", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };
@@ -29031,6 +29087,42 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
 });
 
+test("records public section renders direct links to public place pages when available", async () => {
+  const { env } = createEnv();
+  const draftPlaceId = "plc_draft_hidden_1";
+  const publishedPlaceId = "plc_e3293ec4bb9288a0";
+  const originalPrepare = env.OBS_DB.prepare.bind(env.OBS_DB);
+  env.OBS_DB.prepare = ((query: string) => {
+    if (query.includes("FROM places p") && query.includes("p.public_profile_status = 'published'")) {
+      return {
+        bind: () => ({
+          all: async () => ({
+            results: [{ place_id: publishedPlaceId, canonical_name: "常盤公園" }]
+          })
+        })
+      } as unknown as ReturnType<typeof originalPrepare>;
+    }
+    return originalPrepare(query);
+  }) as typeof env.OBS_DB.prepare;
+
+  const sitemap = await withPublicPlacesInSitemap('<?xml version="1.0"?><urlset></urlset>', env);
+  assert.match(sitemap, /\/ja\/places\/plc_e3293ec4bb9288a0/);
+  assert.doesNotMatch(sitemap, new RegExp(draftPlaceId));
+
+  const html = renderRecordsProductSection(
+    [],
+    new URL("https://zukan.earth/ja/records?view=public"),
+    "public",
+    null,
+    false,
+    null,
+    [{ placeId: publishedPlaceId, name: "常盤公園" }]
+  );
+  assert.match(html, /class="cf-records-places"/);
+  assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
+  assert.match(html, />常盤公園</);
+});
+
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
   const { env } = createEnv();
   const productionEnv = {
@@ -31243,4 +31335,135 @@ test("public map and public detail redact exact timestamps, hidden cells, and 24
   const detailHtml = await detailDelayed.text();
   assert.match(detailHtml, /位置は24時間後に公開されます/);
   assert.doesNotMatch(detailHtml, /35\.6812|139\.7671/);
+});
+
+test("fixed-point station creation and record creation require authentication and place manager/admin authorization", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const fpSqlite = new DatabaseSync(":memory:");
+  const coreWithFp = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bfixed_point_station(?:s|_records)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return fpSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: fpSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(fpSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithFp };
+
+  const normalToken = "fp-normal-token";
+  const normalHash = createHash("sha256").update(normalToken).digest("hex");
+  baseCore.authSessions.set(normalHash, {
+    token_hash: normalHash,
+    user_id: "user-normal",
+    display_name: "Normal User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const stewardToken = "fp-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash,
+    user_id: "user-steward",
+    display_name: "Steward User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.fieldManagers.set("fm-fp-1", {
+    manager_id: "fm-fp-1",
+    field_id: "plc_e3293ec4bb9288a0",
+    user_id: "user-steward",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  const unauthCreate = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({})
+  }), env);
+  assert.equal(unauthCreate.status, 401);
+
+  const nonManagerCreate = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${normalToken}`
+    },
+    body: JSON.stringify({ title: "無許可定点" })
+  }), env);
+  assert.equal(nonManagerCreate.status, 403);
+
+  const managerCreate = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ stationId: "fps_spoofed", title: "池の東側ベンチ" })
+  }), env);
+  assert.equal(managerCreate.status, 201);
+  const createdBody = await managerCreate.json() as { station: { station_id: string; created_by_user_id: string } };
+  assert.notEqual(createdBody.station.station_id, "fps_spoofed");
+  assert.equal(createdBody.station.created_by_user_id, "user-steward");
+
+  const stationId = createdBody.station.station_id;
+  const unauthRecord = await worker.fetch(new Request(`https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations/${stationId}/records`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ answer1: "澄んでいる" })
+  }), env);
+  assert.equal(unauthRecord.status, 401);
+
+  const nonManagerRecord = await worker.fetch(new Request(`https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations/${stationId}/records`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${normalToken}`
+    },
+    body: JSON.stringify({ answer1: "澄んでいる" })
+  }), env);
+  assert.equal(nonManagerRecord.status, 403);
+
+  const managerRecord = await worker.fetch(new Request(`https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations/${stationId}/records`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ answer1: "澄んでいる", onSiteVerified: true, verifiedByLabel: "偽装名" })
+  }), env);
+  assert.equal(managerRecord.status, 201);
+  const recordBody = await managerRecord.json() as { record: { verified_by_label: string } };
+  assert.equal(recordBody.record.verified_by_label, "Steward User");
 });
