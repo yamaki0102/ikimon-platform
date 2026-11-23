@@ -184,4 +184,6 @@ test("worker routes interactive requests to card mode only behind the staging sw
   const production = config.indexOf("\"name\": \"ikimon-life-cloudflare-prod\"");
   const flag = config.indexOf("\"OBSERVATION_AI_MODE\": \"card_v1\"");
   assert.ok(staging > 0 && flag > staging && flag < production && config.lastIndexOf("\"OBSERVATION_AI_MODE\": \"card_v1\"") > production);
+  const parsed = JSON.parse(config) as { env?: { production?: { vars?: Record<string, string> } } };
+  assert.equal(parsed.env?.production?.vars?.OBSERVATION_AI_MODE, "card_v1");
 });
