@@ -1,4 +1,15 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import {
+  listHumanExpertCommentsForRecord,
+  registerPlaceLocalExpert,
+  renderHumanExpertCommentHtml,
+  routeRecordToExpertDuty,
+  submitExpertVoiceComment,
+  PLACE_LOCAL_EXPERTS_CREATE_SQL,
+  EXPERT_DUTY_QUEUE_CREATE_SQL,
+  type ExpertDutyRow,
+  type PlaceLocalExpertRow
+} from "./localExpertDuty";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
@@ -3093,6 +3104,95 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      const placeExpertsMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/experts$/);
+      if (request.method === "POST" && placeExpertsMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        await requireMunicipalWalkMapAdminSession(request, env);
+        const body = await readJson<{ userId?: unknown; displayName?: unknown; specialty?: unknown; roleKind?: unknown }>(request);
+        const targetUserId = typeof body.userId === "string" ? body.userId.trim() : "";
+        if (!targetUserId) return json({ ok: false, error: "user_id_required" }, 400, { "cache-control": "no-store" });
+        const expert = await registerPlaceLocalExpert(env, {
+          placeId: decodeURIComponent(placeExpertsMatch[1]),
+          userId: targetUserId,
+          displayName: typeof body.displayName === "string" ? body.displayName : "地域の目利き",
+          specialty: typeof body.specialty === "string" ? body.specialty : "",
+          roleKind: typeof body.roleKind === "string" ? body.roleKind : "local_expert"
+        });
+        return json({ ok: true, expert }, 201, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/expert-duty/route") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const body = await readJson<{
+          recordId?: unknown;
+          placeId?: unknown;
+          isRareSpecies?: unknown;
+          isAiUncertain?: unknown;
+          isSuspectedInvasive?: unknown;
+          exactLat?: unknown;
+          exactLng?: unknown;
+        }>(request);
+        const recordId = typeof body.recordId === "string" ? body.recordId.trim() : "";
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim() : "";
+        if (!recordId || !placeId) return json({ ok: false, error: "record_and_place_required" }, 400, { "cache-control": "no-store" });
+        const res = await routeRecordToExpertDuty(env, {
+          recordId,
+          placeId,
+          isRareSpecies: body.isRareSpecies === true,
+          isAiUncertain: body.isAiUncertain === true,
+          isSuspectedInvasive: body.isSuspectedInvasive === true,
+          exactLat: typeof body.exactLat === "number" ? body.exactLat : null,
+          exactLng: typeof body.exactLng === "number" ? body.exactLng : null
+        });
+        return json({ ok: true, ...res }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/expert-duty/queue") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const placeId = (url.searchParams.get("placeId") ?? "").trim();
+        await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(EXPERT_DUTY_QUEUE_CREATE_SQL).run();
+        const isExpert = placeId
+          ? await env.CORE_DB.prepare("SELECT 1 AS ok FROM place_local_experts WHERE place_id = ?1 AND user_id = ?2 AND verified = 1 LIMIT 1").bind(placeId, session.userId).first()
+          : null;
+        const isAdmin = isMunicipalWalkMapAdminRole(session);
+        if (!isExpert && !isAdmin) return json({ ok: false, error: "verified_expert_required" }, 403, { "cache-control": "no-store" });
+        const rows = (placeId
+          ? await env.CORE_DB.prepare("SELECT * FROM expert_duty_queue WHERE place_id = ?1 ORDER BY created_at DESC LIMIT 50").bind(placeId).all<ExpertDutyRow>()
+          : await env.CORE_DB.prepare("SELECT * FROM expert_duty_queue ORDER BY created_at DESC LIMIT 50").all<ExpertDutyRow>()
+        ).results ?? [];
+        return json({ ok: true, items: rows }, 200, { "cache-control": "no-store" });
+      }
+
+      const expertCommentMatch = nativePathname.match(/^\/api\/v1\/expert-duty\/(duty_[A-Za-z0-9_-]{3,80})\/comment$/);
+      if (request.method === "POST" && expertCommentMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ comment?: unknown }>(request);
+        const comment = typeof body.comment === "string" ? body.comment.trim() : "";
+        if (!comment) return json({ ok: false, error: "comment_required" }, 400, { "cache-control": "no-store" });
+        const updated = await submitExpertVoiceComment(env, decodeURIComponent(expertCommentMatch[1]), {
+          expertUserId: session.userId,
+          expertName: session.displayName,
+          comment
+        });
+        return updated ? json({ ok: true, duty: updated }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "expert_or_duty_not_found" }, 403, { "cache-control": "no-store" });
+      }
+
+      const expertStatsMatch = nativePathname.match(/^\/api\/v1\/experts\/([^/]+)\/stats$/);
+      if (request.method === "GET" && expertStatsMatch?.[1]) {
+        const uid = decodeURIComponent(expertStatsMatch[1]);
+        await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
+        const rows = (await env.CORE_DB.prepare("SELECT place_id, specialty, role_kind, verified_count FROM place_local_experts WHERE user_id = ?1").bind(uid).all<PlaceLocalExpertRow>()).results ?? [];
+        const totalVerified = rows.reduce((sum, r) => sum + Number(r.verified_count ?? 0), 0);
+        return json({ ok: true, userId: uid, totalVerified, places: rows }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
@@ -24167,10 +24267,14 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiCandidateInsights: detail.aiCandidateInsights,
         signboardTitle: null,
       };
-      const signboardTitle = isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
-        && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
-        ? await resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
-        : null;
+      const [signboardTitle, expertComments] = await Promise.all([
+        isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
+          && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
+          ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
+          : Promise.resolve(null),
+        listHumanExpertCommentsForRecord(env, detail.visitId)
+      ]);
+      const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         recordsDiscoveryContext,
@@ -24185,6 +24289,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiPersonPrimaryNames: detail.aiPersonPrimaryNames,
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
+        humanExpertCommentsHtml,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
           title: item.isAwaitingId
