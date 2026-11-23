@@ -25212,7 +25212,7 @@ test("production home collapses materialized header actions into a hamburger men
   assert.match(body, /href="\/ja\/login\?redirect=%2Fprofile"/);
   assert.match(body, /href="\/ja\/records"/);
   assert.match(body, /href="\/ja\/map"/);
-  assert.match(body, /href="\/en\/"/);
+  assert.doesNotMatch(body, /href="\/en\/"|<div class="cf-header-menu-languages"/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 });
 
