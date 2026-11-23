@@ -1869,7 +1869,6 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/record",
   "/records",
   "/register",
-  "/waitlist",
   "/map",
   "/my-guides",
   "/app-refresh",
