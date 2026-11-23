@@ -2790,7 +2790,7 @@ export const worker = {
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
-        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env);
+        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env, ctx);
       }
 
       const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
@@ -23802,22 +23802,37 @@ function areaSourceLabel(source: string): string {
   return "公開エリア";
 }
 
-async function resolveLiveSignboardTitle(visitId: string, photoAssetId: string | null, env: Env): Promise<string | null> {
+const SIGNBOARD_FAILURE_RETRY_MS = 24 * 60 * 60 * 1000;
+
+async function writeSignboardTitleCache(
+  cacheKey: string,
+  title: string,
+  status: "ready" | "unreadable" | "failed",
+  env: Env,
+): Promise<void> {
+  await env.ASSET_BUCKET?.put(
+    cacheKey,
+    JSON.stringify({ title, status, updatedAt: new Date().toISOString() }),
+    { httpMetadata: { contentType: "application/json; charset=utf-8" } },
+  ).catch(() => {});
+}
+
+async function refreshLiveSignboardTitle(visitId: string, photoAssetId: string | null, env: Env): Promise<string | null> {
   const cacheKey = `signboard-title/${visitId}.json`;
+  if (!env.GEMINI_API_KEY || !photoAssetId || !env.ASSET_BUCKET) return null;
   try {
-    const cached = await env.ASSET_BUCKET?.get(cacheKey);
-    if (cached) {
-      const parsed = await new Response(cached.body).json().catch(() => null) as { title?: unknown } | null;
-      const cachedTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
-      return cachedTitle || null;
-    }
-    if (!env.GEMINI_API_KEY || !photoAssetId || !env.ASSET_BUCKET) return null;
     const assetRow = await env.OBS_DB.prepare(
       `SELECT public_derivative_key, mime FROM asset_ledger WHERE asset_id = ? AND public_derivative_key IS NOT NULL LIMIT 1`,
     ).bind(photoAssetId).first<{ public_derivative_key: string; mime: string | null }>();
-    if (!assetRow?.public_derivative_key) return null;
+    if (!assetRow?.public_derivative_key) {
+      await writeSignboardTitleCache(cacheKey, "", "unreadable", env);
+      return null;
+    }
     const photoObj = await env.ASSET_BUCKET.get(assetRow.public_derivative_key);
-    if (!photoObj) return null;
+    if (!photoObj) {
+      await writeSignboardTitleCache(cacheKey, "", "failed", env);
+      return null;
+    }
     const bytes = new Uint8Array(await new Response(photoObj.body).arrayBuffer());
     let binary = "";
     for (let i = 0; i < bytes.length; i += 0x8000) {
@@ -23842,15 +23857,44 @@ async function resolveLiveSignboardTitle(visitId: string, photoAssetId: string |
         }),
       },
     );
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      await writeSignboardTitleCache(cacheKey, "", "failed", env);
+      return null;
+    }
     const payload = await resp.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } | null;
     const rawText = payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const parsed = JSON.parse(rawText) as { title?: unknown };
     const title = typeof parsed?.title === "string" ? parsed.title.replace(/[\r\n]+/g, " ").trim().slice(0, 60) : "";
-    await env.ASSET_BUCKET.put(cacheKey, JSON.stringify({ title, updatedAt: new Date().toISOString() }), {
-      httpMetadata: { contentType: "application/json; charset=utf-8" },
-    }).catch(() => {});
+    await writeSignboardTitleCache(cacheKey, title, title ? "ready" : "unreadable", env);
     return title || null;
+  } catch {
+    await writeSignboardTitleCache(cacheKey, "", "failed", env);
+    return null;
+  }
+}
+
+export async function resolveLiveSignboardTitle(
+  visitId: string,
+  photoAssetId: string | null,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<string | null> {
+  const cacheKey = `signboard-title/${visitId}.json`;
+  try {
+    const cached = await env.ASSET_BUCKET?.get(cacheKey);
+    if (cached) {
+      const parsed = await new Response(cached.body).json().catch(() => null) as { title?: unknown; updatedAt?: unknown } | null;
+      const cachedTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
+      if (cachedTitle) return cachedTitle;
+      const updatedMs = typeof parsed?.updatedAt === "string" ? Date.parse(parsed.updatedAt) : Number.NaN;
+      if (Number.isFinite(updatedMs) && Date.now() - updatedMs < SIGNBOARD_FAILURE_RETRY_MS) {
+        return null;
+      }
+    }
+    if (ctx && env.GEMINI_API_KEY && photoAssetId && env.ASSET_BUCKET) {
+      ctx.waitUntil(refreshLiveSignboardTitle(visitId, photoAssetId, env));
+    }
+    return null;
   } catch {
     return null;
   }
@@ -23892,7 +23936,7 @@ function injectLegacyObservationSavedContinuity(html: string, saved: { controlHt
   return withControl.replace('</body>', `${saved.scriptHtml}</body>`);
 }
 
-async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
+async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const sharedArrivalContext = collectSharedArrivalContext(url.searchParams);
   const recordsDiscoveryContext = collectRecordsDiscoveryContext(url.searchParams);
   const session = await readCompatibleSession(request, env).catch(() => null);
@@ -23976,7 +24020,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       };
       const signboardTitle = isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
         && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
-        ? await resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env)
+        ? await resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
         : null;
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
