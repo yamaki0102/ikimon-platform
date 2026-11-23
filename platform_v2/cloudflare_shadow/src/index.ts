@@ -1,3 +1,9 @@
+import {
+  computePublicLocationView,
+  formatPublicDateOnly,
+  normalizeLocationShareMode,
+  stripJpegExifAndGpsMetadata
+} from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
@@ -3093,6 +3099,46 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/location-privacy/preview") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const body = await readJson<{
+          lat?: unknown;
+          lng?: unknown;
+          observedAt?: unknown;
+          locationShareMode?: unknown;
+          nearbyPublicPlace?: { placeId?: unknown; name?: unknown; distanceM?: unknown } | null;
+          isChildOrRareSpecies?: unknown;
+          isPublicEventOrFixedPoint?: unknown;
+          distinctAuthorsIn1kmCell?: unknown;
+          ownerNightPoints?: Array<{ lat?: unknown; lng?: unknown }>;
+        }>(request);
+        const nearby = body.nearbyPublicPlace && typeof body.nearbyPublicPlace.placeId === "string" && typeof body.nearbyPublicPlace.name === "string"
+          ? {
+              placeId: body.nearbyPublicPlace.placeId,
+              name: body.nearbyPublicPlace.name,
+              distanceM: Number(body.nearbyPublicPlace.distanceM ?? 0)
+            }
+          : null;
+        const nightPts = Array.isArray(body.ownerNightPoints)
+          ? body.ownerNightPoints
+              .map((p) => ({ lat: Number(p?.lat), lng: Number(p?.lng) }))
+              .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+          : [];
+        const preview = computePublicLocationView({
+          lat: typeof body.lat === "number" ? body.lat : null,
+          lng: typeof body.lng === "number" ? body.lng : null,
+          observedAt: typeof body.observedAt === "string" ? body.observedAt : new Date().toISOString(),
+          locationShareMode: normalizeLocationShareMode(body.locationShareMode),
+          nearbyPublicPlace: nearby,
+          isChildOrRareSpecies: body.isChildOrRareSpecies === true,
+          isPublicEventOrFixedPoint: body.isPublicEventOrFixedPoint === true,
+          distinctAuthorsIn1kmCell: typeof body.distinctAuthorsIn1kmCell === "number" ? body.distinctAuthorsIn1kmCell : 1,
+          ownerNightPoints: nightPts
+        });
+        return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
@@ -14783,7 +14829,7 @@ async function getMyGuideRouteLayerGeoJson(request: Request, url: URL, env: Env)
     geometry: { type: "Point", coordinates: [Number(row.lng), Number(row.lat)] },
     properties: {
       sessionId: row.session_id,
-      observedAt: row.observed_at,
+      observedAt: formatPublicDateOnly(row.observed_at),
       pointKind: row.point_kind,
       guideMode: row.guide_mode,
       accuracyM: row.accuracy_m,
@@ -16198,7 +16244,7 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
       occurrenceId: `occ:${row.observation_id}:0`,
       visitId: row.observation_id,
       displayName: publicTaxonDisplayName(row.taxon_label || row.note),
-      observedAt: row.observed_at,
+      observedAt: formatPublicDateOnly(row.observed_at),
       latitude,
       longitude,
       photoUrl: row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null,
@@ -20940,6 +20986,15 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lng)}</span><input name="longitude" inputmode="decimal" value=""></label>
         </div>
       </details>
+      <div class="cf-record-field" data-location-privacy-selector>
+        <span>${lang === "ja" ? "公開時の位置の見せ方" : "Location sharing"}</span>
+        <select name="locationShareMode" id="record-location-share-mode">
+          <option value="public_place">${lang === "ja" ? "公の場所に寄せる（公園・定点など）" : "Snap to public place"}</option>
+          <option value="grid" selected>${lang === "ja" ? "マス目でぼかす（約1km〜10km）" : "Approximate grid"}</option>
+          <option value="hidden">${lang === "ja" ? "位置を出さない" : "Do not show location"}</option>
+        </select>
+        <small id="record-public-location-preview" data-public-location-preview>${lang === "ja" ? "ほかの人にはこう見える: 正確な位置は非公開・24時間後にマス目または日付のみで表示" : "Public view: exact coordinates hidden; shown as grid/date after 24h"}</small>
+      </div>
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
       <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
@@ -23569,7 +23624,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
     scenePlaceType: normalizeOptionalText(row.scene_place_type),
     sceneSurroundingCover: normalizeOptionalText(row.scene_surrounding_cover),
-    observedAt: row.observed_at,
+    observedAt: formatPublicDateOnly(row.observed_at),
     photoUrl,
     mediaKind,
     taxonGroup: taxonGroupForLabel(row.taxon_label),
@@ -24695,7 +24750,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
-    observedAt: row.observed_at,
+    observedAt: formatPublicDateOnly(row.observed_at),
     note: row.note && containsDiscoveryPersonalInformation(row.note) ? null : row.note,
     placeName: "位置をぼかしています",
     municipality: null,
@@ -28164,7 +28219,9 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const input = await readJson<LegacyPhotoUploadInput>(request);
   const mimeType = (normalizeOptionalText(input.mimeType) ?? "image/jpeg").split(";", 1)[0]!.trim().toLowerCase();
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "upload.jpg");
-  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  const rawBytes = new Uint8Array(base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? ""));
+  const cleanBytes = mimeType === "image/jpeg" ? stripJpegExifAndGpsMetadata(rawBytes) : rawBytes;
+  const body = cleanBytes.buffer.slice(cleanBytes.byteOffset, cleanBytes.byteOffset + cleanBytes.byteLength);
   if (body.byteLength === 0) {
     throw new HttpError(400, "decoded image is empty");
   }
@@ -28457,7 +28514,9 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
   const input = await readJson<LegacyAudioUploadInput>(request);
   const mimeType = normalizeFieldscanAudioMime(input.mimeType);
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "clean-audio.webm");
-  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  const rawBytes = new Uint8Array(base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? ""));
+  const cleanBytes = mimeType === "image/jpeg" ? stripJpegExifAndGpsMetadata(rawBytes) : rawBytes;
+  const body = cleanBytes.buffer.slice(cleanBytes.byteOffset, cleanBytes.byteOffset + cleanBytes.byteLength);
   if (body.byteLength === 0) throw new HttpError(400, "decoded_audio_empty");
   if (body.byteLength > FIELDSCAN_AUDIO_MAX_BYTES) throw new HttpError(400, "audio_too_large");
   const audioBytes = new Uint8Array(body);
