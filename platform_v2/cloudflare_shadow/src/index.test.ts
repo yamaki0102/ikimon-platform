@@ -7658,6 +7658,13 @@ class FakeStatement {
         .map(({ payload_json, created_at }) => ({ payload_json, created_at }));
       return { results: rows as T[] };
     }
+    if (normalized.startsWith("SELECT observation_id, owner_user_id FROM observations WHERE observation_id IN")) {
+      const observationIds = new Set(this.values.map(string));
+      const rows = [...this.db.observations.values()]
+        .filter((row) => observationIds.has(row.observation_id))
+        .map((row) => ({ observation_id: row.observation_id, owner_user_id: row.owner_user_id }));
+      return { results: rows as T[] };
+    }
     if (normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label FROM readmodel_public_observations")
       || normalized.startsWith("SELECT observation_id, public_cell, observed_at, taxon_label, asset_count FROM readmodel_public_observations")) {
       const rows = [...this.db.readmodel.values()]
@@ -8874,7 +8881,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(cellsPayload.type, "FeatureCollection");
   assert.ok(Array.isArray(cellsPayload.features));
   assert.equal(cellsPayload.features.length, 1);
-  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.71,137.81");
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.7,137.8");
   assert.equal(cellsPayload.features[0].properties.count, 1);
   assert.equal(cellsPayload.stats.totalRecords, 1);
   assert.doesNotMatch(JSON.stringify(cellsPayload), /34\.71234|137\.81234/);
@@ -8884,14 +8891,14 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(coverageResponse.ok, true, JSON.stringify(coveragePayload));
   assert.equal(coveragePayload.type, "FeatureCollection");
   assert.equal(coveragePayload.features.length, 1);
-  assert.equal(coveragePayload.features[0].properties.mesh, "34.71,137.81");
+  assert.equal(coveragePayload.features[0].properties.mesh, "34.7,137.8");
   assert.equal(coveragePayload.features[0].properties.count, 1);
   assert.equal(coveragePayload.maxCount, 1);
   assert.equal(coveragePayload.compatibility.source, "cloudflare_readmodel_public_observations");
   assert.equal(coveragePayload.compatibility.exactLocationExposed, false);
   assert.doesNotMatch(JSON.stringify(coveragePayload), /34\.71234|137\.81234/);
 
-  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.ok(Array.isArray(observationsPayload.items));
@@ -8906,17 +8913,17 @@ test("v1 public map read routes expose current shell contracts without exact coo
     worker.fetch(new Request(`https://shadow.test/${unsafeMapDerivativeKey}`, { method: "HEAD" }), env)
   ]);
   assert.deepEqual(unsafeResponses.map((response) => response.status), [404, 404]);
-  assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
+  assert.equal(observationsPayload.stats.selectedCellId, "cell:34.7,137.8");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
   const mapAsset = env.OBS_DB.assets.get("asset-map-contract-real-derivative");
   assert.ok(mapAsset);
   mapObservation.visibility = "private";
-  const privateMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const privateMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   assert.equal((await privateMapResponse.json() as any).items[0].photoUrl, null);
   mapObservation.visibility = "public";
   mapObservation.emergency_hidden = 1;
-  const hiddenMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const hiddenMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   assert.equal((await hiddenMapResponse.json() as any).items[0].photoUrl, null);
   mapObservation.emergency_hidden = 0;
   env.OBS_DB.observationDataRights.set("visit-map-contract", {
@@ -8931,19 +8938,19 @@ test("v1 public map read routes expose current shell contracts without exact coo
     withdrawal_status: "withdrawn",
     source_payload_json: "{}"
   });
-  const withdrawnMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const withdrawnMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const withdrawnMapPayload = await withdrawnMapResponse.json() as any;
   assert.equal(withdrawnMapPayload.items.find((item: any) => item.visitId === "visit-map-contract")?.photoUrl, undefined);
   env.OBS_DB.observationDataRights.get("visit-map-contract")!.withdrawal_status = "active";
   mapAsset.public_derivative_metadata_json = "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}";
-  const legacyCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const legacyCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const legacyCertifiedPayload = await legacyCertifiedResponse.json() as any;
   assert.equal(legacyCertifiedPayload.items[0].photoUrl, `/${unsafeMapDerivativeKey}`, "verified historical binary WebP remains eligible");
   mapAsset.public_derivative_metadata_json = JSON.stringify({
     contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false,
     exifPresent: false, gpsPresent: false, xmpPresent: false, exactCoordinateLiteralPresent: false
   });
-  const currentCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const currentCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const currentCertifiedPayload = await currentCertifiedResponse.json() as any;
   assert.equal(currentCertifiedPayload.items[0].photoUrl, `/${unsafeMapDerivativeKey}`);
   const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
@@ -8966,7 +8973,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
     display_name: "unidentified",
     asset_count: 0
   });
-  const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81&limit=10"), env);
+  const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8&limit=10"), env);
   const unidentifiedPayload = await unidentifiedResponse.json() as any;
   const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
   assert.equal(unidentified.displayName, "名前待ち");
@@ -9756,17 +9763,17 @@ test("privacy exact-coordinate gate keeps public map responses on public cells o
     assert.doesNotMatch(text, /"(?:exact_lat|exact_lng|latitude|longitude)"\s*:/);
   };
 
-  const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells?bbox=137.87,34.76,137.89,34.78&zoom=13"), env);
+  const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells?bbox=137.85,34.75,137.95,34.85&zoom=13"), env);
   const cellsPayload = await cellsResponse.json() as any;
   assert.equal(cellsResponse.ok, true, JSON.stringify(cellsPayload));
   assert.equal(cellsPayload.features.length, 1);
-  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.77,137.88");
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.8,137.9");
   assert.equal(cellsPayload.stats.privacy.exactLocationExposed, false);
   assert.equal(cellsPayload.stats.privacy.publicCoordinateSource, "readmodel_public_observations.public_cell");
   assert.deepEqual(cellsPayload.stats.privacy.rawCoordinateFieldsExposed, []);
   assertPublicMapGate(cellsPayload);
 
-  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.77%2C137.88&limit=20"), env);
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.8%2C137.9&limit=20"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.equal(observationsPayload.items.length, 1);
@@ -9793,7 +9800,7 @@ test("public map keeps persisted unknown labels unconfirmed without exposing coo
       visit_id: "pending-japanese", cell_1000: "35.01,138.39",
       observed_at: "2026-09-04T00:00:00.000Z", display_name: label, asset_count: 0,
     });
-    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.01%2C138.39"), env);
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.0%2C138.4"), env);
     assert.equal(response.status, 200);
     const payload = await response.json() as any;
     assert.equal(payload.items.length, 1);
@@ -9856,10 +9863,10 @@ test("public map routes prefer D1 snapshot records when present", async () => {
   const cellsPayload = await cellsResponse.json() as any;
   assert.equal(cellsResponse.ok, true, JSON.stringify(cellsPayload));
   assert.equal(cellsPayload.features.length, 1);
-  assert.equal(cellsPayload.features[0].properties.cellId, "cell:35.01,138.39");
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:35.0,138.4");
   assert.doesNotMatch(JSON.stringify(cellsPayload), /legacy-readmodel-row|34\.71,137\.81/);
 
-  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.01%2C138.39"), env);
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.0%2C138.4"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.equal(observationsPayload.items.length, 1);
@@ -10612,7 +10619,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   const recordRights = obs.observationDataRights.get("visit-detail-contract");
   assert.ok(recordRights, "the native fixture must have a current rights row");
   assert.equal(recordRights.withdrawal_status, "active");
-  const recordCellId = `cell:${obs.readmodel.get("visit-detail-contract")!.public_cell}`;
+  const recordCellId = `cell:${String(obs.readmodel.get("visit-detail-contract")!.public_cell).replace(/^cell:/, "").split(",").map((v) => (Math.round(Number(v) * 10) / 10).toFixed(1)).join(",")}`;
   const activeMapResponse = await worker.fetch(new Request(
     `https://shadow.test/api/v1/map/observations?cell_id=${encodeURIComponent(recordCellId)}`
   ), env);
@@ -31335,6 +31342,73 @@ test("public map and public detail redact exact timestamps, hidden cells, and 24
   const detailHtml = await detailDelayed.text();
   assert.match(detailHtml, /位置は24時間後に公開されます/);
   assert.doesNotMatch(detailHtml, /35\.6812|139\.7671/);
+});
+
+test("public map coarsens cells with fewer than three recorders to 10km on every public exit", async () => {
+  const { env, obs } = createEnv();
+  const observedAt = "2026-10-15T14:23:45.000Z";
+  const addRecord = (observationId: string, ownerUserId: string, publicCell: string) => {
+    obs.observations.set(observationId, {
+      observation_id: observationId,
+      draft_id: `d-${observationId}`,
+      owner_user_id: ownerUserId,
+      observed_at: observedAt,
+      partition_month: "2026-10",
+      taxon_label: "ヤツデ",
+      note: null,
+      exact_lat: 35.6812,
+      exact_lng: 139.7671,
+      location_accuracy_m: 10,
+      public_cell: `cell:${publicCell}`,
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "accepted",
+      public_area_label: "東京都千代田区"
+    });
+    obs.readmodel.set(observationId, {
+      observation_id: observationId,
+      public_cell: publicCell,
+      observed_at: observedAt,
+      taxon_label: "ヤツデ",
+      asset_count: 0,
+      partition_month: "2026-10",
+      public_area_label: "東京都千代田区"
+    });
+  };
+  addRecord("obs-sparse-1", "owner-1", "35.68,139.77");
+  addRecord("obs-sparse-2", "owner-1", "35.68,139.77");
+  addRecord("obs-dense-1", "owner-a", "35.52,139.52");
+  addRecord("obs-dense-2", "owner-b", "35.52,139.52");
+  addRecord("obs-dense-3", "owner-c", "35.52,139.52");
+
+  const bbox = "139.0,35.0,140.0,36.0";
+  const cellsBody = await (await worker.fetch(new Request(`https://zukan.earth/api/v1/map/cells?bbox=${bbox}`), env)).json() as {
+    features: Array<{ geometry: { coordinates: number[][][] }; properties: { cellId: string; count: number } }>;
+  };
+  const sparse = cellsBody.features.find((f) => f.properties.cellId === "cell:35.7,139.8")!;
+  assert.ok(sparse, "sparse cell should be coarsened to 0.1 degree");
+  assert.equal(sparse.properties.count, 2);
+  const sparseXs = sparse.geometry.coordinates[0]!.map((p) => p[0]!);
+  assert.ok(Math.abs((Math.max(...sparseXs) - Math.min(...sparseXs)) - 0.1) < 1e-9);
+  assert.equal(cellsBody.features.some((f) => f.properties.cellId === "cell:35.68,139.77"), false);
+  const dense = cellsBody.features.find((f) => f.properties.cellId === "cell:35.52,139.52")!;
+  assert.ok(dense, "three-recorder cell should stay at 0.01 degree");
+  const denseXs = dense.geometry.coordinates[0]!.map((p) => p[0]!);
+  assert.ok(Math.abs((Math.max(...denseXs) - Math.min(...denseXs)) - 0.01) < 1e-9);
+
+  const observationsBody = await (await worker.fetch(new Request(`https://zukan.earth/api/v1/map/observations?bbox=${bbox}`), env)).json() as {
+    items: Array<{ visitId: string; publicCellId: string | null }>;
+  };
+  const sparseItem = observationsBody.items.find((x) => x.visitId === "obs-sparse-1")!;
+  assert.equal(sparseItem.publicCellId, "cell:35.7,139.8");
+  const denseItem = observationsBody.items.find((x) => x.visitId === "obs-dense-1")!;
+  assert.equal(denseItem.publicCellId, "cell:35.52,139.52");
+
+  const coverageBody = await (await worker.fetch(new Request("https://zukan.earth/api/v1/map/coverage?year=2026"), env)).json() as {
+    features: Array<{ properties: { mesh: string; count: number } }>;
+  };
+  assert.equal(coverageBody.features.some((f) => f.properties.mesh === "35.7,139.8" && f.properties.count === 2), true);
+  assert.equal(coverageBody.features.some((f) => f.properties.mesh === "35.52,139.52" && f.properties.count === 3), true);
 });
 
 test("fixed-point station creation and record creation require authentication and place manager/admin authorization", async () => {
