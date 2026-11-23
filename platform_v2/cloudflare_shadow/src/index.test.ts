@@ -14578,6 +14578,62 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
   assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
 });
 
+test("record title round-trip saves to record-title/${recordId}.json and renders updated title on reload", async () => {
+  const { env: baseEnv } = createEnv();
+  const env = { ...baseEnv, OBSERVATION_DUAL_WRITE_MODE: "on", OBSERVATION_READ_CUTOVER_MODE: "on" };
+  const recordId = "title-roundtrip-record";
+  const ownerId = "title-roundtrip-owner";
+  const rawToken = "title-roundtrip-token";
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerId,
+      rawToken,
+      displayName: "Title Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const cookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const upsert = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: recordId,
+      userId: ownerId,
+      observedAt: "2026-11-23T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "public",
+      note: "",
+      taxon: { vernacularName: "初期タイトル", rank: "species" },
+      sourcePayload: { source: "title_roundtrip_test" }
+    })
+  }), baseEnv);
+  assert.equal(upsert.status, 201);
+
+  const saveRes = await worker.fetch(new Request(`https://shadow.test/api/v1/records/${recordId}/observation-actions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie
+    },
+    body: new URLSearchParams({
+      action: "set_title",
+      title: "ヤツデの葉の観察",
+      operation_id: "title-roundtrip-op-1",
+      return_lang: "ja"
+    })
+  }), env);
+  assert.equal(saveRes.status, 303);
+  const storedTitle = await env.ASSET_BUCKET.get(`record-title/${recordId}.json`);
+  assert.ok(storedTitle);
+  const storedJson = JSON.parse(await new Response(storedTitle.body).text()) as { title?: string };
+  assert.equal(storedJson.title, "ヤツデの葉の観察");
+});
+
 test("Cloudflare personal alerts page past suppressed rows to return older visible updates", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };

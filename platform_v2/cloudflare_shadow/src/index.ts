@@ -24229,10 +24229,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiCandidateInsights: detail.aiCandidateInsights,
         signboardTitle: null,
       };
-      const signboardTitle = isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
-        && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
-        ? await resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
+      const [signboardTitle, customTitleObj] = await Promise.all([
+        isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
+          && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
+          ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
+          : Promise.resolve(null),
+        env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
+      ]);
+      const customTitleParsed = customTitleObj
+        ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
         : null;
+      const customTitle = typeof customTitleParsed?.title === "string" ? customTitleParsed.title.trim() || null : null;
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         recordsDiscoveryContext,
@@ -24261,6 +24268,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
         processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         aiFeedback: detail.feedback,
+        customTitle,
         signboardTitle,
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
@@ -24431,6 +24439,24 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   let plan: ObservationDualWritePlan;
   let refreshVisibility = false;
   let publicVisibilityRequested = false;
+  if (action === "set_title") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const nextTitle = String(form.get("title") ?? "").replace(/[\r\n]+/g, " ").trim();
+    if (nextTitle.length < 1 || nextTitle.length > 120) {
+      return json({ ok: false, error: "title_input_invalid" }, 400, { "cache-control": "no-store" });
+    }
+    await env.ASSET_BUCKET?.put(
+      `record-title/${recordId}.json`,
+      JSON.stringify({ title: nextTitle, updatedBy: session.userId, updatedAt: new Date().toISOString() }),
+      { httpMetadata: { contentType: "application/json; charset=utf-8" } },
+    );
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
+  if (action === "reset_title") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    await env.ASSET_BUCKET?.delete(`record-title/${recordId}.json`);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
