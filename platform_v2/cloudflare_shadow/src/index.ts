@@ -1,11 +1,4 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
-import {
-  correctPaperArchivePage,
-  ingestPaperArchivePages,
-  listPublishedPaperArchivesForPlace,
-  renderPaperArchiveTimelineHtml,
-  setPaperArchivePublishStatus
-} from "./paperArchiveIngest";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
@@ -2278,8 +2271,7 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const paperPages = await listPublishedPaperArchivesForPlace(env, canonicalPlaceId);
-  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated, paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages) });
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "global-place-detail",
@@ -3101,60 +3093,6 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/v1/paper-archives/ingest") {
-        const sameOriginError = assertSameOriginRequest(request);
-        if (sameOriginError) return sameOriginError;
-        const session = await readCompatibleSession(request, env).catch(() => null);
-        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
-        const body = await readJson<{ pages?: unknown[] }>(request);
-        const rawPages = Array.isArray(body.pages) ? body.pages : [];
-        const validPages = rawPages.filter((p): p is { sourceImageUrl: string } & Record<string, unknown> => Boolean(p && typeof p === "object" && typeof (p as { sourceImageUrl?: unknown }).sourceImageUrl === "string"));
-        const saved = await ingestPaperArchivePages(env, validPages);
-        return json({ ok: true, count: saved.length, pages: saved }, 201, { "cache-control": "no-store" });
-      }
-
-      const paperCorrectMatch = nativePathname.match(/^\/api\/v1\/paper-archives\/(pap_[A-Za-z0-9_-]{3,80})\/correct$/);
-      if (request.method === "PATCH" && paperCorrectMatch?.[1]) {
-        const sameOriginError = assertSameOriginRequest(request);
-        if (sameOriginError) return sameOriginError;
-        const session = await readCompatibleSession(request, env).catch(() => null);
-        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
-        const body = await readJson<{
-          correctedByName?: unknown;
-          placeName?: unknown;
-          observedYear?: unknown;
-          observedDate?: unknown;
-          speciesList?: unknown;
-          participantCount?: unknown;
-        }>(request);
-        const updated = await correctPaperArchivePage(env, decodeURIComponent(paperCorrectMatch[1]), {
-          correctedByName: typeof body.correctedByName === "string" && body.correctedByName.trim() ? body.correctedByName : session.displayName,
-          ...(typeof body.placeName === "string" ? { placeName: body.placeName } : {}),
-          ...(typeof body.observedYear === "number" ? { observedYear: body.observedYear } : {}),
-          ...(typeof body.observedDate === "string" ? { observedDate: body.observedDate } : {}),
-          ...(Array.isArray(body.speciesList) ? { speciesList: body.speciesList.map(String) } : {}),
-          ...(typeof body.participantCount === "number" ? { participantCount: body.participantCount } : {})
-        });
-        return updated ? json({ ok: true, page: updated }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
-      }
-
-      const paperPublishMatch = nativePathname.match(/^\/api\/v1\/paper-archives\/(pap_[A-Za-z0-9_-]{3,80})\/publish$/);
-      if (request.method === "PATCH" && paperPublishMatch?.[1]) {
-        const sameOriginError = assertSameOriginRequest(request);
-        if (sameOriginError) return sameOriginError;
-        await requireMunicipalWalkMapAdminSession(request, env);
-        const body = await readJson<{ publishStatus?: unknown }>(request);
-        const status = body.publishStatus === "published" ? "published" : "draft";
-        const ok = await setPaperArchivePublishStatus(env, decodeURIComponent(paperPublishMatch[1]), status);
-        return ok ? json({ ok: true, publishStatus: status }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
-      }
-
-      const placePaperMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/paper-archives$/);
-      if (request.method === "GET" && placePaperMatch?.[1]) {
-        const pages = await listPublishedPaperArchivesForPlace(env, decodeURIComponent(placePaperMatch[1]));
-        return json({ ok: true, count: pages.length, pages }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
