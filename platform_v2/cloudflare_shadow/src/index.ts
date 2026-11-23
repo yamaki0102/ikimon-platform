@@ -1,5 +1,11 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
+import {
+  ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
+  loadZukanTopPageData,
+  renderZukanTopPage,
+  type ZukanTopLang
+} from "./zukanTopPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -2692,6 +2698,99 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/register" || nativePathname === "/waitlist")) {
         return getZukanWaitlistHtml(request, url, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/" || nativePathname === "/index.html")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const authenticated = Boolean(session && !session.banned);
+        const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+        const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+        const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
+        const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
+        const cspNonce = createHtmlCspNonce();
+        const body = renderZukanTopPage(data, {
+          lang,
+          authenticated,
+          displayName: session?.displayName ?? null,
+          searchQuery,
+          cspNonce
+        });
+        const res = new Response(request.method === "HEAD" ? null : body, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+            "x-ikimon-cloudflare-native": "zukan-top-v2"
+          }
+        });
+        return res;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ groupKey?: unknown; placeName?: unknown; observationIds?: unknown[] }>(request);
+        const groupKey = typeof body.groupKey === "string" ? body.groupKey.trim().slice(0, 160) : "";
+        const placeName = typeof body.placeName === "string" ? body.placeName.trim().slice(0, 120) : "場所";
+        const observationIds = Array.isArray(body.observationIds)
+          ? body.observationIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0).slice(0, 50)
+          : [];
+        if (!groupKey || observationIds.length === 0) {
+          return json({ ok: false, error: "group_and_observations_required" }, 400, { "cache-control": "no-store" });
+        }
+        for (const obsId of observationIds) {
+          const ownerId = await resolveCompatibleObservationOwnerUserId(obsId, env);
+          if (!ownerId || ownerId !== session.userId) {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
+        }
+        await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
+        const existing = await env.CORE_DB.prepare(
+          "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
+        ).bind(groupKey).first<{ user_id: string }>();
+        if (existing && existing.user_id !== session.userId) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(
+          `INSERT INTO zukan_book_publications (group_key, user_id, place_name, observation_ids_json, published, updated_at)
+           VALUES (?1, ?2, ?3, ?4, 1, ?5)
+           ON CONFLICT(group_key) DO UPDATE SET
+             place_name = excluded.place_name,
+             observation_ids_json = excluded.observation_ids_json,
+             published = 1,
+             updated_at = excluded.updated_at`
+        ).bind(groupKey, session.userId, placeName, JSON.stringify(observationIds), Date.now()).run();
+        return json({ ok: true, published: true, groupKey }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/unpublish") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ groupKey?: unknown }>(request);
+        const groupKey = typeof body.groupKey === "string" ? body.groupKey.trim().slice(0, 160) : "";
+        if (!groupKey) {
+          return json({ ok: false, error: "group_key_required" }, 400, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
+        const existing = await env.CORE_DB.prepare(
+          "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
+        ).bind(groupKey).first<{ user_id: string }>();
+        if (existing && existing.user_id !== session.userId) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(
+          "UPDATE zukan_book_publications SET published = 0, updated_at = ?2 WHERE group_key = ?1 AND user_id = ?3"
+        ).bind(groupKey, Date.now(), session.userId).run();
+        return json({ ok: true, published: false, groupKey }, 200, { "cache-control": "no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
