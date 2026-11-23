@@ -738,6 +738,21 @@ test("Japanese record detail suppresses English-only AI prose from reassessment"
   assert.match(rendered, /根系の詳細は確認できません/);
 });
 
+test("candidate comparison shows measured likelihood and how to tell lookalikes apart", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja", title: "カラス", observedLabel: "2026年11月23日", note: null, media: [], actionNonce: "nonce-likely",
+    aiCandidateInsights: [
+      { name: "ハシブトガラス", scientificName: "Corvus macrorhynchos", supportingFeatures: ["嘴: 太い"], missingFeatures: [], contradictions: [], probability: 0.93, howToTell: "嘴が太く額が盛り上がる" },
+      { name: "ハシボソガラス", scientificName: "Corvus corone", supportingFeatures: [], missingFeatures: [], contradictions: ["嘴: 細め（写っていない）"], probability: 0.05 },
+      { name: "ミヤマガラス", scientificName: "Corvus frugilegus", supportingFeatures: ["嘴の根元"], missingFeatures: [], contradictions: [] },
+    ],
+  });
+  assert.match(rendered, /<em class="of-likely" data-likely="high">可能性 高<\/em>/);
+  assert.match(rendered, /<em class="of-likely" data-likely="low">可能性 低<\/em>/);
+  assert.match(rendered, /<b>見分けるポイント<\/b> 嘴が太く額が盛り上がる/);
+  assert.equal((rendered.match(/class="of-likely"/g) ?? []).length, 2);
+});
+
 test("Japanese record detail suppresses mixed-language AI prose from reassessment", () => {
   const mixedLanguageDetail: ObservationFirstRecordDetail = {
     ...detail,

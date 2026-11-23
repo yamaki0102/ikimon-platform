@@ -21,6 +21,7 @@ export type ObservationProcessingFacts = {
   identificationCount: number;
   providerAvailable: boolean;
   updatedAt: string | null;
+  earlyFamilyName?: string | null;
 };
 
 export type ObservationProcessingStatus = {
@@ -128,7 +129,9 @@ export function deriveObservationProcessingStatus(facts: ObservationProcessingFa
       method: "post",
     };
   } else if (aiState === "queued" || aiState === "processing") {
-    message = "写真からわかることを調べています。写真と記録は保存されています。";
+    message = aiState === "processing" && facts.earlyFamilyName
+      ? `写真からわかることを調べています。まず、${facts.earlyFamilyName}のなかまのようです。くわしい結果は数分で届きます。`
+      : "写真からわかることを調べています。写真と記録は保存されています。";
   }
 
   return {
