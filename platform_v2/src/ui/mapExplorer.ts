@@ -3170,6 +3170,17 @@ export function mapExplorerDeferredScriptSource(): string {
   var layerHintTextEl = document.getElementById('me-layer-hint-text');
   var layerHintJumpEl = document.getElementById('me-layer-hint-jump');
   var layerHintCloseEl = document.getElementById('me-layer-hint-close');
+  (function () {
+    var panelEl = document.getElementById('me-own-trail');
+    if (!panelEl || !mapShellEl) return;
+    var syncPanelH = function () {
+      var h = panelEl.classList.contains('is-hidden') ? 0 : Math.ceil(panelEl.getBoundingClientRect().height);
+      mapShellEl.style.setProperty('--me-panel-h', h > 0 ? (h + 8) + 'px' : '0px');
+    };
+    if (typeof ResizeObserver === 'function') new ResizeObserver(syncPanelH).observe(panelEl);
+    if (typeof MutationObserver === 'function') new MutationObserver(syncPanelH).observe(panelEl, { attributes: true, attributeFilter: ['class'] });
+    syncPanelH();
+  })();
   var purposeHintEl = document.getElementById('me-purpose-hint');
   var purposeHintCloseEl = document.getElementById('me-purpose-hint-close');
   var startPanelEl = document.getElementById('me-start-panel');
@@ -12734,6 +12745,7 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     backdrop-filter: blur(16px);
   }
   .me-own-trail.is-hidden { display: none; }
+  .me-section .maplibregl-ctrl-bottom-right, .me-section .me-locate-fab, .me-section .me-legend, .me-section .me-map-status, .me-section .me-layer-hint { margin-bottom: var(--me-panel-h, 0px); }
   .me-own-trail-head {
     display: flex;
     align-items: center;
@@ -14909,7 +14921,7 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   @media (max-width: 1160px) {
     .me-map .maplibregl-ctrl-bottom-right {
       bottom: calc(88px + max(0px, env(safe-area-inset-bottom)));
-      z-index: 90;
+      z-index: 40;
     }
     .me-locate-fab { bottom: calc(132px + max(0px, env(safe-area-inset-bottom))); }
   }
