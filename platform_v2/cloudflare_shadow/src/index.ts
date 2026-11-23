@@ -1,6 +1,7 @@
 import {
   computePublicLocationView,
   formatPublicDateOnly,
+  isLocationDelayed24Hours,
   normalizeLocationShareMode,
   stripJpegExifAndGpsMetadata
 } from "./locationPrivacy";
@@ -8980,7 +8981,7 @@ function toResearchExportRecord(row: ResearchExportD1Row): ResearchExportRecord 
     vernacularName: row.vernacular_name,
     taxonRank: row.taxon_rank,
     evidenceTier,
-    eventDate: row.observed_at,
+    eventDate: row.observed_at ? formatPublicDateOnly(row.observed_at) : null,
     recordedBy: "Anonymous",
     associatedMedia: row.media_ref,
     associatedMediaRole: row.media_role,
@@ -9038,6 +9039,7 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
   const scopedRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
   const groups = new Map<string, PublicMapRow[]>();
   for (const row of scopedRows) {
+    if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
     if (!parsePublicCell(row.public_cell)) continue;
     const existing = groups.get(row.public_cell) ?? [];
     existing.push(row);
@@ -9071,8 +9073,8 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
           gridM: MAP_DEFAULT_GRID_M,
           radiusM: MAP_DEFAULT_GRID_M,
           count: group.length,
-          firstObservedAt: earliestObservedAt(group),
-          latestObservedAt: latestObservedAt(group),
+          firstObservedAt: formatPublicDateOnly(earliestObservedAt(group) ?? ""),
+          latestObservedAt: formatPublicDateOnly(latestObservedAt(group)),
           taxonMix,
           centroidLat: parsed.lat,
           centroidLng: parsed.lng
@@ -9412,8 +9414,8 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       if (selectedCell && row.public_cell !== selectedCell) return false;
       if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
       if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
-      if (fromBound && row.observed_at < fromBound) return false;
-      if (toBound && row.observed_at > toBound) return false;
+      if (fromBound && formatPublicDateOnly(row.observed_at) < fromBound.slice(0, 10)) return false;
+      if (toBound && formatPublicDateOnly(row.observed_at) > toBound.slice(0, 10)) return false;
       return true;
     })
     .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
@@ -9434,9 +9436,14 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   return json({
     items: scopedRows.map((row) => {
       const kind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
+      const hiddenOrDelayed = row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now());
+      const item = publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind);
       return {
-        ...publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind),
-        publicCellId: publicCellToCellId(row.public_cell),
+        ...item,
+        localityLabel: row.public_cell === "hidden"
+          ? "位置は非公開です"
+          : (hiddenOrDelayed ? "位置は24時間後に公開されます" : item.localityLabel),
+        publicCellId: hiddenOrDelayed ? null : publicCellToCellId(row.public_cell),
       };
     }),
     stats: {
@@ -24708,7 +24715,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
         watchUrl: buildShadowVideoWatchUrl(streamUid),
         readyToStream: true,
         uploadStatus: "ready",
-        createdAt: row.observed_at,
+        createdAt: formatPublicDateOnly(row.observed_at),
         durationMs: asset.duration_ms ?? 0,
         mediaRole: "observation_video"
       };
@@ -27481,15 +27488,32 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const partition = resolveObservationPartition(input.observedAt, env);
   const occurrenceIds = resolveLegacyOccurrenceIds(visitId, input);
   const occurrenceId = occurrenceIds[0] ?? `occ:${visitId}:0`;
-  const publicCell = blurLocation(input.latitude, input.longitude);
+  const locationShareMode = normalizeLocationShareMode(
+    (input as { locationShareMode?: unknown }).locationShareMode ?? input.sourcePayload?.locationShareMode
+  );
+  const nearbyPublicPlace = input.siteId && input.siteName
+    ? { placeId: String(input.siteId), name: String(input.siteName), distanceM: 0 }
+    : null;
+  const publicLocationView = computePublicLocationView({
+    lat: input.latitude,
+    lng: input.longitude,
+    observedAt: input.observedAt,
+    locationShareMode,
+    nearbyPublicPlace,
+  });
+  const publicCell = publicLocationView.mode === "hidden"
+    ? "hidden"
+    : (publicLocationView.publicCell ? publicLocationView.publicCell.replace(/^cell:/, "") : blurLocation(input.latitude, input.longitude));
   const taxonLabel = resolveLegacyTaxonLabel(input);
   const placeName = normalizeOptionalText(input.siteName)
     ?? normalizeOptionalText(input.municipality)
     ?? normalizeOptionalText(input.prefecture)
     ?? "unknown place";
-  const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
+  const placeId = publicLocationView.placeId ?? normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const visibility = input.visibility === "private" ? "private" : "public";
-  const publicAreaLabel = visibility === "public" ? resolveSafePublicAreaLabel(input) : null;
+  const publicAreaLabel = visibility === "public" && publicLocationView.mode !== "hidden"
+    ? resolveSafePublicAreaLabel(input)
+    : null;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
   const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
@@ -33130,7 +33154,7 @@ function parseBboxParam(raw: string | null): [number, number, number, number] | 
 }
 
 function parsePublicCell(value: string): { lat: number; lng: number } | null {
-  const [latRaw, lngRaw] = value.split(",");
+  const [latRaw, lngRaw] = value.replace(/^cell:/, "").split(",");
   const lat = Number(latRaw);
   const lng = Number(lngRaw);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -33424,7 +33448,7 @@ function renderAreaRecordSections(fieldId: string, records: AreaRecordContext, i
       <div class="record-list">${items.slice(0, 9).map((item) => `<a class="record panel" href="/observations/${encodeURIComponent(item.visitId)}">
         ${item.thumbnailUrl ? `<img class="record-thumbnail" src="${escapeHtml(item.thumbnailUrl)}" alt="" loading="lazy" decoding="async">` : ""}
         <strong>${escapeHtml(item.displayName || (isEnglish ? "Record awaiting a name" : "名前は未確認"))}</strong>
-        <time datetime="${escapeHtml(item.observedAt ?? "")}">${escapeHtml(formatPublicObservationDate(item.observedAt))}</time>
+        <time datetime="${escapeHtml(formatPublicDateOnly(item.observedAt ?? ""))}">${escapeHtml(formatPublicObservationDate(item.observedAt))}</time>
         <span class="muted">${isEnglish ? "Open this record" : "記録を見る"}</span>
       </a>`).join("")}</div>
     </section>`;
