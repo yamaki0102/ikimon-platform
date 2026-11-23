@@ -31728,6 +31728,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.equal(prodHtml.match(/class="zt-hero-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
     assert.equal(prodHtml.match(/class="zt-thumb-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
     assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
+    assert.match(prodHtml, />イベント</, topUrl);
     assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
   }
@@ -31739,4 +31740,6 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   assert.match(enHtml, /Hamamatsu · Nov 23/);
   assert.match(enHtml, /href="\/en\/observations\/obs-top-2"/);
   assert.doesNotMatch(enHtml, /浜松市・11月23日|href="\/ja\/observations\//);
+  assert.match(enHtml, />Events</);
+  assert.doesNotMatch(enHtml, />イベント<|>場所<|近くの場所|祭り・川|aria-label="ナビ"|aria-label="メニュー"/);
 });

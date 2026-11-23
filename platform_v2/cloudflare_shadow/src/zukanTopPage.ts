@@ -717,8 +717,8 @@ export function renderZukanTopPage(
           <h2>${escapeHtml(grp.headerLabel)}</h2>
           <div class="zt-group-actions">
             ${grp.published
-              ? `<button type="button" class="zt-chip-published" data-zukan-unpublish="${escapeHtml(grp.groupKey)}">図鑑に掲載中</button>`
-              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-name="${escapeHtml(grp.placeName)}">図鑑に載せる</button>`}
+              ? `<button type="button" class="zt-chip-published" data-zukan-unpublish="${escapeHtml(grp.groupKey)}">${isEn ? "In ZUKAN" : "図鑑に掲載中"}</button>`
+              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-name="${escapeHtml(grp.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`}
           </div>
         </div>
         <div class="zt-lib-grid">${grp.photos.map((ph) => `<a class="zt-lib-thumb" href="${prefix}/observations/${encodeURIComponent(ph.observationId)}" data-obs-id="${escapeHtml(ph.observationId)}">
@@ -727,24 +727,24 @@ export function renderZukanTopPage(
       </section>`).join("")
     : `<section class="zt-section">
         <div class="zt-capture-row">
-          <button type="button" class="zt-btn-capture" data-global-record-trigger="photo">撮る</button>
+          <button type="button" class="zt-btn-capture" data-global-record-trigger="photo">${isEn ? "Capture" : "撮る"}</button>
         </div>
-        ${data.placesStrip.length > 0 ? `<h2 class="zt-subhead">近くの場所</h2><div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}"><div class="zt-place-fallback" aria-hidden="true"></div><span>${escapeHtml(pl.name)}</span></a>`).join("")}</div>` : ""}
+        ${data.placesStrip.length > 0 ? `<h2 class="zt-subhead">${isEn ? "Nearby places" : "近くの場所"}</h2><div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}"><div class="zt-place-fallback" aria-hidden="true"></div><span>${escapeHtml(pl.name)}</span></a>`).join("")}</div>` : ""}
         <h2 class="zt-subhead">${escapeHtml(data.eventSectionHeading)}</h2>
         ${eventBlockBody}
       </section>`;
 
   const loggedInMain = `
-    <h1 class="zt-sr-only">ZUKAN ライブラリ</h1>
+    <h1 class="zt-sr-only">${isEn ? "ZUKAN library" : "ZUKAN ライブラリ"}</h1>
     ${oneYearHtml}
     ${libraryBodyHtml}
     <dialog class="zt-popover" id="zt-publish-dialog" aria-labelledby="zt-popover-title">
       <form method="dialog" id="zt-publish-form">
-        <h2 id="zt-popover-title">図鑑に載せる</h2>
+        <h2 id="zt-popover-title">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</h2>
         <div class="zt-popover-thumbs" id="zt-popover-thumbs"></div>
         <div class="zt-popover-actions">
-          <button type="submit" class="zt-btn-primary" id="zt-publish-submit">載せる</button>
-          <button type="button" class="zt-btn-text" id="zt-publish-cancel">やめる</button>
+          <button type="submit" class="zt-btn-primary" id="zt-publish-submit">${isEn ? "Add" : "載せる"}</button>
+          <button type="button" class="zt-btn-text" id="zt-publish-cancel">${isEn ? "Cancel" : "やめる"}</button>
         </div>
       </form>
     </dialog>
@@ -754,15 +754,16 @@ export function renderZukanTopPage(
     ? `<header class="zt-topbar">
         <a class="zt-logo" href="${prefix}/">ZUKAN</a>
         <form class="zt-search" action="${prefix}/" method="get">
-          <input type="search" name="q" value="${escapeHtml(options.searchQuery ?? "")}" placeholder="祭り・川・去年の秋で探す" aria-label="検索">
+          <input type="search" name="q" value="${escapeHtml(options.searchQuery ?? "")}" placeholder="${isEn ? "Search: festival, river, last autumn" : "祭り・川・去年の秋で探す"}" aria-label="${isEn ? "Search" : "検索"}">
         </form>
-        <a class="zt-avatar" href="${prefix}/profile" aria-label="自分">${escapeHtml((options.displayName ?? "私").slice(0, 1))}</a>
+        <a class="zt-avatar" href="${prefix}/profile" aria-label="${isEn ? "Me" : "自分"}">${escapeHtml((options.displayName ?? (isEn ? "M" : "私")).slice(0, 1))}</a>
       </header>`
     : `<header class="zt-topbar">
         <a class="zt-logo" href="${prefix}/">ZUKAN</a>
         <a class="zt-login-btn" href="/auth/login">ログイン</a>
       </header>`;
 
+  const popTitleJs = isEn ? `"Add " + currentPlaceName + " to ZUKAN"` : `currentPlaceName + "の図鑑に載せる"`;
   const publishScript = options.authenticated
     ? `<script${nonceAttr}>
       (() => {
@@ -778,15 +779,15 @@ export function renderZukanTopPage(
           const openBtn = ev.target.closest("[data-zukan-open-popover]");
           if (openBtn) {
             currentGroupKey = openBtn.getAttribute("data-zukan-open-popover") || "";
-            currentPlaceName = openBtn.getAttribute("data-place-name") || "場所";
-            titleEl.textContent = currentPlaceName + "の図鑑に載せる";
+            currentPlaceName = openBtn.getAttribute("data-place-name") || "${isEn ? "Places" : "場所"}";
+            titleEl.textContent = ${popTitleJs};
             const group = openBtn.closest("[data-group-key]");
             const links = group ? [...group.querySelectorAll("[data-obs-id]")] : [];
             thumbsEl.innerHTML = links.map((a) => {
               const id = a.getAttribute("data-obs-id") || "";
               const img = a.querySelector("img");
               const src = img ? img.getAttribute("src") || "" : "";
-              return '<label class="zt-pop-item"><input type="checkbox" name="obsId" value="' + id.replace(/"/g, "&quot;") + '" checked>' + (src ? '<img src="' + src.replace(/"/g, "&quot;") + '" alt="">' : '<span>記録</span>') + '</label>';
+              return '<label class="zt-pop-item"><input type="checkbox" name="obsId" value="' + id.replace(/"/g, "&quot;") + '" checked>' + (src ? '<img src="' + src.replace(/"/g, "&quot;") + '" alt="">' : '<span>${isEn ? "Record" : "記録"}</span>') + '</label>';
             }).join("");
             if (typeof dialog.showModal === "function") dialog.showModal();
             else dialog.setAttribute("open", "");
@@ -894,12 +895,12 @@ export function renderZukanTopPage(
 </head>
 <body>
   <div class="zt-shell">
-    <aside class="zt-sidebar" aria-label="ナビ">
-      <a class="zt-btn-capture" href="${prefix}/capture" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">撮る</a>
+    <aside class="zt-sidebar" aria-label="${isEn ? "Navigation" : "ナビ"}">
+      <a class="zt-btn-capture" href="${prefix}/capture" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${isEn ? "Capture" : "撮る"}</a>
       <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-      <a class="zt-nav-item" href="${prefix}/events">イベント</a>
-      <a class="zt-nav-item" href="${prefix}/places">場所</a>
-      <a class="zt-nav-item" href="${prefix}/profile">自分</a>
+      <a class="zt-nav-item" href="${prefix}/events">${isEn ? "Events" : "イベント"}</a>
+      <a class="zt-nav-item" href="${prefix}/places">${isEn ? "Places" : "場所"}</a>
+      <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
     </aside>
     <div>
       ${topBar}
@@ -908,12 +909,12 @@ export function renderZukanTopPage(
       </main>
     </div>
   </div>
-  <nav class="zt-bottom-nav" aria-label="メニュー">
+  <nav class="zt-bottom-nav" aria-label="${isEn ? "Menu" : "メニュー"}">
     <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-    <a class="zt-nav-item" href="${prefix}/events">イベント</a>
-    <a class="zt-nav-item zt-nav-capture" href="${prefix}/capture">撮る</a>
-    <a class="zt-nav-item" href="${prefix}/places">場所</a>
-    <a class="zt-nav-item" href="${prefix}/profile">自分</a>
+    <a class="zt-nav-item" href="${prefix}/events">${isEn ? "Events" : "イベント"}</a>
+    <a class="zt-nav-item zt-nav-capture" href="${prefix}/capture">${isEn ? "Capture" : "撮る"}</a>
+    <a class="zt-nav-item" href="${prefix}/places">${isEn ? "Places" : "場所"}</a>
+    <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
   </nav>
   ${publishScript}
 </body>
