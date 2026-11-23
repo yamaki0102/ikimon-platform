@@ -10619,7 +10619,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   const recordRights = obs.observationDataRights.get("visit-detail-contract");
   assert.ok(recordRights, "the native fixture must have a current rights row");
   assert.equal(recordRights.withdrawal_status, "active");
-  const recordCellId = `cell:${obs.readmodel.get("visit-detail-contract")!.public_cell}`;
+  const recordCellId = `cell:${String(obs.readmodel.get("visit-detail-contract")!.public_cell).replace(/^cell:/, "").split(",").map((v) => (Math.round(Number(v) * 10) / 10).toFixed(1)).join(",")}`;
   const activeMapResponse = await worker.fetch(new Request(
     `https://shadow.test/api/v1/map/observations?cell_id=${encodeURIComponent(recordCellId)}`
   ), env);
