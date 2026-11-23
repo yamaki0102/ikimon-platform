@@ -307,7 +307,7 @@ function renderAiCandidateComparison(
   const candidates = presentation.aiCandidateInsights
     .filter((candidate) => isPublicObservationAiSubjectEligible(candidate.name, presentation.aiPersonPrimaryNames, candidate.scientificName)).slice(0, 3);
   if (candidates.length === 0) return "";
-  return `<section class="of-candidate-comparison" aria-labelledby="of-candidate-comparison-title"><h3 id="of-candidate-comparison-title">${escapeHtml(copy.compareCandidates)}</h3><p>${escapeHtml(copy.compareCandidatesLead)}</p><ul>${candidates.map((candidate) => {
+  return `<section class="of-candidate-comparison" aria-labelledby="of-candidate-comparison-title"><h3 id="of-candidate-comparison-title">${escapeHtml(copy.compareCandidates)}</h3><ul>${candidates.map((candidate) => {
     const scientificName = candidate.scientificName && candidate.scientificName !== candidate.name
       ? `<small><i>${escapeHtml(candidate.scientificName)}</i></small>`
       : "";
@@ -342,8 +342,8 @@ function environmentFallbackFeedback(
   if (lang === "ja") {
     const summary = placeHeadline && parts.length > 0
       ? `${placeHeadline}（${parts.join(sep)}）`
-      : placeHeadline ?? `${parts.join(sep)}のようすが写っています`;
-    return `${summary}。全景に加えて足元や周囲との境目も残すと、季節や場所の変化を比べやすくなります。`;
+      : placeHeadline ?? `${parts.join(sep)}`;
+    return summary;
   }
   const summary = placeHeadline && parts.length > 0
     ? `${placeHeadline} (${parts.join(sep)}).`
@@ -369,12 +369,12 @@ function renderAiFeedback(
   const feedback = (presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null)
     ?? (!humanOnly ? environmentFallbackFeedback(detail, presentation, copy, lang) : null);
   const defaultEnvironmentNextPhoto = !humanOnly && !presentation.aiFeedback && feedback && lang === "ja"
-    ? "全景に加えて足元や水際・植生の境目を近くからもう1枚撮っておくと、季節や場所の変化を比べやすくなります。"
+    ? "足元・水際・植生の境目"
     : null;
   const nextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
     ?? defaultEnvironmentNextPhoto;
   if (!feedback && !nextPhoto) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${feedback ? `<p>${escapeHtml(feedback)}</p>` : ""}${nextPhoto ? `<p><strong>${escapeHtml(copy.aiNextPhotoTitle)}</strong><br>${escapeHtml(nextPhoto)}</p>` : ""}</section>`;
+  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${feedback ? `<p>${escapeHtml(feedback)}</p>` : ""}${nextPhoto ? `<p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p>` : ""}</section>`;
 }
 
 function renderIdentificationForm(
@@ -403,6 +403,7 @@ function renderObservationDetail(
   presentation: ObservationFirstRecordPresentation,
   action: string,
   copy: ObservationFirstRecordDetailCopy,
+  options: { omitHeading?: boolean; omitAiSuggestions?: boolean; omitLoginLink?: boolean } = {},
 ): string {
   const display = observationName(card, copy, presentation.aiPersonPrimaryNames);
   const common = hidden("observation_id", card.observationId) + hidden("return_lang", presentation.lang ?? "ja");
@@ -410,10 +411,12 @@ function renderObservationDetail(
   const accepted = acceptedName
     ? `<div class="of-record-name"><span>${escapeHtml(copy.recordName)}</span><strong>${escapeHtml(acceptedName)}</strong></div>`
     : "";
-  const aiNames = displayAiSuggestions(card, presentation.aiPersonPrimaryNames).flatMap((item) => {
-    const name = publicSubjectName(item.proposedName) ?? publicSubjectName(item.proposedScientificName);
-    return name ? [name] : [];
-  });
+  const aiNames = options.omitAiSuggestions
+    ? []
+    : displayAiSuggestions(card, presentation.aiPersonPrimaryNames).flatMap((item) => {
+        const name = publicSubjectName(item.proposedName) ?? publicSubjectName(item.proposedScientificName);
+        return name ? [name] : [];
+      });
   const ai = aiNames.length > 0
     ? `<section class="of-ai-detail"><h4>${escapeHtml(copy.aiFound)}</h4><ul>${aiNames.map((name) => `<li><strong>${escapeHtml(name)}</strong><span>${escapeHtml(copy.photoCandidate)}</span></li>`).join("")}</ul></section>`
     : "";
@@ -421,7 +424,12 @@ function renderObservationDetail(
   const proposalList = proposals.length > 0
     ? `<section class="of-proposals"><h4>${escapeHtml(copy.proposals)}</h4><ul>${proposals.map((item, claimIndex) => `<li><span>${escapeHtml(item.proposedName)}</span>${detail.owner ? `<form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "accept_identification")}${hidden("identification_id", item.claimId)}${hidden("operation_id", `${presentation.actionNonce}-${index}-accept-${claimIndex}`)}<button type="submit">${escapeHtml(copy.acceptName)}</button></form>` : ""}</li>`).join("")}</ul></section>`
     : "";
-  return `<article class="of-observation-detail"><h3>${escapeHtml(display.text)}</h3>${accepted}${ai}${proposalList}${renderIdentificationForm(card, index, detail, presentation, action, copy)}</article>`;
+  const form = options.omitLoginLink && !detail.owner && !presentation.viewerAuthenticated
+    ? ""
+    : renderIdentificationForm(card, index, detail, presentation, action, copy);
+  const heading = options.omitHeading ? "" : `<h3>${escapeHtml(display.text)}</h3>`;
+  if (!heading && !accepted && !ai && !proposalList && !form) return "";
+  return `<article class="of-observation-detail">${heading}${accepted}${ai}${proposalList}${form}</article>`;
 }
 
 function renderObservationSummary(
@@ -433,17 +441,39 @@ function renderObservationSummary(
   const active = detail.observations.filter((card) => card.state === "active"
     && (card.assertionStatus === "human_asserted" || card.acceptedIdentification || card.communityIdentifications.length > 0 || !isHumanOnlyAiCard(card, presentation.aiPersonPrimaryNames)));
   if (active.length === 0) return "";
-  const names = active.slice(0, 3).map((card) => ({
+  const hasCardInsights = Boolean(presentation.aiCandidateInsights?.length);
+  const resolved = active.map((card) => ({
+    card,
     ...observationName(card, copy, presentation.aiPersonPrimaryNames),
     accepted: Boolean(publicSubjectName(card.acceptedIdentification?.proposedName)),
     communityProposal: card.communityIdentifications.some((item) => !item.accepted && publicSubjectName(item.proposedName)),
   }));
-  const list = names.map((item) => {
-    const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : !item.accepted ? copy.awaitingSubjectName : "";
-    return `<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`;
+  const meaningful = resolved.filter((item) => item.accepted || item.ai || item.communityProposal);
+  const summaryItems = meaningful.length > 0 ? meaningful.slice(0, 3) : [];
+  const seenNames = new Set<string>();
+  const list = summaryItems.flatMap((item) => {
+    if (seenNames.has(item.text)) return [];
+    seenNames.add(item.text);
+    const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : "";
+    return [`<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`];
   }).join("");
-  const details = active.map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy)).join("");
-  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2><ul class="of-summary-list">${list}</ul>${renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames)}${renderAiCandidateComparison(active[0]!, presentation, copy)}<details class="of-observation-details"><summary>${escapeHtml(active.length > 1 ? copy.openAll : copy.openDetails)}</summary><div>${details}</div></details></section>`;
+  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames);
+  const comparison = renderAiCandidateComparison(active[0]!, presentation, copy);
+  const detailCards = (meaningful.length > 0 ? meaningful.map((item) => item.card) : active.slice(0, 1))
+    .map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy, {
+      omitHeading: meaningful.length > 0 || seenNames.size > 0,
+      omitAiSuggestions: hasCardInsights || summaryItems.some((item) => item.ai),
+      omitLoginLink: true,
+    }))
+    .filter(Boolean);
+  const detailsBlock = detailCards.length > 0
+    ? `<details class="of-observation-details"><summary>${escapeHtml(detailCards.length > 1 ? copy.openAll : copy.openDetails)}</summary><div>${detailCards.join("")}</div></details>`
+    : "";
+  const loginToPropose = !detail.owner && !presentation.viewerAuthenticated && active.some((card) => detail.proposalPolicy.identification)
+    ? renderIdentificationForm(active[0]!, 0, detail, presentation, action, copy)
+    : "";
+  if (!list && !learning && !comparison && !detailsBlock && !loginToPropose) return "";
+  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2>${list ? `<ul class="of-summary-list">${list}</ul>` : ""}${learning}${comparison}${detailsBlock}${loginToPropose}</section>`;
 }
 
 const sceneElementKeys = new Set(["water", "low_grass", "trees_shrubs", "bare_ground", "built_surface", "soil", "plant", "rock", "artificial", "urban", "coast", "wetland"]);
