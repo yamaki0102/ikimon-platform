@@ -493,9 +493,7 @@ function renderObservationSummary(
   copy: ObservationFirstRecordDetailCopy,
 ): string {
   if (isSignboardRecord(detail, presentation)) {
-    const lang = presentation.lang ?? "ja";
-    const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
-    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p></section>`;
+    return "";
   }
   const active = detail.observations.filter((card) => card.state === "active"
     && (card.assertionStatus === "human_asserted" || card.acceptedIdentification || card.communityIdentifications.length > 0 || !isHumanOnlyAiCard(card, presentation.aiPersonPrimaryNames)));
@@ -556,7 +554,12 @@ function derivedSceneElements(environment: Record<string, string> | null | undef
   return [...new Set(found)].slice(0, 8);
 }
 
-function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentation, copy: ObservationFirstRecordDetailCopy): string {
+function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentation, copy: ObservationFirstRecordDetailCopy, signboard = false): string {
+  if (signboard) {
+    const lang = presentation.lang ?? "ja";
+    const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
+    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p></section>`;
+  }
   const rawElements = presentation.sceneElements ?? derivedSceneElements(presentation.environment);
   const elements = [...new Set(rawElements)].filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item]).slice(0, 8);
   const state = presentation.detectionState;
@@ -601,9 +604,7 @@ function renderOwnerManagement(
   const lang = presentation.lang ?? "ja";
   const returnLang = hidden("return_lang", lang);
   if (isSignboardRecord(detail, presentation)) {
-    const lang = presentation.lang ?? "ja";
-    const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
-    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p></section>`;
+    return "";
   }
   const active = detail.observations.filter((card) => card.state === "active");
   const subjectTypes = {
@@ -710,11 +711,39 @@ function renderOwnerPublicationReturn(
   return `<section class="of-publication-return" data-publication-return="owner-only" aria-labelledby="of-publication-return-title"><h2 id="of-publication-return-title">${escapeHtml(copy.publicationReturnTitle)}</h2><dl><div><dt>${escapeHtml(copy.publicationReview)}</dt><dd data-publication-review-state="${escapeHtml(publicationReturn.review.state)}">${escapeHtml(publicationReviewLabel(publicationReturn.review.state, copy))}</dd></div><div><dt>${escapeHtml(copy.publicationEligibility)}</dt><dd data-publication-state="${escapeHtml(publicationReturn.publication.state)}">${escapeHtml(publicationStateLabel(publicationReturn.publication.state, copy))}</dd></div></dl>${destinationItems ? `<h3>${escapeHtml(copy.publicationDestinations)}</h3><ul>${destinationItems}</ul>` : ""}${exclusion ? `<p class="of-publication-exclusion" data-publication-exclusion><strong>${escapeHtml(copy.publicationExclusion)}</strong> ${escapeHtml(exclusion)}</p>` : ""}</section>`;
 }
 
+function resolveSignboardTitle(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  copy: ObservationFirstRecordDetailCopy,
+  lang: ObservationRecordLang,
+): string {
+  const candidates: Array<string | null | undefined> = [
+    presentation.note,
+    presentation.aiFeedback,
+    ...(presentation.aiCandidateInsights ?? []).flatMap((item) => item.supportingFeatures),
+    ...detail.observations.filter((card) => card.state === "active").flatMap((card) => card.aiSuggestions.flatMap((s) => s.visualEvidence)),
+  ];
+  for (const text of candidates) {
+    if (!text) continue;
+    const match = text.match(/[「『]([^」』]{2,60})[」』]/u);
+    if (match?.[1]) return match[1].trim();
+  }
+  if (!presentation.titleIsFallback && !SIGNBOARD_CANDIDATE_PATTERN.test(presentation.title) && !forbiddenEmptyCopy.test(presentation.title) && presentation.title !== copy.natureRecord) {
+    return presentation.title;
+  }
+  return lang === "ja" ? "まちの記録" : lang === "es" ? "Registro urbano" : lang === "pt-br" ? "Registro urbano" : "Town record";
+}
+
 function renderRelated(items: ObservationFirstRelatedPresentation[] | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
   if (!items?.length) return "";
   const cards = items.slice(0, 6).map((item) => {
     const safePhoto = item.photoUrl && !forbiddenPublicMediaLocator.test(item.photoUrl) ? item.photoUrl : null;
-    const title = forbiddenEmptyCopy.test(item.title) ? copy.relatedRecord : item.title;
+    const quoted = item.title.match(/[「『]([^」』]{2,60})[」』]/u)?.[1]?.trim();
+    const title = quoted
+      ? quoted
+      : forbiddenEmptyCopy.test(item.title) || SIGNBOARD_CANDIDATE_PATTERN.test(item.title)
+        ? copy.relatedRecord
+        : item.title;
     return `<a class="of-related-card${safePhoto ? "" : " has-no-photo"}" href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(item.recordId)}`)}">${safePhoto ? `<img src="${escapeHtml(safePhoto)}" alt="" loading="lazy" decoding="async">` : ""}<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(item.observedLabel)}</small></span></a>`;
   }).join("");
   return `<section class="of-related" aria-labelledby="of-related-title"><h2 id="of-related-title">${escapeHtml(copy.related)}</h2><div>${cards}</div></section>`;
@@ -727,7 +756,12 @@ export function renderObservationFirstRecordDetailHtml(
   const lang = presentation.lang ?? "ja";
   const copy = observationFirstRecordDetailCopy(lang);
   const media = safeMedia(presentation.media);
-  const title = presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title) ? copy.natureRecord : presentation.title;
+  const signboard = isSignboardRecord(detail, presentation);
+  const title = signboard
+    ? resolveSignboardTitle(detail, presentation, copy, lang)
+    : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
+      ? copy.natureRecord
+      : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
   const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
   const shareUrl = presentation.shareUrl ?? canonicalUrl;
@@ -745,9 +779,8 @@ export function renderObservationFirstRecordDetailHtml(
   const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
   const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy);
   const aiFeedback = renderAiFeedback(detail, presentation, copy);
-  const scene = renderSceneUnderstanding(presentation, copy);
+  const scene = renderSceneUnderstanding(presentation, copy, signboard);
   const environment = renderEnvironment(presentation.environment, copy);
-  const signboard = isSignboardRecord(detail, presentation);
   const summaryIsAi = !signboard && Boolean(summary) && (
     Boolean(presentation.aiCandidateInsights?.length)
     || detail.observations.some((card) => card.state === "active" && !publicSubjectName(card.acceptedIdentification?.proposedName) && displayAiSuggestions(card, presentation.aiPersonPrimaryNames).length > 0)

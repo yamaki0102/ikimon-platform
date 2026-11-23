@@ -23930,7 +23930,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
           title: item.isAwaitingId
-            ? (item.publicAreaLabel || (recordLang === "ja" ? "近くの自然の記録" : "Nearby nature record"))
+            ? (item.publicAreaLabel || (recordLang === "ja" ? "近くの記録" : "Nearby record"))
             : item.displayName,
           observedLabel: formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,

@@ -1215,7 +1215,7 @@ test("signboard record with saved illustration-deer candidate suppresses organis
         proposedName: "案内板のイラストのシカ",
         proposedScientificName: null,
         proposedRank: "species",
-        visualEvidence: ["案内板のイラスト"],
+        visualEvidence: ["「四日市市少年自然の家パノラマ図」の案内板"],
         shootingAdvice: [],
         provisional: true as const,
       },
@@ -1225,7 +1225,8 @@ test("signboard record with saved illustration-deer candidate suppresses organis
     { ...detail, owner: false, observations: [signCard] },
     {
       lang: "ja",
-      title: "四日市市少年自然の家パノラマ図",
+      title: "自然の記録",
+      titleIsFallback: true,
       observedLabel: "2026年11月23日",
       note: null,
       aiFeedback: null,
@@ -1234,17 +1235,25 @@ test("signboard record with saved illustration-deer candidate suppresses organis
         {
           name: "案内板のイラストのシカ",
           scientificName: null,
-          supportingFeatures: ["案内板のイラスト"],
+          supportingFeatures: ["「四日市市少年自然の家パノラマ図」の案内板"],
           missingFeatures: [],
           contradictions: [],
         },
       ],
+      sceneElements: ["trees_shrubs"],
+      detectionState: "detected",
       media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
       actionNonce: "nonce-signboard",
       viewerAuthenticated: false,
     },
   );
+  assert.match(rendered, /<h1>四日市市少年自然の家パノラマ図<\/h1>/);
+  assert.doesNotMatch(rendered, /<h1>自然の記録<\/h1>/);
   assert.doesNotMatch(rendered, /シカかもしれません|案内板のイラストのシカ/);
   assert.doesNotMatch(rendered, /次に撮るとよい写真：実物の生体/);
-  assert.match(rendered, /写っているもの：案内板/);
+  assert.equal((rendered.match(/この写真から見つかったもの/g) ?? []).length, 1);
+  const aiBox = rendered.match(/data-ai-assessment[\s\S]*?<\/section>\s*<\/section>/)?.[0] ?? "";
+  assert.match(aiBox, /写っているもの：案内板/);
+  const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
+  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/AI/g) ?? []).length, 1);
 });
