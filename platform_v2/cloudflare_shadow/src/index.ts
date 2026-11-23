@@ -3127,26 +3127,33 @@ export const worker = {
       if (request.method === "POST" && url.pathname === "/api/v1/expert-duty/route") {
         const sameOriginError = assertSameOriginRequest(request);
         if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
         const body = await readJson<{
           recordId?: unknown;
           placeId?: unknown;
           isRareSpecies?: unknown;
           isAiUncertain?: unknown;
           isSuspectedInvasive?: unknown;
-          exactLat?: unknown;
-          exactLng?: unknown;
         }>(request);
         const recordId = typeof body.recordId === "string" ? body.recordId.trim() : "";
         const placeId = typeof body.placeId === "string" ? body.placeId.trim() : "";
         if (!recordId || !placeId) return json({ ok: false, error: "record_and_place_required" }, 400, { "cache-control": "no-store" });
+        const ownerUserId = await resolveCompatibleObservationOwnerUserId(recordId, env);
+        const isAdmin = isMunicipalWalkMapAdminRole(session);
+        if (!ownerUserId && !isAdmin) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
+        if (ownerUserId !== session.userId && !isAdmin) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const obsCoords = await env.OBS_DB.prepare(
+          "SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
+        ).bind(recordId).first<{ observation_id: string; exact_lat: number | null; exact_lng: number | null }>().catch(() => null);
         const res = await routeRecordToExpertDuty(env, {
           recordId,
           placeId,
           isRareSpecies: body.isRareSpecies === true,
           isAiUncertain: body.isAiUncertain === true,
           isSuspectedInvasive: body.isSuspectedInvasive === true,
-          exactLat: typeof body.exactLat === "number" ? body.exactLat : null,
-          exactLng: typeof body.exactLng === "number" ? body.exactLng : null
+          exactLat: typeof obsCoords?.exact_lat === "number" ? obsCoords.exact_lat : null,
+          exactLng: typeof obsCoords?.exact_lng === "number" ? obsCoords.exact_lng : null
         });
         return json({ ok: true, ...res }, 200, { "cache-control": "no-store" });
       }

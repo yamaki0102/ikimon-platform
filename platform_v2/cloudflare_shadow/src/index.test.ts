@@ -31161,3 +31161,113 @@ test("GET /api/v1/areas/observations filters by area, media_kind (including phot
   const periodBody = await periodRes.json() as { items: Array<{ visitId: string }> };
   assert.deepEqual(periodBody.items.map((x) => x.visitId), ["obs-video", "obs-audio"]);
 });
+
+test("POST /api/v1/expert-duty/route requires authentication, record ownership or admin, and ignores client coordinates", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const dutySqlite = new DatabaseSync(":memory:");
+  const coreWithDuty = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:place_local_experts|expert_duty_queue)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return dutySqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: dutySqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(dutySqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithDuty };
+
+  const ownerToken = "duty-owner-token";
+  const ownerHash = createHash("sha256").update(ownerToken).digest("hex");
+  baseCore.authSessions.set(ownerHash, {
+    token_hash: ownerHash,
+    user_id: "duty-owner-1",
+    display_name: "Duty Owner",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const otherToken = "duty-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "duty-other-1",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  obs.observations.set("obs-duty-1", {
+    observation_id: "obs-duty-1",
+    draft_id: "draft-duty-1",
+    owner_user_id: "duty-owner-1",
+    observed_at: "2026-11-23T09:00:00.000Z",
+    partition_month: "2026-11",
+    taxon_label: "カワセミ",
+    note: null,
+    exact_lat: 35.68,
+    exact_lng: 139.76,
+    location_accuracy_m: 10,
+    public_cell: "533946",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "千代田区"
+  });
+
+  const unauthRes = await worker.fetch(new Request("https://zukan.earth/api/v1/expert-duty/route", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ recordId: "obs-duty-1", placeId: "plc_1", isRareSpecies: true })
+  }), env);
+  assert.equal(unauthRes.status, 401);
+
+  const otherRes = await worker.fetch(new Request("https://zukan.earth/api/v1/expert-duty/route", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ recordId: "obs-duty-1", placeId: "plc_1", isRareSpecies: true })
+  }), env);
+  assert.equal(otherRes.status, 403);
+
+  const ownerRes = await worker.fetch(new Request("https://zukan.earth/api/v1/expert-duty/route", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${ownerToken}`
+    },
+    body: JSON.stringify({
+      recordId: "obs-duty-1",
+      placeId: "plc_1",
+      isRareSpecies: true,
+      exactLat: 99.99,
+      exactLng: 99.99
+    })
+  }), env);
+  assert.equal(ownerRes.status, 200);
+  const queued = dutySqlite.prepare("SELECT exact_lat, exact_lng FROM expert_duty_queue WHERE record_id = ?").get("obs-duty-1") as { exact_lat: number | null; exact_lng: number | null };
+  assert.equal(queued.exact_lat, 35.68);
+  assert.equal(queued.exact_lng, 139.76);
+});
