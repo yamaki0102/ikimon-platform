@@ -31711,6 +31711,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     const prodHtml = await prodRes.text();
     assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
     assert.match(prodHtml, /常盤公園・11月22日/, topUrl);
+    assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
     assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日/, topUrl);
   }
