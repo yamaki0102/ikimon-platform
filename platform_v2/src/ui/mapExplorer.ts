@@ -6310,6 +6310,8 @@ export function mapExplorerDeferredScriptSource(): string {
     var certificationUrl = String(source.certificationUrl || source.certification_url || '');
     var storyUrl = String(source.storyUrl || source.story_url || '');
     var officialUrl = String(source.officialUrl || source.official_url || '');
+    var explanationUrl = String(source.explanationUrl || source.explanation_url || '');
+    if (explanationUrl.indexOf('https://lenrinokinoshitade.com/sites/') === 0) items.push({ label: '解説', url: explanationUrl });
     if (ownerUrl) items.push({ label: '公式', url: ownerUrl });
     if (certificationUrl) items.push({ label: '認定情報', url: certificationUrl });
     if (storyUrl) items.push({ label: '事例', url: storyUrl });
