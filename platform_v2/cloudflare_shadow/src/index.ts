@@ -13,6 +13,14 @@ import {
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import {
+  createFixedPointStationRecord,
+  listFixedPointsAndRecordsForPlace,
+  loadFixedPointStationById,
+  renderFixedPointQrSignPage,
+  renderFixedPointTimelineHtml,
+  upsertFixedPointStation
+} from "./fixedPointStationSurvey";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
@@ -2273,7 +2281,9 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
+  const fp = await listFixedPointsAndRecordsForPlace(env, canonicalPlaceId);
+  const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated, fixedPointTimelineHtml });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "global-place-detail",
@@ -2501,6 +2511,113 @@ export const worker = {
       const fixedPointStationMatch = nativePathname.match(/^\/places\/([^/]+)\/station$/);
       if ((request.method === "GET" || request.method === "HEAD") && fixedPointStationMatch?.[1]) {
         return getNativeFixedPointStationHtml(request, env, decodeURIComponent(fixedPointStationMatch[1]));
+      }
+
+      const fixedPointQrSignMatch = nativePathname.match(/^\/places\/([^/]+)\/stations\/(fps_[A-Za-z0-9_-]{3,80})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && fixedPointQrSignMatch?.[1] && fixedPointQrSignMatch?.[2]) {
+        const placeId = decodeURIComponent(fixedPointQrSignMatch[1]);
+        const stationId = decodeURIComponent(fixedPointQrSignMatch[2]);
+        const station = await loadFixedPointStationById(env, placeId, stationId);
+        if (!station) {
+          return html("<!doctype html><html><body><main><h1>定点が見つかりません</h1></main></body></html>", 404, { "cache-control": "no-store" });
+        }
+        const fp = await listFixedPointsAndRecordsForPlace(env, placeId, stationId);
+        const lang = publicLangFromPath(url.pathname) ?? "ja";
+        const cspNonce = createHtmlCspNonce();
+        const page = renderFixedPointQrSignPage({ station, records: fp.records, lang, cspNonce });
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "x-robots-tag": "noindex, nofollow"
+          }
+        });
+      }
+
+      const fixedPointStationsApiMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/stations$/);
+      if (fixedPointStationsApiMatch?.[1]) {
+        const placeId = decodeURIComponent(fixedPointStationsApiMatch[1]);
+        if (request.method === "GET") {
+          const fp = await listFixedPointsAndRecordsForPlace(env, placeId);
+          return json({ ok: true, placeId, stations: fp.stations, records: fp.records }, 200, { "cache-control": "no-store" });
+        }
+        if (request.method === "POST") {
+          const sameOriginError = assertSameOriginRequest(request);
+          if (sameOriginError) return sameOriginError;
+          const session = await readCompatibleSession(request, env).catch(() => null);
+          if (!session?.userId || session.banned) {
+            return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+          }
+          const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+          if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
+          const body = await readJson<{
+            title?: unknown;
+            prompt1?: unknown;
+            prompt2?: unknown;
+            prompt3?: unknown;
+            referencePhotoUrl?: unknown;
+          }>(request);
+          const station = await upsertFixedPointStation(env, {
+            placeId,
+            title: typeof body.title === "string" ? body.title : "定点",
+            prompt1: typeof body.prompt1 === "string" ? body.prompt1 : "水の色・ようす",
+            prompt2: typeof body.prompt2 === "string" ? body.prompt2 : "花の数",
+            prompt3: typeof body.prompt3 === "string" ? body.prompt3 : "鳥の声の有無",
+            referencePhotoUrl: typeof body.referencePhotoUrl === "string" ? body.referencePhotoUrl : "",
+            createdByUserId: session.userId
+          });
+          return json({ ok: true, station }, 201, { "cache-control": "no-store" });
+        }
+      }
+
+      const fixedPointRecordsApiMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/stations\/(fps_[A-Za-z0-9_-]{3,80})\/records$/);
+      if (request.method === "POST" && fixedPointRecordsApiMatch?.[1] && fixedPointRecordsApiMatch?.[2]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const placeId = decodeURIComponent(fixedPointRecordsApiMatch[1]);
+        const stationId = decodeURIComponent(fixedPointRecordsApiMatch[2]);
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) {
+          return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        }
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const station = await loadFixedPointStationById(env, placeId, stationId);
+        if (!station) return json({ ok: false, error: "station_not_found" }, 404, { "cache-control": "no-store" });
+        const body = await readJson<{
+          answer1?: unknown;
+          answer2?: unknown;
+          answer3?: unknown;
+          taxonName?: unknown;
+          isZeroObservation?: unknown;
+          onSiteVerified?: unknown;
+          photoUrl?: unknown;
+          observedAt?: unknown;
+        }>(request);
+        const onSiteVerified = body.onSiteVerified === true;
+        const verifiedByLabel = onSiteVerified
+          ? (session.displayName?.trim() || session.userId)
+          : "";
+        const record = await createFixedPointStationRecord(env, {
+          stationId,
+          placeId,
+          answer1: typeof body.answer1 === "string" ? body.answer1 : "",
+          answer2: typeof body.answer2 === "string" ? body.answer2 : "",
+          answer3: typeof body.answer3 === "string" ? body.answer3 : "",
+          taxonName: typeof body.taxonName === "string" ? body.taxonName : "",
+          isZeroObservation: body.isZeroObservation === true,
+          onSiteVerified,
+          verifiedByLabel,
+          photoUrl: typeof body.photoUrl === "string" ? body.photoUrl : "",
+          observedAt: typeof body.observedAt === "string" ? body.observedAt : ""
+        });
+        return json({ ok: true, record }, 201, { "cache-control": "no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/admin/municipal-walk-maps") {
