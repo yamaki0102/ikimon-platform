@@ -31253,3 +31253,196 @@ test("GET /api/v1/areas/observations filters by area, media_kind (including phot
   const periodBody = await periodRes.json() as { items: Array<{ visitId: string }> };
   assert.deepEqual(periodBody.items.map((x) => x.visitId), ["obs-video", "obs-audio"]);
 });
+
+test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place authz, and real corrector identity", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const papSqlite = new DatabaseSync(":memory:");
+  const coreWithPap = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bpaper_archive_pages\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return papSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: papSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(papSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithPap };
+
+  const otherToken = "pap-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "user-other",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const stewardToken = "pap-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash,
+    user_id: "user-steward",
+    display_name: "Steward User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.fieldManagers.set("fm-pap-1", {
+    manager_id: "fm-pap-1",
+    field_id: "plc_e3293ec4bb9288a0",
+    user_id: "user-steward",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  const unauthIngest = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ pages: [{ sourceImageUrl: "/media/scan1.webp" }] })
+  }), env);
+  assert.equal(unauthIngest.status, 401);
+
+  const externalUrlIngest = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ pages: [{ placeId: "plc_e3293ec4bb9288a0", sourceImageUrl: "https://evil.example.com/face.jpg" }] })
+  }), env);
+  assert.equal(externalUrlIngest.status, 400);
+
+  const foreignPlaceIngest = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ pages: [{ placeId: "plc_e3293ec4bb9288a0", sourceImageUrl: "/media/scan1.webp" }] })
+  }), env);
+  assert.equal(foreignPlaceIngest.status, 403);
+
+  const ingestRes = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({
+      pages: [{
+        placeId: "plc_e3293ec4bb9288a0",
+        placeName: "常盤公園",
+        sourceImageUrl: "/media/scan1.webp",
+        publishStatus: "published"
+      }]
+    })
+  }), env);
+  assert.equal(ingestRes.status, 201);
+  const ingestBody = await ingestRes.json() as { pages: Array<{ page_id: string; publish_status: string; face_redacted: number }> };
+  const pageId = ingestBody.pages[0]!.page_id;
+  assert.equal(ingestBody.pages[0]!.publish_status, "draft");
+  assert.equal(ingestBody.pages[0]!.face_redacted, 0);
+
+  const overwriteOther = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({
+      pages: [{ pageId, placeName: "乗っ取り", sourceImageUrl: "/media/scan2.webp" }]
+    })
+  }), env);
+  assert.equal(overwriteOther.status, 403);
+
+  const otherCorrect = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/correct`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ placeName: "改ざん", correctedByName: "偽名" })
+  }), env);
+  assert.equal(otherCorrect.status, 403);
+
+  const validCorrect = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/correct`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ speciesList: ["カワセミ"], correctedByName: "偽装名" })
+  }), env);
+  assert.equal(validCorrect.status, 200);
+  const correctedBody = await validCorrect.json() as { page: { last_corrected_by: string } };
+  assert.equal(correctedBody.page.last_corrected_by, "Steward User");
+
+  const otherPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ publishStatus: "published", faceRedacted: true })
+  }), env);
+  assert.equal(otherPublish.status, 403);
+
+  const unredactedPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ publishStatus: "published" })
+  }), env);
+  assert.equal(unredactedPublish.status, 400);
+
+  const validPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ publishStatus: "published", faceRedacted: true })
+  }), env);
+  assert.equal(validPublish.status, 200);
+});

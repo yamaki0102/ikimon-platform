@@ -34,6 +34,7 @@ test("renderPaperArchiveTimelineHtml places original paper image alongside extra
       is_rare_species: 0,
       face_redacted: 1,
       publish_status: "published",
+      created_by_user_id: "u1",
       last_corrected_by: "鈴木会員",
       correction_count: 1,
       created_at: 1

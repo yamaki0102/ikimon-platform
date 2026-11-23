@@ -12,8 +12,9 @@ CREATE TABLE IF NOT EXISTS paper_archive_pages (
   species_json TEXT NOT NULL,
   participant_count INTEGER,
   is_rare_species INTEGER NOT NULL DEFAULT 0,
-  face_redacted INTEGER NOT NULL DEFAULT 1,
+  face_redacted INTEGER NOT NULL DEFAULT 0,
   publish_status TEXT NOT NULL DEFAULT 'draft',
+  created_by_user_id TEXT NOT NULL DEFAULT '',
   last_corrected_by TEXT NOT NULL DEFAULT '',
   correction_count INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
@@ -32,10 +33,47 @@ export type PaperArchivePageRow = {
   is_rare_species: number;
   face_redacted: number;
   publish_status: string;
+  created_by_user_id: string;
   last_corrected_by: string;
   correction_count: number;
   created_at: number;
 };
+
+export class PaperArchiveHttpError extends Error {
+  constructor(readonly status: number, readonly code: string) {
+    super(code);
+  }
+}
+
+export async function ensurePaperArchiveTable(env: Env): Promise<void> {
+  await env.CORE_DB.prepare(PAPER_ARCHIVE_PAGES_CREATE_SQL).run();
+  try {
+    await env.CORE_DB.prepare(
+      "ALTER TABLE paper_archive_pages ADD COLUMN created_by_user_id TEXT NOT NULL DEFAULT ''"
+    ).run();
+  } catch {
+    // Column already exists
+  }
+}
+
+export function isAllowedZukanArchiveImageUrl(rawUrl: string): boolean {
+  const trimmed = rawUrl.trim();
+  if (!trimmed || trimmed.length > 500) return false;
+  if (/^\/(?:media|derived|archive|assets|api\/v1\/media)\//u.test(trimmed)) return true;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "https:" && parsed.hostname.toLowerCase() === "zukan.earth";
+  } catch {
+    return false;
+  }
+}
+
+export async function loadPaperArchivePageById(env: Env, pageId: string): Promise<PaperArchivePageRow | null> {
+  await ensurePaperArchiveTable(env);
+  return env.CORE_DB.prepare(
+    "SELECT * FROM paper_archive_pages WHERE page_id = ?1 LIMIT 1"
+  ).bind(pageId).first<PaperArchivePageRow>();
+}
 
 function escapeHtml(value: string): string {
   return String(value ?? "")
@@ -101,6 +139,7 @@ export function extractPaperArchivePageFields(rawText: string): {
 
 export async function ingestPaperArchivePages(
   env: Env,
+  actorUserId: string,
   pages: Array<{
     pageId?: string;
     placeId?: string;
@@ -112,17 +151,35 @@ export async function ingestPaperArchivePages(
     speciesList?: string[];
     participantCount?: number | null;
     isRareSpecies?: boolean;
-    publishStatus?: "draft" | "published";
   }>
 ): Promise<PaperArchivePageRow[]> {
-  await env.CORE_DB.prepare(PAPER_ARCHIVE_PAGES_CREATE_SQL).run();
+  const ownerUserId = actorUserId.trim();
+  if (!ownerUserId) throw new PaperArchiveHttpError(401, "login_required");
+  await ensurePaperArchiveTable(env);
   const inserted: PaperArchivePageRow[] = [];
 
   for (const item of pages.slice(0, 50)) {
+    const sourceImageUrl = item.sourceImageUrl.trim();
+    if (!isAllowedZukanArchiveImageUrl(sourceImageUrl)) {
+      throw new PaperArchiveHttpError(400, "invalid_source_image_url");
+    }
+
+    let pageId = `pap_${crypto.randomUUID().slice(0, 12)}`;
+    let isDraftUpdate = false;
+    if (typeof item.pageId === "string" && /^pap_[A-Za-z0-9_-]{3,80}$/.test(item.pageId)) {
+      const existing = await env.CORE_DB.prepare(
+        "SELECT page_id, created_by_user_id, publish_status FROM paper_archive_pages WHERE page_id = ?1 LIMIT 1"
+      ).bind(item.pageId).first<{ page_id: string; created_by_user_id: string; publish_status: string }>();
+      if (existing) {
+        if (existing.created_by_user_id !== ownerUserId || existing.publish_status !== "draft") {
+          throw new PaperArchiveHttpError(403, "forbidden_page_overwrite");
+        }
+        pageId = existing.page_id;
+        isDraftUpdate = true;
+      }
+    }
+
     const extracted = extractPaperArchivePageFields(item.rawText ?? "");
-    const pageId = item.pageId && /^pap_[A-Za-z0-9_-]{3,80}$/.test(item.pageId)
-      ? item.pageId
-      : `pap_${crypto.randomUUID().slice(0, 12)}`;
     const isRare = item.isRareSpecies === true ? 1 : 0;
     const placeName = redactPaperPersonalInfo(item.placeName?.trim() || extracted.placeName);
     const observedYear = typeof item.observedYear === "number" && Number.isInteger(item.observedYear)
@@ -133,7 +190,6 @@ export async function ingestPaperArchivePages(
       .map((s) => redactPaperPersonalInfo(String(s)))
       .filter(Boolean);
     const participantCount = typeof item.participantCount === "number" ? item.participantCount : extracted.participantCount;
-    const publishStatus = item.publishStatus === "published" ? "published" : "draft";
 
     const row: PaperArchivePageRow = {
       page_id: pageId,
@@ -141,44 +197,59 @@ export async function ingestPaperArchivePages(
       place_name: isRare ? "広域（希少種保護のため位置非公開）" : placeName.slice(0, 120),
       observed_year: observedYear,
       observed_date: observedDate.slice(0, 32),
-      source_image_url: item.sourceImageUrl.trim().slice(0, 500),
+      source_image_url: sourceImageUrl.slice(0, 500),
       species_json: JSON.stringify(species),
       participant_count: participantCount,
       is_rare_species: isRare,
-      face_redacted: 1,
-      publish_status: publishStatus,
+      face_redacted: 0,
+      publish_status: "draft",
+      created_by_user_id: ownerUserId,
       last_corrected_by: "",
       correction_count: 0,
       created_at: Date.now()
     };
 
-    await env.CORE_DB.prepare(
-      `INSERT INTO paper_archive_pages (
-        page_id, place_id, place_name, observed_year, observed_date, source_image_url,
-        species_json, participant_count, is_rare_species, face_redacted, publish_status,
-        last_corrected_by, correction_count, created_at
-      ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
-      ON CONFLICT(page_id) DO UPDATE SET
-        place_name = excluded.place_name,
-        observed_year = excluded.observed_year,
-        observed_date = excluded.observed_date,
-        species_json = excluded.species_json`
-    ).bind(
-      row.page_id,
-      row.place_id,
-      row.place_name,
-      row.observed_year,
-      row.observed_date,
-      row.source_image_url,
-      row.species_json,
-      row.participant_count,
-      row.is_rare_species,
-      row.face_redacted,
-      row.publish_status,
-      row.last_corrected_by,
-      row.correction_count,
-      row.created_at
-    ).run();
+    if (isDraftUpdate) {
+      await env.CORE_DB.prepare(
+        `UPDATE paper_archive_pages
+         SET place_name = ?2, observed_year = ?3, observed_date = ?4, species_json = ?5,
+             participant_count = ?6, source_image_url = ?7, face_redacted = 0
+         WHERE page_id = ?1 AND created_by_user_id = ?8 AND publish_status = 'draft'`
+      ).bind(
+        row.page_id,
+        row.place_name,
+        row.observed_year,
+        row.observed_date,
+        row.species_json,
+        row.participant_count,
+        row.source_image_url,
+        ownerUserId
+      ).run();
+    } else {
+      await env.CORE_DB.prepare(
+        `INSERT INTO paper_archive_pages (
+          page_id, place_id, place_name, observed_year, observed_date, source_image_url,
+          species_json, participant_count, is_rare_species, face_redacted, publish_status,
+          created_by_user_id, last_corrected_by, correction_count, created_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`
+      ).bind(
+        row.page_id,
+        row.place_id,
+        row.place_name,
+        row.observed_year,
+        row.observed_date,
+        row.source_image_url,
+        row.species_json,
+        row.participant_count,
+        row.is_rare_species,
+        row.face_redacted,
+        row.publish_status,
+        row.created_by_user_id,
+        row.last_corrected_by,
+        row.correction_count,
+        row.created_at
+      ).run();
+    }
 
     inserted.push(row);
   }
@@ -198,7 +269,7 @@ export async function correctPaperArchivePage(
     participantCount?: number | null;
   }
 ): Promise<PaperArchivePageRow | null> {
-  await env.CORE_DB.prepare(PAPER_ARCHIVE_PAGES_CREATE_SQL).run();
+  await ensurePaperArchiveTable(env);
   const existing = await env.CORE_DB.prepare(
     "SELECT * FROM paper_archive_pages WHERE page_id = ?1 LIMIT 1"
   ).bind(pageId).first<PaperArchivePageRow>();
@@ -237,19 +308,26 @@ export async function correctPaperArchivePage(
 export async function setPaperArchivePublishStatus(
   env: Env,
   pageId: string,
-  publishStatus: "draft" | "published"
-): Promise<boolean> {
-  await env.CORE_DB.prepare(PAPER_ARCHIVE_PAGES_CREATE_SQL).run();
+  publishStatus: "draft" | "published",
+  options?: { markFaceRedacted?: boolean }
+): Promise<{ ok: boolean; error?: string }> {
+  await ensurePaperArchiveTable(env);
+  const existing = await loadPaperArchivePageById(env, pageId);
+  if (!existing) return { ok: false, error: "page_not_found" };
+  const nextFaceRedacted = options?.markFaceRedacted ? 1 : existing.face_redacted;
+  if (publishStatus === "published" && nextFaceRedacted !== 1) {
+    return { ok: false, error: "face_redaction_required" };
+  }
   const res = await env.CORE_DB.prepare(
-    "UPDATE paper_archive_pages SET publish_status = ?2 WHERE page_id = ?1"
-  ).bind(pageId, publishStatus).run();
+    "UPDATE paper_archive_pages SET publish_status = ?2, face_redacted = ?3 WHERE page_id = ?1"
+  ).bind(pageId, publishStatus, nextFaceRedacted).run();
   const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
-  return changes > 0;
+  return { ok: changes > 0 };
 }
 
 export async function listPublishedPaperArchivesForPlace(env: Env, placeId: string): Promise<PaperArchivePageRow[]> {
   try {
-    await env.CORE_DB.prepare(PAPER_ARCHIVE_PAGES_CREATE_SQL).run();
+    await ensurePaperArchiveTable(env);
     const res = await env.CORE_DB.prepare(
       `SELECT * FROM paper_archive_pages
        WHERE place_id = ?1 AND publish_status = 'published'
