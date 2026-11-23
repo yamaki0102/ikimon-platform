@@ -14,7 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
-import { worker } from "./index";
+import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -14641,6 +14641,62 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
   assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
 });
 
+test("record title round-trip saves to record-title/${recordId}.json and renders updated title on reload", async () => {
+  const { env: baseEnv } = createEnv();
+  const env = { ...baseEnv, OBSERVATION_DUAL_WRITE_MODE: "on", OBSERVATION_READ_CUTOVER_MODE: "on" };
+  const recordId = "title-roundtrip-record";
+  const ownerId = "title-roundtrip-owner";
+  const rawToken = "title-roundtrip-token";
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerId,
+      rawToken,
+      displayName: "Title Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const cookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const upsert = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: recordId,
+      userId: ownerId,
+      observedAt: "2026-11-23T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "public",
+      note: "",
+      taxon: { vernacularName: "初期タイトル", rank: "species" },
+      sourcePayload: { source: "title_roundtrip_test" }
+    })
+  }), baseEnv);
+  assert.equal(upsert.status, 201);
+
+  const saveRes = await worker.fetch(new Request(`https://shadow.test/api/v1/records/${recordId}/observation-actions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie
+    },
+    body: new URLSearchParams({
+      action: "set_title",
+      title: "ヤツデの葉の観察",
+      operation_id: "title-roundtrip-op-1",
+      return_lang: "ja"
+    })
+  }), env);
+  assert.equal(saveRes.status, 303);
+  const storedTitle = await env.ASSET_BUCKET.get(`record-title/${recordId}.json`);
+  assert.ok(storedTitle);
+  const storedJson = JSON.parse(await new Response(storedTitle.body).text()) as { title?: string };
+  assert.equal(storedJson.title, "ヤツデの葉の観察");
+});
+
 test("Cloudflare personal alerts page past suppressed rows to return older visible updates", async () => {
   const { env, core, obs } = createEnv();
   const productionEnv = { ...env, ENVIRONMENT: "production" };
@@ -29175,6 +29231,42 @@ test("guide voice console syncs 10 voice entries, allows 2nd recorder via event 
   assert.match(takeawayHtml, /記録件数:<\/strong> 9件/);
   assert.match(takeawayHtml, /次回は12月14日 9:30集合/);
   assert.doesNotMatch(takeawayHtml, /友だちの顔/);
+});
+
+test("records public section renders direct links to public place pages when available", async () => {
+  const { env } = createEnv();
+  const draftPlaceId = "plc_draft_hidden_1";
+  const publishedPlaceId = "plc_e3293ec4bb9288a0";
+  const originalPrepare = env.OBS_DB.prepare.bind(env.OBS_DB);
+  env.OBS_DB.prepare = ((query: string) => {
+    if (query.includes("FROM places p") && query.includes("p.public_profile_status = 'published'")) {
+      return {
+        bind: () => ({
+          all: async () => ({
+            results: [{ place_id: publishedPlaceId, canonical_name: "常盤公園" }]
+          })
+        })
+      } as unknown as ReturnType<typeof originalPrepare>;
+    }
+    return originalPrepare(query);
+  }) as typeof env.OBS_DB.prepare;
+
+  const sitemap = await withPublicPlacesInSitemap('<?xml version="1.0"?><urlset></urlset>', env);
+  assert.match(sitemap, /\/ja\/places\/plc_e3293ec4bb9288a0/);
+  assert.doesNotMatch(sitemap, new RegExp(draftPlaceId));
+
+  const html = renderRecordsProductSection(
+    [],
+    new URL("https://zukan.earth/ja/records?view=public"),
+    "public",
+    null,
+    false,
+    null,
+    [{ placeId: publishedPlaceId, name: "常盤公園" }]
+  );
+  assert.match(html, /class="cf-records-places"/);
+  assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
+  assert.match(html, />常盤公園</);
 });
 
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
