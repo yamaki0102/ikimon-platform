@@ -1,7 +1,62 @@
 import type { Env } from "./core/env";
 
-function publicMediaUrl(key: string): string {
-  return `/${key.replace(/^\/+/, "")}`;
+function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
+  const cleanKey = key.replace(/^\/+/, "");
+  if (
+    cleanKey.startsWith("derived/") &&
+    cleanKey.endsWith("/display.webp") &&
+    !cleanKey.includes("..") &&
+    !cleanKey.includes("\\") &&
+    !cleanKey.includes("//") &&
+    !cleanKey.includes("%")
+  ) {
+    return `/derived-transform/w${width}/${cleanKey}`;
+  }
+  return `/${cleanKey}`;
+}
+
+function topImageSrcsetAttr(photoUrl: string): string {
+  if (!photoUrl.startsWith("/derived-transform/w360/")) return "";
+  const w680 = photoUrl.replace("/derived-transform/w360/", "/derived-transform/w680/");
+  return ` srcset="${escapeHtml(photoUrl)} 360w, ${escapeHtml(w680)} 680w" sizes="(max-width: 600px) 260px, 340px"`;
+}
+
+function coarsePlaceOrMunicipalityLabel(raw: string | null | undefined): string {
+  const cleaned = String(raw ?? "").trim();
+  if (!cleaned) return "";
+  const stripped = cleaned
+    .replace(/\s*\d+\s*丁目.*$/u, "")
+    .replace(/\s*\d+\s*番(?:地)?.*$/u, "")
+    .replace(/\s*\d+\s*[-−ー]\s*\d+.*$/u, "")
+    .trim();
+  return stripped || cleaned;
+}
+
+async function resolveObservationPlaceLinks(
+  env: Env,
+  observationIds: string[]
+): Promise<Map<string, { placeId: string; placeName: string }>> {
+  const map = new Map<string, { placeId: string; placeName: string }>();
+  if (observationIds.length === 0) return map;
+  try {
+    const placeholders = observationIds.map(() => "?").join(", ");
+    const res = await env.OBS_DB.prepare(
+      `SELECT c.visit_id, p.place_id, p.canonical_name
+       FROM civic_observation_contexts c
+       JOIN places p ON p.place_id = c.field_id
+       WHERE c.visit_id IN (${placeholders})
+         AND p.public_profile_status = 'published'
+         AND COALESCE(p.place_visibility, 'public') = 'public'`
+    ).bind(...observationIds).all<{ visit_id: string; place_id: string; canonical_name: string }>();
+    for (const row of res.results ?? []) {
+      if (row.visit_id && row.place_id && row.canonical_name) {
+        map.set(row.visit_id, { placeId: row.place_id, placeName: row.canonical_name });
+      }
+    }
+  } catch {
+    // Ignore when civic_observation_contexts or places schema is absent in minimal fixtures
+  }
+  return map;
 }
 
 export type ZukanTopLang = "ja" | "en" | "es" | "pt-br";
@@ -158,17 +213,23 @@ export async function loadOwnerHeroPhotos(env: Env, limit = 5): Promise<TopHeroP
       derivative_key: string | null;
     }>();
 
+    const rawResults = (rows.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, limit);
+    const placeLinks = await resolveObservationPlaceLinks(env, rawResults.map((r) => r.observation_id));
     const photos: TopHeroPhoto[] = [];
-    for (const r of rows.results ?? []) {
+    for (const r of rawResults) {
       if (!r.derivative_key) continue;
+      const linked = placeLinks.get(r.observation_id);
+      const placeName = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label) || "地域";
+      const placeHref = linked
+        ? `/ja/places/${encodeURIComponent(linked.placeId)}`
+        : `/ja/observations/${encodeURIComponent(r.observation_id)}`;
       photos.push({
         observationId: r.observation_id,
-        photoUrl: publicMediaUrl(r.derivative_key),
-        placeName: (r.public_area_label ?? "").trim() || "身近な自然",
-        placeHref: `/ja/observations/${encodeURIComponent(r.observation_id)}`,
+        photoUrl: publicMediaUrl(r.derivative_key, 360),
+        placeName,
+        placeHref,
         dateLabel: formatMonthDayJa(r.observed_at)
       });
-      if (photos.length >= limit) break;
     }
     return photos;
   };
@@ -221,17 +282,20 @@ export async function loadRecentPublicRecords(env: Env, limit = 6): Promise<TopP
       public_area_label: string | null;
       derivative_key: string | null;
     }>();
+    const rawResults = (res.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, limit);
+    const placeLinks = await resolveObservationPlaceLinks(env, rawResults.map((r) => r.observation_id));
     const out: TopPublicRecordThumb[] = [];
-    for (const r of res.results ?? []) {
+    for (const r of rawResults) {
       if (!r.derivative_key) continue;
+      const linked = placeLinks.get(r.observation_id);
+      const placeName = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label) || "地域";
       out.push({
         observationId: r.observation_id,
-        title: (r.taxon_label ?? "").trim() || (r.public_area_label ?? "").trim() || "自然の記録",
-        photoUrl: publicMediaUrl(r.derivative_key),
+        title: placeName,
+        photoUrl: publicMediaUrl(r.derivative_key, 360),
         dateLabel: formatMonthDayJa(r.observed_at),
-        href: `/ja/observations/${encodeURIComponent(r.observation_id)}`
+        href: linked ? `/ja/places/${encodeURIComponent(linked.placeId)}` : `/ja/observations/${encodeURIComponent(r.observation_id)}`
       });
-      if (out.length >= limit) break;
     }
     return out;
   } catch {
@@ -466,13 +530,14 @@ export function renderZukanTopPage(
     cspNonce?: string;
   }
 ): string {
+  const isEn = options.lang === "en";
   const prefix = `/${options.lang === "ja" ? "ja" : options.lang}`;
   const nonceAttr = options.cspNonce ? ` nonce="${escapeHtml(options.cspNonce)}"` : "";
-  const homeLabel = options.authenticated ? "ライブラリ" : "ホーム";
+  const homeLabel = options.authenticated ? (isEn ? "Library" : "ライブラリ") : (isEn ? "Home" : "ホーム");
   const heroHtml = data.heroPhotos.length > 0
-    ? `<section class="zt-hero" aria-label="写真">
+    ? `<section class="zt-hero" aria-label="${isEn ? "Photos" : "写真"}">
         <div class="zt-hero-strip">${data.heroPhotos.map((p, idx) => `<a class="zt-hero-card" href="${escapeHtml(p.placeHref)}">
-          <img src="${escapeHtml(p.photoUrl)}" alt="${escapeHtml(`${p.placeName} ${p.dateLabel}`)}" loading="${idx === 0 ? "eager" : "lazy"}"${idx === 0 ? ' fetchpriority="high"' : ""}>
+          <img src="${escapeHtml(p.photoUrl)}"${topImageSrcsetAttr(p.photoUrl)} alt="${escapeHtml(`${p.placeName} ${p.dateLabel}`)}" loading="${idx === 0 ? "eager" : "lazy"}"${idx === 0 ? ' fetchpriority="high"' : ""}>
           <span class="zt-hero-label">${escapeHtml(`${p.placeName}・${p.dateLabel}`)}</span>
         </a>`).join("")}</div>
       </section>`
@@ -503,12 +568,12 @@ export function renderZukanTopPage(
   }
 
   const eventFallbackAction = options.authenticated
-    ? `<a class="zt-inline-link" href="${prefix}/events/new">イベントを開く</a>`
-    : `<a class="zt-inline-link" href="${prefix}/waitlist">ウェイティングリストに登録</a>`;
+    ? `<a class="zt-inline-link" href="${prefix}/events/new">${isEn ? "Host an event" : "イベントを開く"}</a>`
+    : `<a class="zt-inline-link" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>`;
 
   const placesStripHtml = data.placesStrip.length > 0
     ? `<section class="zt-section" aria-labelledby="zt-places-heading">
-        <h2 id="zt-places-heading">場所</h2>
+        <h2 id="zt-places-heading">${isEn ? "Places" : "場所"}</h2>
         <div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}">
           ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="${escapeHtml(pl.name)}" loading="lazy">` : `<div class="zt-place-fallback" aria-hidden="true"></div>`}
           <span>${escapeHtml(pl.name)}</span>
@@ -520,11 +585,11 @@ export function renderZukanTopPage(
     <h1 class="zt-sr-only">ZUKAN</h1>
     ${heroHtml}
     <div class="zt-cta-row">
-      <a class="zt-btn-primary" href="${prefix}/waitlist">ウェイティングリストに登録</a>
-      <a class="zt-btn-outline" href="${prefix}/events">近くのイベントを見る</a>
+      <a class="zt-btn-primary" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>
+      <a class="zt-btn-outline" href="${prefix}/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
     </div>
     <section class="zt-section" aria-labelledby="zt-events-heading">
-      <h2 id="zt-events-heading">${escapeHtml(data.eventSectionHeading)}</h2>
+      <h2 id="zt-events-heading">${escapeHtml(isEn && data.eventSectionHeading === "最近の記録" ? "Recent records" : data.eventSectionHeading)}</h2>
       ${eventBlockBody}
       <div class="zt-section-foot">${eventFallbackAction}</div>
     </section>
