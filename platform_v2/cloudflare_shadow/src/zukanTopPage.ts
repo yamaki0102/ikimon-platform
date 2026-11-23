@@ -32,21 +32,49 @@ function coarsePlaceOrMunicipalityLabel(raw: string | null | undefined): string 
   return stripped || cleaned;
 }
 
+function coarseMunicipalityFromPublicCell(publicCell: string | null | undefined): string {
+  const cleaned = String(publicCell ?? "").replace(/^cell:/, "").trim();
+  const [latStr, lngStr] = cleaned.split(",");
+  const lat = Number(latStr);
+  const lng = Number(lngStr);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "";
+  const boxes: Array<{ label: string; minLat: number; maxLat: number; minLng: number; maxLng: number }> = [
+    { label: "浜松市", minLat: 34.65, maxLat: 35.15, minLng: 137.55, maxLng: 137.95 },
+    { label: "静岡市", minLat: 34.9, maxLat: 35.4, minLng: 138.2, maxLng: 138.55 },
+    { label: "四日市市", minLat: 34.9, maxLat: 35.06, minLng: 136.45, maxLng: 136.7 },
+    { label: "名古屋市", minLat: 35.03, maxLat: 35.26, minLng: 136.79, maxLng: 137.06 },
+    { label: "東京都区部", minLat: 35.55, maxLat: 35.82, minLng: 139.56, maxLng: 139.92 },
+    { label: "横浜市", minLat: 35.34, maxLat: 35.59, minLng: 139.46, maxLng: 139.74 },
+    { label: "京都市", minLat: 34.88, maxLat: 35.18, minLng: 135.63, maxLng: 135.86 },
+    { label: "大阪市", minLat: 34.58, maxLat: 34.77, minLng: 135.37, maxLng: 135.6 },
+    { label: "静岡県", minLat: 34.58, maxLat: 35.65, minLng: 137.47, maxLng: 139.18 },
+    { label: "三重県", minLat: 33.7, maxLat: 35.26, minLng: 135.85, maxLng: 136.98 },
+    { label: "愛知県", minLat: 34.57, maxLat: 35.42, minLng: 136.67, maxLng: 137.84 },
+    { label: "東京都", minLat: 35.5, maxLat: 35.9, minLng: 138.94, maxLng: 139.92 },
+    { label: "神奈川県", minLat: 35.12, maxLat: 35.67, minLng: 138.91, maxLng: 139.8 }
+  ];
+  for (const box of boxes) {
+    if (lat >= box.minLat && lat <= box.maxLat && lng >= box.minLng && lng <= box.maxLng) {
+      return box.label;
+    }
+  }
+  return "";
+}
+
 async function resolveObservationPlaceLinks(
   env: Env,
   observationIds: string[]
-): Promise<Map<string, { placeId: string; placeName: string }>> {
-  const map = new Map<string, { placeId: string; placeName: string }>();
+): Promise<Map<string, { placeId?: string; placeName: string }>> {
+  const map = new Map<string, { placeId?: string; placeName: string }>();
   if (observationIds.length === 0) return map;
+  const placeholders = observationIds.map(() => "?").join(", ");
   try {
-    const placeholders = observationIds.map(() => "?").join(", ");
     const res = await env.OBS_DB.prepare(
       `SELECT c.visit_id, p.place_id, p.canonical_name
        FROM civic_observation_contexts c
        JOIN places p ON p.place_id = c.field_id
        WHERE c.visit_id IN (${placeholders})
-         AND p.public_profile_status = 'published'
-         AND COALESCE(p.place_visibility, 'public') = 'public'`
+         AND p.public_profile_status = 'published'`
     ).bind(...observationIds).all<{ visit_id: string; place_id: string; canonical_name: string }>();
     for (const row of res.results ?? []) {
       if (row.visit_id && row.place_id && row.canonical_name) {
@@ -56,7 +84,58 @@ async function resolveObservationPlaceLinks(
   } catch {
     // Ignore when civic_observation_contexts or places schema is absent in minimal fixtures
   }
+  try {
+    const rmRes = await env.OBS_DB.prepare(
+      `SELECT observation_id, public_area_label
+       FROM readmodel_public_observations
+       WHERE observation_id IN (${placeholders})
+         AND public_area_label IS NOT NULL`
+    ).bind(...observationIds).all<{ observation_id: string; public_area_label: string }>();
+    for (const row of rmRes.results ?? []) {
+      if (!map.has(row.observation_id) && row.public_area_label) {
+        const label = coarsePlaceOrMunicipalityLabel(row.public_area_label);
+        if (label) map.set(row.observation_id, { placeName: label });
+      }
+    }
+  } catch {
+    // Ignore when readmodel_public_observations is absent in minimal fixtures
+  }
   return map;
+}
+
+function selectDiverseTopItems<T extends { placeName: string; dateLabel: string; hasNamedPlace: boolean }>(
+  candidates: T[],
+  limit: number
+): T[] {
+  const ordered = [...candidates].sort((a, b) => Number(b.hasNamedPlace) - Number(a.hasNamedPlace));
+  const picked: T[] = [];
+  const usedIndices = new Set<number>();
+  const usedPlaces = new Set<string>();
+  const usedDates = new Set<string>();
+
+  for (let i = 0; i < ordered.length && picked.length < limit; i += 1) {
+    const item = ordered[i]!;
+    if (!usedPlaces.has(item.placeName) && !usedDates.has(item.dateLabel)) {
+      picked.push(item);
+      usedIndices.add(i);
+      usedPlaces.add(item.placeName);
+      usedDates.add(item.dateLabel);
+    }
+  }
+  for (let i = 0; i < ordered.length && picked.length < limit; i += 1) {
+    if (usedIndices.has(i)) continue;
+    const item = ordered[i]!;
+    if (!usedPlaces.has(item.placeName)) {
+      picked.push(item);
+      usedIndices.add(i);
+      usedPlaces.add(item.placeName);
+    }
+  }
+  for (let i = 0; i < ordered.length && picked.length < limit; i += 1) {
+    if (usedIndices.has(i)) continue;
+    picked.push(ordered[i]!);
+  }
+  return picked;
 }
 
 export type ZukanTopLang = "ja" | "en" | "es" | "pt-br";
@@ -197,41 +276,44 @@ function isSyntheticOrTestEventTitle(title: string, sessionId = ""): boolean {
 export async function loadOwnerHeroPhotos(env: Env, limit = 5): Promise<TopHeroPhoto[]> {
   const queryPhotos = async (ownerUserId: string): Promise<TopHeroPhoto[]> => {
     const rows = await env.OBS_DB.prepare(
-      `SELECT o.observation_id, o.observed_at, o.public_area_label, o.taxon_label,
+      `SELECT o.observation_id, o.observed_at, o.public_area_label, o.public_cell, o.taxon_label,
               ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE COALESCE(o.visibility, 'public') = 'public'
          AND COALESCE(o.emergency_hidden, 0) = 0
          ${ownerUserId ? "AND o.owner_user_id = ?1" : ""}
-       ORDER BY o.observed_at DESC
-       LIMIT 48`
+       ORDER BY CASE WHEN NULLIF(TRIM(COALESCE(o.public_area_label, '')), '') IS NOT NULL THEN 0 ELSE 1 END,
+                o.observed_at DESC
+       LIMIT 60`
     ).bind(...(ownerUserId ? [ownerUserId] : [])).all<{
       observation_id: string;
       observed_at: string;
       public_area_label: string | null;
+      public_cell: string | null;
       taxon_label: string | null;
       derivative_key: string | null;
     }>();
 
-    const rawResults = (rows.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, limit);
+    const rawResults = (rows.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, 30);
     const placeLinks = await resolveObservationPlaceLinks(env, rawResults.map((r) => r.observation_id));
-    const photos: TopHeroPhoto[] = [];
-    for (const r of rawResults) {
-      if (!r.derivative_key) continue;
+    const candidates = rawResults.map((r) => {
       const linked = placeLinks.get(r.observation_id);
-      const placeName = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label) || "地域";
-      const placeHref = linked
+      const explicitLabel = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label);
+      const cellLabel = explicitLabel ? "" : coarseMunicipalityFromPublicCell(r.public_cell);
+      const placeName = explicitLabel || cellLabel || "身近な自然";
+      const placeHref = linked?.placeId
         ? `/ja/places/${encodeURIComponent(linked.placeId)}`
         : `/ja/observations/${encodeURIComponent(r.observation_id)}`;
-      photos.push({
+      return {
         observationId: r.observation_id,
-        photoUrl: publicMediaUrl(r.derivative_key, 360),
+        photoUrl: publicMediaUrl(r.derivative_key!, 360),
         placeName,
         placeHref,
-        dateLabel: formatMonthDayJa(r.observed_at)
-      });
-    }
-    return photos;
+        dateLabel: formatMonthDayJa(r.observed_at),
+        hasNamedPlace: Boolean(explicitLabel || cellLabel)
+      };
+    });
+    return selectDiverseTopItems(candidates, limit).map(({ hasNamedPlace: _unused, ...rest }) => rest);
   };
 
   try {
@@ -250,7 +332,8 @@ export async function loadPublicPlacesStrip(env: Env, limit = 6): Promise<TopPla
       `SELECT p.place_id, p.canonical_name
        FROM places p
        WHERE p.public_profile_status = 'published'
-         AND COALESCE(p.place_visibility, 'public') = 'public'
+         AND p.valid_to IS NULL
+         AND p.superseded_by_place_id IS NULL
        ORDER BY p.updated_at DESC
        LIMIT ?1`
     ).bind(limit).all<{ place_id: string; canonical_name: string }>();
@@ -268,36 +351,40 @@ export async function loadPublicPlacesStrip(env: Env, limit = 6): Promise<TopPla
 export async function loadRecentPublicRecords(env: Env, limit = 6): Promise<TopPublicRecordThumb[]> {
   try {
     const res = await env.OBS_DB.prepare(
-      `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
+      `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label, o.public_cell,
               ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE COALESCE(o.visibility, 'public') = 'public'
          AND COALESCE(o.emergency_hidden, 0) = 0
-       ORDER BY o.observed_at DESC
-       LIMIT 36`
+       ORDER BY CASE WHEN NULLIF(TRIM(COALESCE(o.public_area_label, '')), '') IS NOT NULL THEN 0 ELSE 1 END,
+                o.observed_at DESC
+       LIMIT 48`
     ).all<{
       observation_id: string;
       observed_at: string;
       taxon_label: string | null;
       public_area_label: string | null;
+      public_cell: string | null;
       derivative_key: string | null;
     }>();
-    const rawResults = (res.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, limit);
+    const rawResults = (res.results ?? []).filter((r) => Boolean(r.derivative_key)).slice(0, 30);
     const placeLinks = await resolveObservationPlaceLinks(env, rawResults.map((r) => r.observation_id));
-    const out: TopPublicRecordThumb[] = [];
-    for (const r of rawResults) {
-      if (!r.derivative_key) continue;
+    const candidates = rawResults.map((r) => {
       const linked = placeLinks.get(r.observation_id);
-      const placeName = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label) || "地域";
-      out.push({
+      const explicitLabel = linked?.placeName || coarsePlaceOrMunicipalityLabel(r.public_area_label);
+      const cellLabel = explicitLabel ? "" : coarseMunicipalityFromPublicCell(r.public_cell);
+      const placeName = explicitLabel || cellLabel || "身近な自然";
+      return {
         observationId: r.observation_id,
         title: placeName,
-        photoUrl: publicMediaUrl(r.derivative_key, 360),
+        placeName,
+        photoUrl: publicMediaUrl(r.derivative_key!, 360),
         dateLabel: formatMonthDayJa(r.observed_at),
-        href: linked ? `/ja/places/${encodeURIComponent(linked.placeId)}` : `/ja/observations/${encodeURIComponent(r.observation_id)}`
-      });
-    }
-    return out;
+        href: linked?.placeId ? `/ja/places/${encodeURIComponent(linked.placeId)}` : `/ja/observations/${encodeURIComponent(r.observation_id)}`,
+        hasNamedPlace: Boolean(explicitLabel || cellLabel)
+      };
+    });
+    return selectDiverseTopItems(candidates, limit).map(({ hasNamedPlace: _unused, placeName: _pn, ...rest }) => rest);
   } catch {
     return [];
   }

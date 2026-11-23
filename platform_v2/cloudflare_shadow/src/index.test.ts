@@ -31499,6 +31499,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
       observed_at TEXT NOT NULL,
       taxon_label TEXT,
       public_area_label TEXT,
+      public_cell TEXT,
       visibility TEXT,
       emergency_hidden INTEGER DEFAULT 0
     );
@@ -31631,11 +31632,17 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   });
 
   obsSqlite.prepare(
-    "INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, visibility, emergency_hidden) VALUES (?, ?, ?, ?, ?, ?, ?)"
-  ).run("obs-top-1", "top-owner-1", "2026-11-22T09:00:00.000Z", "ヤツデ", "常盤公園", "public", 0);
+    "INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, public_cell, visibility, emergency_hidden) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("obs-top-1", "top-owner-1", "2026-11-22T09:00:00.000Z", "ヤツデ", "常盤公園", "35.68,139.76", "public", 0);
   obsSqlite.prepare(
     "INSERT INTO asset_ledger (asset_id, observation_id, mime, processing_state, public_derivative_key, public_derivative_verified_at, public_derivative_metadata_json, exif_scrub_state, public_ready_at, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run("asset-top-1", "obs-top-1", "image/jpeg", "uploaded", "derived/obs-top-1/display.webp", "2026-11-22T09:01:00.000Z", JSON.stringify({ contentType: "image/webp", scannedContainer: "webp" }), "scrubbed", "2026-11-22T09:01:00.000Z", "2026-11-22T09:00:30.000Z");
+  obsSqlite.prepare(
+    "INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, public_cell, visibility, emergency_hidden) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("obs-top-2", "top-owner-1", "2026-11-23T09:00:00.000Z", "カワセミ", null, "34.71,137.73", "public", 0);
+  obsSqlite.prepare(
+    "INSERT INTO asset_ledger (asset_id, observation_id, mime, processing_state, public_derivative_key, public_derivative_verified_at, public_derivative_metadata_json, exif_scrub_state, public_ready_at, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("asset-top-2", "obs-top-2", "image/jpeg", "uploaded", "derived/obs-top-2/display.webp", "2026-11-23T09:01:00.000Z", JSON.stringify({ contentType: "image/webp", scannedContainer: "webp" }), "scrubbed", "2026-11-23T09:01:00.000Z", "2026-11-23T09:00:30.000Z");
   obsSqlite.prepare(
     "INSERT INTO observation_event_sessions (session_id, title, started_at, ended_at, organizer_user_id) VALUES (?, ?, ?, ?, ?)"
   ).run("evt_pr973", "PR973 prod rally", "2026-06-25T09:00:00.000Z", "2026-06-25T12:00:00.000Z", "top-owner-1");
@@ -31711,8 +31718,9 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     const prodHtml = await prodRes.text();
     assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
     assert.match(prodHtml, /常盤公園・11月22日/, topUrl);
+    assert.match(prodHtml, /浜松市・11月23日/, topUrl);
     assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
-    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日/, topUrl);
+    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
   }
   const enRes = await worker.fetch(new Request("https://zukan.earth/en/"), prodEnv);
   assert.equal(enRes.status, 200);
