@@ -426,11 +426,12 @@ function renderAiFeedback(
   const rawNextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
     ?? defaultEnvironmentNextPhoto;
   const nextPhoto = rawNextPhoto ? conciseNextPhotoItem(rawNextPhoto) : null;
+  const feedbackAiNote = presentation.customTitle?.trim() ? copy.aiGeneratedNote : copy.aiGeneratedTitleAndNote;
   if (nextPhoto) {
-    return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aboutRecord)}</h2><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedNote)}</p></section>`;
+    return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aboutRecord)}</h2><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
   }
   if (!feedback) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aboutRecord)}</h2><p>${escapeHtml(feedback)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedNote)}</p></section>`;
+  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aboutRecord)}</h2><p>${escapeHtml(feedback)}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
 }
 
 function renderIdentificationForm(
@@ -546,7 +547,7 @@ function renderObservationSummary(
     : "";
   const summaryIsAi = Boolean(presentation.aiCandidateInsights?.length)
     || active.some((card) => !publicSubjectName(card.acceptedIdentification?.proposedName) && displayAiSuggestions(card, presentation.aiPersonPrimaryNames).length > 0);
-  const aiNote = summaryIsAi ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedNote)}</p>` : "";
+  const aiNote = summaryIsAi ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p>` : "";
   if (!list && !learning && !comparison && !detailsBlock && !loginToPropose) return "";
   return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2>${list ? `<ul class="of-summary-list">${list}</ul>` : ""}${learning}${comparison}${aiNote}${detailsBlock}${loginToPropose}</section>`;
 }
@@ -572,7 +573,7 @@ function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentati
   if (signboard) {
     const lang = presentation.lang ?? "ja";
     const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
-    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedNote)}</p></section>`;
+    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p></section>`;
   }
   const rawElements = presentation.sceneElements ?? derivedSceneElements(presentation.environment);
   const elements = [...new Set(rawElements)].filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item]).slice(0, 8);
@@ -600,7 +601,7 @@ function renderEnvironment(environment: Record<string, string> | null | undefine
   if (!headline && rows.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedNote)}</p>` : ""}</section>`;
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
 }
 
 function selectOptions(values: Record<string, string>, selected?: string): string {

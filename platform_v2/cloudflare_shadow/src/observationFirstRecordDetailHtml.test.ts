@@ -1197,7 +1197,10 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
   );
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
   const visibleText = bodyHtml.replace(/<[^>]*>/gu, " ");
-  assert.equal((visibleText.match(/この内容はAIが作成しました/g) ?? []).length, 3);
+  assert.match(visibleText, /題名とこの文章はAIが作成しました/);
+  assert.match(visibleText, /この説明はAIが作成しました/);
+  assert.match(visibleText, /この場所のようすはAIが読み取りました/);
+  assert.equal((bodyHtml.match(/class="of-ai-note"/g) ?? []).length, 3);
   assert.match(rendered, /この記録について/);
   assert.doesNotMatch(rendered, /of-ai-badge|AIの見立て|AIからの短いメモ|AIが見つけた/);
   assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
@@ -1254,7 +1257,7 @@ test("signboard record with saved illustration-deer candidate suppresses organis
   assert.equal((rendered.match(/この写真から見つかったもの/g) ?? []).length, 1);
   assert.match(rendered, /写っているもの：案内板/);
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
-  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/この内容はAIが作成しました/g) ?? []).length, 1);
+  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/この説明はAIが作成しました/g) ?? []).length, 1);
 
   const signCardNoQuote = {
     ...signCard,
@@ -1378,6 +1381,7 @@ test("record detail shows owner title edit form and role-based provenance withou
     lang: "ja",
     title: "キアゲハ",
     customTitle: "里山のチョウと野草",
+    aiFeedback: "林縁の草地でよく見られます。",
     observedLabel: "2026年11月23日",
     publicLocationLabel: "静岡県浜松市",
     note: "",
@@ -1387,6 +1391,8 @@ test("record detail shows owner title edit form and role-based provenance withou
   assert.match(withCustomTitle, /<h1>里山のチョウと野草<\/h1>/);
   assert.match(withCustomTitle, /name="action" value="reset_title"/);
   assert.match(withCustomTitle, /自動の題名に戻す/);
+  assert.match(withCustomTitle, /この文章はAIが作成しました/);
+  assert.doesNotMatch(withCustomTitle, /題名とこの文章はAIが作成しました/);
 
   const guestHtml = renderObservationFirstRecordDetailHtml({ ...withMultiProposers, owner: false }, {
     lang: "ja",
