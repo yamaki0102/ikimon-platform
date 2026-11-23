@@ -1789,6 +1789,24 @@ interface GbifJapaneseNameDisplayAuditTestRow {
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
+  guideBadgeDiscoveries = new Map<string, {
+    discovery_id: string;
+    session_id: string;
+    badge_number: number;
+    client_entry_id: string;
+    utterance: string;
+    subject: string;
+    count: number;
+    detail: string;
+    ai_comment: string;
+    recorder_label: string;
+    latitude: number | null;
+    longitude: number | null;
+    area_label: string;
+    face_privacy_status: string;
+    observed_at: string;
+    created_at: number;
+  }>();
   waitlist = new Map<string, { id: string; email: string; locale: string; source_path: string; created_at: number }>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
@@ -1952,6 +1970,33 @@ class FakeStatement {
   async run(): Promise<unknown> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS guide_badge_discoveries")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT OR IGNORE INTO guide_badge_discoveries")) {
+      const key = `${string(v[1])}:${string(v[3])}`;
+      if (this.db.guideBadgeDiscoveries.has(key)) return { meta: { changes: 0 } };
+      this.db.guideBadgeDiscoveries.set(key, {
+        discovery_id: string(v[0]),
+        session_id: string(v[1]),
+        badge_number: number(v[2]),
+        client_entry_id: string(v[3]),
+        utterance: string(v[4]),
+        subject: string(v[5]),
+        count: number(v[6]),
+        detail: string(v[7]),
+        ai_comment: string(v[8]),
+        recorder_label: string(v[9]),
+        latitude: v[10] === null ? null : number(v[10]),
+        longitude: v[11] === null ? null : number(v[11]),
+        area_label: string(v[12]),
+        face_privacy_status: string(v[13]),
+        observed_at: string(v[14]),
+        created_at: number(v[15])
+      });
+      return { meta: { changes: 1 } };
+    }
 
     if (normalized.startsWith("CREATE TABLE IF NOT EXISTS zukan_waitlist")) {
       return { meta: { changes: 0 } };
@@ -6588,6 +6633,24 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.includes("FROM guide_badge_discoveries WHERE session_id = ?1 AND badge_number = ?2")) {
+      const sid = string(v[0]);
+      const badge = number(v[1]);
+      return {
+        results: [...this.db.guideBadgeDiscoveries.values()]
+          .filter((r) => r.session_id === sid && r.badge_number === badge)
+          .sort((a, b) => a.created_at - b.created_at) as T[]
+      };
+    }
+    if (normalized.includes("FROM guide_badge_discoveries WHERE session_id = ?1")) {
+      const sid = string(v[0]);
+      return {
+        results: [...this.db.guideBadgeDiscoveries.values()]
+          .filter((r) => r.session_id === sid)
+          .sort((a, b) => b.created_at - a.created_at) as T[]
+      };
+    }
 
     if (normalized.startsWith("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")) {
       return { results: [...this.db.oauthAccounts.values()].filter((row) => row.user_id === string(v[0])).map((row) => ({ role_name: row.role_name, banned: row.banned })) as T[] };
@@ -29029,6 +29092,79 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.status, 200);
   assert.equal(await ownerMedia.text(), "private-webp");
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+});
+
+test("guide voice console syncs 10 voice entries, allows 2nd recorder via event code, rejects unblurred faces, and serves registration-free badge takeaway", async () => {
+  const { env, obs } = createEnv();
+  const sessionId = "evt_guide_voice_10";
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    title: "ヤツデ観察会",
+    organizer_user_id: "guide-organizer-1",
+    event_code: "YATSUDE-10",
+    started_at: "2026-11-23T09:00:00.000Z",
+    ends_at: "2026-11-23T12:00:00.000Z",
+    status: "active",
+    config_json: JSON.stringify({ nextEventNote: "次回は12月14日 9:30集合" }),
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+
+  const batch1Entries = Array.from({ length: 9 }, (_, i) => ({
+    clientEntryId: `g1_${i + 1}`,
+    utterance: `3番、ヤツデの花、ハチ${i + 1}匹`,
+    facePrivacyStatus: "verified_no_faces"
+  }));
+  const sync1 = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      eventCode: "YATSUDE-10",
+      recorderLabel: "guide-1",
+      entries: [
+        ...batch1Entries,
+        { clientEntryId: "g_face", utterance: "3番、友だちの顔", faceDetected: true, faceBlurred: false }
+      ]
+    })
+  }), env);
+  assert.equal(sync1.status, 200);
+  const p1 = await sync1.json() as { ok: boolean; syncedCount: number; rejected: Array<{ clientEntryId: string; error: string }> };
+  assert.equal(p1.ok, true);
+  assert.equal(p1.syncedCount, 9);
+  assert.deepEqual(p1.rejected, [{ clientEntryId: "g_face", error: "face_blur_required" }]);
+
+  const sync2 = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      eventCode: "YATSUDE-10",
+      recorderLabel: "recorder-2",
+      entries: [
+        { clientEntryId: "g2_10", utterance: "5番、カワセミ、1羽", facePrivacyStatus: "verified_no_faces" },
+        { clientEntryId: "g1_1", utterance: "3番、ヤツデの花、ハチ1匹", facePrivacyStatus: "verified_no_faces" }
+      ]
+    })
+  }), env);
+  assert.equal(sync2.status, 200);
+  const p2 = await sync2.json() as { ok: boolean; syncedCount: number; entries: unknown[] };
+  assert.equal(p2.syncedCount, 1);
+  assert.equal(p2.entries.length, 10);
+
+  const takeaway3 = await worker.fetch(new Request(`https://shadow.test/ja/events/${sessionId}/takeaway/3`), env);
+  assert.equal(takeaway3.status, 200);
+  const takeawayHtml = await takeaway3.text();
+  assert.match(takeawayHtml, /名札 3番・登録不要の持ち帰り/);
+  assert.match(takeawayHtml, /記録件数:<\/strong> 9件/);
+  assert.match(takeawayHtml, /次回は12月14日 9:30集合/);
+  assert.doesNotMatch(takeawayHtml, /友だちの顔/);
 });
 
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
