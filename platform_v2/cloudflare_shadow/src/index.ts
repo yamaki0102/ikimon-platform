@@ -14829,7 +14829,7 @@ async function getMyGuideRouteLayerGeoJson(request: Request, url: URL, env: Env)
     geometry: { type: "Point", coordinates: [Number(row.lng), Number(row.lat)] },
     properties: {
       sessionId: row.session_id,
-      observedAt: formatPublicDateOnly(row.observed_at),
+      observedAt: formatPublicDateOnly(String(row.observed_at ?? "")),
       pointKind: row.point_kind,
       guideMode: row.guide_mode,
       accuracyM: row.accuracy_m,
@@ -16244,7 +16244,7 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
       occurrenceId: `occ:${row.observation_id}:0`,
       visitId: row.observation_id,
       displayName: publicTaxonDisplayName(row.taxon_label || row.note),
-      observedAt: formatPublicDateOnly(row.observed_at),
+      observedAt: formatPublicDateOnly(String(row.observed_at ?? "")),
       latitude,
       longitude,
       photoUrl: row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null,
@@ -28221,7 +28221,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "upload.jpg");
   const rawBytes = new Uint8Array(base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? ""));
   const cleanBytes = mimeType === "image/jpeg" ? stripJpegExifAndGpsMetadata(rawBytes) : rawBytes;
-  const body = cleanBytes.buffer.slice(cleanBytes.byteOffset, cleanBytes.byteOffset + cleanBytes.byteLength);
+  const body = new Uint8Array(cleanBytes).buffer;
   if (body.byteLength === 0) {
     throw new HttpError(400, "decoded image is empty");
   }
@@ -28516,7 +28516,7 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "clean-audio.webm");
   const rawBytes = new Uint8Array(base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? ""));
   const cleanBytes = mimeType === "image/jpeg" ? stripJpegExifAndGpsMetadata(rawBytes) : rawBytes;
-  const body = cleanBytes.buffer.slice(cleanBytes.byteOffset, cleanBytes.byteOffset + cleanBytes.byteLength);
+  const body = new Uint8Array(cleanBytes).buffer;
   if (body.byteLength === 0) throw new HttpError(400, "decoded_audio_empty");
   if (body.byteLength > FIELDSCAN_AUDIO_MAX_BYTES) throw new HttpError(400, "audio_too_large");
   const audioBytes = new Uint8Array(body);
