@@ -31254,6 +31254,89 @@ test("GET /api/v1/areas/observations filters by area, media_kind (including phot
   assert.deepEqual(periodBody.items.map((x) => x.visitId), ["obs-video", "obs-audio"]);
 });
 
+test("public map and public detail redact exact timestamps, hidden cells, and 24h-delayed locations", async () => {
+  const { env, obs } = createEnv();
+  const recentIso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const oldIso = "2026-10-15T14:23:45.000Z";
+  obs.observations.set("obs-delayed-1", {
+    observation_id: "obs-delayed-1",
+    draft_id: "d-del-1",
+    owner_user_id: "owner-1",
+    observed_at: recentIso,
+    partition_month: "2026-11",
+    taxon_label: "カワセミ",
+    note: null,
+    exact_lat: 35.6812,
+    exact_lng: 139.7671,
+    location_accuracy_m: 10,
+    public_cell: "cell:35.68,139.77",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "東京都千代田区"
+  });
+  obs.observations.set("obs-old-1", {
+    observation_id: "obs-old-1",
+    draft_id: "d-old-1",
+    owner_user_id: "owner-1",
+    observed_at: oldIso,
+    partition_month: "2026-10",
+    taxon_label: "ヤツデ",
+    note: null,
+    exact_lat: 35.6812,
+    exact_lng: 139.7671,
+    location_accuracy_m: 10,
+    public_cell: "cell:35.68,139.77",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "東京都千代田区"
+  });
+
+  obs.readmodel.set("obs-delayed-1", {
+    observation_id: "obs-delayed-1",
+    public_cell: "35.68,139.77",
+    observed_at: recentIso,
+    taxon_label: "カワセミ",
+    asset_count: 0,
+    partition_month: "2026-11",
+    public_area_label: "東京都千代田区"
+  });
+  obs.readmodel.set("obs-old-1", {
+    observation_id: "obs-old-1",
+    public_cell: "35.68,139.77",
+    observed_at: oldIso,
+    taxon_label: "ヤツデ",
+    asset_count: 0,
+    partition_month: "2026-10",
+    public_area_label: "東京都千代田区"
+  });
+
+  const bbox = "139.7,35.6,139.8,35.75";
+  const areaRes = await worker.fetch(new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}`), env);
+  assert.equal(areaRes.status, 200);
+  const areaBody = await areaRes.json() as { items: Array<{ visitId: string; publicCellId: string | null; observedAt: string; localityLabel: string }> };
+  const delayedItem = areaBody.items.find((x) => x.visitId === "obs-delayed-1")!;
+  const oldItem = areaBody.items.find((x) => x.visitId === "obs-old-1")!;
+  assert.equal(delayedItem.publicCellId, null);
+  assert.equal(delayedItem.localityLabel, "位置は24時間後に公開されます");
+  assert.equal(oldItem.observedAt, "2026-10-15");
+  assert.ok(oldItem.publicCellId !== null);
+
+  const cellsRes = await worker.fetch(new Request(`https://zukan.earth/api/v1/map/cells?bbox=${bbox}`), env);
+  assert.equal(cellsRes.status, 200);
+  const cellsBody = await cellsRes.json() as { features: Array<{ properties: { firstObservedAt: string; latestObservedAt: string } }> };
+  assert.equal(cellsBody.features.length, 1);
+  assert.equal(cellsBody.features[0]!.properties.firstObservedAt, "2026-10-15");
+  assert.equal(cellsBody.features[0]!.properties.latestObservedAt, "2026-10-15");
+
+  const detailDelayed = await worker.fetch(new Request("https://zukan.earth/ja/observations/obs-delayed-1"), env);
+  assert.equal(detailDelayed.status, 200);
+  const detailHtml = await detailDelayed.text();
+  assert.match(detailHtml, /位置は24時間後に公開されます/);
+  assert.doesNotMatch(detailHtml, /35\.6812|139\.7671/);
+});
+
 test("fixed-point station creation and record creation require authentication and place manager/admin authorization", async () => {
   const { env: baseEnv, core: baseCore, obs } = createEnv();
   const fpSqlite = new DatabaseSync(":memory:");

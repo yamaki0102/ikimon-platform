@@ -1,3 +1,10 @@
+import {
+  computePublicLocationView,
+  formatPublicDateOnly,
+  isLocationDelayed24Hours,
+  normalizeLocationShareMode,
+  stripMediaLocationMetadata
+} from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import {
@@ -3285,6 +3292,46 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/location-privacy/preview") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const body = await readJson<{
+          lat?: unknown;
+          lng?: unknown;
+          observedAt?: unknown;
+          locationShareMode?: unknown;
+          nearbyPublicPlace?: { placeId?: unknown; name?: unknown; distanceM?: unknown } | null;
+          isChildOrRareSpecies?: unknown;
+          isPublicEventOrFixedPoint?: unknown;
+          distinctAuthorsIn1kmCell?: unknown;
+          ownerNightPoints?: Array<{ lat?: unknown; lng?: unknown }>;
+        }>(request);
+        const nearby = body.nearbyPublicPlace && typeof body.nearbyPublicPlace.placeId === "string" && typeof body.nearbyPublicPlace.name === "string"
+          ? {
+              placeId: body.nearbyPublicPlace.placeId,
+              name: body.nearbyPublicPlace.name,
+              distanceM: Number(body.nearbyPublicPlace.distanceM ?? 0)
+            }
+          : null;
+        const nightPts = Array.isArray(body.ownerNightPoints)
+          ? body.ownerNightPoints
+              .map((p) => ({ lat: Number(p?.lat), lng: Number(p?.lng) }))
+              .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+          : [];
+        const preview = computePublicLocationView({
+          lat: typeof body.lat === "number" ? body.lat : null,
+          lng: typeof body.lng === "number" ? body.lng : null,
+          observedAt: typeof body.observedAt === "string" ? body.observedAt : new Date().toISOString(),
+          locationShareMode: normalizeLocationShareMode(body.locationShareMode),
+          nearbyPublicPlace: nearby,
+          isChildOrRareSpecies: body.isChildOrRareSpecies === true,
+          isPublicEventOrFixedPoint: body.isPublicEventOrFixedPoint === true,
+          distinctAuthorsIn1kmCell: typeof body.distinctAuthorsIn1kmCell === "number" ? body.distinctAuthorsIn1kmCell : 1,
+          ownerNightPoints: nightPts
+        });
+        return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
@@ -9126,7 +9173,7 @@ function toResearchExportRecord(row: ResearchExportD1Row): ResearchExportRecord 
     vernacularName: row.vernacular_name,
     taxonRank: row.taxon_rank,
     evidenceTier,
-    eventDate: row.observed_at,
+    eventDate: row.observed_at ? formatPublicDateOnly(row.observed_at) : null,
     recordedBy: "Anonymous",
     associatedMedia: row.media_ref,
     associatedMediaRole: row.media_role,
@@ -9184,6 +9231,7 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
   const scopedRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
   const groups = new Map<string, PublicMapRow[]>();
   for (const row of scopedRows) {
+    if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
     if (!parsePublicCell(row.public_cell)) continue;
     const existing = groups.get(row.public_cell) ?? [];
     existing.push(row);
@@ -9217,8 +9265,8 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
           gridM: MAP_DEFAULT_GRID_M,
           radiusM: MAP_DEFAULT_GRID_M,
           count: group.length,
-          firstObservedAt: earliestObservedAt(group),
-          latestObservedAt: latestObservedAt(group),
+          firstObservedAt: formatPublicDateOnly(earliestObservedAt(group) ?? ""),
+          latestObservedAt: formatPublicDateOnly(latestObservedAt(group)),
           taxonMix,
           centroidLat: parsed.lat,
           centroidLng: parsed.lng
@@ -9558,8 +9606,8 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
       if (selectedCell && row.public_cell !== selectedCell) return false;
       if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
       if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
-      if (fromBound && row.observed_at < fromBound) return false;
-      if (toBound && row.observed_at > toBound) return false;
+      if (fromBound && formatPublicDateOnly(row.observed_at) < fromBound.slice(0, 10)) return false;
+      if (toBound && formatPublicDateOnly(row.observed_at) > toBound.slice(0, 10)) return false;
       return true;
     })
     .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
@@ -9580,9 +9628,14 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   return json({
     items: scopedRows.map((row) => {
       const kind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
+      const hiddenOrDelayed = row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now());
+      const item = publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind);
       return {
-        ...publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind),
-        publicCellId: publicCellToCellId(row.public_cell),
+        ...item,
+        localityLabel: row.public_cell === "hidden"
+          ? "位置は非公開です"
+          : (hiddenOrDelayed ? "位置は24時間後に公開されます" : item.localityLabel),
+        publicCellId: hiddenOrDelayed ? null : publicCellToCellId(row.public_cell),
       };
     }),
     stats: {
@@ -14975,7 +15028,7 @@ async function getMyGuideRouteLayerGeoJson(request: Request, url: URL, env: Env)
     geometry: { type: "Point", coordinates: [Number(row.lng), Number(row.lat)] },
     properties: {
       sessionId: row.session_id,
-      observedAt: row.observed_at,
+      observedAt: formatPublicDateOnly(String(row.observed_at ?? "")),
       pointKind: row.point_kind,
       guideMode: row.guide_mode,
       accuracyM: row.accuracy_m,
@@ -16390,7 +16443,7 @@ async function getPublicMapMyObservations(request: Request, url: URL, env: Env):
       occurrenceId: `occ:${row.observation_id}:0`,
       visitId: row.observation_id,
       displayName: publicTaxonDisplayName(row.taxon_label || row.note),
-      observedAt: row.observed_at,
+      observedAt: formatPublicDateOnly(String(row.observed_at ?? "")),
       latitude,
       longitude,
       photoUrl: row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null,
@@ -20721,9 +20774,21 @@ async function getLegacyObservationThumbFromDerivative(
   const object = await env.ASSET_BUCKET.get(row.public_derivative_key);
   if (!object?.body) return null;
 
-  return new Response(request.method === "HEAD" ? null : object.body, {
+  const contentType = object.httpMetadata?.contentType ?? publicDerivativeContentType(row.public_derivative_key, row.mime);
+  if (request.method === "HEAD") {
+    return new Response(null, {
+      headers: {
+        "content-type": contentType,
+        "cache-control": gate.known ? "private, no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable",
+        "x-ikimon-cloudflare-native": "thumb-derivative-readmodel"
+      }
+    });
+  }
+  const rawBody = new Uint8Array(await new Response(object.body).arrayBuffer());
+  const cleanBody = stripMediaLocationMetadata(rawBody, contentType);
+  return new Response(cleanBody as unknown as BodyInit, {
     headers: {
-      "content-type": object.httpMetadata?.contentType ?? publicDerivativeContentType(row.public_derivative_key, row.mime),
+      "content-type": contentType,
       "cache-control": gate.known ? "private, no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable",
       "x-ikimon-cloudflare-native": "thumb-derivative-readmodel"
     }
@@ -21175,6 +21240,15 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           <label class="cf-record-field"><span>${escapeHtml(mediaCopy.lng)}</span><input name="longitude" inputmode="decimal" value=""></label>
         </div>
       </details>
+      <div class="cf-record-field" data-location-privacy-selector>
+        <span>${lang === "ja" ? "公開時の位置の見せ方" : "Location sharing"}</span>
+        <select name="locationShareMode" id="record-location-share-mode">
+          <option value="public_place">${lang === "ja" ? "公の場所に寄せる（公園・定点など）" : "Snap to public place"}</option>
+          <option value="grid" selected>${lang === "ja" ? "マス目でぼかす（約1km〜10km）" : "Approximate grid"}</option>
+          <option value="hidden">${lang === "ja" ? "位置を出さない" : "Do not show location"}</option>
+        </select>
+        <small id="record-public-location-preview" data-public-location-preview>${lang === "ja" ? "ほかの人にはこう見える: 正確な位置は非公開・24時間後にマス目または日付のみで表示" : "Public view: exact coordinates hidden; shown as grid/date after 24h"}</small>
+      </div>
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
       <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
@@ -23603,9 +23677,12 @@ async function getPublicDerivedMedia(request: Request, url: URL, env: Env): Prom
   if (!object?.body) {
     return json({ error: "media_not_found" }, 404, { "cache-control": PUBLIC_DERIVED_MEDIA_MISS_CACHE_CONTROL });
   }
-  return new Response(object.body, {
+  const contentType = object.httpMetadata?.contentType ?? "application/octet-stream";
+  const rawBody = new Uint8Array(await new Response(object.body).arrayBuffer());
+  const cleanBody = stripMediaLocationMetadata(rawBody, contentType);
+  return new Response(cleanBody as unknown as BodyInit, {
     headers: {
-      "content-type": object.httpMetadata?.contentType ?? "application/octet-stream",
+      "content-type": contentType,
       "cache-control": cacheControl
     }
   });
@@ -23851,7 +23928,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
     scenePlaceType: normalizeOptionalText(row.scene_place_type),
     sceneSurroundingCover: normalizeOptionalText(row.scene_surrounding_cover),
-    observedAt: row.observed_at,
+    observedAt: formatPublicDateOnly(row.observed_at),
     photoUrl,
     mediaKind,
     taxonGroup: taxonGroupForLabel(row.taxon_label),
@@ -24961,7 +25038,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
         watchUrl: buildShadowVideoWatchUrl(streamUid),
         readyToStream: true,
         uploadStatus: "ready",
-        createdAt: row.observed_at,
+        createdAt: formatPublicDateOnly(row.observed_at),
         durationMs: asset.duration_ms ?? 0,
         mediaRole: "observation_video"
       };
@@ -24988,6 +25065,10 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     ? aiCandidateLabel ?? "名前待ち"
     : row.taxon_label!.trim();
 
+  const detailLocationLabel = row.public_cell === "hidden"
+    ? "位置は非公開です"
+    : (isLocationDelayed24Hours(row.observed_at, Date.now()) ? "位置は24時間後に公開されます" : "位置をぼかしています");
+
   return {
     schemaVersion: "shadow_public_observation_detail/v1",
     occurrenceId: `occ:${row.observation_id}:0`,
@@ -25003,12 +25084,12 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
-    observedAt: row.observed_at,
+    observedAt: formatPublicDateOnly(row.observed_at),
     note: row.note && containsDiscoveryPersonalInformation(row.note) ? null : row.note,
-    placeName: "位置をぼかしています",
+    placeName: detailLocationLabel,
     municipality: null,
     publicLocation: {
-      label: "位置をぼかしています"
+      label: detailLocationLabel
     },
     photoAssets,
     photoUrls: photoAssets.map((asset) => asset.url),
@@ -27734,7 +27815,13 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   const partition = resolveObservationPartition(input.observedAt, env);
   const occurrenceIds = resolveLegacyOccurrenceIds(visitId, input);
   const occurrenceId = occurrenceIds[0] ?? `occ:${visitId}:0`;
-  const publicCell = blurLocation(input.latitude, input.longitude);
+  const explicitShareMode = (input as { locationShareMode?: unknown }).locationShareMode ?? input.sourcePayload?.locationShareMode;
+  const locationShareMode = explicitShareMode !== undefined && explicitShareMode !== null
+    ? normalizeLocationShareMode(explicitShareMode)
+    : null;
+  const publicCell = locationShareMode === "hidden"
+    ? "hidden"
+    : blurLocation(input.latitude, input.longitude);
   const taxonLabel = resolveLegacyTaxonLabel(input);
   const placeName = normalizeOptionalText(input.siteName)
     ?? normalizeOptionalText(input.municipality)
@@ -27742,7 +27829,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
   const visibility = input.visibility === "private" ? "private" : "public";
-  const publicAreaLabel = visibility === "public" ? resolveSafePublicAreaLabel(input) : null;
+  const publicAreaLabel = visibility === "public" && locationShareMode !== "hidden"
+    ? resolveSafePublicAreaLabel(input)
+    : null;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
   const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
@@ -28472,7 +28561,9 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
   const input = await readJson<LegacyPhotoUploadInput>(request);
   const mimeType = (normalizeOptionalText(input.mimeType) ?? "image/jpeg").split(";", 1)[0]!.trim().toLowerCase();
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "upload.jpg");
-  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  const rawBytes = new Uint8Array(base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? ""));
+  const cleanBytes = stripMediaLocationMetadata(rawBytes, mimeType);
+  const body = new Uint8Array(cleanBytes).buffer;
   if (body.byteLength === 0) {
     throw new HttpError(400, "decoded image is empty");
   }
@@ -28765,7 +28856,9 @@ async function uploadStagingCompatibleAudio(observationId: string, request: Requ
   const input = await readJson<LegacyAudioUploadInput>(request);
   const mimeType = normalizeFieldscanAudioMime(input.mimeType);
   const filename = sanitizeFileName(normalizeOptionalText(input.filename) ?? "clean-audio.webm");
-  const body = base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? "");
+  const rawBytes = new Uint8Array(base64ToArrayBuffer(normalizeOptionalText(input.base64Data) ?? ""));
+  const cleanBytes = stripMediaLocationMetadata(rawBytes, mimeType);
+  const body = new Uint8Array(cleanBytes).buffer;
   if (body.byteLength === 0) throw new HttpError(400, "decoded_audio_empty");
   if (body.byteLength > FIELDSCAN_AUDIO_MAX_BYTES) throw new HttpError(400, "audio_too_large");
   const audioBytes = new Uint8Array(body);
@@ -33391,7 +33484,7 @@ function parseBboxParam(raw: string | null): [number, number, number, number] | 
 }
 
 function parsePublicCell(value: string): { lat: number; lng: number } | null {
-  const [latRaw, lngRaw] = value.split(",");
+  const [latRaw, lngRaw] = value.replace(/^cell:/, "").split(",");
   const lat = Number(latRaw);
   const lng = Number(lngRaw);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -33685,7 +33778,7 @@ function renderAreaRecordSections(fieldId: string, records: AreaRecordContext, i
       <div class="record-list">${items.slice(0, 9).map((item) => `<a class="record panel" href="/observations/${encodeURIComponent(item.visitId)}">
         ${item.thumbnailUrl ? `<img class="record-thumbnail" src="${escapeHtml(item.thumbnailUrl)}" alt="" loading="lazy" decoding="async">` : ""}
         <strong>${escapeHtml(item.displayName || (isEnglish ? "Record awaiting a name" : "名前は未確認"))}</strong>
-        <time datetime="${escapeHtml(item.observedAt ?? "")}">${escapeHtml(formatPublicObservationDate(item.observedAt))}</time>
+        <time datetime="${escapeHtml(formatPublicDateOnly(item.observedAt ?? ""))}">${escapeHtml(formatPublicObservationDate(item.observedAt))}</time>
         <span class="muted">${isEnglish ? "Open this record" : "記録を見る"}</span>
       </a>`).join("")}</div>
     </section>`;
