@@ -31644,6 +31644,12 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     "INSERT INTO asset_ledger (asset_id, observation_id, mime, processing_state, public_derivative_key, public_derivative_verified_at, public_derivative_metadata_json, exif_scrub_state, public_ready_at, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
   ).run("asset-top-2", "obs-top-2", "image/jpeg", "uploaded", "derived/obs-top-2/display.webp", "2026-11-23T09:01:00.000Z", JSON.stringify({ contentType: "image/webp", scannedContainer: "webp" }), "scrubbed", "2026-11-23T09:01:00.000Z", "2026-11-23T09:00:30.000Z");
   obsSqlite.prepare(
+    "INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, public_cell, visibility, emergency_hidden) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("obs-top-3", "top-owner-1", "2026-11-23T08:00:00.000Z", "メジロ", null, "34.71,137.73", "public", 0);
+  obsSqlite.prepare(
+    "INSERT INTO asset_ledger (asset_id, observation_id, mime, processing_state, public_derivative_key, public_derivative_verified_at, public_derivative_metadata_json, exif_scrub_state, public_ready_at, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).run("asset-top-3", "obs-top-3", "image/jpeg", "uploaded", "derived/obs-top-3/display.webp", "2026-11-23T08:01:00.000Z", JSON.stringify({ contentType: "image/webp", scannedContainer: "webp" }), "scrubbed", "2026-11-23T08:01:00.000Z", "2026-11-23T08:00:30.000Z");
+  obsSqlite.prepare(
     "INSERT INTO observation_event_sessions (session_id, title, started_at, ended_at, organizer_user_id) VALUES (?, ?, ?, ?, ?)"
   ).run("evt_pr973", "PR973 prod rally", "2026-06-25T09:00:00.000Z", "2026-06-25T12:00:00.000Z", "top-owner-1");
 
@@ -31719,6 +31725,8 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
     assert.match(prodHtml, /常盤公園・11月22日/, topUrl);
     assert.match(prodHtml, /浜松市・11月23日/, topUrl);
+    assert.equal(prodHtml.match(/class="zt-hero-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
+    assert.equal(prodHtml.match(/class="zt-thumb-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
     assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
     assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
@@ -31728,4 +31736,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   const enHtml = await enRes.text();
   assert.match(enHtml, /Join the waitlist/);
   assert.match(enHtml, /Nearby events/);
+  assert.match(enHtml, /Hamamatsu · Nov 23/);
+  assert.match(enHtml, /href="\/en\/observations\/obs-top-2"/);
+  assert.doesNotMatch(enHtml, /浜松市・11月23日|href="\/ja\/observations\//);
 });
