@@ -31710,7 +31710,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.equal(prodRes.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2", topUrl);
     const prodHtml = await prodRes.text();
     assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
-    assert.match(prodHtml, /<img\s+src="\/media\/derived\/obs-top-1\/display\.webp"/, topUrl);
-    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally/, topUrl);
+    assert.match(prodHtml, /<img\s+src="\/derived\/obs-top-1\/display\.webp"/, topUrl);
+    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\//, topUrl);
   }
 });
