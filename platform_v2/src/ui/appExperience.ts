@@ -120,7 +120,7 @@ export function renderAppExperienceHeader(
     ? `<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a>`
     : `<a class="ik-ui-action zukan-app-account home-header-login site-login-link" href="${prefix}/login?redirect=${encodeURIComponent(loginRedirect)}">${loginLabels[language]}</a>`;
   const accountHtml = options?.authControlsHtml ?? defaultAccountHtml;
-  return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${renderAppExperienceLanguageSwitch(lang, options?.currentPath)}${accountHtml}</div></div></header>`;
+  return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${accountHtml}</div></div></header>`;
 }
 
 export function renderAppExperienceQuickCamera(lang: string, options?: { nonce?: string }): string {

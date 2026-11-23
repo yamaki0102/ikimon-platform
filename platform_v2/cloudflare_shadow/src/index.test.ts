@@ -1789,6 +1789,7 @@ interface GbifJapaneseNameDisplayAuditTestRow {
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
+  userLanguagePreferences = new Map<string, string>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
   areaSubscriptionStats = new Map<string, AreaSubscriptionStatsRow>();
@@ -1951,6 +1952,14 @@ class FakeStatement {
   async run(): Promise<unknown> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS user_language_preferences")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT INTO user_language_preferences")) {
+      this.db.userLanguagePreferences.set(string(v[0]), string(v[1]));
+      return { meta: { changes: 1 } };
+    }
 
     if (normalized.startsWith("INSERT OR IGNORE INTO observation_event_guest_media")) {
       const submissionId = string(v[0]);
@@ -6568,6 +6577,7 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+
     if (normalized.startsWith("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")) {
       return { results: [...this.db.oauthAccounts.values()].filter((row) => row.user_id === string(v[0])).map((row) => ({ role_name: row.role_name, banned: row.banned })) as T[] };
     }
@@ -26743,11 +26753,15 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.match(body, /参加先を探す/);
         assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
         assert.match(body, /href="\/ja\/records\?view=mine"/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"|href="\/ja\/profile\/settings"/);
+        assert.match(body, /href="\/ja\/profile\/settings"/);
+        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
         assert.match(body, /href="\/ja\/community\/events"/);
         assert.doesNotMatch(body, /公開プロフィール|公開範囲|フォロー中|参加履歴|アカウント設定/);
       }
       if (check.path === "/ja/profile/settings") {
+        assert.match(body, /action="\/api\/v1\/profile\/language"/);
+        assert.match(body, /name="lang"/);
+        assert.doesNotMatch(body, /data-language-disclosure/);
         assert.match(body, /プロフィール編集/);
         assert.match(body, /この画面からプロフィールは編集できません。/);
         assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
@@ -28863,6 +28877,60 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.status, 200);
   assert.equal(await ownerMedia.text(), "private-webp");
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+});
+
+test("profile settings saves display language preference, hides header language switches, and respects device Accept-Language for guests", async () => {
+  const { env, core } = createEnv();
+
+  const guestEnRoot = await worker.fetch(new Request("https://shadow.test/", {
+    headers: { "accept-language": "en-US,en;q=0.9,ja;q=0.8" }
+  }), env);
+  assert.equal(guestEnRoot.status, 302);
+  assert.equal(guestEnRoot.headers.get("location"), "/en/");
+
+  const guestEsRecords = await worker.fetch(new Request("https://shadow.test/records", {
+    headers: { "accept-language": "es-ES,es;q=0.9" }
+  }), env);
+  assert.equal(guestEsRecords.status, 302);
+  assert.equal(guestEsRecords.headers.get("location"), "/es/records");
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: "lang-pref-user",
+      rawToken: "lang-pref-token",
+      displayName: "Lang Pref User",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const authCookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const saveRes = await worker.fetch(new Request("https://shadow.test/api/v1/profile/language", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin",
+      cookie: authCookie
+    },
+    body: JSON.stringify({ lang: "en" })
+  }), env);
+  assert.equal(saveRes.status, 200);
+  assert.deepEqual(await saveRes.json(), { ok: true, lang: "en" });
+  assert.equal(core.userLanguagePreferences.get("lang-pref-user"), "en");
+  const langCookie = (saveRes.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  assert.equal(langCookie, "ikimon_lang=en");
+
+  const nextVisit = await worker.fetch(new Request("https://shadow.test/", {
+    headers: {
+      cookie: `${authCookie}; ${langCookie}`,
+      "accept-language": "ja"
+    }
+  }), env);
+  assert.equal(nextVisit.status, 302);
+  assert.equal(nextVisit.headers.get("location"), "/en/");
 });
 
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {

@@ -865,7 +865,6 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
       </div>
       ${navLinks}
       <div class="site-header-actions site-header-actions-desktop">
-        ${desktopLangSwitch}
         <a class="btn btn-solid site-login-link" href="${loginHref}">${escapeHtml(accountCopy.login)}</a>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
@@ -891,7 +890,6 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
       ${navLinks}
       ${desktopSearch}
       <div class="site-header-actions site-header-actions-desktop">
-        ${desktopLangSwitch}
         <nav class="site-account-icons" aria-label="${escapeHtml(accountCopy.accountNav)}">${profileIcon}${notificationIcon}${settingsIcon}</nav>
       </div>
       <div class="site-header-actions site-header-actions-mobile">
@@ -910,9 +908,6 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
               <a class="site-mobile-return-link" href="${myRecordsHref}">${desktopSideNavIcon("notes")}<span>${escapeHtml(mobileQuick.records)}</span></a>
             </div>
             <nav class="site-nav site-nav-mobile">${mobileSideNav}</nav>
-            <div class="site-mobile-menu-meta">
-              ${mobileLangSwitch}
-            </div>
           </div>
         </details>
       </div>
