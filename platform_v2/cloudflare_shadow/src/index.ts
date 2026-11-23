@@ -97,11 +97,13 @@ import {
   type GeminiObservationImage,
 } from "./geminiObservationBatch";
 import {
+  CARD_DECISION_MODEL,
   CARD_ID_MODEL,
   CARD_PROMPT_VERSION,
   CARD_STORE_PREFIX,
   CARD_TILE_MODEL,
   CARD_WRITER_MODEL,
+  callCardDecision,
   callCardGemini,
   runObservationCardPipeline,
   type CardDeps,
@@ -29610,7 +29612,7 @@ type GeminiProviderMetadata = {
   card?: { stats: CardStats };
 };
 
-const OBSERVATION_CARD_MODELS = [CARD_ID_MODEL, CARD_WRITER_MODEL, CARD_TILE_MODEL];
+const OBSERVATION_CARD_MODELS = [CARD_ID_MODEL, CARD_WRITER_MODEL, CARD_TILE_MODEL, CARD_DECISION_MODEL];
 const OBSERVATION_CARD_MAX_PER_INVOCATION = 20;
 
 function observationCardModeEnabled(env: Env): boolean {
@@ -29759,6 +29761,7 @@ function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): Car
   const ai = env.AI;
   return {
     gemini: (model, parts, options) => callCardGemini(env.GEMINI_API_KEY!, model, parts, options),
+    decide: (images, question) => callCardDecision(env.GEMINI_API_KEY!, images, question),
     ...(ai && env.IMAGES ? {
       tileModel: async (png: string, prompt: string) => {
         const result = await ai.run(CARD_TILE_MODEL, {

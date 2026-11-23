@@ -14,6 +14,7 @@ import { bytesToBase64, cropRgb, decodePngRgb, encodePngRgb, tileRects, wideRect
 export const CARD_ID_MODEL = "gemini-3.1-flash-lite";
 export const CARD_WRITER_MODEL = "gemini-4-hydrogen";
 export const CARD_TILE_MODEL = "@cf/google/gemma-4-26b-a4b-it";
+export const CARD_DECISION_MODEL = "gemini-decision-1";
 export const CARD_PROMPT_VERSION = "observation-card/v1";
 export const CARD_STORE_PREFIX = "ai-cards/v1/";
 export const CARD_TILE_GRID = 5;
@@ -31,6 +32,7 @@ export type CardModelCall = (model: string, parts: Json[], options: { temperatur
 
 export type CardDeps = {
   gemini: CardModelCall;
+  decide?: (images: GeminiObservationImage[], question: string) => Promise<number>;
   tileModel?: (pngBase64: string, prompt: string) => Promise<string>;
   tileSource?: (assetIndex: number) => Promise<Uint8Array | null>;
   loadCard: (key: string) => Promise<Json | null>;
@@ -214,6 +216,20 @@ export function applySecondCheck(lead: Json, second: Json | null): CardStats["se
   }
   if (lead.confidence_band === "high") lead.confidence_band = "medium";
   return "coarser";
+}
+
+export const decisionQuestion = (lead: Json): string => `Does this photo show ${str(lead.name, 120)}${str(lead.scientific_name) ? ` (${str(lead.scientific_name, 180)})` : ""}? Answer yes only if the visible organism is this species.`;
+
+export function applyDecisionCheck(lead: Json, p: number | null): CardStats["secondCheck"] {
+  if (p === null || !Number.isFinite(p)) return "skipped";
+  if (p >= 0.8) return "agree";
+  if (p >= 0.5) {
+    if (lead.confidence_band === "high") lead.confidence_band = "medium";
+    return "coarser";
+  }
+  lead.confidence_band = "low";
+  lead.missing_evidence = [...list(lead.missing_evidence), "別の確認では種の決め手が見えていない。決め手の確認が必要"];
+  return "conflict";
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
@@ -407,10 +423,12 @@ export async function runObservationCardPipeline(input: CardInput, deps: CardDep
       return [] as Json[];
     }),
     !isNonOrganism && lead && lead.rank === "species" && id.main_theme !== "environment"
-      ? deps.gemini(CARD_ID_MODEL, [...cardImageParts(input.images), { text: SECOND_PROMPT(ctx) }], { temperature: 0.1, thinkingLevel: "minimal" }).then(parseCardJson).catch(() => null)
+      ? deps.decide
+        ? deps.decide(input.images, decisionQuestion(lead)).catch(() => null)
+        : deps.gemini(CARD_ID_MODEL, [...cardImageParts(input.images), { text: SECOND_PROMPT(ctx) }], { temperature: 0.1, thinkingLevel: "minimal" }).then(parseCardJson).catch(() => null)
       : Promise.resolve(null),
   ]);
-  if (lead) stats.secondCheck = applySecondCheck(lead, second);
+  if (lead) stats.secondCheck = typeof second === "number" ? applyDecisionCheck(lead, second) : applySecondCheck(lead, second);
   if (!isNonOrganism) subjects.push(...found.slice(0, Math.max(0, 8 - subjects.length)));
   stats.subjects = subjects.length;
   const habitatType = str(id.habitat_type);
@@ -419,6 +437,34 @@ export async function runObservationCardPipeline(input: CardInput, deps: CardDep
     !isNonOrganism && CARD_HABITATS.includes(habitatType) ? getCard(deps, cardKey("", `habitat-${habitatType}`), HABITAT_PROMPT(habitatType), stats) : Promise.resolve(null),
   ]);
   return { merged: buildCardMergedObservation(id, subjects, cards, habitat), stats, subjects, id };
+}
+
+export async function callCardDecision(apiKey: string, images: GeminiObservationImage[], question: string, fetcher: typeof fetch = fetch): Promise<number> {
+  const body = JSON.stringify({
+    model: CARD_DECISION_MODEL,
+    input: images.map((image) => ({ type: "image", data: image.base64Data, mime_type: image.mimeType, resolution: "medium" })),
+    questions: { q: { type: "noul", instructions: question } },
+  });
+  let lastError = "card_decision_failed";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetcher("https://generativelanguage.googleapis.com/v1beta/decisions", {
+        method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body, signal: AbortSignal.timeout(30_000),
+      });
+      if (response.ok) {
+        const p = Number(((await response.json()) as { answers?: { q?: { noul?: unknown } } }).answers?.q?.noul);
+        if (!Number.isFinite(p)) throw new Error("card_decision_answer_missing");
+        return p;
+      }
+      lastError = `card_decision_api_failed:${response.status}`;
+      if (response.status !== 429 && response.status < 500) break;
+    } catch (error) {
+      lastError = (error instanceof Error ? error.message : String(error)).slice(0, 160);
+      if (lastError === "card_decision_answer_missing") break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+  }
+  throw new Error(lastError);
 }
 
 export async function callCardGemini(apiKey: string, model: string, parts: Json[], options: { temperature: number; thinkingLevel?: string }, fetcher: typeof fetch = fetch): Promise<string> {
