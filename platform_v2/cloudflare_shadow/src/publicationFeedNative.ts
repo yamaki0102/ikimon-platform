@@ -1,3 +1,4 @@
+import { formatPublicDateOnly } from "./locationPrivacy";
 import { isMeaningfulPublicObservationLabel } from "../../src/services/observationQualityGate";
 import {
   PUBLICATION_FEED_DEFINITIONS,
@@ -423,7 +424,7 @@ function nativeItems(row: PublicationFeedNativeRow, origin: string, feedKey: str
       },
       title,
       subtitle: placeLabel,
-      observed_at: observedAt,
+      observed_at: formatPublicDateOnly(observedAt),
       place_label: placeLabel,
       detail_url: `${PRODUCTION_PUBLIC_ORIGIN}/observations/${encodeURIComponent(row.observation_id)}`,
       subject: { kind: "taxon", label: title },
@@ -447,7 +448,7 @@ function nativeItems(row: PublicationFeedNativeRow, origin: string, feedKey: str
       },
       title: placeLabel,
       subtitle: cleanText(row.boundary_name),
-      observed_at: observedAt,
+      observed_at: formatPublicDateOnly(observedAt),
       place_label: placeLabel,
       detail_url: `${PRODUCTION_PUBLIC_ORIGIN}/observations/${encodeURIComponent(row.observation_id)}`,
       subject: { kind: "environment", label: "周辺環境" },

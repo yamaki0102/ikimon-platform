@@ -151,5 +151,17 @@ export async function loadOwnerObservationProcessingStatusFromD1(
     identificationCount: Number(row.identification_count ?? 0),
     providerAvailable: input.providerAvailable,
     updatedAt: row.updated_at ?? row.observed_at,
+    earlyFamilyName: row.ai_request_status === "processing" ? earlyFamilyName(row.ai_request_source_payload_json) : null,
   });
+}
+
+function earlyFamilyName(sourcePayloadJson: string | null): string | null {
+  if (!sourcePayloadJson) return null;
+  try {
+    const early = (JSON.parse(sourcePayloadJson) as { earlyFamily?: { name?: unknown } } | null)?.earlyFamily;
+    const name = typeof early?.name === "string" ? early.name.trim() : "";
+    return /^[ァ-ヶー・科]{1,40}(科|綱)$/.test(name) ? name : null;
+  } catch {
+    return null;
+  }
 }
