@@ -1,4 +1,5 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -1868,6 +1869,7 @@ const ORIGINAL_UI_HTML_CORE_PATHS = [
   "/record",
   "/records",
   "/register",
+  "/waitlist",
   "/map",
   "/my-guides",
   "/app-refresh",
@@ -2001,7 +2003,8 @@ const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
   "/profile/settings",
   "/record",
   "/records",
-  "/register"
+  "/register",
+  "/waitlist"
 ] as const;
 const ORIGINAL_UI_HTML_LOCALIZABLE_PATH_SET = new Set<string>(ORIGINAL_UI_HTML_LOCALIZABLE_PATHS);
 
@@ -2149,6 +2152,7 @@ function isNonPublicOriginalUiHtmlPath(pathname: string): boolean {
   const nativePathname = stripPublicLangPrefix(pathname);
   return nativePathname === "/login"
     || nativePathname === "/register"
+    || nativePathname === "/waitlist"
     || nativePathname === "/record"
     || nativePathname === "/profile"
     || nativePathname === "/profile/settings"
@@ -2518,6 +2522,10 @@ export const worker = {
         return await getSiteBriefFeedbackSummaryAdmin(request, url, env);
       }
 
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/waitlist/summary") {
+        return await getZukanWaitlistSummaryAdmin(request, env);
+      }
+
       if (request.method === "GET" && nativePathname === "/api/v1/admin/site-brief-feedback-validation-queue") {
         return await getSiteBriefFeedbackValidationQueueAdmin(request, url, env);
       }
@@ -2681,6 +2689,10 @@ export const worker = {
       if (request.method === "GET" || request.method === "HEAD") {
         const barePathRedirect = barePathJapaneseRedirectResponse(url);
         if (barePathRedirect) return barePathRedirect;
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/register" || nativePathname === "/waitlist")) {
+        return getZukanWaitlistHtml(request, url, env);
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
@@ -3086,6 +3098,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
         return registerWithPasswordNative(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/waitlist") {
+        return handleZukanWaitlistSubmit(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/mobile/auth/oauth/exchange") {
@@ -25025,6 +25041,12 @@ class OAuthEmailConflictError extends Error {
   }
 }
 
+class OAuthRegistrationClosedError extends Error {
+  constructor(message = "registration_closed_waitlist_only") {
+    super(message);
+  }
+}
+
 const OAUTH_EMAIL_CONFLICT_CODE = "oauth_email_conflict";
 
 async function handleOAuthCallback(request: Request, providerInput: unknown, env: Env): Promise<Response> {
@@ -25086,6 +25108,14 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       error: error instanceof Error ? error.message : "unknown"
     }));
     if (error instanceof OAuthEmailConflictError) return oauthEmailConflictRedirect(env, conflictState);
+    if (error instanceof OAuthRegistrationClosedError) {
+      const headers = new Headers({
+        location: "/ja/waitlist?from=oauth",
+        "cache-control": "no-store"
+      });
+      headers.append("set-cookie", buildClearedOAuthStateCookie(env));
+      return new Response(null, { status: 303, headers });
+    }
     return oauthErrorRedirect(env, true);
   }
 }
@@ -25237,71 +25267,85 @@ async function cleanupBrowserRunStagingAccountNative(request: Request, env: Env)
   });
 }
 
-async function registerWithPasswordNative(request: Request, env: Env): Promise<Response> {
+const ZUKAN_WAITLIST_CREATE_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS zukan_waitlist (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  locale TEXT NOT NULL DEFAULT 'ja',
+  source_path TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+)
+`.trim();
+
+function getZukanWaitlistHtml(request: Request, url: URL, env: Env): Response {
+  const langMatch = url.pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/);
+  const lang = normalizeWaitlistLang(langMatch?.[1] ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja");
+  const cspNonce = createHtmlCspNonce();
+  const body = request.method === "HEAD"
+    ? null
+    : renderZukanWaitlistPage(lang, { cspNonce, sourcePath: url.pathname });
+  return new Response(body, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-robots-tag": "noindex, nofollow",
+      "x-ikimon-cloudflare-native": "zukan-waitlist",
+      ...releaseIdentityHeaders(env)
+    }
+  });
+}
+
+async function handleZukanWaitlistSubmit(request: Request, env: Env): Promise<Response> {
   const sameOriginError = assertSameOriginRequest(request);
   if (sameOriginError) return sameOriginError;
 
-  const input = await readJson<AuthRegisterInput>(request);
-  const displayName = typeof input.displayName === "string" ? input.displayName.trim() : "";
+  const input = await readJson<{ email?: unknown; locale?: unknown; sourcePath?: unknown; website?: unknown }>(request);
+  if (typeof input.website === "string" && input.website.trim().length > 0) {
+    return json({ ok: true, alreadyRegistered: false }, 200, { "cache-control": "no-store" });
+  }
+
   const email = normalizeEmail(input.email);
-  const password = typeof input.password === "string" ? input.password : "";
-  if (displayName.length < 1) return json({ ok: false, error: "display_name_required" }, 400, { "cache-control": "no-store" });
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
-  if (password.length < 8) return json({ ok: false, error: "password_too_short" }, 400, { "cache-control": "no-store" });
+  if (email.length > 320 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
+  }
+
+  const locale = normalizeWaitlistLang(typeof input.locale === "string" ? input.locale : "ja");
+  const sourcePath = typeof input.sourcePath === "string" ? input.sourcePath.trim().slice(0, 160) : "";
 
   try {
-    const existing = await findAuthUserByEmail(email, env);
-    if (existing) return json({ ok: false, error: "email_already_registered" }, 409, { "cache-control": "no-store" });
+    await env.CORE_DB.prepare(ZUKAN_WAITLIST_CREATE_TABLE_SQL).run();
+    const result = await env.CORE_DB.prepare(
+      "INSERT OR IGNORE INTO zukan_waitlist (id, email, locale, source_path, created_at) VALUES (?1, ?2, ?3, ?4, ?5)"
+    ).bind(`wl_${crypto.randomUUID()}`, email, locale, sourcePath, Date.now()).run();
+    const changes = Number((result as { meta?: { changes?: number } } | null)?.meta?.changes ?? 1);
+    return json({ ok: true, alreadyRegistered: changes === 0 }, 200, { "cache-control": "no-store" });
   } catch {
-    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+    return json({ ok: false, error: "waitlist_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
+}
 
-  const userId = `user_${crypto.randomUUID()}`;
-  const passwordHash = await bcrypt.hash(password, 12);
-  const user: AuthUserRow = {
-    user_id: userId,
-    email,
-    password_hash: passwordHash,
-    display_name: displayName,
-    role_name: "Observer",
-    rank_label: "観察者",
-    banned: 0
-  };
+async function getZukanWaitlistSummaryAdmin(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  await env.CORE_DB.prepare(ZUKAN_WAITLIST_CREATE_TABLE_SQL).run();
+  const row = await env.CORE_DB.prepare("SELECT COUNT(*) AS count FROM zukan_waitlist").first<{ count?: number }>();
+  return json({ ok: true, count: Number(row?.count ?? 0) }, 200, { "cache-control": "no-store" });
+}
 
-  try {
-    await env.CORE_DB.batch([
-      env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId),
-      env.CORE_DB.prepare(
-        `INSERT INTO auth_users
-         (user_id, email, password_hash, display_name, role_name, rank_label, banned)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        user.user_id,
-        user.email,
-        user.password_hash,
-        user.display_name,
-        user.role_name,
-        user.rank_label,
-        user.banned
-      )
-    ]);
-    const session = await issueSessionForAuthUser(request, env, user);
-    await env.CORE_DB.prepare("UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(userId).run();
-    return json({
-      ok: true,
-      redirect: postAuthRedirect(input.redirect),
-      session: session.session
-    }, 200, {
-      "cache-control": "no-store",
-      "set-cookie": session.cookie
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (/unique|constraint|already/i.test(message)) {
-      return json({ ok: false, error: "email_already_registered" }, 409, { "cache-control": "no-store" });
-    }
-    return json({ ok: false, error: "auth_register_failed" }, 500, { "cache-control": "no-store" });
-  }
+async function registerWithPasswordNative(request: Request, _env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  return json(
+    {
+      ok: false,
+      error: "registration_closed_waitlist_only",
+      waitlistUrl: "/ja/waitlist"
+    },
+    403,
+    { "cache-control": "no-store" }
+  );
 }
 
 async function loginWithPassword(request: Request, env: Env): Promise<Response> {
@@ -25750,19 +25794,7 @@ async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<A
 
   const email = normalizeEmail(profile.email);
   if (email && await findAuthUserByEmail(email, env)) throw new OAuthEmailConflictError();
-  const userId = `user_${crypto.randomUUID()}`;
-  const displayName = normalizeOptionalText(profile.name) ?? "ikimon user";
-  await env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
-  await upsertOAuthAccount(userId, profile, displayName, "Observer", "観察者", 0, env);
-  return {
-    user_id: userId,
-    email,
-    password_hash: null,
-    display_name: displayName,
-    role_name: "Observer",
-    rank_label: "観察者",
-    banned: 0
-  };
+  throw new OAuthRegistrationClosedError("registration_closed_waitlist_only");
 }
 
 async function findOAuthAccount(provider: OAuthProvider, providerUserId: string, env: Env): Promise<OAuthAccountRow | null> {
