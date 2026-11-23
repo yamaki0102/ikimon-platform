@@ -31710,7 +31710,13 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.equal(prodRes.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2", topUrl);
     const prodHtml = await prodRes.text();
     assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
-    assert.match(prodHtml, /<img\s+src="\/derived\/obs-top-1\/display\.webp"/, topUrl);
-    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\//, topUrl);
+    assert.match(prodHtml, /常盤公園・11月22日/, topUrl);
+    assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
+    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日/, topUrl);
   }
+  const enRes = await worker.fetch(new Request("https://zukan.earth/en/"), prodEnv);
+  assert.equal(enRes.status, 200);
+  const enHtml = await enRes.text();
+  assert.match(enHtml, /Join the waitlist/);
+  assert.match(enHtml, /Nearby events/);
 });
