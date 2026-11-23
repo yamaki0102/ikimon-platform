@@ -12745,7 +12745,6 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     backdrop-filter: blur(16px);
   }
   .me-own-trail.is-hidden { display: none; }
-  .me-section .maplibregl-ctrl-bottom-right, .me-section .me-locate-fab, .me-section .me-legend, .me-section .me-map-status, .me-section .me-layer-hint { margin-bottom: var(--me-panel-h, 0px); }
   .me-own-trail-head {
     display: flex;
     align-items: center;
@@ -15545,6 +15544,13 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .map-explorer .maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:calc(100% - 20px);white-space:normal}
   @media (max-width:900px){.me-map .maplibregl-ctrl-bottom-right{bottom:calc(var(--me-mobile-action-space) + 4px);max-width:calc(100% - 20px)}.map-explorer .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib.maplibregl-compact-show{max-width:min(260px,calc(100vw - 140px))}}
   .map-explorer .maplibregl-ctrl-attrib-button{background-repeat:no-repeat!important;background-position:center!important}
+  .me-section { --me-col-b: calc(var(--me-panel-h, 0px) + 40px); }
+  @media (max-width:900px){.me-section{--me-col-b: calc(var(--me-mobile-action-space) + 4px + var(--me-panel-h, 0px));}}
+  .me-section .maplibregl-ctrl-bottom-right { bottom: var(--me-col-b); }
+  .me-section .me-locate-fab { right: 12px; bottom: calc(var(--me-col-b) + 64px); }
+  .me-section .me-legend { right: 12px; bottom: calc(var(--me-col-b) + 116px); }
+  .me-section .me-map-status { left: 10px; right: auto; top: auto; bottom: var(--me-col-b); max-width: calc(100% - 80px); }
+  .me-section .me-layer-hint { left: 10px; right: auto; top: auto; bottom: calc(var(--me-col-b) + 44px); max-width: calc(100% - 80px); }
   .map-explorer :where(.me-area-source-opt,.me-trace-toggle-label,.me-basemap-opt){min-width:44px;min-height:44px}
   .map-explorer input[type=range]{min-height:44px}
   .map-explorer .me-start-panel.is-collapsed .me-start-panel-close{width:auto!important;min-width:44px!important;max-width:none!important;height:44px!important;min-height:44px!important;padding:0 12px!important}
