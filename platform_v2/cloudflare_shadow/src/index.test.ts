@@ -31514,4 +31514,16 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     body: JSON.stringify({ groupKey: "2026-11-22__常盤公園" })
   }), env);
   assert.equal(ownerUnpub.status, 200);
+
+  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><title>旧トップ</title>", { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  await env.ASSET_BUCKET.put("original-ui/html/ja.html", "<!doctype html><title>旧トップ</title>", { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  const prodEnv = { ...env, ENVIRONMENT: "production" };
+  for (const topUrl of ["https://zukan.earth/", "https://zukan.earth/ja/", "https://zukan.earth/index.html"]) {
+    const prodRes = await worker.fetch(new Request(topUrl), prodEnv);
+    assert.equal(prodRes.status, 200, topUrl);
+    assert.equal(prodRes.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2", topUrl);
+    const prodHtml = await prodRes.text();
+    assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
+    assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ/, topUrl);
+  }
 });

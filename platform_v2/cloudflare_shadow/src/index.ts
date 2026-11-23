@@ -20818,6 +20818,13 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env, knownSession?: SessionSnapshot | null): Promise<Response> {
+  if (env.ENVIRONMENT === "production" && (url.hostname === "zukan.earth" || url.hostname === "www.zukan.earth")) {
+    const productionZukanTop = await getNativeZukanTopHtmlIfAvailable(request, url, env, knownSession);
+    if (productionZukanTop) {
+      return productionZukanTop;
+    }
+  }
+
   let object: MaterializedR2ObjectBody | null = null;
   for (const key of originalUiHtmlKeysForRequest(url)) {
     object = await getVersionedOriginalUiObject(env, key);
@@ -20852,9 +20859,11 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env, knownSess
     return nativePlaceSnapshot;
   }
 
-  const nativeZukanTop = await getNativeZukanTopHtmlIfAvailable(request, url, env, knownSession);
-  if (nativeZukanTop) {
-    return nativeZukanTop;
+  if (env.ENVIRONMENT !== "production") {
+    const nativeZukanTop = await getNativeZukanTopHtmlIfAvailable(request, url, env, knownSession);
+    if (nativeZukanTop) {
+      return nativeZukanTop;
+    }
   }
 
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
@@ -20866,7 +20875,6 @@ async function getNativeZukanTopHtmlIfAvailable(
   env: Env,
   knownSession?: SessionSnapshot | null
 ): Promise<Response | null> {
-  if (env.ENVIRONMENT === "production") return null;
   const nativePathname = stripPublicLangPrefix(url.pathname);
   if (nativePathname !== "/" && nativePathname !== "/index.html") return null;
   const session = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
@@ -23311,6 +23319,7 @@ function personalizeAuthRedirectHtml(html: string, redirect: string): string {
 function isOriginalUiHtmlPath(pathname: string): boolean {
   if (isJapaneseLearnHtmlPath(pathname)) return true;
   if (ORIGINAL_UI_HTML_STATIC_PATHS.has(pathname)) return true;
+  if (stripPublicLangPrefix(pathname) === "/index.html") return true;
   if (pathname === "/admin/municipal-walk-maps") return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/community\/fields\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(pathname)) return true;
   if (/^(?:\/(?:ja|en|es|pt-br))?\/places\/[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}\/snapshot$/.test(pathname)) return true;
