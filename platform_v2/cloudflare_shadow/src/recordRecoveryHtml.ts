@@ -1,6 +1,6 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 export type CloudflareRecordRecoverySource =
   | ""
   | "location_denied"
@@ -338,7 +338,7 @@ export function renderCloudflareRecordRecoveryGuestHtml(url: URL, cspNonce: stri
       </div>
     </section>
   </main>
-  ${renderAppExperienceNavigation(lang, 2, "bottom")}
+  ${renderAppExperienceNavigation(lang, 2, "bottom")}${renderAppExperienceQuickCamera(lang, { nonce: cspNonce })}
   <script nonce="${escapeHtml(cspNonce)}">document.documentElement.dataset.recordRecovery="guest";</script>
 </body>
 </html>`;
@@ -398,7 +398,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       <div id="record-status" class="cf-recovery-status" role="status" aria-live="polite"></div>
     </form>
   </main>
-  ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
+  ${renderAppExperienceNavigation(lang, 2, "bottom", true)}${renderAppExperienceQuickCamera(lang, { nonce: cspNonce })}
   <script nonce="${escapeHtml(cspNonce)}">
   window.ikimonFacePrivacyAssetBase = "/assets/face-privacy";
   ${FACE_PRIVACY_CLIENT_SCRIPT}

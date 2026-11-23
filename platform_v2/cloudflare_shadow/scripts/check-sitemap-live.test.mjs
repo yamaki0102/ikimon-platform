@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { checkSitemapLive, evaluatePage, isSitemapIndex, parseSitemapLocs, summarize, visibleTextLength } from "./check-sitemap-live.mjs";
 
-const longHtml = `<html><head><style>.x{}</style><script>var a=1;</script></head><body><p>${"あ".repeat(600)}</p></body></html>`;
+const longHtml = `<html><head><style>.x{}</style><script>var a=1;</script></head><body><p>${"あ".repeat(600)}</p><a data-global-record-trigger="photo" href="/ja/record">撮る</a><input data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden></body></html>`;
 
 test("parseSitemapLocs extracts, unescapes and dedupes", () => {
   const xml = `<urlset><url><loc>https://zukan.earth/a?x=1&amp;y=2</loc></url><url><loc> https://zukan.earth/b </loc></url><url><loc>https://zukan.earth/b</loc></url></urlset>`;
@@ -59,4 +59,18 @@ test("checkSitemapLive follows a sitemap index and fails on sitemap errors", asy
   assert.equal(summary.ok, true);
   assert.equal(summary.total, 1);
   await assert.rejects(checkSitemapLive({ sitemapUrl: "https://z/sitemap.xml", fetchImpl: async () => new Response("", { status: 500 }) }), /sitemap_status_500/);
+});
+
+
+test("evaluatePage requires global quick camera trigger and capture=environment on every page", () => {
+  const missingHtml = `<html><body><p>${"あ".repeat(600)}</p></body></html>`;
+  const missing = evaluatePage({ url: "https://z/ja/guide", status: 200, body: missingHtml });
+  assert.equal(missing.ok, false);
+  assert.ok(missing.problems.includes("missing_quick_camera"));
+
+  const withQuickCamera = `<html><body><p>${"あ".repeat(600)}</p><a data-global-record-trigger="photo" href="/ja/record">撮る</a><input data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden></body></html>`;
+  assert.equal(evaluatePage({ url: "https://z/ja/guide", status: 200, body: withQuickCamera }).ok, true);
+
+  const recordPage = `<html><body><p>${"あ".repeat(600)}</p><input id="record-media-camera" type="file" accept="image/*" capture="environment"></body></html>`;
+  assert.equal(evaluatePage({ url: "https://z/ja/record", status: 200, body: recordPage }).ok, true);
 });

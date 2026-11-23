@@ -1064,8 +1064,6 @@ function normalizePathname(path: string): string {
 function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
   const pathname = normalizePathname(currentPath);
   return !(
-    pathname === "/guide" ||
-    (pathname.startsWith("/guide/") && pathname !== "/guide/outcomes") ||
     pathname === "/record" ||
     pathname.startsWith("/record/") ||
     pathname === "/debug" ||
@@ -1523,6 +1521,7 @@ ${configPrelude}
     }
   };
   const DB_NAME = 'ikimon-record-draft';
+  window.__zukanQuickCameraBound = true;
   const STORE_NAME = 'drafts';
   const GUEST_DRAFT_TOKEN_KEY = 'ikimon:record-draft-guest-token-v1';
   const MAX_PHOTO_DRAFT_FILES = 6;
@@ -3554,10 +3553,52 @@ ${configPrelude}
     capturePhoto();
   };
   document.querySelectorAll('[data-global-record-trigger]').forEach((button) => {
+    const kind = button.getAttribute('data-global-record-trigger') || 'photo';
+    const insideSheet = Boolean(button.closest && button.closest('[data-global-record-camera-sheet]'));
+    let longPressTimer = null;
+    let longPressTriggered = false;
+    if (kind === 'photo' && !insideSheet) {
+      const startLongPress = () => {
+        longPressTriggered = false;
+        if (longPressTimer) clearTimeout(longPressTimer);
+        longPressTimer = setTimeout(() => {
+          longPressTriggered = true;
+          openSheet('photo');
+        }, 450);
+      };
+      const cancelLongPress = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      button.addEventListener('pointerdown', startLongPress);
+      button.addEventListener('pointerup', cancelLongPress);
+      button.addEventListener('pointercancel', cancelLongPress);
+      button.addEventListener('pointerleave', cancelLongPress);
+      button.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+        cancelLongPress();
+        longPressTriggered = true;
+        openSheet('photo');
+      });
+    }
     button.addEventListener('click', (event) => {
       event.preventDefault();
-      const kind = button.getAttribute('data-global-record-trigger') || 'photo';
-      openSheet(kind === 'video' ? 'video' : 'photo');
+      if (longPressTriggered) {
+        longPressTriggered = false;
+        return;
+      }
+      if (kind === 'video') {
+        openSheet('video');
+        return;
+      }
+      if (insideSheet) {
+        openSheet('photo');
+        return;
+      }
+      sendGlobalRecordEvent('native_camera_tap', 'native_camera_tap', { source: 'global_trigger' });
+      clickFallbackInput('photo');
     });
   });
   document.querySelectorAll('[data-global-record-os-camera]').forEach((button) => {
