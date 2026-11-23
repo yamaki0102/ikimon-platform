@@ -24254,6 +24254,18 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   let plan: ObservationDualWritePlan;
   let refreshVisibility = false;
   let publicVisibilityRequested = false;
+  if (action === "set_title") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const nextTitle = String(form.get("title") ?? "").replace(/[\r\n]+/g, " ").trim();
+    if (nextTitle.length < 1 || nextTitle.length > 120) {
+      return json({ ok: false, error: "title_input_invalid" }, 400, { "cache-control": "no-store" });
+    }
+    await env.OBS_DB.batch([
+      env.OBS_DB.prepare("UPDATE observations SET taxon_label = ? WHERE observation_id = ? AND owner_user_id = ?").bind(nextTitle, recordId, session.userId),
+      env.OBS_DB.prepare("UPDATE readmodel_public_observations SET taxon_label = ? WHERE observation_id = ?").bind(nextTitle, recordId),
+    ]);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
