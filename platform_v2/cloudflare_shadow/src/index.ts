@@ -116,7 +116,7 @@ import {
   type ObservationFirstRecordDetail,
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
-import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -23802,6 +23802,60 @@ function areaSourceLabel(source: string): string {
   return "公開エリア";
 }
 
+async function resolveLiveSignboardTitle(visitId: string, photoAssetId: string | null, env: Env): Promise<string | null> {
+  const cacheKey = `signboard-title/${visitId}.json`;
+  try {
+    const cached = await env.ASSET_BUCKET?.get(cacheKey);
+    if (cached) {
+      const parsed = await new Response(cached.body).json().catch(() => null) as { title?: unknown } | null;
+      const cachedTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
+      return cachedTitle || null;
+    }
+    if (!env.GEMINI_API_KEY || !photoAssetId || !env.ASSET_BUCKET) return null;
+    const assetRow = await env.OBS_DB.prepare(
+      `SELECT public_derivative_key, mime FROM asset_ledger WHERE asset_id = ? AND public_derivative_key IS NOT NULL LIMIT 1`,
+    ).bind(photoAssetId).first<{ public_derivative_key: string; mime: string | null }>();
+    if (!assetRow?.public_derivative_key) return null;
+    const photoObj = await env.ASSET_BUCKET.get(assetRow.public_derivative_key);
+    if (!photoObj) return null;
+    const bytes = new Uint8Array(await new Response(photoObj.body).arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    const base64 = btoa(binary);
+    const mimeType = photoObj.httpMetadata?.contentType ?? assetRow.mime ?? "image/webp";
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: AbortSignal.timeout(6000),
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: "この写真の看板・案内板に書かれている一番大きな見出し・施設名・題名だけを1つ日本語でそのまま読み取ってください。読めない場合は空文字にしてください。JSON {\"title\":\"...\"} のみ返してください。" },
+              { inlineData: { mimeType, data: base64 } },
+            ],
+          }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.1, maxOutputTokens: 80 },
+        }),
+      },
+    );
+    if (!resp.ok) return null;
+    const payload = await resp.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } | null;
+    const rawText = payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const parsed = JSON.parse(rawText) as { title?: unknown };
+    const title = typeof parsed?.title === "string" ? parsed.title.replace(/[\r\n]+/g, " ").trim().slice(0, 60) : "";
+    await env.ASSET_BUCKET.put(cacheKey, JSON.stringify({ title, updatedAt: new Date().toISOString() }), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    }).catch(() => {});
+    return title || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<Response> {
   const detail = await buildPublicObservationDetail(rawId, env);
   if (!detail) {
@@ -23913,6 +23967,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         detail.aiRequestStatus,
       );
       const canonicalObservationPath = `/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`;
+      const signboardPresentationProbe = {
+        title: detail.displayName,
+        note: detail.note,
+        aiFeedback: detail.feedback,
+        aiCandidateInsights: detail.aiCandidateInsights,
+        signboardTitle: null,
+      };
+      const signboardTitle = isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
+        && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
+        ? await resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env)
+        : null;
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         recordsDiscoveryContext,
@@ -23941,6 +24006,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
         processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         aiFeedback: detail.feedback,
+        signboardTitle,
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),

@@ -1256,4 +1256,31 @@ test("signboard record with saved illustration-deer candidate suppresses organis
   assert.match(aiBox, /写っているもの：案内板/);
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
   assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/AI/g) ?? []).length, 1);
+
+  const signCardNoQuote = {
+    ...signCard,
+    aiSuggestions: [
+      {
+        ...signCard.aiSuggestions[0]!,
+        visualEvidence: ["案内板のイラスト"],
+      },
+    ],
+  };
+  const withFallbackOcrTitle = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [signCardNoQuote] },
+    {
+      lang: "ja",
+      title: "自然の記録",
+      titleIsFallback: true,
+      observedLabel: "2026-11-23 09:00",
+      publicLocationLabel: "四日市市",
+      note: "",
+      media: [],
+      actionNonce: "nonce-signboard-2",
+      signboardTitle: "四日市市少年自然の家パノラマ図",
+      aiFeedback: "",
+    },
+  );
+  assert.match(withFallbackOcrTitle, /<title>四日市市少年自然の家パノラマ図 \| ZUKAN<\/title>/);
+  assert.match(withFallbackOcrTitle, /<h1>四日市市少年自然の家パノラマ図<\/h1>/);
 });
