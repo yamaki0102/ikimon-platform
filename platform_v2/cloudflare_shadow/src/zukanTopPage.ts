@@ -1,7 +1,7 @@
 import type { Env } from "./core/env";
 
 function publicMediaUrl(key: string): string {
-  return `/media/${key.replace(/^\/+/, "")}`;
+  return `/${key.replace(/^\/+/, "")}`;
 }
 
 export type ZukanTopLang = "ja" | "en" | "es" | "pt-br";
