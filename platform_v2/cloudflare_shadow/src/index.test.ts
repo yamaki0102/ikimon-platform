@@ -31482,3 +31482,134 @@ test("place logger ingest (7 days) and simultaneous day national map enforce 401
   assert.match(mapHtml, /全国一斉の日（2026-11-23）· 参加地点 1件/);
   assert.match(mapHtml, /常盤公園/);
 });
+
+test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events fallback", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const topSqlite = new DatabaseSync(":memory:");
+  const coreWithTop = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bzukan_book_publications\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return topSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: topSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(topSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithTop };
+
+  const ownerToken = "top-owner-token";
+  const ownerHash = createHash("sha256").update(ownerToken).digest("hex");
+  baseCore.authSessions.set(ownerHash, {
+    token_hash: ownerHash,
+    user_id: "top-owner-1",
+    display_name: "Top Owner",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const otherToken = "top-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "top-other-1",
+    display_name: "Top Other",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  obs.observations.set("obs-top-1", {
+    observation_id: "obs-top-1",
+    draft_id: "draft-top-1",
+    owner_user_id: "top-owner-1",
+    observed_at: "2026-11-22T09:00:00.000Z",
+    partition_month: "2026-11",
+    taxon_label: "ヤツデ",
+    note: null,
+    exact_lat: 35.68,
+    exact_lng: 139.76,
+    location_accuracy_m: 10,
+    public_cell: "35.68,139.76",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "常盤公園"
+  });
+
+  const guestTop = await worker.fetch(new Request("https://zukan.earth/ja/"), env);
+  assert.equal(guestTop.status, 200);
+  const guestHtml = await guestTop.text();
+  assert.match(guestHtml, /ウェイティングリストに登録/);
+  assert.doesNotMatch(guestHtml, /0件|まだありません/);
+
+  const unauthPub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/publish", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ groupKey: "2026-11-22__常盤公園", placeName: "常盤公園", observationIds: ["obs-top-1"] })
+  }), env);
+  assert.equal(unauthPub.status, 401);
+
+  const otherPub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/publish", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ groupKey: "2026-11-22__常盤公園", placeName: "常盤公園", observationIds: ["obs-top-1"] })
+  }), env);
+  assert.equal(otherPub.status, 403);
+
+  const ownerPub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/publish", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${ownerToken}`
+    },
+    body: JSON.stringify({ groupKey: "2026-11-22__常盤公園", placeName: "常盤公園", observationIds: ["obs-top-1"] })
+  }), env);
+  assert.equal(ownerPub.status, 200);
+
+  const otherUnpub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/unpublish", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ groupKey: "2026-11-22__常盤公園" })
+  }), env);
+  assert.equal(otherUnpub.status, 403);
+
+  const ownerUnpub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/unpublish", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${ownerToken}`
+    },
+    body: JSON.stringify({ groupKey: "2026-11-22__常盤公園" })
+  }), env);
+  assert.equal(ownerUnpub.status, 200);
+});

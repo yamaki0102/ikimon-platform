@@ -7,6 +7,12 @@ import {
   recordSimultaneousDayEntry,
   renderSimultaneousDayMapHtml
 } from "./loggerAndSimultaneousDay";
+import {
+  ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
+  loadZukanTopPageData,
+  renderZukanTopPage,
+  type ZukanTopLang
+} from "./zukanTopPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -117,6 +123,7 @@ import {
   type CardDeps,
   type CardStats,
 } from "./observationCardMode";
+import { FAMILY_JA, callDecisionQuestions } from "./observationCardMeasure";
 import {
   buildHumanObservationEditPlan,
   buildIdentificationAcceptancePlan,
@@ -2900,6 +2907,72 @@ export const worker = {
             "cache-control": "no-store"
           }
         });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ groupKey?: unknown; placeName?: unknown; observationIds?: unknown[] }>(request);
+        const groupKey = typeof body.groupKey === "string" ? body.groupKey.trim().slice(0, 160) : "";
+        const placeName = typeof body.placeName === "string" ? body.placeName.trim().slice(0, 120) : "場所";
+        const observationIds = Array.isArray(body.observationIds)
+          ? body.observationIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0).slice(0, 50)
+          : [];
+        if (!groupKey || observationIds.length === 0) {
+          return json({ ok: false, error: "group_and_observations_required" }, 400, { "cache-control": "no-store" });
+        }
+        for (const obsId of observationIds) {
+          const ownerId = await resolveCompatibleObservationOwnerUserId(obsId, env);
+          if (!ownerId || ownerId !== session.userId) {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
+        }
+        await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
+        const existing = await env.CORE_DB.prepare(
+          "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
+        ).bind(groupKey).first<{ user_id: string }>();
+        if (existing && existing.user_id !== session.userId) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(
+          `INSERT INTO zukan_book_publications (group_key, user_id, place_name, observation_ids_json, published, updated_at)
+           VALUES (?1, ?2, ?3, ?4, 1, ?5)
+           ON CONFLICT(group_key) DO UPDATE SET
+             place_name = excluded.place_name,
+             observation_ids_json = excluded.observation_ids_json,
+             published = 1,
+             updated_at = excluded.updated_at`
+        ).bind(groupKey, session.userId, placeName, JSON.stringify(observationIds), Date.now()).run();
+        return json({ ok: true, published: true, groupKey }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/unpublish") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ groupKey?: unknown }>(request);
+        const groupKey = typeof body.groupKey === "string" ? body.groupKey.trim().slice(0, 160) : "";
+        if (!groupKey) {
+          return json({ ok: false, error: "group_key_required" }, 400, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
+        const existing = await env.CORE_DB.prepare(
+          "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
+        ).bind(groupKey).first<{ user_id: string }>();
+        if (existing && existing.user_id !== session.userId) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(
+          "UPDATE zukan_book_publications SET published = 0, updated_at = ?2 WHERE group_key = ?1 AND user_id = ?3"
+        ).bind(groupKey, Date.now(), session.userId).run();
+        return json({ ok: true, published: false, groupKey }, 200, { "cache-control": "no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
@@ -20868,7 +20941,46 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env, knownSess
     return nativePlaceSnapshot;
   }
 
+  const nativeZukanTop = await getNativeZukanTopHtmlIfAvailable(request, url, env, knownSession);
+  if (nativeZukanTop) {
+    return nativeZukanTop;
+  }
+
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+async function getNativeZukanTopHtmlIfAvailable(
+  request: Request,
+  url: URL,
+  env: Env,
+  knownSession?: SessionSnapshot | null
+): Promise<Response | null> {
+  if (env.ENVIRONMENT === "production") return null;
+  const nativePathname = stripPublicLangPrefix(url.pathname);
+  if (nativePathname !== "/" && nativePathname !== "/index.html") return null;
+  const session = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
+  const authenticated = Boolean(session && !session.banned);
+  const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+  const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
+  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
+  const cspNonce = createHtmlCspNonce();
+  const body = renderZukanTopPage(data, {
+    lang,
+    authenticated,
+    displayName: session?.displayName ?? null,
+    searchQuery,
+    cspNonce
+  });
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "zukan-top-v2"
+    }
+  });
 }
 
 function materializedSourceSha256Headers(object: MaterializedR2ObjectBody | null): Record<string, string> {
@@ -29879,6 +29991,17 @@ function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): Car
   return {
     gemini: (model, parts, options) => callCardGemini(env.GEMINI_API_KEY!, model, parts, options),
     decide: (images, question) => callCardDecision(env.GEMINI_API_KEY!, images, question),
+    measure: (images, questions) => callDecisionQuestions(env.GEMINI_API_KEY!, CARD_DECISION_MODEL, images, questions),
+    onScene: async (scene) => {
+      const name = scene.accepted && scene.family ? FAMILY_JA[scene.family] : undefined;
+      if (!name || prepared.request.request_state !== "processing") return;
+      const next = JSON.stringify({ ...reassessmentPayload(prepared.request.source_payload_json), earlyFamily: { name, scientificName: scene.family, p: Math.round(scene.familyP * 100) / 100 } });
+      const updated = await env.OBS_DB.prepare(
+        `UPDATE observation_reassessment_requests SET source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+      ).bind(next, prepared.request.request_id, prepared.request.source_payload_json).run() as { meta?: { changes?: number } };
+      if (Number(updated.meta?.changes ?? 0) === 1) prepared.request.source_payload_json = next;
+    },
     ...(ai && env.IMAGES ? {
       tileModel: async (png: string, prompt: string) => {
         const result = await ai.run(CARD_TILE_MODEL, {
