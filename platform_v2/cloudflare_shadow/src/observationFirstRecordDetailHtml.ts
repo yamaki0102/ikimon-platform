@@ -82,6 +82,7 @@ export type ObservationFirstRecordPresentation = {
   /** Server-only primary identity mapping, never serialized into this page. */
   aiPersonPrimaryNames?: readonly string[];
   aiFeedback?: string | null;
+  signboardTitle?: string | null;
   aiNextPhoto?: string | null;
   mediaDedup?: {
     sourcePhotoCount: number;
@@ -383,7 +384,7 @@ const adviceProsePattern = /(?:おすすめします|伝わりやすくなりま
 
 const SIGNBOARD_CANDIDATE_PATTERN = /案内板|看板|イラスト|パノラマ図|案内図|標柱|掲示板|ポスター|パンフレット|signboard|illustration|diagram/u;
 
-function isSignboardRecord(detail: ObservationFirstRecordDetail, presentation: ObservationFirstRecordPresentation): boolean {
+export function isSignboardRecord(detail: ObservationFirstRecordDetail, presentation: Pick<ObservationFirstRecordPresentation, "title" | "note" | "aiFeedback" | "aiCandidateInsights">): boolean {
   const hasHumanAccepted = detail.observations.some((card) => card.state === "active" && Boolean(publicSubjectName(card.acceptedIdentification?.proposedName)));
   if (hasHumanAccepted) return false;
   if (SIGNBOARD_CANDIDATE_PATTERN.test(presentation.title)) return true;
@@ -711,12 +712,12 @@ function renderOwnerPublicationReturn(
   return `<section class="of-publication-return" data-publication-return="owner-only" aria-labelledby="of-publication-return-title"><h2 id="of-publication-return-title">${escapeHtml(copy.publicationReturnTitle)}</h2><dl><div><dt>${escapeHtml(copy.publicationReview)}</dt><dd data-publication-review-state="${escapeHtml(publicationReturn.review.state)}">${escapeHtml(publicationReviewLabel(publicationReturn.review.state, copy))}</dd></div><div><dt>${escapeHtml(copy.publicationEligibility)}</dt><dd data-publication-state="${escapeHtml(publicationReturn.publication.state)}">${escapeHtml(publicationStateLabel(publicationReturn.publication.state, copy))}</dd></div></dl>${destinationItems ? `<h3>${escapeHtml(copy.publicationDestinations)}</h3><ul>${destinationItems}</ul>` : ""}${exclusion ? `<p class="of-publication-exclusion" data-publication-exclusion><strong>${escapeHtml(copy.publicationExclusion)}</strong> ${escapeHtml(exclusion)}</p>` : ""}</section>`;
 }
 
-function resolveSignboardTitle(
+export function extractSignboardQuote(
   detail: ObservationFirstRecordDetail,
-  presentation: ObservationFirstRecordPresentation,
-  copy: ObservationFirstRecordDetailCopy,
-  lang: ObservationRecordLang,
-): string {
+  presentation: Pick<ObservationFirstRecordPresentation, "note" | "aiFeedback" | "aiCandidateInsights" | "signboardTitle">,
+): string | null {
+  const direct = presentation.signboardTitle?.trim();
+  if (direct) return direct;
   const candidates: Array<string | null | undefined> = [
     presentation.note,
     presentation.aiFeedback,
@@ -728,6 +729,17 @@ function resolveSignboardTitle(
     const match = text.match(/[「『]([^」』]{2,60})[」』]/u);
     if (match?.[1]) return match[1].trim();
   }
+  return null;
+}
+
+function resolveSignboardTitle(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  copy: ObservationFirstRecordDetailCopy,
+  lang: ObservationRecordLang,
+): string {
+  const extracted = extractSignboardQuote(detail, presentation);
+  if (extracted) return extracted;
   if (!presentation.titleIsFallback && !SIGNBOARD_CANDIDATE_PATTERN.test(presentation.title) && !forbiddenEmptyCopy.test(presentation.title) && presentation.title !== copy.natureRecord) {
     return presentation.title;
   }

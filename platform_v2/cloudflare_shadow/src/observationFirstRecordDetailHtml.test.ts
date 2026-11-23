@@ -3,6 +3,7 @@ import test from "node:test";
 import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import type { OwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { resolveLiveSignboardTitle } from "./index";
 import { publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import { recordsDiscoveryDetailHref } from "./recordsDiscoveryContext";
 
@@ -1256,4 +1257,92 @@ test("signboard record with saved illustration-deer candidate suppresses organis
   assert.match(aiBox, /写っているもの：案内板/);
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
   assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/AI/g) ?? []).length, 1);
+
+  const signCardNoQuote = {
+    ...signCard,
+    aiSuggestions: [
+      {
+        ...signCard.aiSuggestions[0]!,
+        visualEvidence: ["案内板のイラスト"],
+      },
+    ],
+  };
+  const withFallbackOcrTitle = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [signCardNoQuote] },
+    {
+      lang: "ja",
+      title: "自然の記録",
+      titleIsFallback: true,
+      observedLabel: "2026-11-23 09:00",
+      publicLocationLabel: "四日市市",
+      note: "",
+      media: [],
+      actionNonce: "nonce-signboard-2",
+      signboardTitle: "四日市市少年自然の家パノラマ図",
+      aiFeedback: "",
+    },
+  );
+  assert.match(withFallbackOcrTitle, /<title>四日市市少年自然の家パノラマ図 \| ZUKAN<\/title>/);
+  assert.match(withFallbackOcrTitle, /<h1>四日市市少年自然の家パノラマ図<\/h1>/);
+});
+
+test("resolveLiveSignboardTitle runs OCR in waitUntil without blocking first render and caches failures for 24h", async () => {
+  const bucket = new Map<string, string>();
+  const env = {
+    GEMINI_API_KEY: "test-key",
+    ASSET_BUCKET: {
+      async get(key: string) {
+        const val = bucket.get(key);
+        if (val === undefined) return null;
+        return { body: new Response(val).body, httpMetadata: { contentType: "application/json" } };
+      },
+      async put(key: string, value: string) {
+        bucket.set(key, value);
+      },
+    },
+    OBS_DB: {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                return { public_derivative_key: "photo/1.webp", mime: "image/webp" };
+              },
+            };
+          },
+        };
+      },
+    },
+  } as unknown as Parameters<typeof resolveLiveSignboardTitle>[2];
+
+  bucket.set("photo/1.webp", "fake-bytes");
+  const pending: Promise<unknown>[] = [];
+  const ctx = { waitUntil(p: Promise<unknown>) { pending.push(p); } } as unknown as Parameters<typeof resolveLiveSignboardTitle>[3];
+  const origFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("upstream error", { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const first = await resolveLiveSignboardTitle("visit-fail", "asset-1", env, ctx);
+    assert.equal(first, null);
+    assert.equal(pending.length, 1, "first miss schedules background OCR via waitUntil");
+    await Promise.all(pending);
+    assert.equal(fetchCalls, 1);
+
+    const cachedRaw = bucket.get("signboard-title/visit-fail.json");
+    assert.ok(cachedRaw, "failure must be persisted in R2 cache");
+    assert.equal(JSON.parse(cachedRaw).status, "failed");
+
+    const secondPending: Promise<unknown>[] = [];
+    const secondCtx = { waitUntil(p: Promise<unknown>) { secondPending.push(p); } } as unknown as Parameters<typeof resolveLiveSignboardTitle>[3];
+    const second = await resolveLiveSignboardTitle("visit-fail", "asset-1", env, secondCtx);
+    assert.equal(second, null);
+    assert.equal(secondPending.length, 0, "failed OCR must not be retried within 24h");
+    assert.equal(fetchCalls, 1);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });
