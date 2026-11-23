@@ -30891,8 +30891,8 @@ test("GET /api/v1/areas/observations filters by area, media_kind (including phot
         observed_at: observedAt,
         taxon_label: taxon,
         asset_count: id === "obs-note" ? 0 : 1,
+        partition_month: "2026-10",
         public_area_label: "テストの森",
-        public_note: note,
       });
     }
   }
