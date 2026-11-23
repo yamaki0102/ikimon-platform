@@ -31253,3 +31253,134 @@ test("GET /api/v1/areas/observations filters by area, media_kind (including phot
   const periodBody = await periodRes.json() as { items: Array<{ visitId: string }> };
   assert.deepEqual(periodBody.items.map((x) => x.visitId), ["obs-video", "obs-audio"]);
 });
+
+test("fixed-point station creation and record creation require authentication and place manager/admin authorization", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const fpSqlite = new DatabaseSync(":memory:");
+  const coreWithFp = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bfixed_point_station(?:s|_records)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return fpSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: fpSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(fpSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithFp };
+
+  const normalToken = "fp-normal-token";
+  const normalHash = createHash("sha256").update(normalToken).digest("hex");
+  baseCore.authSessions.set(normalHash, {
+    token_hash: normalHash,
+    user_id: "user-normal",
+    display_name: "Normal User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const stewardToken = "fp-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash,
+    user_id: "user-steward",
+    display_name: "Steward User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.fieldManagers.set("fm-fp-1", {
+    manager_id: "fm-fp-1",
+    field_id: "plc_e3293ec4bb9288a0",
+    user_id: "user-steward",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  const unauthCreate = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({})
+  }), env);
+  assert.equal(unauthCreate.status, 401);
+
+  const nonManagerCreate = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${normalToken}`
+    },
+    body: JSON.stringify({ title: "無許可定点" })
+  }), env);
+  assert.equal(nonManagerCreate.status, 403);
+
+  const managerCreate = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ stationId: "fps_spoofed", title: "池の東側ベンチ" })
+  }), env);
+  assert.equal(managerCreate.status, 201);
+  const createdBody = await managerCreate.json() as { station: { station_id: string; created_by_user_id: string } };
+  assert.notEqual(createdBody.station.station_id, "fps_spoofed");
+  assert.equal(createdBody.station.created_by_user_id, "user-steward");
+
+  const stationId = createdBody.station.station_id;
+  const unauthRecord = await worker.fetch(new Request(`https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations/${stationId}/records`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ answer1: "澄んでいる" })
+  }), env);
+  assert.equal(unauthRecord.status, 401);
+
+  const nonManagerRecord = await worker.fetch(new Request(`https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations/${stationId}/records`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${normalToken}`
+    },
+    body: JSON.stringify({ answer1: "澄んでいる" })
+  }), env);
+  assert.equal(nonManagerRecord.status, 403);
+
+  const managerRecord = await worker.fetch(new Request(`https://zukan.earth/api/v1/places/plc_e3293ec4bb9288a0/stations/${stationId}/records`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ answer1: "澄んでいる", onSiteVerified: true, verifiedByLabel: "偽装名" })
+  }), env);
+  assert.equal(managerRecord.status, 201);
+  const recordBody = await managerRecord.json() as { record: { verified_by_label: string } };
+  assert.equal(recordBody.record.verified_by_label, "Steward User");
+});
