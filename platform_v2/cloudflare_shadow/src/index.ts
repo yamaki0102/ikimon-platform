@@ -2819,33 +2819,6 @@ export const worker = {
         return getZukanWaitlistHtml(request, url, env);
       }
 
-      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/" || nativePathname === "/index.html")) {
-        const session = await readCompatibleSession(request, env).catch(() => null);
-        const authenticated = Boolean(session && !session.banned);
-        const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
-        const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
-        const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
-        const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
-        const cspNonce = createHtmlCspNonce();
-        const body = renderZukanTopPage(data, {
-          lang,
-          authenticated,
-          displayName: session?.displayName ?? null,
-          searchQuery,
-          cspNonce
-        });
-        const res = new Response(request.method === "HEAD" ? null : body, {
-          status: 200,
-          headers: {
-            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
-            "content-type": "text/html; charset=utf-8",
-            "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
-            "x-ikimon-cloudflare-native": "zukan-top-v2"
-          }
-        });
-        return res;
-      }
-
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
         const sameOriginError = assertSameOriginRequest(request);
         if (sameOriginError) return sameOriginError;
@@ -20878,7 +20851,46 @@ async function getOriginalUiHtml(request: Request, url: URL, env: Env, knownSess
     return nativePlaceSnapshot;
   }
 
+  const nativeZukanTop = await getNativeZukanTopHtmlIfAvailable(request, url, env, knownSession);
+  if (nativeZukanTop) {
+    return nativeZukanTop;
+  }
+
   return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
+}
+
+async function getNativeZukanTopHtmlIfAvailable(
+  request: Request,
+  url: URL,
+  env: Env,
+  knownSession?: SessionSnapshot | null
+): Promise<Response | null> {
+  if (env.ENVIRONMENT === "production") return null;
+  const nativePathname = stripPublicLangPrefix(url.pathname);
+  if (nativePathname !== "/" && nativePathname !== "/index.html") return null;
+  const session = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
+  const authenticated = Boolean(session && !session.banned);
+  const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
+  const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
+  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
+  const cspNonce = createHtmlCspNonce();
+  const body = renderZukanTopPage(data, {
+    lang,
+    authenticated,
+    displayName: session?.displayName ?? null,
+    searchQuery,
+    cspNonce
+  });
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "zukan-top-v2"
+    }
+  });
 }
 
 function materializedSourceSha256Headers(object: MaterializedR2ObjectBody | null): Record<string, string> {
