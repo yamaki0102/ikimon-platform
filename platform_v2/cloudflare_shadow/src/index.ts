@@ -25279,7 +25279,7 @@ CREATE TABLE IF NOT EXISTS zukan_waitlist (
 
 function getZukanWaitlistHtml(request: Request, url: URL, env: Env): Response {
   const langMatch = url.pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/);
-  const lang = normalizeWaitlistLang(langMatch?.[1] ?? "ja");
+  const lang = normalizeWaitlistLang(langMatch?.[1] ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja");
   const cspNonce = createHtmlCspNonce();
   const body = request.method === "HEAD"
     ? null

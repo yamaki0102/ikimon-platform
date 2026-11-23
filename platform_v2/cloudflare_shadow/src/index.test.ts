@@ -28532,16 +28532,17 @@ test("production materialized auth html personalizes redirect query without orig
     const explicitResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord%3Fstart%3Dnote&lang=en"), productionEnv);
     const explicitHtml = await explicitResponse.text();
     assert.equal(explicitResponse.status, 200);
-    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
-    assert.match(explicitHtml, /data-redirect="\/record\?start=note"/);
-    assert.match(explicitHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dnote/);
+    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-waitlist");
+    assert.match(explicitHtml, /id="zukan-waitlist-form"/);
+    assert.match(explicitHtml, /\/en\/login/);
     assert.doesNotMatch(explicitHtml, /\/auth\/oauth\/google\/start/);
 
     const bareResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord&lang=en"), productionEnv);
     const bareHtml = await bareResponse.text();
     assert.equal(bareResponse.status, 200);
-    assert.match(bareHtml, /data-redirect="\/record\?start=photo"/);
-    assert.match(bareHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dphoto/);
+    assert.equal(bareResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-waitlist");
+    assert.match(bareHtml, /id="zukan-waitlist-form"/);
+    assert.match(bareHtml, /\/en\/login/);
 
     const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
     const loginHtml = await loginResponse.text();
