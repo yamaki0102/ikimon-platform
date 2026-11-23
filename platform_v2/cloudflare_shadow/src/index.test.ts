@@ -8881,7 +8881,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(cellsPayload.type, "FeatureCollection");
   assert.ok(Array.isArray(cellsPayload.features));
   assert.equal(cellsPayload.features.length, 1);
-  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.71,137.81");
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.7,137.8");
   assert.equal(cellsPayload.features[0].properties.count, 1);
   assert.equal(cellsPayload.stats.totalRecords, 1);
   assert.doesNotMatch(JSON.stringify(cellsPayload), /34\.71234|137\.81234/);
@@ -8891,14 +8891,14 @@ test("v1 public map read routes expose current shell contracts without exact coo
   assert.equal(coverageResponse.ok, true, JSON.stringify(coveragePayload));
   assert.equal(coveragePayload.type, "FeatureCollection");
   assert.equal(coveragePayload.features.length, 1);
-  assert.equal(coveragePayload.features[0].properties.mesh, "34.71,137.81");
+  assert.equal(coveragePayload.features[0].properties.mesh, "34.7,137.8");
   assert.equal(coveragePayload.features[0].properties.count, 1);
   assert.equal(coveragePayload.maxCount, 1);
   assert.equal(coveragePayload.compatibility.source, "cloudflare_readmodel_public_observations");
   assert.equal(coveragePayload.compatibility.exactLocationExposed, false);
   assert.doesNotMatch(JSON.stringify(coveragePayload), /34\.71234|137\.81234/);
 
-  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.ok(Array.isArray(observationsPayload.items));
@@ -8913,17 +8913,17 @@ test("v1 public map read routes expose current shell contracts without exact coo
     worker.fetch(new Request(`https://shadow.test/${unsafeMapDerivativeKey}`, { method: "HEAD" }), env)
   ]);
   assert.deepEqual(unsafeResponses.map((response) => response.status), [404, 404]);
-  assert.equal(observationsPayload.stats.selectedCellId, "cell:34.71,137.81");
+  assert.equal(observationsPayload.stats.selectedCellId, "cell:34.7,137.8");
   assert.ok(!("features" in observationsPayload));
   assert.doesNotMatch(JSON.stringify(observationsPayload), /34\.71234|137\.81234/);
   const mapAsset = env.OBS_DB.assets.get("asset-map-contract-real-derivative");
   assert.ok(mapAsset);
   mapObservation.visibility = "private";
-  const privateMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const privateMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   assert.equal((await privateMapResponse.json() as any).items[0].photoUrl, null);
   mapObservation.visibility = "public";
   mapObservation.emergency_hidden = 1;
-  const hiddenMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const hiddenMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   assert.equal((await hiddenMapResponse.json() as any).items[0].photoUrl, null);
   mapObservation.emergency_hidden = 0;
   env.OBS_DB.observationDataRights.set("visit-map-contract", {
@@ -8938,19 +8938,19 @@ test("v1 public map read routes expose current shell contracts without exact coo
     withdrawal_status: "withdrawn",
     source_payload_json: "{}"
   });
-  const withdrawnMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const withdrawnMapResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const withdrawnMapPayload = await withdrawnMapResponse.json() as any;
   assert.equal(withdrawnMapPayload.items.find((item: any) => item.visitId === "visit-map-contract")?.photoUrl, undefined);
   env.OBS_DB.observationDataRights.get("visit-map-contract")!.withdrawal_status = "active";
   mapAsset.public_derivative_metadata_json = "{\"gpsExifPresent\":false,\"contentType\":\"image/webp\",\"scannedContainer\":\"binary\"}";
-  const legacyCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const legacyCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const legacyCertifiedPayload = await legacyCertifiedResponse.json() as any;
   assert.equal(legacyCertifiedPayload.items[0].photoUrl, `/${unsafeMapDerivativeKey}`, "verified historical binary WebP remains eligible");
   mapAsset.public_derivative_metadata_json = JSON.stringify({
     contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false,
     exifPresent: false, gpsPresent: false, xmpPresent: false, exactCoordinateLiteralPresent: false
   });
-  const currentCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81"), env);
+  const currentCertifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8"), env);
   const currentCertifiedPayload = await currentCertifiedResponse.json() as any;
   assert.equal(currentCertifiedPayload.items[0].photoUrl, `/${unsafeMapDerivativeKey}`);
   const workerSource = await readFile(new URL("./index.ts", import.meta.url), "utf8");
@@ -8973,7 +8973,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
     display_name: "unidentified",
     asset_count: 0
   });
-  const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.71%2C137.81&limit=10"), env);
+  const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8&limit=10"), env);
   const unidentifiedPayload = await unidentifiedResponse.json() as any;
   const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
   assert.equal(unidentified.displayName, "名前待ち");
@@ -9763,17 +9763,17 @@ test("privacy exact-coordinate gate keeps public map responses on public cells o
     assert.doesNotMatch(text, /"(?:exact_lat|exact_lng|latitude|longitude)"\s*:/);
   };
 
-  const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells?bbox=137.87,34.76,137.89,34.78&zoom=13"), env);
+  const cellsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/cells?bbox=137.85,34.75,137.95,34.85&zoom=13"), env);
   const cellsPayload = await cellsResponse.json() as any;
   assert.equal(cellsResponse.ok, true, JSON.stringify(cellsPayload));
   assert.equal(cellsPayload.features.length, 1);
-  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.77,137.88");
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:34.8,137.9");
   assert.equal(cellsPayload.stats.privacy.exactLocationExposed, false);
   assert.equal(cellsPayload.stats.privacy.publicCoordinateSource, "readmodel_public_observations.public_cell");
   assert.deepEqual(cellsPayload.stats.privacy.rawCoordinateFieldsExposed, []);
   assertPublicMapGate(cellsPayload);
 
-  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.77%2C137.88&limit=20"), env);
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.8%2C137.9&limit=20"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.equal(observationsPayload.items.length, 1);
@@ -9800,7 +9800,7 @@ test("public map keeps persisted unknown labels unconfirmed without exposing coo
       visit_id: "pending-japanese", cell_1000: "35.01,138.39",
       observed_at: "2026-09-04T00:00:00.000Z", display_name: label, asset_count: 0,
     });
-    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.01%2C138.39"), env);
+    const response = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.0%2C138.4"), env);
     assert.equal(response.status, 200);
     const payload = await response.json() as any;
     assert.equal(payload.items.length, 1);
@@ -9863,10 +9863,10 @@ test("public map routes prefer D1 snapshot records when present", async () => {
   const cellsPayload = await cellsResponse.json() as any;
   assert.equal(cellsResponse.ok, true, JSON.stringify(cellsPayload));
   assert.equal(cellsPayload.features.length, 1);
-  assert.equal(cellsPayload.features[0].properties.cellId, "cell:35.01,138.39");
+  assert.equal(cellsPayload.features[0].properties.cellId, "cell:35.0,138.4");
   assert.doesNotMatch(JSON.stringify(cellsPayload), /legacy-readmodel-row|34\.71,137\.81/);
 
-  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.01%2C138.39"), env);
+  const observationsResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A35.0%2C138.4"), env);
   const observationsPayload = await observationsResponse.json() as any;
   assert.equal(observationsResponse.ok, true, JSON.stringify(observationsPayload));
   assert.equal(observationsPayload.items.length, 1);

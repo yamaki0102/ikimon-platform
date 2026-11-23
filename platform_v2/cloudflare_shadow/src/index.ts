@@ -25112,8 +25112,10 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       mediaRole: "observation_audio",
     }));
   const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
-  const relatedRows = (await queryPublicMapRows(env))
-    .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === row.public_cell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
+  const publicRows = await queryPublicMapRows(env);
+  const ownPublicCell = publicRows.find((candidate) => candidate.observation_id === visitId)?.public_cell ?? row.public_cell;
+  const relatedRows = publicRows
+    .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
