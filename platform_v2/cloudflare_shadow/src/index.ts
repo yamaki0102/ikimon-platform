@@ -1,4 +1,10 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import {
+  handleNocosilOutcomeUsageApi,
+  listNocosilOutcomeUsagesForPlace,
+  listNocosilOutcomeUsagesForRecord,
+  renderNocosilOutcomeUsageHtml
+} from "./nocosilOutcomeUsage";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
@@ -2271,7 +2277,8 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated });
+  const placeUsages = await listNocosilOutcomeUsagesForPlace(env, canonicalPlaceId);
+  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated, nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages) });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "global-place-detail",
@@ -3016,6 +3023,11 @@ export const worker = {
       const nocosilRevisionResponse = await handleNocosilRevisionReceiverApi(request, url, env);
       if (nocosilRevisionResponse) {
         return nocosilRevisionResponse;
+      }
+
+      const nocosilOutcomeUsageResponse = await handleNocosilOutcomeUsageApi(request, url, env);
+      if (nocosilOutcomeUsageResponse) {
+        return nocosilOutcomeUsageResponse;
       }
 
       const publicParticipationResponse = await handleZukanPublicParticipationReceiver(request, url, env);
@@ -24167,10 +24179,14 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiCandidateInsights: detail.aiCandidateInsights,
         signboardTitle: null,
       };
-      const signboardTitle = isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
-        && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
-        ? await resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
-        : null;
+      const [signboardTitle, recordUsages] = await Promise.all([
+        isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
+          && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
+          ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
+          : Promise.resolve(null),
+        listNocosilOutcomeUsagesForRecord(env, detail.visitId)
+      ]);
+      const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         recordsDiscoveryContext,
@@ -24185,6 +24201,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiPersonPrimaryNames: detail.aiPersonPrimaryNames,
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
+        nocosilUsageHtml,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
           title: item.isAwaitingId
