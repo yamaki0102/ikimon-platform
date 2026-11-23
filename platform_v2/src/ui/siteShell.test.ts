@@ -1295,7 +1295,7 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
   return {
     sheet, video, start, capture, error, errorBody, retry, close, gallery, galleryInput, photoInput, native, nativeFallback,
     triggers, requests, timers, events,
-    startPhoto() { triggers.photo!.click(); if (sourceChoice) start.click(); },
+    startPhoto() { triggers.photo!.dispatch("contextmenu"); if (sourceChoice) start.click(); },
     timeout() {
       const pending = [...timers].filter(([, timer]) => timer.delay === 10000);
       assert.equal(pending.length, 1);
@@ -1454,7 +1454,7 @@ test("unsupported macro focus releases the stream and the error button reuses on
     assert.equal(runtime.events.filter((event) => event.eventName === "funnel_step" && event.metadata.event === "native_camera_tap").length, 1);
   }
   const regularCamera = cameraRuntime("en", false);
-  regularCamera.triggers.photo!.click();
+  regularCamera.triggers.photo!.dispatch("contextmenu");
   regularCamera.start.click();
   const stream = cameraTestStream({});
   regularCamera.requests[0]!.resolve(stream);
@@ -1605,4 +1605,25 @@ test("language switcher hides languages that are unavailable for the current pag
   assert.doesNotMatch(html, /class="lang-switch-link" href="\/en\/"/);
   assert.doesNotMatch(html, /class="lang-switch-link" href="\/es\/"/);
   assert.doesNotMatch(html, /class="lang-switch-link" href="\/pt-br\/"/);
+});
+
+test("site shell includes global record trigger on /guide and 1-tap opens native capture=environment immediately", () => {
+  const guideHtml = renderRecordPage({
+    basePath: "",
+    title: "ライブガイド",
+    body: "<p>guide</p>",
+    lang: "ja",
+    currentPath: "/ja/guide",
+  });
+  assert.match(guideHtml, /data-global-record-trigger="photo"/);
+  assert.match(guideHtml, /data-global-record-input="photo"[^>]*capture="environment"/);
+
+  const runtime = cameraRuntime();
+  assert.ok(runtime.photoInput);
+  runtime.triggers.photo!.click();
+  assert.equal(runtime.photoInput.clicks, 1, "1-tap must immediately open native capture=environment");
+  assert.equal(runtime.sheet.hidden, true, "1-tap must not stop at chooser sheet");
+
+  runtime.triggers.photo!.dispatch("contextmenu");
+  assert.equal(runtime.sheet.hidden, false, "secondary action (contextmenu/long-press) opens chooser sheet");
 });

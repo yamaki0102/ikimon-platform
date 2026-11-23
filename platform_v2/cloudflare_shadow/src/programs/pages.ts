@@ -11,7 +11,7 @@ import { OBSERVATION_EVENT_LIST_STYLES, renderEventListBody } from "../../../src
 import { RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION, discoveryNickname, isEventDiscoveryProfile } from "../eventDiscovery";
 import { RYUYO_FIELD_ID } from "../areaEncyclopediaNative";
 import { FRONTEND_FOUNDATION_CSS } from "../../../src/ui/frontendFoundation";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../../src/ui/appExperience";
 import { OBSERVATION_EVENT_STYLES } from "../../../src/ui/observationEventStyles";
 import type { CommonEventTemplateKey } from "../../../src/services/commonEventTemplateContract";
 import { renderObservationEventTemplateOrganizer } from "../../../src/ui/observationEventTemplateOrganizer";
@@ -1106,7 +1106,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
   <main id="main-content" tabindex="-1">
     ${body}
   </main>
-${standalone ? "" : renderAppExperienceNavigation(lang, 4, "bottom", member)}
+${standalone ? "" : `${renderAppExperienceNavigation(lang, 4, "bottom", member)}${renderAppExperienceQuickCamera(lang, { nonce: cspNonce })}`}
 </body>
 </html>`;
   return html(applyCspNonceToHtmlScripts(document, cspNonce), status, {

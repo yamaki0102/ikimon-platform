@@ -15,7 +15,7 @@ import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from ".
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
 import * as bcrypt from "bcryptjs";
 import {
@@ -19246,9 +19246,10 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
     .fps-compare-meta dd { margin:0; font-size:14px; font-weight:720; color:var(--ink); overflow-wrap:anywhere; }
     .fps-compare-link { color:var(--green); font-weight:900; text-decoration:none; font-size:14px; }
     @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } .fps-compare { padding:12px; } .fps-compare-controls { grid-template-columns:1fr; } .fps-compare-grid { gap:8px; } .fps-compare-card { padding:10px; } }
+    ${APP_EXPERIENCE_STYLES}
   </style>
 </head>
-<body>
+<body data-zukan-app-experience="station">
 <header><a href="/">ZUKAN</a><nav><a href="/map">地図へ</a></nav></header>
 <main data-cloudflare-fixed-point-station="1" data-place-id="${escapeHtml(station.placeId)}">
   <section class="fps-hero"><div><span>定点ページ</span><h1>${escapeHtml(station.name)}</h1><p>${escapeHtml(station.locationLabel)}。同じ場所の公開記録と手入れの履歴を年ごとに並べます。</p></div><a href="${escapeHtml(recordHref)}">この場所を記録</a></section>
@@ -19306,6 +19307,7 @@ ${hasComparableDates ? `<script>
   });
 })();
 </script>` : ""}
+${renderAppExperienceNavigation("ja", 3, "bottom", false)}${renderAppExperienceQuickCamera("ja")}
 </body>
 </html>`;
 }
@@ -21153,6 +21155,35 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     }
     cameraInput?.addEventListener("change", () => addPhotoFiles(cameraInput));
     photoInput?.addEventListener("change", () => addPhotoFiles(photoInput));
+    document.querySelectorAll(".zukan-app-nav .is-capture").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        if (!cameraInput) return;
+        event.preventDefault();
+        cameraInput.click();
+      });
+    });
+    if (new URLSearchParams(location.search).get("from") === "quick_camera") {
+      void (async () => {
+        try {
+          const db = await openRecordDraftDb();
+          const entry = await new Promise((resolve) => {
+            const tx = db.transaction("drafts", "readwrite");
+            const store = tx.objectStore("drafts");
+            const req = store.get("quick-camera-latest");
+            req.onsuccess = () => {
+              const val = req.result || null;
+              if (val) store.delete("quick-camera-latest");
+              resolve(val);
+            };
+            req.onerror = () => resolve(null);
+            tx.oncomplete = () => db.close();
+          });
+          if (entry && Array.isArray(entry.files) && entry.files.length) {
+            addPhotoFiles({ files: entry.files, value: "" });
+          }
+        } catch {}
+      })();
+    }
     videoInput?.addEventListener("change", () => {
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";

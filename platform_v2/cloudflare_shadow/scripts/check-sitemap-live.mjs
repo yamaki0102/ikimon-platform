@@ -25,6 +25,22 @@ export function visibleTextLength(body) {
     .trim().length;
 }
 
+export function hasQuickCameraControl(url, body) {
+  const html = String(body);
+  let pathname = "";
+  try {
+    pathname = new URL(url, "https://zukan.earth").pathname;
+  } catch {
+    pathname = String(url).split("?")[0];
+  }
+  const hasCaptureInput = /<input\b[^>]*\bcapture=["']environment["'][^>]*>/iu.test(html);
+  if (/\/record\/?$/iu.test(pathname)) {
+    return /id=["']record-media-camera["']/iu.test(html) && hasCaptureInput;
+  }
+  const hasTrigger = /data-global-record-trigger=["']photo["']/iu.test(html);
+  return hasTrigger && hasCaptureInput;
+}
+
 export function evaluatePage({ url, status, body = "", error = null }) {
   const problems = [];
   if (error) problems.push(`fetch_error:${error}`);
@@ -33,6 +49,7 @@ export function evaluatePage({ url, status, body = "", error = null }) {
     if (String(body).includes("html_not_materialized")) problems.push("html_not_materialized");
     const textLength = visibleTextLength(body);
     if (textLength < MIN_TEXT_LENGTH) problems.push(`text_too_short:${textLength}`);
+    if (status === 200 && !hasQuickCameraControl(url, body)) problems.push("missing_quick_camera");
   }
   return { url, status: status ?? null, ok: problems.length === 0, problems };
 }
