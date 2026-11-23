@@ -1197,10 +1197,13 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
   );
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
   const visibleText = bodyHtml.replace(/<[^>]*>/gu, " ");
-  assert.equal((visibleText.match(/AI/g) ?? []).length, 1);
-  assert.match(rendered, /data-ai-assessment/);
-  assert.match(rendered, /AIの見立て/);
-  assert.doesNotMatch(rendered, /of-ai-badge|AIが見つけた/);
+  assert.match(visibleText, /題名とこの文章はAIが作成しました/);
+  assert.match(visibleText, /この説明はAIが作成しました/);
+  assert.match(visibleText, /この場所のようすはAIが読み取りました/);
+  assert.equal((bodyHtml.match(/class="of-ai-note"/g) ?? []).length, 3);
+  assert.equal((bodyHtml.match(/AIのコメント/g) ?? []).length, 1);
+  assert.match(rendered, /確認の印がない名前と場所のようすは、AIが推定したものです。/);
+  assert.doesNotMatch(rendered, /of-ai-badge|AIの見立て|AIからの短いメモ|AIが見つけた/);
   assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
   assert.doesNotMatch(rendered, /未確認/);
   assert.match(rendered, /次に撮るとよい写真：実物の生体や周囲の自然環境<\/p>/);
@@ -1253,10 +1256,9 @@ test("signboard record with saved illustration-deer candidate suppresses organis
   assert.doesNotMatch(rendered, /シカかもしれません|案内板のイラストのシカ/);
   assert.doesNotMatch(rendered, /次に撮るとよい写真：実物の生体/);
   assert.equal((rendered.match(/この写真から見つかったもの/g) ?? []).length, 1);
-  const aiBox = rendered.match(/data-ai-assessment[\s\S]*?<\/section>\s*<\/section>/)?.[0] ?? "";
-  assert.match(aiBox, /写っているもの：案内板/);
+  assert.match(rendered, /写っているもの：案内板/);
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
-  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/AI/g) ?? []).length, 1);
+  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/この説明はAIが作成しました/g) ?? []).length, 1);
 
   const signCardNoQuote = {
     ...signCard,
@@ -1345,4 +1347,62 @@ test("resolveLiveSignboardTitle runs OCR in waitUntil without blocking first ren
   } finally {
     globalThis.fetch = origFetch;
   }
+});
+
+test("record detail shows owner title edit form and role-based provenance without user names", () => {
+  const withMultiProposers = {
+    ...detail,
+    owner: true,
+    observations: [
+      {
+        ...detail.observations[0]!,
+        acceptedIdentification: { claimId: "acc-1", actorType: "owner" as const, actorId: "u1", proposalActorType: "owner" as const, proposedName: "キアゲハ", proposedScientificName: null, proposedRank: "species", humanDecision: true as const },
+        communityIdentifications: [
+          { claimId: "c1", actorType: "community_member" as const, proposedName: "ナミアゲハ", proposedScientificName: null, proposedRank: "species", stance: "support" as const, accepted: false },
+          { claimId: "c2", actorType: "community_member" as const, proposedName: "ナミアゲハ", proposedScientificName: null, proposedRank: "species", stance: "support" as const, accepted: false },
+        ],
+      },
+    ],
+  };
+  const ownerHtml = renderObservationFirstRecordDetailHtml(withMultiProposers, {
+    lang: "ja",
+    title: "キアゲハ",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-roles",
+  });
+  assert.match(ownerHtml, /class="of-title-edit"/);
+  assert.match(ownerHtml, /name="action" value="set_title"/);
+  assert.match(ownerHtml, /記録した人が確認/);
+  assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
+
+  const withCustomTitle = renderObservationFirstRecordDetailHtml(withMultiProposers, {
+    lang: "ja",
+    title: "キアゲハ",
+    customTitle: "里山のチョウと野草",
+    aiFeedback: "林縁の草地でよく見られます。",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-custom-title",
+  });
+  assert.match(withCustomTitle, /<h1>里山のチョウと野草<\/h1>/);
+  assert.match(withCustomTitle, /name="action" value="reset_title"/);
+  assert.match(withCustomTitle, /自動の題名に戻す/);
+  assert.match(withCustomTitle, /この文章はAIが作成しました/);
+  assert.doesNotMatch(withCustomTitle, /題名とこの文章はAIが作成しました/);
+
+  const guestHtml = renderObservationFirstRecordDetailHtml({ ...withMultiProposers, owner: false }, {
+    lang: "ja",
+    title: "キアゲハ",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-roles-guest",
+  });
+  assert.doesNotMatch(guestHtml, /class="of-title-edit"/);
 });
