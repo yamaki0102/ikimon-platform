@@ -65,8 +65,8 @@ $duplicateRollup = @(
 )
 Assert-Equal (Get-RequiredChecksState -RequiredContexts @("Quality Gate") -Rollup $duplicateRollup).state "ready" "The newest duplicate check run should determine promotion state"
 
-Assert-Equal (Test-RequiresCloudflareStaging -ChangedPaths @("platform_v2/src/app.ts")) $true "Current app changes require Cloudflare staging"
-Assert-Equal (Test-RequiresCloudflareStaging -ChangedPaths @("platform_v2/cloudflare_shadow/src/index.ts")) $true "Worker changes require Cloudflare staging"
+Assert-Equal (Test-RequiresCloudflareStaging -ChangedPaths @("platform_v2/src/app.ts")) $false "Current app changes release directly to production without Cloudflare staging"
+Assert-Equal (Test-RequiresCloudflareStaging -ChangedPaths @("platform_v2/cloudflare_shadow/src/index.ts")) $false "Worker changes release directly to production without Cloudflare staging"
 Assert-Equal (Test-RequiresCloudflareStaging -ChangedPaths @("docs/DEPLOYMENT.md", "scripts/release_autopilot.ps1")) $false "Documentation and local release tooling do not require a staging deploy"
 
 $shaA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
