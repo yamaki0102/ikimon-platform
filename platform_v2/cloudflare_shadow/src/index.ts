@@ -20947,7 +20947,7 @@ async function getNativeZukanTopHtmlIfAvailable(
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
-  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
+  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
   const body = renderZukanTopPage(data, {
     lang,
