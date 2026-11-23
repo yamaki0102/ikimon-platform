@@ -31391,6 +31391,7 @@ test("public map coarsens cells with fewer than three recorders to 10km on every
   const sparseXs = sparse.geometry.coordinates[0]!.map((p) => p[0]!);
   assert.ok(Math.abs((Math.max(...sparseXs) - Math.min(...sparseXs)) - 0.1) < 1e-9);
   assert.equal(cellsBody.features.some((f) => f.properties.cellId === "cell:35.68,139.77"), false);
+  assert.equal((sparse.properties as { gridM?: number }).gridM, 10000);
   const dense = cellsBody.features.find((f) => f.properties.cellId === "cell:35.52,139.52")!;
   assert.ok(dense, "three-recorder cell should stay at 0.01 degree");
   const denseXs = dense.geometry.coordinates[0]!.map((p) => p[0]!);
