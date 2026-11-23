@@ -118,22 +118,38 @@ function formatYearMonthJa(iso: string): string {
   return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月`;
 }
 
+const ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY = `(
+  SELECT a.public_derivative_key
+    FROM asset_ledger a
+   WHERE a.observation_id = o.observation_id
+     AND a.processing_state = 'uploaded'
+     AND a.public_derivative_key IS NOT NULL
+     AND a.public_derivative_verified_at IS NOT NULL
+     AND COALESCE(a.public_derivative_metadata_json, '') NOT LIKE '%"scannedContainer":"svg+xml"%'
+     AND COALESCE(a.public_derivative_metadata_json, '') NOT LIKE '%"contentType":"image/svg%'
+     AND a.exif_scrub_state = 'scrubbed'
+     AND a.public_ready_at IS NOT NULL
+     AND a.mime LIKE 'image/%'
+   ORDER BY COALESCE(a.public_ready_at, a.public_derivative_verified_at, a.uploaded_at, '') DESC
+   LIMIT 1
+)`;
+
+function isSyntheticOrTestEventTitle(title: string, sessionId = ""): boolean {
+  const combined = `${title} ${sessionId}`;
+  return /\b(?:PR\d+|prod[\s_-]*rally|smoke|canary|e2e|dummy|sandbox)\b|テスト|試験/iu.test(combined);
+}
+
 export async function loadOwnerHeroPhotos(env: Env, limit = 5): Promise<TopHeroPhoto[]> {
-  try {
-    const ownerUserId = (env as unknown as Record<string, string | undefined>).ZUKAN_OWNER_USER_ID?.trim() || "";
+  const queryPhotos = async (ownerUserId: string): Promise<TopHeroPhoto[]> => {
     const rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.public_area_label, o.taxon_label,
-              (SELECT a.public_derivative_key FROM observation_assets a
-                WHERE a.observation_id = o.observation_id
-                  AND a.public_derivative_key IS NOT NULL
-                  AND a.mime LIKE 'image/%'
-                LIMIT 1) AS derivative_key
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE COALESCE(o.visibility, 'public') = 'public'
          AND COALESCE(o.emergency_hidden, 0) = 0
          ${ownerUserId ? "AND o.owner_user_id = ?1" : ""}
        ORDER BY o.observed_at DESC
-       LIMIT 24`
+       LIMIT 48`
     ).bind(...(ownerUserId ? [ownerUserId] : [])).all<{
       observation_id: string;
       observed_at: string;
@@ -155,6 +171,13 @@ export async function loadOwnerHeroPhotos(env: Env, limit = 5): Promise<TopHeroP
       if (photos.length >= limit) break;
     }
     return photos;
+  };
+
+  try {
+    const ownerUserId = (env as unknown as Record<string, string | undefined>).ZUKAN_OWNER_USER_ID?.trim() || "";
+    const primary = await queryPhotos(ownerUserId);
+    if (primary.length > 0 || !ownerUserId) return primary;
+    return await queryPhotos("");
   } catch {
     return [];
   }
@@ -185,30 +208,32 @@ export async function loadRecentPublicRecords(env: Env, limit = 6): Promise<TopP
   try {
     const res = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
-              (SELECT a.public_derivative_key FROM observation_assets a
-                WHERE a.observation_id = o.observation_id
-                  AND a.public_derivative_key IS NOT NULL
-                  AND a.mime LIKE 'image/%'
-                LIMIT 1) AS derivative_key
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE COALESCE(o.visibility, 'public') = 'public'
          AND COALESCE(o.emergency_hidden, 0) = 0
        ORDER BY o.observed_at DESC
-       LIMIT ?1`
-    ).bind(limit).all<{
+       LIMIT 36`
+    ).all<{
       observation_id: string;
       observed_at: string;
       taxon_label: string | null;
       public_area_label: string | null;
       derivative_key: string | null;
     }>();
-    return (res.results ?? []).map((r) => ({
-      observationId: r.observation_id,
-      title: (r.taxon_label ?? "").trim() || (r.public_area_label ?? "").trim() || "自然の記録",
-      photoUrl: r.derivative_key ? publicMediaUrl(r.derivative_key) : null,
-      dateLabel: formatMonthDayJa(r.observed_at),
-      href: `/ja/observations/${encodeURIComponent(r.observation_id)}`
-    }));
+    const out: TopPublicRecordThumb[] = [];
+    for (const r of res.results ?? []) {
+      if (!r.derivative_key) continue;
+      out.push({
+        observationId: r.observation_id,
+        title: (r.taxon_label ?? "").trim() || (r.public_area_label ?? "").trim() || "自然の記録",
+        photoUrl: publicMediaUrl(r.derivative_key),
+        dateLabel: formatMonthDayJa(r.observed_at),
+        href: `/ja/observations/${encodeURIComponent(r.observation_id)}`
+      });
+      if (out.length >= limit) break;
+    }
+    return out;
   } catch {
     return [];
   }
@@ -234,43 +259,21 @@ export async function loadEventSectionWithFallback(
        LIMIT 3`
     ).bind(nowIso).all<{ session_id: string; title: string; started_at: string; organizer_user_id: string }>();
 
-    const upcoming = (upcomingRes.results ?? []).map((e) => ({
-      sessionId: e.session_id,
-      title: e.title,
-      dateLabel: formatMonthDayJa(e.started_at),
-      organizerLabel: "地域の案内",
-      href: `/ja/events/${encodeURIComponent(e.session_id)}`
-    }));
+    const upcoming = (upcomingRes.results ?? [])
+      .filter((e) => !isSyntheticOrTestEventTitle(e.title, e.session_id))
+      .map((e) => ({
+        sessionId: e.session_id,
+        title: e.title,
+        dateLabel: formatMonthDayJa(e.started_at),
+        organizerLabel: "地域の案内",
+        href: `/ja/events/${encodeURIComponent(e.session_id)}`
+      }));
     if (upcoming.length > 0) {
       return {
         heading: "近くのイベント",
         tier: "upcoming",
         upcomingEvents: upcoming,
         pastEventCards: []
-      };
-    }
-
-    const pastRes = await env.OBS_DB.prepare(
-      `SELECT session_id, title, started_at, organizer_user_id
-       FROM observation_event_sessions
-       WHERE ended_at IS NOT NULL OR started_at < ?1
-       ORDER BY started_at DESC
-       LIMIT 4`
-    ).bind(nowIso).all<{ session_id: string; title: string; started_at: string; organizer_user_id: string }>();
-
-    const past = (pastRes.results ?? []).map((e) => ({
-      sessionId: e.session_id,
-      title: e.title,
-      dateLabel: formatMonthDayJa(e.started_at),
-      organizerLabel: "過去の行事",
-      href: `/ja/events/${encodeURIComponent(e.session_id)}`
-    }));
-    if (past.length > 0) {
-      return {
-        heading: "過去の行事の景色",
-        tier: "past_scenery",
-        upcomingEvents: [],
-        pastEventCards: past
       };
     }
   } catch {
@@ -302,11 +305,7 @@ export async function loadUserLibraryData(
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
-              (SELECT a.public_derivative_key FROM observation_assets a
-                WHERE a.observation_id = o.observation_id
-                  AND a.public_derivative_key IS NOT NULL
-                  AND a.mime LIKE 'image/%'
-                LIMIT 1) AS derivative_key
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE o.owner_user_id = ?1
        ORDER BY o.observed_at DESC
@@ -486,16 +485,14 @@ export function renderZukanTopPage(
       <span class="zt-event-main"><strong>${escapeHtml(ev.title)}</strong><span>${escapeHtml(ev.organizerLabel)}</span></span>
       <span aria-hidden="true">›</span>
     </a></li>`).join("")}</ul>`;
-  } else if (data.eventFallbackTier === "past_scenery" && data.pastEventCards.length > 0) {
-    eventBlockBody = `<div class="zt-thumb-grid">${data.pastEventCards.map((ev) => `<a class="zt-thumb-card" href="${escapeHtml(ev.href)}">
-      <div class="zt-thumb-placeholder"><span>${escapeHtml(ev.title)}</span></div>
+  } else if (data.eventFallbackTier === "past_scenery" && data.pastEventCards.some((ev) => Boolean(ev.photoUrl))) {
+    eventBlockBody = `<div class="zt-thumb-grid">${data.pastEventCards.filter((ev) => Boolean(ev.photoUrl)).map((ev) => `<a class="zt-thumb-card" href="${escapeHtml(ev.href)}">
+      <img src="${escapeHtml(ev.photoUrl!)}" alt="${escapeHtml(ev.title)}" loading="lazy">
       <span class="zt-thumb-label">${escapeHtml(`${ev.title}・${ev.dateLabel}`)}</span>
     </a>`).join("")}</div>`;
-  } else if (data.recentPublicRecords.length > 0) {
-    eventBlockBody = `<div class="zt-thumb-grid">${data.recentPublicRecords.map((rec) => `<a class="zt-thumb-card" href="${escapeHtml(rec.href)}">
-      ${rec.photoUrl
-        ? `<img src="${escapeHtml(rec.photoUrl)}" alt="${escapeHtml(rec.title)}" loading="lazy">`
-        : `<div class="zt-thumb-placeholder"><span>${escapeHtml(rec.title)}</span></div>`}
+  } else if (data.recentPublicRecords.some((rec) => Boolean(rec.photoUrl))) {
+    eventBlockBody = `<div class="zt-thumb-grid">${data.recentPublicRecords.filter((rec) => Boolean(rec.photoUrl)).map((rec) => `<a class="zt-thumb-card" href="${escapeHtml(rec.href)}">
+      <img src="${escapeHtml(rec.photoUrl!)}" alt="${escapeHtml(rec.title)}" loading="lazy">
       <span class="zt-thumb-label">${escapeHtml(`${rec.title}・${rec.dateLabel}`)}</span>
     </a>`).join("")}</div>`;
   } else if (data.heroPhotos.length > 0) {
