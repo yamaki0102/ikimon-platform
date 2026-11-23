@@ -2,13 +2,13 @@ import type { ObservationEventStrings } from "./strings.js";
 import type { SiteLang } from "../i18n.js";
 
 const ja: ObservationEventStrings = {
-  listEyebrow: "地域の企画",
+  listEyebrow: "地域のイベント",
   listHeroHeading: "参加",
-  listHeroLead: "祭り・まちあるき・朝市・行事・観察会など、地域で開かれるイベントを見つけて参加し、出会った景色を持ち帰れます。",
-  listCreateCta: "観察会を作る",
+  listHeroLead: "祭り・まちあるき・朝市・行事・観察会",
+  listCreateCta: "イベントを作る",
   listBackToCommunity: "みんなの記録を見る",
-  listOrganizerHeading: "企画を運営する方へ",
-  listOrganizerLead: "観察会の作成など、現在の主催者向け操作はこちらから行えます。",
+  listOrganizerHeading: "主催者",
+  listOrganizerLead: "イベントを作る",
   listLiveSection: "いま開かれている観察会",
   listPastSection: "これまでの活動",
   listLiveEmpty: "いま参加できる観察会はありません。",
@@ -88,13 +88,13 @@ const ja: ObservationEventStrings = {
 };
 
 const en: ObservationEventStrings = {
-  listEyebrow: "Local programs",
+  listEyebrow: "Local events",
   listHeroHeading: "Join",
-  listHeroLead: "Find local events around the region—such as festivals, town walks, morning markets, community gatherings, and observation events—to join and keep the scenes you meet.",
-  listCreateCta: "Create an observation event",
+  listHeroLead: "Festivals, walks, markets, and observation events",
+  listCreateCta: "Create event",
   listBackToCommunity: "Browse public records",
-  listOrganizerHeading: "For organizers",
-  listOrganizerLead: "Use the current organizer tools to create an observation event.",
+  listOrganizerHeading: "Organizers",
+  listOrganizerLead: "Create event",
   listLiveSection: "Observation events happening now",
   listPastSection: "Past activities",
   listLiveEmpty: "No observation events are available to join right now.",
@@ -174,13 +174,13 @@ const en: ObservationEventStrings = {
 };
 
 const es: ObservationEventStrings = {
-  listEyebrow: "Actividades locales",
+  listEyebrow: "Eventos locales",
   listHeroHeading: "Participar",
-  listHeroLead: "Encuentra eventos locales de la zona —como festivales, paseos urbanos, mercados matutinos, actos comunitarios y jornadas de observación— para participar y guardar los paisajes que encuentres.",
-  listCreateCta: "Crear evento de observación",
+  listHeroLead: "Festivales, paseos, mercados y observación",
+  listCreateCta: "Crear evento",
   listBackToCommunity: "Ver registros públicos",
-  listOrganizerHeading: "Para organizadores",
-  listOrganizerLead: "Usa las herramientas actuales para crear un evento de observación.",
+  listOrganizerHeading: "Organizadores",
+  listOrganizerLead: "Crear evento",
   listLiveSection: "Eventos de observación en curso",
   listPastSection: "Actividades anteriores",
   listLiveEmpty: "Ahora no hay eventos de observación disponibles para participar.",
@@ -260,13 +260,13 @@ const es: ObservationEventStrings = {
 };
 
 const ptBR: ObservationEventStrings = {
-  listEyebrow: "Atividades locais",
+  listEyebrow: "Eventos locais",
   listHeroHeading: "Participar",
-  listHeroLead: "Encontre eventos locais da região —como festivais, caminhadas urbanas, feiras matinais, encontros comunitários e atividades de observação— para participar e guardar as paisagens que encontrar.",
-  listCreateCta: "Criar evento de observação",
+  listHeroLead: "Festivais, caminhadas, feiras e observação",
+  listCreateCta: "Criar evento",
   listBackToCommunity: "Ver registros públicos",
-  listOrganizerHeading: "Para organizadores",
-  listOrganizerLead: "Use as ferramentas atuais para criar um evento de observação.",
+  listOrganizerHeading: "Organizadores",
+  listOrganizerLead: "Criar evento",
   listLiveSection: "Eventos de observação em andamento",
   listPastSection: "Atividades anteriores",
   listLiveEmpty: "Não há eventos de observação disponíveis para participar agora.",
@@ -416,8 +416,8 @@ export interface ObservationEventDiscoveryStrings {
 const discoveryJa: ObservationEventDiscoveryStrings = {
   sectionActionable: "今、参加できる",
   sectionUpcoming: "これから",
-  actionableEmpty: "いま参加できる企画はありません。",
-  noProgramsLead: "掲載中の公開イベントはまだありませんが、地域の団体や自治体の祭り・まちあるき・観察会などの地域のイベントが公開されるとここに並びます。",
+  actionableEmpty: "公開中のイベントはありません",
+  noProgramsLead: "公開中のイベントはありません",
   loadFailed: "企画を読み込めませんでした。",
   partialList: "表示中の一覧は一部の可能性があります。公開企画をすべて確認できませんでした。",
   retryCta: "再読み込み",
@@ -465,8 +465,8 @@ const discoveryJa: ObservationEventDiscoveryStrings = {
 const discoveryEn: ObservationEventDiscoveryStrings = {
   sectionActionable: "Open now",
   sectionUpcoming: "Coming up",
-  actionableEmpty: "No programs are open to join right now.",
-  noProgramsLead: "No public events are listed yet; local events hosted by community groups or municipalities—such as festivals, town walks, and observation events—will appear here once published.",
+  actionableEmpty: "No public events",
+  noProgramsLead: "No public events",
   loadFailed: "Couldn’t load programs.",
   partialList: "This list may be incomplete. We could not check every public program.",
   retryCta: "Reload",
@@ -514,8 +514,8 @@ const discoveryEn: ObservationEventDiscoveryStrings = {
 const discoveryEs: ObservationEventDiscoveryStrings = {
   sectionActionable: "Abierto ahora",
   sectionUpcoming: "Próximamente",
-  actionableEmpty: "Ahora no hay actividades abiertas para participar.",
-  noProgramsLead: "Todavía no hay eventos públicos publicados; los eventos locales de grupos o municipios —como festivales, paseos y jornadas de observación— aparecerán aquí cuando se publiquen.",
+  actionableEmpty: "No hay eventos públicos",
+  noProgramsLead: "No hay eventos públicos",
   loadFailed: "No se pudieron cargar las actividades.",
   partialList: "Esta lista puede estar incompleta. No pudimos revisar todas las actividades públicas.",
   retryCta: "Recargar",
@@ -563,8 +563,8 @@ const discoveryEs: ObservationEventDiscoveryStrings = {
 const discoveryPtBR: ObservationEventDiscoveryStrings = {
   sectionActionable: "Aberto agora",
   sectionUpcoming: "Em breve",
-  actionableEmpty: "Não há atividades abertas para participar agora.",
-  noProgramsLead: "Ainda não há eventos públicos publicados; eventos locais de grupos ou municípios —como festivais, caminhadas e atividades de observação— aparecerão aqui quando forem publicados.",
+  actionableEmpty: "Não há eventos públicos",
+  noProgramsLead: "Não há eventos públicos",
   loadFailed: "Não foi possível carregar as atividades.",
   partialList: "Esta lista pode estar incompleta. Não foi possível conferir todas as atividades públicas.",
   retryCta: "Recarregar",

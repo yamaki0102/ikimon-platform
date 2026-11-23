@@ -870,63 +870,39 @@ function groupSessions(sessions: ObservationEventSessionRow[], nowMs: number): G
 function renderParticipationGuideSection(lang: SiteLang): string {
   const copy = {
     ja: {
-      heading: "ZUKANでの参加について",
-      whatTitle: "地域のイベントとは",
-      whatBody: "自治体や地域の団体、案内役が開く祭り・まちあるき・朝市・行事・観察会などの地域のイベントを掲載しています。イベントで撮った写真や同じ場所で集めた記録は、自分の手元に残しつつ場所のページにも積もります。",
-      howTitle: "参加の流れ",
-      howBody: "掲載中のイベントから詳細を開き、開催場所・日時・参加方法や当日の注意事項を確認してチェックインします。案内コードや共有リンクを受け取っている場合は、当日そのまま参加画面へ進めます。",
-      soloTitle: "イベントがないときも参加できます",
-      soloBody: "公開中のイベントがないときでも、普段の散歩や身近な景色を自分のペースで記録したり、公開されている地図や散策マップから地域の記録をたどったりすることができます。",
+      heading: "地域のイベント",
       links: [
         { href: "/records?view=public", label: "公開記録を見る" },
         { href: "/map", label: "地図から探す" },
         { href: "/walk-maps", label: "散策マップを見る" },
-        { href: "/record", label: "自分のペースで記録する" },
+        { href: "/record", label: "記録する" },
       ],
     },
     en: {
-      heading: "About participating on ZUKAN",
-      whatTitle: "What local events are",
-      whatBody: "This page lists local events hosted by community groups, municipalities, or organizers, including festivals, town walks, morning markets, and observation events. Photos you take can stay in your own records and also connect to the place page.",
-      howTitle: "How to join",
-      howBody: "Open a listed program to check its date, location, and participation method before checking in. If you received a shared event link or code, you can go straight to the check-in page on the day.",
-      soloTitle: "Participate anytime at your own pace",
-      soloBody: "Even when no scheduled programs are listed, you can record everyday observations on your own or browse public records, maps, and walk routes across nearby areas.",
+      heading: "Local events",
       links: [
         { href: "/records?view=public", label: "Browse public records" },
         { href: "/map", label: "Explore the map" },
         { href: "/walk-maps", label: "Browse walk maps" },
-        { href: "/record", label: "Record an observation" },
+        { href: "/record", label: "Record" },
       ],
     },
     es: {
-      heading: "Sobre participar en ZUKAN",
-      whatTitle: "Qué son los eventos locales",
-      whatBody: "Aquí se publican eventos locales organizados por grupos, municipios o responsables, como festivales, paseos urbanos, mercados, actos locales y jornadas de observación. Las fotos que tomes quedan en tus registros y también se conectan con la página del lugar.",
-      howTitle: "Cómo participar",
-      howBody: "Abre una actividad publicada para revisar la fecha, el lugar y la forma de participación antes de registrarte. Si recibiste un enlace o código, puedes entrar directamente el día de la actividad.",
-      soloTitle: "Participa también a tu ritmo",
-      soloBody: "Aunque no haya actividades programadas en este momento, puedes registrar tus propios hallazgos o explorar registros públicos, el mapa y las rutas de paseo.",
+      heading: "Eventos locales",
       links: [
         { href: "/records?view=public", label: "Ver registros públicos" },
         { href: "/map", label: "Explorar el mapa" },
         { href: "/walk-maps", label: "Ver mapas de paseo" },
-        { href: "/record", label: "Registrar una observación" },
+        { href: "/record", label: "Registrar" },
       ],
     },
     "pt-BR": {
-      heading: "Sobre participar no ZUKAN",
-      whatTitle: "O que são os eventos locais",
-      whatBody: "Esta página reúne eventos locais organizados por grupos, municípios ou responsáveis, como festivais, caminhadas, feiras, encontros locais e atividades de observação. As fotos registradas ficam nos seus arquivos e também se conectam à página do lugar.",
-      howTitle: "Como participar",
-      howBody: "Abra uma atividade listada para conferir data, local e forma de participação antes de fazer check-in. Se você recebeu um link ou código, pode acessar direto no dia.",
-      soloTitle: "Participe também no seu ritmo",
-      soloBody: "Mesmo quando não houver atividades programadas, você pode registrar suas próprias observações ou explorar registros públicos, o mapa e os roteiros a pé.",
+      heading: "Eventos locais",
       links: [
         { href: "/records?view=public", label: "Ver registros públicos" },
         { href: "/map", label: "Explorar o mapa" },
         { href: "/walk-maps", label: "Ver roteiros a pé" },
-        { href: "/record", label: "Registrar uma observação" },
+        { href: "/record", label: "Registrar" },
       ],
     },
   }[lang];
@@ -938,20 +914,6 @@ function renderParticipationGuideSection(lang: SiteLang): string {
   return `
   <section class="zukan-participation-guide" aria-labelledby="participation-guide-heading">
     <h2 id="participation-guide-heading">${escapeHtml(copy.heading)}</h2>
-    <div class="zukan-participation-guide-grid">
-      <div class="zukan-participation-guide-item">
-        <h3>${escapeHtml(copy.whatTitle)}</h3>
-        <p>${escapeHtml(copy.whatBody)}</p>
-      </div>
-      <div class="zukan-participation-guide-item">
-        <h3>${escapeHtml(copy.howTitle)}</h3>
-        <p>${escapeHtml(copy.howBody)}</p>
-      </div>
-      <div class="zukan-participation-guide-item">
-        <h3>${escapeHtml(copy.soloTitle)}</h3>
-        <p>${escapeHtml(copy.soloBody)}</p>
-      </div>
-    </div>
     <nav class="zukan-participation-guide-links" aria-label="${escapeHtml(copy.heading)}">${linksHtml}</nav>
   </section>`;
 }
@@ -1106,7 +1068,6 @@ ${discoveryBody}
 ${guideSection}
   <aside class="zukan-participation-organizer" data-organizer-entry>
     <h2>${escapeHtml(strings.listOrganizerHeading)}</h2>
-    <p>${escapeHtml(strings.listOrganizerLead)}</p>
     <a class="zukan-participation-secondary-action" href="${escapeHtml(appendLangToHref("/community/events/new", lang))}">${escapeHtml(strings.listCreateCta)}</a>
   </aside>
 </div>

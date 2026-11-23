@@ -20538,10 +20538,10 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "掲載中の公開イベントはまだありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
-    { prefix: "en", title: "Join", empty: "No public events are listed yet", failed: "Couldn’t load programs.", retry: "Reload" },
-    { prefix: "es", title: "Participar", empty: "Todavía no hay eventos públicos publicados", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
-    { prefix: "pt-br", title: "Participar", empty: "Ainda não há eventos públicos publicados", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
+    { prefix: "ja", title: "参加", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "en", title: "Join", empty: "No public events", failed: "Couldn’t load programs.", retry: "Reload" },
+    { prefix: "es", title: "Participar", empty: "No hay eventos públicos", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
+    { prefix: "pt-br", title: "Participar", empty: "Não há eventos públicos", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
   ];
 
   for (const item of cases) {
@@ -20554,14 +20554,8 @@ test("public participation list distinguishes empty and failed loads in the requ
     assert.ok(html.includes(`<title>${item.title} | ZUKAN</title>`));
     assert.ok(main.includes(item.empty));
     if (item.prefix === "ja") {
-      const visibleText = html
-        .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/giu, " ")
-        .replace(/<!--[\s\S]*?-->/gu, " ")
-        .replace(/<[^>]*>/gu, " ")
-        .replace(/&nbsp;/gu, " ")
-        .replace(/\s+/gu, " ")
-        .trim();
-      assert.ok(visibleText.length >= 500, `expected /ja/community/events visible text >= 500 chars, got ${visibleText.length}`);
+      assert.match(main, /イベントを作る/);
+      assert.doesNotMatch(main, /観察会を作る|地域のイベントとは|参加の流れ/);
     }
     assert.equal((html.match(/<main\b/g) ?? []).length, 1);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
@@ -20662,7 +20656,7 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.match(html, /href="\/en\/community\/events\/OPEN2026\/join"/);
   assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
   assert.doesNotMatch(html, /Flag alias fixture|Source marker fixture|Code marker fixture|PR #123 production rally fixture|検証用/);
-  assert.doesNotMatch(html, /data-load-failed|No public events are listed yet/);
+  assert.doesNotMatch(html, /data-load-failed|No public events/);
 });
 
 test("public participation list bounds QA-row scans and never labels a partial result as empty", async (t) => {
@@ -20708,7 +20702,7 @@ test("public participation list bounds QA-row scans and never labels a partial r
   assert.match(html, /data-list-partial/);
   assert.match(html, /This list may be incomplete/);
   assert.match(html, /href="\/en\/community\/events"/);
-  assert.doesNotMatch(html, /data-participation-empty|No public events are listed yet/);
+  assert.doesNotMatch(html, /data-participation-empty|No public events/);
   assert.doesNotMatch(html, /Public walk behind test data|qa-flood-/);
 });
 
@@ -20747,7 +20741,7 @@ test("public participation list reports an empty result when the capped scan rea
   assert.equal(listQueries, 8, "the short final page is reached on the eighth bounded D1 scan");
   assert.doesNotMatch(html, /data-list-partial|This list may be incomplete/);
   assert.match(html, /data-participation-empty/);
-  assert.match(html, /No public events are listed yet/);
+  assert.match(html, /No public events/);
 });
 
 test("newer public participation rows do not starve an organizer's private draft", async (t) => {
