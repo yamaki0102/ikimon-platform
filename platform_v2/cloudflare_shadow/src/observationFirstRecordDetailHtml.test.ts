@@ -155,12 +155,13 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /<summary[^>]*>名前を提案する<\/summary>/);
   assert.match(rendered, /見分けるポイント/);
   assert.match(rendered, /この場所のようす/);
-  assert.match(rendered, /草地と市街地の境界のようです/);
+  assert.match(rendered, /草地と市街地の境界/);
+  assert.doesNotMatch(rendered, /草地と市街地の境界のようです|写真から読み取った候補です/);
   assert.match(rendered, /つながる記録/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
-  assert.match(rendered, /主対象と環境の要素が確認できました/);
-  assert.match(rendered, /頭部とくちばしの詳細がわかる角度から撮影してください/);
+  assert.doesNotMatch(rendered, /AIからの短いメモ|主対象と環境の要素が確認できました/);
+  assert.match(rendered, /次に撮るとよい写真：頭部とくちばしの詳細/);
   assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
   assert.match(rendered, /似ている候補との比較/);
   assert.match(rendered, /ナミアゲハ/);
@@ -870,7 +871,7 @@ test("mixed AI detail retains bird evidence and mapped guidance while excluding 
   assert.match(rendered, /スズメかもしれません/);
   assert.match(rendered, /頬の黒い斑点が見えます/);
   assert.match(rendered, /翼とくちばしを横から撮る/);
-  assert.match(rendered, /翼を開いたところが撮れると比べやすくなります/);
+  assert.match(rendered, /次に撮るとよい写真：翼を開いたところ/);
 });
 
 test("human accepted claims and original notes remain visible when human AI advice is omitted", () => {
@@ -987,7 +988,8 @@ test("existing landscape record without aiFeedback renders grounded environment 
     viewerAuthenticated: false,
   });
   assert.match(rendered, /data-ai-feedback/);
-  assert.match(rendered, /水辺のよう/);
+  assert.match(rendered, /水辺/);
+  assert.doesNotMatch(rendered, /水辺のよう/);
   assert.doesNotMatch(rendered, /生きものの姿は見つかりませんでした/);
 });
 
@@ -1101,4 +1103,52 @@ test("card mode renders each heading and candidate once without advice prose, co
   assert.match(rendered, /次に撮るとよい写真：腹部の裏面/);
   const feedbackBlock = rendered.match(/data-ai-feedback[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(feedbackBlock, /比べやすくなります/);
+});
+
+test("card mode suppresses saved advice prose, trims next_photo to a noun, omits photoInference/hedge wording, and deduplicates evidence", () => {
+  const cardWithDupEvidence = {
+    ...detail.observations[0]!,
+    aiSuggestions: [
+      {
+        suggestionId: "ai-dup",
+        proposedName: "ナミアゲハ",
+        proposedScientificName: "Papilio xuthus",
+        proposedRank: "species",
+        visualEvidence: ["実物の生体詳細"],
+        shootingAdvice: ["腹部の裏面を撮影すると比べやすくなります"],
+        provisional: true as const,
+      },
+    ],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [cardWithDupEvidence] },
+    {
+      lang: "ja",
+      title: "ナミアゲハ",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: "全景とあわせて特徴的な模様を撮影することで、情報のつながりがより伝わりやすくなります。あわせて記録することをおすすめします。",
+      aiNextPhoto: "腹部の裏面が分かる角度からの撮影",
+      aiCandidateInsights: [
+        {
+          name: "ナミアゲハ",
+          scientificName: "Papilio xuthus",
+          supportingFeatures: ["実物の生体詳細"],
+          missingFeatures: ["後翅の模様"],
+          contradictions: [],
+        },
+      ],
+      environment: { place_type: "woodland", environment_record_status: "auto_draft" },
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-concise",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.doesNotMatch(rendered, /AIからの短いメモ|伝わりやすくなります|おすすめします/);
+  assert.match(rendered, /次に撮るとよい写真：腹部の裏面<\/p>/);
+  assert.doesNotMatch(rendered, /が分かる角度からの撮影/);
+  assert.doesNotMatch(rendered, /写真から読み取った候補です/);
+  assert.match(rendered, />林の中<\/p>/);
+  assert.doesNotMatch(rendered, /林の中のようです/);
+  assert.equal((rendered.match(/実物の生体詳細/g) ?? []).length, 1);
 });

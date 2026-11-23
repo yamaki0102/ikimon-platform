@@ -148,7 +148,7 @@ const ja: ObservationFirstRecordDetailCopy = {
     open_dry: "開けて乾き気味", sunny: "日当たり", shaded: "日陰", wet: "湿り気あり", flowing: "流れあり", windy: "風あり",
     trampling_mowing: "踏圧・草刈り跡", mowing: "草刈り", trampling: "踏圧", planting: "植栽・管理", construction: "造成・工事", release: "放流・放逐", none_visible: "目立つ変化なし"
   },
-  environmentHeadlines: { grassland_urban_edge: "草地と市街地の境界のようです", urban: "市街地のようです", woodland: "林の中のようです", water_edge: "水辺のようです", wetland: "湿地のようです", coast: "海岸のようです" },
+  environmentHeadlines: { grassland_urban_edge: "草地と市街地の境界", urban: "市街地", woodland: "林の中", water_edge: "水辺", wetland: "湿地", coast: "海岸" },
   note: "写真メモ", manage: "記録に情報を追加", manageLead: "見つけた生きものや、環境、気づき、写真の整理を追加できます。", addSubject: "写っている対象を追加", subjectName: "対象の呼び名", subjectNameExample: "例：葉の上の幼虫",
   subjectType: "対象の種類", context: "環境", add: "追加する", subjectTypes: { unknown_subject: "写っているもの", organism: "生きもの", group: "複数の生きもの", trace: "痕跡", sound: "音", pet: "ペット" },
   contexts: { unknown: "未設定", wild: "野外", pet: "ペット", captive: "飼育", cultivated: "栽培" },
@@ -177,7 +177,7 @@ const en: ObservationFirstRecordDetailCopy = {
     open_dry: "open and fairly dry", sunny: "sunny", shaded: "shaded", wet: "damp", flowing: "flowing water", windy: "windy",
     trampling_mowing: "trampling or mowing", mowing: "mowing", trampling: "trampling", planting: "planting or maintenance", construction: "construction", release: "release", none_visible: "no obvious change"
   },
-  environmentHeadlines: { grassland_urban_edge: "It may be where grassland meets the city", urban: "It appears to be an urban area", woodland: "It appears to be woodland", water_edge: "It appears to be near water", wetland: "It appears to be a wetland", coast: "It appears to be on the coast" },
+  environmentHeadlines: { grassland_urban_edge: "Grassland and urban edge", urban: "Urban area", woodland: "Woodland", water_edge: "Near water", wetland: "Wetland", coast: "Coast" },
   note: "Photo note", manage: "Add information to this record", manageLead: "Add organisms, environment details, notes, or organize the media.", addSubject: "Add something visible", subjectName: "Short name", subjectNameExample: "Example: larva on the leaf", subjectType: "Type", context: "Context", add: "Add",
   subjectTypes: { unknown_subject: "Something visible", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
   separateSubject: "Separate as another subject", separateName: "Name for the new subject", separate: "Separate", notVisible: "This subject is not visible", restore: "Restore this subject", combineWith: "Combine with", combine: "Combine subjects",
@@ -205,7 +205,7 @@ const es: ObservationFirstRecordDetailCopy = {
     open_dry: "abierto y bastante seco", sunny: "soleado", shaded: "con sombra", wet: "húmedo", flowing: "agua corriente", windy: "con viento",
     trampling_mowing: "pisoteo o siega", mowing: "siega", trampling: "pisoteo", planting: "plantación o mantenimiento", construction: "obras", release: "liberación", none_visible: "sin cambios evidentes"
   },
-  environmentHeadlines: { grassland_urban_edge: "Parece el límite entre pastizal y ciudad", urban: "Parece una zona urbana", woodland: "Parece un bosque", water_edge: "Parece estar junto al agua", wetland: "Parece un humedal", coast: "Parece una costa" },
+  environmentHeadlines: { grassland_urban_edge: "Límite entre pastizal y ciudad", urban: "Zona urbana", woodland: "Bosque", water_edge: "Junto al agua", wetland: "Humedal", coast: "Costa" },
   note: "Nota de la foto", manage: "Añadir información al registro", manageLead: "Añade seres vivos, entorno, notas u organiza el contenido.", addSubject: "Añadir algo visible", subjectName: "Nombre breve", subjectNameExample: "Ejemplo: larva sobre la hoja", subjectType: "Tipo", context: "Contexto", add: "Añadir",
   subjectTypes: { unknown_subject: "Algo visible", organism: "Ser vivo", group: "Grupo", trace: "Rastro", sound: "Sonido", pet: "Mascota" }, contexts: { unknown: "Sin definir", wild: "Silvestre", pet: "Mascota", captive: "En cautividad", cultivated: "Cultivado" },
   separateSubject: "Separar como otro sujeto", separateName: "Nombre del nuevo sujeto", separate: "Separar", notVisible: "Este sujeto no aparece", restore: "Restaurar este sujeto", combineWith: "Combinar con", combine: "Combinar sujetos",
@@ -232,7 +232,7 @@ const ptBr: ObservationFirstRecordDetailCopy = {
     open_dry: "aberto e relativamente seco", sunny: "ensolarado", shaded: "sombreado", wet: "úmido", flowing: "água corrente", windy: "com vento",
     trampling_mowing: "pisoteio ou corte", mowing: "corte de grama", trampling: "pisoteio", planting: "plantio ou manejo", construction: "obras", release: "soltura", none_visible: "sem mudança evidente"
   },
-  environmentHeadlines: { grassland_urban_edge: "Parece ser a borda entre gramado e cidade", urban: "Parece ser uma área urbana", woodland: "Parece ser uma mata", water_edge: "Parece estar perto da água", wetland: "Parece ser uma área úmida", coast: "Parece ser uma costa" },
+  environmentHeadlines: { grassland_urban_edge: "Borda entre gramado e cidade", urban: "Área urbana", woodland: "Mata", water_edge: "Perto da água", wetland: "Área úmida", coast: "Costa" },
   note: "Nota da foto", manage: "Adicionar informações ao registro", manageLead: "Adicione seres vivos, ambiente, observações ou organize as mídias.", addSubject: "Adicionar algo visível", subjectName: "Nome curto", subjectNameExample: "Exemplo: larva sobre a folha", subjectType: "Tipo", context: "Contexto", add: "Adicionar",
   subjectTypes: { unknown_subject: "Algo visível", organism: "Ser vivo", group: "Grupo", trace: "Vestígio", sound: "Som", pet: "Animal de estimação" }, contexts: { unknown: "Não definido", wild: "Silvestre", pet: "Animal de estimação", captive: "Em cativeiro", cultivated: "Cultivado" },
   separateSubject: "Separar como outro sujeito", separateName: "Nome do novo sujeito", separate: "Separar", notVisible: "Este sujeito não aparece", restore: "Restaurar este sujeito", combineWith: "Combinar com", combine: "Combinar sujeitos",

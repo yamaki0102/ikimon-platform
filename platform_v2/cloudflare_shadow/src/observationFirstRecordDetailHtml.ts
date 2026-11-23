@@ -284,9 +284,15 @@ function aiProseListForLang(values: string[], lang: ObservationRecordLang): stri
   });
 }
 
-function renderLearning(card: ObservationFirstCard, copy: ObservationFirstRecordDetailCopy, lang: ObservationRecordLang, personPrimaryNames?: readonly string[]): string {
+function renderLearning(
+  card: ObservationFirstCard,
+  copy: ObservationFirstRecordDetailCopy,
+  lang: ObservationRecordLang,
+  personPrimaryNames?: readonly string[],
+  excludedEvidence: ReadonlySet<string> = new Set(),
+): string {
   const suggestion = displayAiSuggestions(card, personPrimaryNames).map((item) => ({
-    visualEvidence: aiProseListForLang(item.visualEvidence, lang),
+    visualEvidence: aiProseListForLang(item.visualEvidence, lang).filter((text) => !excludedEvidence.has(text)),
     shootingAdvice: aiProseListForLang(item.shootingAdvice, lang),
   })).find((item) => item.visualEvidence.length > 0 || item.shootingAdvice.length > 0);
   if (!suggestion) return "";
@@ -351,6 +357,17 @@ function environmentFallbackFeedback(
   return summary;
 }
 
+function conciseNextPhotoItem(value: string): string {
+  return value
+    .trim()
+    .replace(/。+$/u, "")
+    .replace(/(?:が|の)(?:わかる|分かる)角度から(?:の撮影|撮影(?:してください)?)?$/u, "")
+    .replace(/(?:を|が)?(?:撮影|撮れると|記録)[^。]*$/u, "")
+    .trim() || value.trim();
+}
+
+const adviceProsePattern = /(?:おすすめします|伝わりやすくなります|比べやすくなります|残すと|撮影することで|確認すると)/u;
+
 function renderAiFeedback(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
@@ -366,15 +383,20 @@ function renderAiFeedback(
   const eligible = (names: Array<string | null>) => isPublicObservationAiSubjectEligible(names[0], presentation.aiPersonPrimaryNames, names[1]);
   const humanOnly = subjects.some((names) => !eligible(names))
     && !subjects.some((names) => eligible(names) && names.some((name) => publicSubjectName(name)));
-  const feedback = (presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null)
+  const rawFeedback = (presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null)
     ?? (!humanOnly ? environmentFallbackFeedback(detail, presentation, copy, lang) : null);
-  const defaultEnvironmentNextPhoto = !humanOnly && !presentation.aiFeedback && feedback && lang === "ja"
+  const feedback = rawFeedback && !adviceProsePattern.test(rawFeedback) ? rawFeedback : null;
+  const defaultEnvironmentNextPhoto = !humanOnly && !presentation.aiFeedback && rawFeedback && lang === "ja"
     ? "足元・水際・植生の境目"
     : null;
-  const nextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
+  const rawNextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
     ?? defaultEnvironmentNextPhoto;
-  if (!feedback && !nextPhoto) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2>${feedback ? `<p>${escapeHtml(feedback)}</p>` : ""}${nextPhoto ? `<p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p>` : ""}</section>`;
+  const nextPhoto = rawNextPhoto ? conciseNextPhotoItem(rawNextPhoto) : null;
+  if (nextPhoto) {
+    return `<section class="of-note" data-ai-feedback><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p></section>`;
+  }
+  if (!feedback) return "";
+  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2><p>${escapeHtml(feedback)}</p></section>`;
 }
 
 function renderIdentificationForm(
@@ -457,8 +479,11 @@ function renderObservationSummary(
     const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : "";
     return [`<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`];
   }).join("");
-  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames);
   const comparison = renderAiCandidateComparison(active[0]!, presentation, copy);
+  const comparisonEvidence = new Set(
+    (presentation.aiCandidateInsights ?? []).flatMap((candidate) => aiProseListForLang(candidate.supportingFeatures, presentation.lang ?? "ja")),
+  );
+  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, comparison ? comparisonEvidence : new Set());
   const detailCards = (meaningful.length > 0 ? meaningful.map((item) => item.card) : active.slice(0, 1))
     .map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy, {
       omitHeading: meaningful.length > 0 || seenNames.size > 0,
@@ -520,7 +545,7 @@ function renderEnvironment(environment: Record<string, string> | null | undefine
   if (!headline && rows.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${inferred ? `<small>${escapeHtml(copy.photoInference)}</small>` : ""}</section>`;
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}</section>`;
 }
 
 function selectOptions(values: Record<string, string>, selected?: string): string {
