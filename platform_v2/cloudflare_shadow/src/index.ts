@@ -21906,7 +21906,20 @@ const recordsSearchScopeCopy = {
 async function listFeaturedPublicPlaces(env: Env, limit = 8): Promise<Array<{ placeId: string; name: string }>> {
   try {
     const result = await env.OBS_DB.prepare(
-      "SELECT place_id, canonical_name FROM places WHERE status = 'active' AND deleted_at IS NULL AND superseded_by_place_id IS NULL ORDER BY updated_at DESC LIMIT ?"
+      `SELECT p.place_id, p.canonical_name
+       FROM places p
+       WHERE p.public_profile_status = 'published'
+         AND p.valid_to IS NULL
+         AND p.superseded_by_place_id IS NULL
+         AND EXISTS (
+           SELECT 1
+           FROM place_policies pp
+           WHERE pp.place_id = p.place_id
+             AND pp.place_visibility = 'public'
+             AND pp.valid_to IS NULL
+         )
+       ORDER BY p.updated_at DESC
+       LIMIT ?`
     ).bind(limit).all<{ place_id?: unknown; canonical_name?: unknown }>();
     return (result.results ?? [])
       .map((row) => ({
@@ -21919,7 +21932,7 @@ async function listFeaturedPublicPlaces(env: Env, limit = 8): Promise<Array<{ pl
   }
 }
 
-async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<string> {
+export async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<string> {
   if (!xml.includes("</urlset>")) return xml;
   const places = await listFeaturedPublicPlaces(env, 50);
   if (places.length === 0) return xml;

@@ -14,7 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
-import { renderRecordsProductSection, worker } from "./index";
+import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -28865,7 +28865,28 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
 });
 
-test("records public section renders direct links to public place pages when available", () => {
+test("records public section renders direct links to public place pages when available", async () => {
+  const { env } = createEnv();
+  const draftPlaceId = "plc_draft_hidden_1";
+  const publishedPlaceId = "plc_e3293ec4bb9288a0";
+  const originalPrepare = env.OBS_DB.prepare.bind(env.OBS_DB);
+  env.OBS_DB.prepare = ((query: string) => {
+    if (query.includes("FROM places p") && query.includes("p.public_profile_status = 'published'")) {
+      return {
+        bind: () => ({
+          all: async () => ({
+            results: [{ place_id: publishedPlaceId, canonical_name: "常盤公園" }]
+          })
+        })
+      } as unknown as ReturnType<typeof originalPrepare>;
+    }
+    return originalPrepare(query);
+  }) as typeof env.OBS_DB.prepare;
+
+  const sitemap = await withPublicPlacesInSitemap('<?xml version="1.0"?><urlset></urlset>', env);
+  assert.match(sitemap, /\/ja\/places\/plc_e3293ec4bb9288a0/);
+  assert.doesNotMatch(sitemap, new RegExp(draftPlaceId));
+
   const html = renderRecordsProductSection(
     [],
     new URL("https://zukan.earth/ja/records?view=public"),
@@ -28873,7 +28894,7 @@ test("records public section renders direct links to public place pages when ava
     null,
     false,
     null,
-    [{ placeId: "plc_e3293ec4bb9288a0", name: "常盤公園" }]
+    [{ placeId: publishedPlaceId, name: "常盤公園" }]
   );
   assert.match(html, /class="cf-records-places"/);
   assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
