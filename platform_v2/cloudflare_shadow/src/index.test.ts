@@ -1789,6 +1789,7 @@ interface GbifJapaneseNameDisplayAuditTestRow {
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
+  waitlist = new Map<string, { id: string; email: string; locale: string; source_path: string; created_at: number }>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
   areaSubscriptionStats = new Map<string, AreaSubscriptionStatsRow>();
@@ -1951,6 +1952,22 @@ class FakeStatement {
   async run(): Promise<unknown> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS zukan_waitlist")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT OR IGNORE INTO zukan_waitlist")) {
+      const email = string(v[1]);
+      if (this.db.waitlist.has(email)) return { meta: { changes: 0 } };
+      this.db.waitlist.set(email, {
+        id: string(v[0]),
+        email,
+        locale: string(v[2]),
+        source_path: string(v[3]),
+        created_at: number(v[4])
+      });
+      return { meta: { changes: 1 } };
+    }
 
     if (normalized.startsWith("INSERT OR IGNORE INTO observation_event_guest_media")) {
       const submissionId = string(v[0]);
@@ -5094,6 +5111,9 @@ class FakeStatement {
     if (normalized === "SELECT 1 AS ok") {
       return ({ ok: 1 } as T);
     }
+    if (normalized === "SELECT COUNT(*) AS count FROM zukan_waitlist") {
+      return ({ count: this.db.waitlist.size } as T);
+    }
 
     const v = this.values;
 
@@ -6568,6 +6588,7 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+
     if (normalized.startsWith("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")) {
       return { results: [...this.db.oauthAccounts.values()].filter((row) => row.user_id === string(v[0])).map((row) => ({ role_name: row.role_name, banned: row.banned })) as T[] };
     }
@@ -13167,7 +13188,7 @@ test("production place management policy API writes to D1 without origin fallbac
   assert.equal(stored?.policy_json, JSON.stringify({ source: "cloudflare_place_management_policy_runtime" }));
 });
 
-test("v1 auth register keeps original form contract with Cloudflare-native sessions", async () => {
+test("v1 auth register is closed in favor of the waitlist and never creates accounts", async () => {
   const { env, core } = createEnv();
   const registerResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
     method: "POST",
@@ -13183,43 +13204,15 @@ test("v1 auth register keeps original form contract with Cloudflare-native sessi
       redirect: "/record"
     })
   }), env);
-  const registerPayload = await registerResponse.json() as any;
-  assert.equal(registerResponse.ok, true, JSON.stringify(registerPayload));
-  assert.equal(registerPayload.ok, true);
-  assert.equal(registerPayload.redirect, "/record?start=photo");
-  assert.match(registerPayload.session.userId, /^user_/);
-  assert.equal(registerPayload.session.displayName, "Register User");
-  assert.equal(registerPayload.session.roleName, "Observer");
-  assert.equal(registerPayload.session.rankLabel, "観察者");
-  assert.equal(core.users.has(registerPayload.session.userId), true);
-  const stored = core.authUsers.get("newuser@example.test");
-  assert.equal(stored?.user_id, registerPayload.session.userId);
-  assert.equal(stored?.display_name, "Register User");
-  assert.equal(await bcrypt.compare("register-password", stored?.password_hash ?? ""), true);
-  assert.equal(core.authSessions.size, 1);
-  assert.match(registerResponse.headers.get("set-cookie") ?? "", /^ikimon_v2_session=/);
-
-  const sessionResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session", {
-    headers: { cookie: registerResponse.headers.get("set-cookie") ?? "" }
-  }), env);
-  const sessionPayload = await sessionResponse.json() as any;
-  assert.equal(sessionResponse.ok, true, JSON.stringify(sessionPayload));
-  assert.equal(sessionPayload.session.userId, registerPayload.session.userId);
-
-  const duplicateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: "https://shadow.test"
-    },
-    body: JSON.stringify({
-      displayName: "Register User 2",
-      email: "newuser@example.test",
-      password: "register-password"
-    })
-  }), env);
-  assert.equal(duplicateResponse.status, 409);
-  assert.deepEqual(await duplicateResponse.json(), { ok: false, error: "email_already_registered" });
+  assert.equal(registerResponse.status, 403);
+  assert.deepEqual(await registerResponse.json(), {
+    ok: false,
+    error: "registration_closed_waitlist_only",
+    waitlistUrl: "/ja/waitlist"
+  });
+  assert.equal(core.users.size, 0);
+  assert.equal(core.authUsers.size, 0);
+  assert.equal(core.authSessions.size, 0);
 
   const crossOriginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
     method: "POST",
@@ -13236,6 +13229,97 @@ test("v1 auth register keeps original form contract with Cloudflare-native sessi
   }), env);
   assert.equal(crossOriginResponse.status, 403);
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("register and waitlist pages serve minimal waitlist form and store submissions with admin summary", async () => {
+  const { env, core } = createEnv();
+
+  const registerHtmlRes = await worker.fetch(new Request("https://shadow.test/ja/register"), env);
+  assert.equal(registerHtmlRes.status, 200);
+  const registerHtml = await registerHtmlRes.text();
+  assert.match(registerHtml, /ウェイティングリストに登録/);
+  assert.match(registerHtml, /data-global-record-trigger="photo"/);
+  assert.match(registerHtml, /capture="environment"/);
+  assert.match(registerHtml, /\/ja\/login/);
+
+  const enWaitlistRes = await worker.fetch(new Request("https://shadow.test/en/waitlist"), env);
+  assert.equal(enWaitlistRes.status, 200);
+  assert.match(await enWaitlistRes.text(), /Join the waitlist/);
+
+  const invalidRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "not-an-email", locale: "ja" })
+  }), env);
+  assert.equal(invalidRes.status, 400);
+  assert.deepEqual(await invalidRes.json(), { ok: false, error: "invalid_email" });
+
+  const submitRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: " Waiter@Example.com ", locale: "ja", sourcePath: "/ja/register" })
+  }), env);
+  assert.equal(submitRes.status, 200);
+  assert.deepEqual(await submitRes.json(), { ok: true, alreadyRegistered: false });
+  assert.equal(core.waitlist.size, 1);
+  assert.equal(core.authUsers.size, 0);
+
+  const dupRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "waiter@example.com", locale: "ja" })
+  }), env);
+  assert.equal(dupRes.status, 200);
+  assert.deepEqual(await dupRes.json(), { ok: true, alreadyRegistered: true });
+  assert.equal(core.waitlist.size, 1);
+
+  const hpRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "bot@example.com", website: "https://spam.example" })
+  }), env);
+  assert.equal(hpRes.status, 200);
+  assert.equal(core.waitlist.size, 1);
+
+  const unauthSummary = await worker.fetch(new Request("https://shadow.test/api/v1/admin/waitlist/summary"), env);
+  assert.equal(unauthSummary.status, 401);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      userId: "waitlist-admin-1",
+      rawToken: "waitlist-admin-token",
+      displayName: "Admin",
+      roleName: "Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+
+  const adminSummary = await worker.fetch(new Request("https://shadow.test/api/v1/admin/waitlist/summary", {
+    headers: { cookie: adminCookie }
+  }), env);
+  assert.equal(adminSummary.status, 200);
+  assert.deepEqual(await adminSummary.json(), { ok: true, count: 1 });
 });
 
 test("v1 auth login keeps original form contract with Cloudflare-native sessions", async () => {
@@ -15669,7 +15753,21 @@ test("production custom-domain register can create a private post without public
     return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+    const seededPasswordHash = await bcrypt.hash("register-password", 10);
+    await productionEnv.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      "user_production_register_seed",
+      "production-register@example.test",
+      seededPasswordHash,
+      "Production Register User",
+      "Observer",
+      "観察者",
+      0
+    ).run();
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -15677,19 +15775,17 @@ test("production custom-domain register can create a private post without public
         "sec-fetch-site": "same-origin"
       },
       body: JSON.stringify({
-        displayName: "Production Register User",
         email: "production-register@example.test",
         password: "register-password",
         redirect: "/record"
       })
     }), productionEnv);
-    const registerPayload = await registerResponse.json() as any;
-    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
-    assert.equal(registerPayload.ok, true);
-    assert.equal(registerPayload.redirect, "/record?start=photo");
-    assert.match(registerResponse.headers.get("set-cookie") ?? "", /Secure/);
-    const cookie = registerResponse.headers.get("set-cookie") ?? "";
-    const userId = String(registerPayload.session.userId);
+    const loginPayload = await loginResponse.json() as any;
+    assert.equal(loginResponse.status, 200, JSON.stringify(loginPayload));
+    assert.equal(loginPayload.ok, true);
+    assert.match(loginResponse.headers.get("set-cookie") ?? "", /Secure/);
+    const cookie = loginResponse.headers.get("set-cookie") ?? "";
+    const userId = String(loginPayload.session.userId);
     assert.equal(core.authUsers.get("production-register@example.test")?.user_id, userId);
 
     const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
@@ -15747,7 +15843,21 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
   globalThis.fetch = (async () => new Response("fallback should not be called", { status: 599 })) as typeof fetch;
   try {
     const credentialField = "pass" + "word";
-    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+    const seededPasswordHash = await bcrypt.hash("register-pass", 10);
+    await productionEnv.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      "user_production_idempotency_seed",
+      "production-idempotency@example.test",
+      seededPasswordHash,
+      "Production Idempotency User",
+      "Observer",
+      "観察者",
+      0
+    ).run();
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -15755,16 +15865,15 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
         "sec-fetch-site": "same-origin"
       },
       body: JSON.stringify({
-        displayName: "Production Idempotency User",
         email: "production-idempotency@example.test",
         [credentialField]: "register-pass",
         redirect: "/record"
       })
     }), productionEnv);
-    const registerPayload = await registerResponse.json() as any;
-    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
-    const cookie = registerResponse.headers.get("set-cookie") ?? "";
-    const userId = String(registerPayload.session.userId);
+    const loginPayload = await loginResponse.json() as any;
+    assert.equal(loginResponse.status, 200, JSON.stringify(loginPayload));
+    const cookie = loginResponse.headers.get("set-cookie") ?? "";
+    const userId = String(loginPayload.session.userId);
     assert.equal(core.authUsers.get("production-idempotency@example.test")?.user_id, userId);
 
     const baseBody = {
