@@ -10689,6 +10689,7 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
   const grouped = new Map<string, { lat: number; lng: number; count: number }>();
   for (const row of rows) {
     if (year !== null && !row.observed_at.startsWith(String(year))) continue;
+    if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
     const parsed = parsePublicCell(row.public_cell);
     if (!parsed) continue;
     const lat = Math.round(parsed.lat * 100) / 100;
