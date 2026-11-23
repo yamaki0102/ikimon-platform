@@ -5007,7 +5007,8 @@ ${alternateLinks}
         radial-gradient(circle at top right, rgba(14,165,233,.05), transparent 30%),
         linear-gradient(180deg, #f9fffe 0%, var(--bg) 100%);
     }
-    a { color: inherit; text-decoration: none; }
+    html{scroll-padding-top:80px}
+    a:where(:link,:visited){color:inherit;text-decoration:none}
     .site-shell { min-height: 100vh; }
     .shell {
       --ikimon-shell-target-max: var(--ikimon-content-max);
