@@ -14,7 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
-import { worker } from "./index";
+import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -1790,6 +1790,7 @@ class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
   userLanguagePreferences = new Map<string, string>();
+  waitlist = new Map<string, { id: string; email: string; locale: string; source_path: string; created_at: number }>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
   areaSubscriptionStats = new Map<string, AreaSubscriptionStatsRow>();
@@ -1958,6 +1959,21 @@ class FakeStatement {
     }
     if (normalized.startsWith("INSERT INTO user_language_preferences")) {
       this.db.userLanguagePreferences.set(string(v[0]), string(v[1]));
+      return { meta: { changes: 1 } };
+    }
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS zukan_waitlist")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT OR IGNORE INTO zukan_waitlist")) {
+      const email = string(v[1]);
+      if (this.db.waitlist.has(email)) return { meta: { changes: 0 } };
+      this.db.waitlist.set(email, {
+        id: string(v[0]),
+        email,
+        locale: string(v[2]),
+        source_path: string(v[3]),
+        created_at: number(v[4])
+      });
       return { meta: { changes: 1 } };
     }
 
@@ -5102,6 +5118,9 @@ class FakeStatement {
     const normalized = normalize(this.query);
     if (normalized === "SELECT 1 AS ok") {
       return ({ ok: 1 } as T);
+    }
+    if (normalized === "SELECT COUNT(*) AS count FROM zukan_waitlist") {
+      return ({ count: this.db.waitlist.size } as T);
     }
 
     const v = this.values;
@@ -13177,7 +13196,7 @@ test("production place management policy API writes to D1 without origin fallbac
   assert.equal(stored?.policy_json, JSON.stringify({ source: "cloudflare_place_management_policy_runtime" }));
 });
 
-test("v1 auth register keeps original form contract with Cloudflare-native sessions", async () => {
+test("v1 auth register is closed in favor of the waitlist and never creates accounts", async () => {
   const { env, core } = createEnv();
   const registerResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
     method: "POST",
@@ -13193,43 +13212,15 @@ test("v1 auth register keeps original form contract with Cloudflare-native sessi
       redirect: "/record"
     })
   }), env);
-  const registerPayload = await registerResponse.json() as any;
-  assert.equal(registerResponse.ok, true, JSON.stringify(registerPayload));
-  assert.equal(registerPayload.ok, true);
-  assert.equal(registerPayload.redirect, "/record?start=photo");
-  assert.match(registerPayload.session.userId, /^user_/);
-  assert.equal(registerPayload.session.displayName, "Register User");
-  assert.equal(registerPayload.session.roleName, "Observer");
-  assert.equal(registerPayload.session.rankLabel, "観察者");
-  assert.equal(core.users.has(registerPayload.session.userId), true);
-  const stored = core.authUsers.get("newuser@example.test");
-  assert.equal(stored?.user_id, registerPayload.session.userId);
-  assert.equal(stored?.display_name, "Register User");
-  assert.equal(await bcrypt.compare("register-password", stored?.password_hash ?? ""), true);
-  assert.equal(core.authSessions.size, 1);
-  assert.match(registerResponse.headers.get("set-cookie") ?? "", /^ikimon_v2_session=/);
-
-  const sessionResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session", {
-    headers: { cookie: registerResponse.headers.get("set-cookie") ?? "" }
-  }), env);
-  const sessionPayload = await sessionResponse.json() as any;
-  assert.equal(sessionResponse.ok, true, JSON.stringify(sessionPayload));
-  assert.equal(sessionPayload.session.userId, registerPayload.session.userId);
-
-  const duplicateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: "https://shadow.test"
-    },
-    body: JSON.stringify({
-      displayName: "Register User 2",
-      email: "newuser@example.test",
-      password: "register-password"
-    })
-  }), env);
-  assert.equal(duplicateResponse.status, 409);
-  assert.deepEqual(await duplicateResponse.json(), { ok: false, error: "email_already_registered" });
+  assert.equal(registerResponse.status, 403);
+  assert.deepEqual(await registerResponse.json(), {
+    ok: false,
+    error: "registration_closed_waitlist_only",
+    waitlistUrl: "/ja/waitlist"
+  });
+  assert.equal(core.users.size, 0);
+  assert.equal(core.authUsers.size, 0);
+  assert.equal(core.authSessions.size, 0);
 
   const crossOriginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
     method: "POST",
@@ -13246,6 +13237,113 @@ test("v1 auth register keeps original form contract with Cloudflare-native sessi
   }), env);
   assert.equal(crossOriginResponse.status, 403);
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("first-time OAuth login redirects to waitlist and does not create a user account", async () => {
+  const { env, core } = createEnv();
+  const callback = await runOAuthCallback(env, {
+    provider: "google",
+    id: "brand-new-oauth-user",
+    email: "brand-new-oauth@example.test",
+    verified: true
+  });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.users.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  assert.equal(core.authSessions.size, 0);
+});
+
+test("register and waitlist pages serve minimal waitlist form and store submissions with admin summary", async () => {
+  const { env, core } = createEnv();
+
+  const registerHtmlRes = await worker.fetch(new Request("https://shadow.test/ja/register"), env);
+  assert.equal(registerHtmlRes.status, 200);
+  const registerHtml = await registerHtmlRes.text();
+  assert.match(registerHtml, /ウェイティングリストに登録/);
+  assert.match(registerHtml, /data-global-record-trigger="photo"/);
+  assert.match(registerHtml, /capture="environment"/);
+  assert.match(registerHtml, /\/ja\/login/);
+
+  const enWaitlistRes = await worker.fetch(new Request("https://shadow.test/en/waitlist"), env);
+  assert.equal(enWaitlistRes.status, 200);
+  assert.match(await enWaitlistRes.text(), /Join the waitlist/);
+
+  const invalidRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "not-an-email", locale: "ja" })
+  }), env);
+  assert.equal(invalidRes.status, 400);
+  assert.deepEqual(await invalidRes.json(), { ok: false, error: "invalid_email" });
+
+  const submitRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: " Waiter@Example.com ", locale: "ja", sourcePath: "/ja/register" })
+  }), env);
+  assert.equal(submitRes.status, 200);
+  assert.deepEqual(await submitRes.json(), { ok: true, alreadyRegistered: false });
+  assert.equal(core.waitlist.size, 1);
+  assert.equal(core.authUsers.size, 0);
+
+  const dupRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "waiter@example.com", locale: "ja" })
+  }), env);
+  assert.equal(dupRes.status, 200);
+  assert.deepEqual(await dupRes.json(), { ok: true, alreadyRegistered: true });
+  assert.equal(core.waitlist.size, 1);
+
+  const hpRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "bot@example.com", website: "https://spam.example" })
+  }), env);
+  assert.equal(hpRes.status, 200);
+  assert.equal(core.waitlist.size, 1);
+
+  const unauthSummary = await worker.fetch(new Request("https://shadow.test/api/v1/admin/waitlist/summary"), env);
+  assert.equal(unauthSummary.status, 401);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      userId: "waitlist-admin-1",
+      rawToken: "waitlist-admin-token",
+      displayName: "Admin",
+      roleName: "Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+
+  const adminSummary = await worker.fetch(new Request("https://shadow.test/api/v1/admin/waitlist/summary", {
+    headers: { cookie: adminCookie }
+  }), env);
+  assert.equal(adminSummary.status, 200);
+  assert.deepEqual(await adminSummary.json(), { ok: true, count: 1 });
 });
 
 test("v1 auth login keeps original form contract with Cloudflare-native sessions", async () => {
@@ -13347,6 +13445,22 @@ test("v1 auth login keeps original form contract with Cloudflare-native sessions
   }), env);
   assert.equal(crossOriginResponse.status, 403);
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("first-time OAuth login redirects to waitlist and does not create a user account", async () => {
+  const { env, core } = createEnv();
+  const callback = await runOAuthCallback(env, {
+    provider: "google",
+    id: "brand-new-oauth-user",
+    email: "brand-new-oauth@example.test",
+    verified: true
+  });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.users.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
@@ -14470,6 +14584,62 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
   const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
   assert.equal(deliveries.length, 1);
   assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
+});
+
+test("record title round-trip saves to record-title/${recordId}.json and renders updated title on reload", async () => {
+  const { env: baseEnv } = createEnv();
+  const env = { ...baseEnv, OBSERVATION_DUAL_WRITE_MODE: "on", OBSERVATION_READ_CUTOVER_MODE: "on" };
+  const recordId = "title-roundtrip-record";
+  const ownerId = "title-roundtrip-owner";
+  const rawToken = "title-roundtrip-token";
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerId,
+      rawToken,
+      displayName: "Title Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const cookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const upsert = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: recordId,
+      userId: ownerId,
+      observedAt: "2026-11-23T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "public",
+      note: "",
+      taxon: { vernacularName: "初期タイトル", rank: "species" },
+      sourcePayload: { source: "title_roundtrip_test" }
+    })
+  }), baseEnv);
+  assert.equal(upsert.status, 201);
+
+  const saveRes = await worker.fetch(new Request(`https://shadow.test/api/v1/records/${recordId}/observation-actions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie
+    },
+    body: new URLSearchParams({
+      action: "set_title",
+      title: "ヤツデの葉の観察",
+      operation_id: "title-roundtrip-op-1",
+      return_lang: "ja"
+    })
+  }), env);
+  assert.equal(saveRes.status, 303);
+  const storedTitle = await env.ASSET_BUCKET.get(`record-title/${recordId}.json`);
+  assert.ok(storedTitle);
+  const storedJson = JSON.parse(await new Response(storedTitle.body).text()) as { title?: string };
+  assert.equal(storedJson.title, "ヤツデの葉の観察");
 });
 
 test("Cloudflare personal alerts page past suppressed rows to return older visible updates", async () => {
@@ -15679,7 +15849,21 @@ test("production custom-domain register can create a private post without public
     return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+    const seededPasswordHash = await bcrypt.hash("register-password", 10);
+    await productionEnv.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      "user_production_register_seed",
+      "production-register@example.test",
+      seededPasswordHash,
+      "Production Register User",
+      "Observer",
+      "観察者",
+      0
+    ).run();
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -15687,19 +15871,17 @@ test("production custom-domain register can create a private post without public
         "sec-fetch-site": "same-origin"
       },
       body: JSON.stringify({
-        displayName: "Production Register User",
         email: "production-register@example.test",
         password: "register-password",
         redirect: "/record"
       })
     }), productionEnv);
-    const registerPayload = await registerResponse.json() as any;
-    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
-    assert.equal(registerPayload.ok, true);
-    assert.equal(registerPayload.redirect, "/record?start=photo");
-    assert.match(registerResponse.headers.get("set-cookie") ?? "", /Secure/);
-    const cookie = registerResponse.headers.get("set-cookie") ?? "";
-    const userId = String(registerPayload.session.userId);
+    const loginPayload = await loginResponse.json() as any;
+    assert.equal(loginResponse.status, 200, JSON.stringify(loginPayload));
+    assert.equal(loginPayload.ok, true);
+    assert.match(loginResponse.headers.get("set-cookie") ?? "", /Secure/);
+    const cookie = loginResponse.headers.get("set-cookie") ?? "";
+    const userId = String(loginPayload.session.userId);
     assert.equal(core.authUsers.get("production-register@example.test")?.user_id, userId);
 
     const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
@@ -15757,7 +15939,21 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
   globalThis.fetch = (async () => new Response("fallback should not be called", { status: 599 })) as typeof fetch;
   try {
     const credentialField = "pass" + "word";
-    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+    const seededPasswordHash = await bcrypt.hash("register-pass", 10);
+    await productionEnv.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      "user_production_idempotency_seed",
+      "production-idempotency@example.test",
+      seededPasswordHash,
+      "Production Idempotency User",
+      "Observer",
+      "観察者",
+      0
+    ).run();
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -15765,16 +15961,15 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
         "sec-fetch-site": "same-origin"
       },
       body: JSON.stringify({
-        displayName: "Production Idempotency User",
         email: "production-idempotency@example.test",
         [credentialField]: "register-pass",
         redirect: "/record"
       })
     }), productionEnv);
-    const registerPayload = await registerResponse.json() as any;
-    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
-    const cookie = registerResponse.headers.get("set-cookie") ?? "";
-    const userId = String(registerPayload.session.userId);
+    const loginPayload = await loginResponse.json() as any;
+    assert.equal(loginResponse.status, 200, JSON.stringify(loginPayload));
+    const cookie = loginResponse.headers.get("set-cookie") ?? "";
+    const userId = String(loginPayload.session.userId);
     assert.equal(core.authUsers.get("production-idempotency@example.test")?.user_id, userId);
 
     const baseBody = {
@@ -18996,6 +19191,20 @@ test("production oauth callback creates Cloudflare-native session from provider 
   const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
   assert.ok(state);
 
+  core.users.add("existing-google-user-1");
+  core.oauthAccounts.set("google:google-user-1", {
+    user_id: "existing-google-user-1",
+    provider: "google",
+    provider_user_id: "google-user-1",
+    provider_email: "google-user@example.test",
+    display_name: "Google User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: null
+  });
+
   const originalFetch = globalThis.fetch;
   const seen: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -19054,6 +19263,20 @@ test("production app oauth returns an exchange code instead of a raw session tok
 
   const start = await worker.fetch(new Request("https://ikimon.life/app_oauth_start.php?provider=google&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-1&platform=android&app_version=0.8.1"), productionEnv);
   assert.equal(start.status, 303);
+
+  core.users.add("existing-google-app-user-1");
+  core.oauthAccounts.set("google:google-app-user-1", {
+    user_id: "existing-google-app-user-1",
+    provider: "google",
+    provider_user_id: "google-app-user-1",
+    provider_email: "google-app-user@example.test",
+    display_name: "Google App User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: null
+  });
   const stateCookie = start.headers.get("set-cookie") ?? "";
   assert.match(stateCookie, /^ikimon_oauth_state=/);
   const startLocation = new URL(start.headers.get("location") ?? "");
@@ -19233,17 +19456,15 @@ test("oauth app callback reports the email conflict without issuing an exchange 
   assert.equal(core.oauthAccounts.size, 0);
 });
 
-test("oauth callback still creates a new user when the Google email matches no account", async () => {
+test("oauth callback redirects to waitlist instead of creating a new user when the Google email matches no account", async () => {
   const { env, core } = createEnv();
   seedPasswordAccount(core, "someone-else@example.test");
   const callback = await runOAuthCallback(env, { provider: "google", id: "google-fresh-1", email: "fresh@example.test" });
   assert.equal(callback.status, 303);
-  assert.equal(callback.headers.get("location"), "/record");
-  assert.match(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=/);
-  const linked = core.oauthAccounts.get("google:google-fresh-1");
-  assert.ok(linked?.user_id);
-  assert.notEqual(linked.user_id, "preclaimed-user");
-  assert.equal(core.authSessions.size, 1);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.oauthAccounts.get("google:google-fresh-1"), undefined);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("oauth callback still logs in an already linked identity", async () => {
@@ -19269,16 +19490,14 @@ test("oauth callback still logs in an already linked identity", async () => {
   assert.deepEqual([...core.authSessions.values()].map((session) => session.user_id), ["linked-user"]);
 });
 
-test("oauth twitter identity without email never links by email", async () => {
+test("oauth twitter identity without email never links by email and redirects to waitlist", async () => {
   const { env, core } = createEnv();
   seedPasswordAccount(core, "victim@example.test");
   const callback = await runOAuthCallback(env, { provider: "twitter", id: "x-user-1", email: null });
   assert.equal(callback.status, 303);
-  assert.equal(callback.headers.get("location"), "/record");
-  const linked = core.oauthAccounts.get("twitter:x-user-1");
-  assert.ok(linked?.user_id);
-  assert.notEqual(linked.user_id, "preclaimed-user");
-  assert.equal(core.authSessions.size, 1);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.equal(core.oauthAccounts.get("twitter:x-user-1"), undefined);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("production oauth start fails closed when provider secrets are not configured", async () => {
@@ -28381,16 +28600,17 @@ test("production materialized auth html personalizes redirect query without orig
     const explicitResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord%3Fstart%3Dnote&lang=en"), productionEnv);
     const explicitHtml = await explicitResponse.text();
     assert.equal(explicitResponse.status, 200);
-    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
-    assert.match(explicitHtml, /data-redirect="\/record\?start=note"/);
-    assert.match(explicitHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dnote/);
+    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-waitlist");
+    assert.match(explicitHtml, /id="zukan-waitlist-form"/);
+    assert.match(explicitHtml, /\/en\/login/);
     assert.doesNotMatch(explicitHtml, /\/auth\/oauth\/google\/start/);
 
     const bareResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord&lang=en"), productionEnv);
     const bareHtml = await bareResponse.text();
     assert.equal(bareResponse.status, 200);
-    assert.match(bareHtml, /data-redirect="\/record\?start=photo"/);
-    assert.match(bareHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dphoto/);
+    assert.equal(bareResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-waitlist");
+    assert.match(bareHtml, /id="zukan-waitlist-form"/);
+    assert.match(bareHtml, /\/en\/login/);
 
     const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
     const loginHtml = await loginResponse.text();
@@ -28931,6 +29151,42 @@ test("profile settings saves display language preference, hides header language 
   }), env);
   assert.equal(nextVisit.status, 302);
   assert.equal(nextVisit.headers.get("location"), "/en/");
+});
+
+test("records public section renders direct links to public place pages when available", async () => {
+  const { env } = createEnv();
+  const draftPlaceId = "plc_draft_hidden_1";
+  const publishedPlaceId = "plc_e3293ec4bb9288a0";
+  const originalPrepare = env.OBS_DB.prepare.bind(env.OBS_DB);
+  env.OBS_DB.prepare = ((query: string) => {
+    if (query.includes("FROM places p") && query.includes("p.public_profile_status = 'published'")) {
+      return {
+        bind: () => ({
+          all: async () => ({
+            results: [{ place_id: publishedPlaceId, canonical_name: "常盤公園" }]
+          })
+        })
+      } as unknown as ReturnType<typeof originalPrepare>;
+    }
+    return originalPrepare(query);
+  }) as typeof env.OBS_DB.prepare;
+
+  const sitemap = await withPublicPlacesInSitemap('<?xml version="1.0"?><urlset></urlset>', env);
+  assert.match(sitemap, /\/ja\/places\/plc_e3293ec4bb9288a0/);
+  assert.doesNotMatch(sitemap, new RegExp(draftPlaceId));
+
+  const html = renderRecordsProductSection(
+    [],
+    new URL("https://zukan.earth/ja/records?view=public"),
+    "public",
+    null,
+    false,
+    null,
+    [{ placeId: publishedPlaceId, name: "常盤公園" }]
+  );
+  assert.match(html, /class="cf-records-places"/);
+  assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
+  assert.match(html, />常盤公園</);
 });
 
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
