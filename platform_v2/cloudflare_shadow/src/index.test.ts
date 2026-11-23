@@ -31237,4 +31237,10 @@ test("public map and public detail redact exact timestamps, hidden cells, and 24
   assert.equal(cellsBody.features.length, 1);
   assert.equal(cellsBody.features[0]!.properties.firstObservedAt, "2026-10-15");
   assert.equal(cellsBody.features[0]!.properties.latestObservedAt, "2026-10-15");
+
+  const detailDelayed = await worker.fetch(new Request("https://zukan.earth/ja/observations/obs-delayed-1"), env);
+  assert.equal(detailDelayed.status, 200);
+  const detailHtml = await detailDelayed.text();
+  assert.match(detailHtml, /位置は24時間後に公開されます/);
+  assert.doesNotMatch(detailHtml, /35\.6812|139\.7671/);
 });

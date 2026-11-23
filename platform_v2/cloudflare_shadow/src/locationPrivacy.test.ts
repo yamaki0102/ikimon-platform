@@ -3,7 +3,8 @@ import test from "node:test";
 import {
   computePublicLocationView,
   isNearDynamicHomeArea,
-  stripJpegExifAndGpsMetadata
+  stripJpegExifAndGpsMetadata,
+  stripMediaLocationMetadata
 } from "./locationPrivacy";
 
 test("computePublicLocationView enforces home masking, 24h delay, 3-author 10km widening, child/rare 10km, and public place snapping", () => {
@@ -97,4 +98,34 @@ test("stripJpegExifAndGpsMetadata removes APP1 EXIF/GPS segment while preserving
   assert.equal(stripped[3], 0xdb);
   assert.equal(stripped.includes(0xe1), false);
   assert.equal(isNearDynamicHomeArea(34.7, 137.7, [{ lat: 34.7, lng: 137.7 }, { lat: 34.7001, lng: 137.7001 }]), true);
+});
+
+test("stripMediaLocationMetadata removes PNG eXIf/tEXt, WebP EXIF/XMP, and ISOBMFF GPS boxes", () => {
+  // PNG with eXIf chunk (len=4) + IEND (len=0)
+  const png = new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    0x00, 0x00, 0x00, 0x04, 0x65, 0x58, 0x49, 0x66, 1, 2, 3, 4, 0, 0, 0, 0,
+    0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0, 0, 0, 0
+  ]);
+  const cleanPng = stripMediaLocationMetadata(png, "image/png");
+  assert.equal(Buffer.from(cleanPng).includes("eXIf"), false);
+  assert.equal(Buffer.from(cleanPng).includes("IEND"), true);
+
+  // WebP with EXIF chunk (4 bytes) + VP8  chunk (4 bytes)
+  const webp = new Uint8Array([
+    0x52, 0x49, 0x46, 0x46, 28, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
+    0x45, 0x58, 0x49, 0x46, 4, 0, 0, 0, 1, 2, 3, 4,
+    0x56, 0x50, 0x38, 0x20, 4, 0, 0, 0, 9, 9, 9, 9
+  ]);
+  const cleanWebp = stripMediaLocationMetadata(webp, "image/webp");
+  assert.equal(Buffer.from(cleanWebp).includes("EXIF"), false);
+  assert.equal(Buffer.from(cleanWebp).includes("VP8 "), true);
+
+  // MP4/HEIC box with ©xyz
+  const mp4 = new Uint8Array([
+    0, 0, 0, 16, 0xa9, 0x78, 0x79, 0x7a, 0x2b, 0x33, 0x35, 0x2e, 0x36, 0x38, 0x2f, 0x00
+  ]);
+  const cleanMp4 = stripMediaLocationMetadata(mp4, "video/mp4");
+  assert.equal(Buffer.from(cleanMp4).includes("free"), true);
+  assert.equal(cleanMp4[8], 0);
 });

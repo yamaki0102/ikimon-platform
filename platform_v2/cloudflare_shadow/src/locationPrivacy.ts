@@ -240,3 +240,111 @@ export function stripJpegExifAndGpsMetadata(bytes: Uint8Array): Uint8Array {
   }
   return out;
 }
+
+export function stripPngLocationMetadata(bytes: Uint8Array): Uint8Array {
+  if (
+    bytes.length < 8 ||
+    bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4e || bytes[3] !== 0x47 ||
+    bytes[4] !== 0x0d || bytes[5] !== 0x0a || bytes[6] !== 0x1a || bytes[7] !== 0x0a
+  ) {
+    return bytes;
+  }
+  const stripTypes = new Set(["eXIf", "tEXt", "iTXt", "zTXt"]);
+  const chunks: Uint8Array[] = [bytes.slice(0, 8)];
+  let offset = 8;
+  while (offset + 12 <= bytes.length) {
+    const len = ((bytes[offset]! << 24) | (bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!) >>> 0;
+    const totalChunk = 12 + len;
+    if (offset + totalChunk > bytes.length) {
+      chunks.push(bytes.slice(offset));
+      break;
+    }
+    const type = String.fromCharCode(bytes[offset + 4]!, bytes[offset + 5]!, bytes[offset + 6]!, bytes[offset + 7]!);
+    if (!stripTypes.has(type)) {
+      chunks.push(bytes.slice(offset, offset + totalChunk));
+    }
+    offset += totalChunk;
+  }
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const c of chunks) {
+    out.set(c, pos);
+    pos += c.length;
+  }
+  return out;
+}
+
+export function stripWebpLocationMetadata(bytes: Uint8Array): Uint8Array {
+  if (
+    bytes.length < 12 ||
+    String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!) !== "RIFF" ||
+    String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!) !== "WEBP"
+  ) {
+    return bytes;
+  }
+  const chunks: Uint8Array[] = [bytes.slice(0, 12)];
+  let offset = 12;
+  while (offset + 8 <= bytes.length) {
+    const fourcc = String.fromCharCode(bytes[offset]!, bytes[offset + 1]!, bytes[offset + 2]!, bytes[offset + 3]!);
+    const size = (bytes[offset + 4]! | (bytes[offset + 5]! << 8) | (bytes[offset + 6]! << 16) | (bytes[offset + 7]! << 24)) >>> 0;
+    const padded = size + (size % 2);
+    const totalChunk = 8 + padded;
+    if (offset + totalChunk > bytes.length) {
+      chunks.push(bytes.slice(offset));
+      break;
+    }
+    if (fourcc !== "EXIF" && fourcc !== "XMP ") {
+      chunks.push(bytes.slice(offset, offset + totalChunk));
+    }
+    offset += totalChunk;
+  }
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const c of chunks) {
+    out.set(c, pos);
+    pos += c.length;
+  }
+  const riffSize = Math.max(4, total - 8);
+  out[4] = riffSize & 0xff;
+  out[5] = (riffSize >>> 8) & 0xff;
+  out[6] = (riffSize >>> 16) & 0xff;
+  out[7] = (riffSize >>> 24) & 0xff;
+  return out;
+}
+
+export function stripIsoBmffLocationMetadata(bytes: Uint8Array): Uint8Array {
+  if (bytes.length < 16) return bytes;
+  const out = new Uint8Array(bytes);
+  const markers = ["\u00a9xyz", "Exif", "GPS ", "udta"];
+  for (const m of markers) {
+    const b0 = m.charCodeAt(0) & 0xff;
+    const b1 = m.charCodeAt(1) & 0xff;
+    const b2 = m.charCodeAt(2) & 0xff;
+    const b3 = m.charCodeAt(3) & 0xff;
+    for (let i = 4; i + 8 < out.length; i += 1) {
+      if (out[i] === b0 && out[i + 1] === b1 && out[i + 2] === b2 && out[i + 3] === b3) {
+        const boxSize = ((out[i - 4]! << 24) | (out[i - 3]! << 16) | (out[i - 2]! << 8) | out[i - 1]!) >>> 0;
+        if (boxSize >= 8 && i - 4 + boxSize <= out.length && boxSize <= 65536) {
+          out[i] = 0x66; out[i + 1] = 0x72; out[i + 2] = 0x65; out[i + 3] = 0x65; // 'free'
+          out.fill(0, i + 4, i - 4 + boxSize);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+export function stripMediaLocationMetadata(bytes: Uint8Array, mime: string): Uint8Array {
+  const m = mime.toLowerCase().split(";")[0]?.trim() ?? "";
+  if (m === "image/jpeg" || m === "image/jpg") return stripJpegExifAndGpsMetadata(bytes);
+  if (m === "image/png") return stripPngLocationMetadata(bytes);
+  if (m === "image/webp") return stripWebpLocationMetadata(bytes);
+  if (m === "image/heic" || m === "image/heif" || m === "video/mp4" || m === "video/quicktime") {
+    return stripIsoBmffLocationMetadata(bytes);
+  }
+  return bytes;
+}
