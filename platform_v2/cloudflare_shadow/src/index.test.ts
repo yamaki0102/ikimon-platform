@@ -30859,3 +30859,139 @@ test("bare paths redirect 301 to /ja/... with query preserved, non-ja learn path
     assert.equal(response.status, 404, `${unknownPath} should stay 404`);
   }
 });
+
+
+test("GET /api/v1/areas/observations filters by area, media_kind (including photo-less audio/record), period, and keeps privacy", async () => {
+  const { env } = createEnv();
+  const baseCoord = { latitude: 34.711, longitude: 137.731 };
+
+  for (const [id, observedAt, taxon, note] of [
+    ["obs-photo", "2026-10-05T08:00:00.000Z", "シジュウカラ", "松の枝にいた"],
+    ["obs-audio", "2026-10-12T08:00:00.000Z", "ウグイス", "さえずり録音"],
+    ["obs-video", "2026-10-18T08:00:00.000Z", "アゲハ", "吸蜜動画"],
+    ["obs-note", "2026-10-25T08:00:00.000Z", "気温メモ", "気温18度・風弱し"],
+    ["obs-private", "2026-10-26T08:00:00.000Z", "非公開種", "出さない"],
+  ] as const) {
+    await post("/api/v1/observations/upsert", env, {
+      observationId: id,
+      userId: "user-area-test",
+      observedAt,
+      ...baseCoord,
+      note,
+      taxon: { vernacularName: taxon, rank: "species" },
+    });
+    const obsRow = env.OBS_DB.observations.get(id);
+    assert.ok(obsRow);
+    obsRow.visibility = id === "obs-private" ? "private" : "public";
+    obsRow.emergency_hidden = 0;
+    if (id !== "obs-private") {
+      env.OBS_DB.readmodel.set(id, {
+        observation_id: id,
+        public_cell: obsRow.public_cell,
+        observed_at: observedAt,
+        taxon_label: taxon,
+        asset_count: id === "obs-note" ? 0 : 1,
+        public_area_label: "テストの森",
+        public_note: note,
+      });
+    }
+  }
+
+  env.OBS_DB.assets.set("asset-photo", {
+    asset_id: "asset-photo",
+    draft_id: "draft-photo",
+    owner_user_id: "user-area-test",
+    object_key: "raw/p.jpg",
+    partition_month: "2026-10",
+    sha256: "sha-p",
+    mime: "image/jpeg",
+    bytes: 1024,
+    processing_state: "uploaded",
+    observation_id: "obs-photo",
+    public_derivative_key: "derived/p.webp",
+    public_derivative_sha256: "sha-p-d",
+    public_derivative_verified_at: "2026-10-05T08:01:00.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", derivativeWidth: 800, derivativeHeight: 600 }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-10-05T08:01:00.000Z",
+  });
+  env.OBS_DB.assets.set("asset-audio", {
+    asset_id: "asset-audio",
+    draft_id: "draft-audio",
+    owner_user_id: "user-area-test",
+    object_key: "raw/a.m4a",
+    partition_month: "2026-10",
+    sha256: "sha-a",
+    mime: "audio/mp4",
+    bytes: 2048,
+    processing_state: "uploaded",
+    observation_id: "obs-audio",
+    public_derivative_key: null,
+    public_derivative_sha256: null,
+    public_derivative_verified_at: null,
+    public_derivative_metadata_json: null,
+    exif_scrub_state: "not_started",
+    public_ready_at: null,
+  });
+  env.OBS_DB.assets.set("asset-video", {
+    asset_id: "asset-video",
+    draft_id: "draft-video",
+    owner_user_id: "user-area-test",
+    object_key: "raw/v.mp4",
+    partition_month: "2026-10",
+    sha256: "sha-v",
+    mime: "video/mp4",
+    bytes: 4096,
+    processing_state: "uploaded",
+    observation_id: "obs-video",
+    public_derivative_key: null,
+    public_derivative_sha256: null,
+    public_derivative_verified_at: null,
+    public_derivative_metadata_json: null,
+    exif_scrub_state: "not_started",
+    public_ready_at: null,
+  });
+
+  const missingScope = await worker.fetch(new Request("https://zukan.earth/api/v1/areas/observations"), env);
+  assert.equal(missingScope.status, 400);
+
+  const bbox = "137.70,34.70,137.76,34.74";
+  const allRes = await worker.fetch(new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}`), env);
+  assert.equal(allRes.status, 200);
+  assert.equal(allRes.headers.get("access-control-allow-origin"), "*");
+  assert.match(allRes.headers.get("server-timing") ?? "", /area-observations;dur=/);
+  const allPayload = await allRes.json() as {
+    items: Array<{ visitId: string; mediaKind: string; privacy: { exactLocationExposed: boolean }; localityLabel: string }>;
+    stats: { totalReturned: number; durationMs: number };
+  };
+  assert.equal(allPayload.items.length, 4);
+  assert.equal(allPayload.items.some((x) => x.visitId === "obs-private"), false);
+  assert.equal(typeof allPayload.stats.durationMs, "number");
+  for (const item of allPayload.items) {
+    assert.equal(item.privacy.exactLocationExposed, false);
+    assert.equal("latitude" in item, false);
+    assert.equal("longitude" in item, false);
+    assert.equal(item.localityLabel, "位置をぼかしています");
+  }
+
+  for (const [kind, expectedId] of [
+    ["photo", "obs-photo"],
+    ["audio", "obs-audio"],
+    ["video", "obs-video"],
+    ["record", "obs-note"],
+    ["note", "obs-note"],
+  ] as const) {
+    const res = await worker.fetch(new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}&media_kind=${kind}`), env);
+    assert.equal(res.status, 200, kind);
+    const body = await res.json() as { items: Array<{ visitId: string }> };
+    assert.deepEqual(body.items.map((x) => x.visitId), [expectedId], `media_kind=${kind}`);
+  }
+
+  const periodRes = await worker.fetch(
+    new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}&from=2026-10-10&to=2026-10-20`),
+    env,
+  );
+  assert.equal(periodRes.status, 200);
+  const periodBody = await periodRes.json() as { items: Array<{ visitId: string }> };
+  assert.deepEqual(periodBody.items.map((x) => x.visitId), ["obs-video", "obs-audio"]);
+});
