@@ -24755,18 +24755,18 @@ test("production original UI follows the deployed or rollback manifest hash inst
     ENVIRONMENT: "production",
     IKIMON_UI_MANIFEST_HASH: pinnedManifestHash
   };
-  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><main>legacy-pointer</main>", { httpMetadata: { contentType: "text/html" } });
-  await env.ASSET_BUCKET.put(`original-ui/versions/${pointerManifestHash}/html/root.html`, "<!doctype html><main>mutable-pointer</main>", { httpMetadata: { contentType: "text/html" } });
-  await env.ASSET_BUCKET.put(`original-ui/versions/${pinnedManifestHash}/html/root.html`, "<!doctype html><main>deployed-hash</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/map.html", "<!doctype html><main>legacy-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`original-ui/versions/${pointerManifestHash}/html/ja/map.html`, "<!doctype html><main>mutable-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`original-ui/versions/${pinnedManifestHash}/html/ja/map.html`, "<!doctype html><main>deployed-hash</main>", { httpMetadata: { contentType: "text/html" } });
   await env.ASSET_BUCKET.put("original-ui/current/production.json", JSON.stringify({ manifest_hash: pointerManifestHash, version_prefix: `original-ui/versions/${pointerManifestHash}` }), { httpMetadata: { contentType: "application/json" } });
 
-  const response = await worker.fetch(new Request("https://ikimon.life/"), productionEnv);
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/map"), productionEnv);
   assert.equal(response.status, 200);
   const body = await response.text();
   assert.match(body, /deployed-hash/);
   assert.doesNotMatch(body, /mutable-pointer|legacy-pointer/);
 
-  const rollbackResponse = await worker.fetch(new Request("https://ikimon.life/"), {
+  const rollbackResponse = await worker.fetch(new Request("https://ikimon.life/ja/map"), {
     ...productionEnv,
     IKIMON_UI_MANIFEST_HASH: pointerManifestHash
   });
@@ -24821,17 +24821,17 @@ test("production original UI falls back to the current versioned pointer without
   const productionEnv = { ...env, ENVIRONMENT: "production" };
   const manifestHash = "a".repeat(64);
   const versionPrefix = `original-ui/versions/${manifestHash}`;
-  await env.ASSET_BUCKET.put("original-ui/html/root.html", "<!doctype html><main>legacy-pointer</main>", { httpMetadata: { contentType: "text/html" } });
-  await env.ASSET_BUCKET.put(`${versionPrefix}/html/root.html`, "<!doctype html><main>versioned-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put("original-ui/html/ja/map.html", "<!doctype html><main>legacy-pointer</main>", { httpMetadata: { contentType: "text/html" } });
+  await env.ASSET_BUCKET.put(`${versionPrefix}/html/ja/map.html`, "<!doctype html><main>versioned-pointer</main>", { httpMetadata: { contentType: "text/html" } });
   await env.ASSET_BUCKET.put("original-ui/current/production.json", JSON.stringify({ manifest_hash: manifestHash, version_prefix: versionPrefix }), { httpMetadata: { contentType: "application/json" } });
 
-  const response = await worker.fetch(new Request("https://ikimon.life/"), productionEnv);
+  const response = await worker.fetch(new Request("https://ikimon.life/ja/map"), productionEnv);
   assert.equal(response.status, 200);
   const body = await response.text();
   assert.match(body, /versioned-pointer/);
   assert.doesNotMatch(body, /legacy-pointer/);
 
-  const invalidHashResponse = await worker.fetch(new Request("https://ikimon.life/"), {
+  const invalidHashResponse = await worker.fetch(new Request("https://ikimon.life/ja/map"), {
     ...productionEnv,
     IKIMON_UI_MANIFEST_HASH: "invalid-manifest-hash"
   });
@@ -25416,15 +25416,14 @@ test("production home collapses materialized header actions into a hamburger men
   const response = await worker.fetch(new Request("https://ikimon.life/ja/"), productionEnv);
   const body = await response.text();
   assert.equal(response.status, 200);
-  assert.match(body, /data-cloudflare-header-menu/);
-  assert.match(body, /aria-label="メニュー"/);
-  assert.match(body, /site-header-actions-desktop,.site-header \.site-header-actions-mobile\{display:none!important\}/);
-  assert.match(body, /href="\/ja\/record\?start=photo" data-global-record-trigger="photo"/);
-  assert.match(body, /href="\/ja\/login\?redirect=%2Fprofile"/);
-  assert.match(body, /href="\/ja\/records"/);
-  assert.match(body, /href="\/ja\/map"/);
-  assert.match(body, /href="\/en\/"/);
-  assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+  assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2");
+  assert.match(body, /class="zt-bottom-nav"/);
+  assert.match(body, /class="zt-sidebar"/);
+  assert.match(body, /href="\/ja\/waitlist"/);
+  assert.match(body, /href="\/auth\/login"/);
+  assert.match(body, /href="\/ja\/events"/);
+  assert.match(body, /href="\/ja\/places"/);
+  assert.match(body, /href="\/ja\/profile"/);
 });
 
 test("production materialized app shells collapse header actions and respect signed-in account links", async () => {
@@ -26743,22 +26742,19 @@ test("production original UI app shells serve materialized HTML even with sessio
       headers: { cookie: "ikimon_v2_session=secret" }
     }), productionEnv);
     assert.equal(homeResponse.status, 200);
-    assert.equal(await homeResponse.text(), "<!doctype html><title>materialized home</title>");
-    assert.equal(homeResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.equal(homeResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2");
 
     const localizedHomeResponse = await worker.fetch(new Request("https://ikimon.life/ja/?source=pwa", {
       headers: { cookie: "ikimon_v2_session=secret" }
     }), productionEnv);
     assert.equal(localizedHomeResponse.status, 200);
-    assert.equal(await localizedHomeResponse.text(), "<!doctype html><title>materialized ja home</title>");
-    assert.equal(localizedHomeResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.equal(localizedHomeResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2");
 
     const localizedHomeNoSlashResponse = await worker.fetch(new Request("https://ikimon.life/ja?source=pwa", {
       headers: { cookie: "ikimon_v2_session=secret" }
     }), productionEnv);
     assert.equal(localizedHomeNoSlashResponse.status, 200);
-    assert.equal(await localizedHomeNoSlashResponse.text(), "<!doctype html><title>materialized ja home</title>");
-    assert.equal(localizedHomeNoSlashResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
+    assert.equal(localizedHomeNoSlashResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2");
 
     const mapResponse = await worker.fetch(new Request("https://ikimon.life/map", {
       headers: { cookie: "ikimon_v2_session=secret" }
