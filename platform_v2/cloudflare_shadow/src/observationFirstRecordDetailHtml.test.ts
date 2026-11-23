@@ -1374,6 +1374,20 @@ test("record detail shows owner title edit form and role-based provenance withou
   assert.match(ownerHtml, /記録した人が確認/);
   assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
 
+  const withCustomTitle = renderObservationFirstRecordDetailHtml(withMultiProposers, {
+    lang: "ja",
+    title: "キアゲハ",
+    customTitle: "里山のチョウと野草",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-custom-title",
+  });
+  assert.match(withCustomTitle, /<h1>里山のチョウと野草<\/h1>/);
+  assert.match(withCustomTitle, /name="action" value="reset_title"/);
+  assert.match(withCustomTitle, /自動の題名に戻す/);
+
   const guestHtml = renderObservationFirstRecordDetailHtml({ ...withMultiProposers, owner: false }, {
     lang: "ja",
     title: "キアゲハ",

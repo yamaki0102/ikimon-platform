@@ -82,6 +82,7 @@ export type ObservationFirstRecordPresentation = {
   /** Server-only primary identity mapping, never serialized into this page. */
   aiPersonPrimaryNames?: readonly string[];
   aiFeedback?: string | null;
+  customTitle?: string | null;
   signboardTitle?: string | null;
   aiNextPhoto?: string | null;
   mediaDedup?: {
@@ -781,11 +782,14 @@ export function renderObservationFirstRecordDetailHtml(
   const copy = observationFirstRecordDetailCopy(lang);
   const media = safeMedia(presentation.media);
   const signboard = isSignboardRecord(detail, presentation);
-  const title = signboard
-    ? resolveSignboardTitle(detail, presentation, copy, lang)
-    : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
-      ? copy.natureRecord
-      : presentation.title;
+  const customTitle = presentation.customTitle?.trim() || null;
+  const title = customTitle
+    ? customTitle
+    : signboard
+      ? resolveSignboardTitle(detail, presentation, copy, lang)
+      : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
+        ? copy.natureRecord
+        : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
   const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
   const shareUrl = presentation.shareUrl ?? canonicalUrl;
@@ -805,8 +809,11 @@ export function renderObservationFirstRecordDetailHtml(
   const aiFeedback = renderAiFeedback(detail, presentation, copy);
   const scene = renderSceneUnderstanding(presentation, copy, signboard);
   const environment = renderEnvironment(presentation.environment, copy);
+  const resetTitleForm = customTitle
+    ? `<form method="post" action="${escapeHtml(action)}">${hidden("action", "reset_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title-reset`)}<button type="submit" class="is-secondary">${escapeHtml(copy.resetTitle)}</button></form>`
+    : "";
   const titleEditForm = detail.owner
-    ? `<details class="of-title-edit"><summary>${escapeHtml(copy.editTitle)}</summary><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required aria-label="${escapeHtml(copy.editTitle)}"><button type="submit">${escapeHtml(copy.saveTitle)}</button></form></details>`
+    ? `<details class="of-title-edit"><summary>${escapeHtml(copy.editTitle)}</summary><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required aria-label="${escapeHtml(copy.editTitle)}"><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</details>`
     : "";
   const titleBlock = `<div class="of-title-row"><h1>${escapeHtml(title)}</h1>${titleEditForm}</div>`;
   const comparison = renderComparison(presentation.comparison, lang, copy);
