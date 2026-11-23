@@ -255,7 +255,7 @@ export const PLACE_FEELING_DEMO_STYLES = `
 .pft-demo-recent div, .pft-demo-tag-grid, .pft-demo-sample-tags { display:flex; flex-wrap:wrap; gap:8px; }
 .pft-demo-tag-grid { margin-top:12px; }
 .pft-demo-chip { min-height:36px; display:inline-flex; align-items:center; gap:7px; padding:7px 10px; border-radius:999px; border:1px solid #cbd5e1; background:#fff; color:#1f2937; font-size:13px; line-height:1.2; }
-.pft-demo-chip b { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:11px; color:#64748b; font-weight:800; }
+.pft-demo-chip b { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:11px; color:#475569; font-weight:800; }
 .pft-demo-chip.is-selected, .pft-demo-chip.is-recent { border-color:#1f6f3a; background:#edf7ef; box-shadow:inset 0 0 0 1px rgba(31,111,58,.12); }
 .pft-demo-category-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin-bottom:18px; }
 .pft-demo-category { display:grid; gap:4px; padding:12px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
