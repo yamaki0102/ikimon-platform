@@ -1,5 +1,13 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
+import {
+  GUIDE_BOOKING_REQUESTS_CREATE_SQL,
+  GUIDE_PROFILES_CREATE_SQL,
+  PLACE_SUPPORT_SEATS_CREATE_SQL,
+  getSchool45MinTemplate,
+  loadGuideProfileById,
+  renderGuidePublicPage
+} from "./guideBookingDesk";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -2692,6 +2700,152 @@ export const worker = {
 
       if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/register" || nativePathname === "/waitlist")) {
         return getZukanWaitlistHtml(request, url, env);
+      }
+
+      const guidePageMatch = nativePathname.match(/^\/guides\/(guide_[A-Za-z0-9_-]{2,80})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && guidePageMatch?.[1]) {
+        const guideId = decodeURIComponent(guidePageMatch[1]);
+        const guide = await loadGuideProfileById(env, guideId);
+        if (!guide || guide.publish_status !== "published") {
+          return html("<!doctype html><html><body><main><h1>案内人ページが見つかりません</h1></main></body></html>", 404, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(PLACE_SUPPORT_SEATS_CREATE_SQL).run();
+        const seatsRes = await env.CORE_DB.prepare(
+          "SELECT sponsor_name, equipment_note FROM place_support_seats ORDER BY created_at DESC LIMIT 20"
+        ).all<{ sponsor_name: string; equipment_note: string }>().catch(() => ({ results: [] }));
+        const cspNonce = createHtmlCspNonce();
+        const page = renderGuidePublicPage(guide, { supportSeats: seatsRes.results ?? [], cspNonce });
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store"
+          }
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guides/profile") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ specialties?: unknown[]; places?: unknown[]; isNacsjInstructor?: unknown }>(request);
+        const guideId = `guide_${session.userId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64)}`;
+        const specialties = Array.isArray(body.specialties) ? body.specialties.map((s) => String(s).trim()).filter(Boolean).slice(0, 12) : [];
+        const places = Array.isArray(body.places) ? body.places.map((s) => String(s).trim()).filter(Boolean).slice(0, 12) : [];
+        await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO guide_profiles (guide_id, user_id, display_name, specialties_json, places_json, is_nacsj_instructor, verified_expert_count, publish_status, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 'draft', ?7)
+           ON CONFLICT(guide_id) DO UPDATE SET
+             display_name = excluded.display_name,
+             specialties_json = excluded.specialties_json,
+             places_json = excluded.places_json,
+             is_nacsj_instructor = excluded.is_nacsj_instructor,
+             updated_at = excluded.updated_at`
+        ).bind(guideId, session.userId, session.displayName || "案内人", JSON.stringify(specialties), JSON.stringify(places), body.isNacsjInstructor === true ? 1 : 0, Date.now()).run();
+        return json({ ok: true, guideId, publishStatus: "draft" }, 201, { "cache-control": "no-store" });
+      }
+
+      const guidePublishMatch = nativePathname.match(/^\/api\/v1\/guides\/(guide_[A-Za-z0-9_-]{2,80})\/publish$/);
+      if (request.method === "PATCH" && guidePublishMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const guideId = decodeURIComponent(guidePublishMatch[1]);
+        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const status = body.publishStatus === "published" ? "published" : "draft";
+        await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
+        const res = await env.CORE_DB.prepare(
+          "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
+        ).bind(guideId, status, Date.now()).run();
+        const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
+        return changes > 0 ? json({ ok: true, guideId, publishStatus: status }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      const guideReqMatch = nativePathname.match(/^\/api\/v1\/guides\/(guide_[A-Za-z0-9_-]{2,80})\/requests$/);
+      if (request.method === "POST" && guideReqMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const guideId = decodeURIComponent(guideReqMatch[1]);
+        const guide = await loadGuideProfileById(env, guideId);
+        if (!guide || guide.publish_status !== "published") return json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
+        const body = await readJson<{
+          requesterKind?: unknown;
+          organizationName?: unknown;
+          placeId?: unknown;
+          preferredDate?: unknown;
+          grade?: unknown;
+          unit?: unknown;
+        }>(request);
+        const organizationName = typeof body.organizationName === "string" ? body.organizationName.trim().slice(0, 120) : "";
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim().slice(0, 120) : "";
+        const preferredDate = typeof body.preferredDate === "string" ? body.preferredDate.trim().slice(0, 10) : "";
+        if (!organizationName || !placeId || !preferredDate) {
+          return json({ ok: false, error: "missing_request_fields" }, 400, { "cache-control": "no-store" });
+        }
+        const requesterKind = body.requesterKind === "school" || body.requesterKind === "nursery" || body.requesterKind === "company" || body.requesterKind === "association"
+          ? body.requesterKind
+          : "school";
+        const grade = typeof body.grade === "string" ? body.grade.trim().slice(0, 20) : "";
+        const unit = typeof body.unit === "string" ? body.unit.trim().slice(0, 80) : "";
+        const schoolTemplate = requesterKind === "school" ? getSchool45MinTemplate(grade, unit) : null;
+        const requestId = `greq_${crypto.randomUUID().slice(0, 12)}`;
+        const nocosilSessionId = `evt_req_${crypto.randomUUID().slice(0, 12)}`;
+        const nowIso = new Date().toISOString();
+        await env.OBS_DB.prepare(
+          `INSERT INTO observation_event_sessions (
+            session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id, plan, primary_mode,
+            active_modes_json, location_lat, location_lng, location_radius_m, started_at, ended_at,
+            target_species_json, config_json, field_id, template_source_session_id, created_at, updated_at
+          ) VALUES (?, NULL, ?, ?, ?, NULL, 'free', 'guided', '["guided"]', NULL, NULL, 500, ?, NULL, '[]', ?, ?, NULL, ?, ?)`
+        ).bind(
+          nocosilSessionId,
+          `REQ-${requestId.slice(-4).toUpperCase()}`,
+          `${organizationName} × ${guide.display_name}`,
+          guide.user_id,
+          `${preferredDate}T09:00:00.000Z`,
+          JSON.stringify({ requesterKind, schoolTemplate }),
+          placeId,
+          nowIso,
+          nowIso
+        ).run();
+        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO guide_booking_requests (
+            request_id, guide_id, requester_user_id, requester_kind, organization_name, place_id, preferred_date, grade, unit, nocosil_session_id, status, created_at
+          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'requested', ?11)`
+        ).bind(requestId, guideId, session.userId, requesterKind, organizationName, placeId, preferredDate, grade, unit, nocosilSessionId, Date.now()).run();
+        return json({ ok: true, requestId, sessionId: nocosilSessionId, schoolTemplate }, 201, { "cache-control": "no-store" });
+      }
+
+      const supportSeatMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/support-seats$/);
+      if (request.method === "POST" && supportSeatMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(supportSeatMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ sponsorName?: unknown; equipmentNote?: unknown }>(request);
+        const sponsorName = typeof body.sponsorName === "string" ? body.sponsorName.trim().slice(0, 120) : "";
+        const equipmentNote = typeof body.equipmentNote === "string" ? body.equipmentNote.trim().slice(0, 160) : "";
+        if (!sponsorName || !equipmentNote) return json({ ok: false, error: "sponsor_and_equipment_required" }, 400, { "cache-control": "no-store" });
+        const seatId = `seat_${crypto.randomUUID().slice(0, 12)}`;
+        await env.CORE_DB.prepare(PLACE_SUPPORT_SEATS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO place_support_seats (seat_id, place_id, sponsor_user_id, sponsor_name, equipment_note, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+        ).bind(seatId, placeId, session.userId, sponsorName, equipmentNote, Date.now()).run();
+        return json({ ok: true, seatId, placeId, sponsorName, equipmentNote }, 201, { "cache-control": "no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
