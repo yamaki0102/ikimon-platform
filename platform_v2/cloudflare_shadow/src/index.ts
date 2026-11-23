@@ -2545,8 +2545,14 @@ export const worker = {
           const sameOriginError = assertSameOriginRequest(request);
           if (sameOriginError) return sameOriginError;
           const session = await readCompatibleSession(request, env).catch(() => null);
+          if (!session?.userId || session.banned) {
+            return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+          }
+          const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+          if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
           const body = await readJson<{
-            stationId?: unknown;
             title?: unknown;
             prompt1?: unknown;
             prompt2?: unknown;
@@ -2554,14 +2560,13 @@ export const worker = {
             referencePhotoUrl?: unknown;
           }>(request);
           const station = await upsertFixedPointStation(env, {
-            ...(typeof body.stationId === "string" ? { stationId: body.stationId } : {}),
             placeId,
             title: typeof body.title === "string" ? body.title : "定点",
             prompt1: typeof body.prompt1 === "string" ? body.prompt1 : "水の色・ようす",
             prompt2: typeof body.prompt2 === "string" ? body.prompt2 : "花の数",
             prompt3: typeof body.prompt3 === "string" ? body.prompt3 : "鳥の声の有無",
             referencePhotoUrl: typeof body.referencePhotoUrl === "string" ? body.referencePhotoUrl : "",
-            createdByUserId: session?.userId ?? ""
+            createdByUserId: session.userId
           });
           return json({ ok: true, station }, 201, { "cache-control": "no-store" });
         }
@@ -2573,6 +2578,14 @@ export const worker = {
         if (sameOriginError) return sameOriginError;
         const placeId = decodeURIComponent(fixedPointRecordsApiMatch[1]);
         const stationId = decodeURIComponent(fixedPointRecordsApiMatch[2]);
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) {
+          return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        }
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
         const station = await loadFixedPointStationById(env, placeId, stationId);
         if (!station) return json({ ok: false, error: "station_not_found" }, 404, { "cache-control": "no-store" });
         const body = await readJson<{
@@ -2582,10 +2595,13 @@ export const worker = {
           taxonName?: unknown;
           isZeroObservation?: unknown;
           onSiteVerified?: unknown;
-          verifiedByLabel?: unknown;
           photoUrl?: unknown;
           observedAt?: unknown;
         }>(request);
+        const onSiteVerified = body.onSiteVerified === true;
+        const verifiedByLabel = onSiteVerified
+          ? (session.displayName?.trim() || session.userId)
+          : "";
         const record = await createFixedPointStationRecord(env, {
           stationId,
           placeId,
@@ -2594,8 +2610,8 @@ export const worker = {
           answer3: typeof body.answer3 === "string" ? body.answer3 : "",
           taxonName: typeof body.taxonName === "string" ? body.taxonName : "",
           isZeroObservation: body.isZeroObservation === true,
-          onSiteVerified: body.onSiteVerified === true,
-          verifiedByLabel: typeof body.verifiedByLabel === "string" ? body.verifiedByLabel : "",
+          onSiteVerified,
+          verifiedByLabel,
           photoUrl: typeof body.photoUrl === "string" ? body.photoUrl : "",
           observedAt: typeof body.observedAt === "string" ? body.observedAt : ""
         });

@@ -88,10 +88,10 @@ export async function upsertFixedPointStation(
     createdByUserId?: string;
   }
 ): Promise<FixedPointStationRow> {
+  const createdByUserId = (input.createdByUserId ?? "").trim().slice(0, 120);
+  if (!createdByUserId) throw new Error("created_by_user_id_required");
   await env.CORE_DB.prepare(FIXED_POINT_STATIONS_CREATE_SQL).run();
-  const stationId = input.stationId && /^fps_[A-Za-z0-9_-]{3,80}$/.test(input.stationId)
-    ? input.stationId
-    : `fps_${crypto.randomUUID().slice(0, 12)}`;
+  const stationId = `fps_${crypto.randomUUID().slice(0, 12)}`;
   const row: FixedPointStationRow = {
     station_id: stationId,
     place_id: input.placeId.slice(0, 160),
@@ -100,7 +100,7 @@ export async function upsertFixedPointStation(
     prompt_2: input.prompt2.trim().slice(0, 120) || "花の数",
     prompt_3: input.prompt3.trim().slice(0, 120) || "鳥の声の有無",
     reference_photo_url: (input.referencePhotoUrl ?? "").trim().slice(0, 500),
-    created_by_user_id: (input.createdByUserId ?? "").slice(0, 120),
+    created_by_user_id: createdByUserId,
     created_at: Date.now()
   };
 
