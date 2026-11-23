@@ -2369,7 +2369,7 @@ export const worker = {
         if (response) return response;
       }
 
-      if (request.method === "GET" && nativePathname === "/api/v1/map/observations") {
+      if (request.method === "GET" && (nativePathname === "/api/v1/map/observations" || nativePathname === "/api/v1/areas/observations")) {
         return getPublicMapObservations(url, env);
       }
 
@@ -9271,34 +9271,134 @@ async function createPublicMapPlaceCorrectionProposal(request: Request, env: Env
   }
 }
 
+function parseMediaKindsFilter(raw: string | null): Set<HomeRecordMediaKind> | "all" | null {
+  const trimmed = normalizeOptionalText(raw);
+  if (!trimmed || trimmed.toLowerCase() === "all") return "all";
+  const result = new Set<HomeRecordMediaKind>();
+  for (const part of trimmed.split(",")) {
+    const token = part.trim().toLowerCase();
+    if (!token) continue;
+    if (token === "all") return "all";
+    if (token === "photo" || token === "image") result.add("photo");
+    else if (token === "video") result.add("video");
+    else if (token === "audio") result.add("audio");
+    else if (token === "record" || token === "note") result.add("record");
+    else return null;
+  }
+  return result.size > 0 ? result : "all";
+}
+
+function normalizePeriodBound(raw: string | null, edge: "start" | "end"): string | null | "invalid" {
+  const trimmed = normalizeOptionalText(raw);
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) {
+    return edge === "start" ? `${trimmed}T00:00:00.000Z` : `${trimmed}T23:59:59.999Z`;
+  }
+  const ms = Date.parse(trimmed);
+  if (!Number.isFinite(ms)) return "invalid";
+  return new Date(ms).toISOString();
+}
+
+async function resolvePlaceScope(
+  placeId: string,
+  env: Env,
+): Promise<{ bbox: [number, number, number, number] | null; visitIds: Set<string> | null }> {
+  const field = await getFieldDetailReadmodelRowOrNullOnMissingTable(placeId, env);
+  if (field?.public_lat != null && field?.public_lng != null) {
+    const d = 0.03;
+    return {
+      bbox: [field.public_lng - d, field.public_lat - d, field.public_lng + d, field.public_lat + d],
+      visitIds: null,
+    };
+  }
+  const visitRows = await env.OBS_DB.prepare(
+    `SELECT visit_id, legacy_observation_id FROM production_import_visits WHERE place_id = ? LIMIT 1200`,
+  ).bind(placeId).all<{ visit_id: string; legacy_observation_id: string | null }>().catch(() => ({ results: [] }));
+  const ids = new Set<string>();
+  for (const row of visitRows.results) {
+    if (row.visit_id) ids.add(row.visit_id);
+    if (row.legacy_observation_id) ids.add(row.legacy_observation_id);
+  }
+  return { bbox: null, visitIds: ids.size > 0 ? ids : new Set() };
+}
+
 async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
+  const startedAt = performance.now();
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   const rawCellId = normalizeOptionalText(url.searchParams.get("cell_id"));
   const selectedCell = rawCellId ? cellIdToPublicCell(rawCellId) : null;
-  if (!bbox && !selectedCell) {
+  const rawPlaceId = normalizeOptionalText(url.searchParams.get("place_id"));
+  if (!bbox && !selectedCell && !rawPlaceId) {
     return json({ error: "missing_scope" }, 400);
   }
 
+  const mediaKindsFilter = parseMediaKindsFilter(url.searchParams.get("media_kind") ?? url.searchParams.get("kind"));
+  if (!mediaKindsFilter) {
+    return json({ error: "invalid_media_kind" }, 400);
+  }
+  const fromBound = normalizePeriodBound(url.searchParams.get("from"), "start");
+  const toBound = normalizePeriodBound(url.searchParams.get("to"), "end");
+  if (fromBound === "invalid" || toBound === "invalid") {
+    return json({ error: "invalid_period" }, 400);
+  }
+
+  const placeScope = rawPlaceId ? await resolvePlaceScope(rawPlaceId, env) : null;
+  const effectiveBbox = bbox ?? placeScope?.bbox ?? null;
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "300"), 1, 1200);
   const rows = await queryPublicMapRows(env);
-  const scopedRows = rows
-    .filter((row) => selectedCell ? row.public_cell === selectedCell : publicCellInBbox(row.public_cell, bbox as [number, number, number, number]))
-    .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+  const areaAndPeriodRows = rows
+    .filter((row) => {
+      if (selectedCell && row.public_cell !== selectedCell) return false;
+      if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
+      if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
+      if (fromBound && row.observed_at < fromBound) return false;
+      if (toBound && row.observed_at > toBound) return false;
+      return true;
+    })
+    .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+
+  const candidateIds = areaAndPeriodRows.slice(0, Math.max(limit * 4, 1200)).map((row) => row.observation_id);
+  const mediaKinds = await queryPublicMapMediaKinds(env, candidateIds);
+  const scopedRows = areaAndPeriodRows
+    .filter((row) => {
+      if (mediaKindsFilter === "all") return true;
+      const kind = mediaKinds.get(row.observation_id) ?? "record";
+      return mediaKindsFilter.has(kind);
+    })
     .slice(0, limit);
-  const photoUrls = await queryPublicMapPhotoUrls(env);
+  const scopedIds = scopedRows.map((row) => row.observation_id);
+  const photoUrls = await queryPublicMapPhotoUrls(env, scopedIds);
+  const durationMs = Math.round((performance.now() - startedAt) * 100) / 100;
 
   return json({
-    items: scopedRows.map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null)),
+    items: scopedRows.map((row) => {
+      const kind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
+      return {
+        ...publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind),
+        publicCellId: publicCellToCellId(row.public_cell),
+      };
+    }),
     stats: {
       totalReturned: scopedRows.length,
-      totalAll: scopedRows.length,
+      totalAll: areaAndPeriodRows.length,
+      durationMs,
       markerProfile: "all_research_artifacts",
       gridM: MAP_DEFAULT_GRID_M,
       selectedCellId: selectedCell ? publicCellToCellId(selectedCell) : null,
+      filters: {
+        placeId: rawPlaceId ?? null,
+        mediaKinds: mediaKindsFilter === "all" ? ["all"] : [...mediaKindsFilter],
+        from: fromBound,
+        to: toBound,
+      },
       privacy: publicMapExactCoordinateGate(),
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
-  }, 200, { "cache-control": "no-store" });
+  }, 200, {
+    "cache-control": "no-store",
+    "access-control-allow-origin": "*",
+    "server-timing": `area-observations;dur=${durationMs}`,
+  });
 }
 
 type GbifAreaTaxon = {
