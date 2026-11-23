@@ -39,7 +39,7 @@ test("event list is participant-first and separates organizer actions", () => {
   assert.match(html, /今、参加できる/);
   assert.match(html, /詳しく見る/);
   assert.match(html, /data-organizer-entry/);
-  assert.match(html, /企画を運営する方へ/);
+  assert.match(html, /主催者/);
   assert.doesNotMatch(html, /evt-hero/);
   assert.doesNotMatch(html, /今日のヒント|ai_quest|AI Quest|AI クエスト/);
 
@@ -281,7 +281,7 @@ test("sessions without a public event code are not advertised as joinable", () =
   };
   const html = renderEventListBody([privateLive], getObservationEventStrings("ja"), "ja");
 
-  assert.match(html, /掲載中の公開企画はまだありません/);
+  assert.match(html, /公開中のイベントはありません/);
   assert.doesNotMatch(html, /公開参加コードなし/);
   assert.match(html, /みんなの記録を見る/);
 });
@@ -306,7 +306,7 @@ test("codeless sessions stay out of every public participation group", () => {
       assert.doesNotMatch(html, /Private family gathering|Private observation target|private-history-id/, `${state} / ${eventCode}`);
       assert.doesNotMatch(html, /Private purpose|Private place|Private cost|Private entry/, `${state} / ${eventCode} detail`);
       assert.doesNotMatch(html, /data-participation-result|zukan-participation-history/);
-      assert.match(html, /No public programs are listed yet/);
+      assert.match(html, /No public events/);
     }
   }
 });
@@ -324,7 +324,7 @@ test("participation body owns one heading and leaves the main landmark to its pa
 
 test("zero results and load failure are distinct states", () => {
   const zero = renderEventListBody([], getObservationEventStrings("ja"), "ja");
-  assert.match(zero, /掲載中の公開企画はまだありません/);
+  assert.match(zero, /公開中のイベントはありません/);
   const emptyBlock = zero.match(/data-participation-empty>[\s\S]*?<\/div>/)?.[0] ?? "";
   assert.equal((emptyBlock.match(/<p class="zukan-participation-empty-lead">/g) ?? []).length, 1);
   assert.equal((emptyBlock.match(/<a class="zukan-participation-action"/g) ?? []).length, 1);
@@ -354,17 +354,13 @@ test("load failure keeps already-loaded rows visible above the retry notice", ()
   assert.ok(noticeIndex < rowIndex, "retry notice should precede the preserved rows");
 });
 
-test("participation list includes substantive guide copy above the sitemap body-length threshold", () => {
+test("participation list keeps headings and action links concise without explanatory paragraphs", () => {
   const html = renderEventListBody([], getObservationEventStrings("ja"), "ja");
-  const visibleText = html
-    .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/giu, " ")
-    .replace(/<[^>]*>/gu, " ")
-    .replace(/\s+/gu, " ")
-    .trim();
-  assert.ok(visibleText.length >= 500, `expected >= 500 chars, got ${visibleText.length}`);
   assert.match(html, /href="\/ja\/map"/);
   assert.match(html, /href="\/ja\/walk-maps"/);
   assert.match(html, /href="\/ja\/record"/);
+  assert.match(html, /イベントを作る/);
+  assert.doesNotMatch(html, /観察会の作成など|観察会を作る|出会った景色を持ち帰れます|イベントがないときも参加できます|地域のイベントとは|参加の流れ/);
 });
 
 test("participation empty state renders one plain sentence and one primary action link across all locales", () => {
@@ -376,4 +372,17 @@ test("participation empty state renders one plain sentence and one primary actio
     assert.equal((emptyBlock.match(/<a class="zukan-participation-action"/g) ?? []).length, 1);
     assert.match(emptyBlock, new RegExp(`href="/${prefix}/records\\?view=public"`));
   }
+});
+
+test("participation list copy frames local events broadly across all locales with observation events as one kind", () => {
+  for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
+    const strings = getObservationEventStrings(lang);
+    const html = renderEventListBody([], strings, lang);
+    assert.doesNotMatch(strings.listHeroLead, /現在は観察会を掲載しています|Observation events are currently/);
+    assert.doesNotMatch(html, /地域の観察企画とは|観察会・フィールド企画|What local programs are|Qué son las actividades locales|O que são as atividades locais/);
+  }
+  const jaHtml = renderEventListBody([], getObservationEventStrings("ja"), "ja");
+  assert.match(getObservationEventStrings("ja").listHeroLead, /祭り|まちあるき|朝市/);
+  assert.match(jaHtml, /公開中のイベントはありません/);
+  assert.match(jaHtml, /イベントを作る/);
 });

@@ -9,6 +9,9 @@ export type ObservationFirstRecordDetailCopy = {
   language: string;
   media: string;
   enlargePhoto: string;
+  zoomActual: string;
+  zoomFit: string;
+  closeZoom: string;
   openVideo: string;
   openAudio: string;
   mediaNavigation: string;
@@ -20,11 +23,26 @@ export type ObservationFirstRecordDetailCopy = {
   updatedNotice: string;
   found: string;
   aiFound: string;
+  aiSectionLabel: string;
   aiFeedbackTitle: string;
+  aboutRecord: string;
+  aiGeneratedNote: string;
+  aiGeneratedTitleAndNote: string;
+  aiGeneratedExplanationNote: string;
+  aiGeneratedEnvironmentNote: string;
+  editTitle: string;
+  saveTitle: string;
+  cancelTitle: string;
+  resetTitle: string;
+  roleRecorderConfirmed: string;
+  roleOtherPerson: string;
+  roleOtherPeopleCount: string;
   aiNextPhotoTitle: string;
+  aiPageFooterNote: string;
   learning: string;
   aiCandidate: string;
   communityProposalAvailable: string;
+  awaitingSubjectName: string;
   candidateTemplate: string;
   openDetails: string;
   openAll: string;
@@ -127,13 +145,13 @@ export type ObservationFirstRecordDetailCopy = {
 
 const ja: ObservationFirstRecordDetailCopy = {
   documentSuffix: "ZUKAN", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
-  media: "写真・動画・音", enlargePhoto: "写真を大きく見る", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
-  natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" }, aiFeedbackTitle: "AIからの短いメモ", aiNextPhotoTitle: "次に撮るとよい写真",
-  edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "AIが見つけたもの", learning: "わかること", aiCandidate: "AIが見つけた候補", communityProposalAvailable: "名前の提案があります", candidateTemplate: "{name}かもしれません",
+  media: "写真・動画・音", enlargePhoto: "写真を大きく見る", zoomActual: "原寸で拡大", zoomFit: "全体表示", closeZoom: "閉じる", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
+  natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" }, aiFeedbackTitle: "AIのコメント", aboutRecord: "この記録について", aiGeneratedNote: "この文章はAIが作成しました", aiGeneratedTitleAndNote: "題名とこの文章はAIが作成しました", aiGeneratedExplanationNote: "この説明はAIが作成しました", aiGeneratedEnvironmentNote: "この場所のようすはAIが読み取りました", editTitle: "題名を編集", saveTitle: "保存", cancelTitle: "取り消す", resetTitle: "自動の題名に戻す", roleRecorderConfirmed: "記録した人が確認", roleOtherPerson: "ほかの人", roleOtherPeopleCount: "ほかの人 {count}人", aiNextPhotoTitle: "次に撮るとよい写真", aiPageFooterNote: "確認の印がない名前と場所のようすは、AIが推定したものです。",
+  edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "候補", aiSectionLabel: "AIの見立て", learning: "わかること", aiCandidate: "候補", communityProposalAvailable: "名前の提案があります", awaitingSubjectName: "名前はこれから", candidateTemplate: "{name}かもしれません",
   openDetails: "詳しく見る", openAll: "すべて見る", recordName: "この記録の名前", photoCandidate: "写真からの候補",
   distinguishingPoints: "見分けるポイント", shootingAdvice: "もう少し詳しく調べるには", compareCandidates: "似ている候補との比較", compareCandidatesLead: "写真から見える特徴と、まだ確認できない点を並べています。", candidateEvidence: "手がかり", candidateUncertainty: "未確認", similarPhotosHidden: "似た写真{count}枚は1枚にまとめて表示しています。元の写真は削除されていません。", proposals: "名前の提案", proposeName: "名前を提案する",
   proposedName: "名前", proposalNote: "根拠・補足", saveProposal: "提案を記録", loginToPropose: "ログインして名前を提案する", acceptName: "この名前を採用",
-  placeSummary: "この場所のようす", photoInference: "写真から読み取った候補です", sceneFound: "この写真から見つかったもの", notDetected: "この写真では、生きものの姿は見つかりませんでした。", notAssessable: "この写真だけでは、生きものの姿を判断できませんでした。",
+  placeSummary: "この場所のようす", photoInference: "写真から読み取った候補です", sceneFound: "この写真から見つかったもの", notDetected: "この写真では、場所や周囲のようすが記録されています。", notAssessable: "この写真だけでは、生きものの姿を判断できませんでした。",
   sceneElements: { water: "水面", low_grass: "低い草地", trees_shrubs: "樹木・低木", bare_ground: "地面", built_surface: "舗装・構造物", soil: "土", plant: "植物", rock: "岩・石", artificial: "人工物", urban: "住宅・建物", coast: "海岸", wetland: "湿地" },
   previousChange: "前の記録との変化", comparedWith: "{name}の記録と比較", approximateLocation: "位置はぼかして表示", exactLocationPrivate: "正確な場所は非公開",
   environmentFields: { contact_surface: "地面・接しているもの", surrounding_cover: "周囲", environment_condition: "環境", human_change: "人の影響" },
@@ -144,7 +162,7 @@ const ja: ObservationFirstRecordDetailCopy = {
     open_dry: "開けて乾き気味", sunny: "日当たり", shaded: "日陰", wet: "湿り気あり", flowing: "流れあり", windy: "風あり",
     trampling_mowing: "踏圧・草刈り跡", mowing: "草刈り", trampling: "踏圧", planting: "植栽・管理", construction: "造成・工事", release: "放流・放逐", none_visible: "目立つ変化なし"
   },
-  environmentHeadlines: { grassland_urban_edge: "草地と市街地の境界のようです", urban: "市街地のようです", woodland: "林の中のようです", water_edge: "水辺のようです", wetland: "湿地のようです", coast: "海岸のようです" },
+  environmentHeadlines: { grassland_urban_edge: "草地と市街地の境界", urban: "市街地", woodland: "林の中", water_edge: "水辺", wetland: "湿地", coast: "海岸" },
   note: "写真メモ", manage: "記録に情報を追加", manageLead: "見つけた生きものや、環境、気づき、写真の整理を追加できます。", addSubject: "写っている対象を追加", subjectName: "対象の呼び名", subjectNameExample: "例：葉の上の幼虫",
   subjectType: "対象の種類", context: "環境", add: "追加する", subjectTypes: { unknown_subject: "写っているもの", organism: "生きもの", group: "複数の生きもの", trace: "痕跡", sound: "音", pet: "ペット" },
   contexts: { unknown: "未設定", wild: "野外", pet: "ペット", captive: "飼育", cultivated: "栽培" },
@@ -159,11 +177,11 @@ const ja: ObservationFirstRecordDetailCopy = {
 const en: ObservationFirstRecordDetailCopy = {
   ...ja,
   documentSuffix: "ZUKAN", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
-  media: "Photos, video and sound", enlargePhoto: "View full-size photo", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
-  natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, aiFeedbackTitle: "A short note from AI", aiNextPhotoTitle: "A photo that could help next", edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
-  found: "Found in this record", aiFound: "What AI found", learning: "What this can tell us", aiCandidate: "Candidate found by AI", communityProposalAvailable: "Name suggestions are available", candidateTemplate: "Possibly {name}", openDetails: "View details", openAll: "View all", recordName: "Name for this record", photoCandidate: "Candidate from the photo",
+  media: "Photos, video and sound", enlargePhoto: "View full-size photo", zoomActual: "Actual size", zoomFit: "Fit to screen", closeZoom: "Close", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
+  natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, aiFeedbackTitle: "AI comment", aboutRecord: "About this record", aiGeneratedNote: "Generated by AI", aiGeneratedTitleAndNote: "Title and note generated by AI", aiGeneratedExplanationNote: "Explanation generated by AI", aiGeneratedEnvironmentNote: "Place conditions read by AI", editTitle: "Edit title", saveTitle: "Save", cancelTitle: "Cancel", resetTitle: "Reset to auto title", roleRecorderConfirmed: "Confirmed by recorder", roleOtherPerson: "Another person", roleOtherPeopleCount: "{count} other people", aiNextPhotoTitle: "A photo that could help next", aiPageFooterNote: "Unconfirmed names and place conditions are estimated by AI.", edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
+  found: "Found in this record", aiFound: "Candidates", aiSectionLabel: "AI assessment", learning: "What this can tell us", aiCandidate: "Candidate", communityProposalAvailable: "Name suggestions are available", awaitingSubjectName: "Name not yet decided", candidateTemplate: "Possibly {name}", openDetails: "View details", openAll: "View all", recordName: "Name for this record", photoCandidate: "Candidate from the photo",
   distinguishingPoints: "What to look for", shootingAdvice: "A photo that could help", compareCandidates: "Compare similar candidates", compareCandidatesLead: "Visible clues are shown alongside what still needs checking.", candidateEvidence: "Clue", candidateUncertainty: "Not yet visible", similarPhotosHidden: "{count} similar photos are represented by one image. The originals have not been deleted.", proposals: "Name suggestions", proposeName: "Suggest a name", proposedName: "Name", proposalNote: "Reason or note", saveProposal: "Save suggestion", loginToPropose: "Log in to suggest a name", acceptName: "Use this name",
-  placeSummary: "About this place", photoInference: "Possibilities read from the photo", sceneFound: "Found in this photo", notDetected: "No organism was visible in this photo.", notAssessable: "This photo alone was not enough to assess whether an organism was visible.",
+  placeSummary: "About this place", photoInference: "Possibilities read from the photo", sceneFound: "Found in this photo", notDetected: "This photo records the place and its surroundings.", notAssessable: "This photo alone was not enough to assess whether an organism was visible.",
   sceneElements: { water: "Water surface", low_grass: "Low grass", trees_shrubs: "Trees and shrubs", bare_ground: "Ground", built_surface: "Paving and structures", soil: "Soil", plant: "Plants", rock: "Rock and stone", artificial: "Built objects", urban: "Homes and buildings", coast: "Coast", wetland: "Wetland" },
   previousChange: "Change since the previous record", comparedWith: "Compared with the record from {name}", approximateLocation: "Approximate location shown", exactLocationPrivate: "Exact location is private", environmentFields: { contact_surface: "Ground or surface", surrounding_cover: "Surroundings", environment_condition: "Conditions", human_change: "Human influence" },
   environmentValues: {
@@ -173,7 +191,7 @@ const en: ObservationFirstRecordDetailCopy = {
     open_dry: "open and fairly dry", sunny: "sunny", shaded: "shaded", wet: "damp", flowing: "flowing water", windy: "windy",
     trampling_mowing: "trampling or mowing", mowing: "mowing", trampling: "trampling", planting: "planting or maintenance", construction: "construction", release: "release", none_visible: "no obvious change"
   },
-  environmentHeadlines: { grassland_urban_edge: "It may be where grassland meets the city", urban: "It appears to be an urban area", woodland: "It appears to be woodland", water_edge: "It appears to be near water", wetland: "It appears to be a wetland", coast: "It appears to be on the coast" },
+  environmentHeadlines: { grassland_urban_edge: "Grassland and urban edge", urban: "Urban area", woodland: "Woodland", water_edge: "Near water", wetland: "Wetland", coast: "Coast" },
   note: "Photo note", manage: "Add information to this record", manageLead: "Add organisms, environment details, notes, or organize the media.", addSubject: "Add something visible", subjectName: "Short name", subjectNameExample: "Example: larva on the leaf", subjectType: "Type", context: "Context", add: "Add",
   subjectTypes: { unknown_subject: "Something visible", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
   separateSubject: "Separate as another subject", separateName: "Name for the new subject", separate: "Separate", notVisible: "This subject is not visible", restore: "Restore this subject", combineWith: "Combine with", combine: "Combine subjects",
@@ -187,11 +205,11 @@ const es: ObservationFirstRecordDetailCopy = {
   publicationEligible: "Los derechos permiten compartirlo (sin confirmar su inclusión en el destino)",
   publicationConfigured: "Destino configurado (sin confirmar la inclusión de este registro)",
   publicationPolicyVersion: "Versión de la política",
-  back: "Volver", menu: "Menú", records: "Registros", home: "Inicio", language: "Idioma", media: "Fotos, vídeo y sonido", enlargePhoto: "Ver foto ampliada", openVideo: "Abrir vídeo", openAudio: "Abrir audio", mediaNavigation: "Cambiar contenido",
-  natureRecord: "Registro de naturaleza", publicLocation: "Lugar seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Una nota breve de la IA", aiNextPhotoTitle: "Una foto que podría ayudar", edit: "Edición detallada", share: "Compartir", updatedNotice: "Cambios guardados.",
-  found: "Encontrado en este registro", aiFound: "Lo que encontró la IA", learning: "Lo que podemos saber", aiCandidate: "Candidato encontrado por la IA", communityProposalAvailable: "Hay propuestas de nombre", candidateTemplate: "Podría ser {name}", openDetails: "Ver detalles", openAll: "Ver todo", recordName: "Nombre de este registro", photoCandidate: "Candidato a partir de la foto",
+  back: "Volver", menu: "Menú", records: "Registros", home: "Inicio", language: "Idioma", media: "Fotos, vídeo y sonido", enlargePhoto: "Ver foto ampliada", zoomActual: "Tamaño real", zoomFit: "Ajustar a pantalla", closeZoom: "Cerrar", openVideo: "Abrir vídeo", openAudio: "Abrir audio", mediaNavigation: "Cambiar contenido",
+  natureRecord: "Registro de naturaleza", publicLocation: "Lugar seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Sobre este registro", aboutRecord: "Sobre este registro", aiGeneratedNote: "Generado por IA", aiGeneratedTitleAndNote: "Título y nota generados por IA", aiGeneratedExplanationNote: "Explicación generada por IA", aiGeneratedEnvironmentNote: "Condiciones del lugar leídas por IA", editTitle: "Editar título", saveTitle: "Guardar", cancelTitle: "Cancelar", resetTitle: "Restaurar título automático", roleRecorderConfirmed: "Confirmado por quien registró", roleOtherPerson: "Otra persona", roleOtherPeopleCount: "{count} personas más", aiNextPhotoTitle: "Una foto que podría ayudar", edit: "Edición detallada", share: "Compartir", updatedNotice: "Cambios guardados.",
+  found: "Encontrado en este registro", aiFound: "Candidatos", aiSectionLabel: "Evaluación de IA", learning: "Lo que podemos saber", aiCandidate: "Candidato", communityProposalAvailable: "Hay propuestas de nombre", awaitingSubjectName: "Nombre pendiente", candidateTemplate: "Podría ser {name}", openDetails: "Ver detalles", openAll: "Ver todo", recordName: "Nombre de este registro", photoCandidate: "Candidato a partir de la foto",
   distinguishingPoints: "En qué fijarse", shootingAdvice: "Una foto que podría ayudar", compareCandidates: "Comparar candidatos parecidos", compareCandidatesLead: "Se muestran las pistas visibles y lo que aún falta comprobar.", candidateEvidence: "Pista", candidateUncertainty: "Aún no visible", similarPhotosHidden: "{count} fotos parecidas se muestran mediante una sola imagen. Los originales no se han eliminado.", proposals: "Propuestas de nombre", proposeName: "Proponer un nombre", proposedName: "Nombre", proposalNote: "Motivo o nota", saveProposal: "Guardar propuesta", loginToPropose: "Inicia sesión para proponer un nombre", acceptName: "Usar este nombre",
-  placeSummary: "Cómo es este lugar", photoInference: "Posibilidades observadas en la foto", sceneFound: "Encontrado en esta foto", notDetected: "En esta foto no se encontró la figura de ningún ser vivo.", notAssessable: "Esta foto por sí sola no permitió evaluar si había un ser vivo.",
+  placeSummary: "Cómo es este lugar", photoInference: "Posibilidades observadas en la foto", sceneFound: "Encontrado en esta foto", notDetected: "Esta foto registra el lugar y su entorno.", notAssessable: "Esta foto por sí sola no permitió evaluar si había un ser vivo.",
   sceneElements: { water: "Superficie del agua", low_grass: "Hierba baja", trees_shrubs: "Árboles y arbustos", bare_ground: "Suelo", built_surface: "Pavimento y estructuras", soil: "Tierra", plant: "Plantas", rock: "Rocas y piedras", artificial: "Objetos construidos", urban: "Viviendas y edificios", coast: "Costa", wetland: "Humedal" },
   previousChange: "Cambios desde el registro anterior", comparedWith: "Comparado con el registro del {name}", approximateLocation: "Se muestra una ubicación aproximada", exactLocationPrivate: "La ubicación exacta es privada", environmentFields: { contact_surface: "Suelo o superficie", surrounding_cover: "Entorno", environment_condition: "Condiciones", human_change: "Influencia humana" },
   environmentValues: {
@@ -201,7 +219,7 @@ const es: ObservationFirstRecordDetailCopy = {
     open_dry: "abierto y bastante seco", sunny: "soleado", shaded: "con sombra", wet: "húmedo", flowing: "agua corriente", windy: "con viento",
     trampling_mowing: "pisoteo o siega", mowing: "siega", trampling: "pisoteo", planting: "plantación o mantenimiento", construction: "obras", release: "liberación", none_visible: "sin cambios evidentes"
   },
-  environmentHeadlines: { grassland_urban_edge: "Parece el límite entre pastizal y ciudad", urban: "Parece una zona urbana", woodland: "Parece un bosque", water_edge: "Parece estar junto al agua", wetland: "Parece un humedal", coast: "Parece una costa" },
+  environmentHeadlines: { grassland_urban_edge: "Límite entre pastizal y ciudad", urban: "Zona urbana", woodland: "Bosque", water_edge: "Junto al agua", wetland: "Humedal", coast: "Costa" },
   note: "Nota de la foto", manage: "Añadir información al registro", manageLead: "Añade seres vivos, entorno, notas u organiza el contenido.", addSubject: "Añadir algo visible", subjectName: "Nombre breve", subjectNameExample: "Ejemplo: larva sobre la hoja", subjectType: "Tipo", context: "Contexto", add: "Añadir",
   subjectTypes: { unknown_subject: "Algo visible", organism: "Ser vivo", group: "Grupo", trace: "Rastro", sound: "Sonido", pet: "Mascota" }, contexts: { unknown: "Sin definir", wild: "Silvestre", pet: "Mascota", captive: "En cautividad", cultivated: "Cultivado" },
   separateSubject: "Separar como otro sujeto", separateName: "Nombre del nuevo sujeto", separate: "Separar", notVisible: "Este sujeto no aparece", restore: "Restaurar este sujeto", combineWith: "Combinar con", combine: "Combinar sujetos",
@@ -214,11 +232,11 @@ const ptBr: ObservationFirstRecordDetailCopy = {
   publicationEligible: "Os direitos permitem compartilhar (inclusão no destino não confirmada)",
   publicationConfigured: "Destino configurado (inclusão deste registro não confirmada)",
   publicationPolicyVersion: "Versão da política",
-  back: "Voltar", menu: "Menu", records: "Registros", home: "Início", language: "Idioma", media: "Fotos, vídeo e som", enlargePhoto: "Ver foto ampliada", openVideo: "Abrir vídeo", openAudio: "Abrir áudio", mediaNavigation: "Trocar mídia",
-  natureRecord: "Registro da natureza", publicLocation: "Local seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Uma nota breve da IA", aiNextPhotoTitle: "Uma foto que pode ajudar", edit: "Edição detalhada", share: "Compartilhar", updatedNotice: "Alterações salvas.",
-  found: "Encontrado neste registro", aiFound: "O que a IA encontrou", learning: "O que podemos saber", aiCandidate: "Candidato encontrado pela IA", communityProposalAvailable: "Há sugestões de nome", candidateTemplate: "Pode ser {name}", openDetails: "Ver detalhes", openAll: "Ver tudo", recordName: "Nome deste registro", photoCandidate: "Candidato a partir da foto",
+  back: "Voltar", menu: "Menu", records: "Registros", home: "Início", language: "Idioma", media: "Fotos, vídeo e som", enlargePhoto: "Ver foto ampliada", zoomActual: "Tamanho real", zoomFit: "Ajustar à tela", closeZoom: "Fechar", openVideo: "Abrir vídeo", openAudio: "Abrir áudio", mediaNavigation: "Trocar mídia",
+  natureRecord: "Registro da natureza", publicLocation: "Local seguro", visibility: { public: "Público", limited: "Limitado", private: "Privado" }, aiFeedbackTitle: "Sobre este registro", aboutRecord: "Sobre este registro", aiGeneratedNote: "Gerado por IA", aiGeneratedTitleAndNote: "Título e nota gerados por IA", aiGeneratedExplanationNote: "Explicação gerada por IA", aiGeneratedEnvironmentNote: "Condições do local lidas por IA", editTitle: "Editar título", saveTitle: "Salvar", cancelTitle: "Cancelar", resetTitle: "Restaurar título automático", roleRecorderConfirmed: "Confirmado por quem registrou", roleOtherPerson: "Outra pessoa", roleOtherPeopleCount: "{count} outras pessoas", aiNextPhotoTitle: "Uma foto que pode ajudar", edit: "Edição detalhada", share: "Compartilhar", updatedNotice: "Alterações salvas.",
+  found: "Encontrado neste registro", aiFound: "Candidatos", aiSectionLabel: "Avaliação da IA", learning: "O que podemos saber", aiCandidate: "Candidato", communityProposalAvailable: "Há sugestões de nome", awaitingSubjectName: "Nome pendente", candidateTemplate: "Pode ser {name}", openDetails: "Ver detalhes", openAll: "Ver tudo", recordName: "Nome deste registro", photoCandidate: "Candidato a partir da foto",
   distinguishingPoints: "O que observar", shootingAdvice: "Uma foto que pode ajudar", compareCandidates: "Comparar candidatos parecidos", compareCandidatesLead: "As pistas visíveis aparecem junto do que ainda precisa ser confirmado.", candidateEvidence: "Pista", candidateUncertainty: "Ainda não visível", similarPhotosHidden: "{count} fotos parecidas são representadas por uma imagem. Os originais não foram excluídos.", proposals: "Sugestões de nome", proposeName: "Sugerir um nome", proposedName: "Nome", proposalNote: "Motivo ou observação", saveProposal: "Salvar sugestão", loginToPropose: "Entre para sugerir um nome", acceptName: "Usar este nome",
-  placeSummary: "Como é este lugar", photoInference: "Possibilidades observadas na foto", sceneFound: "Encontrado nesta foto", notDetected: "Nesta foto, não foi possível encontrar a figura de um ser vivo.", notAssessable: "Esta foto sozinha não permitiu avaliar se havia um ser vivo.",
+  placeSummary: "Como é este lugar", photoInference: "Possibilidades observadas na foto", sceneFound: "Encontrado nesta foto", notDetected: "Esta foto registra o local e o seu entorno.", notAssessable: "Esta foto sozinha não permitiu avaliar se havia um ser vivo.",
   sceneElements: { water: "Superfície da água", low_grass: "Grama baixa", trees_shrubs: "Árvores e arbustos", bare_ground: "Solo", built_surface: "Pavimento e estruturas", soil: "Terra", plant: "Plantas", rock: "Rochas e pedras", artificial: "Objetos construídos", urban: "Casas e edifícios", coast: "Costa", wetland: "Área úmida" },
   previousChange: "Mudanças desde o registro anterior", comparedWith: "Comparado com o registro de {name}", approximateLocation: "Local aproximado exibido", exactLocationPrivate: "O local exato é privado", environmentFields: { contact_surface: "Solo ou superfície", surrounding_cover: "Entorno", environment_condition: "Condições", human_change: "Influência humana" },
   environmentValues: {
@@ -228,7 +246,7 @@ const ptBr: ObservationFirstRecordDetailCopy = {
     open_dry: "aberto e relativamente seco", sunny: "ensolarado", shaded: "sombreado", wet: "úmido", flowing: "água corrente", windy: "com vento",
     trampling_mowing: "pisoteio ou corte", mowing: "corte de grama", trampling: "pisoteio", planting: "plantio ou manejo", construction: "obras", release: "soltura", none_visible: "sem mudança evidente"
   },
-  environmentHeadlines: { grassland_urban_edge: "Parece ser a borda entre gramado e cidade", urban: "Parece ser uma área urbana", woodland: "Parece ser uma mata", water_edge: "Parece estar perto da água", wetland: "Parece ser uma área úmida", coast: "Parece ser uma costa" },
+  environmentHeadlines: { grassland_urban_edge: "Borda entre gramado e cidade", urban: "Área urbana", woodland: "Mata", water_edge: "Perto da água", wetland: "Área úmida", coast: "Costa" },
   note: "Nota da foto", manage: "Adicionar informações ao registro", manageLead: "Adicione seres vivos, ambiente, observações ou organize as mídias.", addSubject: "Adicionar algo visível", subjectName: "Nome curto", subjectNameExample: "Exemplo: larva sobre a folha", subjectType: "Tipo", context: "Contexto", add: "Adicionar",
   subjectTypes: { unknown_subject: "Algo visível", organism: "Ser vivo", group: "Grupo", trace: "Vestígio", sound: "Som", pet: "Animal de estimação" }, contexts: { unknown: "Não definido", wild: "Silvestre", pet: "Animal de estimação", captive: "Em cativeiro", cultivated: "Cultivado" },
   separateSubject: "Separar como outro sujeito", separateName: "Nome do novo sujeito", separate: "Separar", notVisible: "Este sujeito não aparece", restore: "Restaurar este sujeito", combineWith: "Combinar com", combine: "Combinar sujeitos",

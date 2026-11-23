@@ -587,7 +587,7 @@ test("cancel does not delete or hide an existing preview when the session check 
 test("a delayed camera blob callback after cancel cannot recreate a discarded preview", async () => {
   const drafts = new Map<string, Draft>();
   const browser = cameraFixture(drafts, "owner-A", "/ja/learn/field-loop", { deferCanvasBlob: true });
-  browser.trigger.click();
+  browser.trigger.dispatch("contextmenu");
   browser.start.click();
   await drain();
   assert.equal(browser.submit.hidden, false, `the camera fixture reaches capture state (${browser.status.textContent}; ${browser.cameraErrorBody.textContent})`);
@@ -603,7 +603,7 @@ test("a delayed camera blob callback after cancel cannot recreate a discarded pr
 test("a camera blob is discarded if the authenticated owner changes before encoding finishes", async () => {
   const drafts = new Map<string, Draft>();
   const browser = cameraFixture(drafts, "owner-A", "/ja/learn/field-loop", { deferCanvasBlob: true });
-  browser.trigger.click();
+  browser.trigger.dispatch("contextmenu");
   browser.start.click();
   await drain();
   browser.submit.click();

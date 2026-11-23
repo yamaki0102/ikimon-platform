@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { renderObservationEventCreatePage, renderObservationEventRecapPage } from "./index.js";
+import { renderObservationEventJoinPage, renderObservationEventRallyPage } from "./programs/pages.js";
 
 test("M3 native create surface exposes the collaboration fields and safe handoff", () => {
   const body = renderObservationEventCreatePage({
@@ -61,4 +62,57 @@ test("M6.3 native recap exposes rehost only to the organizer", () => {
   assert.match(organizer, /template_from=event-source/);
   assert.match(organizer, /参加者・同意・review・公開状態は引き継ぎません/);
   assert.doesNotMatch(participant, /template_from=event-source/);
+  assert.match(participant, /href="\/records\?view=mine"/);
+  assert.match(participant, /href="\/map"/);
+
+  const withField = renderObservationEventRecapPage({
+    session: { sessionId: "event-source", title: "Spring walk", fieldId: "field-42" },
+    highlights: { observationCount: 1, uniqueSpeciesCount: 1, participantsCount: 1 },
+    photos: [],
+    permissions: { canManage: false },
+  });
+  assert.match(withField, /href="\/places\/field-42"/);
+  assert.match(withField, /href="\/records\?view=mine"/);
+});
+
+test("observation rally page links participant to recap, own records, and field place", () => {
+  const html = renderObservationEventRallyPage(
+    {
+      sessionId: "session-1",
+      title: "Spring walk",
+      fieldId: "field-42",
+      participantRole: "participant",
+    } as never,
+    {
+      course: { title: "コースA", status: "active" },
+      stations: [],
+      missions: [],
+    } as never,
+    false,
+    false,
+  );
+  assert.match(html, /href="\/events\/session-1\/recap"/);
+  assert.match(html, /href="\/records\?view=mine"/);
+  assert.match(html, /href="\/places\/field-42"/);
+});
+
+test("observation event join page renders public event overview and links to place and events list", () => {
+  const html = renderObservationEventJoinPage(
+    {
+      sessionId: "session-1",
+      eventCode: "SPRING-01",
+      title: "春の自然観察会",
+      startedAt: "2026-11-23T09:00:00.000Z",
+      endedAt: null,
+      fieldId: "field-42",
+      targetSpecies: ["ヤマトシジミ", "ヒメジョオン"],
+    } as never,
+    [],
+    false,
+  );
+  assert.match(html, /data-event-public-overview/);
+  assert.match(html, /2026-11-23/);
+  assert.match(html, /ヤマトシジミ/);
+  assert.match(html, /href="\/places\/field-42"/);
+  assert.match(html, /href="\/community\/events"/);
 });

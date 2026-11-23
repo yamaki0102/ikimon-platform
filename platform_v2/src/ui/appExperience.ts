@@ -123,6 +123,13 @@ export function renderAppExperienceHeader(
   return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${renderAppExperienceLanguageSwitch(lang, options?.currentPath)}${accountHtml}</div></div></header>`;
 }
 
+export function renderAppExperienceQuickCamera(lang: string, options?: { nonce?: string }): string {
+  const language = normalizeAppLang(lang);
+  const recordUrl = `/${language}/record?from=quick_camera`;
+  const nonceAttr = options?.nonce ? ` nonce="${escapeAttr(options.nonce)}"` : "";
+  return `<input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden /><input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden /><script${nonceAttr}>(()=>{if(window.__zukanQuickCameraBound)return;window.__zukanQuickCameraBound=true;const photoInput=document.querySelector('[data-global-record-input="photo"]');const galleryInput=document.querySelector('[data-global-record-input="gallery"]');if(!photoInput)return;const saveQuickDraft=(files)=>{if(!("indexedDB" in window))return Promise.resolve();return new Promise((resolve)=>{try{const req=indexedDB.open("ikimon-record-draft",1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains("drafts"))req.result.createObjectStore("drafts");};req.onsuccess=()=>{const db=req.result;try{const tx=db.transaction("drafts","readwrite");tx.objectStore("drafts").put({files:Array.from(files),kind:"photo",createdAt:Date.now()},"quick-camera-latest");tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();resolve();};}catch{db.close();resolve();}};req.onerror=()=>resolve();}catch{resolve();}});};const onFiles=async(input)=>{const files=input.files?Array.from(input.files):[];if(!files.length)return;await saveQuickDraft(files);input.value="";window.location.assign(${JSON.stringify(recordUrl).replace(/</g, "\\u003c")});};photoInput.addEventListener("change",()=>void onFiles(photoInput));if(galleryInput)galleryInput.addEventListener("change",()=>void onFiles(galleryInput));document.querySelectorAll('[data-global-record-trigger="photo"]').forEach((btn)=>{if(btn.closest&&btn.closest('[data-global-record-camera-sheet]'))return;let timer=null;let longPressed=false;const start=()=>{longPressed=false;if(timer)clearTimeout(timer);timer=setTimeout(()=>{longPressed=true;if(galleryInput)galleryInput.click();},450);};const cancel=()=>{if(timer){clearTimeout(timer);timer=null;}};btn.addEventListener("pointerdown",start);btn.addEventListener("pointerup",cancel);btn.addEventListener("pointercancel",cancel);btn.addEventListener("pointerleave",cancel);btn.addEventListener("contextmenu",(e)=>{e.preventDefault();cancel();longPressed=true;if(galleryInput)galleryInput.click();});btn.addEventListener("click",(e)=>{e.preventDefault();if(longPressed){longPressed=false;return;}photoInput.click();});});})();</script>`;
+}
+
 /**
  * Shared visual foundation for ZUKAN's materialized Node pages and native
  * Worker readers. Keep this dependency-free: individual renderers retain
@@ -244,7 +251,7 @@ body[data-zukan-app-experience] .site-core-nav-link.is-capture{color:#fff;backgr
 .zukan-app-brand{display:inline-flex;align-items:center;gap:8px;min-height:44px;flex-shrink:0}.zukan-app-brand img{object-fit:contain}
 .zukan-app-header-tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
 .zukan-app-lang{position:relative}
-.zukan-app-lang summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 10px;border:1px solid var(--zukan-line);border-radius:999px;background:#fff;color:var(--zukan-ink);font-size:13px;font-weight:700;cursor:pointer}
+.zukan-app-lang summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 10px;border:1px solid var(--zukan-line);border-radius:999px;background:#fff;color:var(--zukan-ink);font-size:14px;font-weight:700;cursor:pointer}
 .zukan-app-lang summary::-webkit-details-marker{display:none}
 .zukan-app-lang summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .zukan-app-lang .lang-switch-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:95;min-width:176px;padding:6px;border:1px solid var(--zukan-line);border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(15,23,42,.16)}
@@ -252,7 +259,7 @@ body[data-zukan-app-experience] .site-core-nav-link.is-capture{color:#fff;backgr
 .zukan-app-lang .lang-switch-link{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:8px;color:var(--zukan-ink);text-decoration:none;font-size:14px;font-weight:650}
 .zukan-app-lang .lang-switch-link:hover,.zukan-app-lang .lang-switch-link:focus-visible{background:#edf3ee}
 .zukan-app-lang .lang-switch-link.is-active{background:#edf3ee;color:var(--zukan-green)}
-.zukan-app-lang .lang-switch-code{font-size:12px;font-weight:800;opacity:.75;min-width:22px}
+.zukan-app-lang .lang-switch-code{font-size:14px;font-weight:800;opacity:.75;min-width:22px}
 .zukan-app-account{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 12px;color:var(--zukan-green);font-size:14px;text-decoration:none;white-space:nowrap}
 .zukan-app-nav{display:flex;gap:6px}.zukan-app-nav a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;text-decoration:none;color:var(--zukan-muted);font-size:15px;font-weight:650;border-radius:8px}.zukan-app-nav a[aria-current=page]{color:var(--zukan-green);background:#edf3ee}.zukan-app-nav a.is-capture{background:var(--zukan-action-capture);color:#fff}.zukan-app-nav a.is-capture:hover{background:var(--zukan-action-capture-hover)}.zukan-app-nav a.is-capture:active{background:var(--zukan-action-capture-active)}.zukan-app-nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;flex-shrink:0}.zukan-app-nav.is-header svg{display:none}.zukan-app-nav.is-bottom{display:none}
 .zukan-app-nav.is-bottom .global-record-choice-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px}
@@ -323,7 +330,7 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
  body[data-zukan-app-experience] .site-header-inner,.zukan-app-header>div{height:64px;padding:0 12px;gap:10px}
  body[data-zukan-app-experience] .site-core-nav,.zukan-app-nav.is-header{display:none!important}
  body[data-zukan-app-experience] .global-record-launcher,.zukan-app-nav.is-bottom{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;z-index:85;left:0;right:0;bottom:0;width:100%;max-width:none;transform:none;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));border:0;border-top:1px solid var(--zukan-line);border-radius:0;background:#fff;box-shadow:none}
- .zukan-app-nav.is-bottom a,.zukan-app-nav.is-bottom .global-record-choice{flex-direction:column;gap:3px;font-size:12px;min-height:56px;padding:5px 2px;border-radius:8px;line-height:1.15;text-align:center}
+ .zukan-app-nav.is-bottom a,.zukan-app-nav.is-bottom .global-record-choice{flex-direction:column;gap:3px;font-size:14px;min-height:56px;padding:5px 2px;border-radius:8px;line-height:1.15;text-align:center}
  body[data-zukan-app-experience] .site-shell.has-global-record-launcher{padding-bottom:calc(112px + max(0px, env(safe-area-inset-bottom)))}
  body[data-zukan-app-experience] .home-recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  body[data-zukan-app-experience] .of-media-column{top:80px}

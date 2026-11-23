@@ -19,27 +19,27 @@ function option(value: string, label: string): string {
 const MONITORING_STYLES = `
 .mb-wrap{width:100%;max-width:1120px;box-sizing:border-box;margin:0 auto;padding:32px 18px 72px;color:#17211d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 .mb-hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:22px;align-items:start;margin:8px 0 24px}
-.mb-eyebrow{margin:0 0 8px;color:#0f766e;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0}
+.mb-eyebrow{margin:0 0 8px;color:#0f766e;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0}
 .mb-hero h1{margin:0;font-size:clamp(28px,3.4vw,42px);line-height:1.15;letter-spacing:0}
 .mb-lead{margin:14px 0 0;color:#46554f;font-size:16px;line-height:1.8}
 .mb-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:18px}
 .mb-panel h2{margin:0 0 12px;font-size:19px}
-.mb-notice{border:1px solid #f4c76f;background:#fff8e7;color:#5f4307;border-radius:8px;padding:13px 14px;line-height:1.75;font-size:13px}
+.mb-notice{border:1px solid #f4c76f;background:#fff8e7;color:#5f4307;border-radius:8px;padding:13px 14px;line-height:1.75;font-size:14px}
 .mb-price{display:grid;gap:10px}
 .mb-price-row{display:flex;justify-content:space-between;gap:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:12px 14px}
 .mb-price-row strong{font-size:20px;color:#0f5132}
-.mb-note{font-size:12px;color:#64746d;line-height:1.7}
+.mb-note{font-size:14px;color:#64746d;line-height:1.7}
 .mb-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.72fr);gap:18px;align-items:start}
 .mb-form{display:grid;gap:14px}
-.mb-field{display:grid;gap:6px;font-size:13px;color:#43514b;font-weight:700}
+.mb-field{display:grid;gap:6px;font-size:14px;color:#43514b;font-weight:700}
 .mb-field input,.mb-field select,.mb-field textarea{width:100%;box-sizing:border-box;border:1px solid #cbd8d2;border-radius:7px;padding:10px 11px;font:inherit;color:#17211d;background:#fff}
 .mb-field textarea{min-height:118px;resize:vertical}
 .mb-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.mb-check{display:flex;gap:9px;align-items:flex-start;justify-content:flex-start;font-size:13px;line-height:1.6;color:#34433d}
+.mb-check{display:flex;gap:9px;align-items:flex-start;justify-content:flex-start;font-size:14px;line-height:1.6;color:#34433d}
 .mb-check input[type="checkbox"]{width:18px!important;min-width:18px;height:18px;flex:0 0 18px;margin:3px 0 0;appearance:auto}
 .mb-button{min-height:42px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #0f766e;border-radius:7px;background:#0f766e;color:#fff;font-weight:800;text-decoration:none;padding:0 15px;cursor:pointer}
-.mb-status{min-height:20px;font-size:13px;color:#0f766e;font-weight:800}
-.mb-list{margin:0;padding-left:18px;color:#46554f;line-height:1.8;font-size:13px}
+.mb-status{min-height:20px;font-size:14px;color:#0f766e;font-weight:800}
+.mb-list{margin:0;padding-left:18px;color:#46554f;line-height:1.8;font-size:14px}
 @media (min-width:900px){.mb-nowrap{white-space:nowrap}}
 @media (max-width:760px){.mb-hero,.mb-grid,.mb-two{grid-template-columns:1fr}.mb-wrap{padding-top:18px}.mb-hero h1{font-size:30px}}
 `;

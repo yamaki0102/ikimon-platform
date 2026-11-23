@@ -1,4 +1,5 @@
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -15,7 +16,7 @@ import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from ".
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation } from "../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
 import * as bcrypt from "bcryptjs";
 import {
@@ -89,6 +90,17 @@ import {
   type GeminiObservationImage,
 } from "./geminiObservationBatch";
 import {
+  CARD_ID_MODEL,
+  CARD_PROMPT_VERSION,
+  CARD_STORE_PREFIX,
+  CARD_TILE_MODEL,
+  CARD_WRITER_MODEL,
+  callCardGemini,
+  runObservationCardPipeline,
+  type CardDeps,
+  type CardStats,
+} from "./observationCardMode";
+import {
   buildHumanObservationEditPlan,
   buildIdentificationAcceptancePlan,
   buildIdentificationClaimDualWritePlan,
@@ -105,7 +117,7 @@ import {
   type ObservationFirstRecordDetail,
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
-import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -166,6 +178,7 @@ import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv }
 import { handleWorkOpportunityRequest } from "./workOpportunity";
 import { handleBiosecurityRequest, expireBiosecurityRecords } from "./biosecurity";
 import { handleGenrePortalRequest } from "./genrePortal";
+import { natureSymbiosisExplanationUrl } from "./natureSymbiosisExplanations";
 import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
@@ -1989,7 +2002,8 @@ const ORIGINAL_UI_HTML_LOCALIZABLE_PATHS = [
   "/profile/settings",
   "/record",
   "/records",
-  "/register"
+  "/register",
+  "/waitlist"
 ] as const;
 const ORIGINAL_UI_HTML_LOCALIZABLE_PATH_SET = new Set<string>(ORIGINAL_UI_HTML_LOCALIZABLE_PATHS);
 
@@ -2137,6 +2151,7 @@ function isNonPublicOriginalUiHtmlPath(pathname: string): boolean {
   const nativePathname = stripPublicLangPrefix(pathname);
   return nativePathname === "/login"
     || nativePathname === "/register"
+    || nativePathname === "/waitlist"
     || nativePathname === "/record"
     || nativePathname === "/profile"
     || nativePathname === "/profile/settings"
@@ -2357,7 +2372,7 @@ export const worker = {
         if (response) return response;
       }
 
-      if (request.method === "GET" && nativePathname === "/api/v1/map/observations") {
+      if (request.method === "GET" && (nativePathname === "/api/v1/map/observations" || nativePathname === "/api/v1/areas/observations")) {
         return getPublicMapObservations(url, env);
       }
 
@@ -2504,6 +2519,10 @@ export const worker = {
 
       if (request.method === "GET" && nativePathname === "/api/v1/admin/site-brief-feedback-summary") {
         return await getSiteBriefFeedbackSummaryAdmin(request, url, env);
+      }
+
+      if (request.method === "GET" && nativePathname === "/api/v1/admin/waitlist/summary") {
+        return await getZukanWaitlistSummaryAdmin(request, env);
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/admin/site-brief-feedback-validation-queue") {
@@ -2671,6 +2690,10 @@ export const worker = {
         if (barePathRedirect) return barePathRedirect;
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/register" || nativePathname === "/waitlist")) {
+        return getZukanWaitlistHtml(request, url, env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
         return getOriginalUiHtml(request, url, env);
       }
@@ -2779,7 +2802,7 @@ export const worker = {
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
-        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env);
+        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env, ctx);
       }
 
       const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
@@ -3074,6 +3097,10 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
         return registerWithPasswordNative(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/waitlist") {
+        return handleZukanWaitlistSubmit(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/mobile/auth/oauth/exchange") {
@@ -9259,34 +9286,134 @@ async function createPublicMapPlaceCorrectionProposal(request: Request, env: Env
   }
 }
 
+function parseMediaKindsFilter(raw: string | null): Set<HomeRecordMediaKind> | "all" | null {
+  const trimmed = normalizeOptionalText(raw);
+  if (!trimmed || trimmed.toLowerCase() === "all") return "all";
+  const result = new Set<HomeRecordMediaKind>();
+  for (const part of trimmed.split(",")) {
+    const token = part.trim().toLowerCase();
+    if (!token) continue;
+    if (token === "all") return "all";
+    if (token === "photo" || token === "image") result.add("photo");
+    else if (token === "video") result.add("video");
+    else if (token === "audio") result.add("audio");
+    else if (token === "record" || token === "note") result.add("record");
+    else return null;
+  }
+  return result.size > 0 ? result : "all";
+}
+
+function normalizePeriodBound(raw: string | null, edge: "start" | "end"): string | null | "invalid" {
+  const trimmed = normalizeOptionalText(raw);
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) {
+    return edge === "start" ? `${trimmed}T00:00:00.000Z` : `${trimmed}T23:59:59.999Z`;
+  }
+  const ms = Date.parse(trimmed);
+  if (!Number.isFinite(ms)) return "invalid";
+  return new Date(ms).toISOString();
+}
+
+async function resolvePlaceScope(
+  placeId: string,
+  env: Env,
+): Promise<{ bbox: [number, number, number, number] | null; visitIds: Set<string> | null }> {
+  const field = await getFieldDetailReadmodelRowOrNullOnMissingTable(placeId, env);
+  if (field?.public_lat != null && field?.public_lng != null) {
+    const d = 0.03;
+    return {
+      bbox: [field.public_lng - d, field.public_lat - d, field.public_lng + d, field.public_lat + d],
+      visitIds: null,
+    };
+  }
+  const visitRows = await env.OBS_DB.prepare(
+    `SELECT visit_id, legacy_observation_id FROM production_import_visits WHERE place_id = ? LIMIT 1200`,
+  ).bind(placeId).all<{ visit_id: string; legacy_observation_id: string | null }>().catch(() => ({ results: [] }));
+  const ids = new Set<string>();
+  for (const row of visitRows.results) {
+    if (row.visit_id) ids.add(row.visit_id);
+    if (row.legacy_observation_id) ids.add(row.legacy_observation_id);
+  }
+  return { bbox: null, visitIds: ids.size > 0 ? ids : new Set() };
+}
+
 async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
+  const startedAt = performance.now();
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   const rawCellId = normalizeOptionalText(url.searchParams.get("cell_id"));
   const selectedCell = rawCellId ? cellIdToPublicCell(rawCellId) : null;
-  if (!bbox && !selectedCell) {
+  const rawPlaceId = normalizeOptionalText(url.searchParams.get("place_id"));
+  if (!bbox && !selectedCell && !rawPlaceId) {
     return json({ error: "missing_scope" }, 400);
   }
 
+  const mediaKindsFilter = parseMediaKindsFilter(url.searchParams.get("media_kind") ?? url.searchParams.get("kind"));
+  if (!mediaKindsFilter) {
+    return json({ error: "invalid_media_kind" }, 400);
+  }
+  const fromBound = normalizePeriodBound(url.searchParams.get("from"), "start");
+  const toBound = normalizePeriodBound(url.searchParams.get("to"), "end");
+  if (fromBound === "invalid" || toBound === "invalid") {
+    return json({ error: "invalid_period" }, 400);
+  }
+
+  const placeScope = rawPlaceId ? await resolvePlaceScope(rawPlaceId, env) : null;
+  const effectiveBbox = bbox ?? placeScope?.bbox ?? null;
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "300"), 1, 1200);
   const rows = await queryPublicMapRows(env);
-  const scopedRows = rows
-    .filter((row) => selectedCell ? row.public_cell === selectedCell : publicCellInBbox(row.public_cell, bbox as [number, number, number, number]))
-    .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
+  const areaAndPeriodRows = rows
+    .filter((row) => {
+      if (selectedCell && row.public_cell !== selectedCell) return false;
+      if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
+      if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
+      if (fromBound && row.observed_at < fromBound) return false;
+      if (toBound && row.observed_at > toBound) return false;
+      return true;
+    })
+    .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+
+  const candidateIds = areaAndPeriodRows.slice(0, Math.max(limit * 4, 1200)).map((row) => row.observation_id);
+  const mediaKinds = await queryPublicMapMediaKinds(env, candidateIds);
+  const scopedRows = areaAndPeriodRows
+    .filter((row) => {
+      if (mediaKindsFilter === "all") return true;
+      const kind = mediaKinds.get(row.observation_id) ?? "record";
+      return mediaKindsFilter.has(kind);
+    })
     .slice(0, limit);
-  const photoUrls = await queryPublicMapPhotoUrls(env);
+  const scopedIds = scopedRows.map((row) => row.observation_id);
+  const photoUrls = await queryPublicMapPhotoUrls(env, scopedIds);
+  const durationMs = Math.round((performance.now() - startedAt) * 100) / 100;
 
   return json({
-    items: scopedRows.map((row) => publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null)),
+    items: scopedRows.map((row) => {
+      const kind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
+      return {
+        ...publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind),
+        publicCellId: publicCellToCellId(row.public_cell),
+      };
+    }),
     stats: {
       totalReturned: scopedRows.length,
-      totalAll: scopedRows.length,
+      totalAll: areaAndPeriodRows.length,
+      durationMs,
       markerProfile: "all_research_artifacts",
       gridM: MAP_DEFAULT_GRID_M,
       selectedCellId: selectedCell ? publicCellToCellId(selectedCell) : null,
+      filters: {
+        placeId: rawPlaceId ?? null,
+        mediaKinds: mediaKindsFilter === "all" ? ["all"] : [...mediaKindsFilter],
+        from: fromBound,
+        to: toBound,
+      },
       privacy: publicMapExactCoordinateGate(),
       provenance: publicMapEmptyProvenance(scopedRows.length)
     }
-  }, 200, { "cache-control": "no-store" });
+  }, 200, {
+    "cache-control": "no-store",
+    "access-control-allow-origin": "*",
+    "server-timing": `area-observations;dur=${durationMs}`,
+  });
 }
 
 type GbifAreaTaxon = {
@@ -11953,7 +12080,7 @@ a{color:inherit}
 .wm-detail-map-visual:before{width:140%;height:18px;left:-28px;top:66px;transform:rotate(-8deg)}
 .wm-detail-map-visual:after{width:118%;height:12px;left:-18px;bottom:44px;transform:rotate(9deg)}
 .wm-detail-map-pin{position:absolute;left:50%;top:50%;display:grid;gap:2px;min-width:150px;transform:translate(-50%,-50%);padding:10px 12px;border:1px solid rgba(16,185,129,.24);border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 12px 32px rgba(15,118,110,.18);font-weight:900}
-.wm-detail-map-pin span{color:#0f766e;font-size:13px}
+.wm-detail-map-pin span{color:#0f766e;font-size:14px}
 .wm-detail-map-pin strong{color:#17211d;font-size:15px}
 .wm-detail-map-card p{margin:0;color:#475569;line-height:1.6}
 .wm-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:21px;align-items:start}
@@ -11961,7 +12088,7 @@ a{color:inherit}
 .wm-detail-stop,.wm-detail-panel{border:1px solid #dbe7e2;border-radius:8px;background:#fff;padding:16px;box-shadow:0 12px 28px rgba(15,23,42,.05)}
 .wm-detail-stop-head{display:flex;justify-content:space-between;gap:13px;align-items:start;margin-bottom:10px}
 .wm-detail-stop h2,.wm-detail-panel h2{margin:0;color:#0f172a;font-size:21px;line-height:1.3;letter-spacing:0}
-.wm-detail-stop-head span{flex:0 0 auto;display:inline-flex;align-items:center;min-height:30px;padding:4px 10px;border-radius:999px;background:#eefcf4;color:#0f766e;font-size:13px;font-weight:900}
+.wm-detail-stop-head span{flex:0 0 auto;display:inline-flex;align-items:center;min-height:30px;padding:4px 10px;border-radius:999px;background:#eefcf4;color:#0f766e;font-size:14px;font-weight:900}
 .wm-detail-stop p,.wm-detail-panel p{margin:0;color:#475569;line-height:1.7}
 .wm-detail-cues{display:grid;gap:10px;margin-top:13px}
 .wm-detail-cue{display:grid;gap:5px}
@@ -12096,11 +12223,11 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
 .place-actions a:first-child{background:#0f766e;color:#fff;border-color:#0f766e}
 .place-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
 .place-card{display:grid;gap:8px;padding:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff}
-.place-card span{font-size:12px;font-weight:900;color:#0f766e}
+.place-card span{font-size:14px;font-weight:900;color:#0f766e}
 .place-card h2{margin:0;font-size:18px;line-height:1.35;color:#0f172a}
 .place-card p{margin:0;color:#475569;line-height:1.65}
 .place-links{display:flex;flex-wrap:wrap;gap:8px}
-.place-links a{color:#0f766e;font-size:12px;font-weight:850}
+.place-links a{color:#0f766e;font-size:14px;font-weight:850}
 @media(max-width:760px){.place{padding:18px 12px 56px}.place-head h1{font-size:26px}.place-actions a{width:100%;justify-content:center}}
 </style>
 </head>
@@ -12324,9 +12451,9 @@ function renderMunicipalWalkMapListHtml(
 .wm-list-head p{margin:0;color:#475569;line-height:1.7}
 .wm-list-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .wm-list-card a{display:grid;gap:8px;height:100%;padding:14px;border:1px solid #dbe7e2;border-radius:8px;background:#fff;color:inherit;text-decoration:none}
-.wm-list-card span{font-size:12px;font-weight:900;color:#0f766e}
+.wm-list-card span{font-size:14px;font-weight:900;color:#0f766e}
 .wm-list-card strong{font-size:18px;color:#0f172a}
-.wm-list-card small{color:#64748b;font-weight:800}
+.wm-list-card small{color:#64748b;font-size:14px;font-weight:800}
 .wm-list-card p{margin:0;color:#475569;line-height:1.65}
 .wm-list-empty{display:grid;gap:12px;padding:20px;border:1px solid #dbe7e2;border-radius:12px;background:#fff}
 .wm-list-empty h2{margin:0;font-size:20px;color:#0f172a}
@@ -18922,6 +19049,11 @@ interface D1FixedPointStation {
 interface D1FixedPointStationVisit {
   visitId: string;
   observedAt: string | null;
+  observedLabel: string;
+  observerLabel: string;
+  note: string;
+  sourceLabel: string;
+  photoUrl: string | null;
   taxa: string[];
   mediaCount: number;
 }
@@ -18938,15 +19070,33 @@ async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1Fixe
   if (!normalizedPlaceId || normalizedPlaceId.length > 128) return null;
   const field = await getFieldDetailReadmodelRowOrNullOnMissingTable(normalizedPlaceId, env);
   const visitRows = await env.OBS_DB.prepare(
-    `SELECT visit_id, observed_at
+    `SELECT visit_id, observed_at, legacy_observation_id, user_id
        FROM production_import_visits
       WHERE place_id = ?
         AND COALESCE(public_visibility, 'public') <> 'private'
       ORDER BY observed_at DESC, visit_id DESC
       LIMIT 80`
-  ).bind(normalizedPlaceId).all<{ visit_id: string; observed_at: string | null }>();
+  ).bind(normalizedPlaceId).all<{
+    visit_id: string;
+    observed_at: string | null;
+    legacy_observation_id: string | null;
+    user_id: string | null;
+  }>();
+  const fieldSourceLabel = field?.source === "nature_symbiosis_site"
+    ? "自然共生サイト記録"
+    : field?.source === "paper_notebook"
+      ? "紙の野帳"
+      : "公開観察記録";
+  const optionalFirst = async <T>(promise: Promise<T | null>): Promise<T | null> => {
+    try {
+      return await promise;
+    } catch {
+      return null;
+    }
+  };
   const visits = await Promise.all(visitRows.results.map(async (visit): Promise<D1FixedPointStationVisit> => {
-    const [taxaRows, mediaCount] = await Promise.all([
+    const lookupIds = [visit.visit_id, ...(visit.legacy_observation_id ? [visit.legacy_observation_id] : [])];
+    const [taxaRows, mediaCount, obsRow, userRow, photoRow] = await Promise.all([
       env.OBS_DB.prepare(
         `SELECT occurrence_id, scientific_name, vernacular_name
            FROM production_import_occurrences
@@ -18963,15 +19113,84 @@ async function getD1FixedPointStation(placeId: string, env: Env): Promise<D1Fixe
            FROM production_import_evidence_assets
           WHERE visit_id = ?
             AND asset_role IN ('observation_photo', 'observation_video')`
-      ).bind(visit.visit_id).first<{ count: number }>()
+      ).bind(visit.visit_id).first<{ count: number }>(),
+      optionalFirst(
+        env.OBS_DB.prepare(
+          `SELECT note, source
+             FROM observations
+            WHERE observation_id IN (${lookupIds.map(() => "?").join(", ")})
+            LIMIT 1`
+        ).bind(...lookupIds).first<{ note: string | null; source: string | null }>()
+      ),
+      visit.user_id
+        ? optionalFirst(
+            env.CORE_DB.prepare("SELECT display_name FROM auth_users WHERE user_id = ? LIMIT 1")
+              .bind(visit.user_id)
+              .first<{ display_name: string | null }>()
+          )
+        : Promise.resolve(null),
+      optionalFirst(
+        env.OBS_DB.prepare(
+          `SELECT public_derivative_key
+             FROM asset_ledger
+            WHERE observation_id IN (${lookupIds.map(() => "?").join(", ")})
+              AND processing_state = 'uploaded'
+              AND public_derivative_key IS NOT NULL
+              AND public_derivative_verified_at IS NOT NULL
+              AND exif_scrub_state = 'scrubbed'
+              AND public_ready_at IS NOT NULL
+              AND mime LIKE 'image/%'
+            ORDER BY public_ready_at DESC
+            LIMIT 1`
+        ).bind(...lookupIds).first<{ public_derivative_key: string | null }>()
+      ).then(async (direct) => direct ?? optionalFirst(
+        env.OBS_DB.prepare(
+          `SELECT a.public_derivative_key
+             FROM production_import_evidence_assets e
+             JOIN asset_ledger a ON a.asset_id = e.asset_id
+            WHERE e.visit_id = ?
+              AND a.processing_state = 'uploaded'
+              AND a.public_derivative_key IS NOT NULL
+              AND a.public_derivative_verified_at IS NOT NULL
+              AND a.exif_scrub_state = 'scrubbed'
+              AND a.public_ready_at IS NOT NULL
+              AND a.mime LIKE 'image/%'
+            ORDER BY a.public_ready_at DESC
+            LIMIT 1`
+        ).bind(visit.visit_id).first<{ public_derivative_key: string | null }>()
+      )),
     ]);
+    const taxa = taxaRows.results
+      .map((row) => normalizeOptionalText(row.vernacular_name) ?? normalizeOptionalText(row.scientific_name))
+      .filter((value): value is string => Boolean(value))
+      .slice(0, 5);
+    const rawObserver = normalizeOptionalText(userRow?.display_name);
+    const observerLabel = rawObserver && !containsDiscoveryPersonalInformation(rawObserver)
+      ? rawObserver
+      : "地域の観察者";
+    const rawNote = normalizeOptionalText(obsRow?.note);
+    const note = rawNote && !containsDiscoveryPersonalInformation(rawNote)
+      ? rawNote
+      : (taxa.join("、") || "（原文メモなし）");
+    const rawSource = normalizeOptionalText(obsRow?.source);
+    const sourceLabel = rawSource === "paper_notebook"
+      ? "紙の野帳"
+      : rawSource
+        ? "ZUKAN記録"
+        : fieldSourceLabel;
+    const derivativeKey = normalizeOptionalText(photoRow?.public_derivative_key);
+    const photoUrl = derivativeKey
+      ? `/derived-transform/w680/${derivativeKey.replace(/^\/+/, "")}`
+      : null;
     return {
       visitId: visit.visit_id,
       observedAt: visit.observed_at,
-      taxa: taxaRows.results
-        .map((row) => normalizeOptionalText(row.vernacular_name) ?? normalizeOptionalText(row.scientific_name))
-        .filter((value): value is string => Boolean(value))
-        .slice(0, 5),
+      observedLabel: formatPublicObservationDate(visit.observed_at) || "日付不明",
+      observerLabel,
+      note,
+      sourceLabel,
+      photoUrl,
+      taxa,
       mediaCount: Number(mediaCount?.count ?? 0)
     };
   }));
@@ -19046,7 +19265,53 @@ function renderFixedPointStationNotFoundHtml(placeId: string): string {
   return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>定点ページ | ZUKAN</title></head><body><main><h1>定点ページが見つかりません</h1><p>${escapeHtml(placeId)} の公開記録はまだありません。</p><p><a href="/map">地図へ</a></p></main></body></html>`;
 }
 
+function findFixedPointSameMonthPair(
+  visits: readonly D1FixedPointStationVisit[],
+): [D1FixedPointStationVisit, D1FixedPointStationVisit] | null {
+  for (let i = 0; i < visits.length; i += 1) {
+    const newer = visits[i]!;
+    const newerYm = String(newer.observedAt ?? "").slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(newerYm)) continue;
+    const prevYearYm = `${Number(newerYm.slice(0, 4)) - 1}-${newerYm.slice(5, 7)}`;
+    const prevYearMatch = visits.find((candidate, j) => j > i && String(candidate.observedAt ?? "").slice(0, 7) === prevYearYm);
+    if (prevYearMatch) return [newer, prevYearMatch];
+  }
+  return null;
+}
+
+function renderFixedPointCompareCard(slot: "a" | "b", visit: D1FixedPointStationVisit): string {
+  const taxaText = visit.taxa.join("、") || "対象整理中";
+  const photo = visit.photoUrl
+    ? `<img class="fps-compare-photo" src="${escapeHtml(visit.photoUrl)}" alt="${escapeHtml(`${visit.observedLabel} ${taxaText}`)}" loading="lazy" decoding="async">`
+    : "";
+  return `<article class="fps-compare-card" data-compare-slot="${slot}">${photo}<dl class="fps-compare-meta"><div><dt>観察日</dt><dd><time>${escapeHtml(visit.observedLabel)}</time></dd></div><div><dt>記録者</dt><dd>${escapeHtml(visit.observerLabel)}</dd></div><div><dt>対象</dt><dd>${escapeHtml(taxaText)}</dd></div><div><dt>原文</dt><dd>${escapeHtml(visit.note)}</dd></div><div><dt>出典</dt><dd>${escapeHtml(visit.sourceLabel)}</dd></div></dl><a class="fps-compare-link" href="/observations/${encodeURIComponent(visit.visitId)}">記録を開く</a></article>`;
+}
+
 function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
+  const sameMonthPair = findFixedPointSameMonthPair(station.visits);
+  const initialA = sameMonthPair ? sameMonthPair[0] : station.visits[0];
+  const initialB = sameMonthPair
+    ? sameMonthPair[1]
+    : (initialA ? station.visits.find((v) => v.observedLabel !== initialA.observedLabel) : undefined) ?? station.visits[1];
+  const hasComparableDates = station.visits.length >= 2 && new Set(station.visits.map((v) => v.observedLabel)).size >= 2;
+  const compareOptions = (selectedId: string) => station.visits.map((visit) => {
+    const label = `${visit.observedLabel} — ${visit.taxa.join("、") || visit.note.slice(0, 20)}`;
+    return `<option value="${escapeHtml(visit.visitId)}"${visit.visitId === selectedId ? " selected" : ""}>${escapeHtml(label)}</option>`;
+  }).join("");
+  const compareSection = hasComparableDates && initialA && initialB
+    ? `<section class="fps-compare" data-fixed-point-compare aria-labelledby="fps-compare-title"><div class="fps-compare-head"><h2 id="fps-compare-title">時期を比べて見る</h2>${sameMonthPair ? `<button type="button" class="fps-compare-preset" data-compare-same-month data-a-id="${escapeHtml(sameMonthPair[0].visitId)}" data-b-id="${escapeHtml(sameMonthPair[1].visitId)}">前年同月で比べる</button>` : ""}</div><div class="fps-compare-controls"><label>記録A<select data-compare-select="a">${compareOptions(initialA.visitId)}</select></label><label>記録B<select data-compare-select="b">${compareOptions(initialB.visitId)}</select></label></div><div class="fps-compare-grid">${renderFixedPointCompareCard("a", initialA)}${renderFixedPointCompareCard("b", initialB)}</div></section>`
+    : "";
+  const comparePayload = hasComparableDates
+    ? JSON.stringify(station.visits.map((v) => ({
+        visitId: v.visitId,
+        observedLabel: v.observedLabel,
+        observerLabel: v.observerLabel,
+        taxaText: v.taxa.join("、") || "対象整理中",
+        note: v.note,
+        sourceLabel: v.sourceLabel,
+        photoUrl: v.photoUrl,
+      }))).replace(/</g, "\\u003c")
+    : "";
   const years = station.yearlyTimeline.length
     ? station.yearlyTimeline.map((year) => `<article class="fps-card"><strong>${escapeHtml(year.year)}</strong><span>観察 ${year.visitCount} / メディア ${year.mediaCount} / 手入れ ${year.stewardshipCount}</span><p>${escapeHtml(year.taxa.join("、") || "対象整理中")}</p></article>`).join("")
     : `<article class="fps-empty">年ごとの比較に使える公開記録はまだありません。</article>`;
@@ -19082,18 +19347,83 @@ function renderD1FixedPointStationHtml(station: D1FixedPointStation): string {
     .fps-stat strong { display:block; color:#064e3b; font-size:28px; line-height:1; } .fps-stat span, .fps-card span, .fps-row span, .fps-row time { color:var(--muted); font-size:12px; font-weight:850; }
     section { margin-top:24px; } h2 { margin:0 0 10px; font-size:clamp(21px,3vw,30px); letter-spacing:0; } .fps-card p { margin:8px 0 0; color:#334155; line-height:1.55; font-weight:720; }
     .fps-row { display:grid; grid-template-columns:110px minmax(0,1fr) 90px auto; gap:10px; align-items:center; margin-bottom:8px; } .fps-row a { color:var(--green); font-weight:900; text-decoration:none; }
-    @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } }
+    .fps-compare { padding:16px; border-radius:10px; border:1px solid var(--line); background:#fff; }
+    .fps-compare-head { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+    .fps-compare-preset { min-height:44px; padding:0 14px; border:1px solid var(--green); border-radius:8px; background:#ecfdf5; color:#065f46; font:inherit; font-weight:900; cursor:pointer; }
+    .fps-compare-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+    .fps-compare-controls label { display:grid; gap:4px; font-size:13px; font-weight:850; color:var(--muted); }
+    .fps-compare-controls select { width:100%; min-height:44px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); font:inherit; font-weight:750; }
+    .fps-compare-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .fps-compare-card { min-width:0; padding:12px; border:1px solid var(--line); border-radius:8px; background:#f8fafc; display:grid; gap:8px; align-content:start; }
+    .fps-compare-photo { display:block; width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; background:#e2e8f0; }
+    .fps-compare-meta { display:grid; gap:6px; margin:0; }
+    .fps-compare-meta div { display:grid; gap:1px; }
+    .fps-compare-meta dt { font-size:11px; font-weight:850; color:var(--muted); }
+    .fps-compare-meta dd { margin:0; font-size:14px; font-weight:720; color:var(--ink); overflow-wrap:anywhere; }
+    .fps-compare-link { color:var(--green); font-weight:900; text-decoration:none; font-size:14px; }
+    @media (max-width:760px) { .fps-hero, .fps-stats, .fps-grid, .fps-row { grid-template-columns:1fr; } .fps-hero a { justify-self:start; } .fps-compare { padding:12px; } .fps-compare-controls { grid-template-columns:1fr; } .fps-compare-grid { gap:8px; } .fps-compare-card { padding:10px; } }
+    ${APP_EXPERIENCE_STYLES}
   </style>
 </head>
-<body>
+<body data-zukan-app-experience="station">
 <header><a href="/">ZUKAN</a><nav><a href="/map">地図へ</a></nav></header>
 <main data-cloudflare-fixed-point-station="1" data-place-id="${escapeHtml(station.placeId)}">
   <section class="fps-hero"><div><span>定点ページ</span><h1>${escapeHtml(station.name)}</h1><p>${escapeHtml(station.locationLabel)}。同じ場所の公開記録と手入れの履歴を年ごとに並べます。</p></div><a href="${escapeHtml(recordHref)}">この場所を記録</a></section>
   <div class="fps-stats"><div class="fps-stat"><strong>${station.visits.length}</strong><span>公開記録</span></div><div class="fps-stat"><strong>${station.yearlyTimeline.length}</strong><span>年</span></div><div class="fps-stat"><strong>${station.actions.length}</strong><span>手入れ</span></div></div>
+  ${compareSection}
   <section><h2>年ごとの様子</h2><div class="fps-grid">${years}</div></section>
   <section><h2>同じ場所の記録</h2>${visits}</section>
   <section><h2>手入れの記録</h2><div class="fps-grid">${actions}</div></section>
 </main>
+${hasComparableDates ? `<script>
+(() => {
+  const visits = ${comparePayload};
+  const byId = new Map(visits.map((v) => [v.visitId, v]));
+  const selectA = document.querySelector('[data-compare-select="a"]');
+  const selectB = document.querySelector('[data-compare-select="b"]');
+  const slotA = document.querySelector('[data-compare-slot="a"]');
+  const slotB = document.querySelector('[data-compare-slot="b"]');
+  const preset = document.querySelector('[data-compare-same-month]');
+  function renderSlot(slot, visit) {
+    if (!slot || !visit) return;
+    slot.replaceChildren();
+    if (visit.photoUrl) {
+      const img = document.createElement('img');
+      img.className = 'fps-compare-photo';
+      img.src = visit.photoUrl;
+      img.alt = visit.observedLabel + ' ' + visit.taxaText;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      slot.append(img);
+    }
+    const dl = document.createElement('dl');
+    dl.className = 'fps-compare-meta';
+    for (const [label, value] of [['観察日', visit.observedLabel], ['記録者', visit.observerLabel], ['対象', visit.taxaText], ['原文', visit.note], ['出典', visit.sourceLabel]]) {
+      const wrap = document.createElement('div');
+      const dt = document.createElement('dt');
+      dt.textContent = label;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      wrap.append(dt, dd);
+      dl.append(wrap);
+    }
+    const link = document.createElement('a');
+    link.className = 'fps-compare-link';
+    link.href = '/observations/' + encodeURIComponent(visit.visitId);
+    link.textContent = '記録を開く';
+    slot.append(dl, link);
+  }
+  selectA?.addEventListener('change', () => renderSlot(slotA, byId.get(selectA.value)));
+  selectB?.addEventListener('change', () => renderSlot(slotB, byId.get(selectB.value)));
+  preset?.addEventListener('click', () => {
+    const aId = preset.getAttribute('data-a-id');
+    const bId = preset.getAttribute('data-b-id');
+    if (aId && selectA && byId.has(aId)) { selectA.value = aId; renderSlot(slotA, byId.get(aId)); }
+    if (bId && selectB && byId.has(bId)) { selectB.value = bId; renderSlot(slotB, byId.get(bId)); }
+  });
+})();
+</script>` : ""}
+${renderAppExperienceNavigation("ja", 3, "bottom", false)}${renderAppExperienceQuickCamera("ja")}
 </body>
 </html>`;
 }
@@ -19601,6 +19931,7 @@ function fieldDetailAreaSnapshotPayload(
       ownerUrl: field.links.owner,
       storyUrl: field.links.story,
       certificationUrl: field.links.certification,
+      explanationUrl: natureSymbiosisExplanationUrl(row.source, row.certification_id),
       sourceConfidence: field.verification.confidence,
       verificationLevel: field.verification.level,
       verificationLabel: field.verification.label,
@@ -19922,7 +20253,11 @@ async function getOriginalUiStaticAsset(request: Request, url: URL, env: Env): P
       body = null;
     } else if (shouldRewrite) {
       const rewritten = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
-      body = url.pathname === "/robots.txt" ? withRobotsContentSignal(rewritten, env.ENVIRONMENT) : rewritten;
+      body = url.pathname === "/robots.txt"
+        ? withRobotsContentSignal(rewritten, env.ENVIRONMENT)
+        : url.pathname === "/sitemap.xml"
+          ? await withPublicPlacesInSitemap(rewritten, env)
+          : rewritten;
     } else {
       body = object.body;
     }
@@ -19951,6 +20286,7 @@ function isOriginalUiStaticAssetPath(pathname: string): boolean {
   if (/^\/assets\/map\/map-explorer(?:-deferred)?\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
   if (/^\/assets\/map\/static-basemap\.[a-f0-9]{12}\.webp$/.test(pathname)) return true;
   if (/^\/assets\/ui\/global-record-entry\.[a-f0-9]{12}\.js$/.test(pathname)) return true;
+  if (/^\/assets\/ui\/place-year-band\.[a-f0-9]{12}\.js$/.test(pathname)) return true;
   if (/^\/assets\/vendor\/maplibre-gl-4\.7\.1\.[a-f0-9]{12}\.(?:js|css)$/.test(pathname)) return true;
   if (/^\/assets\/fonts\/noto-sans-regular\/\d{1,5}-\d{1,5}\.[a-f0-9]{12}\.pbf$/.test(pathname)) return true;
   return false;
@@ -20577,6 +20913,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-confirm-actions button{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink);font:inherit;font-size:16px}
     .cf-record-confirm-actions button[type=submit]{background:var(--teal);border-color:var(--teal);color:white}
     .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
+    .cf-record-saved-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .cf-record-saved-links a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--teal);border-radius:4px;background:white;color:var(--teal);text-decoration:none;font-weight:800}
+    .cf-record-saved-links a.is-primary{background:var(--teal);color:white}
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
@@ -20607,6 +20946,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       </details>
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
+      <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
@@ -20632,6 +20972,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     ${PHOTO_UPLOAD_PREPARATION_SCRIPT}
     const form = document.getElementById("record-form");
     const status = document.getElementById("record-status");
+    const savedLinks = document.getElementById("record-saved-links");
+    const initialPlaceId = new URLSearchParams(location.search).get("placeId") || "";
     const submitPanel = document.getElementById("record-submit-panel");
     const confirmDialog = document.getElementById("record-confirm");
     const reviewOpen = document.getElementById("record-review-open");
@@ -20649,6 +20991,31 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       participantRole: document.body.dataset.eventParticipantRole || ""
     };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
+    function showSavedRecordLinks(visitId, resolvedPlaceId) {
+      if (!savedLinks) return;
+      savedLinks.textContent = "";
+      const isEn = recordPrefix === "/en";
+      const items = [
+        { href: recordPrefix + "/observations/" + encodeURIComponent(visitId), label: isEn ? "Open this record" : "この記録を見る", primary: true },
+        { href: recordPrefix + "/records?view=mine", label: isEn ? "My records" : "自分の記録", primary: false }
+      ];
+      if (eventContext.eventSessionId) {
+        items.push({ href: recordPrefix + "/events/" + encodeURIComponent(eventContext.eventSessionId) + "/live", label: isEn ? "Back to event" : "観察会に戻る", primary: false });
+      }
+      if (resolvedPlaceId) {
+        items.push({ href: recordPrefix + "/places/" + encodeURIComponent(resolvedPlaceId), label: isEn ? "Open place" : "場所ページを見る", primary: false });
+      } else {
+        items.push({ href: recordPrefix + "/map", label: isEn ? "Open map" : "地図を見る", primary: false });
+      }
+      for (const item of items) {
+        const anchor = document.createElement("a");
+        anchor.href = item.href;
+        anchor.textContent = item.label;
+        if (item.primary) anchor.className = "is-primary";
+        savedLinks.appendChild(anchor);
+      }
+      savedLinks.hidden = false;
+    }
     function setStatus(message, error) {
       if (!status) return;
       status.textContent = message;
@@ -20909,6 +21276,28 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     }
     cameraInput?.addEventListener("change", () => addPhotoFiles(cameraInput));
     photoInput?.addEventListener("change", () => addPhotoFiles(photoInput));
+    if (new URLSearchParams(location.search).get("from") === "quick_camera") {
+      void (async () => {
+        try {
+          const db = await openRecordDraftDb();
+          const entry = await new Promise((resolve) => {
+            const tx = db.transaction("drafts", "readwrite");
+            const store = tx.objectStore("drafts");
+            const req = store.get("quick-camera-latest");
+            req.onsuccess = () => {
+              const val = req.result || null;
+              if (val) store.delete("quick-camera-latest");
+              resolve(val);
+            };
+            req.onerror = () => resolve(null);
+            tx.oncomplete = () => db.close();
+          });
+          if (entry && Array.isArray(entry.files) && entry.files.length) {
+            addPhotoFiles({ files: entry.files, value: "" });
+          }
+        } catch {}
+      })();
+    }
     videoInput?.addEventListener("change", () => {
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";
@@ -21028,6 +21417,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
+          showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
           setStatus(copy.saved + " " + files.length + copy.photoSaved, false);
           return;
         }
@@ -21081,6 +21471,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
+        showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         submitting = false;
@@ -21520,13 +21911,57 @@ const recordsSearchScopeCopy = {
   },
 } as const;
 
+async function listFeaturedPublicPlaces(env: Env, limit = 8): Promise<Array<{ placeId: string; name: string }>> {
+  try {
+    const result = await env.OBS_DB.prepare(
+      `SELECT p.place_id, p.canonical_name
+       FROM places p
+       WHERE p.public_profile_status = 'published'
+         AND p.valid_to IS NULL
+         AND p.superseded_by_place_id IS NULL
+         AND EXISTS (
+           SELECT 1
+           FROM place_policies pp
+           WHERE pp.place_id = p.place_id
+             AND pp.place_visibility = 'public'
+             AND pp.valid_to IS NULL
+         )
+       ORDER BY p.updated_at DESC
+       LIMIT ?`
+    ).bind(limit).all<{ place_id?: unknown; canonical_name?: unknown }>();
+    return (result.results ?? [])
+      .map((row) => ({
+        placeId: typeof row.place_id === "string" ? row.place_id.trim() : "",
+        name: typeof row.canonical_name === "string" ? row.canonical_name.trim() : ""
+      }))
+      .filter((row) => /^plc_[A-Za-z0-9_-]{1,156}$/.test(row.placeId) && row.name.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+export async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<string> {
+  if (!xml.includes("</urlset>")) return xml;
+  const places = await listFeaturedPublicPlaces(env, 50);
+  if (places.length === 0) return xml;
+  const origin = env.ENVIRONMENT === "production" ? "https://zukan.earth" : "https://ikimon.life";
+  const entries = places
+    .map((p) => `${origin}/ja/places/${encodeURIComponent(p.placeId)}`)
+    .filter((loc) => !xml.includes(loc))
+    .map((loc) => `  <url><loc>${loc}</loc></url>`)
+    .join("\n");
+  if (!entries) return xml;
+  return xml.replace("</urlset>", `${entries}\n</urlset>`);
+}
+
 export function renderRecordsProductSection(
   items: Array<ReturnType<typeof publicMapObservationItem> | OwnerHomeRecordItem>,
   url: URL,
   mode: "mine" | "public",
   session: SessionSnapshot | null,
   unavailable = false,
-  savedStates: Map<string, SavedItem> | null = null
+  savedStates: Map<string, SavedItem> | null = null,
+  publicPlaces: Array<{ placeId: string; name: string }> = []
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -21546,9 +21981,10 @@ export function renderRecordsProductSection(
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query ? scopeCopy.noMatch(query) : scopeCopy.empty)}</strong>${query ? `<p class="cf-records-native-empty-hint">${escapeHtml(scopeCopy.searchHint)}</p>` : ""}<div class="cf-records-native-empty-actions"><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? scopeCopy.clearSearch : scopeCopy.createRecord)}</a><a class="cf-records-native-empty-secondary" href="${escapeHtml(mode === "public" ? `${prefix}/map?tab=places` : `${prefix}/records?view=public`)}">${escapeHtml(mode === "public" ? scopeCopy.browsePlaces : scopeCopy.browsePublic)}</a></div></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.75rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.8rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a{min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
+    ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
     ${session && savedStates !== null ? `<a class="qh-entrances" href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a>` : ""}
     ${cards}
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>${renderSavedItemsScript(lang)}` : ""}
@@ -21580,10 +22016,12 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
+  const publicPlaces = requestedMode === "public" ? await listFeaturedPublicPlaces(env, 8) : [];
   const section = requestedMode === "saved"
     ? renderSavedPage(await listSavedItems(env.CORE_DB, session!.userId, { limit: 30, ...(url.searchParams.has("cursor") ? { cursor: url.searchParams.get("cursor")! } : {}) }).catch(() => null), lang)
     : renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null,
-      session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null);
+      session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null,
+      publicPlaces);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -21683,15 +22121,15 @@ async function injectRecentObservationRecords(html: string, url: URL, env: Env):
       .cf-records-live-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:12px}
       .cf-records-live small{display:block;color:#047857;font-weight:900;letter-spacing:.02em}
       .cf-records-live h2{margin:2px 0 0;color:#10251a;font-size:22px;line-height:1.15}
-      .cf-records-live p{margin:0;color:#475569;font-size:13px;line-height:1.55}
+      .cf-records-live p{margin:0;color:#475569;font-size:14px;line-height:1.55}
       .cf-records-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
       .cf-record-card{min-width:0;border:1px solid rgba(15,23,42,.08);border-radius:12px;overflow:hidden;background:#f8fafc;text-decoration:none;color:#0f172a}
       .cf-record-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#dbeafe}
       .cf-record-card-body{padding:10px}
       .cf-record-card strong{display:block;font-size:14px;line-height:1.3}
-      .cf-record-card span{display:block;margin-top:4px;color:#64748b;font-size:12px;line-height:1.4}
+      .cf-record-card span{display:block;margin-top:4px;color:#64748b;font-size:14px;line-height:1.4}
       .cf-records-empty{padding:10px;border-radius:10px;background:#f8fafc}
-      @media (max-width:720px){.cf-records-live{margin:8px 8px 12px;padding:12px;border-radius:12px}.cf-records-live-head{display:block}.cf-records-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cf-records-live h2{font-size:18px}.cf-record-card-body{padding:8px}.cf-record-card strong{font-size:13px}}
+      @media (max-width:720px){.cf-records-live{margin:8px 8px 12px;padding:12px;border-radius:12px}.cf-records-live-head{display:block}.cf-records-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.cf-records-live h2{font-size:18px}.cf-record-card-body{padding:8px}.cf-record-card strong{font-size:14px}}
     </style>
     <div class="cf-records-live-head"><div><small>${escapeHtml(copy.eyebrow)}</small><h2>${escapeHtml(copy.title)}</h2></div><p>${escapeHtml(copy.body)}</p></div>
     <div class="cf-records-grid">${cards}</div>
@@ -22198,7 +22636,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
     .cf-header-menu-item:hover,.cf-header-menu-item:focus-visible,.cf-header-menu-lang:hover,.cf-header-menu-lang:focus-visible{background:#ecfdf5;outline:none}
     .cf-header-menu-item.is-primary{background:#0f9f78;color:#fff}
     .cf-header-menu-languages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding-top:6px;border-top:1px solid rgba(15,23,42,.08)}
-    .cf-header-menu-lang{min-width:0;justify-content:flex-start;font-size:12px}
+    .cf-header-menu-lang{min-width:0;justify-content:flex-start;font-size:14px}
     .cf-header-menu-lang span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .cf-header-menu-lang.is-active{background:#eef8f5;color:#0f766e}
     ${desktopNativeMenuFallbackStyle}
@@ -23530,6 +23968,7 @@ function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {
       owner_url: row.owner_url ?? "",
       story_url: row.story_url ?? "",
       certification_url: row.certification_url ?? "",
+      explanation_url: natureSymbiosisExplanationUrl(source, row.certification_id),
       source_confidence: row.source_confidence ?? 0.55,
       verification_level: row.verification_level ?? "readmodel_public",
       verification_label: verificationLabel,
@@ -23554,6 +23993,104 @@ function areaSourceLabel(source: string): string {
   if (source === "admin_prefecture") return "都道府県";
   if (source === "admin_country") return "国";
   return "公開エリア";
+}
+
+const SIGNBOARD_FAILURE_RETRY_MS = 24 * 60 * 60 * 1000;
+
+async function writeSignboardTitleCache(
+  cacheKey: string,
+  title: string,
+  status: "ready" | "unreadable" | "failed",
+  env: Env,
+): Promise<void> {
+  await env.ASSET_BUCKET?.put(
+    cacheKey,
+    JSON.stringify({ title, status, updatedAt: new Date().toISOString() }),
+    { httpMetadata: { contentType: "application/json; charset=utf-8" } },
+  ).catch(() => {});
+}
+
+async function refreshLiveSignboardTitle(visitId: string, photoAssetId: string | null, env: Env): Promise<string | null> {
+  const cacheKey = `signboard-title/${visitId}.json`;
+  if (!env.GEMINI_API_KEY || !photoAssetId || !env.ASSET_BUCKET) return null;
+  try {
+    const assetRow = await env.OBS_DB.prepare(
+      `SELECT public_derivative_key, mime FROM asset_ledger WHERE asset_id = ? AND public_derivative_key IS NOT NULL LIMIT 1`,
+    ).bind(photoAssetId).first<{ public_derivative_key: string; mime: string | null }>();
+    if (!assetRow?.public_derivative_key) {
+      await writeSignboardTitleCache(cacheKey, "", "unreadable", env);
+      return null;
+    }
+    const photoObj = await env.ASSET_BUCKET.get(assetRow.public_derivative_key);
+    if (!photoObj) {
+      await writeSignboardTitleCache(cacheKey, "", "failed", env);
+      return null;
+    }
+    const bytes = new Uint8Array(await new Response(photoObj.body).arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    const base64 = btoa(binary);
+    const mimeType = photoObj.httpMetadata?.contentType ?? assetRow.mime ?? "image/webp";
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(env.GEMINI_API_KEY)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: AbortSignal.timeout(6000),
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: "この写真の看板・案内板に書かれている一番大きな見出し・施設名・題名だけを1つ日本語でそのまま読み取ってください。読めない場合は空文字にしてください。JSON {\"title\":\"...\"} のみ返してください。" },
+              { inlineData: { mimeType, data: base64 } },
+            ],
+          }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0.1, maxOutputTokens: 80 },
+        }),
+      },
+    );
+    if (!resp.ok) {
+      await writeSignboardTitleCache(cacheKey, "", "failed", env);
+      return null;
+    }
+    const payload = await resp.json().catch(() => null) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> } | null;
+    const rawText = payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const parsed = JSON.parse(rawText) as { title?: unknown };
+    const title = typeof parsed?.title === "string" ? parsed.title.replace(/[\r\n]+/g, " ").trim().slice(0, 60) : "";
+    await writeSignboardTitleCache(cacheKey, title, title ? "ready" : "unreadable", env);
+    return title || null;
+  } catch {
+    await writeSignboardTitleCache(cacheKey, "", "failed", env);
+    return null;
+  }
+}
+
+export async function resolveLiveSignboardTitle(
+  visitId: string,
+  photoAssetId: string | null,
+  env: Env,
+  ctx?: ExecutionContext,
+): Promise<string | null> {
+  const cacheKey = `signboard-title/${visitId}.json`;
+  try {
+    const cached = await env.ASSET_BUCKET?.get(cacheKey);
+    if (cached) {
+      const parsed = await new Response(cached.body).json().catch(() => null) as { title?: unknown; updatedAt?: unknown } | null;
+      const cachedTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
+      if (cachedTitle) return cachedTitle;
+      const updatedMs = typeof parsed?.updatedAt === "string" ? Date.parse(parsed.updatedAt) : Number.NaN;
+      if (Number.isFinite(updatedMs) && Date.now() - updatedMs < SIGNBOARD_FAILURE_RETRY_MS) {
+        return null;
+      }
+    }
+    if (ctx && env.GEMINI_API_KEY && photoAssetId && env.ASSET_BUCKET) {
+      ctx.waitUntil(refreshLiveSignboardTitle(visitId, photoAssetId, env));
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<Response> {
@@ -23592,7 +24129,7 @@ function injectLegacyObservationSavedContinuity(html: string, saved: { controlHt
   return withControl.replace('</body>', `${saved.scriptHtml}</body>`);
 }
 
-async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env): Promise<Response> {
+async function getPublicObservationDetailPage(rawId: string, request: Request, url: URL, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const sharedArrivalContext = collectSharedArrivalContext(url.searchParams);
   const recordsDiscoveryContext = collectRecordsDiscoveryContext(url.searchParams);
   const session = await readCompatibleSession(request, env).catch(() => null);
@@ -23646,7 +24183,14 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       const copy = observationFirstRecordDetailCopy(recordLang);
       const formatRecordDate = (value: string): string => {
         const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, { timeZone: "Asia/Tokyo" });
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, {
+          timeZone: "Asia/Tokyo",
+          year: "numeric",
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
       };
       const media = [
         ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const, url: item.url })),
@@ -23660,6 +24204,24 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         detail.aiRequestStatus,
       );
       const canonicalObservationPath = `/${recordLang}/observations/${encodeURIComponent(detail.visitId)}`;
+      const signboardPresentationProbe = {
+        title: detail.displayName,
+        note: detail.note,
+        aiFeedback: detail.feedback,
+        aiCandidateInsights: detail.aiCandidateInsights,
+        signboardTitle: null,
+      };
+      const [signboardTitle, customTitleObj] = await Promise.all([
+        isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
+          && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
+          ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
+          : Promise.resolve(null),
+        env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
+      ]);
+      const customTitleParsed = customTitleObj
+        ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
+        : null;
+      const customTitle = typeof customTitleParsed?.title === "string" ? customTitleParsed.title.trim() || null : null;
       return html(applyCspNonceToHtmlScripts(appendSharedArrivalContextToLocalHrefs(renderObservationFirstRecordDetailHtml(observationFirst.detail, {
         lang: recordLang,
         recordsDiscoveryContext,
@@ -23676,7 +24238,9 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         environment: detail.environmentRecord,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
-          title: item.displayName,
+          title: item.isAwaitingId
+            ? (item.publicAreaLabel || (recordLang === "ja" ? "近くの記録" : "Nearby record"))
+            : item.displayName,
           observedLabel: formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),
@@ -23686,6 +24250,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
         processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         aiFeedback: detail.feedback,
+        customTitle,
+        signboardTitle,
         aiNextPhoto: detail.nextPhoto,
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
@@ -23855,6 +24421,24 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   let plan: ObservationDualWritePlan;
   let refreshVisibility = false;
   let publicVisibilityRequested = false;
+  if (action === "set_title") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const nextTitle = String(form.get("title") ?? "").replace(/[\r\n]+/g, " ").trim();
+    if (nextTitle.length < 1 || nextTitle.length > 120) {
+      return json({ ok: false, error: "title_input_invalid" }, 400, { "cache-control": "no-store" });
+    }
+    await env.ASSET_BUCKET?.put(
+      `record-title/${recordId}.json`,
+      JSON.stringify({ title: nextTitle, updatedBy: session.userId, updatedAt: new Date().toISOString() }),
+      { httpMetadata: { contentType: "application/json; charset=utf-8" } },
+    );
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
+  if (action === "reset_title") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    await env.ASSET_BUCKET?.delete(`record-title/${recordId}.json`);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
@@ -24526,6 +25110,12 @@ class OAuthEmailConflictError extends Error {
   }
 }
 
+class OAuthRegistrationClosedError extends Error {
+  constructor(message = "registration_closed_waitlist_only") {
+    super(message);
+  }
+}
+
 const OAUTH_EMAIL_CONFLICT_CODE = "oauth_email_conflict";
 
 async function handleOAuthCallback(request: Request, providerInput: unknown, env: Env): Promise<Response> {
@@ -24587,6 +25177,14 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
       error: error instanceof Error ? error.message : "unknown"
     }));
     if (error instanceof OAuthEmailConflictError) return oauthEmailConflictRedirect(env, conflictState);
+    if (error instanceof OAuthRegistrationClosedError) {
+      const headers = new Headers({
+        location: "/ja/waitlist?from=oauth",
+        "cache-control": "no-store"
+      });
+      headers.append("set-cookie", buildClearedOAuthStateCookie(env));
+      return new Response(null, { status: 303, headers });
+    }
     return oauthErrorRedirect(env, true);
   }
 }
@@ -24738,71 +25336,85 @@ async function cleanupBrowserRunStagingAccountNative(request: Request, env: Env)
   });
 }
 
-async function registerWithPasswordNative(request: Request, env: Env): Promise<Response> {
+const ZUKAN_WAITLIST_CREATE_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS zukan_waitlist (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  locale TEXT NOT NULL DEFAULT 'ja',
+  source_path TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL
+)
+`.trim();
+
+function getZukanWaitlistHtml(request: Request, url: URL, env: Env): Response {
+  const langMatch = url.pathname.match(/^\/(ja|en|es|pt-br)(?:\/|$)/);
+  const lang = normalizeWaitlistLang(langMatch?.[1] ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja");
+  const cspNonce = createHtmlCspNonce();
+  const body = request.method === "HEAD"
+    ? null
+    : renderZukanWaitlistPage(lang, { cspNonce, sourcePath: url.pathname });
+  return new Response(body, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "x-robots-tag": "noindex, nofollow",
+      "x-ikimon-cloudflare-native": "zukan-waitlist",
+      ...releaseIdentityHeaders(env)
+    }
+  });
+}
+
+async function handleZukanWaitlistSubmit(request: Request, env: Env): Promise<Response> {
   const sameOriginError = assertSameOriginRequest(request);
   if (sameOriginError) return sameOriginError;
 
-  const input = await readJson<AuthRegisterInput>(request);
-  const displayName = typeof input.displayName === "string" ? input.displayName.trim() : "";
+  const input = await readJson<{ email?: unknown; locale?: unknown; sourcePath?: unknown; website?: unknown }>(request);
+  if (typeof input.website === "string" && input.website.trim().length > 0) {
+    return json({ ok: true, alreadyRegistered: false }, 200, { "cache-control": "no-store" });
+  }
+
   const email = normalizeEmail(input.email);
-  const password = typeof input.password === "string" ? input.password : "";
-  if (displayName.length < 1) return json({ ok: false, error: "display_name_required" }, 400, { "cache-control": "no-store" });
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
-  if (password.length < 8) return json({ ok: false, error: "password_too_short" }, 400, { "cache-control": "no-store" });
+  if (email.length > 320 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return json({ ok: false, error: "invalid_email" }, 400, { "cache-control": "no-store" });
+  }
+
+  const locale = normalizeWaitlistLang(typeof input.locale === "string" ? input.locale : "ja");
+  const sourcePath = typeof input.sourcePath === "string" ? input.sourcePath.trim().slice(0, 160) : "";
 
   try {
-    const existing = await findAuthUserByEmail(email, env);
-    if (existing) return json({ ok: false, error: "email_already_registered" }, 409, { "cache-control": "no-store" });
+    await env.CORE_DB.prepare(ZUKAN_WAITLIST_CREATE_TABLE_SQL).run();
+    const result = await env.CORE_DB.prepare(
+      "INSERT OR IGNORE INTO zukan_waitlist (id, email, locale, source_path, created_at) VALUES (?1, ?2, ?3, ?4, ?5)"
+    ).bind(`wl_${crypto.randomUUID()}`, email, locale, sourcePath, Date.now()).run();
+    const changes = Number((result as { meta?: { changes?: number } } | null)?.meta?.changes ?? 1);
+    return json({ ok: true, alreadyRegistered: changes === 0 }, 200, { "cache-control": "no-store" });
   } catch {
-    return json({ ok: false, error: "auth_store_unavailable" }, 503, { "cache-control": "no-store" });
+    return json({ ok: false, error: "waitlist_store_unavailable" }, 503, { "cache-control": "no-store" });
   }
+}
 
-  const userId = `user_${crypto.randomUUID()}`;
-  const passwordHash = await bcrypt.hash(password, 12);
-  const user: AuthUserRow = {
-    user_id: userId,
-    email,
-    password_hash: passwordHash,
-    display_name: displayName,
-    role_name: "Observer",
-    rank_label: "観察者",
-    banned: 0
-  };
+async function getZukanWaitlistSummaryAdmin(request: Request, env: Env): Promise<Response> {
+  await requireMunicipalWalkMapAdminSession(request, env);
+  await env.CORE_DB.prepare(ZUKAN_WAITLIST_CREATE_TABLE_SQL).run();
+  const row = await env.CORE_DB.prepare("SELECT COUNT(*) AS count FROM zukan_waitlist").first<{ count?: number }>();
+  return json({ ok: true, count: Number(row?.count ?? 0) }, 200, { "cache-control": "no-store" });
+}
 
-  try {
-    await env.CORE_DB.batch([
-      env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId),
-      env.CORE_DB.prepare(
-        `INSERT INTO auth_users
-         (user_id, email, password_hash, display_name, role_name, rank_label, banned)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        user.user_id,
-        user.email,
-        user.password_hash,
-        user.display_name,
-        user.role_name,
-        user.rank_label,
-        user.banned
-      )
-    ]);
-    const session = await issueSessionForAuthUser(request, env, user);
-    await env.CORE_DB.prepare("UPDATE auth_users SET last_login_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(userId).run();
-    return json({
-      ok: true,
-      redirect: postAuthRedirect(input.redirect),
-      session: session.session
-    }, 200, {
-      "cache-control": "no-store",
-      "set-cookie": session.cookie
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (/unique|constraint|already/i.test(message)) {
-      return json({ ok: false, error: "email_already_registered" }, 409, { "cache-control": "no-store" });
-    }
-    return json({ ok: false, error: "auth_register_failed" }, 500, { "cache-control": "no-store" });
-  }
+async function registerWithPasswordNative(request: Request, _env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  return json(
+    {
+      ok: false,
+      error: "registration_closed_waitlist_only",
+      waitlistUrl: "/ja/waitlist"
+    },
+    403,
+    { "cache-control": "no-store" }
+  );
 }
 
 async function loginWithPassword(request: Request, env: Env): Promise<Response> {
@@ -25251,19 +25863,7 @@ async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<A
 
   const email = normalizeEmail(profile.email);
   if (email && await findAuthUserByEmail(email, env)) throw new OAuthEmailConflictError();
-  const userId = `user_${crypto.randomUUID()}`;
-  const displayName = normalizeOptionalText(profile.name) ?? "ikimon user";
-  await env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(userId).run();
-  await upsertOAuthAccount(userId, profile, displayName, "Observer", "観察者", 0, env);
-  return {
-    user_id: userId,
-    email,
-    password_hash: null,
-    display_name: displayName,
-    role_name: "Observer",
-    rank_label: "観察者",
-    banned: 0
-  };
+  throw new OAuthRegistrationClosedError("registration_closed_waitlist_only");
 }
 
 async function findOAuthAccount(provider: OAuthProvider, providerUserId: string, env: Env): Promise<OAuthAccountRow | null> {
@@ -28488,7 +29088,7 @@ async function upgradeLegacyImageDerivativesForObservation(observationId: string
 
 async function runScheduledObservationReassessments(env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
-  await requeuePublicPhotoAiQualityBacklog(env);
+  if (!observationCardModeEnabled(env)) await requeuePublicPhotoAiQualityBacklog(env);
   await resumeGeminiObservationBatchGroups(env);
   await submitGeminiObservationReassessmentGroups([], env);
 }
@@ -28908,10 +29508,18 @@ type DirectGeminiLaneEvidence = {
 };
 
 type GeminiProviderMetadata = {
-  mode: "batch" | "direct_generate_content";
+  mode: "batch" | "direct_generate_content" | "card_v1";
   source: string;
   lanes?: Record<string, DirectGeminiLaneEvidence>;
+  card?: { stats: CardStats };
 };
+
+const OBSERVATION_CARD_MODELS = [CARD_ID_MODEL, CARD_WRITER_MODEL, CARD_TILE_MODEL];
+const OBSERVATION_CARD_MAX_PER_INVOCATION = 20;
+
+function observationCardModeEnabled(env: Env): boolean {
+  return env.OBSERVATION_AI_MODE === "card_v1";
+}
 
 function reassessmentSource(sourcePayloadJson: string): string {
   const payload = reassessmentPayload(sourcePayloadJson);
@@ -29039,9 +29647,106 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   }
 }
 
+async function observationCardTilePng(asset: ObservationAiAssetRow, env: Env): Promise<Uint8Array | null> {
+  if (!env.IMAGES) return null;
+  const object = (asset.public_derivative_key ? await env.ASSET_BUCKET.get(asset.public_derivative_key) : null)
+    ?? await env.ASSET_BUCKET.get(asset.object_key);
+  if (!object?.body) return null;
+  const bytes = await new Response(object.body).arrayBuffer();
+  if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) return null;
+  const output = await env.IMAGES.input(new Response(bytes).body!).transform({ width: 1024 }).output({ format: "image/png", anim: false });
+  const response = output.response();
+  return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+}
+
+function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): CardDeps {
+  const ai = env.AI;
+  return {
+    gemini: (model, parts, options) => callCardGemini(env.GEMINI_API_KEY!, model, parts, options),
+    ...(ai && env.IMAGES ? {
+      tileModel: async (png: string, prompt: string) => {
+        const result = await ai.run(CARD_TILE_MODEL, {
+          messages: [{ role: "user", content: [{ type: "image_url", image_url: { url: `data:image/png;base64,${png}` } }, { type: "text", text: prompt }] }],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 512,
+          chat_template_kwargs: { enable_thinking: false },
+        }) as { choices?: Array<{ message?: { content?: unknown } }>; response?: unknown } | null;
+        const content = result?.choices?.[0]?.message?.content ?? result?.response;
+        return typeof content === "string" ? content : JSON.stringify(content ?? "");
+      },
+      tileSource: async (assetIndex: number) => {
+        const asset = prepared.assets[assetIndex];
+        return asset ? observationCardTilePng(asset, env) : null;
+      },
+    } : {}),
+    loadCard: async (key) => {
+      const object = await env.ASSET_BUCKET.get(`${CARD_STORE_PREFIX}${key}.json`);
+      if (!object) return null;
+      try {
+        const parsed = JSON.parse(await new Response(object.body).text()) as unknown;
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+      } catch {
+        return null;
+      }
+    },
+    saveCard: async (key, card) => {
+      await env.ASSET_BUCKET.put(`${CARD_STORE_PREFIX}${key}.json`, JSON.stringify(card), { httpMetadata: { contentType: "application/json" } });
+    },
+    tileConcurrency: 6,
+  };
+}
+
+async function submitCardObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
+  let prepared: PreparedGeminiObservation;
+  try {
+    prepared = await loadPreparedGeminiObservation(request, env);
+  } catch (error) {
+    await failPendingDirectGeminiReassessment(request, error, env);
+    return;
+  }
+  const payload = reassessmentPayload(request.source_payload_json);
+  delete payload.errorCode;
+  delete payload.failedAt;
+  delete payload.batchExecution;
+  const nextPayload = JSON.stringify({
+    ...payload,
+    executionStatus: "processing",
+    attemptCount: reassessmentAttemptCount(request.source_payload_json) + 1,
+    providerMode: "card_v1",
+    modelStack: OBSERVATION_CARD_MODELS,
+    modelPlan: { primary: CARD_ID_MODEL, cards: CARD_WRITER_MODEL, tiles: CARD_TILE_MODEL },
+    promptVersion: CARD_PROMPT_VERSION,
+    ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
+    startedAt: new Date().toISOString(),
+  });
+  const claimed = await env.OBS_DB.prepare(
+    `UPDATE observation_reassessment_requests SET request_state = 'processing', source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE request_id = ? AND request_state IN ('pending', 'failed') AND source_payload_json = ?`
+  ).bind(nextPayload, request.request_id, request.source_payload_json).run() as { meta?: { changes?: number } };
+  if (Number(claimed.meta?.changes ?? 0) !== 1) return;
+  prepared.request.request_state = "processing";
+  prepared.request.source_payload_json = nextPayload;
+
+  try {
+    const result = await runObservationCardPipeline({ observedAt: prepared.record.observed_at, images: prepared.images }, observationCardDeps(prepared, env));
+    await finalizeGeminiObservationReassessment(prepared, result.merged, env, { mode: "card_v1", source: "observation_card_v1_reassessment", card: { stats: result.stats } });
+  } catch (error) {
+    await failGeminiReassessment(prepared.request, error, env);
+  }
+}
+
+async function submitInteractiveObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
+  if (observationCardModeEnabled(env) && reassessmentAttemptCount(request.source_payload_json) < 2) {
+    await submitCardObservationReassessment(request, env);
+    return;
+  }
+  await submitDirectGeminiObservationReassessment(request, env);
+}
+
 async function submitDirectGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   const rows = (await loadPendingGeminiRequests(observationIds, env)).filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
-  for (const row of rows) await submitDirectGeminiObservationReassessment(row, env);
+  for (const row of observationCardModeEnabled(env) ? rows.slice(0, OBSERVATION_CARD_MAX_PER_INVOCATION) : rows) await submitInteractiveObservationReassessment(row, env);
 }
 
 async function updateProcessingGeminiPayload(request: ObservationReassessmentRequestRow, execution: GeminiBatchExecution, env: Env, extra: Record<string, unknown> = {}): Promise<boolean> {
@@ -29088,8 +29793,9 @@ async function ensureGeminiBatch(apiKey: string, model: string, displayName: str
 async function submitGeminiObservationReassessmentGroups(observationIds: string[], env: Env): Promise<void> {
   if (!env.GEMINI_API_KEY) return;
   const pendingInitial = await loadPendingGeminiRequests(observationIds, env);
-  for (const request of pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json))) {
-    await submitDirectGeminiObservationReassessment(request, env);
+  const interactiveRows = pendingInitial.filter((row) => isInteractiveStandardReassessment(row.source_payload_json));
+  for (const request of observationCardModeEnabled(env) ? interactiveRows.slice(0, OBSERVATION_CARD_MAX_PER_INVOCATION) : interactiveRows) {
+    await submitInteractiveObservationReassessment(request, env);
   }
   let pending = (await loadPendingGeminiRequests(observationIds, env))
     .filter((row) => !isInteractiveStandardReassessment(row.source_payload_json));
@@ -29566,25 +30272,34 @@ async function finalizeGeminiObservationReassessment(
   const completedAt = new Date().toISOString();
   const specialistApplied = merged.topCandidates.some((topCandidate) => topCandidate.sourceLanes.includes("specialist"));
   const interactive = provider.mode === "direct_generate_content";
-  const providerModels = {
+  const providerModels = provider.card ? {
+    primary: CARD_ID_MODEL,
+    census: CARD_ID_MODEL,
+    environment: CARD_ID_MODEL,
+    specialist: GEMINI_SPECIALIST_MODEL,
+    summary: CARD_WRITER_MODEL,
+  } : {
     primary: GEMINI_PRIMARY_MODEL,
     census: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
     environment: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_ANALYSIS_MODEL,
     specialist: GEMINI_SPECIALIST_MODEL,
     summary: interactive ? GEMINI_PRIMARY_MODEL : GEMINI_SUMMARY_MODEL,
   };
+  const providerPromptVersion = provider.card ? CARD_PROMPT_VERSION : GEMINI_OBSERVATION_PROMPT_VERSION;
   const assessmentPayload = {
     source: provider.source,
     providerMode: provider.mode,
     providerLanes: provider.lanes ?? null,
+    cardStats: provider.card?.stats ?? null,
     models: {
       primary: providerModels.primary,
       census: providerModels.census,
       environment: providerModels.environment,
       specialist: specialistApplied ? providerModels.specialist : null,
       summary: providerModels.summary,
+      tiles: provider.card ? CARD_TILE_MODEL : null,
     },
-    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    promptVersion: providerPromptVersion,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
     assetIds: prepared.assets.map((asset) => asset.asset_id),
     sourceAssetIds: prepared.sourceAssets.map((asset) => asset.asset_id),
@@ -29636,12 +30351,15 @@ async function finalizeGeminiObservationReassessment(
     providerMode: provider.mode,
     providerLanes: provider.lanes ?? null,
     aiRunId,
-    models: interactive
-      ? [GEMINI_PRIMARY_MODEL]
-      : specialistApplied
-        ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
-        : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
-    promptVersion: GEMINI_OBSERVATION_PROMPT_VERSION,
+    cardStats: provider.card?.stats ?? null,
+    models: provider.card
+      ? OBSERVATION_CARD_MODELS
+      : interactive
+        ? [GEMINI_PRIMARY_MODEL]
+        : specialistApplied
+          ? [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SPECIALIST_MODEL, GEMINI_SUMMARY_MODEL]
+          : [GEMINI_PRIMARY_MODEL, GEMINI_ANALYSIS_MODEL, GEMINI_SUMMARY_MODEL],
+    promptVersion: providerPromptVersion,
     ruleVersion: GEMINI_OBSERVATION_RULE_VERSION,
     recordClass: merged.recordClass,
     informationState: merged.informationState,

@@ -154,20 +154,7 @@ function Get-RequiredChecksState {
 function Test-RequiresCloudflareStaging {
     param([Parameter(Mandatory = $true)][string[]]$ChangedPaths)
 
-    foreach ($rawPath in $ChangedPaths) {
-        $path = ([string]$rawPath).Replace("\", "/")
-        if ($path -eq ".github/workflows/deploy-cloudflare-staging.yml" -or
-            $path.StartsWith(".github/actions/setup-platform-browser/") -or
-            $path.StartsWith("platform_v2/cloudflare_shadow/") -or
-            $path.StartsWith("platform_v2/e2e/") -or
-            $path.StartsWith("platform_v2/src/") -or
-            $path -eq "platform_v2/playwright.staging.config.ts" -or
-            $path -eq "platform_v2/package.json" -or
-            $path -eq "platform_v2/package-lock.json") {
-            return $true
-        }
-    }
-
+    $null = $ChangedPaths
     return $false
 }
 

@@ -102,7 +102,9 @@ test("all views render and the browser script parses without Node dependencies",
 
 test("the public guide does not create a session or reveal a previous guest's records", () => {
   const html = renderBiosecurityPage("guide");
-  assert.doesNotMatch(html, /<script|fetch\(|bio-config/);
+  assert.doesNotMatch(html, /fetch\(|bio-config|biosecurity_guest/);
+  assert.match(html, /data-global-record-trigger="photo"/);
+  assert.match(html, /data-global-record-input="photo"[^>]*capture="environment"/);
   assert.match(html, /href="\/ja\/biosecurity\/records">自分の記録を見る/);
   assert.match(html, /自治体での正式受付とは異なります/);
   assert.match(html, /虫の名前や被害の有無は確定しません/);

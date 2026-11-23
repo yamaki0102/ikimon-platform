@@ -3,6 +3,7 @@ import test from "node:test";
 import type { ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import type { OwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { isObservationDetectionEvidence, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import { resolveLiveSignboardTitle } from "./index";
 import { publicObservationAiFeedback } from "./publicObservationAiPresentation";
 import { recordsDiscoveryDetailHref } from "./recordsDiscoveryContext";
 
@@ -155,12 +156,13 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /<summary[^>]*>名前を提案する<\/summary>/);
   assert.match(rendered, /見分けるポイント/);
   assert.match(rendered, /この場所のようす/);
-  assert.match(rendered, /草地と市街地の境界のようです/);
+  assert.match(rendered, /草地と市街地の境界/);
+  assert.doesNotMatch(rendered, /草地と市街地の境界のようです|写真から読み取った候補です/);
   assert.match(rendered, /つながる記録/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
-  assert.match(rendered, /主対象と環境の要素が確認できました/);
-  assert.match(rendered, /頭部とくちばしの詳細がわかる角度から撮影してください/);
+  assert.doesNotMatch(rendered, /AIからの短いメモ|主対象と環境の要素が確認できました/);
+  assert.match(rendered, /次に撮るとよい写真：頭部とくちばしの詳細/);
   assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
   assert.match(rendered, /似ている候補との比較/);
   assert.match(rendered, /ナミアゲハ/);
@@ -371,10 +373,10 @@ test("legacy unidentified sentinel is never exposed and uses a localized natural
 
 test("scene and non-detection copy is localized in every supported language", () => {
   const expectations = {
-    ja: ["この写真から見つかったもの", "この写真では、生きものの姿は見つかりませんでした"],
-    en: ["Found in this photo", "No organism was visible in this photo"],
-    es: ["Encontrado en esta foto", "En esta foto no se encontró la figura de ningún ser vivo"],
-    "pt-br": ["Encontrado nesta foto", "Nesta foto, não foi possível encontrar a figura de um ser vivo"],
+    ja: ["この写真から見つかったもの", "この写真では、場所や周囲のようすが記録されています"],
+    en: ["Found in this photo", "This photo records the place and its surroundings"],
+    es: ["Encontrado en esta foto", "Esta foto registra el lugar y su entorno"],
+    "pt-br": ["Encontrado nesta foto", "Esta foto registra o local e o seu entorno"],
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
@@ -464,7 +466,7 @@ test("a completed scene analysis without a biological candidate remains a useful
   assert.match(rendered, /水面/);
   assert.match(rendered, /低い草地/);
   assert.match(rendered, /舗装・構造物/);
-  assert.match(rendered, /この写真では、生きものの姿は見つかりませんでした/);
+  assert.match(rendered, /この写真では、場所や周囲のようすが記録されています/);
   assert.match(rendered, /この場所のようす/);
   assert.match(rendered, /写真メモ/);
   assert.match(rendered, /位置はぼかして表示/);
@@ -870,7 +872,7 @@ test("mixed AI detail retains bird evidence and mapped guidance while excluding 
   assert.match(rendered, /スズメかもしれません/);
   assert.match(rendered, /頬の黒い斑点が見えます/);
   assert.match(rendered, /翼とくちばしを横から撮る/);
-  assert.match(rendered, /翼を開いたところが撮れると比べやすくなります/);
+  assert.match(rendered, /次に撮るとよい写真：翼を開いたところ/);
 });
 
 test("human accepted claims and original notes remain visible when human AI advice is omitted", () => {
@@ -888,4 +890,519 @@ test("human accepted claims and original notes remain visible when human AI advi
   assert.equal(rendered.includes("人物の顔を近くから撮る"), false);
   assert.equal(rendered.includes("頭部および胴体の鮮明な拡大画像"), false);
   assert.equal(accepted.acceptedIdentification.claimId, "owner-person-label");
+});
+
+test("record detail renders an in-page zoomable lightbox for photos and omits it without photos", () => {
+  const withPhoto = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "庭の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [{ mediaId: "asset-photo", mediaKind: "photo", url: "https://media.example/safe-full.webp" }],
+    actionNonce: "nonce-zoom",
+  });
+  assert.match(withPhoto, /data-of-photo-trigger/);
+  assert.match(withPhoto, /data-of-lightbox/);
+  assert.match(withPhoto, /data-of-lightbox-toggle/);
+  assert.match(withPhoto, /data-of-lightbox-close/);
+  assert.match(withPhoto, /data-of-lightbox-script/);
+
+  const withoutPhoto = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "音声のみの記録",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [{ mediaId: "asset-audio", mediaKind: "audio", url: "https://media.example/audio.mp3" }],
+    actionNonce: "nonce-no-photo",
+  });
+  assert.doesNotMatch(withoutPhoto, /data-of-photo-trigger/);
+  assert.doesNotMatch(withoutPhoto, /data-of-lightbox-script/);
+});
+
+test("record detail uses theme-aware surface tokens, mobile bottom-nav clearance, and distinct AI feedback styling", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "水辺の観察",
+    observedLabel: "2026年7月22日 18:00",
+    note: null,
+    media: [{ mediaId: "asset-photo", mediaKind: "photo", url: "https://media.example/safe-full.webp" }],
+    aiFeedback: "水辺の植物と水面の状態が記録されています。",
+    actionNonce: "nonce-polish",
+  });
+  assert.match(rendered, /\.of-panel[^}]*background:var\(--paper\)/);
+  assert.match(rendered, /\.of-related-card[^}]*background:var\(--paper\)/);
+  assert.match(rendered, /margin-bottom:calc\(88px \+ env\(safe-area-inset-bottom,0px\)\)/);
+  assert.match(rendered, /\[data-ai-feedback\]\{[^}]*background:var\(--soft\)/);
+});
+
+test("record detail resolves the 7 UX polish items: open capture, readable media nav, no radio meta, no empty subject row", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({
+    ...detail,
+    owner: false,
+    observations: [{
+      ...detail.observations[0]!,
+      subjectType: "unknown_subject",
+      subjectLabel: "写っているもの",
+      acceptedIdentification: null,
+      communityIdentifications: [],
+      aiSuggestions: [],
+    }],
+  }, {
+    lang: "ja",
+    title: "水辺のトンボ",
+    observedLabel: "2026/11/22 08:15",
+    note: null,
+    publicLocationLabel: "位置をぼかしています",
+    media: [
+      { mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" },
+      { mediaId: "p2", mediaKind: "photo", url: "https://media.example/2.webp" },
+    ],
+    actionNonce: "nonce-7fixes",
+    viewerAuthenticated: false,
+  });
+  assert.match(rendered, /<details class="of-capture" open>/);
+  assert.doesNotMatch(rendered, /\.of-media-nav\{[^}]*position:absolute/);
+  assert.match(rendered, /@media\(min-width:900px\)\{.*body\[data-zukan-app-experience\] \.of-media-slide :is\(img,video\)\{width:100%/);
+  assert.doesNotMatch(rendered, /<span>◉<\/span>|<span>◌<\/span>/);
+  assert.doesNotMatch(rendered, /位置はぼかして表示/);
+  assert.doesNotMatch(rendered, /名前はこれから/);
+});
+
+test("existing landscape record without aiFeedback renders grounded environment feedback and avoids absence wording", () => {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
+    lang: "ja",
+    title: "水辺の記録",
+    observedLabel: "2026年11月22日",
+    note: null,
+    detectionState: "not_detected",
+    aiFeedback: null,
+    aiNextPhoto: null,
+    media: [{ mediaId: "scene-water", mediaKind: "photo", url: "https://media.example/water.webp" }],
+    environment: {
+      place_type: "water_edge",
+      surrounding_cover: "low_grass",
+      place_type_source: "derived",
+      surrounding_cover_source: "derived",
+      environment_record_status: "auto_draft",
+    },
+    actionNonce: "nonce-water-scene",
+    viewerAuthenticated: false,
+  });
+  assert.match(rendered, /data-ai-feedback/);
+  assert.match(rendered, /水辺/);
+  assert.doesNotMatch(rendered, /水辺のよう/);
+  assert.doesNotMatch(rendered, /生きものの姿は見つかりませんでした/);
+});
+
+test("record detail fixes media-nav contrast after appExperience, desktop image height, and ai-feedback card framing", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "水辺の観察",
+    observedLabel: "2026/11/22 08:15",
+    note: null,
+    aiFeedback: "水辺の植生が見えます。",
+    media: [
+      { mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" },
+      { mediaId: "p2", mediaKind: "photo", url: "https://media.example/2.webp" },
+    ],
+    actionNonce: "nonce-3fixes",
+    viewerAuthenticated: false,
+  });
+  assert.match(rendered, /\.of-media-nav a\{[^}]*color:var\(--ink\)/);
+  assert.match(rendered, /body\[data-zukan-app-experience\] \.of-media-slide :is\(img,video\)\{[^}]*height:calc\(100vh - 96px\)/);
+  assert.match(rendered, /body\[data-zukan-app-experience\] \.of-note\[data-ai-feedback\]\{[^}]*border:1px solid var\(--green\);border-radius:17px/);
+});
+
+test("rendered desktop 1440x900 page scales portrait photo height >= 600 and frames ai-feedback card", async () => {
+  const { existsSync } = await import("node:fs");
+  const chromePath = "/home/nexus/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome";
+  if (!existsSync(chromePath)) return;
+  const { chromium } = await import("playwright-core");
+  const portraitSvg = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="330" height="446" viewBox="0 0 330 446"><rect width="330" height="446" fill="#245c3a"/></svg>');
+  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "水辺の観察",
+    observedLabel: "2026/11/22 08:15",
+    note: null,
+    aiFeedback: "水辺の植生が見えます。",
+    media: [{ mediaId: "p1", mediaKind: "photo", url: portraitSvg }],
+    actionNonce: "nonce-browser-measure",
+    viewerAuthenticated: false,
+  });
+  const browser = await chromium.launch({ executablePath: chromePath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.setContent(rendered, { waitUntil: "load" });
+    const metrics = await page.evaluate(() => {
+      const img = document.querySelector(".of-media-slide img");
+      const feedback = document.querySelector("[data-ai-feedback]");
+      const imgRect = img ? img.getBoundingClientRect() : null;
+      const feedbackStyle = feedback ? getComputedStyle(feedback) : null;
+      return {
+        imgHeight: imgRect ? imgRect.height : 0,
+        borderRadius: feedbackStyle ? feedbackStyle.borderRadius : "",
+        borderTopWidth: feedbackStyle ? feedbackStyle.borderTopWidth : "",
+        borderLeftWidth: feedbackStyle ? feedbackStyle.borderLeftWidth : "",
+        backgroundColor: feedbackStyle ? feedbackStyle.backgroundColor : "",
+      };
+    });
+    assert.ok(metrics.imgHeight >= 600, `expected portrait imgHeight >= 600, got ${metrics.imgHeight}`);
+    assert.equal(metrics.borderRadius, "17px");
+    assert.equal(metrics.borderTopWidth, "1px");
+    assert.equal(metrics.borderLeftWidth, "1px");
+    assert.notEqual(metrics.backgroundColor, "rgb(255, 255, 255)");
+  } finally {
+    await browser.close();
+  }
+});
+
+test("card mode renders each heading and candidate once without advice prose, comparison lead, or awaiting placeholder", () => {
+  const rendered = renderObservationFirstRecordDetailHtml(
+    {
+      ...detail,
+      owner: false,
+      observationCount: 2,
+      observations: [
+        detail.observations[0]!,
+        {
+          ...detail.observations[0]!,
+          observationId: "obs-2",
+          subjectLabel: "写っているもの",
+          acceptedIdentification: null,
+          aiSuggestions: [],
+          communityIdentifications: [],
+        },
+      ],
+    },
+    {
+      lang: "ja",
+      title: "ナミアゲハ",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: null,
+      aiNextPhoto: "腹部の裏面",
+      aiCandidateInsights: [
+        {
+          name: "ナミアゲハ",
+          scientificName: "Papilio xuthus",
+          supportingFeatures: ["前翅の黒と黄の模様"],
+          missingFeatures: ["腹部の裏面"],
+          contradictions: [],
+        },
+      ],
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-dedup",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.equal((rendered.match(/ナミアゲハかもしれません/g) ?? []).length, 1);
+  assert.equal((rendered.match(/ログインして名前を提案する/g) ?? []).length, 1);
+  assert.equal((rendered.match(/<small>候補<\/small>/g) ?? []).length, 1);
+  assert.doesNotMatch(rendered, /写っているもの/);
+  assert.doesNotMatch(rendered, /写真から見える特徴と、まだ確認できない点を並べています/);
+  assert.doesNotMatch(rendered, /名前はこれから/);
+  assert.match(rendered, /次に撮るとよい写真：腹部の裏面/);
+  const feedbackBlock = rendered.match(/data-ai-feedback[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.doesNotMatch(feedbackBlock, /比べやすくなります/);
+});
+
+test("card mode suppresses saved advice prose, trims next_photo to a noun, omits photoInference/hedge wording, and deduplicates evidence", () => {
+  const cardWithDupEvidence = {
+    ...detail.observations[0]!,
+    aiSuggestions: [
+      {
+        suggestionId: "ai-dup",
+        proposedName: "ナミアゲハ",
+        proposedScientificName: "Papilio xuthus",
+        proposedRank: "species",
+        visualEvidence: ["実物の生体詳細"],
+        shootingAdvice: ["腹部の裏面を撮影すると比べやすくなります"],
+        provisional: true as const,
+      },
+    ],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [cardWithDupEvidence] },
+    {
+      lang: "ja",
+      title: "ナミアゲハ",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: "全景とあわせて特徴的な模様を撮影することで、情報のつながりがより伝わりやすくなります。あわせて記録することをおすすめします。",
+      aiNextPhoto: "腹部の裏面が分かる角度からの撮影",
+      aiCandidateInsights: [
+        {
+          name: "ナミアゲハ",
+          scientificName: "Papilio xuthus",
+          supportingFeatures: ["実物の生体詳細"],
+          missingFeatures: ["後翅の模様"],
+          contradictions: [],
+        },
+      ],
+      environment: { place_type: "woodland", environment_record_status: "auto_draft" },
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-concise",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.doesNotMatch(rendered, /AIからの短いメモ|伝わりやすくなります|おすすめします/);
+  assert.match(rendered, /次に撮るとよい写真：腹部の裏面<\/p>/);
+  assert.doesNotMatch(rendered, /が分かる角度からの撮影/);
+  assert.doesNotMatch(rendered, /写真から読み取った候補です/);
+  assert.match(rendered, />林の中<\/p>/);
+  assert.doesNotMatch(rendered, /林の中のようです/);
+  assert.equal((rendered.match(/実物の生体詳細/g) ?? []).length, 1);
+});
+
+test("AI sections carry explicit AI label across all locales and consolidate next-photo guidance without repeating missing features", () => {
+  const card = {
+    ...detail.observations[0]!,
+    aiSuggestions: [
+      {
+        suggestionId: "ai-cons",
+        proposedName: "ナミアゲハ",
+        proposedScientificName: "Papilio xuthus",
+        proposedRank: "species",
+        visualEvidence: ["前翅の模様"],
+        shootingAdvice: ["実物の生体や周囲の自然環境の詳細が分かる部位・角度"],
+        provisional: true as const,
+      },
+    ],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [card] },
+    {
+      lang: "ja",
+      title: "ナミアゲハ",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: null,
+      aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
+      aiCandidateInsights: [
+        {
+          name: "ナミアゲハ",
+          scientificName: "Papilio xuthus",
+          supportingFeatures: ["前翅の模様"],
+          missingFeatures: ["実物の生体詳細"],
+          contradictions: [],
+        },
+      ],
+      sceneElements: ["trees_shrubs"],
+      detectionState: "detected",
+      environment: { place_type: "woodland", environment_record_status: "auto_draft" },
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-ai-label",
+      viewerAuthenticated: false,
+    },
+  );
+  const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
+  const visibleText = bodyHtml.replace(/<[^>]*>/gu, " ");
+  assert.match(visibleText, /題名とこの文章はAIが作成しました/);
+  assert.match(visibleText, /この説明はAIが作成しました/);
+  assert.match(visibleText, /この場所のようすはAIが読み取りました/);
+  assert.equal((bodyHtml.match(/class="of-ai-note"/g) ?? []).length, 3);
+  assert.equal((bodyHtml.match(/AIのコメント/g) ?? []).length, 1);
+  assert.match(rendered, /確認の印がない名前と場所のようすは、AIが推定したものです。/);
+  assert.doesNotMatch(rendered, /of-ai-badge|AIの見立て|AIからの短いメモ|AIが見つけた/);
+  assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
+  assert.doesNotMatch(rendered, /未確認/);
+  assert.match(rendered, /次に撮るとよい写真：実物の生体や周囲の自然環境<\/p>/);
+  assert.doesNotMatch(rendered, /の詳細が分かる部位・角度/);
+});
+
+test("signboard record with saved illustration-deer candidate suppresses organism candidate and shows 案内板", () => {
+  const signCard = {
+    ...detail.observations[0]!,
+    aiSuggestions: [
+      {
+        suggestionId: "ai-sign",
+        proposedName: "案内板のイラストのシカ",
+        proposedScientificName: null,
+        proposedRank: "species",
+        visualEvidence: ["「四日市市少年自然の家パノラマ図」の案内板"],
+        shootingAdvice: [],
+        provisional: true as const,
+      },
+    ],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [signCard] },
+    {
+      lang: "ja",
+      title: "自然の記録",
+      titleIsFallback: true,
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: null,
+      aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
+      aiCandidateInsights: [
+        {
+          name: "案内板のイラストのシカ",
+          scientificName: null,
+          supportingFeatures: ["「四日市市少年自然の家パノラマ図」の案内板"],
+          missingFeatures: [],
+          contradictions: [],
+        },
+      ],
+      sceneElements: ["trees_shrubs"],
+      detectionState: "detected",
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-signboard",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.match(rendered, /<h1>四日市市少年自然の家パノラマ図<\/h1>/);
+  assert.doesNotMatch(rendered, /<h1>自然の記録<\/h1>/);
+  assert.doesNotMatch(rendered, /シカかもしれません|案内板のイラストのシカ/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真：実物の生体/);
+  assert.equal((rendered.match(/この写真から見つかったもの/g) ?? []).length, 1);
+  assert.match(rendered, /写っているもの：案内板/);
+  const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
+  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/この説明はAIが作成しました/g) ?? []).length, 1);
+
+  const signCardNoQuote = {
+    ...signCard,
+    aiSuggestions: [
+      {
+        ...signCard.aiSuggestions[0]!,
+        visualEvidence: ["案内板のイラスト"],
+      },
+    ],
+  };
+  const withFallbackOcrTitle = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [signCardNoQuote] },
+    {
+      lang: "ja",
+      title: "自然の記録",
+      titleIsFallback: true,
+      observedLabel: "2026-11-23 09:00",
+      publicLocationLabel: "四日市市",
+      note: "",
+      media: [],
+      actionNonce: "nonce-signboard-2",
+      signboardTitle: "四日市市少年自然の家パノラマ図",
+      aiFeedback: "",
+    },
+  );
+  assert.match(withFallbackOcrTitle, /<title>四日市市少年自然の家パノラマ図 \| ZUKAN<\/title>/);
+  assert.match(withFallbackOcrTitle, /<h1>四日市市少年自然の家パノラマ図<\/h1>/);
+});
+
+test("resolveLiveSignboardTitle runs OCR in waitUntil without blocking first render and caches failures for 24h", async () => {
+  const bucket = new Map<string, string>();
+  const env = {
+    GEMINI_API_KEY: "test-key",
+    ASSET_BUCKET: {
+      async get(key: string) {
+        const val = bucket.get(key);
+        if (val === undefined) return null;
+        return { body: new Response(val).body, httpMetadata: { contentType: "application/json" } };
+      },
+      async put(key: string, value: string) {
+        bucket.set(key, value);
+      },
+    },
+    OBS_DB: {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                return { public_derivative_key: "photo/1.webp", mime: "image/webp" };
+              },
+            };
+          },
+        };
+      },
+    },
+  } as unknown as Parameters<typeof resolveLiveSignboardTitle>[2];
+
+  bucket.set("photo/1.webp", "fake-bytes");
+  const pending: Promise<unknown>[] = [];
+  const ctx = { waitUntil(p: Promise<unknown>) { pending.push(p); } } as unknown as Parameters<typeof resolveLiveSignboardTitle>[3];
+  const origFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = (async () => {
+    fetchCalls += 1;
+    return new Response("upstream error", { status: 500 });
+  }) as typeof fetch;
+
+  try {
+    const first = await resolveLiveSignboardTitle("visit-fail", "asset-1", env, ctx);
+    assert.equal(first, null);
+    assert.equal(pending.length, 1, "first miss schedules background OCR via waitUntil");
+    await Promise.all(pending);
+    assert.equal(fetchCalls, 1);
+
+    const cachedRaw = bucket.get("signboard-title/visit-fail.json");
+    assert.ok(cachedRaw, "failure must be persisted in R2 cache");
+    assert.equal(JSON.parse(cachedRaw).status, "failed");
+
+    const secondPending: Promise<unknown>[] = [];
+    const secondCtx = { waitUntil(p: Promise<unknown>) { secondPending.push(p); } } as unknown as Parameters<typeof resolveLiveSignboardTitle>[3];
+    const second = await resolveLiveSignboardTitle("visit-fail", "asset-1", env, secondCtx);
+    assert.equal(second, null);
+    assert.equal(secondPending.length, 0, "failed OCR must not be retried within 24h");
+    assert.equal(fetchCalls, 1);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test("record detail shows owner title edit form and role-based provenance without user names", () => {
+  const withMultiProposers = {
+    ...detail,
+    owner: true,
+    observations: [
+      {
+        ...detail.observations[0]!,
+        acceptedIdentification: { claimId: "acc-1", actorType: "owner" as const, actorId: "u1", proposalActorType: "owner" as const, proposedName: "キアゲハ", proposedScientificName: null, proposedRank: "species", humanDecision: true as const },
+        communityIdentifications: [
+          { claimId: "c1", actorType: "community_member" as const, proposedName: "ナミアゲハ", proposedScientificName: null, proposedRank: "species", stance: "support" as const, accepted: false },
+          { claimId: "c2", actorType: "community_member" as const, proposedName: "ナミアゲハ", proposedScientificName: null, proposedRank: "species", stance: "support" as const, accepted: false },
+        ],
+      },
+    ],
+  };
+  const ownerHtml = renderObservationFirstRecordDetailHtml(withMultiProposers, {
+    lang: "ja",
+    title: "キアゲハ",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-roles",
+  });
+  assert.match(ownerHtml, /class="of-title-edit"/);
+  assert.match(ownerHtml, /name="action" value="set_title"/);
+  assert.match(ownerHtml, /記録した人が確認/);
+  assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
+
+  const withCustomTitle = renderObservationFirstRecordDetailHtml(withMultiProposers, {
+    lang: "ja",
+    title: "キアゲハ",
+    customTitle: "里山のチョウと野草",
+    aiFeedback: "林縁の草地でよく見られます。",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-custom-title",
+  });
+  assert.match(withCustomTitle, /<h1>里山のチョウと野草<\/h1>/);
+  assert.match(withCustomTitle, /name="action" value="reset_title"/);
+  assert.match(withCustomTitle, /自動の題名に戻す/);
+  assert.match(withCustomTitle, /この文章はAIが作成しました/);
+  assert.doesNotMatch(withCustomTitle, /題名とこの文章はAIが作成しました/);
+
+  const guestHtml = renderObservationFirstRecordDetailHtml({ ...withMultiProposers, owner: false }, {
+    lang: "ja",
+    title: "キアゲハ",
+    observedLabel: "2026年11月23日",
+    publicLocationLabel: "静岡県浜松市",
+    note: "",
+    media: [],
+    actionNonce: "nonce-roles-guest",
+  });
+  assert.doesNotMatch(guestHtml, /class="of-title-edit"/);
 });

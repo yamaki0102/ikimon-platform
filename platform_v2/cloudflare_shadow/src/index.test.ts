@@ -14,7 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
-import { worker } from "./index";
+import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -1789,6 +1789,7 @@ interface GbifJapaneseNameDisplayAuditTestRow {
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
+  waitlist = new Map<string, { id: string; email: string; locale: string; source_path: string; created_at: number }>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
   areaSubscriptionStats = new Map<string, AreaSubscriptionStatsRow>();
@@ -1951,6 +1952,22 @@ class FakeStatement {
   async run(): Promise<unknown> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS zukan_waitlist")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT OR IGNORE INTO zukan_waitlist")) {
+      const email = string(v[1]);
+      if (this.db.waitlist.has(email)) return { meta: { changes: 0 } };
+      this.db.waitlist.set(email, {
+        id: string(v[0]),
+        email,
+        locale: string(v[2]),
+        source_path: string(v[3]),
+        created_at: number(v[4])
+      });
+      return { meta: { changes: 1 } };
+    }
 
     if (normalized.startsWith("INSERT OR IGNORE INTO observation_event_guest_media")) {
       const submissionId = string(v[0]);
@@ -5094,8 +5111,19 @@ class FakeStatement {
     if (normalized === "SELECT 1 AS ok") {
       return ({ ok: 1 } as T);
     }
+    if (normalized === "SELECT COUNT(*) AS count FROM zukan_waitlist") {
+      return ({ count: this.db.waitlist.size } as T);
+    }
 
     const v = this.values;
+
+    if (normalized.startsWith("SELECT public_derivative_key FROM asset_ledger WHERE observation_id IN")) {
+      const ids = v.map(string);
+      const match = [...this.db.assets.values()].find((asset) =>
+        asset.observation_id && ids.includes(asset.observation_id) && asset.processing_state === "uploaded" && asset.public_derivative_key
+      );
+      return match ? ({ public_derivative_key: match.public_derivative_key } as T) : null;
+    }
 
     if (normalized.startsWith("SELECT submission_id, session_id, participant_id, actor_user_id, asset_key, request_sha256, media_sha256")) {
       const row = normalized.includes("WHERE session_id = ? AND participant_id = ? AND idempotency_key = ?")
@@ -6560,6 +6588,7 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+
     if (normalized.startsWith("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")) {
       return { results: [...this.db.oauthAccounts.values()].filter((row) => row.user_id === string(v[0])).map((row) => ({ role_name: row.role_name, banned: row.banned })) as T[] };
     }
@@ -6842,13 +6871,19 @@ class FakeStatement {
         }));
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT visit_id, observed_at FROM production_import_visits")) {
+    if (normalized.startsWith("SELECT visit_id, observed_at, legacy_observation_id, user_id FROM production_import_visits")
+      || normalized.startsWith("SELECT visit_id, observed_at FROM production_import_visits")) {
       const placeId = string(v[0]);
       const rows = [...this.db.productionVisits.values()]
         .filter((row) => row.place_id === placeId && (row.public_visibility ?? "public") !== "private")
         .sort((a, b) => (b.observed_at ?? "").localeCompare(a.observed_at ?? "") || b.visit_id.localeCompare(a.visit_id))
         .slice(0, 80)
-        .map((row) => ({ visit_id: row.visit_id, observed_at: row.observed_at }));
+        .map((row) => ({
+          visit_id: row.visit_id,
+          observed_at: row.observed_at,
+          legacy_observation_id: row.legacy_observation_id,
+          user_id: row.user_id,
+        }));
       return { results: rows as T[] };
     }
     if (normalized.startsWith("SELECT occurrence_id, scientific_name, vernacular_name FROM production_import_occurrences")) {
@@ -13153,7 +13188,7 @@ test("production place management policy API writes to D1 without origin fallbac
   assert.equal(stored?.policy_json, JSON.stringify({ source: "cloudflare_place_management_policy_runtime" }));
 });
 
-test("v1 auth register keeps original form contract with Cloudflare-native sessions", async () => {
+test("v1 auth register is closed in favor of the waitlist and never creates accounts", async () => {
   const { env, core } = createEnv();
   const registerResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
     method: "POST",
@@ -13169,43 +13204,15 @@ test("v1 auth register keeps original form contract with Cloudflare-native sessi
       redirect: "/record"
     })
   }), env);
-  const registerPayload = await registerResponse.json() as any;
-  assert.equal(registerResponse.ok, true, JSON.stringify(registerPayload));
-  assert.equal(registerPayload.ok, true);
-  assert.equal(registerPayload.redirect, "/record?start=photo");
-  assert.match(registerPayload.session.userId, /^user_/);
-  assert.equal(registerPayload.session.displayName, "Register User");
-  assert.equal(registerPayload.session.roleName, "Observer");
-  assert.equal(registerPayload.session.rankLabel, "観察者");
-  assert.equal(core.users.has(registerPayload.session.userId), true);
-  const stored = core.authUsers.get("newuser@example.test");
-  assert.equal(stored?.user_id, registerPayload.session.userId);
-  assert.equal(stored?.display_name, "Register User");
-  assert.equal(await bcrypt.compare("register-password", stored?.password_hash ?? ""), true);
-  assert.equal(core.authSessions.size, 1);
-  assert.match(registerResponse.headers.get("set-cookie") ?? "", /^ikimon_v2_session=/);
-
-  const sessionResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session", {
-    headers: { cookie: registerResponse.headers.get("set-cookie") ?? "" }
-  }), env);
-  const sessionPayload = await sessionResponse.json() as any;
-  assert.equal(sessionResponse.ok, true, JSON.stringify(sessionPayload));
-  assert.equal(sessionPayload.session.userId, registerPayload.session.userId);
-
-  const duplicateResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      origin: "https://shadow.test"
-    },
-    body: JSON.stringify({
-      displayName: "Register User 2",
-      email: "newuser@example.test",
-      password: "register-password"
-    })
-  }), env);
-  assert.equal(duplicateResponse.status, 409);
-  assert.deepEqual(await duplicateResponse.json(), { ok: false, error: "email_already_registered" });
+  assert.equal(registerResponse.status, 403);
+  assert.deepEqual(await registerResponse.json(), {
+    ok: false,
+    error: "registration_closed_waitlist_only",
+    waitlistUrl: "/ja/waitlist"
+  });
+  assert.equal(core.users.size, 0);
+  assert.equal(core.authUsers.size, 0);
+  assert.equal(core.authSessions.size, 0);
 
   const crossOriginResponse = await worker.fetch(new Request("https://shadow.test/api/v1/auth/register", {
     method: "POST",
@@ -13222,6 +13229,113 @@ test("v1 auth register keeps original form contract with Cloudflare-native sessi
   }), env);
   assert.equal(crossOriginResponse.status, 403);
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("first-time OAuth login redirects to waitlist and does not create a user account", async () => {
+  const { env, core } = createEnv();
+  const callback = await runOAuthCallback(env, {
+    provider: "google",
+    id: "brand-new-oauth-user",
+    email: "brand-new-oauth@example.test",
+    verified: true
+  });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.users.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  assert.equal(core.authSessions.size, 0);
+});
+
+test("register and waitlist pages serve minimal waitlist form and store submissions with admin summary", async () => {
+  const { env, core } = createEnv();
+
+  const registerHtmlRes = await worker.fetch(new Request("https://shadow.test/ja/register"), env);
+  assert.equal(registerHtmlRes.status, 200);
+  const registerHtml = await registerHtmlRes.text();
+  assert.match(registerHtml, /ウェイティングリストに登録/);
+  assert.match(registerHtml, /data-global-record-trigger="photo"/);
+  assert.match(registerHtml, /capture="environment"/);
+  assert.match(registerHtml, /\/ja\/login/);
+
+  const enWaitlistRes = await worker.fetch(new Request("https://shadow.test/en/waitlist"), env);
+  assert.equal(enWaitlistRes.status, 200);
+  assert.match(await enWaitlistRes.text(), /Join the waitlist/);
+
+  const invalidRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "not-an-email", locale: "ja" })
+  }), env);
+  assert.equal(invalidRes.status, 400);
+  assert.deepEqual(await invalidRes.json(), { ok: false, error: "invalid_email" });
+
+  const submitRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: " Waiter@Example.com ", locale: "ja", sourcePath: "/ja/register" })
+  }), env);
+  assert.equal(submitRes.status, 200);
+  assert.deepEqual(await submitRes.json(), { ok: true, alreadyRegistered: false });
+  assert.equal(core.waitlist.size, 1);
+  assert.equal(core.authUsers.size, 0);
+
+  const dupRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "waiter@example.com", locale: "ja" })
+  }), env);
+  assert.equal(dupRes.status, 200);
+  assert.deepEqual(await dupRes.json(), { ok: true, alreadyRegistered: true });
+  assert.equal(core.waitlist.size, 1);
+
+  const hpRes = await worker.fetch(new Request("https://shadow.test/api/v1/waitlist", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({ email: "bot@example.com", website: "https://spam.example" })
+  }), env);
+  assert.equal(hpRes.status, 200);
+  assert.equal(core.waitlist.size, 1);
+
+  const unauthSummary = await worker.fetch(new Request("https://shadow.test/api/v1/admin/waitlist/summary"), env);
+  assert.equal(unauthSummary.status, 401);
+
+  const adminIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      userId: "waitlist-admin-1",
+      rawToken: "waitlist-admin-token",
+      displayName: "Admin",
+      roleName: "Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const adminCookie = adminIssue.headers.get("set-cookie") ?? "";
+
+  const adminSummary = await worker.fetch(new Request("https://shadow.test/api/v1/admin/waitlist/summary", {
+    headers: { cookie: adminCookie }
+  }), env);
+  assert.equal(adminSummary.status, 200);
+  assert.deepEqual(await adminSummary.json(), { ok: true, count: 1 });
 });
 
 test("v1 auth login keeps original form contract with Cloudflare-native sessions", async () => {
@@ -13323,6 +13437,22 @@ test("v1 auth login keeps original form contract with Cloudflare-native sessions
   }), env);
   assert.equal(crossOriginResponse.status, 403);
   assert.deepEqual(await crossOriginResponse.json(), { ok: false, error: "same_origin_required" });
+});
+
+test("first-time OAuth login redirects to waitlist and does not create a user account", async () => {
+  const { env, core } = createEnv();
+  const callback = await runOAuthCallback(env, {
+    provider: "google",
+    id: "brand-new-oauth-user",
+    email: "brand-new-oauth@example.test",
+    verified: true
+  });
+  assert.equal(callback.status, 303);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.users.size, 0);
+  assert.equal(core.oauthAccounts.size, 0);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("v1 auth login accepts legacy php bcrypt 2y hashes", async () => {
@@ -14446,6 +14576,62 @@ test("Cloudflare public visibility transition emits an area-watch delivery after
   const deliveries = [...core.alertDeliveries.values()].filter((row) => row.trigger_kind === "area_watch");
   assert.equal(deliveries.length, 1);
   assert.equal(deliveries[0]?.occurrence_id, "occ:visibility-transition-record:0");
+});
+
+test("record title round-trip saves to record-title/${recordId}.json and renders updated title on reload", async () => {
+  const { env: baseEnv } = createEnv();
+  const env = { ...baseEnv, OBSERVATION_DUAL_WRITE_MODE: "on", OBSERVATION_READ_CUTOVER_MODE: "on" };
+  const recordId = "title-roundtrip-record";
+  const ownerId = "title-roundtrip-owner";
+  const rawToken = "title-roundtrip-token";
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: ownerId,
+      rawToken,
+      displayName: "Title Owner",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const cookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const upsert = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      observationId: recordId,
+      userId: ownerId,
+      observedAt: "2026-11-23T00:00:00.000Z",
+      latitude: 34.71234,
+      longitude: 137.81234,
+      visibility: "public",
+      note: "",
+      taxon: { vernacularName: "初期タイトル", rank: "species" },
+      sourcePayload: { source: "title_roundtrip_test" }
+    })
+  }), baseEnv);
+  assert.equal(upsert.status, 201);
+
+  const saveRes = await worker.fetch(new Request(`https://shadow.test/api/v1/records/${recordId}/observation-actions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      origin: "https://shadow.test",
+      cookie
+    },
+    body: new URLSearchParams({
+      action: "set_title",
+      title: "ヤツデの葉の観察",
+      operation_id: "title-roundtrip-op-1",
+      return_lang: "ja"
+    })
+  }), env);
+  assert.equal(saveRes.status, 303);
+  const storedTitle = await env.ASSET_BUCKET.get(`record-title/${recordId}.json`);
+  assert.ok(storedTitle);
+  const storedJson = JSON.parse(await new Response(storedTitle.body).text()) as { title?: string };
+  assert.equal(storedJson.title, "ヤツデの葉の観察");
 });
 
 test("Cloudflare personal alerts page past suppressed rows to return older visible updates", async () => {
@@ -15655,7 +15841,21 @@ test("production custom-domain register can create a private post without public
     return new Response("fallback should not be called", { status: 599 });
   }) as typeof fetch;
   try {
-    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+    const seededPasswordHash = await bcrypt.hash("register-password", 10);
+    await productionEnv.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      "user_production_register_seed",
+      "production-register@example.test",
+      seededPasswordHash,
+      "Production Register User",
+      "Observer",
+      "観察者",
+      0
+    ).run();
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -15663,19 +15863,17 @@ test("production custom-domain register can create a private post without public
         "sec-fetch-site": "same-origin"
       },
       body: JSON.stringify({
-        displayName: "Production Register User",
         email: "production-register@example.test",
         password: "register-password",
         redirect: "/record"
       })
     }), productionEnv);
-    const registerPayload = await registerResponse.json() as any;
-    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
-    assert.equal(registerPayload.ok, true);
-    assert.equal(registerPayload.redirect, "/record?start=photo");
-    assert.match(registerResponse.headers.get("set-cookie") ?? "", /Secure/);
-    const cookie = registerResponse.headers.get("set-cookie") ?? "";
-    const userId = String(registerPayload.session.userId);
+    const loginPayload = await loginResponse.json() as any;
+    assert.equal(loginResponse.status, 200, JSON.stringify(loginPayload));
+    assert.equal(loginPayload.ok, true);
+    assert.match(loginResponse.headers.get("set-cookie") ?? "", /Secure/);
+    const cookie = loginResponse.headers.get("set-cookie") ?? "";
+    const userId = String(loginPayload.session.userId);
     assert.equal(core.authUsers.get("production-register@example.test")?.user_id, userId);
 
     const upsertResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observations/upsert", {
@@ -15733,7 +15931,21 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
   globalThis.fetch = (async () => new Response("fallback should not be called", { status: 599 })) as typeof fetch;
   try {
     const credentialField = "pass" + "word";
-    const registerResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/register", {
+    const seededPasswordHash = await bcrypt.hash("register-pass", 10);
+    await productionEnv.CORE_DB.prepare(
+      `INSERT INTO auth_users
+       (user_id, email, password_hash, display_name, role_name, rank_label, banned)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      "user_production_idempotency_seed",
+      "production-idempotency@example.test",
+      seededPasswordHash,
+      "Production Idempotency User",
+      "Observer",
+      "観察者",
+      0
+    ).run();
+    const loginResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/login", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -15741,16 +15953,15 @@ test("production custom-domain observation upsert reuses D1 idempotency before c
         "sec-fetch-site": "same-origin"
       },
       body: JSON.stringify({
-        displayName: "Production Idempotency User",
         email: "production-idempotency@example.test",
         [credentialField]: "register-pass",
         redirect: "/record"
       })
     }), productionEnv);
-    const registerPayload = await registerResponse.json() as any;
-    assert.equal(registerResponse.status, 200, JSON.stringify(registerPayload));
-    const cookie = registerResponse.headers.get("set-cookie") ?? "";
-    const userId = String(registerPayload.session.userId);
+    const loginPayload = await loginResponse.json() as any;
+    assert.equal(loginResponse.status, 200, JSON.stringify(loginPayload));
+    const cookie = loginResponse.headers.get("set-cookie") ?? "";
+    const userId = String(loginPayload.session.userId);
     assert.equal(core.authUsers.get("production-idempotency@example.test")?.user_id, userId);
 
     const baseBody = {
@@ -18972,6 +19183,20 @@ test("production oauth callback creates Cloudflare-native session from provider 
   const state = new URL(start.headers.get("location") ?? "").searchParams.get("state");
   assert.ok(state);
 
+  core.users.add("existing-google-user-1");
+  core.oauthAccounts.set("google:google-user-1", {
+    user_id: "existing-google-user-1",
+    provider: "google",
+    provider_user_id: "google-user-1",
+    provider_email: "google-user@example.test",
+    display_name: "Google User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: null
+  });
+
   const originalFetch = globalThis.fetch;
   const seen: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -19030,6 +19255,20 @@ test("production app oauth returns an exchange code instead of a raw session tok
 
   const start = await worker.fetch(new Request("https://ikimon.life/app_oauth_start.php?provider=google&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback&install_id=install-1&platform=android&app_version=0.8.1"), productionEnv);
   assert.equal(start.status, 303);
+
+  core.users.add("existing-google-app-user-1");
+  core.oauthAccounts.set("google:google-app-user-1", {
+    user_id: "existing-google-app-user-1",
+    provider: "google",
+    provider_user_id: "google-app-user-1",
+    provider_email: "google-app-user@example.test",
+    display_name: "Google App User",
+    role_name: "Observer",
+    rank_label: "観察者",
+    banned: 0,
+    profile_json: "{}",
+    linked_at: null
+  });
   const stateCookie = start.headers.get("set-cookie") ?? "";
   assert.match(stateCookie, /^ikimon_oauth_state=/);
   const startLocation = new URL(start.headers.get("location") ?? "");
@@ -19209,17 +19448,15 @@ test("oauth app callback reports the email conflict without issuing an exchange 
   assert.equal(core.oauthAccounts.size, 0);
 });
 
-test("oauth callback still creates a new user when the Google email matches no account", async () => {
+test("oauth callback redirects to waitlist instead of creating a new user when the Google email matches no account", async () => {
   const { env, core } = createEnv();
   seedPasswordAccount(core, "someone-else@example.test");
   const callback = await runOAuthCallback(env, { provider: "google", id: "google-fresh-1", email: "fresh@example.test" });
   assert.equal(callback.status, 303);
-  assert.equal(callback.headers.get("location"), "/record");
-  assert.match(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=/);
-  const linked = core.oauthAccounts.get("google:google-fresh-1");
-  assert.ok(linked?.user_id);
-  assert.notEqual(linked.user_id, "preclaimed-user");
-  assert.equal(core.authSessions.size, 1);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.doesNotMatch(callback.headers.get("set-cookie") ?? "", /ikimon_v2_session=[^;]/);
+  assert.equal(core.oauthAccounts.get("google:google-fresh-1"), undefined);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("oauth callback still logs in an already linked identity", async () => {
@@ -19245,16 +19482,14 @@ test("oauth callback still logs in an already linked identity", async () => {
   assert.deepEqual([...core.authSessions.values()].map((session) => session.user_id), ["linked-user"]);
 });
 
-test("oauth twitter identity without email never links by email", async () => {
+test("oauth twitter identity without email never links by email and redirects to waitlist", async () => {
   const { env, core } = createEnv();
   seedPasswordAccount(core, "victim@example.test");
   const callback = await runOAuthCallback(env, { provider: "twitter", id: "x-user-1", email: null });
   assert.equal(callback.status, 303);
-  assert.equal(callback.headers.get("location"), "/record");
-  const linked = core.oauthAccounts.get("twitter:x-user-1");
-  assert.ok(linked?.user_id);
-  assert.notEqual(linked.user_id, "preclaimed-user");
-  assert.equal(core.authSessions.size, 1);
+  assert.equal(callback.headers.get("location"), "/ja/waitlist?from=oauth");
+  assert.equal(core.oauthAccounts.get("twitter:x-user-1"), undefined);
+  assert.equal(core.authSessions.size, 0);
 });
 
 test("production oauth start fails closed when provider secrets are not configured", async () => {
@@ -20006,6 +20241,18 @@ test("observation event guest checkin keeps credentials server-side and location
   assert.equal(injectedQueryRecap.status, 403);
   assert.equal((await injectedQueryRecap.json() as any).error, "event participant required");
 
+  const nonParticipantRecapPage = await worker.fetch(
+    new Request(`https://ikimon.life/ja/events/${created.sessionId}/recap`),
+    productionEnv
+  );
+  assert.equal(nonParticipantRecapPage.status, 403);
+  assert.match(nonParticipantRecapPage.headers.get("content-type") ?? "", /text\/html/);
+  const nonParticipantRecapHtml = await nonParticipantRecapPage.text();
+  assert.match(nonParticipantRecapHtml, /参加者のみ閲覧できます/);
+  assert.match(nonParticipantRecapHtml, /href="\/ja\/community\/events"|href="\/community\/events"/);
+  assert.match(nonParticipantRecapHtml, /zukan-app-nav is-bottom/);
+  assert.doesNotMatch(nonParticipantRecapHtml, /event participant required/);
+
   const concurrentEventResponse = await worker.fetch(new Request("https://ikimon.life/api/v1/observation-events", {
     method: "POST",
     headers: { "content-type": "application/json", cookie: organizerCookie },
@@ -20512,10 +20759,10 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "掲載中の公開企画はまだありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
-    { prefix: "en", title: "Join", empty: "No public programs are listed yet", failed: "Couldn’t load programs.", retry: "Reload" },
-    { prefix: "es", title: "Participar", empty: "Todavía no hay actividades públicas publicadas", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
-    { prefix: "pt-br", title: "Participar", empty: "Ainda não há atividades públicas publicadas", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
+    { prefix: "ja", title: "参加", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "en", title: "Join", empty: "No public events", failed: "Couldn’t load programs.", retry: "Reload" },
+    { prefix: "es", title: "Participar", empty: "No hay eventos públicos", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
+    { prefix: "pt-br", title: "Participar", empty: "Não há eventos públicos", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
   ];
 
   for (const item of cases) {
@@ -20528,14 +20775,8 @@ test("public participation list distinguishes empty and failed loads in the requ
     assert.ok(html.includes(`<title>${item.title} | ZUKAN</title>`));
     assert.ok(main.includes(item.empty));
     if (item.prefix === "ja") {
-      const visibleText = html
-        .replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1>/giu, " ")
-        .replace(/<!--[\s\S]*?-->/gu, " ")
-        .replace(/<[^>]*>/gu, " ")
-        .replace(/&nbsp;/gu, " ")
-        .replace(/\s+/gu, " ")
-        .trim();
-      assert.ok(visibleText.length >= 500, `expected /ja/community/events visible text >= 500 chars, got ${visibleText.length}`);
+      assert.match(main, /イベントを作る/);
+      assert.doesNotMatch(main, /観察会を作る|地域のイベントとは|参加の流れ/);
     }
     assert.equal((html.match(/<main\b/g) ?? []).length, 1);
     assert.equal((html.match(/<h1\b/g) ?? []).length, 1);
@@ -20636,7 +20877,7 @@ test("public participation list hides private and codeless lifecycle states whil
   assert.match(html, /href="\/en\/community\/events\/OPEN2026\/join"/);
   assert.doesNotMatch(html, /Hidden gathering|Private target|private-\d-|HIDDEN\d/);
   assert.doesNotMatch(html, /Flag alias fixture|Source marker fixture|Code marker fixture|PR #123 production rally fixture|検証用/);
-  assert.doesNotMatch(html, /data-load-failed|No public programs are listed yet/);
+  assert.doesNotMatch(html, /data-load-failed|No public events/);
 });
 
 test("public participation list bounds QA-row scans and never labels a partial result as empty", async (t) => {
@@ -20682,7 +20923,7 @@ test("public participation list bounds QA-row scans and never labels a partial r
   assert.match(html, /data-list-partial/);
   assert.match(html, /This list may be incomplete/);
   assert.match(html, /href="\/en\/community\/events"/);
-  assert.doesNotMatch(html, /data-participation-empty|No public programs are listed yet/);
+  assert.doesNotMatch(html, /data-participation-empty|No public events/);
   assert.doesNotMatch(html, /Public walk behind test data|qa-flood-/);
 });
 
@@ -20721,7 +20962,7 @@ test("public participation list reports an empty result when the capped scan rea
   assert.equal(listQueries, 8, "the short final page is reached on the eighth bounded D1 scan");
   assert.doesNotMatch(html, /data-list-partial|This list may be incomplete/);
   assert.match(html, /data-participation-empty/);
-  assert.match(html, /No public programs are listed yet/);
+  assert.match(html, /No public events/);
 });
 
 test("newer public participation rows do not starve an organizer's private draft", async (t) => {
@@ -23124,6 +23365,22 @@ test("production fixed point station page is D1-native without origin fallback",
     public_visibility: "public",
     observed_at: "2026-06-20T09:00:00.000Z"
   });
+  obs.productionVisits.set("visit-fixed-2025", {
+    visit_id: "visit-fixed-2025",
+    legacy_observation_id: null,
+    place_id: fieldId,
+    user_id: "observer-2",
+    public_visibility: "public",
+    observed_at: "2025-06-15T09:00:00.000Z"
+  });
+  obs.productionOccurrences.set("occ-fixed-2025", {
+    occurrence_id: "occ-fixed-2025",
+    visit_id: "visit-fixed-2025",
+    scientific_name: "Pseudothemis zonata",
+    vernacular_name: "コシアキトンボ",
+    taxon_rank: "species",
+    created_at: "2025-06-15T09:01:00.000Z"
+  });
   obs.productionVisits.set("visit-fixed-private", {
     visit_id: "visit-fixed-private",
     legacy_observation_id: null,
@@ -23146,6 +23403,24 @@ test("production fixed point station page is D1-native without origin fallback",
     occurrence_id: "occ-fixed-1",
     asset_role: "observation_photo",
     legacy_relative_path: null
+  });
+  obs.assets.set("asset-fixed-1", {
+    asset_id: "asset-fixed-1",
+    draft_id: "draft-fixed-1",
+    observation_id: "visit-fixed-2026",
+    owner_user_id: "observer-1",
+    object_key: "orig/fixed-1.jpg",
+    partition_month: "2026-06",
+    sha256: "sha-orig-fixed-1",
+    bytes: 1000,
+    mime: "image/webp",
+    processing_state: "uploaded",
+    public_derivative_key: "derived/import/20260620/observation_photo/asset-fixed-1/display.webp",
+    public_derivative_sha256: "sha-fixed-1",
+    public_derivative_verified_at: "2026-06-20T09:05:00.000Z",
+    public_derivative_metadata_json: '{"gpsExifPresent":false,"contentType":"image/webp"}',
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-06-20T09:05:00.000Z",
   });
   obs.stewardshipActions.set("action-fixed-1", {
     action_id: "action-fixed-1",
@@ -23174,6 +23449,19 @@ test("production fixed point station page is D1-native without origin fallback",
     assert.match(body, /<title>谷津山の観察地点 \| 定点ページ \| ZUKAN<\/title>/);
     assert.match(body, /<header><a href="\/">ZUKAN<\/a><nav><a href="\/map">地図へ<\/a><\/nav><\/header>/);
     assert.match(body, /ササゴイ/);
+    assert.match(body, /コシアキトンボ/);
+    assert.match(body, /data-fixed-point-compare/);
+    assert.match(body, /data-compare-select="a"/);
+    assert.match(body, /data-compare-select="b"/);
+    assert.match(body, /data-compare-same-month/);
+    assert.match(body, /data-compare-slot="a"/);
+    assert.match(body, /data-compare-slot="b"/);
+    assert.match(body, /<img class="fps-compare-photo" src="\/derived-transform\/w680\/derived\/import\/20260620\/observation_photo\/asset-fixed-1\/display\.webp"/);
+    assert.match(body, /観察日/);
+    assert.match(body, /記録者/);
+    assert.match(body, /原文/);
+    assert.match(body, /出典/);
+    assert.doesNotMatch(body, /AIからの短いメモ|AIが見つけた/);
     assert.match(body, /水辺のごみを拾った/);
     assert.doesNotMatch(body, /visit-fixed-private/);
     assert.equal(fallbackCalls, 0);
@@ -26548,6 +26836,12 @@ test("production record shell renders signed-in Cloudflare form for valid sessio
   assert.match(body, /id="record-media-video"/);
   assert.match(body, /id="record-submit-panel"/);
   assert.match(body, /id="record-status"/);
+  assert.match(body, /id="record-saved-links"/);
+  assert.match(body, /data-record-saved-links/);
+  assert.match(body, /showSavedRecordLinks/);
+  assert.match(body, /\/observations\//);
+  assert.match(body, /\/records\?view=mine/);
+  assert.match(body, /\/places\//);
   assert.match(body, /name="latitude"/);
   assert.match(body, /name="longitude"/);
   assert.match(body, /\/api\/v1\/observations\/upsert/);
@@ -28294,16 +28588,17 @@ test("production materialized auth html personalizes redirect query without orig
     const explicitResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord%3Fstart%3Dnote&lang=en"), productionEnv);
     const explicitHtml = await explicitResponse.text();
     assert.equal(explicitResponse.status, 200);
-    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
-    assert.match(explicitHtml, /data-redirect="\/record\?start=note"/);
-    assert.match(explicitHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dnote/);
+    assert.equal(explicitResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-waitlist");
+    assert.match(explicitHtml, /id="zukan-waitlist-form"/);
+    assert.match(explicitHtml, /\/en\/login/);
     assert.doesNotMatch(explicitHtml, /\/auth\/oauth\/google\/start/);
 
     const bareResponse = await worker.fetch(new Request("https://ikimon.life/register?redirect=%2Frecord&lang=en"), productionEnv);
     const bareHtml = await bareResponse.text();
     assert.equal(bareResponse.status, 200);
-    assert.match(bareHtml, /data-redirect="\/record\?start=photo"/);
-    assert.match(bareHtml, /\/en\/login\?redirect=%2Frecord%3Fstart%3Dphoto/);
+    assert.equal(bareResponse.headers.get("x-ikimon-cloudflare-native"), "zukan-waitlist");
+    assert.match(bareHtml, /id="zukan-waitlist-form"/);
+    assert.match(bareHtml, /\/en\/login/);
 
     const loginResponse = await worker.fetch(new Request("https://ikimon.life/ja/login?redirect=%2Fprofile"), productionEnv);
     const loginHtml = await loginResponse.text();
@@ -28790,6 +29085,42 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.status, 200);
   assert.equal(await ownerMedia.text(), "private-webp");
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+});
+
+test("records public section renders direct links to public place pages when available", async () => {
+  const { env } = createEnv();
+  const draftPlaceId = "plc_draft_hidden_1";
+  const publishedPlaceId = "plc_e3293ec4bb9288a0";
+  const originalPrepare = env.OBS_DB.prepare.bind(env.OBS_DB);
+  env.OBS_DB.prepare = ((query: string) => {
+    if (query.includes("FROM places p") && query.includes("p.public_profile_status = 'published'")) {
+      return {
+        bind: () => ({
+          all: async () => ({
+            results: [{ place_id: publishedPlaceId, canonical_name: "常盤公園" }]
+          })
+        })
+      } as unknown as ReturnType<typeof originalPrepare>;
+    }
+    return originalPrepare(query);
+  }) as typeof env.OBS_DB.prepare;
+
+  const sitemap = await withPublicPlacesInSitemap('<?xml version="1.0"?><urlset></urlset>', env);
+  assert.match(sitemap, /\/ja\/places\/plc_e3293ec4bb9288a0/);
+  assert.doesNotMatch(sitemap, new RegExp(draftPlaceId));
+
+  const html = renderRecordsProductSection(
+    [],
+    new URL("https://zukan.earth/ja/records?view=public"),
+    "public",
+    null,
+    false,
+    null,
+    [{ placeId: publishedPlaceId, name: "常盤公園" }]
+  );
+  assert.match(html, /class="cf-records-places"/);
+  assert.match(html, /href="\/ja\/places\/plc_e3293ec4bb9288a0"/);
+  assert.match(html, />常盤公園</);
 });
 
 test("production public health endpoints are served by Cloudflare instead of origin fallback", async () => {
@@ -30785,4 +31116,140 @@ test("bare paths redirect 301 to /ja/... with query preserved, non-ja learn path
     const response = await worker.fetch(new Request(`https://ikimon.life${unknownPath}`), productionEnv);
     assert.equal(response.status, 404, `${unknownPath} should stay 404`);
   }
+});
+
+
+test("GET /api/v1/areas/observations filters by area, media_kind (including photo-less audio/record), period, and keeps privacy", async () => {
+  const { env } = createEnv();
+  const baseCoord = { latitude: 34.711, longitude: 137.731 };
+
+  for (const [id, observedAt, taxon, note] of [
+    ["obs-photo", "2026-10-05T08:00:00.000Z", "シジュウカラ", "松の枝にいた"],
+    ["obs-audio", "2026-10-12T08:00:00.000Z", "ウグイス", "さえずり録音"],
+    ["obs-video", "2026-10-18T08:00:00.000Z", "アゲハ", "吸蜜動画"],
+    ["obs-note", "2026-10-25T08:00:00.000Z", "気温メモ", "気温18度・風弱し"],
+    ["obs-private", "2026-10-26T08:00:00.000Z", "非公開種", "出さない"],
+  ] as const) {
+    await post("/api/v1/observations/upsert", env, {
+      observationId: id,
+      userId: "user-area-test",
+      observedAt,
+      ...baseCoord,
+      note,
+      taxon: { vernacularName: taxon, rank: "species" },
+    });
+    const obsRow = env.OBS_DB.observations.get(id);
+    assert.ok(obsRow);
+    obsRow.visibility = id === "obs-private" ? "private" : "public";
+    obsRow.emergency_hidden = 0;
+    if (id !== "obs-private") {
+      env.OBS_DB.readmodel.set(id, {
+        observation_id: id,
+        public_cell: obsRow.public_cell,
+        observed_at: observedAt,
+        taxon_label: taxon,
+        asset_count: id === "obs-note" ? 0 : 1,
+        partition_month: "2026-10",
+        public_area_label: "テストの森",
+      });
+    }
+  }
+
+  env.OBS_DB.assets.set("asset-photo", {
+    asset_id: "asset-photo",
+    draft_id: "draft-photo",
+    owner_user_id: "user-area-test",
+    object_key: "raw/p.jpg",
+    partition_month: "2026-10",
+    sha256: "sha-p",
+    mime: "image/jpeg",
+    bytes: 1024,
+    processing_state: "uploaded",
+    observation_id: "obs-photo",
+    public_derivative_key: "derived/p.webp",
+    public_derivative_sha256: "sha-p-d",
+    public_derivative_verified_at: "2026-10-05T08:01:00.000Z",
+    public_derivative_metadata_json: JSON.stringify({ contentType: "image/webp", derivativeWidth: 800, derivativeHeight: 600 }),
+    exif_scrub_state: "scrubbed",
+    public_ready_at: "2026-10-05T08:01:00.000Z",
+  });
+  env.OBS_DB.assets.set("asset-audio", {
+    asset_id: "asset-audio",
+    draft_id: "draft-audio",
+    owner_user_id: "user-area-test",
+    object_key: "raw/a.m4a",
+    partition_month: "2026-10",
+    sha256: "sha-a",
+    mime: "audio/mp4",
+    bytes: 2048,
+    processing_state: "uploaded",
+    observation_id: "obs-audio",
+    public_derivative_key: null,
+    public_derivative_sha256: null,
+    public_derivative_verified_at: null,
+    public_derivative_metadata_json: null,
+    exif_scrub_state: "not_started",
+    public_ready_at: null,
+  });
+  env.OBS_DB.assets.set("asset-video", {
+    asset_id: "asset-video",
+    draft_id: "draft-video",
+    owner_user_id: "user-area-test",
+    object_key: "raw/v.mp4",
+    partition_month: "2026-10",
+    sha256: "sha-v",
+    mime: "video/mp4",
+    bytes: 4096,
+    processing_state: "uploaded",
+    observation_id: "obs-video",
+    public_derivative_key: null,
+    public_derivative_sha256: null,
+    public_derivative_verified_at: null,
+    public_derivative_metadata_json: null,
+    exif_scrub_state: "not_started",
+    public_ready_at: null,
+  });
+
+  const missingScope = await worker.fetch(new Request("https://zukan.earth/api/v1/areas/observations"), env);
+  assert.equal(missingScope.status, 400);
+
+  const bbox = "137.70,34.70,137.76,34.74";
+  const allRes = await worker.fetch(new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}`), env);
+  assert.equal(allRes.status, 200);
+  assert.equal(allRes.headers.get("access-control-allow-origin"), "*");
+  assert.match(allRes.headers.get("server-timing") ?? "", /area-observations;dur=/);
+  const allPayload = await allRes.json() as {
+    items: Array<{ visitId: string; mediaKind: string; privacy: { exactLocationExposed: boolean }; localityLabel: string }>;
+    stats: { totalReturned: number; durationMs: number };
+  };
+  assert.equal(allPayload.items.length, 4);
+  assert.equal(allPayload.items.some((x) => x.visitId === "obs-private"), false);
+  assert.equal(typeof allPayload.stats.durationMs, "number");
+  for (const item of allPayload.items) {
+    assert.equal(item.privacy.exactLocationExposed, false);
+    assert.equal("latitude" in item, false);
+    assert.equal("longitude" in item, false);
+    assert.equal(item.localityLabel, "位置をぼかしています");
+  }
+
+  for (const [kind, expectedId] of [
+    ["photo", "obs-photo"],
+    ["audio", "obs-audio"],
+    ["video", "obs-video"],
+    ["record", "obs-note"],
+    ["note", "obs-note"],
+  ] as const) {
+    const res = await worker.fetch(new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}&media_kind=${kind}`), env);
+    assert.equal(res.status, 200, kind);
+    const body = await res.json() as { items: Array<{ visitId: string }> };
+    assert.deepEqual(body.items.map((x) => x.visitId), [expectedId], `media_kind=${kind}`);
+  }
+
+  const periodRes = await worker.fetch(
+    new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}&from=2026-10-10&to=2026-10-20`),
+    env,
+  );
+  assert.equal(periodRes.status, 200);
+  const periodBody = await periodRes.json() as { items: Array<{ visitId: string }> };
+  assert.deepEqual(periodBody.items.map((x) => x.visitId), ["obs-video", "obs-audio"]);
 });

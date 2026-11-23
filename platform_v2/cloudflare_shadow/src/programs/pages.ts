@@ -11,7 +11,7 @@ import { OBSERVATION_EVENT_LIST_STYLES, renderEventListBody } from "../../../src
 import { RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION, discoveryNickname, isEventDiscoveryProfile } from "../eventDiscovery";
 import { RYUYO_FIELD_ID } from "../areaEncyclopediaNative";
 import { FRONTEND_FOUNDATION_CSS } from "../../../src/ui/frontendFoundation";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation } from "../../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../../src/ui/appExperience";
 import { OBSERVATION_EVENT_STYLES } from "../../../src/ui/observationEventStyles";
 import type { CommonEventTemplateKey } from "../../../src/services/commonEventTemplateContract";
 import { renderObservationEventTemplateOrganizer } from "../../../src/ui/observationEventTemplateOrganizer";
@@ -1036,7 +1036,22 @@ async function getObservationEventRecapPage(request: Request, url: URL, env: Env
   const auth = await readCompatibleSession(request, env).catch(() => null);
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLangFromPath(new URL(request.url).pathname) ?? "ja", Boolean(auth && !auth.banned));
   const recapResponse = await getObservationEventRecap(request, url, env, session.sessionId);
-  if (!recapResponse.ok) return recapResponse;
+  if (!recapResponse.ok) {
+    if (recapResponse.status === 403) {
+      return pageHtml(
+        "権限がありません",
+        observationEventEmptyState("参加者のみ閲覧できます", "先に観察会へチェックインしてください。"),
+        "event-page-forbidden",
+        403
+      );
+    }
+    return pageHtml(
+      "振り返りを読み込めません",
+      observationEventEmptyState("振り返りを読み込めませんでした", "観察会一覧から選び直してください。"),
+      "event-page-recap-unavailable",
+      recapResponse.status
+    );
+  }
   const recap = await recapResponse.json() as Record<string, unknown>;
   await recordObservationEventParticipantPageMetric(request, env, session, "event_recap_viewed", "recap");
   return pageHtml(`${session.title} の振り返り`, renderObservationEventRecapPage(recap), "event-page-recap");
@@ -1068,14 +1083,14 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}.desktop-side-nav-toggle{display:none}
     .brand{display:inline-flex;align-items:center;min-width:0;color:#17231b;text-decoration:none;font-weight:900}
     .brand-logo-lockup{display:inline-flex;align-items:center;gap:7px;min-width:0}.brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}.brand-mark img{width:100%;height:100%;object-fit:cover}.brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}.brand-wordmark-img{display:block;width:auto;height:100%;object-fit:contain}
-    .site-nav{display:flex;align-items:center;gap:6px}.site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}.site-nav-link:hover{background:#e8f1ed}
-    .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}.site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17231b;font:inherit;font-size:13px}.site-search-icon{font-size:13px;opacity:.72}
-    .site-header-actions{display:flex;align-items:center;gap:8px}.site-header-actions-mobile{display:none}.site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}.lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}.lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}.site-account-icons{gap:4px;padding:3px;border-radius:999px}.site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}.desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .site-nav{display:flex;align-items:center;gap:6px}.site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:14px;font-weight:800;white-space:nowrap}.site-nav-link:hover{background:#e8f1ed}
+    .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}.site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:#17231b;font:inherit;font-size:14px}.site-search-icon{font-size:14px;opacity:.72}
+    .site-header-actions{display:flex;align-items:center;gap:8px}.site-header-actions-mobile{display:none}.site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:14px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}.lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}.lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:14px;font-weight:900}.site-account-icons{gap:4px;padding:3px;border-radius:999px}.site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}.desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .site-mobile-menu{position:relative;display:none}.site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:#17231b;cursor:pointer}.site-mobile-menu-toggle::-webkit-details-marker{display:none}.site-mobile-menu-icon,.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{display:block;width:14px;height:2px;border-radius:999px;background:currentColor}.site-mobile-menu-icon{position:relative}.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{content:"";position:absolute;left:0}.site-mobile-menu-icon::before{top:-5px}.site-mobile-menu-icon::after{top:5px}.site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.card{background:#fff;border:1px solid #d9e5dd;border-radius:8px;padding:16px}.event-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}.event-photo-card{margin:0;padding:0;overflow:hidden}.event-photo-card img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e8f1ed}.event-photo-card figcaption{padding:12px 14px;font-weight:700}.event-private-media{display:block;width:100%;max-height:360px;object-fit:contain;border-radius:8px;background:#e8f1ed}.event-private-gallery-card form{display:grid;gap:10px;margin-top:14px}.event-private-gallery-card label{display:grid;gap:6px;font-weight:700}.event-private-gallery-card textarea{box-sizing:border-box;width:100%;min-height:88px;padding:10px;border:1px solid #cbd8d0;border-radius:6px;font:inherit}
     .muted{color:#587062}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.btn{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;background:#0b6b54;color:#fff;text-decoration:none;font-weight:600}
     button.btn{border:0;cursor:pointer;font:inherit}.area-sketch-card{margin-top:14px}.area-sketch-label,.area-sketch-cover label{display:grid;gap:6px;font-weight:700;color:#315241}.area-sketch-label input,.area-sketch-cover input,textarea[data-area-sketch-polygon]{width:100%;box-sizing:border-box;border:1px solid #cbd8d0;border-radius:6px;padding:9px 10px;font:inherit;background:#fff;color:#17231b}.area-sketch-map{height:420px;min-height:320px;border:1px solid #cbd8d0;border-radius:8px;overflow:hidden;background:#dce6df;margin:12px 0}.area-sketch-cover{margin-top:12px}
-    .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:12px;color:#315241}
+    .btn.secondary{background:#e8f1ed;color:#174c3d}.btn.rally-record-cta{min-height:44px}.pill{display:inline-block;border:1px solid #cbd8d0;border-radius:999px;padding:3px 8px;margin:2px;font-size:14px;color:#315241}
     pre{white-space:pre-wrap;word-break:break-word;background:#102018;color:#f3fff8;border-radius:8px;padding:12px}
     @media(max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:38px;padding:8px 11px}}
     ${FRONTEND_FOUNDATION_CSS}
@@ -1083,7 +1098,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
     ${APP_EXPERIENCE_STYLES}
     ${OBSERVATION_EVENT_LIST_STYLES}
     ${nativeMarker === "event-page-rally" ? OBSERVATION_EVENT_STYLES : ""}
-    body[data-zukan-app-experience] main{padding-bottom:56px}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#245c3a}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#245c3a}
+    body[data-zukan-app-experience] main{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}body[data-zukan-app-experience] .btn{min-height:44px;border-radius:8px;background:#245c3a}body[data-zukan-app-experience] .btn.secondary{background:#edf3ee;color:#245c3a}
   </style>
 </head>
 <body ${standalone ? 'data-zukan-design="v1" data-event-lp="standalone"' : 'data-zukan-app-experience="v1"'}>
@@ -1091,7 +1106,7 @@ export function observationEventPageHtml(title: string, body: string, nativeMark
   <main id="main-content" tabindex="-1">
     ${body}
   </main>
-${standalone ? "" : renderAppExperienceNavigation(lang, 4, "bottom", member)}
+${standalone ? "" : `${renderAppExperienceNavigation(lang, 4, "bottom", member)}${renderAppExperienceQuickCamera(lang, { nonce: cspNonce })}`}
 </body>
 </html>`;
   return html(applyCspNonceToHtmlScripts(document, cspNonce), status, {
@@ -1391,7 +1406,7 @@ export function renderObservationEventCreatePage(
 </script>`;
 }
 
-function renderObservationEventJoinPage(
+export function renderObservationEventJoinPage(
   session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
   teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
   isAuthenticated: boolean,
@@ -1399,6 +1414,13 @@ function renderObservationEventJoinPage(
   applicationEnabled = false
 ): string {
   const eventCode = session.eventCode ?? "";
+  const startedLabel = session.startedAt ? session.startedAt.slice(0, 10) : "未定";
+  const targetList = Array.isArray(session.targetSpecies) && session.targetSpecies.length > 0
+    ? session.targetSpecies.slice(0, 5).map(escapeHtml).join("・")
+    : "";
+  const placeHref = session.fieldId ? `/places/${encodeURIComponent(session.fieldId)}` : "/map";
+  const placeLabel = session.fieldId ? "この場所の記録を見る" : "地図を見る";
+  const publicOverview = `<aside class="card" data-event-public-overview><p><strong>開催日:</strong> ${escapeHtml(startedLabel)}</p>${targetList ? `<p><strong>見つける対象:</strong> ${targetList}</p>` : ""}<div class="actions"><a class="btn secondary" href="${escapeHtml(placeHref)}">${escapeHtml(placeLabel)}</a><a class="btn secondary" href="/community/events">観察会一覧へ戻る</a></div></aside>`;
   const returnPath = `/community/events/${encodeURIComponent(eventCode)}/join`;
   const registerHref = `/register?redirect=${encodeURIComponent(returnPath)}`;
   const loginHref = `/login?redirect=${encodeURIComponent(returnPath)}`;
@@ -1417,6 +1439,7 @@ function renderObservationEventJoinPage(
     <p class="pill">観察会チェックイン</p>
     <h1>${escapeHtml(session.title)} に参加</h1>
     <p>家族・グループはスマートフォン1台で参加できます。代表者のニックネームや「○○家」で進めてください。</p>
+    ${publicOverview}
     ${applicationLink}
     <aside class="card"><strong>名前が分からなくても大丈夫です</strong><p class="muted">位置情報を共有しなくても、参加・観察・投稿ができます。</p></aside>
     <form data-evt-checkin-form novalidate>
@@ -1742,7 +1765,7 @@ function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<
   return `<section class="card"><h1>${escapeHtml(session.title)} 編集</h1><p class="muted">Worker/D1 runtimeでは、更新は PATCH /api/v1/observation-events/:sessionId に集約します。</p><pre>${escapeHtml(JSON.stringify({ sessionId: session.sessionId, title: session.title, primaryMode: session.primaryMode, activeModes: session.activeModes, targetSpecies: session.targetSpecies }, null, 2))}</pre><div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}">session API</a></div></section>`;
 }
 
-function renderObservationEventRallyPage(
+export function renderObservationEventRallyPage(
   session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
   rally: Omit<Awaited<ReturnType<typeof getObservationRallySnapshot>>, "readOnly"> & { readOnly?: boolean },
   isAuthenticated: boolean,
@@ -1752,6 +1775,7 @@ function renderObservationEventRallyPage(
   guestMediaCanReview = false,
   guestMediaCanSubmit = false
 ): string {
+  const participantLinks = `<div class="actions"><a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/recap">ふりかえりを見る</a><a class="btn secondary" href="/records?view=mine">自分の記録</a>${session.fieldId ? `<a class="btn secondary" href="/places/${encodeURIComponent(session.fieldId)}">場所ページを見る</a>` : `<a class="btn secondary" href="/map">地図を見る</a>`}</div>`;
   if (!options) {
     const body = renderObservationRallyBody({
       session,
@@ -1761,7 +1785,7 @@ function renderObservationEventRallyPage(
     const media = guestMediaEnabled
       ? `<div id="event-private-media">${renderObservationEventGuestMediaPanel(session.sessionId, guestMediaCanReview, guestMediaCanSubmit)}</div>`
       : "";
-    return `${body}${media}<script>${observationRallyScript()}</script>`;
+    return `${body}${media}${participantLinks}<script>${observationRallyScript()}</script>`;
   }
   const recordParams = new URLSearchParams();
   if (session.eventCode) recordParams.set("event", session.eventCode);
@@ -1970,7 +1994,8 @@ export function renderObservationEventRecapPage(recap: Record<string, unknown>):
   const rehost = canManage
     ? `<article class="card"><h2>次回の観察会</h2><p class="muted">企画設定だけを再利用します。参加者・同意・review・公開状態は引き継ぎません。</p><div class="actions"><a class="btn" href="/community/events/new?template_from=${encodeURIComponent(String(session.sessionId ?? ""))}">もう一度開催する</a></div></article>`
     : "";
-  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察記録</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p></article>${rehost}</section>`;
+  const participantLinks = `<div class="actions"><a class="btn secondary" href="/records?view=mine">自分の記録</a>${typeof session.fieldId === "string" && session.fieldId ? `<a class="btn secondary" href="/places/${encodeURIComponent(session.fieldId)}">場所ページを見る</a>` : `<a class="btn secondary" href="/map">地図を見る</a>`}</div>`;
+  return `<section><h1>${escapeHtml(session.title ?? "観察会")} の振り返り</h1><div class="grid"><article class="card"><h2>観察記録</h2><p>${escapeHtml(highlights.observationCount ?? 0)}</p></article><article class="card"><h2>参加した家族・グループ</h2><p>${escapeHtml(highlights.participantsCount ?? 0)}</p></article></div><h2>みんなの観察写真</h2>${photoGallery}<article class="card"><h2>次に調べるヒント</h2><p>写真の形や色、見つけた場所の環境を見比べてみましょう。名前がまだ分からない記録も、大切な発見です。</p></article>${participantLinks}${rehost}</section>`;
 }
 
 function renderObservationEventReportPage(report: Awaited<ReturnType<typeof buildObservationEventOfficialReport>> & Record<string, unknown>): string {
