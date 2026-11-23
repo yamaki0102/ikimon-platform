@@ -9,6 +9,7 @@ import {
   type GeminiObservationSummary,
   type GeminiRecordClass,
 } from "./geminiObservationBatch";
+import { LOOKALIKE_PROMPT, LOOKALIKE_STORE_PREFIX, MEASURE_VERSION, measuredBand, normalizeLookalike, readLookalike, readScene, sceneQuestions, subjectQuestions, type DecideMany, type LookalikeCard, type LookalikeMeasure, type SceneMeasure } from "./observationCardMeasure";
 import { bytesToBase64, cropRgb, decodePngRgb, encodePngRgb, tileRects, wideRect, type PixelRect } from "./observationCardPng";
 
 export const CARD_ID_MODEL = "gemini-3.1-flash-lite";
@@ -33,6 +34,8 @@ export type CardModelCall = (model: string, parts: Json[], options: { temperatur
 export type CardDeps = {
   gemini: CardModelCall;
   decide?: (images: GeminiObservationImage[], question: string) => Promise<number>;
+  measure?: DecideMany;
+  onScene?: (scene: SceneMeasure) => Promise<void>;
   tileModel?: (pngBase64: string, prompt: string) => Promise<string>;
   tileSource?: (assetIndex: number) => Promise<Uint8Array | null>;
   loadCard: (key: string) => Promise<Json | null>;
@@ -52,6 +55,7 @@ export type CardStats = {
   secondCheck: "agree" | "conflict" | "coarser" | "skipped";
   cardsUsed: number;
   cardsCreated: number;
+  measure?: { version: string; scene: SceneMeasure | null; lookalike: LookalikeMeasure | null; subjectP: number[]; error: string | null };
 };
 
 const RECORD_CLASSES: GeminiRecordClass[] = ["organism", "person", "food", "environment", "object", "document", "mixed", "unknown"];
@@ -313,6 +317,19 @@ async function getCard(deps: CardDeps, key: string, prompt: string, stats: CardS
   }
 }
 
+async function getLookalike(deps: CardDeps, lead: Json, stats: CardStats): Promise<LookalikeCard | null> {
+  const key = LOOKALIKE_STORE_PREFIX + cardKey(str(lead.scientific_name), String(lead.name));
+  const stored = await deps.loadCard(key).catch(() => null);
+  const cached = normalizeLookalike(stored?.card);
+  if (cached) { stats.cardsUsed++; return cached; }
+  const card = normalizeLookalike(parseCardJson(await deps.gemini(CARD_WRITER_MODEL, [{ text: LOOKALIKE_PROMPT(String(lead.name), str(lead.scientific_name), str(lead.rank)) }], { temperature: 0.1, thinkingLevel: "low" })));
+  if (!card) return null;
+  await deps.saveCard(key, { key, version: MEASURE_VERSION, card });
+  stats.cardsCreated++;
+  stats.cardsUsed++;
+  return card;
+}
+
 const toRank = (v: unknown): Rank => (RANKS.has(v as Rank) ? (v as Rank) : "lifeform");
 
 const toCandidate = (sub: Json, index: number): ObservationAiSubjectCandidate => ({
@@ -320,7 +337,7 @@ const toCandidate = (sub: Json, index: number): ObservationAiSubjectCandidate =>
   vernacularName: str(sub.name, 120) || null,
   scientificName: str(sub.scientific_name, 180) || null,
   rank: toRank(sub.rank),
-  confidence: BAND_CONFIDENCE[String(sub.confidence_band)] ?? 0.3,
+  confidence: typeof sub.measured_confidence === "number" ? Math.round(sub.measured_confidence * 100) / 100 : BAND_CONFIDENCE[String(sub.confidence_band)] ?? 0.3,
   visualEvidence: list(sub.features_seen, 2, 120),
   needsMoreEvidence: list(sub.missing_evidence, 2, 120),
   assetIndex: Number((sub.asset_indexes as number[] | undefined)?.[0] ?? 0),
@@ -335,14 +352,25 @@ const toFused = (c: ObservationAiSubjectCandidate, sub: Json): GeminiFusedCandid
   subjectLocator: {}, fusionScore: c.confidence,
 });
 
-export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Array<Json | null>, habitat: Json | null): GeminiMergedObservation {
+export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Array<Json | null>, habitat: Json | null, measure: CardStats["measure"] | null = null): GeminiMergedObservation {
   const candidates = subjects.map(toCandidate);
   const isEnvironment = id.main_theme === "environment";
   const mainIndex = candidates.length > 0 ? 0 : -1;
   const main = mainIndex >= 0 ? candidates[mainIndex]! : null;
   const lead = mainIndex >= 0 ? subjects[mainIndex]! : null;
-  const topCandidates: GeminiFusedCandidate[] = main && lead ? [toFused(main, lead)] : [];
-  if (main && lead && str(lead.alt_candidate)) {
+  const look = main && lead && measure?.lookalike && measure.lookalike.other < 0.3 ? measure.lookalike : null;
+  const topCandidates: GeminiFusedCandidate[] = look
+    ? look.candidates.slice(0, 3).map((c, i) => {
+      const feat = (state: string, tail: string) => c.features.filter((f) => f.state === state).map((f) => `${f.part ? `${f.part}: ` : ""}${f.ja}${tail}`);
+      return {
+        candidateKey: `card:look:${i}`, name: c.ja, scientificName: c.sci || null, rank: "species", confidence: c.p, fusionScore: c.p,
+        supportingFeatures: feat("seen", ""), missingFeatures: feat("unclear", "（この写真では判別できない）"), contradictions: feat("not_seen", "（写っていない）"),
+        sourceLanes: ["primary"], sourceModels: [CARD_DECISION_MODEL], sourceAssetIndices: [0], subjectLocator: {},
+        measuredProbability: c.p, howToTell: c.how,
+      } as GeminiFusedCandidate;
+    })
+    : main && lead ? [toFused(main, lead)] : [];
+  if (!look && main && lead && str(lead.alt_candidate)) {
     topCandidates.push({ ...toFused(main, lead), candidateKey: "card:alt", name: str(lead.alt_candidate, 120), scientificName: str(lead.alt_scientific_name, 180) || null, rank: "species", confidence: 0.25, fusionScore: 0.25, supportingFeatures: [], missingFeatures: ["別の読み取りで挙がった候補。決め手の確認が必要"] });
   }
   const cues: GeminiEnvironmentEvidence["cues"] = [];
@@ -404,7 +432,7 @@ export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Ar
     }),
     environment_summary: fit([str(id.simple_summary, 200), str(habitat?.overview, 200)], CARD_PUBLIC_TEXT_MAX),
     interaction_summary: list(habitat?.what_to_look_for, 4, 120).length ? `この環境で注目するとよいもの: ${list(habitat?.what_to_look_for, 4, 120).join("／")}` : "",
-    observer_feedback: fit([str(id.observer_boost, 200), ...(candidates.length === 0 ? list(habitat?.confirm_more, 2, 120).map((x, k) => (k === 0 ? `次に撮るなら: ${x}` : `／${x}`)) : [])], CARD_PUBLIC_TEXT_MAX, ""),
+    observer_feedback: fit([measure?.scene?.qualityLabel ? `写真の情報量: ${measure.scene.qualityLabel}。` : "", str(id.observer_boost, 200), ...(candidates.length === 0 ? list(habitat?.confirm_more, 2, 120).map((x, k) => (k === 0 ? `次に撮るなら: ${x}` : `／${x}`)) : [])], CARD_PUBLIC_TEXT_MAX, ""),
   };
   return applyGeminiObservationSummary(merged, summary);
 }
@@ -412,23 +440,50 @@ export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Ar
 export async function runObservationCardPipeline(input: CardInput, deps: CardDeps): Promise<{ merged: GeminiMergedObservation; stats: CardStats; subjects: Json[]; id: Json }> {
   const stats: CardStats = { subjects: 0, tileCalls: 0, tileFound: 0, tileError: null, secondCheck: "skipped", cardsUsed: 0, cardsCreated: 0 };
   const ctx = cardContext(input);
+  const measure = deps.measure;
+  const measureStats: NonNullable<CardStats["measure"]> = { version: MEASURE_VERSION, scene: null, lookalike: null, subjectP: [], error: null };
+  if (measure) stats.measure = measureStats;
+  const noteError = (error: unknown) => { measureStats.error ??= (error instanceof Error ? error.message : String(error)).slice(0, 120); return null; };
+  const scenePromise = measure
+    ? measure(input.images, sceneQuestions()).then(readScene).then(async (scene) => { measureStats.scene = scene; if (deps.onScene) await deps.onScene(scene).catch(() => undefined); return scene; }).catch(noteError)
+    : Promise.resolve(null);
   const id = parseCardJson(await deps.gemini(CARD_ID_MODEL, [...cardImageParts(input.images), { text: ID_PROMPT(ctx) }], { temperature: 0.1, thinkingLevel: "minimal" }));
   if (!id) throw new Error("card_identification_invalid_json");
   const isNonOrganism = NON_ORGANISM_CLASSES.has(String(id.record_class));
   const subjects = isNonOrganism ? [] : normalizeCardSubjects(id.subjects, input.images.length);
   const lead = subjects[0];
-  const [found, second] = await Promise.all([
+  const organismLead = !isNonOrganism && lead && id.main_theme !== "environment" ? lead : null;
+  const [found, second, measured] = await Promise.all([
     CARD_TILE_SKIP_CLASSES.includes(String(id.record_class)) ? Promise.resolve([] as Json[]) : tileSweep(input, deps, subjects, stats).catch((error: unknown) => {
       stats.tileError = (error instanceof Error ? error.message : String(error)).slice(0, 120);
       return [] as Json[];
     }),
-    !isNonOrganism && lead && lead.rank === "species" && id.main_theme !== "environment"
+    !measure && organismLead && organismLead.rank === "species"
       ? deps.decide
-        ? deps.decide(input.images, decisionQuestion(lead)).catch(() => null)
+        ? deps.decide(input.images, decisionQuestion(organismLead)).catch(() => null)
         : deps.gemini(CARD_ID_MODEL, [...cardImageParts(input.images), { text: SECOND_PROMPT(ctx) }], { temperature: 0.1, thinkingLevel: "minimal" }).then(parseCardJson).catch(() => null)
       : Promise.resolve(null),
+    measure && subjects.length > 0
+      ? (async () => {
+        const card = organismLead ? await getLookalike(deps, organismLead, stats).catch(noteError) : null;
+        const answers = await measure(input.images, subjectQuestions(subjects, card));
+        return { answers, card };
+      })().catch(noteError)
+      : Promise.resolve(null),
   ]);
-  if (lead) stats.secondCheck = typeof second === "number" ? applyDecisionCheck(lead, second) : applySecondCheck(lead, second);
+  if (measured) {
+    subjects.slice(0, 8).forEach((sub, i) => {
+      const p = Number(measured.answers[`s${i}`]?.noul);
+      if (!Number.isFinite(p)) return;
+      measureStats.subjectP[i] = Math.round(p * 100) / 100;
+      if (sub === organismLead && sub.rank === "species") stats.secondCheck = applyDecisionCheck(sub, p);
+      const band = measuredBand(p);
+      sub.confidence_band = sub.view === "far" && band === "high" ? "medium" : band;
+      sub.measured_confidence = p;
+    });
+    if (measured.card) measureStats.lookalike = readLookalike(measured.card, measured.answers);
+  } else if (lead) stats.secondCheck = typeof second === "number" ? applyDecisionCheck(lead, second) : applySecondCheck(lead, second);
+  await scenePromise;
   if (!isNonOrganism) subjects.push(...found.slice(0, Math.max(0, 8 - subjects.length)));
   stats.subjects = subjects.length;
   const habitatType = str(id.habitat_type);
@@ -436,7 +491,7 @@ export async function runObservationCardPipeline(input: CardInput, deps: CardDep
     Promise.all(subjects.map((sub, i) => (i < 4 ? getCard(deps, cardKey(str(sub.scientific_name), String(sub.name)), TAXON_PROMPT(str(sub.scientific_name), String(sub.name), str(sub.rank)), stats) : Promise.resolve(null)))),
     !isNonOrganism && CARD_HABITATS.includes(habitatType) ? getCard(deps, cardKey("", `habitat-${habitatType}`), HABITAT_PROMPT(habitatType), stats) : Promise.resolve(null),
   ]);
-  return { merged: buildCardMergedObservation(id, subjects, cards, habitat), stats, subjects, id };
+  return { merged: buildCardMergedObservation(id, subjects, cards, habitat, stats.measure ?? null), stats, subjects, id };
 }
 
 export async function callCardDecision(apiKey: string, images: GeminiObservationImage[], question: string, fetcher: typeof fetch = fetch): Promise<number> {

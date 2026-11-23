@@ -110,6 +110,7 @@ import {
   type CardDeps,
   type CardStats,
 } from "./observationCardMode";
+import { FAMILY_JA, callDecisionQuestions } from "./observationCardMeasure";
 import {
   buildHumanObservationEditPlan,
   buildIdentificationAcceptancePlan,
@@ -29790,6 +29791,17 @@ function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): Car
   return {
     gemini: (model, parts, options) => callCardGemini(env.GEMINI_API_KEY!, model, parts, options),
     decide: (images, question) => callCardDecision(env.GEMINI_API_KEY!, images, question),
+    measure: (images, questions) => callDecisionQuestions(env.GEMINI_API_KEY!, CARD_DECISION_MODEL, images, questions),
+    onScene: async (scene) => {
+      const name = scene.accepted && scene.family ? FAMILY_JA[scene.family] : undefined;
+      if (!name || prepared.request.request_state !== "processing") return;
+      const next = JSON.stringify({ ...reassessmentPayload(prepared.request.source_payload_json), earlyFamily: { name, scientificName: scene.family, p: Math.round(scene.familyP * 100) / 100 } });
+      const updated = await env.OBS_DB.prepare(
+        `UPDATE observation_reassessment_requests SET source_payload_json = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE request_id = ? AND request_state = 'processing' AND source_payload_json = ?`
+      ).bind(next, prepared.request.request_id, prepared.request.source_payload_json).run() as { meta?: { changes?: number } };
+      if (Number(updated.meta?.changes ?? 0) === 1) prepared.request.source_payload_json = next;
+    },
     ...(ai && env.IMAGES ? {
       tileModel: async (png: string, prompt: string) => {
         const result = await ai.run(CARD_TILE_MODEL, {
