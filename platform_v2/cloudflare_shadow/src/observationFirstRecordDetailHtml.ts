@@ -290,15 +290,20 @@ function renderLearning(
   lang: ObservationRecordLang,
   personPrimaryNames?: readonly string[],
   excludedEvidence: ReadonlySet<string> = new Set(),
+  nextPhotoItem: string | null = null,
 ): string {
   const suggestion = displayAiSuggestions(card, personPrimaryNames).map((item) => ({
     visualEvidence: aiProseListForLang(item.visualEvidence, lang).filter((text) => !excludedEvidence.has(text)),
-    shootingAdvice: aiProseListForLang(item.shootingAdvice, lang),
+    shootingAdvice: aiProseListForLang(item.shootingAdvice, lang).filter((text) => {
+      if (!nextPhotoItem) return true;
+      const concise = conciseNextPhotoItem(text);
+      return concise !== nextPhotoItem && !text.includes(nextPhotoItem) && !nextPhotoItem.includes(concise) && !/実物の生体詳細/.test(text);
+    }),
   })).find((item) => item.visualEvidence.length > 0 || item.shootingAdvice.length > 0);
   if (!suggestion) return "";
   const visible = suggestion.visualEvidence.slice(0, 2);
   const advice = suggestion.shootingAdvice.slice(0, 2);
-  return `<section class="of-learning" aria-labelledby="of-learning-title"><h3 id="of-learning-title">${escapeHtml(copy.learning)}</h3>
+  return `<section class="of-learning" aria-labelledby="of-learning-title"><h3 id="of-learning-title"><span class="of-ai-badge">AI</span> ${escapeHtml(copy.learning)}</h3>
     ${visible.length ? `<section><h4>${escapeHtml(copy.distinguishingPoints)}</h4><ul>${visible.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}
     ${advice.length ? `<section><h4>${escapeHtml(copy.shootingAdvice)}</h4><ul>${advice.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>` : ""}
   </section>`;
@@ -308,18 +313,25 @@ function renderAiCandidateComparison(
   card: ObservationFirstCard,
   presentation: ObservationFirstRecordPresentation,
   copy: ObservationFirstRecordDetailCopy,
+  nextPhotoItem: string | null = null,
 ): string {
   if (card.acceptedIdentification || !presentation.aiCandidateInsights?.length) return "";
   const candidates = presentation.aiCandidateInsights
     .filter((candidate) => isPublicObservationAiSubjectEligible(candidate.name, presentation.aiPersonPrimaryNames, candidate.scientificName)).slice(0, 3);
   if (candidates.length === 0) return "";
-  return `<section class="of-candidate-comparison" aria-labelledby="of-candidate-comparison-title"><h3 id="of-candidate-comparison-title">${escapeHtml(copy.compareCandidates)}</h3><ul>${candidates.map((candidate) => {
+  return `<section class="of-candidate-comparison" aria-labelledby="of-candidate-comparison-title"><h3 id="of-candidate-comparison-title"><span class="of-ai-badge">AI</span> ${escapeHtml(copy.compareCandidates)}</h3><ul>${candidates.map((candidate) => {
     const scientificName = candidate.scientificName && candidate.scientificName !== candidate.name
       ? `<small><i>${escapeHtml(candidate.scientificName)}</i></small>`
       : "";
     const lang = presentation.lang ?? "ja";
     const supporting = aiProseListForLang(candidate.supportingFeatures, lang).slice(0, 2);
-    const uncertainty = aiProseListForLang([...candidate.missingFeatures, ...candidate.contradictions], lang).slice(0, 1);
+    const uncertainty = aiProseListForLang([...candidate.missingFeatures, ...candidate.contradictions], lang)
+      .filter((text) => {
+        if (!nextPhotoItem) return true;
+        const concise = conciseNextPhotoItem(text);
+        return concise !== nextPhotoItem && !text.includes(nextPhotoItem) && !nextPhotoItem.includes(concise) && !/実物の生体詳細/.test(text);
+      })
+      .slice(0, 1);
     return `<li><strong>${escapeHtml(candidate.name)}</strong>${scientificName}${supporting.length ? `<span><b>${escapeHtml(copy.candidateEvidence)}</b> ${escapeHtml(supporting.join("、"))}</span>` : ""}${uncertainty.length ? `<span><b>${escapeHtml(copy.candidateUncertainty)}</b> ${escapeHtml(uncertainty[0])}</span>` : ""}</li>`;
   }).join("")}</ul></section>`;
 }
@@ -360,9 +372,10 @@ function environmentFallbackFeedback(
 function conciseNextPhotoItem(value: string): string {
   return value
     .trim()
-    .replace(/。+$/u, "")
-    .replace(/(?:が|の)(?:わかる|分かる)角度から(?:の撮影|撮影(?:してください)?)?$/u, "")
-    .replace(/(?:を|が)?(?:撮影|撮れると|記録)[^。]*$/u, "")
+    .replace(/の詳細(?:が|の)(?:わかる|分かる)部位・角度.*$/u, "")
+    .replace(/(?:が|の)(?:わかる|分かる)部位・角度.*$/u, "")
+    .replace(/(?:が|の)(?:わかる|分かる)角度からの?(?:撮影(?:してください)?)?。?$/u, "")
+    .replace(/(?:を撮影すると|が撮れると|の撮影をおすすめします)[^。]*。?$/u, "")
     .trim() || value.trim();
 }
 
@@ -393,10 +406,10 @@ function renderAiFeedback(
     ?? defaultEnvironmentNextPhoto;
   const nextPhoto = rawNextPhoto ? conciseNextPhotoItem(rawNextPhoto) : null;
   if (nextPhoto) {
-    return `<section class="of-note" data-ai-feedback><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p></section>`;
+    return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiSectionLabel)}</h2><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p></section>`;
   }
   if (!feedback) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2><p>${escapeHtml(feedback)}</p></section>`;
+  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiSectionLabel)}</h2><p>${escapeHtml(feedback)}</p></section>`;
 }
 
 function renderIdentificationForm(
@@ -479,11 +492,12 @@ function renderObservationSummary(
     const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : "";
     return [`<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`];
   }).join("");
-  const comparison = renderAiCandidateComparison(active[0]!, presentation, copy);
+  const nextPhotoItem = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
+  const comparison = renderAiCandidateComparison(active[0]!, presentation, copy, nextPhotoItem);
   const comparisonEvidence = new Set(
     (presentation.aiCandidateInsights ?? []).flatMap((candidate) => aiProseListForLang(candidate.supportingFeatures, presentation.lang ?? "ja")),
   );
-  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, comparison ? comparisonEvidence : new Set());
+  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, comparison ? comparisonEvidence : new Set(), nextPhotoItem);
   const detailCards = (meaningful.length > 0 ? meaningful.map((item) => item.card) : active.slice(0, 1))
     .map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy, {
       omitHeading: meaningful.length > 0 || seenNames.size > 0,
@@ -525,7 +539,7 @@ function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentati
   if (!state && elements.length === 0) return "";
   if (state === "detected" && elements.length === 0) return "";
   const stateMessage = state === "not_detected" ? copy.notDetected : state === "not_assessable" ? copy.notAssessable : "";
-  return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2>${elements.length ? `<ul>${elements.map((item) => `<li>${escapeHtml(copy.sceneElements[item])}</li>`).join("")}</ul>` : ""}${stateMessage ? `<p class="of-detection-state" data-detection-state="${escapeHtml(state ?? "")}">${escapeHtml(stateMessage)}</p>` : ""}</section>`;
+  return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title"><span class="of-ai-badge">AI</span> ${escapeHtml(copy.sceneFound)}</h2>${elements.length ? `<ul>${elements.map((item) => `<li>${escapeHtml(copy.sceneElements[item])}</li>`).join("")}</ul>` : ""}${stateMessage ? `<p class="of-detection-state" data-detection-state="${escapeHtml(state ?? "")}">${escapeHtml(stateMessage)}</p>` : ""}</section>`;
 }
 
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
@@ -545,7 +559,8 @@ function renderEnvironment(environment: Record<string, string> | null | undefine
   if (!headline && rows.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}</section>`;
+  const titleHtml = inferred ? `<span class="of-ai-badge">AI</span> ${escapeHtml(copy.placeSummary)}` : escapeHtml(copy.placeSummary);
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${titleHtml}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}</section>`;
 }
 
 function selectOptions(values: Record<string, string>, selected?: string): string {
@@ -731,6 +746,7 @@ export function renderObservationFirstRecordDetailHtml(
   .of-action.is-primary,.of-propose button,.of-manage button{color:var(--zukan-on-action-primary,#fff)}
   [data-ai-feedback]{border-color:var(--green);background:var(--soft)}
   body[data-zukan-app-experience] .of-note[data-ai-feedback]{margin-top:14px;padding:17px;border:1px solid var(--green);border-radius:17px;background:var(--soft);background-image:linear-gradient(150deg,rgba(36,92,58,.08),transparent 70%)}
+  .of-ai-badge{display:inline-flex;align-items:center;padding:1px 8px;margin-right:6px;border-radius:999px;background:var(--soft);border:1px solid var(--line);color:var(--green);font-size:14px;font-weight:800;vertical-align:middle}
   .of-media-nav{display:flex;justify-content:center;gap:8px;padding:10px 12px;background:var(--paper);border-top:1px solid var(--line)}.of-media-nav a{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--ink);font-weight:800;text-decoration:none}.of-media-nav a:hover,.of-media-nav a:focus-visible{background:var(--green);color:var(--zukan-on-action-primary,#fff)}
   @media(min-width:900px){body[data-zukan-app-experience] .of-media-stage{min-height:0}body[data-zukan-app-experience] .of-media-slide{min-height:calc(100vh - 96px);aspect-ratio:auto}body[data-zukan-app-experience] .of-media-slide a{min-height:calc(100vh - 96px)}body[data-zukan-app-experience] .of-media-slide :is(img,video){width:100%;height:calc(100vh - 96px);max-height:calc(100vh - 96px);object-fit:contain}}
   @media(max-width:899px){.of-page{margin-bottom:calc(88px + env(safe-area-inset-bottom,0px))}.of-observation-details[open],.of-manage[open],.of-observation-details[open]>summary,.of-manage[open]>summary{background:var(--paper)}}

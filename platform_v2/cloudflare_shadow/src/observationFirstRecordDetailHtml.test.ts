@@ -1152,3 +1152,51 @@ test("card mode suppresses saved advice prose, trims next_photo to a noun, omits
   assert.doesNotMatch(rendered, /林の中のようです/);
   assert.equal((rendered.match(/実物の生体詳細/g) ?? []).length, 1);
 });
+
+test("AI sections carry explicit AI label across all locales and consolidate next-photo guidance without repeating missing features", () => {
+  const card = {
+    ...detail.observations[0]!,
+    aiSuggestions: [
+      {
+        suggestionId: "ai-cons",
+        proposedName: "ナミアゲハ",
+        proposedScientificName: "Papilio xuthus",
+        proposedRank: "species",
+        visualEvidence: ["前翅の模様"],
+        shootingAdvice: ["実物の生体や周囲の自然環境の詳細が分かる部位・角度"],
+        provisional: true as const,
+      },
+    ],
+  };
+  const rendered = renderObservationFirstRecordDetailHtml(
+    { ...detail, owner: false, observations: [card] },
+    {
+      lang: "ja",
+      title: "ナミアゲハ",
+      observedLabel: "2026年11月23日",
+      note: null,
+      aiFeedback: null,
+      aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
+      aiCandidateInsights: [
+        {
+          name: "ナミアゲハ",
+          scientificName: "Papilio xuthus",
+          supportingFeatures: ["前翅の模様"],
+          missingFeatures: ["実物の生体詳細"],
+          contradictions: [],
+        },
+      ],
+      sceneElements: ["trees_shrubs"],
+      detectionState: "detected",
+      environment: { place_type: "woodland", environment_record_status: "auto_draft" },
+      media: [{ mediaId: "p1", mediaKind: "photo", url: "https://media.example/1.webp" }],
+      actionNonce: "nonce-ai-label",
+      viewerAuthenticated: false,
+    },
+  );
+  assert.match(rendered, /AIの見立て|of-ai-badge/);
+  assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
+  assert.doesNotMatch(rendered, /未確認/);
+  assert.match(rendered, /次に撮るとよい写真：実物の生体や周囲の自然環境<\/p>/);
+  assert.doesNotMatch(rendered, /の詳細が分かる部位・角度/);
+});
