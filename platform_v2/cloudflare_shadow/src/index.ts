@@ -177,6 +177,7 @@ import { buildRuntimeIdentity, runtimeIdentityHeaders, type RuntimeIdentityEnv }
 import { handleWorkOpportunityRequest } from "./workOpportunity";
 import { handleBiosecurityRequest, expireBiosecurityRecords } from "./biosecurity";
 import { handleGenrePortalRequest } from "./genrePortal";
+import { natureSymbiosisExplanationUrl } from "./natureSymbiosisExplanations";
 import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
@@ -19815,6 +19816,7 @@ function fieldDetailAreaSnapshotPayload(
       ownerUrl: field.links.owner,
       storyUrl: field.links.story,
       certificationUrl: field.links.certification,
+      explanationUrl: natureSymbiosisExplanationUrl(row.source, row.certification_id),
       sourceConfidence: field.verification.confidence,
       verificationLevel: field.verification.level,
       verificationLabel: field.verification.label,
@@ -23807,6 +23809,7 @@ function areaPolygonFeatureFromReadmodel(row: AreaPolygonReadmodelRow) {
       owner_url: row.owner_url ?? "",
       story_url: row.story_url ?? "",
       certification_url: row.certification_url ?? "",
+      explanation_url: natureSymbiosisExplanationUrl(source, row.certification_id),
       source_confidence: row.source_confidence ?? 0.55,
       verification_level: row.verification_level ?? "readmodel_public",
       verification_label: verificationLabel,
