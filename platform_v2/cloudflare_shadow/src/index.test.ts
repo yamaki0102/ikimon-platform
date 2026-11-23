@@ -31430,9 +31430,14 @@ test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place aut
       "sec-fetch-site": "same-origin",
       cookie: `ikimon_v2_session=${stewardToken}`
     },
-    body: JSON.stringify({ publishStatus: "published" })
+    body: JSON.stringify({ publishStatus: "published", faceRedacted: true })
   }), env);
   assert.equal(unredactedPublish.status, 400);
+  const unredactedErr = await unredactedPublish.json() as { error: string };
+  assert.equal(unredactedErr.error, "face_redaction_required");
+
+  // Simulate server-side redaction completing
+  papSqlite.prepare("UPDATE paper_archive_pages SET face_redacted = 1 WHERE page_id = ?").run(pageId);
 
   const validPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
     method: "PATCH",
@@ -31442,7 +31447,7 @@ test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place aut
       "sec-fetch-site": "same-origin",
       cookie: `ikimon_v2_session=${stewardToken}`
     },
-    body: JSON.stringify({ publishStatus: "published", faceRedacted: true })
+    body: JSON.stringify({ publishStatus: "published" })
   }), env);
   assert.equal(validPublish.status, 200);
 });

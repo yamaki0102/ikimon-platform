@@ -3185,11 +3185,9 @@ export const worker = {
         if (!isGlobalAdmin && placeRole !== "owner" && placeRole !== "steward") {
           return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
         }
-        const body = await readJson<{ publishStatus?: unknown; faceRedacted?: unknown }>(request);
+        const body = await readJson<{ publishStatus?: unknown }>(request);
         const status = body.publishStatus === "published" ? "published" : "draft";
-        const result = await setPaperArchivePublishStatus(env, pageId, status, {
-          markFaceRedacted: body.faceRedacted === true
-        });
+        const result = await setPaperArchivePublishStatus(env, pageId, status);
         if (!result.ok) {
           const code = result.error === "face_redaction_required" ? 400 : 404;
           return json({ ok: false, error: result.error ?? "page_not_found" }, code, { "cache-control": "no-store" });

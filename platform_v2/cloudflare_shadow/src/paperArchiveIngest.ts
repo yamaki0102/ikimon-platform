@@ -308,19 +308,17 @@ export async function correctPaperArchivePage(
 export async function setPaperArchivePublishStatus(
   env: Env,
   pageId: string,
-  publishStatus: "draft" | "published",
-  options?: { markFaceRedacted?: boolean }
+  publishStatus: "draft" | "published"
 ): Promise<{ ok: boolean; error?: string }> {
   await ensurePaperArchiveTable(env);
   const existing = await loadPaperArchivePageById(env, pageId);
   if (!existing) return { ok: false, error: "page_not_found" };
-  const nextFaceRedacted = options?.markFaceRedacted ? 1 : existing.face_redacted;
-  if (publishStatus === "published" && nextFaceRedacted !== 1) {
+  if (publishStatus === "published" && existing.face_redacted !== 1) {
     return { ok: false, error: "face_redaction_required" };
   }
   const res = await env.CORE_DB.prepare(
-    "UPDATE paper_archive_pages SET publish_status = ?2, face_redacted = ?3 WHERE page_id = ?1"
-  ).bind(pageId, publishStatus, nextFaceRedacted).run();
+    "UPDATE paper_archive_pages SET publish_status = ?2 WHERE page_id = ?1"
+  ).bind(pageId, publishStatus).run();
   const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
   return { ok: changes > 0 };
 }
@@ -330,7 +328,7 @@ export async function listPublishedPaperArchivesForPlace(env: Env, placeId: stri
     await ensurePaperArchiveTable(env);
     const res = await env.CORE_DB.prepare(
       `SELECT * FROM paper_archive_pages
-       WHERE place_id = ?1 AND publish_status = 'published'
+       WHERE place_id = ?1 AND publish_status = 'published' AND face_redacted = 1
        ORDER BY observed_year DESC, observed_date DESC`
     ).bind(placeId).all<PaperArchivePageRow>();
     return res.results ?? [];
