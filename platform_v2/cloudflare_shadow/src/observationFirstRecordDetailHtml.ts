@@ -83,6 +83,7 @@ export type ObservationFirstRecordPresentation = {
   /** Server-only primary identity mapping, never serialized into this page. */
   aiPersonPrimaryNames?: readonly string[];
   aiFeedback?: string | null;
+  customTitle?: string | null;
   signboardTitle?: string | null;
   aiNextPhoto?: string | null;
   mediaDedup?: {
@@ -426,11 +427,12 @@ function renderAiFeedback(
   const rawNextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
     ?? defaultEnvironmentNextPhoto;
   const nextPhoto = rawNextPhoto ? conciseNextPhotoItem(rawNextPhoto) : null;
+  const feedbackAiNote = presentation.customTitle?.trim() ? copy.aiGeneratedNote : copy.aiGeneratedTitleAndNote;
   if (nextPhoto) {
-    return `<div class="of-note" data-ai-feedback><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p></div>`;
+    return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
   }
   if (!feedback) return "";
-  return `<div class="of-note" data-ai-feedback><p>${escapeHtml(feedback)}</p></div>`;
+  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2><p>${escapeHtml(feedback)}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
 }
 
 function renderIdentificationForm(
@@ -465,7 +467,7 @@ function renderObservationDetail(
   const common = hidden("observation_id", card.observationId) + hidden("return_lang", presentation.lang ?? "ja");
   const acceptedName = publicSubjectName(card.acceptedIdentification?.proposedName);
   const accepted = acceptedName
-    ? `<div class="of-record-name"><span>${escapeHtml(copy.recordName)}</span><strong>${escapeHtml(acceptedName)}</strong></div>`
+    ? `<div class="of-record-name"><span>${escapeHtml(copy.roleRecorderConfirmed)}</span><strong>${escapeHtml(acceptedName)}</strong></div>`
     : "";
   const aiNames = options.omitAiSuggestions
     ? []
@@ -477,8 +479,17 @@ function renderObservationDetail(
     ? `<section class="of-ai-detail"><h4>${escapeHtml(copy.aiFound)}</h4><ul>${aiNames.map((name) => `<li><strong>${escapeHtml(name)}</strong><span>${escapeHtml(copy.photoCandidate)}</span></li>`).join("")}</ul></section>`
     : "";
   const proposals = card.communityIdentifications.filter((item) => !item.accepted && publicSubjectName(item.proposedName));
-  const proposalList = proposals.length > 0
-    ? `<section class="of-proposals"><h4>${escapeHtml(copy.proposals)}</h4><ul>${proposals.map((item, claimIndex) => `<li><span>${escapeHtml(item.proposedName)}</span>${detail.owner ? `<form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "accept_identification")}${hidden("identification_id", item.claimId)}${hidden("operation_id", `${presentation.actionNonce}-${index}-accept-${claimIndex}`)}<button type="submit">${escapeHtml(copy.acceptName)}</button></form>` : ""}</li>`).join("")}</ul></section>`
+  const groupedProposals = [...proposals.reduce((map, item) => {
+    const entry = map.get(item.proposedName) ?? { first: item, count: 0 };
+    entry.count += 1;
+    map.set(item.proposedName, entry);
+    return map;
+  }, new Map<string, { first: (typeof proposals)[number]; count: number }>()).values()];
+  const proposalList = groupedProposals.length > 0
+    ? `<section class="of-proposals"><h4>${escapeHtml(copy.proposals)}</h4><ul>${groupedProposals.map(({ first, count }, claimIndex) => {
+        const roleLabel = count > 1 ? copy.roleOtherPeopleCount.replace("{count}", String(count)) : copy.roleOtherPerson;
+        return `<li><span>${escapeHtml(first.proposedName)} <small>(${escapeHtml(roleLabel)})</small></span>${detail.owner ? `<form method="post" action="${escapeHtml(action)}">${common}${hidden("action", "accept_identification")}${hidden("identification_id", first.claimId)}${hidden("operation_id", `${presentation.actionNonce}-${index}-accept-${claimIndex}`)}<button type="submit">${escapeHtml(copy.acceptName)}</button></form>` : ""}</li>`;
+      }).join("")}</ul></section>`
     : "";
   const form = options.omitLoginLink && !detail.owner && !presentation.viewerAuthenticated
     ? ""
@@ -513,7 +524,7 @@ function renderObservationSummary(
   const list = summaryItems.flatMap((item) => {
     if (seenNames.has(item.text)) return [];
     seenNames.add(item.text);
-    const status = item.ai ? copy.aiCandidate : item.communityProposal ? copy.communityProposalAvailable : "";
+    const status = item.accepted ? copy.roleRecorderConfirmed : item.ai ? copy.aiCandidate : item.communityProposal ? copy.roleOtherPerson : "";
     return [`<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`];
   }).join("");
   const nextPhotoItem = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
@@ -535,8 +546,11 @@ function renderObservationSummary(
   const loginToPropose = !detail.owner && !presentation.viewerAuthenticated && active.some((card) => detail.proposalPolicy.identification)
     ? renderIdentificationForm(active[0]!, 0, detail, presentation, action, copy)
     : "";
+  const summaryIsAi = Boolean(presentation.aiCandidateInsights?.length)
+    || active.some((card) => !publicSubjectName(card.acceptedIdentification?.proposedName) && displayAiSuggestions(card, presentation.aiPersonPrimaryNames).length > 0);
+  const aiNote = summaryIsAi ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p>` : "";
   if (!list && !learning && !comparison && !detailsBlock && !loginToPropose) return "";
-  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2>${list ? `<ul class="of-summary-list">${list}</ul>` : ""}${learning}${comparison}${detailsBlock}${loginToPropose}</section>`;
+  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2>${list ? `<ul class="of-summary-list">${list}</ul>` : ""}${learning}${comparison}${aiNote}${detailsBlock}${loginToPropose}</section>`;
 }
 
 const sceneElementKeys = new Set(["water", "low_grass", "trees_shrubs", "bare_ground", "built_surface", "soil", "plant", "rock", "artificial", "urban", "coast", "wetland"]);
@@ -560,7 +574,7 @@ function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentati
   if (signboard) {
     const lang = presentation.lang ?? "ja";
     const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
-    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p></section>`;
+    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p></section>`;
   }
   const rawElements = presentation.sceneElements ?? derivedSceneElements(presentation.environment);
   const elements = [...new Set(rawElements)].filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item]).slice(0, 8);
@@ -588,7 +602,7 @@ function renderEnvironment(environment: Record<string, string> | null | undefine
   if (!headline && rows.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}</section>`;
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
 }
 
 function selectOptions(values: Record<string, string>, selected?: string): string {
@@ -739,11 +753,11 @@ function resolveSignboardTitle(
   copy: ObservationFirstRecordDetailCopy,
   lang: ObservationRecordLang,
 ): string {
-  const extracted = extractSignboardQuote(detail, presentation);
-  if (extracted) return extracted;
   if (!presentation.titleIsFallback && !SIGNBOARD_CANDIDATE_PATTERN.test(presentation.title) && !forbiddenEmptyCopy.test(presentation.title) && presentation.title !== copy.natureRecord) {
     return presentation.title;
   }
+  const extracted = extractSignboardQuote(detail, presentation);
+  if (extracted) return extracted;
   return lang === "ja" ? "まちの記録" : lang === "es" ? "Registro urbano" : lang === "pt-br" ? "Registro urbano" : "Town record";
 }
 
@@ -770,11 +784,14 @@ export function renderObservationFirstRecordDetailHtml(
   const copy = observationFirstRecordDetailCopy(lang);
   const media = safeMedia(presentation.media);
   const signboard = isSignboardRecord(detail, presentation);
-  const title = signboard
-    ? resolveSignboardTitle(detail, presentation, copy, lang)
-    : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
-      ? copy.natureRecord
-      : presentation.title;
+  const customTitle = presentation.customTitle?.trim() || null;
+  const title = customTitle
+    ? customTitle
+    : signboard
+      ? resolveSignboardTitle(detail, presentation, copy, lang)
+      : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
+        ? copy.natureRecord
+        : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
   const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
   const shareUrl = presentation.shareUrl ?? canonicalUrl;
@@ -794,25 +811,13 @@ export function renderObservationFirstRecordDetailHtml(
   const aiFeedback = renderAiFeedback(detail, presentation, copy);
   const scene = renderSceneUnderstanding(presentation, copy, signboard);
   const environment = renderEnvironment(presentation.environment, copy);
-  const summaryIsAi = !signboard && Boolean(summary) && (
-    Boolean(presentation.aiCandidateInsights?.length)
-    || detail.observations.some((card) => card.state === "active" && !publicSubjectName(card.acceptedIdentification?.proposedName) && displayAiSuggestions(card, presentation.aiPersonPrimaryNames).length > 0)
-  );
-  const envIsAi = Boolean(environment) && (
-    presentation.environment?.environment_record_status === "auto_draft"
-    || Object.keys(presentation.environment ?? {}).some((key) => key.endsWith("_source") && presentation.environment?.[key] === "derived")
-  );
-  const aiParts = [
-    summaryIsAi ? summary : "",
-    aiFeedback,
-    scene,
-    envIsAi ? environment : "",
-  ].filter(Boolean);
-  const aiSection = aiParts.length > 0
-    ? `<section class="of-ai-box" data-ai-assessment aria-labelledby="of-ai-box-title"><h2 id="of-ai-box-title">${escapeHtml(copy.aiSectionLabel)}</h2>${aiParts.join("")}</section>`
+  const resetTitleForm = customTitle
+    ? `<form method="post" action="${escapeHtml(action)}">${hidden("action", "reset_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title-reset`)}<button type="submit" class="is-secondary">${escapeHtml(copy.resetTitle)}</button></form>`
     : "";
-  const nonAiSummary = !summaryIsAi ? summary : "";
-  const nonAiEnvironment = !envIsAi ? environment : "";
+  const titleEditForm = detail.owner
+    ? `<details class="of-title-edit"><summary>${escapeHtml(copy.editTitle)}</summary><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required aria-label="${escapeHtml(copy.editTitle)}"><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</details>`
+    : "";
+  const titleBlock = `<div class="of-title-row"><h1>${escapeHtml(title)}</h1>${titleEditForm}</div>`;
   const comparison = renderComparison(presentation.comparison, lang, copy);
   const note = presentation.note?.trim() ? `<section class="of-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
   const publicationReturn = renderOwnerPublicationReturn(detail, { ...presentation, lang }, copy);
@@ -848,5 +853,6 @@ export function renderObservationFirstRecordDetailHtml(
   .of-meta-visibility{display:inline-flex;align-items:center;width:fit-content;padding:2px 10px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--ink);font-size:13px;font-weight:800}
   :focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
-  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}<h1>${escapeHtml(title)}</h1><div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(publicLocation)}</p>${locationProtection ? `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>` : ""}<p class="of-meta-visibility">${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${nonAiSummary}${aiSection}${presentation.humanExpertCommentsHtml ?? ""}${nonAiEnvironment}${comparison}${publicationReturn}${management}${capture}</aside></div>${related}</main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}</body></html>`;
+  .of-ai-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:#55635b;text-align:left}.of-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.of-title-edit{display:inline-block}.of-title-edit summary{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:750;color:var(--green);cursor:pointer;list-style:none}.of-title-edit summary::-webkit-details-marker{display:none}.of-title-edit form{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.of-title-edit input{flex:1 1 220px;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-title-edit button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800;cursor:pointer}
+  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(publicLocation)}</p>${locationProtection ? `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>` : ""}<p class="of-meta-visibility">${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${summary}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${scene}${environment}${comparison}${publicationReturn}${management}${capture}</aside></div>${related}<p class="of-ai-footer-note" style="margin:24px 0 0;font-size:13px;color:#657168">${escapeHtml(copy.aiPageFooterNote)}</p></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}</body></html>`;
 }
