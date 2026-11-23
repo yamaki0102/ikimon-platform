@@ -9603,6 +9603,7 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   const rows = await queryPublicMapRows(env);
   const areaAndPeriodRows = rows
     .filter((row) => {
+      if ((selectedCell || effectiveBbox) && (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now()))) return false;
       if (selectedCell && row.public_cell !== selectedCell) return false;
       if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
       if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
@@ -25062,7 +25063,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     }));
   const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
   const relatedRows = (await queryPublicMapRows(env))
-    .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
+    .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === row.public_cell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   const isAwaitingId = isWeakTaxonLabel(row.taxon_label);

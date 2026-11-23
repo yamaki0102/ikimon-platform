@@ -31316,10 +31316,8 @@ test("public map and public detail redact exact timestamps, hidden cells, and 24
   const areaRes = await worker.fetch(new Request(`https://zukan.earth/api/v1/areas/observations?bbox=${bbox}`), env);
   assert.equal(areaRes.status, 200);
   const areaBody = await areaRes.json() as { items: Array<{ visitId: string; publicCellId: string | null; observedAt: string; localityLabel: string }> };
-  const delayedItem = areaBody.items.find((x) => x.visitId === "obs-delayed-1")!;
   const oldItem = areaBody.items.find((x) => x.visitId === "obs-old-1")!;
-  assert.equal(delayedItem.publicCellId, null);
-  assert.equal(delayedItem.localityLabel, "位置は24時間後に公開されます");
+  assert.equal(areaBody.items.some((x) => x.visitId === "obs-delayed-1"), false);
   assert.equal(oldItem.observedAt, "2026-10-15");
   assert.ok(oldItem.publicCellId !== null);
 
