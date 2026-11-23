@@ -118,6 +118,8 @@ export function publicObservationAiCandidateInsights(
       supportingFeatures,
       missingFeatures,
       contradictions,
+      ...(typeof candidate.measuredProbability === "number" && Number.isFinite(candidate.measuredProbability) ? { probability: Math.max(0, Math.min(1, candidate.measuredProbability)) } : {}),
+      ...(safeText(candidate.howToTell) ? { howToTell: safeText(candidate.howToTell) } : {}),
     }];
   }).slice(0, 3);
 }
