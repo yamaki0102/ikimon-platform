@@ -32778,3 +32778,112 @@ test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place aut
   }), env);
   assert.equal(validPublish.status, 200);
 });
+
+test("public observation detail and map cards fall back from weak readmodel taxon_label to observations.taxon_label and observation_identifications", async () => {
+  const { env: baseEnv, obs } = createEnv();
+  const idSqlite = new DatabaseSync(":memory:");
+  idSqlite.exec(`
+    CREATE TABLE observation_identifications (
+      identification_id TEXT PRIMARY KEY,
+      occurrence_id TEXT NOT NULL,
+      actor_user_id TEXT,
+      proposed_name TEXT NOT NULL,
+      proposed_rank TEXT,
+      stance TEXT,
+      is_current INTEGER NOT NULL DEFAULT 1,
+      source_payload_json TEXT,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  `);
+  const obsWithIds = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bobservation_identifications\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return idSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: idSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(idSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithIds };
+
+  // Case 1: readmodel has '同定待ち', observations.taxon_label has real species name
+  obs.observations.set("record-okinawa-1", {
+    observation_id: "record-okinawa-1",
+    draft_id: "draft-okinawa-1",
+    owner_user_id: "user-mackey",
+    observed_at: "2026-05-21T03:00:00.000Z",
+    partition_month: "2026-05",
+    taxon_label: "リュウキュウメジロ",
+    note: "沖縄で撮影",
+    exact_lat: 26.21,
+    exact_lng: 127.68,
+    location_accuracy_m: 10,
+    public_cell: "26.21,127.68",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "沖縄県那覇市"
+  });
+  obs.readmodel.set("record-okinawa-1", {
+    observation_id: "record-okinawa-1",
+    public_cell: "26.21,127.68",
+    observed_at: "2026-05-21T03:00:00.000Z",
+    taxon_label: "同定待ち",
+    asset_count: 1,
+    partition_month: "2026-05",
+    public_area_label: "沖縄県那覇市"
+  });
+
+  // Case 2: both readmodel and observations have weak taxon_label, observation_identifications has proposed_name
+  obs.observations.set("record-okinawa-2", {
+    observation_id: "record-okinawa-2",
+    draft_id: "draft-okinawa-2",
+    owner_user_id: "user-mackey",
+    observed_at: "2026-05-21T04:00:00.000Z",
+    partition_month: "2026-05",
+    taxon_label: null,
+    note: null,
+    exact_lat: 26.22,
+    exact_lng: 127.69,
+    location_accuracy_m: 10,
+    public_cell: "26.22,127.69",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "沖縄県浦添市"
+  });
+  obs.readmodel.set("record-okinawa-2", {
+    observation_id: "record-okinawa-2",
+    public_cell: "26.22,127.69",
+    observed_at: "2026-05-21T04:00:00.000Z",
+    taxon_label: null,
+    asset_count: 1,
+    partition_month: "2026-05",
+    public_area_label: "沖縄県浦添市"
+  });
+  idSqlite.prepare(
+    "INSERT INTO observation_identifications (identification_id, occurrence_id, actor_user_id, proposed_name, stance, is_current, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)"
+  ).run("id-ok-2", "occ:record-okinawa-2:0", "user-mackey", "オキナワキノボリトカゲ", "propose", "2026-05-21T04:05:00.000Z", "2026-05-21T04:05:00.000Z");
+
+  const res1 = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-okinawa-1"), env);
+  assert.equal(res1.status, 200);
+  const html1 = await res1.text();
+  assert.match(html1, /リュウキュウメジロ/);
+
+  const res2 = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-okinawa-2"), env);
+  assert.equal(res2.status, 200);
+  const html2 = await res2.text();
+  assert.match(html2, /オキナワキノボリトカゲ/);
+});

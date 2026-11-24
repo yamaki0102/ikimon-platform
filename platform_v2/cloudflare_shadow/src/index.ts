@@ -1051,6 +1051,8 @@ type OwnerHomeRecordItem = ReturnType<typeof publicMapObservationItem> & {
 };
 
 interface PublicDetailRow extends PublicMapRow {
+  obs_taxon_label?: string | null;
+  identified_taxon_label?: string | null;
   note: string | null;
   visibility: string;
   ai_assessment_status: string | null;
@@ -23575,6 +23577,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
 }
 
 type PublicMapCardMeta = {
+  taxonLabel: string | null;
   publicAreaLabel: string | null;
   publicNote: string | null;
   aiCandidateLabel: string | null;
@@ -23591,7 +23594,7 @@ async function queryPublicMapCardMeta(
   const ensure = (id: string): PublicMapCardMeta => {
     let entry = map.get(id);
     if (!entry) {
-      entry = { publicAreaLabel: null, publicNote: null, aiCandidateLabel: null, scenePlaceType: null, sceneSurroundingCover: null };
+      entry = { taxonLabel: null, publicAreaLabel: null, publicNote: null, aiCandidateLabel: null, scenePlaceType: null, sceneSurroundingCover: null };
       map.set(id, entry);
     }
     return entry;
@@ -23606,9 +23609,9 @@ async function queryPublicMapCardMeta(
   );
   const observationScope = observationIdScope("o.observation_id", ids);
   const environmentScope = observationIdScope("er.occurrence_id", ids);
-  const [baseRows, aiRows, envRows] = await Promise.all([
-    tolerateMissingSchema<{ observation_id: string; public_area_label: string | null; note: string | null }>(scopedStatement(env,
-      `SELECT r.observation_id, r.public_area_label, o.note
+  const [baseRows, idRows, aiRows, envRows] = await Promise.all([
+    tolerateMissingSchema<{ observation_id: string; obs_taxon_label: string | null; public_area_label: string | null; note: string | null }>(scopedStatement(env,
+      `SELECT r.observation_id, o.taxon_label AS obs_taxon_label, r.public_area_label, o.note
          FROM readmodel_public_observations r
          JOIN observations o ON o.observation_id = r.observation_id
         WHERE o.visibility = 'public'
@@ -23622,7 +23625,26 @@ async function queryPublicMapCardMeta(
           ${observationScope.sql}
         ORDER BY r.observed_at DESC
         LIMIT 5000`, observationScope.binds
-    ).all<{ observation_id: string; public_area_label: string | null; note: string | null }>()),
+    ).all<{ observation_id: string; obs_taxon_label: string | null; public_area_label: string | null; note: string | null }>()),
+    tolerateMissingSchema<{ observation_id: string; proposed_name: string | null }>(scopedStatement(env,
+      `SELECT o.observation_id, oi.proposed_name
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+         JOIN observation_identifications oi ON oi.occurrence_id IN ('occ:' || o.observation_id || ':0', o.observation_id)
+        WHERE o.visibility = 'public'
+          AND o.emergency_hidden = 0
+          AND oi.is_current = 1
+          AND COALESCE(oi.stance, 'propose') <> 'disagree'
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
+          ${observationScope.sql}
+        ORDER BY oi.updated_at DESC, oi.created_at DESC
+        LIMIT 5000`, observationScope.binds
+    ).all<{ observation_id: string; proposed_name: string | null }>()),
     tolerateMissingSchema<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>(scopedStatement(env,
       `SELECT o.observation_id,
               COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
@@ -23662,8 +23684,15 @@ async function queryPublicMapCardMeta(
   ]);
   for (const row of baseRows) {
     const entry = ensure(row.observation_id);
+    if (!isWeakTaxonLabel(row.obs_taxon_label)) entry.taxonLabel = row.obs_taxon_label!.trim();
     entry.publicAreaLabel = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
     entry.publicNote = formatPublicCardNoteLine(row.note);
+  }
+  for (const row of idRows) {
+    const entry = ensure(row.observation_id);
+    if (!entry.taxonLabel && !isWeakTaxonLabel(row.proposed_name)) {
+      entry.taxonLabel = row.proposed_name!.trim();
+    }
   }
   for (const row of aiRows) {
     const aiLabel = normalizeOptionalText(row.ai_candidate_label);
@@ -23721,6 +23750,7 @@ function appendPublicRecordCards(
       const meta = cardMeta.get(row.observation_id);
       const enrichedRow: PublicMapRow = {
         ...row,
+        taxon_label: isWeakTaxonLabel(row.taxon_label) ? (meta?.taxonLabel ?? row.taxon_label) : row.taxon_label,
         public_area_label: normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? meta?.publicAreaLabel ?? null,
         public_note: row.public_note ?? meta?.publicNote ?? null,
         ai_candidate_label: row.ai_candidate_label ?? meta?.aiCandidateLabel ?? null,
@@ -25625,7 +25655,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
             AND o.emergency_hidden = 0`
       ).bind(visitId, ownerUserId).first<PublicDetailRow>()
     : await env.OBS_DB.prepare(
-        `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
+        `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, o.taxon_label AS obs_taxon_label, r.asset_count,
                 o.note, o.visibility,
                 art.ai_assessment_status,
                 (SELECT rr.request_state FROM observation_reassessment_requests rr
@@ -25728,14 +25758,33 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
-  const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
+  let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label)
+    ? row.taxon_label
+    : !isWeakTaxonLabel(row.obs_taxon_label ?? null)
+    ? row.obs_taxon_label!
+    : null;
+  if (!effectiveTaxonLabel) {
+    const idRow = await env.OBS_DB.prepare(
+      `SELECT proposed_name
+         FROM observation_identifications
+        WHERE occurrence_id IN (?, ?)
+          AND is_current = 1
+          AND COALESCE(stance, 'propose') <> 'disagree'
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 1`
+    ).bind(`occ:${visitId}:0`, visitId).first<{ proposed_name: string | null }>().catch(() => null);
+    if (!isWeakTaxonLabel(idRow?.proposed_name ?? null)) {
+      effectiveTaxonLabel = idRow!.proposed_name!;
+    }
+  }
+  const isAwaitingId = isWeakTaxonLabel(effectiveTaxonLabel);
   const aiPersonPrimaryNames = publicObservationAiPersonPrimaryNames(row.ai_source_payload_json);
   const isEligibleAiCandidate = isPublicObservationAiSubjectEligible(row.ai_candidate_label, aiPersonPrimaryNames);
   const aiCandidateLabel = isEligibleAiCandidate ? row.ai_candidate_label : null;
   const aiCandidateRank = isEligibleAiCandidate ? row.ai_candidate_rank : null;
   const displayName = isAwaitingId
     ? aiCandidateLabel ?? "名前待ち"
-    : row.taxon_label!.trim();
+    : effectiveTaxonLabel!.trim();
 
   const detailLocationLabel = row.public_cell === "hidden"
     ? "位置は非公開です"
