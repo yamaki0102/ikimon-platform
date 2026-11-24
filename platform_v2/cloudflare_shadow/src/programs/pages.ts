@@ -539,6 +539,35 @@ export async function handleObservationEventPages(request: Request, url: URL, en
     const cspNonce = createHtmlCspNonce();
     const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNumber);
     const nextEventNote = typeof session.config?.nextEventNote === "string" ? session.config.nextEventNote : "";
+    const publicPageConfig = asPlainObject(session.config?.public_page);
+    const configuredPlaceId = [
+      session.config?.placeId,
+      session.config?.place_id,
+      publicPageConfig?.placeId,
+      publicPageConfig?.place_id
+    ].find((value): value is string => typeof value === "string" && /^[A-Za-z][A-Za-z0-9_-]{2,159}$/u.test(value.trim()))?.trim() ?? "";
+    let publicPlace: { placeId: string; name: string } | null = null;
+    if (configuredPlaceId) {
+      const placeRow = await env.OBS_DB.prepare(
+        `SELECT p.place_id, p.canonical_name
+           FROM places p
+          WHERE p.place_id = ?
+            AND p.public_profile_status = 'published'
+            AND p.valid_to IS NULL
+            AND p.superseded_by_place_id IS NULL
+            AND EXISTS (
+              SELECT 1
+                FROM place_policies pp
+               WHERE pp.place_id = p.place_id
+                 AND pp.place_visibility = 'public'
+                 AND pp.valid_to IS NULL
+            )
+          LIMIT 1`
+      ).bind(configuredPlaceId).first<{ place_id: string; canonical_name: string }>().catch(() => null);
+      if (placeRow?.place_id && placeRow?.canonical_name) {
+        publicPlace = { placeId: placeRow.place_id, name: placeRow.canonical_name };
+      }
+    }
     const body = renderGuideBadgeTakeawayPage({
       sessionId: session.sessionId,
       eventTitle: session.title,
@@ -546,7 +575,8 @@ export async function handleObservationEventPages(request: Request, url: URL, en
       nextEventNote,
       lang,
       cspNonce,
-      discoveries
+      discoveries,
+      publicPlace
     });
     return new Response(request.method === "HEAD" ? null : body, {
       status: 200,
