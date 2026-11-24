@@ -7,6 +7,7 @@ import { OBSERVATION_EVENT_MODES, decideObservationEventQuest, getObservationEve
 import { createObservationEventGuestMedia, getObservationEventDiscoveries, getObservationEventGuestMedia, getObservationEventGuestMediaContent, getObservationEventSessionByEventCode, getObservationRallySnapshot, handleObservationEventDiscoveryPaper, handleObservationEventRallyApi, isPrivateReceivedProgram, reviewObservationEventGuestMedia, withdrawObservationEventGuestMedia } from "./rally";
 import { announceObservationEvent, checkinObservationEvent, createObservationEventAbsence, createObservationEventSession, createObservationEventTeam, endObservationEventSession, generateObservationEventCapsule, getObservationEventCapsule, getObservationEventEffort, getObservationEventLiveSnapshot, getObservationEventRecap, getObservationEventRecapPhoto, getObservationEventRecent, getObservationEventSpeciesCsv, pingObservationEventLocation, reviewObservationEventCapsule, suggestObservationEventArea, switchObservationEventMode, updateObservationEventRole, updateObservationEventSession } from "./sessions";
 import { applyToObservationEvent, getObservationEventApplicationStatus, getRyuyoDiscoveryCampaign, manageObservationEventDiscoveryCampaign } from "./pages";
+import { insertGuideBadgeDiscoveries, listGuideBadgeDiscoveries, toBadgeOnlyDiscovery, type GuideSyncEntryInput } from "../guideVoiceEvent";
 
 export async function handlePublicProgramReceiverApi(request: Request, url: URL, env: Env): Promise<Response | null> {
   const pathname = stripPublicLangPrefix(url.pathname);
@@ -208,6 +209,54 @@ export async function handleObservationEventApi(request: Request, url: URL, env:
   if (request.method === "PATCH" && questDecisionMatch?.[1] && questDecisionMatch[2]) {
     return decideObservationEventQuest(request, env, decodeURIComponent(questDecisionMatch[1]), decodeURIComponent(questDecisionMatch[2]));
   }
+  const guideSyncMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/guide-discoveries\/sync$/);
+  if (request.method === "POST" && guideSyncMatch?.[1]) {
+    const sameOriginError = assertSameOriginRequest(request, true);
+    if (sameOriginError) return sameOriginError;
+    const targetSessionId = decodeURIComponent(guideSyncMatch[1]);
+    const session = await getObservationEventSessionById(env, targetSessionId);
+    if (!session) return json({ error: "session_not_found" }, 404, { "cache-control": "no-store" });
+
+    const body = await readJson<{ eventCode?: unknown; recorderLabel?: unknown; entries?: unknown }>(request);
+    const auth = await readCompatibleSession(request, env).catch(() => null);
+    const bodyEventCode = typeof body.eventCode === "string" ? body.eventCode.trim() : "";
+    const isOrganizer = Boolean(auth && !auth.banned && auth.userId === session.organizerUserId);
+    const hasEventCode = Boolean(session.eventCode && bodyEventCode && bodyEventCode === session.eventCode);
+    if (!isOrganizer && !hasEventCode) {
+      return json({ error: "guide_auth_or_event_code_required" }, 403, { "cache-control": "no-store" });
+    }
+
+    const entries = Array.isArray(body.entries) ? body.entries as GuideSyncEntryInput[] : [];
+    const defaultRecorder = typeof body.recorderLabel === "string" && body.recorderLabel.trim() ? body.recorderLabel.trim() : "guide-1";
+    const result = await insertGuideBadgeDiscoveries(env, session.sessionId, entries, defaultRecorder);
+    const allEntries = await listGuideBadgeDiscoveries(env, session.sessionId, null);
+    return json({ ok: true, syncedCount: result.syncedCount, rejected: result.rejected, entries: allEntries }, 200, { "cache-control": "no-store" });
+  }
+
+  const guideListMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/guide-discoveries$/);
+  if (request.method === "GET" && guideListMatch?.[1]) {
+    const targetSessionId = decodeURIComponent(guideListMatch[1]);
+    const session = await getObservationEventSessionById(env, targetSessionId);
+    if (!session) return json({ error: "session_not_found" }, 404, { "cache-control": "no-store" });
+    const badgeParam = url.searchParams.get("badge");
+    const badgeNum = badgeParam ? Number(badgeParam) : null;
+    if (badgeParam && (!Number.isInteger(badgeNum) || (badgeNum ?? 0) < 1)) {
+      return json({ error: "invalid_badge" }, 400, { "cache-control": "no-store" });
+    }
+    const auth = await readCompatibleSession(request, env).catch(() => null);
+    const isOrganizer = Boolean(auth && !auth.banned && auth.userId === session.organizerUserId);
+    const headerEventCode = (request.headers.get("x-event-code") ?? "").trim();
+    const hasEventCode = Boolean(session.eventCode && headerEventCode && headerEventCode === session.eventCode);
+    if (isOrganizer || hasEventCode) {
+      const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNum);
+      return json({ ok: true, sessionId: session.sessionId, badgeNumber: badgeNum, count: discoveries.length, discoveries }, 200, { "cache-control": "no-store" });
+    }
+    if (!badgeNum) return json({ error: "guide_auth_or_event_code_required" }, 403, { "cache-control": "no-store" });
+    const rows = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNum);
+    const discoveries = rows.map(toBadgeOnlyDiscovery);
+    return json({ ok: true, sessionId: session.sessionId, badgeNumber: badgeNum, count: discoveries.length, discoveries }, 200, { "cache-control": "no-store" });
+  }
+
   const sessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)(?:\/([^/]+))?$/);
   if (!sessionMatch?.[1]) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
 

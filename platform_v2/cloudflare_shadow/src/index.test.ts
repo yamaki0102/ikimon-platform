@@ -1789,6 +1789,24 @@ interface GbifJapaneseNameDisplayAuditTestRow {
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
+  guideBadgeDiscoveries = new Map<string, {
+    discovery_id: string;
+    session_id: string;
+    badge_number: number;
+    client_entry_id: string;
+    utterance: string;
+    subject: string;
+    count: number;
+    detail: string;
+    ai_comment: string;
+    recorder_label: string;
+    latitude: number | null;
+    longitude: number | null;
+    area_label: string;
+    face_privacy_status: string;
+    observed_at: string;
+    created_at: number;
+  }>();
   userLanguagePreferences = new Map<string, string>();
   waitlist = new Map<string, { id: string; email: string; locale: string; source_path: string; created_at: number }>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
@@ -1953,6 +1971,36 @@ class FakeStatement {
   async run(): Promise<unknown> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS guide_badge_discoveries")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS place_local_experts")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT OR IGNORE INTO guide_badge_discoveries")) {
+      const key = `${string(v[1])}:${string(v[3])}`;
+      if (this.db.guideBadgeDiscoveries.has(key)) return { meta: { changes: 0 } };
+      this.db.guideBadgeDiscoveries.set(key, {
+        discovery_id: string(v[0]),
+        session_id: string(v[1]),
+        badge_number: number(v[2]),
+        client_entry_id: string(v[3]),
+        utterance: string(v[4]),
+        subject: string(v[5]),
+        count: number(v[6]),
+        detail: string(v[7]),
+        ai_comment: string(v[8]),
+        recorder_label: string(v[9]),
+        latitude: v[10] === null ? null : number(v[10]),
+        longitude: v[11] === null ? null : number(v[11]),
+        area_label: string(v[12]),
+        face_privacy_status: string(v[13]),
+        observed_at: string(v[14]),
+        created_at: number(v[15])
+      });
+      return { meta: { changes: 1 } };
+    }
 
     if (normalized.startsWith("CREATE TABLE IF NOT EXISTS user_language_preferences")) {
       return { meta: { changes: 0 } };
@@ -6596,6 +6644,27 @@ class FakeStatement {
   async all<T>(): Promise<{ results: T[] }> {
     const normalized = normalize(this.query);
     const v = this.values;
+
+    if (normalized.includes("FROM place_local_experts WHERE user_id = ?1")) {
+      return { results: [] as T[] };
+    }
+    if (normalized.includes("FROM guide_badge_discoveries WHERE session_id = ?1 AND badge_number = ?2")) {
+      const sid = string(v[0]);
+      const badge = number(v[1]);
+      return {
+        results: [...this.db.guideBadgeDiscoveries.values()]
+          .filter((r) => r.session_id === sid && r.badge_number === badge)
+          .sort((a, b) => a.created_at - b.created_at) as T[]
+      };
+    }
+    if (normalized.includes("FROM guide_badge_discoveries WHERE session_id = ?1")) {
+      const sid = string(v[0]);
+      return {
+        results: [...this.db.guideBadgeDiscoveries.values()]
+          .filter((r) => r.session_id === sid)
+          .sort((a, b) => b.created_at - a.created_at) as T[]
+      };
+    }
 
     if (normalized.startsWith("SELECT role_name, banned FROM oauth_accounts WHERE user_id = ?")) {
       return { results: [...this.db.oauthAccounts.values()].filter((row) => row.user_id === string(v[0])).map((row) => ({ role_name: row.role_name, banned: row.banned })) as T[] };
@@ -29106,6 +29175,244 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
 });
 
+test("guide voice console syncs 10 voice entries, allows 2nd recorder via event code, rejects unblurred faces, and serves registration-free badge takeaway", async () => {
+  const { env, obs } = createEnv();
+  const sessionId = "evt_guide_voice_10";
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    legacy_event_id: null,
+    event_code: "YATSUDE-10",
+    title: "ヤツデ観察会",
+    organizer_user_id: "guide-organizer-1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "guide_voice",
+    active_modes_json: JSON.stringify(["guide_voice"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
+    started_at: "2026-11-23T09:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: JSON.stringify({ nextEventNote: "次回は12月14日 9:30集合" }),
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+
+  const batch1Entries = Array.from({ length: 9 }, (_, i) => ({
+    clientEntryId: `g1_${i + 1}`,
+    utterance: `3番、ヤツデの花、ハチ${i + 1}匹`,
+    facePrivacyStatus: "verified_no_faces"
+  }));
+  const sync1 = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      eventCode: "YATSUDE-10",
+      recorderLabel: "guide-1",
+      entries: [
+        ...batch1Entries,
+        { clientEntryId: "g_face", utterance: "3番、友だちの顔", faceDetected: true, faceBlurred: false }
+      ]
+    })
+  }), env);
+  assert.equal(sync1.status, 200);
+  const p1 = await sync1.json() as { ok: boolean; syncedCount: number; rejected: Array<{ clientEntryId: string; error: string }> };
+  assert.equal(p1.ok, true);
+  assert.equal(p1.syncedCount, 9);
+  assert.deepEqual(p1.rejected, [{ clientEntryId: "g_face", error: "face_blur_required" }]);
+
+  const sync2 = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin"
+    },
+    body: JSON.stringify({
+      eventCode: "YATSUDE-10",
+      recorderLabel: "recorder-2",
+      entries: [
+        { clientEntryId: "g2_10", utterance: "5番、カワセミ、1羽", facePrivacyStatus: "verified_no_faces" },
+        { clientEntryId: "g1_1", utterance: "3番、ヤツデの花、ハチ1匹", facePrivacyStatus: "verified_no_faces" }
+      ]
+    })
+  }), env);
+  assert.equal(sync2.status, 200);
+  const p2 = await sync2.json() as { ok: boolean; syncedCount: number; entries: unknown[] };
+  assert.equal(p2.syncedCount, 1);
+  assert.equal(p2.entries.length, 10);
+
+  const takeaway3 = await worker.fetch(new Request(`https://shadow.test/ja/events/${sessionId}/takeaway/3`), env);
+  assert.equal(takeaway3.status, 200);
+  const takeawayHtml = await takeaway3.text();
+  assert.match(takeawayHtml, /名札 3番・登録不要の持ち帰り/);
+  assert.match(takeawayHtml, /記録件数:<\/strong> 9件/);
+  assert.match(takeawayHtml, /次回は12月14日 9:30集合/);
+  assert.doesNotMatch(takeawayHtml, /友だちの顔/);
+});
+
+test("guide discoveries list hides coordinates from unauthenticated callers and expert stats require the same user or admin", async () => {
+  const { env, obs } = createEnv();
+  const sessionId = "evt_guide_guard_1";
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    legacy_event_id: null,
+    event_code: "GUARD-1",
+    title: "ガード観察会",
+    organizer_user_id: "guard-organizer-1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "guide_voice",
+    active_modes_json: JSON.stringify(["guide_voice"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
+    started_at: "2026-11-23T09:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+  const syncHeaders = { "content-type": "application/json", origin: "https://shadow.test", "sec-fetch-site": "same-origin" };
+  const sync = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: syncHeaders,
+    body: JSON.stringify({
+      eventCode: "GUARD-1",
+      entries: [{ clientEntryId: "guard_1", utterance: "3番、ヤツデの花、ハチ2匹", latitude: 34.7123, longitude: 137.8123, observedAt: "2026-11-23T09:15:00.000Z" }]
+    })
+  }), env);
+  assert.equal(sync.status, 200);
+
+  const listUrl = `https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries`;
+  const anonNoBadge = await worker.fetch(new Request(listUrl), env);
+  assert.equal(anonNoBadge.status, 403);
+  assert.deepEqual(await anonNoBadge.json(), { error: "guide_auth_or_event_code_required" });
+
+  const anonBadge = await worker.fetch(new Request(`${listUrl}?badge=3`), env);
+  assert.equal(anonBadge.status, 200);
+  const anonPayload = await anonBadge.json() as { discoveries: Array<Record<string, unknown>> };
+  assert.equal(anonPayload.discoveries.length, 1);
+  assert.equal("latitude" in anonPayload.discoveries[0]!, false);
+  assert.equal("longitude" in anonPayload.discoveries[0]!, false);
+  assert.equal(anonPayload.discoveries[0]!.observed_at, "2026-11-23");
+  assert.doesNotMatch(JSON.stringify(anonPayload), /34\.7123|137\.8123/);
+
+  const queryCodeOnly = await worker.fetch(new Request(`${listUrl}?eventCode=GUARD-1`), env);
+  assert.equal(queryCodeOnly.status, 403);
+
+  const headerCode = await worker.fetch(new Request(listUrl, { headers: { "x-event-code": "GUARD-1" } }), env);
+  assert.equal(headerCode.status, 200);
+  const headerPayload = await headerCode.json() as { discoveries: Array<Record<string, unknown>> };
+  assert.equal(headerPayload.discoveries[0]!.latitude, 34.7123);
+
+  const wrongHeaderCode = await worker.fetch(new Request(listUrl, { headers: { "x-event-code": "WRONG" } }), env);
+  assert.equal(wrongHeaderCode.status, 403);
+
+  const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "guard-organizer-1", displayName: "Guard Organizer", ttlHours: 1 })
+  }), env);
+  const organizerCookie = (organizerIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const organizerList = await worker.fetch(new Request(listUrl, { headers: { cookie: organizerCookie } }), env);
+  assert.equal(organizerList.status, 200);
+  const organizerPayload = await organizerList.json() as { discoveries: Array<Record<string, unknown>> };
+  assert.equal(organizerPayload.discoveries[0]!.longitude, 137.8123);
+  assert.equal(organizerPayload.discoveries[0]!.face_privacy_status, "unverified");
+
+  const outsiderIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "guard-outsider-1", displayName: "Outsider", ttlHours: 1 })
+  }), env);
+  const outsiderCookie = (outsiderIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const outsiderNoBadge = await worker.fetch(new Request(listUrl, { headers: { cookie: outsiderCookie } }), env);
+  assert.equal(outsiderNoBadge.status, 403);
+
+  const statsUrl = "https://shadow.test/api/v1/experts/guard-expert-1/stats";
+  const statsAnon = await worker.fetch(new Request(statsUrl), env);
+  assert.equal(statsAnon.status, 401);
+  const statsOther = await worker.fetch(new Request(statsUrl, { headers: { cookie: outsiderCookie } }), env);
+  assert.equal(statsOther.status, 403);
+  const expertIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "guard-expert-1", displayName: "Expert", ttlHours: 1 })
+  }), env);
+  const expertCookie = (expertIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const statsSelf = await worker.fetch(new Request(statsUrl, { headers: { cookie: expertCookie } }), env);
+  assert.equal(statsSelf.status, 200);
+});
+
+test("guide voice console shows the event code only to the organizer", async () => {
+  const { env, obs } = createEnv();
+  const sessionId = "evt_guide_page_code_1";
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    legacy_event_id: null,
+    event_code: "PAGE-CODE-7",
+    title: "コード表示観察会",
+    organizer_user_id: "page-organizer-1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "guide_voice",
+    active_modes_json: JSON.stringify(["guide_voice"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
+    started_at: "2026-11-23T09:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+  const seed = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://shadow.test", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({
+      eventCode: "PAGE-CODE-7",
+      entries: [{ clientEntryId: "page_1", utterance: "7番、オオカワセミテスト、ハチ3匹", observedAt: "2026-11-23T10:00:00.000Z" }]
+    })
+  }), env);
+  assert.equal(seed.status, 200);
+
+  const pageUrl = `https://shadow.test/ja/events/${sessionId}/guide-voice`;
+  const anonPage = await worker.fetch(new Request(pageUrl), env);
+  assert.equal(anonPage.status, 200);
+  const anonHtml = await anonPage.text();
+  assert.doesNotMatch(anonHtml, /PAGE-CODE-7/);
+  assert.match(anonHtml, /id="gv-event-code"/);
+  assert.doesNotMatch(anonHtml, /オオカワセミテスト/);
+  assert.doesNotMatch(anonHtml, /2026-11-23T10:00/);
+  assert.doesNotMatch(anonHtml, /verified_no_faces/);
+
+  const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "page-organizer-1", displayName: "Page Organizer", ttlHours: 1 })
+  }), env);
+  const organizerCookie = (organizerIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const organizerPage = await worker.fetch(new Request(pageUrl, { headers: { cookie: organizerCookie } }), env);
+  assert.equal(organizerPage.status, 200);
+  const organizerHtml = await organizerPage.text();
+  assert.match(organizerHtml, /PAGE-CODE-7/);
+  assert.match(organizerHtml, /オオカワセミテスト/);
+});
+
 test("profile settings saves display language preference, hides header language switches, and respects device Accept-Language for guests", async () => {
   const { env, core } = createEnv();
 
@@ -31609,6 +31916,108 @@ test("fixed-point station creation and record creation require authentication an
   assert.equal(recordBody.record.verified_by_label, "Steward User");
 });
 
+test("place logger ingest (7 days) and simultaneous day national map enforce 401/403 and protect rare species", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const loggerSqlite = new DatabaseSync(":memory:");
+  const coreWithLogger = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:place_logger_records|simultaneous_day_entries)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return loggerSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: loggerSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(loggerSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithLogger };
+
+  const otherToken = "log-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash, user_id: "log-other-1", display_name: "Other", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const stewardToken = "log-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash, user_id: "log-steward-1", display_name: "Steward", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  obs.fieldManagers.set("fm-log-1", {
+    manager_id: "fm-log-1",
+    field_id: "plc_log_1",
+    user_id: "log-steward-1",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  const unauthLog = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ records: [{ deviceKind: "audio_logger", observedDate: "2026-11-20" }] })
+  }), env);
+  assert.equal(unauthLog.status, 401);
+
+  const otherLog = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ records: [{ deviceKind: "audio_logger", observedDate: "2026-11-20" }] })
+  }), env);
+  assert.equal(otherLog.status, 403);
+
+  const sevenDays = Array.from({ length: 7 }, (_, i) => ({
+    deviceKind: "audio_logger",
+    observedDate: `2026-11-${String(14 + i).padStart(2, "0")}`,
+    summaryText: `夜間録音 ${i + 1}日目`
+  }));
+  const validLog = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${stewardToken}` },
+    body: JSON.stringify({ stationId: "fps_1", records: sevenDays })
+  }), env);
+  assert.equal(validLog.status, 201);
+  const anonLogList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records"), env);
+  assert.equal(anonLogList.status, 401);
+  const otherLogList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records", { headers: { cookie: `ikimon_v2_session=${otherToken}` } }), env);
+  assert.equal(otherLogList.status, 403);
+  const logList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records", { headers: { cookie: `ikimon_v2_session=${stewardToken}` } }), env);
+  assert.equal(logList.status, 200);
+  const logListBody = await logList.json() as { count: number };
+  assert.equal(logListBody.count, 7);
+
+  const otherSim = await worker.fetch(new Request("https://zukan.earth/api/v1/simultaneous-days/2026-11-23/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ placeId: "plc_log_1", placeLabel: "常盤公園", answer1: "澄んでいる", answer2: "5輪", answer3: "あり" })
+  }), env);
+  assert.equal(otherSim.status, 403);
+
+  const validSim = await worker.fetch(new Request("https://zukan.earth/api/v1/simultaneous-days/2026-11-23/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${stewardToken}` },
+    body: JSON.stringify({ placeId: "plc_log_1", placeLabel: "常盤公園", coarseCell: "34.7,137.7", answer1: "澄んでいる", answer2: "5輪", answer3: "あり" })
+  }), env);
+  assert.equal(validSim.status, 201);
+
+  const mapPage = await worker.fetch(new Request("https://zukan.earth/simultaneous-days/2026-11-23"), env);
+  assert.equal(mapPage.status, 200);
+  const mapHtml = await mapPage.text();
+  assert.match(mapHtml, /全国一斉の日（2026-11-23）· 参加地点 1件/);
+  assert.match(mapHtml, /常盤公園/);
+});
+
 test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events fallback", async () => {
   const { env: baseEnv, core: baseCore, obs } = createEnv();
   const topSqlite = new DatabaseSync(":memory:");
@@ -31884,6 +32293,266 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   assert.match(enHtml, />Events</);
   assert.doesNotMatch(enHtml, />イベント<|>場所<|近くの場所|祭り・川|aria-label="ナビ"|aria-label="メニュー"/);
   assert.doesNotMatch(enHtml, /href="\/en\/(events|places|capture)["\/]|href="\/auth\/login"/);
+});
+
+test("guide public page, booking request -> NOCOSIL event, and support seats enforce 401/403", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const guideSqlite = new DatabaseSync(":memory:");
+  const coreWithGuide = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:guide_profiles|guide_booking_requests|place_support_seats)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return guideSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: guideSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(guideSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const obsWithGuide = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("INSERT INTO observation_event_sessions")) {
+            let vals: D1Value[] = [];
+            const stmt = {
+              bind(...v: D1Value[]) { vals = v; return stmt; },
+              async run() {
+                obs.observationEventSessions.set(String(vals[0]), {
+                  session_id: String(vals[0]),
+                  legacy_event_id: null,
+                  event_code: String(vals[1]),
+                  title: String(vals[2]),
+                  organizer_user_id: String(vals[3]),
+                  corporation_id: null,
+                  plan: "free",
+                  primary_mode: "guided",
+                  active_modes_json: '["guided"]',
+                  location_lat: null,
+                  location_lng: null,
+                  location_radius_m: 500,
+                  started_at: String(vals[4]),
+                  ended_at: null,
+                  target_species_json: "[]",
+                  config_json: String(vals[5]),
+                  field_id: String(vals[6]),
+                  template_source_session_id: null,
+                  created_at: String(vals[7]),
+                  updated_at: String(vals[8])
+                });
+                return { meta: { changes: 1 } };
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithGuide, OBS_DB: obsWithGuide };
+
+  const guideToken = "guide-user-token";
+  const guideHash = createHash("sha256").update(guideToken).digest("hex");
+  baseCore.authSessions.set(guideHash, {
+    token_hash: guideHash, user_id: "guide-u-1", display_name: "鈴木案内人", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const adminToken = "guide-admin-token";
+  const adminHash = createHash("sha256").update(adminToken).digest("hex");
+  baseCore.authSessions.set(adminHash, {
+    token_hash: adminHash, user_id: "guide-admin-1", display_name: "Admin", role_name: "admin", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const schoolToken = "guide-school-token";
+  const schoolHash = createHash("sha256").update(schoolToken).digest("hex");
+  baseCore.authSessions.set(schoolHash, {
+    token_hash: schoolHash, user_id: "school-u-1", display_name: "常盤小学校", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+
+  const unauthProf = await worker.fetch(new Request("https://zukan.earth/api/v1/guides/profile", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ specialties: ["野鳥"] })
+  }), env);
+  assert.equal(unauthProf.status, 401);
+
+  const saveProf = await worker.fetch(new Request("https://zukan.earth/api/v1/guides/profile", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${guideToken}` },
+    body: JSON.stringify({ specialties: ["水辺の生きもの"], places: ["常盤公園"], isNacsjInstructor: true })
+  }), env);
+  assert.equal(saveProf.status, 201);
+  const { guideId } = await saveProf.json() as { guideId: string };
+
+  const nonAdminPub = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/publish`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${guideToken}` },
+    body: JSON.stringify({ publishStatus: "published" })
+  }), env);
+  assert.equal(nonAdminPub.status, 403);
+
+  const adminPub = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/publish`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${adminToken}` },
+    body: JSON.stringify({ publishStatus: "published" })
+  }), env);
+  assert.equal(adminPub.status, 200);
+
+  const unauthReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-05" })
+  }), env);
+  assert.equal(unauthReq.status, 401);
+
+  const schoolReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+    body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-05", grade: "4年", unit: "季節と生きもの" })
+  }), env);
+  assert.equal(schoolReq.status, 201);
+  const reqBody = await schoolReq.json() as { sessionId: string; schoolTemplate: { timeline: unknown[] } };
+  assert.ok(obs.observationEventSessions.has(reqBody.sessionId));
+  assert.equal(reqBody.schoolTemplate.timeline.length, 4);
+
+  const nonAdminSeat = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_1/support-seats", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+    body: JSON.stringify({ sponsorName: "みなと文具店", equipmentNote: "双眼鏡3台" })
+  }), env);
+  assert.equal(nonAdminSeat.status, 403);
+
+  const adminSeat = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_1/support-seats", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${adminToken}` },
+    body: JSON.stringify({ sponsorName: "みなと文具店", equipmentNote: "双眼鏡3台" })
+  }), env);
+  assert.equal(adminSeat.status, 201);
+
+  const pageRes = await worker.fetch(new Request(`https://zukan.earth/guides/${guideId}`), env);
+  assert.equal(pageRes.status, 200);
+  const pageHtml = await pageRes.text();
+  assert.match(pageHtml, /鈴木案内人/);
+  assert.match(pageHtml, /みなと文具店/);
+});
+
+test("POST /api/v1/expert-duty/route requires authentication, record ownership or admin, and ignores client coordinates", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const dutySqlite = new DatabaseSync(":memory:");
+  const coreWithDuty = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:place_local_experts|expert_duty_queue)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return dutySqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: dutySqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(dutySqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithDuty };
+
+  const ownerToken = "duty-owner-token";
+  const ownerHash = createHash("sha256").update(ownerToken).digest("hex");
+  baseCore.authSessions.set(ownerHash, {
+    token_hash: ownerHash,
+    user_id: "duty-owner-1",
+    display_name: "Duty Owner",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const otherToken = "duty-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "duty-other-1",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  obs.observations.set("obs-duty-1", {
+    observation_id: "obs-duty-1",
+    draft_id: "draft-duty-1",
+    owner_user_id: "duty-owner-1",
+    observed_at: "2026-11-23T09:00:00.000Z",
+    partition_month: "2026-11",
+    taxon_label: "カワセミ",
+    note: null,
+    exact_lat: 35.68,
+    exact_lng: 139.76,
+    location_accuracy_m: 10,
+    public_cell: "533946",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "千代田区"
+  });
+
+  const unauthRes = await worker.fetch(new Request("https://zukan.earth/api/v1/expert-duty/route", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ recordId: "obs-duty-1", placeId: "plc_1", isRareSpecies: true })
+  }), env);
+  assert.equal(unauthRes.status, 401);
+
+  const otherRes = await worker.fetch(new Request("https://zukan.earth/api/v1/expert-duty/route", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ recordId: "obs-duty-1", placeId: "plc_1", isRareSpecies: true })
+  }), env);
+  assert.equal(otherRes.status, 403);
+
+  const ownerRes = await worker.fetch(new Request("https://zukan.earth/api/v1/expert-duty/route", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${ownerToken}`
+    },
+    body: JSON.stringify({
+      recordId: "obs-duty-1",
+      placeId: "plc_1",
+      isRareSpecies: true,
+      exactLat: 99.99,
+      exactLng: 99.99
+    })
+  }), env);
+  assert.equal(ownerRes.status, 200);
+  const queued = dutySqlite.prepare("SELECT exact_lat, exact_lng FROM expert_duty_queue WHERE record_id = ?").get("obs-duty-1") as { exact_lat: number | null; exact_lng: number | null };
+  assert.equal(queued.exact_lat, 35.68);
+  assert.equal(queued.exact_lng, 139.76);
 });
 
 test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place authz, and real corrector identity", async () => {

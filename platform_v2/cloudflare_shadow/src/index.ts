@@ -13,6 +13,17 @@ import {
   renderNocosilOutcomeUsageHtml
 } from "./nocosilOutcomeUsage";
 import {
+  listHumanExpertCommentsForRecord,
+  registerPlaceLocalExpert,
+  renderHumanExpertCommentHtml,
+  routeRecordToExpertDuty,
+  submitExpertVoiceComment,
+  PLACE_LOCAL_EXPERTS_CREATE_SQL,
+  EXPERT_DUTY_QUEUE_CREATE_SQL,
+  type ExpertDutyRow,
+  type PlaceLocalExpertRow
+} from "./localExpertDuty";
+import {
   PaperArchiveHttpError,
   correctPaperArchivePage,
   ingestPaperArchivePages,
@@ -22,6 +33,21 @@ import {
   setPaperArchivePublishStatus
 } from "./paperArchiveIngest";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
+import {
+  ingestPlaceLoggerRecords,
+  listPlaceLoggerRecords,
+  loadSimultaneousDayNationalMap,
+  recordSimultaneousDayEntry,
+  renderSimultaneousDayMapHtml
+} from "./loggerAndSimultaneousDay";
+import {
+  GUIDE_BOOKING_REQUESTS_CREATE_SQL,
+  GUIDE_PROFILES_CREATE_SQL,
+  PLACE_SUPPORT_SEATS_CREATE_SQL,
+  getSchool45MinTemplate,
+  loadGuideProfileById,
+  renderGuidePublicPage
+} from "./guideBookingDesk";
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
   loadZukanTopPageData,
@@ -2908,6 +2934,240 @@ export const worker = {
         return getZukanWaitlistHtml(request, url, env);
       }
 
+      const loggerPostMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/logger-ingest$/);
+      if (request.method === "POST" && loggerPostMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(loggerPostMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ stationId?: unknown; records?: unknown[] }>(request);
+        const rawRecords = Array.isArray(body.records) ? body.records : [];
+        const validRecords = rawRecords.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === "object"));
+        const saved = await ingestPlaceLoggerRecords(env, {
+          placeId,
+          stationId: typeof body.stationId === "string" ? body.stationId : "",
+          createdByUserId: session.userId,
+          records: validRecords
+        });
+        return json({ ok: true, count: saved.length, records: saved }, 201, { "cache-control": "no-store" });
+      }
+
+      const loggerGetMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/logger-records$/);
+      if (request.method === "GET" && loggerGetMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(loggerGetMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const records = await listPlaceLoggerRecords(env, placeId);
+        return json({ ok: true, count: records.length, records }, 200, { "cache-control": "no-store" });
+      }
+
+      const simEntryMatch = nativePathname.match(/^\/api\/v1\/simultaneous-days\/([0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z0-9_-]{3,32})\/entries$/);
+      if (request.method === "POST" && simEntryMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const dayKey = decodeURIComponent(simEntryMatch[1]);
+        const body = await readJson<{
+          placeId?: unknown;
+          placeLabel?: unknown;
+          coarseCell?: unknown;
+          answer1?: unknown;
+          answer2?: unknown;
+          answer3?: unknown;
+          isRareSpecies?: unknown;
+        }>(request);
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim() : "";
+        if (!placeId) return json({ ok: false, error: "place_id_required" }, 400, { "cache-control": "no-store" });
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const entry = await recordSimultaneousDayEntry(env, {
+          dayKey,
+          placeId,
+          placeLabel: typeof body.placeLabel === "string" ? body.placeLabel : "",
+          coarseCell: typeof body.coarseCell === "string" ? body.coarseCell : "",
+          answer1: typeof body.answer1 === "string" ? body.answer1 : "",
+          answer2: typeof body.answer2 === "string" ? body.answer2 : "",
+          answer3: typeof body.answer3 === "string" ? body.answer3 : "",
+          isRareSpecies: body.isRareSpecies === true,
+          createdByUserId: session.userId
+        });
+        return json({ ok: true, entry }, 201, { "cache-control": "no-store" });
+      }
+
+      const simMapPageMatch = nativePathname.match(/^\/simultaneous-days\/([0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z0-9_-]{3,32})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && simMapPageMatch?.[1]) {
+        const dayKey = decodeURIComponent(simMapPageMatch[1]);
+        const entries = await loadSimultaneousDayNationalMap(env, dayKey);
+        const cspNonce = createHtmlCspNonce();
+        const page = renderSimultaneousDayMapHtml(dayKey, entries, cspNonce);
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store"
+          }
+        });
+      }
+
+      const guidePageMatch = nativePathname.match(/^\/guides\/(guide_[A-Za-z0-9_-]{2,80})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && guidePageMatch?.[1]) {
+        const guideId = decodeURIComponent(guidePageMatch[1]);
+        const guide = await loadGuideProfileById(env, guideId);
+        if (!guide || guide.publish_status !== "published") {
+          return html("<!doctype html><html><body><main><h1>案内人ページが見つかりません</h1></main></body></html>", 404, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(PLACE_SUPPORT_SEATS_CREATE_SQL).run();
+        const seatsRes = await env.CORE_DB.prepare(
+          "SELECT sponsor_name, equipment_note FROM place_support_seats ORDER BY created_at DESC LIMIT 20"
+        ).all<{ sponsor_name: string; equipment_note: string }>().catch(() => ({ results: [] }));
+        const cspNonce = createHtmlCspNonce();
+        const page = renderGuidePublicPage(guide, { supportSeats: seatsRes.results ?? [], cspNonce });
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store"
+          }
+        });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guides/profile") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ specialties?: unknown[]; places?: unknown[]; isNacsjInstructor?: unknown }>(request);
+        const guideId = `guide_${session.userId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64)}`;
+        const specialties = Array.isArray(body.specialties) ? body.specialties.map((s) => String(s).trim()).filter(Boolean).slice(0, 12) : [];
+        const places = Array.isArray(body.places) ? body.places.map((s) => String(s).trim()).filter(Boolean).slice(0, 12) : [];
+        await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO guide_profiles (guide_id, user_id, display_name, specialties_json, places_json, is_nacsj_instructor, verified_expert_count, publish_status, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 'draft', ?7)
+           ON CONFLICT(guide_id) DO UPDATE SET
+             display_name = excluded.display_name,
+             specialties_json = excluded.specialties_json,
+             places_json = excluded.places_json,
+             is_nacsj_instructor = excluded.is_nacsj_instructor,
+             updated_at = excluded.updated_at`
+        ).bind(guideId, session.userId, session.displayName || "案内人", JSON.stringify(specialties), JSON.stringify(places), body.isNacsjInstructor === true ? 1 : 0, Date.now()).run();
+        return json({ ok: true, guideId, publishStatus: "draft" }, 201, { "cache-control": "no-store" });
+      }
+
+      const guidePublishMatch = nativePathname.match(/^\/api\/v1\/guides\/(guide_[A-Za-z0-9_-]{2,80})\/publish$/);
+      if (request.method === "PATCH" && guidePublishMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const guideId = decodeURIComponent(guidePublishMatch[1]);
+        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const status = body.publishStatus === "published" ? "published" : "draft";
+        await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
+        const res = await env.CORE_DB.prepare(
+          "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
+        ).bind(guideId, status, Date.now()).run();
+        const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
+        return changes > 0 ? json({ ok: true, guideId, publishStatus: status }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      const guideReqMatch = nativePathname.match(/^\/api\/v1\/guides\/(guide_[A-Za-z0-9_-]{2,80})\/requests$/);
+      if (request.method === "POST" && guideReqMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const guideId = decodeURIComponent(guideReqMatch[1]);
+        const guide = await loadGuideProfileById(env, guideId);
+        if (!guide || guide.publish_status !== "published") return json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
+        const body = await readJson<{
+          requesterKind?: unknown;
+          organizationName?: unknown;
+          placeId?: unknown;
+          preferredDate?: unknown;
+          grade?: unknown;
+          unit?: unknown;
+        }>(request);
+        const organizationName = typeof body.organizationName === "string" ? body.organizationName.trim().slice(0, 120) : "";
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim().slice(0, 120) : "";
+        const preferredDate = typeof body.preferredDate === "string" ? body.preferredDate.trim().slice(0, 10) : "";
+        if (!organizationName || !placeId || !preferredDate) {
+          return json({ ok: false, error: "missing_request_fields" }, 400, { "cache-control": "no-store" });
+        }
+        const requesterKind = body.requesterKind === "school" || body.requesterKind === "nursery" || body.requesterKind === "company" || body.requesterKind === "association"
+          ? body.requesterKind
+          : "school";
+        const grade = typeof body.grade === "string" ? body.grade.trim().slice(0, 20) : "";
+        const unit = typeof body.unit === "string" ? body.unit.trim().slice(0, 80) : "";
+        const schoolTemplate = requesterKind === "school" ? getSchool45MinTemplate(grade, unit) : null;
+        const requestId = `greq_${crypto.randomUUID().slice(0, 12)}`;
+        const nocosilSessionId = `evt_req_${crypto.randomUUID().slice(0, 12)}`;
+        const nowIso = new Date().toISOString();
+        await env.OBS_DB.prepare(
+          `INSERT INTO observation_event_sessions (
+            session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id, plan, primary_mode,
+            active_modes_json, location_lat, location_lng, location_radius_m, started_at, ended_at,
+            target_species_json, config_json, field_id, template_source_session_id, created_at, updated_at
+          ) VALUES (?, NULL, ?, ?, ?, NULL, 'free', 'guided', '["guided"]', NULL, NULL, 500, ?, NULL, '[]', ?, ?, NULL, ?, ?)`
+        ).bind(
+          nocosilSessionId,
+          `REQ-${requestId.slice(-4).toUpperCase()}`,
+          `${organizationName} × ${guide.display_name}`,
+          guide.user_id,
+          `${preferredDate}T09:00:00.000Z`,
+          JSON.stringify({ requesterKind, schoolTemplate }),
+          placeId,
+          nowIso,
+          nowIso
+        ).run();
+        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO guide_booking_requests (
+            request_id, guide_id, requester_user_id, requester_kind, organization_name, place_id, preferred_date, grade, unit, nocosil_session_id, status, created_at
+          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'requested', ?11)`
+        ).bind(requestId, guideId, session.userId, requesterKind, organizationName, placeId, preferredDate, grade, unit, nocosilSessionId, Date.now()).run();
+        return json({ ok: true, requestId, sessionId: nocosilSessionId, schoolTemplate }, 201, { "cache-control": "no-store" });
+      }
+
+      const supportSeatMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/support-seats$/);
+      if (request.method === "POST" && supportSeatMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(supportSeatMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ sponsorName?: unknown; equipmentNote?: unknown }>(request);
+        const sponsorName = typeof body.sponsorName === "string" ? body.sponsorName.trim().slice(0, 120) : "";
+        const equipmentNote = typeof body.equipmentNote === "string" ? body.equipmentNote.trim().slice(0, 160) : "";
+        if (!sponsorName || !equipmentNote) return json({ ok: false, error: "sponsor_and_equipment_required" }, 400, { "cache-control": "no-store" });
+        const seatId = `seat_${crypto.randomUUID().slice(0, 12)}`;
+        await env.CORE_DB.prepare(PLACE_SUPPORT_SEATS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO place_support_seats (seat_id, place_id, sponsor_user_id, sponsor_name, equipment_note, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+        ).bind(seatId, placeId, session.userId, sponsorName, equipmentNote, Date.now()).run();
+        return json({ ok: true, seatId, placeId, sponsorName, equipmentNote }, 201, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
         const sameOriginError = assertSameOriginRequest(request);
         if (sameOriginError) return sameOriginError;
@@ -3378,6 +3638,105 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      const placeExpertsMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/experts$/);
+      if (request.method === "POST" && placeExpertsMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        await requireMunicipalWalkMapAdminSession(request, env);
+        const body = await readJson<{ userId?: unknown; displayName?: unknown; specialty?: unknown; roleKind?: unknown }>(request);
+        const targetUserId = typeof body.userId === "string" ? body.userId.trim() : "";
+        if (!targetUserId) return json({ ok: false, error: "user_id_required" }, 400, { "cache-control": "no-store" });
+        const expert = await registerPlaceLocalExpert(env, {
+          placeId: decodeURIComponent(placeExpertsMatch[1]),
+          userId: targetUserId,
+          displayName: typeof body.displayName === "string" ? body.displayName : "地域の目利き",
+          specialty: typeof body.specialty === "string" ? body.specialty : "",
+          roleKind: typeof body.roleKind === "string" ? body.roleKind : "local_expert"
+        });
+        return json({ ok: true, expert }, 201, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/expert-duty/route") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{
+          recordId?: unknown;
+          placeId?: unknown;
+          isRareSpecies?: unknown;
+          isAiUncertain?: unknown;
+          isSuspectedInvasive?: unknown;
+        }>(request);
+        const recordId = typeof body.recordId === "string" ? body.recordId.trim() : "";
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim() : "";
+        if (!recordId || !placeId) return json({ ok: false, error: "record_and_place_required" }, 400, { "cache-control": "no-store" });
+        const ownerUserId = await resolveCompatibleObservationOwnerUserId(recordId, env);
+        const isAdmin = isMunicipalWalkMapAdminRole(session);
+        if (!ownerUserId && !isAdmin) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
+        if (ownerUserId !== session.userId && !isAdmin) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const obsCoords = await env.OBS_DB.prepare(
+          "SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
+        ).bind(recordId).first<{ observation_id: string; exact_lat: number | null; exact_lng: number | null }>().catch(() => null);
+        const res = await routeRecordToExpertDuty(env, {
+          recordId,
+          placeId,
+          isRareSpecies: body.isRareSpecies === true,
+          isAiUncertain: body.isAiUncertain === true,
+          isSuspectedInvasive: body.isSuspectedInvasive === true,
+          exactLat: typeof obsCoords?.exact_lat === "number" ? obsCoords.exact_lat : null,
+          exactLng: typeof obsCoords?.exact_lng === "number" ? obsCoords.exact_lng : null
+        });
+        return json({ ok: true, ...res }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/expert-duty/queue") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const placeId = (url.searchParams.get("placeId") ?? "").trim();
+        await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(EXPERT_DUTY_QUEUE_CREATE_SQL).run();
+        const isExpert = placeId
+          ? await env.CORE_DB.prepare("SELECT 1 AS ok FROM place_local_experts WHERE place_id = ?1 AND user_id = ?2 AND verified = 1 LIMIT 1").bind(placeId, session.userId).first()
+          : null;
+        const isAdmin = isMunicipalWalkMapAdminRole(session);
+        if (!isExpert && !isAdmin) return json({ ok: false, error: "verified_expert_required" }, 403, { "cache-control": "no-store" });
+        const rows = (placeId
+          ? await env.CORE_DB.prepare("SELECT * FROM expert_duty_queue WHERE place_id = ?1 ORDER BY created_at DESC LIMIT 50").bind(placeId).all<ExpertDutyRow>()
+          : await env.CORE_DB.prepare("SELECT * FROM expert_duty_queue ORDER BY created_at DESC LIMIT 50").all<ExpertDutyRow>()
+        ).results ?? [];
+        return json({ ok: true, items: rows }, 200, { "cache-control": "no-store" });
+      }
+
+      const expertCommentMatch = nativePathname.match(/^\/api\/v1\/expert-duty\/(duty_[A-Za-z0-9_-]{3,80})\/comment$/);
+      if (request.method === "POST" && expertCommentMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ comment?: unknown }>(request);
+        const comment = typeof body.comment === "string" ? body.comment.trim() : "";
+        if (!comment) return json({ ok: false, error: "comment_required" }, 400, { "cache-control": "no-store" });
+        const updated = await submitExpertVoiceComment(env, decodeURIComponent(expertCommentMatch[1]), {
+          expertUserId: session.userId,
+          expertName: session.displayName,
+          comment
+        });
+        return updated ? json({ ok: true, duty: updated }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "expert_or_duty_not_found" }, 403, { "cache-control": "no-store" });
+      }
+
+      const expertStatsMatch = nativePathname.match(/^\/api\/v1\/experts\/([^/]+)\/stats$/);
+      if (request.method === "GET" && expertStatsMatch?.[1]) {
+        const uid = decodeURIComponent(expertStatsMatch[1]);
+        const statsAuth = await readCompatibleSession(request, env).catch(() => null);
+        if (!statsAuth || statsAuth.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (statsAuth.userId !== uid && !isMunicipalWalkMapAdminRole(statsAuth)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
+        const rows = (await env.CORE_DB.prepare("SELECT place_id, specialty, role_kind, verified_count FROM place_local_experts WHERE user_id = ?1").bind(uid).all<PlaceLocalExpertRow>()).results ?? [];
+        const totalVerified = rows.reduce((sum, r) => sum + Number(r.verified_count ?? 0), 0);
+        return json({ ok: true, userId: uid, totalVerified, places: rows }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/paper-archives/ingest") {
@@ -21779,13 +22138,6 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     }
     cameraInput?.addEventListener("change", () => addPhotoFiles(cameraInput));
     photoInput?.addEventListener("change", () => addPhotoFiles(photoInput));
-    document.querySelectorAll(".zukan-app-nav .is-capture").forEach((btn) => {
-      btn.addEventListener("click", (event) => {
-        if (!cameraInput) return;
-        event.preventDefault();
-        cameraInput.click();
-      });
-    });
     if (new URLSearchParams(location.search).get("from") === "quick_camera") {
       void (async () => {
         try {
@@ -24843,15 +25195,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiCandidateInsights: detail.aiCandidateInsights,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, recordUsages] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
           : Promise.resolve(null),
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
+        listHumanExpertCommentsForRecord(env, detail.visitId)
       ]);
       const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
+      const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
         : null;
@@ -24871,6 +25225,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
         nocosilUsageHtml,
+        humanExpertCommentsHtml,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
           title: item.isAwaitingId
