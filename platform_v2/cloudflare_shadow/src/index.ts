@@ -7,6 +7,12 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import {
+  handleNocosilOutcomeUsageApi,
+  listNocosilOutcomeUsagesForPlace,
+  listNocosilOutcomeUsagesForRecord,
+  renderNocosilOutcomeUsageHtml
+} from "./nocosilOutcomeUsage";
+import {
   PLACE_STEWARDSHIP_LOGS_CREATE_SQL,
   buildPortableTakeawayBundle,
   loadPlaceAnnualReportData,
@@ -2396,7 +2402,8 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const [paperPages, fp] = await Promise.all([
+  const [placeUsages, paperPages, fp] = await Promise.all([
+    listNocosilOutcomeUsagesForPlace(env, canonicalPlaceId),
     listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
     listFixedPointsAndRecordsForPlace(env, canonicalPlaceId)
   ]);
@@ -2407,6 +2414,7 @@ async function getGlobalPlaceDetailPage(
     savedItem,
     savedStateAvailable,
     viewerAuthenticated: authenticated,
+    nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages)
   });
@@ -3794,6 +3802,11 @@ export const worker = {
       const nocosilRevisionResponse = await handleNocosilRevisionReceiverApi(request, url, env);
       if (nocosilRevisionResponse) {
         return nocosilRevisionResponse;
+      }
+
+      const nocosilOutcomeUsageResponse = await handleNocosilOutcomeUsageApi(request, url, env);
+      if (nocosilOutcomeUsageResponse) {
+        return nocosilOutcomeUsageResponse;
       }
 
       const publicParticipationResponse = await handleZukanPublicParticipationReceiver(request, url, env);
@@ -25501,14 +25514,16 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordClass: recordClassOut.value,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, expertComments] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
           : Promise.resolve(null),
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
+        listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId)
       ]);
+      const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
@@ -25529,6 +25544,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiPersonPrimaryNames: detail.aiPersonPrimaryNames,
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
+        nocosilUsageHtml,
         humanExpertCommentsHtml,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
