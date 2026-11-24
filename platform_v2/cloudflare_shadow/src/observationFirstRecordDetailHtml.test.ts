@@ -1421,3 +1421,90 @@ test("record detail shows owner title edit form and role-based provenance withou
   });
   assert.doesNotMatch(guestHtml, /class="of-title-edit"/);
 });
+
+
+test("signboard, object, food, and person records do not fall back to 自然の記録 or biological advice", () => {
+  const signboardWithIllustratedDeer = {
+    ...detail,
+    observations: [
+      {
+        ...detail.observations[0]!,
+        acceptedIdentification: null,
+        communityIdentifications: [],
+        aiSuggestions: [
+          {
+            suggestionId: "ai-deer",
+            proposedName: "シカ",
+            proposedScientificName: "Cervus nippon",
+            proposedRank: "species",
+            visualEvidence: ["案内板のイラストに描かれたシカ"],
+            shootingAdvice: [],
+            provisional: true as const,
+          },
+        ],
+      },
+    ],
+  };
+
+  const signboardHtml = renderObservationFirstRecordDetailHtml(signboardWithIllustratedDeer, {
+    lang: "ja",
+    title: "自然の記録",
+    titleIsFallback: true,
+    recordClass: "document",
+    observedLabel: "2026年11月23日",
+    note: null,
+    actionNonce: "n-sign",
+    aiFeedback: "公園入口の看板「四日市市少年自然の家パノラマ図」です。",
+    aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
+    media: [{ mediaId: "m1", mediaKind: "photo", url: "/media/sign.jpg" }],
+  });
+  assert.match(signboardHtml, /<h1>四日市市少年自然の家パノラマ図<\/h1>/);
+  assert.match(signboardHtml, /案内板/);
+  assert.doesNotMatch(signboardHtml, /<h1>自然の記録<\/h1>/);
+  assert.doesNotMatch(signboardHtml, /実物の生体/);
+  assert.doesNotMatch(signboardHtml, />シカ</);
+
+  const objectHtml = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "名前待ち",
+    titleIsFallback: true,
+    recordClass: "object",
+    observedLabel: "2026年11月23日",
+    note: null,
+    actionNonce: "n-obj",
+    aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
+    media: [{ mediaId: "m2", mediaKind: "photo", url: "/media/building.jpg" }],
+  });
+  assert.match(objectHtml, /<h1>まちの記録<\/h1>/);
+  assert.match(objectHtml, /建物・人工物/);
+  assert.doesNotMatch(objectHtml, /<h1>自然の記録<\/h1>/);
+  assert.doesNotMatch(objectHtml, /実物の生体/);
+
+  const foodHtml = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "名前待ち",
+    titleIsFallback: true,
+    recordClass: "food",
+    observedLabel: "2026年11月23日",
+    note: null,
+    actionNonce: "n-food",
+    media: [{ mediaId: "m3", mediaKind: "photo", url: "/media/food.jpg" }],
+  });
+  assert.match(foodHtml, /<h1>食の記録<\/h1>/);
+  assert.match(foodHtml, /料理・食/);
+  assert.doesNotMatch(foodHtml, /<h1>自然の記録<\/h1>/);
+
+  const personHtml = renderObservationFirstRecordDetailHtml(detail, {
+    lang: "ja",
+    title: "名前待ち",
+    titleIsFallback: true,
+    recordClass: "person",
+    observedLabel: "2026年11月23日",
+    note: null,
+    actionNonce: "n-person",
+    media: [{ mediaId: "m4", mediaKind: "photo", url: "/media/people.jpg" }],
+  });
+  assert.match(personHtml, /<h1>活動の記録<\/h1>/);
+  assert.match(personHtml, /人の集まり・活動/);
+  assert.doesNotMatch(personHtml, /<h1>自然の記録<\/h1>/);
+});

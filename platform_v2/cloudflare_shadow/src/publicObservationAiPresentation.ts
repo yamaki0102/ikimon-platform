@@ -129,6 +129,23 @@ export type PublicObservationAiFeedback = {
   nextPhoto: string | null;
 };
 
+function parseAiPayload(sourcePayloadJson: string | null | undefined): Record<string, unknown> | null {
+  if (!sourcePayloadJson) return null;
+  try {
+    const parsed = JSON.parse(sourcePayloadJson) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function publicObservationAiRecordClass(sourcePayloadJson: string | null | undefined): string | null {
+  const payload = parseAiPayload(sourcePayloadJson);
+  return typeof payload?.recordClass === "string" && payload.recordClass.trim() ? payload.recordClass.trim() : null;
+}
+
 export function publicObservationAiFeedback(
   sourcePayloadJson: string | null | undefined,
 ): PublicObservationAiFeedback {
@@ -196,7 +213,9 @@ export function publicObservationAiFeedback(
     })
     .slice(0, 3)
     .join("・");
-  const isEnvironmentOrNoBiota = !hasHumanContext && (
+  const recordClass = typeof payload.recordClass === "string" ? payload.recordClass : null;
+  const isNonBiotaOther = recordClass === "document" || recordClass === "object" || recordClass === "food" || recordClass === "person";
+  const isEnvironmentOrNoBiota = !hasHumanContext && !isNonBiotaOther && (
     payload.recordClass === "environment"
     || payload.recordClass === "environment_landscape"
     || payload.detectionState === "not_detected"

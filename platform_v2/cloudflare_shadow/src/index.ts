@@ -58,6 +58,7 @@ import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipati
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
   LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
   facePrivacyStatusFromMetadata,
@@ -191,6 +192,7 @@ import {
   publicObservationAiCandidateInsights,
   publicObservationAiFeedback,
   publicObservationAiPersonPrimaryNames,
+  publicObservationAiRecordClass,
 } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
@@ -3242,6 +3244,31 @@ export const worker = {
         return json({ ok: true, seatId, placeId, sponsorName, equipmentNote }, 201, { "cache-control": "no-store" });
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/admin/record-health") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const report = await runRecordHealthCheck(env);
+        const history = await listRecordHealthHistory(env, 30);
+        return json({ ok: true, report, history }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/admin/record-health/backfill") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const body = await readJson<{ limit?: unknown; includeArea?: unknown }>(request);
+        const limit = typeof body.limit === "number" && Number.isFinite(body.limit) ? body.limit : 50;
+        const result = await backfillRecordHealthGaps(env, {
+          limit,
+          includeArea: body.includeArea === true
+        });
+        const report = await runRecordHealthCheck(env);
+        return json({ ok: true, ...result, report }, 200, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
         const sameOriginError = assertSameOriginRequest(request);
         if (sameOriginError) return sameOriginError;
@@ -4094,6 +4121,7 @@ export const worker = {
     ctx.waitUntil(runScheduledObservationEventQuests(env));
     ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
     ctx.waitUntil(runScheduledGbifAreaSummaryRefresh(env, controller));
+    ctx.waitUntil(runRecordHealthCheck(env).catch(() => null));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
@@ -10237,14 +10265,27 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
     })
     .slice(0, limit);
   const scopedIds = scopedRows.map((row) => row.observation_id);
-  const photoUrls = await queryPublicMapPhotoUrls(env, scopedIds);
+  const [photoUrls, cardMeta] = await Promise.all([
+    queryPublicMapPhotoUrls(env, scopedIds),
+    queryPublicMapCardMeta(env, scopedIds).catch(() => new Map<string, PublicMapCardMeta>()),
+  ]);
   const durationMs = Math.round((performance.now() - startedAt) * 100) / 100;
 
   return json({
     items: scopedRows.map((row) => {
       const kind = mediaKinds.get(row.observation_id) ?? (photoUrls.has(row.observation_id) ? "photo" : "record");
       const hiddenOrDelayed = row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now());
-      const item = publicMapObservationItem(row, photoUrls.get(row.observation_id) ?? null, kind);
+      const meta = cardMeta.get(row.observation_id);
+      const enrichedRow: PublicMapRow = {
+        ...row,
+        taxon_label: isWeakTaxonLabel(row.taxon_label) ? (meta?.taxonLabel ?? row.taxon_label) : row.taxon_label,
+        public_area_label: normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? meta?.publicAreaLabel ?? null,
+        public_note: row.public_note ?? meta?.publicNote ?? null,
+        ai_candidate_label: row.ai_candidate_label ?? meta?.aiCandidateLabel ?? null,
+        scene_place_type: row.scene_place_type ?? meta?.scenePlaceType ?? null,
+        scene_surrounding_cover: row.scene_surrounding_cover ?? meta?.sceneSurroundingCover ?? null,
+      };
+      const item = publicMapObservationItem(enrichedRow, photoUrls.get(row.observation_id) ?? null, kind);
       return {
         ...item,
         localityLabel: row.public_cell === "hidden"
@@ -23679,7 +23720,7 @@ async function queryPublicMapCardMeta(
   );
   const observationScope = observationIdScope("o.observation_id", ids);
   const environmentScope = observationIdScope("er.occurrence_id", ids);
-  const [baseRows, idRows, aiRows, envRows] = await Promise.all([
+  const [baseRows, idRows, importRows, aiRows, envRows] = await Promise.all([
     tolerateMissingSchema<{ observation_id: string; obs_taxon_label: string | null; public_area_label: string | null; note: string | null }>(scopedStatement(env,
       `SELECT r.observation_id, o.taxon_label AS obs_taxon_label, r.public_area_label, o.note
          FROM readmodel_public_observations r
@@ -23715,6 +23756,23 @@ async function queryPublicMapCardMeta(
         ORDER BY oi.updated_at DESC, oi.created_at DESC
         LIMIT 5000`, observationScope.binds
     ).all<{ observation_id: string; proposed_name: string | null }>()),
+    tolerateMissingSchema<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }>(scopedStatement(env,
+      `SELECT o.observation_id, pio.vernacular_name, pio.scientific_name
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+         JOIN production_import_occurrences pio ON pio.visit_id = o.observation_id
+        WHERE o.visibility = 'public'
+          AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
+          ${observationScope.sql}
+        ORDER BY pio.created_at ASC
+        LIMIT 5000`, observationScope.binds
+    ).all<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }>()),
     tolerateMissingSchema<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>(scopedStatement(env,
       `SELECT o.observation_id,
               COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
@@ -23762,6 +23820,17 @@ async function queryPublicMapCardMeta(
     const entry = ensure(row.observation_id);
     if (!entry.taxonLabel && !isWeakTaxonLabel(row.proposed_name)) {
       entry.taxonLabel = row.proposed_name!.trim();
+    }
+  }
+  for (const row of importRows) {
+    const entry = ensure(row.observation_id);
+    if (!entry.taxonLabel) {
+      const candidate = !isWeakTaxonLabel(row.vernacular_name)
+        ? row.vernacular_name!.trim()
+        : !isWeakTaxonLabel(row.scientific_name)
+        ? row.scientific_name!.trim()
+        : null;
+      if (candidate) entry.taxonLabel = candidate;
     }
   }
   for (const row of aiRows) {
@@ -25222,7 +25291,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         providerAvailable: Boolean(env.GEMINI_API_KEY)
       }).catch(() => null)
     : null;
-  const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null);
+  const recordClassOut: { value: string | null } = { value: null };
+  const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null, recordClassOut);
   if (!detail) {
     if (!ownerStatus && await hasExplicitlyWithdrawnNativeObservation(detailIdToVisitId(rawId), env)) {
       return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
@@ -25291,6 +25361,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         note: detail.note,
         aiFeedback: detail.feedback,
         aiCandidateInsights: detail.aiCandidateInsights,
+        recordClass: recordClassOut.value,
         signboardTitle: null,
       };
       const [signboardTitle, customTitleObj, expertComments] = await Promise.all([
@@ -25311,6 +25382,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
+        recordClass: recordClassOut.value,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
         publicLocationLabel: detail.publicLocation.label,
@@ -25698,7 +25770,7 @@ async function hasExplicitlyWithdrawnNativeObservation(observationId: string, en
   return row?.withdrawal_status != null && row.withdrawal_status !== "active";
 }
 
-async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null) {
+async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null, recordClassOut?: { value: string | null }) {
   const visitId = detailIdToVisitId(rawId);
   const row = ownerUserId
     ? await env.OBS_DB.prepare(
@@ -25851,6 +25923,23 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       effectiveTaxonLabel = idRow!.proposed_name!;
     }
   }
+  if (!effectiveTaxonLabel) {
+    const importRow = await env.OBS_DB.prepare(
+      `SELECT vernacular_name, scientific_name
+         FROM production_import_occurrences
+        WHERE visit_id = ?
+        ORDER BY created_at ASC
+        LIMIT 1`
+    ).bind(visitId).first<{ vernacular_name: string | null; scientific_name: string | null }>().catch(() => null);
+    const candidate = !isWeakTaxonLabel(importRow?.vernacular_name ?? null)
+      ? importRow!.vernacular_name!.trim()
+      : !isWeakTaxonLabel(importRow?.scientific_name ?? null)
+      ? importRow!.scientific_name!.trim()
+      : null;
+    if (candidate) {
+      effectiveTaxonLabel = candidate;
+    }
+  }
   const isAwaitingId = isWeakTaxonLabel(effectiveTaxonLabel);
   const aiPersonPrimaryNames = publicObservationAiPersonPrimaryNames(row.ai_source_payload_json);
   const isEligibleAiCandidate = isPublicObservationAiSubjectEligible(row.ai_candidate_label, aiPersonPrimaryNames);
@@ -25863,6 +25952,10 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
   const detailLocationLabel = row.public_cell === "hidden"
     ? "位置は非公開です"
     : (isLocationDelayed24Hours(row.observed_at, Date.now()) ? "位置は24時間後に公開されます" : "位置をぼかしています");
+
+  if (recordClassOut) {
+    recordClassOut.value = publicObservationAiRecordClass(row.ai_source_payload_json);
+  }
 
   return {
     schemaVersion: "shadow_public_observation_detail/v1",
