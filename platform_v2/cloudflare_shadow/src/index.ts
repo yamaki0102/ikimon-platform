@@ -185,6 +185,7 @@ import {
   publicObservationAiCandidateInsights,
   publicObservationAiFeedback,
   publicObservationAiPersonPrimaryNames,
+  publicObservationAiRecordClass,
 } from "./publicObservationAiPresentation";
 import {
   renderObservationProcessingStatusPanel,
@@ -25222,6 +25223,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         note: detail.note,
         aiFeedback: detail.feedback,
         aiCandidateInsights: detail.aiCandidateInsights,
+        recordClass: detail.recordClass,
         signboardTitle: null,
       };
       const [signboardTitle, customTitleObj, expertComments] = await Promise.all([
@@ -25242,6 +25244,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
+        recordClass: detail.recordClass,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
         publicLocationLabel: detail.publicLocation.label,
@@ -25806,6 +25809,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiCandidateLabel,
     aiCandidateRank,
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
+    recordClass: publicObservationAiRecordClass(row.ai_source_payload_json),
     ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
