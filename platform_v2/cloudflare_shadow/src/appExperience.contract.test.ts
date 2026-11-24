@@ -49,7 +49,7 @@ test("event shell navigation uses the request language and membership", async ()
   for (const navBlock of navBlocks) {
     assert.doesNotMatch(navBlock, /\shref="\/ja\//);
   }
-  assert.match(html, /class="lang-switch-link" href="\/ja\/"/);
+  assert.doesNotMatch(html, /class="lang-switch-link"/);
   assert.match(html, /body\[data-zukan-app-experience\] main\{padding-bottom:calc\(92px \+ env\(safe-area-inset-bottom,0px\)\)\}/);
 });
 

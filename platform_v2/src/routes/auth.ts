@@ -115,7 +115,7 @@ const AUTH_STYLES = `
   .auth-submit { width: 100%; justify-content: center; }
   .auth-social { display: grid; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(15,23,42,.08); }
   .auth-social a, .auth-social .auth-social-disabled { display: flex; align-items: center; justify-content: center; min-height: 46px; border-radius: 14px; border: 1px solid rgba(15,23,42,.12); background: #fff; font-weight: 850; }
-  .auth-social-disabled { color: #94a3b8; background: #f8fafc; }
+  .auth-social-disabled { color: #475569; background: #f8fafc; }
   .auth-note { display: grid; gap: 14px; background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(240,249,255,.94)); }
   .auth-note h3 { margin: 0; color: #0f172a; font-size: 22px; line-height: 1.35; }
   .auth-note ul { margin: 0; padding-left: 20px; color: #475569; line-height: 1.8; }
