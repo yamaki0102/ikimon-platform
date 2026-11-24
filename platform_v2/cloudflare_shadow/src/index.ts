@@ -3468,6 +3468,9 @@ export const worker = {
       const expertStatsMatch = nativePathname.match(/^\/api\/v1\/experts\/([^/]+)\/stats$/);
       if (request.method === "GET" && expertStatsMatch?.[1]) {
         const uid = decodeURIComponent(expertStatsMatch[1]);
+        const statsAuth = await readCompatibleSession(request, env).catch(() => null);
+        if (!statsAuth || statsAuth.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (statsAuth.userId !== uid && !isMunicipalWalkMapAdminRole(statsAuth)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
         await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
         const rows = (await env.CORE_DB.prepare("SELECT place_id, specialty, role_kind, verified_count FROM place_local_experts WHERE user_id = ?1").bind(uid).all<PlaceLocalExpertRow>()).results ?? [];
         const totalVerified = rows.reduce((sum, r) => sum + Number(r.verified_count ?? 0), 0);
