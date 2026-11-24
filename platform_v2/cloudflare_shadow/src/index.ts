@@ -6,6 +6,26 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import {
+  listHumanExpertCommentsForRecord,
+  registerPlaceLocalExpert,
+  renderHumanExpertCommentHtml,
+  routeRecordToExpertDuty,
+  submitExpertVoiceComment,
+  PLACE_LOCAL_EXPERTS_CREATE_SQL,
+  EXPERT_DUTY_QUEUE_CREATE_SQL,
+  type ExpertDutyRow,
+  type PlaceLocalExpertRow
+} from "./localExpertDuty";
+import {
+  PaperArchiveHttpError,
+  correctPaperArchivePage,
+  ingestPaperArchivePages,
+  listPublishedPaperArchivesForPlace,
+  loadPaperArchivePageById,
+  renderPaperArchiveTimelineHtml,
+  setPaperArchivePublishStatus
+} from "./paperArchiveIngest";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import {
   compute25mGridCell,
@@ -14,6 +34,14 @@ import {
   recordEventLiveMapEntry,
   renderEventLiveMapPage
 } from "./eventLiveMap";
+import {
+  GUIDE_BOOKING_REQUESTS_CREATE_SQL,
+  GUIDE_PROFILES_CREATE_SQL,
+  PLACE_SUPPORT_SEATS_CREATE_SQL,
+  getSchool45MinTemplate,
+  loadGuideProfileById,
+  renderGuidePublicPage
+} from "./guideBookingDesk";
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
   loadZukanTopPageData,
@@ -44,7 +72,7 @@ import {
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
-import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceLanguageSwitch, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
+import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
 import * as bcrypt from "bcryptjs";
 import {
@@ -1508,23 +1536,71 @@ function publicEntryRedirectResponse(url: URL, nativePathname: string): Response
   });
 }
 
-function barePathJapaneseRedirectResponse(url: URL): Response | null {
+function normalizePublicLang(value: unknown): "ja" | "en" | "es" | "pt-br" | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (trimmed === "ja" || trimmed === "en" || trimmed === "es" || trimmed === "pt-br") return trimmed;
+  if (trimmed.startsWith("pt")) return "pt-br";
+  if (trimmed.startsWith("es")) return "es";
+  if (trimmed.startsWith("en")) return "en";
+  if (trimmed.startsWith("ja")) return "ja";
+  return null;
+}
+
+function readIkimonLangCookie(request: Request): "ja" | "en" | "es" | "pt-br" | null {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  for (const part of cookieHeader.split(";")) {
+    const [rawKey, ...rawVal] = part.trim().split("=");
+    if (rawKey === "ikimon_lang") {
+      return normalizePublicLang(decodeURIComponent(rawVal.join("=")));
+    }
+  }
+  return null;
+}
+
+function resolvePreferredPublicLang(request: Request): "ja" | "en" | "es" | "pt-br" {
+  const cookieLang = readIkimonLangCookie(request);
+  if (cookieLang) return cookieLang;
+  const acceptLanguage = request.headers.get("accept-language") ?? "";
+  for (const item of acceptLanguage.split(",")) {
+    const tag = item.split(";")[0]?.trim() ?? "";
+    const matched = normalizePublicLang(tag);
+    if (matched) return matched;
+  }
+  return "ja";
+}
+
+function barePathJapaneseRedirectResponse(url: URL, request?: Request): Response | null {
+  const preferredLang = request ? resolvePreferredPublicLang(request) : "ja";
+  const preferredPrefix = `/${preferredLang}`;
   const langPrefix = publicLangFromPath(url.pathname);
   if (langPrefix === null) {
-    if (url.pathname === "/observations") {
+    if (url.pathname === "/" && preferredLang !== "ja") {
       return new Response(null, {
-        status: 301,
+        status: 302,
         headers: {
-          location: `/ja/records${url.search}`,
+          location: `${preferredPrefix}/${url.search}`,
+          "vary": "cookie, accept-language",
           "cache-control": "no-store"
         }
       });
     }
-    if (url.pathname !== "/" && !isOriginalUiHtmlPath(url.pathname) && isOriginalUiHtmlPath(`/ja${url.pathname}`)) {
+    if (url.pathname === "/observations") {
       return new Response(null, {
-        status: 301,
+        status: preferredLang === "ja" ? 301 : 302,
         headers: {
-          location: `/ja${url.pathname}${url.search}`,
+          location: `${preferredPrefix}/records${url.search}`,
+          "vary": "cookie, accept-language",
+          "cache-control": "no-store"
+        }
+      });
+    }
+    if (url.pathname !== "/" && ((preferredLang !== "ja" && isOriginalUiHtmlPath(`${preferredPrefix}${url.pathname}`)) || (!isOriginalUiHtmlPath(url.pathname) && isOriginalUiHtmlPath(`/ja${url.pathname}`)))) {
+      return new Response(null, {
+        status: preferredLang === "ja" ? 301 : 302,
+        headers: {
+          location: `${preferredPrefix}${url.pathname}${url.search}`,
+          "vary": "cookie, accept-language",
           "cache-control": "no-store"
         }
       });
@@ -2302,9 +2378,20 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const fp = await listFixedPointsAndRecordsForPlace(env, canonicalPlaceId);
+  const [paperPages, fp] = await Promise.all([
+    listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
+    listFixedPointsAndRecordsForPlace(env, canonicalPlaceId)
+  ]);
   const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
-  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated, fixedPointTimelineHtml });
+  const body = renderGlobalPlaceDetailPage({
+    profile,
+    lang,
+    savedItem,
+    savedStateAvailable,
+    viewerAuthenticated: authenticated,
+    fixedPointTimelineHtml,
+    paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages)
+  });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "global-place-detail",
@@ -2856,6 +2943,11 @@ export const worker = {
         if (publicEntryRedirect) return publicEntryRedirect;
       }
 
+      if (request.method === "GET" || request.method === "HEAD") {
+        const barePathRedirect = barePathJapaneseRedirectResponse(url, request);
+        if (barePathRedirect) return barePathRedirect;
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isRecordHtmlPath(url.pathname)) {
         return getSessionAwareRecordHtml(request, url, env);
       }
@@ -2881,6 +2973,29 @@ export const worker = {
         const state = await loadEventLiveMapState(env, auth.eventRow);
         const cspNonce = createHtmlCspNonce();
         const page = renderEventLiveMapPage(state, { bigScreen: url.searchParams.get("screen") === "1", cspNonce });
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store"
+          }
+        });
+      }
+
+      const guidePageMatch = nativePathname.match(/^\/guides\/(guide_[A-Za-z0-9_-]{2,80})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && guidePageMatch?.[1]) {
+        const guideId = decodeURIComponent(guidePageMatch[1]);
+        const guide = await loadGuideProfileById(env, guideId);
+        if (!guide || guide.publish_status !== "published") {
+          return html("<!doctype html><html><body><main><h1>案内人ページが見つかりません</h1></main></body></html>", 404, { "cache-control": "no-store" });
+        }
+        await env.CORE_DB.prepare(PLACE_SUPPORT_SEATS_CREATE_SQL).run();
+        const seatsRes = await env.CORE_DB.prepare(
+          "SELECT sponsor_name, equipment_note FROM place_support_seats ORDER BY created_at DESC LIMIT 20"
+        ).all<{ sponsor_name: string; equipment_note: string }>().catch(() => ({ results: [] }));
+        const cspNonce = createHtmlCspNonce();
+        const page = renderGuidePublicPage(guide, { supportSeats: seatsRes.results ?? [], cspNonce });
         return new Response(request.method === "HEAD" ? null : page, {
           status: 200,
           headers: {
@@ -2941,6 +3056,129 @@ export const worker = {
           badgeNumber: typeof body.badgeNumber === "number" ? body.badgeNumber : 1
         });
         return json({ ok: true, entry }, 201, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guides/profile") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ specialties?: unknown[]; places?: unknown[]; isNacsjInstructor?: unknown }>(request);
+        const guideId = `guide_${session.userId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64)}`;
+        const specialties = Array.isArray(body.specialties) ? body.specialties.map((s) => String(s).trim()).filter(Boolean).slice(0, 12) : [];
+        const places = Array.isArray(body.places) ? body.places.map((s) => String(s).trim()).filter(Boolean).slice(0, 12) : [];
+        await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO guide_profiles (guide_id, user_id, display_name, specialties_json, places_json, is_nacsj_instructor, verified_expert_count, publish_status, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 'draft', ?7)
+           ON CONFLICT(guide_id) DO UPDATE SET
+             display_name = excluded.display_name,
+             specialties_json = excluded.specialties_json,
+             places_json = excluded.places_json,
+             is_nacsj_instructor = excluded.is_nacsj_instructor,
+             updated_at = excluded.updated_at`
+        ).bind(guideId, session.userId, session.displayName || "案内人", JSON.stringify(specialties), JSON.stringify(places), body.isNacsjInstructor === true ? 1 : 0, Date.now()).run();
+        return json({ ok: true, guideId, publishStatus: "draft" }, 201, { "cache-control": "no-store" });
+      }
+
+      const guidePublishMatch = nativePathname.match(/^\/api\/v1\/guides\/(guide_[A-Za-z0-9_-]{2,80})\/publish$/);
+      if (request.method === "PATCH" && guidePublishMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const guideId = decodeURIComponent(guidePublishMatch[1]);
+        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const status = body.publishStatus === "published" ? "published" : "draft";
+        await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
+        const res = await env.CORE_DB.prepare(
+          "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
+        ).bind(guideId, status, Date.now()).run();
+        const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
+        return changes > 0 ? json({ ok: true, guideId, publishStatus: status }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      const guideReqMatch = nativePathname.match(/^\/api\/v1\/guides\/(guide_[A-Za-z0-9_-]{2,80})\/requests$/);
+      if (request.method === "POST" && guideReqMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const guideId = decodeURIComponent(guideReqMatch[1]);
+        const guide = await loadGuideProfileById(env, guideId);
+        if (!guide || guide.publish_status !== "published") return json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
+        const body = await readJson<{
+          requesterKind?: unknown;
+          organizationName?: unknown;
+          placeId?: unknown;
+          preferredDate?: unknown;
+          grade?: unknown;
+          unit?: unknown;
+        }>(request);
+        const organizationName = typeof body.organizationName === "string" ? body.organizationName.trim().slice(0, 120) : "";
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim().slice(0, 120) : "";
+        const preferredDate = typeof body.preferredDate === "string" ? body.preferredDate.trim().slice(0, 10) : "";
+        if (!organizationName || !placeId || !preferredDate) {
+          return json({ ok: false, error: "missing_request_fields" }, 400, { "cache-control": "no-store" });
+        }
+        const requesterKind = body.requesterKind === "school" || body.requesterKind === "nursery" || body.requesterKind === "company" || body.requesterKind === "association"
+          ? body.requesterKind
+          : "school";
+        const grade = typeof body.grade === "string" ? body.grade.trim().slice(0, 20) : "";
+        const unit = typeof body.unit === "string" ? body.unit.trim().slice(0, 80) : "";
+        const schoolTemplate = requesterKind === "school" ? getSchool45MinTemplate(grade, unit) : null;
+        const requestId = `greq_${crypto.randomUUID().slice(0, 12)}`;
+        const nocosilSessionId = `evt_req_${crypto.randomUUID().slice(0, 12)}`;
+        const nowIso = new Date().toISOString();
+        await env.OBS_DB.prepare(
+          `INSERT INTO observation_event_sessions (
+            session_id, legacy_event_id, event_code, title, organizer_user_id, corporation_id, plan, primary_mode,
+            active_modes_json, location_lat, location_lng, location_radius_m, started_at, ended_at,
+            target_species_json, config_json, field_id, template_source_session_id, created_at, updated_at
+          ) VALUES (?, NULL, ?, ?, ?, NULL, 'free', 'guided', '["guided"]', NULL, NULL, 500, ?, NULL, '[]', ?, ?, NULL, ?, ?)`
+        ).bind(
+          nocosilSessionId,
+          `REQ-${requestId.slice(-4).toUpperCase()}`,
+          `${organizationName} × ${guide.display_name}`,
+          guide.user_id,
+          `${preferredDate}T09:00:00.000Z`,
+          JSON.stringify({ requesterKind, schoolTemplate }),
+          placeId,
+          nowIso,
+          nowIso
+        ).run();
+        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO guide_booking_requests (
+            request_id, guide_id, requester_user_id, requester_kind, organization_name, place_id, preferred_date, grade, unit, nocosil_session_id, status, created_at
+          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'requested', ?11)`
+        ).bind(requestId, guideId, session.userId, requesterKind, organizationName, placeId, preferredDate, grade, unit, nocosilSessionId, Date.now()).run();
+        return json({ ok: true, requestId, sessionId: nocosilSessionId, schoolTemplate }, 201, { "cache-control": "no-store" });
+      }
+
+      const supportSeatMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/support-seats$/);
+      if (request.method === "POST" && supportSeatMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(supportSeatMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ sponsorName?: unknown; equipmentNote?: unknown }>(request);
+        const sponsorName = typeof body.sponsorName === "string" ? body.sponsorName.trim().slice(0, 120) : "";
+        const equipmentNote = typeof body.equipmentNote === "string" ? body.equipmentNote.trim().slice(0, 160) : "";
+        if (!sponsorName || !equipmentNote) return json({ ok: false, error: "sponsor_and_equipment_required" }, 400, { "cache-control": "no-store" });
+        const seatId = `seat_${crypto.randomUUID().slice(0, 12)}`;
+        await env.CORE_DB.prepare(PLACE_SUPPORT_SEATS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO place_support_seats (seat_id, place_id, sponsor_user_id, sponsor_name, equipment_note, created_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+        ).bind(seatId, placeId, session.userId, sponsorName, equipmentNote, Date.now()).run();
+        return json({ ok: true, seatId, placeId, sponsorName, equipmentNote }, 201, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
@@ -3408,6 +3646,205 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/login") {
         return loginWithPassword(request, env);
+      }
+
+      const placeExpertsMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/experts$/);
+      if (request.method === "POST" && placeExpertsMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        await requireMunicipalWalkMapAdminSession(request, env);
+        const body = await readJson<{ userId?: unknown; displayName?: unknown; specialty?: unknown; roleKind?: unknown }>(request);
+        const targetUserId = typeof body.userId === "string" ? body.userId.trim() : "";
+        if (!targetUserId) return json({ ok: false, error: "user_id_required" }, 400, { "cache-control": "no-store" });
+        const expert = await registerPlaceLocalExpert(env, {
+          placeId: decodeURIComponent(placeExpertsMatch[1]),
+          userId: targetUserId,
+          displayName: typeof body.displayName === "string" ? body.displayName : "地域の目利き",
+          specialty: typeof body.specialty === "string" ? body.specialty : "",
+          roleKind: typeof body.roleKind === "string" ? body.roleKind : "local_expert"
+        });
+        return json({ ok: true, expert }, 201, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/expert-duty/route") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{
+          recordId?: unknown;
+          placeId?: unknown;
+          isRareSpecies?: unknown;
+          isAiUncertain?: unknown;
+          isSuspectedInvasive?: unknown;
+        }>(request);
+        const recordId = typeof body.recordId === "string" ? body.recordId.trim() : "";
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim() : "";
+        if (!recordId || !placeId) return json({ ok: false, error: "record_and_place_required" }, 400, { "cache-control": "no-store" });
+        const ownerUserId = await resolveCompatibleObservationOwnerUserId(recordId, env);
+        const isAdmin = isMunicipalWalkMapAdminRole(session);
+        if (!ownerUserId && !isAdmin) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
+        if (ownerUserId !== session.userId && !isAdmin) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const obsCoords = await env.OBS_DB.prepare(
+          "SELECT observation_id, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
+        ).bind(recordId).first<{ observation_id: string; exact_lat: number | null; exact_lng: number | null }>().catch(() => null);
+        const res = await routeRecordToExpertDuty(env, {
+          recordId,
+          placeId,
+          isRareSpecies: body.isRareSpecies === true,
+          isAiUncertain: body.isAiUncertain === true,
+          isSuspectedInvasive: body.isSuspectedInvasive === true,
+          exactLat: typeof obsCoords?.exact_lat === "number" ? obsCoords.exact_lat : null,
+          exactLng: typeof obsCoords?.exact_lng === "number" ? obsCoords.exact_lng : null
+        });
+        return json({ ok: true, ...res }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/expert-duty/queue") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const placeId = (url.searchParams.get("placeId") ?? "").trim();
+        await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(EXPERT_DUTY_QUEUE_CREATE_SQL).run();
+        const isExpert = placeId
+          ? await env.CORE_DB.prepare("SELECT 1 AS ok FROM place_local_experts WHERE place_id = ?1 AND user_id = ?2 AND verified = 1 LIMIT 1").bind(placeId, session.userId).first()
+          : null;
+        const isAdmin = isMunicipalWalkMapAdminRole(session);
+        if (!isExpert && !isAdmin) return json({ ok: false, error: "verified_expert_required" }, 403, { "cache-control": "no-store" });
+        const rows = (placeId
+          ? await env.CORE_DB.prepare("SELECT * FROM expert_duty_queue WHERE place_id = ?1 ORDER BY created_at DESC LIMIT 50").bind(placeId).all<ExpertDutyRow>()
+          : await env.CORE_DB.prepare("SELECT * FROM expert_duty_queue ORDER BY created_at DESC LIMIT 50").all<ExpertDutyRow>()
+        ).results ?? [];
+        return json({ ok: true, items: rows }, 200, { "cache-control": "no-store" });
+      }
+
+      const expertCommentMatch = nativePathname.match(/^\/api\/v1\/expert-duty\/(duty_[A-Za-z0-9_-]{3,80})\/comment$/);
+      if (request.method === "POST" && expertCommentMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ comment?: unknown }>(request);
+        const comment = typeof body.comment === "string" ? body.comment.trim() : "";
+        if (!comment) return json({ ok: false, error: "comment_required" }, 400, { "cache-control": "no-store" });
+        const updated = await submitExpertVoiceComment(env, decodeURIComponent(expertCommentMatch[1]), {
+          expertUserId: session.userId,
+          expertName: session.displayName,
+          comment
+        });
+        return updated ? json({ ok: true, duty: updated }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "expert_or_duty_not_found" }, 403, { "cache-control": "no-store" });
+      }
+
+      const expertStatsMatch = nativePathname.match(/^\/api\/v1\/experts\/([^/]+)\/stats$/);
+      if (request.method === "GET" && expertStatsMatch?.[1]) {
+        const uid = decodeURIComponent(expertStatsMatch[1]);
+        const statsAuth = await readCompatibleSession(request, env).catch(() => null);
+        if (!statsAuth || statsAuth.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (statsAuth.userId !== uid && !isMunicipalWalkMapAdminRole(statsAuth)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        await env.CORE_DB.prepare(PLACE_LOCAL_EXPERTS_CREATE_SQL).run();
+        const rows = (await env.CORE_DB.prepare("SELECT place_id, specialty, role_kind, verified_count FROM place_local_experts WHERE user_id = ?1").bind(uid).all<PlaceLocalExpertRow>()).results ?? [];
+        const totalVerified = rows.reduce((sum, r) => sum + Number(r.verified_count ?? 0), 0);
+        return json({ ok: true, userId: uid, totalVerified, places: rows }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/paper-archives/ingest") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ pages?: unknown[] }>(request);
+        const rawPages = Array.isArray(body.pages) ? body.pages : [];
+        const validPages = rawPages.filter((p): p is { sourceImageUrl: string } & Record<string, unknown> => Boolean(p && typeof p === "object" && typeof (p as { sourceImageUrl?: unknown }).sourceImageUrl === "string"));
+        const isGlobalAdmin = isMunicipalWalkMapAdminRole(session);
+        for (const page of validPages) {
+          const requestedPlaceId = typeof page.placeId === "string" ? page.placeId.trim() : "";
+          if (requestedPlaceId && !isGlobalAdmin) {
+            const role = await getFieldManagerRoleFromD1(session.userId, requestedPlaceId, env).catch(() => null);
+            if (role !== "owner" && role !== "steward") {
+              return json({ ok: false, error: "forbidden_place_scope" }, 403, { "cache-control": "no-store" });
+            }
+          }
+        }
+        try {
+          const saved = await ingestPaperArchivePages(env, session.userId, validPages);
+          return json({ ok: true, count: saved.length, pages: saved }, 201, { "cache-control": "no-store" });
+        } catch (err) {
+          if (err instanceof PaperArchiveHttpError) {
+            return json({ ok: false, error: err.code }, err.status, { "cache-control": "no-store" });
+          }
+          throw err;
+        }
+      }
+
+      const paperCorrectMatch = nativePathname.match(/^\/api\/v1\/paper-archives\/(pap_[A-Za-z0-9_-]{3,80})\/correct$/);
+      if (request.method === "PATCH" && paperCorrectMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const pageId = decodeURIComponent(paperCorrectMatch[1]);
+        const existing = await loadPaperArchivePageById(env, pageId);
+        if (!existing) return json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
+        const isCreator = Boolean(existing.created_by_user_id && existing.created_by_user_id === session.userId);
+        const isGlobalAdmin = isMunicipalWalkMapAdminRole(session);
+        const placeRole = existing.place_id
+          ? await getFieldManagerRoleFromD1(session.userId, existing.place_id, env).catch(() => null)
+          : null;
+        if (!isCreator && !isGlobalAdmin && placeRole !== "owner" && placeRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{
+          placeName?: unknown;
+          observedYear?: unknown;
+          observedDate?: unknown;
+          speciesList?: unknown;
+          participantCount?: unknown;
+        }>(request);
+        const updated = await correctPaperArchivePage(env, pageId, {
+          correctedByName: session.displayName?.trim() || session.userId,
+          ...(typeof body.placeName === "string" ? { placeName: body.placeName } : {}),
+          ...(typeof body.observedYear === "number" ? { observedYear: body.observedYear } : {}),
+          ...(typeof body.observedDate === "string" ? { observedDate: body.observedDate } : {}),
+          ...(Array.isArray(body.speciesList) ? { speciesList: body.speciesList.map(String) } : {}),
+          ...(typeof body.participantCount === "number" ? { participantCount: body.participantCount } : {})
+        });
+        return updated ? json({ ok: true, page: updated }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      const paperPublishMatch = nativePathname.match(/^\/api\/v1\/paper-archives\/(pap_[A-Za-z0-9_-]{3,80})\/publish$/);
+      if (request.method === "PATCH" && paperPublishMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const pageId = decodeURIComponent(paperPublishMatch[1]);
+        const existing = await loadPaperArchivePageById(env, pageId);
+        if (!existing) return json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
+        const isGlobalAdmin = isMunicipalWalkMapAdminRole(session);
+        const placeRole = existing.place_id
+          ? await getFieldManagerRoleFromD1(session.userId, existing.place_id, env).catch(() => null)
+          : null;
+        if (!isGlobalAdmin && placeRole !== "owner" && placeRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const status = body.publishStatus === "published" ? "published" : "draft";
+        const result = await setPaperArchivePublishStatus(env, pageId, status);
+        if (!result.ok) {
+          const code = result.error === "face_redaction_required" ? 400 : 404;
+          return json({ ok: false, error: result.error ?? "page_not_found" }, code, { "cache-control": "no-store" });
+        }
+        return json({ ok: true, publishStatus: status }, 200, { "cache-control": "no-store" });
+      }
+
+      const placePaperMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/paper-archives$/);
+      if (request.method === "GET" && placePaperMatch?.[1]) {
+        const pages = await listPublishedPaperArchivesForPlace(env, decodeURIComponent(placePaperMatch[1]));
+        return json({ ok: true, count: pages.length, pages }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/language") {
+        return handleProfileLanguagePreference(request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/location-privacy/preview") {
@@ -9367,19 +9804,19 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
       }, {});
       return {
         type: "Feature",
-        geometry: { type: "Polygon", coordinates: [publicCellPolygon(parsed.lat, parsed.lng)] },
+        geometry: { type: "Polygon", coordinates: [publicCellPolygon(parsed.lat, parsed.lng, publicCellHalfStep(publicCell))] },
         properties: {
           cellId: publicCellToCellId(publicCell),
           label: "位置をぼかしています",
           albumName: "このあたりの記録",
           localityLabel: "位置をぼかしています",
           themeLabel: "最近の発見",
-          scaleLabel: `${MAP_DEFAULT_GRID_M}m`,
+          scaleLabel: `${publicCellHalfStep(publicCell) > 0.01 ? 10000 : MAP_DEFAULT_GRID_M}m`,
           nearbyAreaName: null,
           nameEraLabel: null,
           scope: "blurred",
-          gridM: MAP_DEFAULT_GRID_M,
-          radiusM: MAP_DEFAULT_GRID_M,
+          gridM: publicCellHalfStep(publicCell) > 0.01 ? 10000 : MAP_DEFAULT_GRID_M,
+          radiusM: publicCellHalfStep(publicCell) > 0.01 ? 10000 : MAP_DEFAULT_GRID_M,
           count: group.length,
           firstObservedAt: formatPublicDateOnly(earliestObservedAt(group) ?? ""),
           latestObservedAt: formatPublicDateOnly(latestObservedAt(group)),
@@ -9719,6 +10156,7 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   const rows = await queryPublicMapRows(env);
   const areaAndPeriodRows = rows
     .filter((row) => {
+      if ((selectedCell || effectiveBbox) && (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now()))) return false;
       if (selectedCell && row.public_cell !== selectedCell) return false;
       if (effectiveBbox && !publicCellInBbox(row.public_cell, effectiveBbox)) return false;
       if (!selectedCell && !effectiveBbox && placeScope?.visitIds && !placeScope.visitIds.has(row.observation_id)) return false;
@@ -10801,17 +11239,20 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
   const rawYear = numberFromSearchParam(url.searchParams.get("year"));
   const year = rawYear !== null && Number.isInteger(rawYear) && rawYear >= 2000 && rawYear <= 2100 ? rawYear : null;
   const rows = await queryPublicMapRows(env);
-  const grouped = new Map<string, { lat: number; lng: number; count: number }>();
+  const grouped = new Map<string, { lat: number; lng: number; count: number; halfStep: number }>();
   for (const row of rows) {
     if (year !== null && !row.observed_at.startsWith(String(year))) continue;
+    if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
     const parsed = parsePublicCell(row.public_cell);
     if (!parsed) continue;
-    const lat = Math.round(parsed.lat * 100) / 100;
-    const lng = Math.round(parsed.lng * 100) / 100;
-    const mesh = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+    const halfStep = publicCellHalfStep(row.public_cell);
+    const coarse = halfStep > 0.005;
+    const lat = coarse ? parsed.lat : Math.round(parsed.lat * 100) / 100;
+    const lng = coarse ? parsed.lng : Math.round(parsed.lng * 100) / 100;
+    const mesh = coarse ? `${lat.toFixed(1)},${lng.toFixed(1)}` : `${lat.toFixed(2)},${lng.toFixed(2)}`;
     const current = grouped.get(mesh);
     if (current) current.count += 1;
-    else grouped.set(mesh, { lat, lng, count: 1 });
+    else grouped.set(mesh, { lat, lng, count: 1, halfStep });
   }
   const features = [...grouped.entries()]
     .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
@@ -10820,7 +11261,7 @@ async function getPublicMapCoverage(url: URL, env: Env): Promise<Response> {
       type: "Feature" as const,
       geometry: {
         type: "Polygon" as const,
-        coordinates: [publicCellPolygon(group.lat, group.lng)]
+        coordinates: [publicCellPolygon(group.lat, group.lng, group.halfStep)]
       },
       properties: {
         mesh,
@@ -21063,7 +21504,7 @@ async function getNativeZukanTopHtmlIfAvailable(
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
-  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery);
+  const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
   const body = renderZukanTopPage(data, {
     lang,
@@ -21943,6 +22384,63 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
 </html>`;
 }
 
+async function handleProfileLanguagePreference(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+
+  let requestedLang: unknown = "";
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const body = await readJson<{ lang?: unknown }>(request);
+    requestedLang = body.lang;
+  } else {
+    const form = await request.formData().catch(() => null);
+    requestedLang = form?.get("lang") ?? "";
+  }
+
+  const normalized = normalizePublicLang(requestedLang);
+  if (!normalized) {
+    return json({ ok: false, error: "invalid_language" }, 400, { "cache-control": "no-store" });
+  }
+
+  try {
+    await env.CORE_DB.prepare(
+      "CREATE TABLE IF NOT EXISTS user_language_preferences (user_id TEXT PRIMARY KEY, preferred_lang TEXT NOT NULL, updated_at INTEGER NOT NULL)"
+    ).run();
+    await env.CORE_DB.prepare(
+      `INSERT INTO user_language_preferences (user_id, preferred_lang, updated_at)
+       VALUES (?1, ?2, ?3)
+       ON CONFLICT(user_id) DO UPDATE SET preferred_lang = excluded.preferred_lang, updated_at = excluded.updated_at`
+    ).bind(session.userId, normalized, Date.now()).run();
+  } catch {
+    return json({ ok: false, error: "language_preference_store_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+
+  const url = new URL(request.url);
+  const secureFlag = url.protocol === "https:" ? "; Secure" : "";
+  const cookie = `ikimon_lang=${normalized}; Path=/; Max-Age=31536000; SameSite=Lax${secureFlag}`;
+  const wantsJson = contentType.includes("application/json") || (request.headers.get("accept") ?? "").includes("application/json");
+  if (wantsJson) {
+    return json({ ok: true, lang: normalized }, 200, {
+      "set-cookie": cookie,
+      "cache-control": "no-store"
+    });
+  }
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: `/${normalized}/profile/settings?saved=language`,
+      "set-cookie": cookie,
+      "cache-control": "no-store"
+    }
+  });
+}
+
 async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env): Promise<Response> {
   const session = await readCompatibleSession(request, env);
   if (!session || session.banned) {
@@ -22032,6 +22530,18 @@ function renderCloudflareProfileHtml(
           <p>${escapeHtml(copy.settingsLead)}</p>
         </div>
         <dl><div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div></dl>
+        <form class="cf-profile-lang-form" action="/api/v1/profile/language" method="post">
+          <label for="cf-profile-lang">${escapeHtml(lang === "ja" ? "表示言語" : lang === "es" ? "Idioma" : lang === "pt-br" ? "Idioma" : "Display language")}</label>
+          <div class="cf-profile-lang-row">
+            <select id="cf-profile-lang" name="lang">
+              <option value="ja"${lang === "ja" ? " selected" : ""}>日本語</option>
+              <option value="en"${lang === "en" ? " selected" : ""}>English</option>
+              <option value="es"${lang === "es" ? " selected" : ""}>Español</option>
+              <option value="pt-br"${lang === "pt-br" ? " selected" : ""}>Português</option>
+            </select>
+            <button type="submit">${escapeHtml(lang === "ja" ? "保存" : lang === "es" ? "Guardar" : lang === "pt-br" ? "Salvar" : "Save")}</button>
+          </div>
+        </form>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
       </section>`
     : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
@@ -22046,6 +22556,7 @@ function renderCloudflareProfileHtml(
         <nav class="cf-profile-destinations" aria-label="${escapeHtml(copy.title)}">
           ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
           ${renderCloudflareProfileAction(`${prefix}/community/events`, copy.participation, copy.participationLead)}
+          ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead)}
         </nav>
       </section>`;
 
@@ -22142,6 +22653,11 @@ function renderCloudflareProfileHtml(
     .cf-profile-settings dt{color:var(--muted);font-size:14px;font-weight:600}
     .cf-profile-settings dd{margin:4px 0 0;font-size:16px;overflow-wrap:anywhere}
     .cf-profile-settings p[role="status"]{margin:0;color:var(--muted);font-size:16px}
+    .cf-profile-lang-form{display:grid;gap:8px}
+    .cf-profile-lang-form label{font-size:14px;font-weight:700;color:var(--ink)}
+    .cf-profile-lang-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .cf-profile-lang-row select{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+    .cf-profile-lang-row button{min-height:44px;padding:8px 18px;border:0;border-radius:8px;background:var(--action);color:#fff;font:inherit;font-weight:750;cursor:pointer}
     .cf-profile-shell a:focus-visible{outline:2px solid var(--action);outline-offset:2px;box-shadow:0 0 0 4px #fff}
     @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:44px;padding:10px 12px}}
     @media (max-width:720px){.cf-profile-shell{width:calc(100% - 40px);margin:24px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy h1{font-size:28px}}
@@ -22163,13 +22679,11 @@ function renderCloudflareProfileAction(href: string, title: string, body: string
 function renderCloudflareProfileHeader(prefix: string): string {
   const safePrefix = escapeHtml(prefix);
   const lang = prefix.replace(/^\//, "") || "ja";
-  const langSwitch = renderAppExperienceLanguageSwitch(lang, `${prefix}/profile`);
-  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "__LANG_SWITCH__")
+  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "")
     .replace('href="/ja/login?redirect=%2Fprofile"', `href="${safePrefix}/profile"`)
     .replace('href="/ja/login?redirect=%2Fprofile%2Fsettings"', `href="${safePrefix}/profile/settings"`)
     .replaceAll('href="/ja/', `href="${safePrefix}/`)
-    .replaceAll('action="/ja/', `action="${safePrefix}/`)
-    .replace("__LANG_SWITCH__", langSwitch);
+    .replaceAll('action="/ja/', `action="${safePrefix}/`);
 }
 
 function renderCloudflareProfileRecordCard(
@@ -22417,11 +22931,11 @@ export function renderRecordsProductSection(
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query ? scopeCopy.noMatch(query) : scopeCopy.empty)}</strong>${query ? `<p class="cf-records-native-empty-hint">${escapeHtml(scopeCopy.searchHint)}</p>` : ""}<div class="cf-records-native-empty-actions"><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? scopeCopy.clearSearch : scopeCopy.createRecord)}</a><a class="cf-records-native-empty-secondary" href="${escapeHtml(mode === "public" ? `${prefix}/map?tab=places` : `${prefix}/records?view=public`)}">${escapeHtml(mode === "public" ? scopeCopy.browsePlaces : scopeCopy.browsePublic)}</a></div></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a{min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a{min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-native-tabs{scroll-margin-top:80px}.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){color:#fff}.cf-records-saved-link{margin:0 0 8px}.cf-records-saved-link a{display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:8px;bottom:8px;min-width:44px;min-height:44px;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     </style>
-    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
+    <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
-    ${session && savedStates !== null ? `<a class="qh-entrances" href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a>` : ""}
+    ${session && savedStates !== null ? `<p class="cf-records-saved-link"><a href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a></p>` : ""}
     ${cards}
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>${renderSavedItemsScript(lang)}` : ""}
   </section>`;
@@ -23015,33 +23529,32 @@ function diversifyHomeRecordCards<T extends { visitId: string; mediaKind: HomeRe
   return selected;
 }
 
+function hideMaterializedLangSwitchers(html: string): string {
+  if (html.includes("data-zukan-hide-lang-switch")) return html;
+  const styleTag = `<style data-zukan-hide-lang-switch>.lang-switch,.zukan-app-lang,.cf-header-menu-languages{display:none!important}</style>`;
+  return /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${styleTag}</head>`) : html;
+}
+
 function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapshot | null): string {
-  if (html.includes('data-zukan-app-experience="v1"')) return html;
+  const cleanHtml = hideMaterializedLangSwitchers(html);
+  if (cleanHtml.includes('data-zukan-app-experience="v1"')) return cleanHtml;
   const menuPath = url.pathname.replace(/^\/(?:ja|en|es|pt-br)(?=\/|$)/i, "") || "/";
-  const hasRenderedLearnCatalog = /<section\b(?=[^>]*\bdata-learn-catalog(?:\s|=|>))[^>]*>/i.test(html);
-  if (html.includes("data-cloudflare-header-menu")) return html;
+  const hasRenderedLearnCatalog = /<section\b(?=[^>]*\bdata-learn-catalog(?:\s|=|>))[^>]*>/i.test(cleanHtml);
+  if (cleanHtml.includes("data-cloudflare-header-menu")) return cleanHtml;
   // The rendered Learn catalog already ships these shared controls; keep its
   // native shell only when both navigation controls are present.
-  const hasDesktopSideNavToggle = /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/i.test(html);
-  const hasMobileSideNavMenu = /<details\b[^>]*\bclass=["'][^"']*\bsite-mobile-menu\b[^"']*["'][^>]*>/i.test(html);
-  if (menuPath === "/learn" && hasRenderedLearnCatalog && hasDesktopSideNavToggle && hasMobileSideNavMenu) return html;
-  if (!html.includes("site-header-actions")) return html;
+  const hasDesktopSideNavToggle = /<button\b[^>]*\bdata-desktop-side-nav-toggle(?:\s|=|>)[^>]*>/i.test(cleanHtml);
+  const hasMobileSideNavMenu = /<details\b[^>]*\bclass=["'][^"']*\bsite-mobile-menu\b[^"']*["'][^>]*>/i.test(cleanHtml);
+  if (menuPath === "/learn" && hasRenderedLearnCatalog && hasDesktopSideNavToggle && hasMobileSideNavMenu) return cleanHtml;
+  if (!cleanHtml.includes("site-header-actions")) return cleanHtml;
   const lang = publicLangFromPath(url.pathname) ?? "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const isSignedInShell = Boolean(session && !session.banned) || !html.includes("site-login-link");
+  const isSignedInShell = Boolean(session && !session.banned) || !cleanHtml.includes("site-login-link");
   const copy = lang === "ja"
-    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", settings: "設定", language: "言語" }
-    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", settings: "Settings", language: "Language" };
+    ? { menu: "メニュー", record: "記録する", account: isSignedInShell ? "マイページ" : "ログイン", records: "記録を見る", map: "マップ", settings: "設定" }
+    : { menu: "Menu", record: "Record", account: isSignedInShell ? "Profile" : "Log in", records: "Records", map: "Map", settings: "Settings" };
   const accountHref = isSignedInShell ? `${prefix}/profile` : `${prefix}/login?redirect=%2Fprofile`;
   const settingsHref = `${prefix}/profile/settings`;
-  const japaneseOnlyLearn = isJapaneseLearnHtmlPath(url.pathname);
-  const languageLinks = [
-    { code: "JP", name: "日本語", href: "/ja/", active: lang === "ja" },
-    { code: "EN", name: "English", href: "/en/", active: lang === "en" },
-    { code: "ES", name: "Español", href: "/es/", active: lang === "es" },
-    { code: "PT", name: "Português", href: "/pt-br/", active: lang === "pt-br" }
-  ].filter((item) => !japaneseOnlyLearn || item.code === "JP")
-    .map((item) => `<a class="cf-header-menu-lang${item.active ? " is-active" : ""}" href="${escapeHtml(item.href)}"${item.active ? " aria-current=\"true\"" : ""}><span>${escapeHtml(item.code)}</span><span>${escapeHtml(item.name)}</span></a>`).join("");
   const menu = `<details class="cf-header-menu" data-cloudflare-header-menu>
         <summary aria-label="${escapeHtml(copy.menu)}" title="${escapeHtml(copy.menu)}"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></summary>
         <div class="cf-header-menu-panel" role="menu">
@@ -23050,7 +23563,6 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
           ${isSignedInShell ? `<a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(settingsHref)}">${escapeHtml(copy.settings)}</a>` : ""}
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/records`)}">${escapeHtml(copy.records)}</a>
           <a class="cf-header-menu-item" role="menuitem" href="${escapeHtml(`${prefix}/map`)}">${escapeHtml(copy.map)}</a>
-          <div class="cf-header-menu-languages" aria-label="${escapeHtml(copy.language)}">${languageLinks}</div>
         </div>
       </details>`;
   const withMenu = html.replace(/(\s*)<\/div>\s*<\/header>/i, `${menu}$1</div>\n  </header>`);
@@ -23857,7 +24369,7 @@ async function getShadowVideoThumbnail(uid: string, env: Env): Promise<Response>
 
 async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
   const snapshotRows = await queryPublicMapSnapshotRows(env);
-  if (snapshotRows.length > 0) return snapshotRows;
+  if (snapshotRows.length > 0) return coarsenSparsePublicCells(env, snapshotRows);
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT observation_id, public_cell, observed_at, taxon_label, asset_count, public_area_label
@@ -23871,7 +24383,7 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
-    return rows.results;
+    return coarsenSparsePublicCells(env, rows.results);
   } catch (error) {
     if (!(error instanceof Error) || !/no such column: public_area_label/i.test(error.message)) throw error;
     const rows = await env.OBS_DB.prepare(
@@ -23886,8 +24398,55 @@ async function queryPublicMapRows(env: Env): Promise<PublicMapRow[]> {
        ORDER BY observed_at DESC
        LIMIT 5000`
     ).all<PublicMapRow>();
-    return rows.results.map((row) => ({ ...row, public_area_label: null }));
+    return coarsenSparsePublicCells(env, rows.results.map((row) => ({ ...row, public_area_label: null })));
   }
+}
+
+// Cells with fewer than 3 distinct recorders are published at 10km (0.1 degree) instead of 1km.
+async function coarsenSparsePublicCells(env: Env, rows: PublicMapRow[]): Promise<PublicMapRow[]> {
+  const ids = [...new Set(rows.map((row) => row.observation_id))];
+  const owners = new Map<string, string | null>();
+  let lookupFailed = false;
+  try {
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 90) chunks.push(ids.slice(i, i + 90));
+    for (let i = 0; i < chunks.length; i += 8) {
+      const results = await Promise.all(chunks.slice(i, i + 8).map((chunk) =>
+        env.OBS_DB.prepare(
+          `SELECT observation_id, owner_user_id FROM observations WHERE observation_id IN (${chunk.map(() => "?").join(",")})`
+        ).bind(...chunk).all<{ observation_id: string; owner_user_id: string | null }>()
+      ));
+      for (const result of results) {
+        for (const row of result.results) owners.set(row.observation_id, row.owner_user_id);
+      }
+    }
+  } catch {
+    lookupFailed = true;
+  }
+  const cellKey = (publicCell: string): { lat: number; lng: number; key: string } | null => {
+    const parsed = parsePublicCell(publicCell);
+    if (!parsed) return null;
+    const key = `${(Math.round(parsed.lat * 100) / 100).toFixed(2)},${(Math.round(parsed.lng * 100) / 100).toFixed(2)}`;
+    return { ...parsed, key };
+  };
+  const authorsByCell = new Map<string, Set<string>>();
+  if (!lookupFailed) {
+    for (const row of rows) {
+      const cell = cellKey(row.public_cell);
+      if (!cell) continue;
+      const author = owners.get(row.observation_id) || `anon:${row.observation_id}`;
+      const authors = authorsByCell.get(cell.key) ?? new Set<string>();
+      authors.add(author);
+      authorsByCell.set(cell.key, authors);
+    }
+  }
+  return rows.map((row) => {
+    const cell = cellKey(row.public_cell);
+    if (!cell) return row;
+    if (!lookupFailed && (authorsByCell.get(cell.key)?.size ?? 0) >= 3) return row;
+    const coarse = `${(Math.round(cell.lat * 10) / 10).toFixed(1)},${(Math.round(cell.lng * 10) / 10).toFixed(1)}`;
+    return { ...row, public_cell: row.public_cell.startsWith("cell:") ? `cell:${coarse}` : coarse };
+  });
 }
 
 async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
@@ -24651,13 +25210,15 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiCandidateInsights: detail.aiCandidateInsights,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj] = await Promise.all([
+      const [signboardTitle, customTitleObj, expertComments] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
           : Promise.resolve(null),
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
+        listHumanExpertCommentsForRecord(env, detail.visitId)
       ]);
+      const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
         : null;
@@ -24676,6 +25237,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         aiPersonPrimaryNames: detail.aiPersonPrimaryNames,
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
+        humanExpertCommentsHtml,
         related: detail.relatedObservations.map((item) => ({
           recordId: item.visitId,
           title: item.isAwaitingId
@@ -25177,8 +25739,10 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       mediaRole: "observation_audio",
     }));
   const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
-  const relatedRows = (await queryPublicMapRows(env))
-    .filter((related) => related.public_cell === row.public_cell && related.observation_id !== visitId)
+  const publicRows = await queryPublicMapRows(env);
+  const ownPublicCell = publicRows.find((candidate) => candidate.observation_id === visitId)?.public_cell ?? row.public_cell;
+  const relatedRows = publicRows
+    .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
@@ -33640,8 +34204,12 @@ function publicMediaUrl(key: string | null): string {
   return key ? `/${key}` : "";
 }
 
-function publicCellPolygon(lat: number, lng: number): [number, number][] {
-  const halfStep = 0.005;
+function publicCellHalfStep(publicCell: string): number {
+  const latRaw = publicCell.replace(/^cell:/, "").split(",")[0] ?? "";
+  return /^-?\d+\.\d$/.test(latRaw) ? 0.05 : 0.005;
+}
+
+function publicCellPolygon(lat: number, lng: number, halfStep = 0.005): [number, number][] {
   return [
     [lng - halfStep, lat - halfStep],
     [lng + halfStep, lat - halfStep],
@@ -35642,8 +36210,8 @@ function publicImageObservationDetailPolish(detail: PublicObservationDetail, rec
   };
 }
 
-function renderVpsImageHeader(recordsHref = "/ja/records", lang = "ja", currentPath?: string, langSwitchHtml?: string): string {
-  const langSwitch = langSwitchHtml ?? renderAppExperienceLanguageSwitch(lang, currentPath);
+function renderVpsImageHeader(recordsHref = "/ja/records", _lang = "ja", _currentPath?: string, langSwitchHtml?: string): string {
+  const langSwitch = langSwitchHtml ?? "";
   return `<header class="site-header">
   <div class="site-header-inner">
     <div class="site-brand-cluster">
