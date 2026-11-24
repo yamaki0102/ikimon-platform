@@ -7,6 +7,12 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import {
+  PLACE_STEWARDSHIP_LOGS_CREATE_SQL,
+  buildPortableTakeawayBundle,
+  loadPlaceAnnualReportData,
+  renderPlaceAnnualReportHtml
+} from "./placeAnnualReportBundle";
+import {
   listHumanExpertCommentsForRecord,
   registerPlaceLocalExpert,
   renderHumanExpertCommentHtml,
@@ -2623,6 +2629,69 @@ export const worker = {
       const fixedPointStationMatch = nativePathname.match(/^\/places\/([^/]+)\/station$/);
       if ((request.method === "GET" || request.method === "HEAD") && fixedPointStationMatch?.[1]) {
         return getNativeFixedPointStationHtml(request, env, decodeURIComponent(fixedPointStationMatch[1]));
+      }
+
+      const requirePlaceStewardAccess = async (placeId: string): Promise<{ userId: string; displayName: string } | Response> => {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) {
+          const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+          if (fieldRole !== "owner" && fieldRole !== "steward") {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
+        }
+        return { userId: session.userId, displayName: session.displayName?.trim() || session.userId };
+      };
+
+      const annualReportMatch = nativePathname.match(/^\/places\/([^/]+)\/annual-report$/);
+      if ((request.method === "GET" || request.method === "HEAD") && annualReportMatch?.[1]) {
+        const placeId = decodeURIComponent(annualReportMatch[1]);
+        const auth = await requirePlaceStewardAccess(placeId);
+        if (auth instanceof Response) return auth;
+        const yearParam = Number(url.searchParams.get("year") ?? new Date().getUTCFullYear());
+        const year = Number.isInteger(yearParam) && yearParam >= 1900 && yearParam <= 2100 ? yearParam : new Date().getUTCFullYear();
+        const report = await loadPlaceAnnualReportData(env, placeId, year);
+        return html(request.method === "HEAD" ? "" : renderPlaceAnnualReportHtml(report), 200, { "cache-control": "no-store" });
+      }
+
+      const portableBundleMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/portable-bundle$/);
+      if (request.method === "GET" && portableBundleMatch?.[1]) {
+        const placeId = decodeURIComponent(portableBundleMatch[1]);
+        const auth = await requirePlaceStewardAccess(placeId);
+        if (auth instanceof Response) return auth;
+        const yearParam = Number(url.searchParams.get("year") ?? new Date().getUTCFullYear());
+        const year = Number.isInteger(yearParam) && yearParam >= 1900 && yearParam <= 2100 ? yearParam : new Date().getUTCFullYear();
+        const report = await loadPlaceAnnualReportData(env, placeId, year);
+        return json({ ok: true, bundle: buildPortableTakeawayBundle(report) }, 200, { "cache-control": "no-store" });
+      }
+
+      const stewardshipLogMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/stewardship-logs$/);
+      if (request.method === "POST" && stewardshipLogMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const placeId = decodeURIComponent(stewardshipLogMatch[1]);
+        const auth = await requirePlaceStewardAccess(placeId);
+        if (auth instanceof Response) return auth;
+        const body = await readJson<{
+          occurredDate?: unknown;
+          sessionCount?: unknown;
+          hours?: unknown;
+          workSummary?: unknown;
+        }>(request);
+        const occurredDate = (typeof body.occurredDate === "string" ? body.occurredDate.trim().slice(0, 10) : "") || new Date().toISOString().slice(0, 10);
+        const activityYear = Number(occurredDate.slice(0, 4)) || new Date().getUTCFullYear();
+        const participantLabel = auth.displayName;
+        const sessionCount = typeof body.sessionCount === "number" && body.sessionCount > 0 ? Math.round(body.sessionCount) : 1;
+        const hours = typeof body.hours === "number" && body.hours >= 0 ? body.hours : 0;
+        const workSummary = (typeof body.workSummary === "string" ? body.workSummary.trim().slice(0, 240) : "") || "観察・保全活動";
+        const logId = `log_${crypto.randomUUID().slice(0, 12)}`;
+        await env.CORE_DB.prepare(PLACE_STEWARDSHIP_LOGS_CREATE_SQL).run();
+        await env.CORE_DB.prepare(
+          `INSERT INTO place_stewardship_logs (
+            log_id, place_id, activity_year, occurred_date, participant_label, session_count, hours, work_summary, created_at
+          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
+        ).bind(logId, placeId, activityYear, occurredDate, participantLabel, sessionCount, hours, workSummary, Date.now()).run();
+        return json({ ok: true, logId, placeId, activityYear }, 201, { "cache-control": "no-store" });
       }
 
       const fixedPointQrSignMatch = nativePathname.match(/^\/places\/([^/]+)\/stations\/(fps_[A-Za-z0-9_-]{3,80})$/);
