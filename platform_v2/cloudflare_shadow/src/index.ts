@@ -240,6 +240,7 @@ import {
 } from "./placeAtlasProfileNative";
 import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
 import {
+  getD1PublicPlaceName,
   listD1PublicPlaceChildren,
   searchD1PublicPlaces,
 } from "./placeRegistryD1";
@@ -2698,6 +2699,26 @@ export const worker = {
         const year = Number.isInteger(yearParam) && yearParam >= 1900 && yearParam <= 2100 ? yearParam : new Date().getUTCFullYear();
         const report = await loadPlaceAnnualReportData(env, placeId, year);
         return html(request.method === "HEAD" ? "" : renderPlaceAnnualReportHtml(report), 200, { "cache-control": "no-store" });
+      }
+
+      const publicPlaceNameMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)$/);
+      if (request.method === "GET" && publicPlaceNameMatch?.[1]) {
+        let rawPlaceId: string;
+        try {
+          rawPlaceId = decodeURIComponent(publicPlaceNameMatch[1]);
+        } catch {
+          return json({ error: "invalid_place_id" }, 400, { "cache-control": "no-store" });
+        }
+        if (!/^[A-Za-z][A-Za-z0-9_-]{2,159}$/u.test(rawPlaceId)) {
+          return json({ error: "invalid_place_id" }, 400, { "cache-control": "no-store" });
+        }
+        const place = await getD1PublicPlaceName({ db: env.OBS_DB, placeId: rawPlaceId });
+        if (!place) {
+          return json({ error: "place_not_found" }, 404, { "cache-control": "no-store" });
+        }
+        return json({ placeId: place.placeId, name: place.name }, 200, {
+          "cache-control": "public, max-age=60, stale-while-revalidate=300",
+        });
       }
 
       const portableBundleMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/portable-bundle$/);
