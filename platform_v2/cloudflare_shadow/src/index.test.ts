@@ -31916,6 +31916,158 @@ test("fixed-point station creation and record creation require authentication an
   assert.equal(recordBody.record.verified_by_label, "Steward User");
 });
 
+test("event live map enforces 401/403 participant access, event window/area bounds, and syncs across 2 devices", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const liveSqlite = new DatabaseSync(":memory:");
+  const coreWithLive = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bevent_live_map_entries\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return liveSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: liveSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(liveSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const obsWithLive = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("FROM observation_event_sessions WHERE session_id = ?")) {
+            let sid = "";
+            const stmt = {
+              bind(v: D1Value) { sid = String(v); return stmt; },
+              async first() { return obs.observationEventSessions.get(sid) ?? null; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (query.includes("FROM observation_event_participants WHERE session_id = ? AND user_id = ?")) {
+            let sid = "";
+            let uid = "";
+            const stmt = {
+              bind(s: D1Value, u: D1Value) { sid = String(s); uid = String(u); return stmt; },
+              async first() {
+                const found = [...obs.observationEventParticipants.values()].some((p) => p.session_id === sid && p.user_id === uid);
+                return found ? { ok: 1 } : null;
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithLive, OBS_DB: obsWithLive };
+
+  const p1Token = "live-p1-token";
+  const p1Hash = createHash("sha256").update(p1Token).digest("hex");
+  baseCore.authSessions.set(p1Hash, {
+    token_hash: p1Hash, user_id: "live-p1", display_name: "P1", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const p2Token = "live-p2-token";
+  const p2Hash = createHash("sha256").update(p2Token).digest("hex");
+  baseCore.authSessions.set(p2Hash, {
+    token_hash: p2Hash, user_id: "live-p2", display_name: "P2", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const outsiderToken = "live-outsider-token";
+  const outsiderHash = createHash("sha256").update(outsiderToken).digest("hex");
+  baseCore.authSessions.set(outsiderHash, {
+    token_hash: outsiderHash, user_id: "live-outsider", display_name: "Outsider", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+
+  obs.observationEventSessions.set("evt_live_test", {
+    session_id: "evt_live_test",
+    legacy_event_id: null,
+    event_code: "LIVE-1",
+    title: "公園ライブ観察会",
+    organizer_user_id: "live-p1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "live_map",
+    active_modes_json: JSON.stringify(["live_map"]),
+    location_lat: 35.68,
+    location_lng: 139.76,
+    location_radius_m: 500,
+    started_at: "2026-11-23T00:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+  obs.observationEventParticipants.set("part_p2", {
+    participant_id: "part_p2",
+    session_id: "evt_live_test",
+    user_id: "live-p2",
+    guest_token: null,
+    display_name: "P2",
+    team_id: null,
+    role: "participant",
+    declared_job: null,
+    status: "checked_in",
+    checked_in_at: "2026-11-23T00:05:00.000Z",
+    share_location: 0,
+    is_minor: 0,
+    location_share_until: null,
+    location_share_consent_type: null,
+    created_at: "2026-11-23T00:05:00.000Z",
+    updated_at: "2026-11-23T00:05:00.000Z"
+  });
+
+  const unauthGet = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map"), env);
+  assert.equal(unauthGet.status, 401);
+
+  const outsiderGet = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map", {
+    headers: { cookie: `ikimon_v2_session=${outsiderToken}` }
+  }), env);
+  assert.equal(outsiderGet.status, 403);
+
+  const outsideAreaPost = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${p1Token}` },
+    body: JSON.stringify({ lat: 35.9, lng: 139.9, entryKind: "photo", taxonLabel: "カワセミ", badgeNumber: 3 })
+  }), env);
+  assert.equal(outsideAreaPost.status, 400);
+
+  const p1Post = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${p1Token}` },
+    body: JSON.stringify({ lat: 35.6801, lng: 139.7601, entryKind: "photo", taxonLabel: "カワセミ", badgeNumber: 3 })
+  }), env);
+  assert.equal(p1Post.status, 201);
+
+  const p2Get = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map", {
+    headers: { cookie: `ikimon_v2_session=${p2Token}` }
+  }), env);
+  assert.equal(p2Get.status, 200);
+  const p2State = await p2Get.json() as { filledCellsCount: number; firstDiscoveries: Array<{ taxonLabel: string; badgeNumber: number }> };
+  assert.equal(p2State.filledCellsCount, 1);
+  assert.equal(p2State.firstDiscoveries[0]!.taxonLabel, "カワセミ");
+  assert.equal(p2State.firstDiscoveries[0]!.badgeNumber, 3);
+
+  obs.observationEventSessions.get("evt_live_test")!.ended_at = "2026-11-23T03:00:00.000Z";
+  const endedPost = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${p2Token}` },
+    body: JSON.stringify({ lat: 35.6801, lng: 139.7601, entryKind: "zero", summaryText: "聞こえず", badgeNumber: 7 })
+  }), env);
+  assert.equal(endedPost.status, 409);
+});
+
 test("place logger ingest (7 days) and simultaneous day national map enforce 401/403 and protect rare species", async () => {
   const { env: baseEnv, core: baseCore, obs } = createEnv();
   const loggerSqlite = new DatabaseSync(":memory:");
@@ -32420,9 +32572,25 @@ test("guide public page, booking request -> NOCOSIL event, and support seats enf
     body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-05", grade: "4年", unit: "季節と生きもの" })
   }), env);
   assert.equal(schoolReq.status, 201);
-  const reqBody = await schoolReq.json() as { sessionId: string; schoolTemplate: { timeline: unknown[] } };
+  const reqBody = await schoolReq.json() as { sessionId: string; eventCode: string; schoolTemplate: { timeline: unknown[] } };
+  assert.match(reqBody.eventCode, /^REQ-[A-Z0-9]{12}$/);
   assert.ok(obs.observationEventSessions.has(reqBody.sessionId));
   assert.equal(reqBody.schoolTemplate.timeline.length, 4);
+
+  for (let i = 0; i < 2; i += 1) {
+    const extraReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+      body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-06" })
+    }), env);
+    assert.equal(extraReq.status, 201);
+  }
+  const overLimitReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+    body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-07" })
+  }), env);
+  assert.equal(overLimitReq.status, 429);
 
   const nonAdminSeat = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_1/support-seats", {
     method: "POST",
@@ -32443,6 +32611,16 @@ test("guide public page, booking request -> NOCOSIL event, and support seats enf
   const pageHtml = await pageRes.text();
   assert.match(pageHtml, /鈴木案内人/);
   assert.match(pageHtml, /みなと文具店/);
+  assert.match(pageHtml, /自己申告: NACS-J自然観察指導員（未確認）/);
+
+  const verifyInstructor = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/publish`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${adminToken}` },
+    body: JSON.stringify({ publishStatus: "published", nacsjInstructorVerified: true })
+  }), env);
+  assert.equal(verifyInstructor.status, 200);
+  const verifiedHtml = await (await worker.fetch(new Request(`https://zukan.earth/guides/${guideId}`), env)).text();
+  assert.match(verifiedHtml, /NACS-J自然観察指導員（確認済み）/);
 });
 
 test("POST /api/v1/expert-duty/route requires authentication, record ownership or admin, and ignores client coordinates", async () => {
@@ -32751,4 +32929,473 @@ test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place aut
     body: JSON.stringify({ publishStatus: "published" })
   }), env);
   assert.equal(validPublish.status, 200);
+});
+
+test("annual report, portable bundle, and stewardship logs require login and place owner/steward/admin (401/403)", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const annualSqlite = new DatabaseSync(":memory:");
+  const coreWithAnnual = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:place_stewardship_logs|fixed_point_station_records|paper_archive_pages)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return annualSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: annualSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(annualSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithAnnual };
+
+  const otherToken = "annual-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "annual-other-1",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const stewardToken = "annual-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash,
+    user_id: "annual-steward-1",
+    display_name: "Steward User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.fieldManagers.set("fm-annual-1", {
+    manager_id: "fm-annual-1",
+    field_id: "plc_annual_1",
+    user_id: "annual-steward-1",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/places/plc_annual_1/annual-report"), env)).status, 401);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/portable-bundle"), env)).status, 401);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/stewardship-logs", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ workSummary: "草刈り" })
+  }), env)).status, 401);
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/places/plc_annual_1/annual-report", {
+    headers: { cookie: `ikimon_v2_session=${otherToken}` }
+  }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/portable-bundle", {
+    headers: { cookie: `ikimon_v2_session=${otherToken}` }
+  }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/stewardship-logs", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ workSummary: "草刈り" })
+  }), env)).status, 403);
+
+  const postRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/stewardship-logs", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${stewardToken}` },
+    body: JSON.stringify({ occurredDate: "2026-11-20", participantLabel: "Spoofed Name", workSummary: "外来種除去" })
+  }), env);
+  assert.equal(postRes.status, 201);
+  const logRow = annualSqlite.prepare("SELECT participant_label FROM place_stewardship_logs LIMIT 1").get() as { participant_label: string };
+  assert.equal(logRow.participant_label, "Steward User");
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/places/plc_annual_1/annual-report?year=2026", {
+    headers: { cookie: `ikimon_v2_session=${stewardToken}` }
+  }), env)).status, 200);
+  const bundleRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/portable-bundle?year=2026", {
+    headers: { cookie: `ikimon_v2_session=${stewardToken}` }
+  }), env);
+  assert.equal(bundleRes.status, 200);
+});
+
+test("admin record-health and backfill endpoints enforce 401 unauthenticated and 403 non-admin", async () => {
+  const { env, core } = createEnv();
+  const memberToken = "health-member-token";
+  const memberHash = createHash("sha256").update(memberToken).digest("hex");
+  core.authSessions.set(memberHash, {
+    token_hash: memberHash,
+    user_id: "health-user-1",
+    display_name: "Member",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health"), env)).status, 401);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health/backfill", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ limit: 10 })
+  }), env)).status, 401);
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health", {
+    headers: { cookie: `ikimon_v2_session=${memberToken}` }
+  }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health/backfill", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${memberToken}` },
+    body: JSON.stringify({ limit: 10 })
+  }), env)).status, 403);
+});
+
+test("public observation detail and map cards fall back from weak readmodel taxon_label to observations.taxon_label and observation_identifications", async () => {
+  const { env: baseEnv, obs } = createEnv();
+  const idSqlite = new DatabaseSync(":memory:");
+  idSqlite.exec(`
+    CREATE TABLE observation_identifications (
+      identification_id TEXT PRIMARY KEY,
+      occurrence_id TEXT NOT NULL,
+      actor_user_id TEXT,
+      proposed_name TEXT NOT NULL,
+      proposed_rank TEXT,
+      stance TEXT,
+      is_current INTEGER NOT NULL DEFAULT 1,
+      source_payload_json TEXT,
+      created_at TEXT,
+      updated_at TEXT
+    );
+  `);
+  const obsWithIds = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.trim().startsWith("SELECT taxon_label FROM observations WHERE observation_id = ?")) {
+            let oid = "";
+            const stmt = {
+              bind(v: D1Value) { oid = String(v); return stmt; },
+              async first() {
+                const found = obs.observations.get(oid);
+                return found ? { taxon_label: found.taxon_label } : null;
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (!/\bobservation_identifications\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return idSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: idSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(idSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithIds };
+
+  // Case 1: readmodel has '同定待ち', observations.taxon_label has real species name
+  obs.observations.set("record-okinawa-1", {
+    observation_id: "record-okinawa-1",
+    draft_id: "draft-okinawa-1",
+    owner_user_id: "user-mackey",
+    observed_at: "2026-05-21T03:00:00.000Z",
+    partition_month: "2026-05",
+    taxon_label: "リュウキュウメジロ",
+    note: "沖縄で撮影",
+    exact_lat: 26.21,
+    exact_lng: 127.68,
+    location_accuracy_m: 10,
+    public_cell: "26.21,127.68",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "沖縄県那覇市"
+  });
+  obs.readmodel.set("record-okinawa-1", {
+    observation_id: "record-okinawa-1",
+    public_cell: "26.21,127.68",
+    observed_at: "2026-05-21T03:00:00.000Z",
+    taxon_label: "同定待ち",
+    asset_count: 1,
+    partition_month: "2026-05",
+    public_area_label: "沖縄県那覇市"
+  });
+
+  // Case 2: both readmodel and observations have weak taxon_label, observation_identifications has proposed_name
+  obs.observations.set("record-okinawa-2", {
+    observation_id: "record-okinawa-2",
+    draft_id: "draft-okinawa-2",
+    owner_user_id: "user-mackey",
+    observed_at: "2026-05-21T04:00:00.000Z",
+    partition_month: "2026-05",
+    taxon_label: null,
+    note: null,
+    exact_lat: 26.22,
+    exact_lng: 127.69,
+    location_accuracy_m: 10,
+    public_cell: "26.22,127.69",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "沖縄県浦添市"
+  });
+  obs.readmodel.set("record-okinawa-2", {
+    observation_id: "record-okinawa-2",
+    public_cell: "26.22,127.69",
+    observed_at: "2026-05-21T04:00:00.000Z",
+    taxon_label: null,
+    asset_count: 1,
+    partition_month: "2026-05",
+    public_area_label: "沖縄県浦添市"
+  });
+  idSqlite.prepare(
+    "INSERT INTO observation_identifications (identification_id, occurrence_id, actor_user_id, proposed_name, stance, is_current, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)"
+  ).run("id-ok-2", "occ:record-okinawa-2:0", "user-mackey", "オキナワキノボリトカゲ", "propose", "2026-05-21T04:05:00.000Z", "2026-05-21T04:05:00.000Z");
+
+  const res1 = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-okinawa-1"), env);
+  assert.equal(res1.status, 200);
+  const html1 = await res1.text();
+  assert.match(html1, /リュウキュウメジロ/);
+
+  const res2 = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-okinawa-2"), env);
+  assert.equal(res2.status, 200);
+  const html2 = await res2.text();
+  assert.match(html2, /オキナワキノボリトカゲ/);
+});
+
+
+test("map API and detail page fall back to production_import_occurrences taxon names for migrated records", async () => {
+  const { env: baseEnv, obs } = createEnv();
+  const importSqlite = new DatabaseSync(":memory:");
+  importSqlite.exec(`
+    CREATE TABLE production_import_occurrences (
+      occurrence_id TEXT PRIMARY KEY,
+      visit_id TEXT NOT NULL,
+      scientific_name TEXT,
+      vernacular_name TEXT,
+      created_at TEXT
+    );
+  `);
+  importSqlite.prepare(
+    "INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run("occ-mig-1", "record-1779516928956", "Zosterops japonicus loochooensis", "リュウキュウメジロ", "2026-05-20T00:00:00.000Z");
+
+  const obsWithImport = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bFROM\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return importSqlite.prepare(query).get(...values) ?? null; },
+              async all() { return { results: importSqlite.prepare(query).all(...values) }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (/\bJOIN\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return null; },
+              async all() {
+                const rows: Array<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }> = [];
+                const ids = values.length > 0 ? JSON.parse(String(values[0])) as string[] : [];
+                for (const id of ids) {
+                  const found = importSqlite.prepare("SELECT visit_id AS observation_id, vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ?").get(id) as { observation_id: string; vernacular_name: string | null; scientific_name: string | null } | undefined;
+                  if (found) rows.push(found);
+                }
+                return { results: rows };
+              },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (query.includes("json_each(?)") && /\b(?:observation_identifications|observation_ai_review_targets|observation_environment_records)\b|o\.taxon_label AS obs_taxon_label/iu.test(query)) {
+            const stmt = {
+              bind() { return stmt; },
+              async first() { return null; },
+              async all() { return { results: [] }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithImport };
+
+  for (const idx of [1, 2, 3]) {
+    const uid = `u-k3-${idx}`;
+    obs.observations.set(idx === 1 ? "record-1779516928956" : `record-k3-${idx}`, {
+      observation_id: idx === 1 ? "record-1779516928956" : `record-k3-${idx}`,
+      draft_id: `draft-k3-${idx}`,
+      owner_user_id: uid,
+      observed_at: "2026-05-20T03:00:00.000Z",
+      partition_month: "2026-05",
+      taxon_label: null,
+      note: null,
+      exact_lat: 26.21,
+      exact_lng: 127.68,
+      location_accuracy_m: 10,
+      public_cell: "26.21,127.68",
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "accepted",
+      public_area_label: "沖縄県那覇市"
+    });
+    obs.readmodel.set(idx === 1 ? "record-1779516928956" : `record-k3-${idx}`, {
+      observation_id: idx === 1 ? "record-1779516928956" : `record-k3-${idx}`,
+      public_cell: "26.21,127.68",
+      observed_at: "2026-05-20T03:00:00.000Z",
+      taxon_label: "同定待ち",
+      asset_count: 1,
+      partition_month: "2026-05",
+      public_area_label: "沖縄県那覇市"
+    });
+  }
+
+  const mapRes = await worker.fetch(new Request("https://zukan.earth/api/v1/map/observations?bbox=122.9,24,131.4,27.95"), env);
+  assert.equal(mapRes.status, 200);
+  const mapJson = await mapRes.json() as { items: Array<{ visitId: string; displayName: string }> };
+  const targetMapItem = mapJson.items.find((item) => item.visitId === "record-1779516928956");
+  assert.ok(targetMapItem);
+  assert.equal(targetMapItem.displayName, "リュウキュウメジロ");
+
+  const detailRes = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-1779516928956"), env);
+  assert.equal(detailRes.status, 200);
+  const detailHtml = await detailRes.text();
+  assert.match(detailHtml, /リュウキュウメジロ/);
+});
+
+
+test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with map API when earlier import rows are blank", async () => {
+  const { env: baseEnv, obs } = createEnv();
+  const importSqlite = new DatabaseSync(":memory:");
+  importSqlite.exec(`
+    CREATE TABLE production_import_occurrences (
+      occurrence_id TEXT PRIMARY KEY,
+      visit_id TEXT NOT NULL,
+      scientific_name TEXT,
+      vernacular_name TEXT,
+      created_at TEXT
+    );
+  `);
+  importSqlite.prepare(
+    "INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run("occ-empty-first", "record-1779516928956", null, "", "2026-05-20T00:00:00.000Z");
+  importSqlite.prepare(
+    "INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run("occ-oxalis", "record-1779516928956", "Oxalis", "カタバミ属", "2026-05-20T00:00:01.000Z");
+
+  const obsWithImport = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bFROM\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return importSqlite.prepare("SELECT vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ? ORDER BY created_at ASC LIMIT 1").get(...values) ?? null; },
+              async all() { return { results: importSqlite.prepare("SELECT vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ? ORDER BY created_at ASC").all(...values) }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (/\bJOIN\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return null; },
+              async all() {
+                const ids = values.length > 0 ? JSON.parse(String(values[0])) as string[] : [];
+                const rows: Array<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }> = [];
+                for (const id of ids) {
+                  const found = importSqlite.prepare("SELECT visit_id AS observation_id, vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ? ORDER BY created_at ASC").all(id) as Array<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }>;
+                  rows.push(...found);
+                }
+                return { results: rows };
+              },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (query.includes("json_each(?)") && /\b(?:observation_identifications|observation_ai_review_targets|observation_environment_records)\b|o\.taxon_label AS obs_taxon_label/iu.test(query)) {
+            const stmt = {
+              bind() { return stmt; },
+              async first() { return null; },
+              async all() { return { results: [] }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithImport };
+
+  obs.observations.set("record-1779516928956", {
+    observation_id: "record-1779516928956",
+    draft_id: "draft-oxalis",
+    owner_user_id: "user-oxalis",
+    observed_at: "2026-05-23T03:00:00.000Z",
+    partition_month: "2026-05",
+    taxon_label: null,
+    note: null,
+    exact_lat: 26.6,
+    exact_lng: 128.0,
+    location_accuracy_m: 10,
+    public_cell: "26.6,128.0",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "沖縄県"
+  });
+  obs.readmodel.set("record-1779516928956", {
+    observation_id: "record-1779516928956",
+    public_cell: "26.6,128.0",
+    observed_at: "2026-05-23T03:00:00.000Z",
+    taxon_label: "同定待ち",
+    asset_count: 1,
+    partition_month: "2026-05",
+    public_area_label: "沖縄県"
+  });
+
+  const detailJsonRes = await worker.fetch(new Request("https://zukan.earth/api/v1/observations/record-1779516928956/public-detail"), env);
+  assert.equal(detailJsonRes.status, 200);
+  const detailJson = await detailJsonRes.json() as { observation: { displayName: string; isAwaitingId: boolean } };
+  assert.equal(detailJson.observation.displayName, "カタバミ属");
+  assert.equal(detailJson.observation.isAwaitingId, false);
+
+  const detailHtmlRes = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-1779516928956"), env);
+  assert.equal(detailHtmlRes.status, 200);
+  const detailHtml = await detailHtmlRes.text();
+  assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
 });

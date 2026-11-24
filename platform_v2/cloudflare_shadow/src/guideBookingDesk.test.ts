@@ -25,8 +25,25 @@ test("getSchool45MinTemplate returns 45-min school structure and renderGuidePubl
     }
   );
   assert.match(html, /鈴木案内人/);
-  assert.match(html, /属性: NACS-J自然観察指導員/);
+  assert.match(html, /自己申告: NACS-J自然観察指導員（未確認）/);
   assert.match(html, /学校の45分の型/);
   assert.match(html, /みなと文具店/);
   assert.doesNotMatch(html, /公認/);
+
+  const verifiedHtml = renderGuidePublicPage(
+    {
+      guide_id: "guide_1",
+      user_id: "u_guide_1",
+      display_name: "鈴木案内人",
+      specialties_json: JSON.stringify(["水辺の生きもの"]),
+      places_json: JSON.stringify(["常盤公園"]),
+      is_nacsj_instructor: 1,
+      nacsj_instructor_verified: 1,
+      verified_expert_count: 14,
+      publish_status: "published",
+      updated_at: 1
+    },
+    { cspNonce: "n1" }
+  );
+  assert.match(verifiedHtml, /NACS-J自然観察指導員（確認済み）/);
 });

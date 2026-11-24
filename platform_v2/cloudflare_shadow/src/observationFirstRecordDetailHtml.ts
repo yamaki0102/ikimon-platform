@@ -71,6 +71,7 @@ export type ObservationFirstRecordPresentation = {
   recordsDiscoveryContext?: RecordsDiscoveryContext | null;
   title: string;
   titleIsFallback?: boolean;
+  recordClass?: string | null;
   observedLabel: string;
   note: string | null;
   publicLocationLabel?: string | null;
@@ -392,20 +393,55 @@ const adviceProsePattern = /(?:おすすめします|伝わりやすくなりま
 
 const SIGNBOARD_CANDIDATE_PATTERN = /案内板|看板|イラスト|パノラマ図|案内図|標柱|掲示板|ポスター|パンフレット|signboard|illustration|diagram/u;
 
-export function isSignboardRecord(detail: ObservationFirstRecordDetail, presentation: Pick<ObservationFirstRecordPresentation, "title" | "note" | "aiFeedback" | "aiCandidateInsights">): boolean {
+export function isSignboardRecord(detail: ObservationFirstRecordDetail, presentation: Pick<ObservationFirstRecordPresentation, "title" | "note" | "aiFeedback" | "aiCandidateInsights" | "recordClass">): boolean {
   const hasHumanAccepted = detail.observations.some((card) => card.state === "active" && Boolean(publicSubjectName(card.acceptedIdentification?.proposedName)));
   if (hasHumanAccepted) return false;
+  if (presentation.recordClass === "document") return true;
   if (SIGNBOARD_CANDIDATE_PATTERN.test(presentation.title)) return true;
+  if (presentation.note && SIGNBOARD_CANDIDATE_PATTERN.test(presentation.note)) return true;
+  if (presentation.aiFeedback && SIGNBOARD_CANDIDATE_PATTERN.test(presentation.aiFeedback)) return true;
   for (const c of presentation.aiCandidateInsights ?? []) {
     if (SIGNBOARD_CANDIDATE_PATTERN.test(c.name)) return true;
+    if (c.howToTell && SIGNBOARD_CANDIDATE_PATTERN.test(c.howToTell)) return true;
+    if (c.supportingFeatures.some((f) => SIGNBOARD_CANDIDATE_PATTERN.test(f))) return true;
   }
   for (const card of detail.observations) {
     if (card.state !== "active") continue;
     for (const s of card.aiSuggestions) {
       if (s.proposedName && SIGNBOARD_CANDIDATE_PATTERN.test(s.proposedName)) return true;
+      if (s.visualEvidence?.some((v) => SIGNBOARD_CANDIDATE_PATTERN.test(v))) return true;
     }
   }
   return false;
+}
+
+const NON_BIOTA_RECORD_CLASSES = new Set(["document", "object", "food", "person"]);
+
+function nonBiotaFallbackTitle(recordClass: string | null | undefined, lang: ObservationRecordLang): string | null {
+  switch (recordClass) {
+    case "document":
+    case "object":
+      return lang === "ja" ? "まちの記録" : lang === "es" ? "Registro urbano" : lang === "pt-br" ? "Registro urbano" : "Town record";
+    case "food":
+      return lang === "ja" ? "食の記録" : lang === "es" ? "Registro de comida" : lang === "pt-br" ? "Registro alimentar" : "Food record";
+    case "person":
+      return lang === "ja" ? "活動の記録" : lang === "es" ? "Registro de actividad" : lang === "pt-br" ? "Registro de atividade" : "Activity record";
+    default:
+      return null;
+  }
+}
+
+function nonBiotaKindLabel(recordClass: string | null | undefined, lang: ObservationRecordLang): string | null {
+  switch (recordClass) {
+    case "object":
+      return lang === "ja" ? "建物・人工物" : lang === "es" ? "Edificio / objeto" : lang === "pt-br" ? "Edifício / objeto" : "Building / object";
+    case "food":
+      return lang === "ja" ? "料理・食" : lang === "es" ? "Comida" : lang === "pt-br" ? "Comida" : "Food";
+    case "person":
+      return lang === "ja" ? "人の集まり・活動" : lang === "es" ? "Personas / actividad" : lang === "pt-br" ? "Pessoas / atividade" : "People / activity";
+    default:
+      return null;
+  }
 }
 
 function renderAiFeedback(
@@ -414,6 +450,7 @@ function renderAiFeedback(
   copy: ObservationFirstRecordDetailCopy,
 ): string {
   if (isSignboardRecord(detail, presentation)) return "";
+  if (presentation.recordClass && NON_BIOTA_RECORD_CLASSES.has(presentation.recordClass)) return "";
   const lang = presentation.lang ?? "ja";
   const subjects = detail.observations.filter((card) => card.state === "active").flatMap((card) => [
     ...card.aiSuggestions,
@@ -581,6 +618,10 @@ function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentati
     const lang = presentation.lang ?? "ja";
     const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
     return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p></section>`;
+  }
+  const nonBiotaLabel = nonBiotaKindLabel(presentation.recordClass, presentation.lang ?? "ja");
+  if (nonBiotaLabel) {
+    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(nonBiotaLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p></section>`;
   }
   const rawElements = presentation.sceneElements ?? derivedSceneElements(presentation.environment);
   const elements = [...new Set(rawElements)].filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item]).slice(0, 8);
@@ -796,7 +837,7 @@ export function renderObservationFirstRecordDetailHtml(
     : signboard
       ? resolveSignboardTitle(detail, presentation, copy, lang)
       : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
-        ? copy.natureRecord
+        ? (nonBiotaFallbackTitle(presentation.recordClass, lang) ?? copy.natureRecord)
         : presentation.title;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
   const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
