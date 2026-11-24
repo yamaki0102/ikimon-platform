@@ -1,10 +1,21 @@
 /** Public-data interchange only: never grants identity, role or publication authority. */
 export const PUBLIC_PROGRAM_SCHEMA = "ikimon.public-program/v1" as const;
+export const PUBLIC_PROGRAM_SCHEMA_V2 = "ikimon.public-program/v2" as const;
 export const PUBLIC_PROGRAM_MAX_BYTES = 24_576;
 export const programProfiles = ["event", "observation_event", "stamp_rally"] as const;
 export type ProgramProfile = (typeof programProfiles)[number];
+export interface PublicProgramPublicPage {
+  readonly audience: string;
+  readonly capacity: number | null;
+  readonly belongings: string;
+  readonly rain_rule: string;
+  readonly contact: string;
+  readonly hazards: string;
+  readonly organizer_name: string;
+  readonly meeting_point: string;
+}
 export interface PublicProgram {
-  readonly schema: typeof PUBLIC_PROGRAM_SCHEMA;
+  readonly schema: typeof PUBLIC_PROGRAM_SCHEMA | typeof PUBLIC_PROGRAM_SCHEMA_V2;
   readonly requestId: string;
   readonly profile: ProgramProfile;
   readonly title: string;
@@ -15,6 +26,7 @@ export interface PublicProgram {
   readonly description: string;
   readonly conditions: string;
   readonly stations: readonly { readonly id: string; readonly name: string }[];
+  readonly public_page?: PublicProgramPublicPage;
 }
 export class ProgramInputError extends Error {
   constructor(readonly field: string) { super(`invalid_program_${field}`); }
@@ -34,11 +46,51 @@ function instant(value: unknown, field: string, required: boolean): string {
     !Number.isFinite(Date.parse(result)) || new Date(result).toISOString() !== result) throw new ProgramInputError(field);
   return result;
 }
+function optionalText(value: unknown, field: string, max: number): string {
+  if (value === undefined || value === null) return "";
+  return text(value, field, max, false);
+}
+function parsePublicPage(value: unknown): PublicProgramPublicPage {
+  if (value === undefined || value === null) {
+    return {
+      audience: "",
+      capacity: null,
+      belongings: "",
+      rain_rule: "",
+      contact: "",
+      hazards: "",
+      organizer_name: "",
+      meeting_point: "",
+    };
+  }
+  if (!object(value)) throw new ProgramInputError("public_page");
+  const allowedKeys = ["audience", "capacity", "belongings", "rain_rule", "contact", "hazards", "organizer_name", "meeting_point"];
+  if (Object.keys(value).some(key => !allowedKeys.includes(key))) throw new ProgramInputError("public_page");
+  let capacity: number | null = null;
+  if (value.capacity !== undefined && value.capacity !== null) {
+    if (typeof value.capacity !== "number" || !Number.isInteger(value.capacity) || value.capacity < 1 || value.capacity > 10000) {
+      throw new ProgramInputError("capacity");
+    }
+    capacity = value.capacity;
+  }
+  return {
+    audience: optionalText(value.audience, "audience", 120),
+    capacity,
+    belongings: optionalText(value.belongings, "belongings", 400),
+    rain_rule: optionalText(value.rain_rule, "rain_rule", 240),
+    contact: optionalText(value.contact, "contact", 240),
+    hazards: optionalText(value.hazards, "hazards", 400),
+    organizer_name: optionalText(value.organizer_name, "organizer_name", 120),
+    meeting_point: optionalText(value.meeting_point, "meeting_point", 240),
+  };
+}
 export function parsePublicProgram(value: unknown, forPublication = true): PublicProgram {
   if (!object(value) || new TextEncoder().encode(JSON.stringify(value)).length > PUBLIC_PROGRAM_MAX_BYTES) throw new ProgramInputError("size");
-  const keys = ["schema", "requestId", "profile", "title", "startsAt", "endsAt", "timezone", "placeLabel", "description", "conditions", "stations"];
-  if (Object.keys(value).some(key => !keys.includes(key)) || keys.some(key => !Object.hasOwn(value, key))) throw new ProgramInputError("fields");
-  if (value.schema !== PUBLIC_PROGRAM_SCHEMA) throw new ProgramInputError("schema");
+  const isV2 = value.schema === PUBLIC_PROGRAM_SCHEMA_V2;
+  if (value.schema !== PUBLIC_PROGRAM_SCHEMA && !isV2) throw new ProgramInputError("schema");
+  const requiredKeys = ["schema", "requestId", "profile", "title", "startsAt", "endsAt", "timezone", "placeLabel", "description", "conditions", "stations"];
+  const allowedKeys = isV2 ? [...requiredKeys, "public_page"] : requiredKeys;
+  if (Object.keys(value).some(key => !allowedKeys.includes(key)) || requiredKeys.some(key => !Object.hasOwn(value, key))) throw new ProgramInputError("fields");
   const requestId = text(value.requestId, "requestId", 36, true);
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(requestId)) throw new ProgramInputError("requestId");
   if (!(programProfiles as readonly unknown[]).includes(value.profile)) throw new ProgramInputError("profile");
@@ -58,10 +110,11 @@ export function parsePublicProgram(value: unknown, forPublication = true): Publi
   });
   if (value.profile !== "stamp_rally" && stations.length) throw new ProgramInputError("stations");
   if (forPublication && value.profile === "stamp_rally" && !stations.length) throw new ProgramInputError("stations");
-  return { schema: PUBLIC_PROGRAM_SCHEMA, requestId, profile: value.profile as ProgramProfile,
+  const base: PublicProgram = { schema: isV2 ? PUBLIC_PROGRAM_SCHEMA_V2 : PUBLIC_PROGRAM_SCHEMA, requestId, profile: value.profile as ProgramProfile,
     title: text(value.title, "title", 80, true), startsAt, endsAt, timezone,
     placeLabel: text(value.placeLabel, "placeLabel", 160, forPublication),
     description: text(value.description, "description", 2000), conditions: text(value.conditions, "conditions", 1000), stations };
+  return isV2 ? { ...base, public_page: parsePublicPage(value.public_page) } : base;
 }
 export function emptyProgram(profile: ProgramProfile = "event"): PublicProgram {
   return { schema: PUBLIC_PROGRAM_SCHEMA, requestId: crypto.randomUUID(), profile, title: "", startsAt: "", endsAt: "",
