@@ -47,6 +47,7 @@ function receiverConfig(program: PublicProgram, digest: string, confirmed: boole
     placeLabel: program.placeLabel,
     description: program.description,
     conditions: program.conditions,
+    ...(program.public_page ? { public_page: program.public_page } : {}),
     public_listed: confirmed,
     program_receiver_private: !confirmed,
   };
