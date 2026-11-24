@@ -3068,12 +3068,16 @@ export const worker = {
         if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
         if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
         const guideId = decodeURIComponent(guidePublishMatch[1]);
-        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const body = await readJson<{ publishStatus?: unknown; nacsjInstructorVerified?: unknown }>(request);
         const status = body.publishStatus === "published" ? "published" : "draft";
         await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
-        const res = await env.CORE_DB.prepare(
-          "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
-        ).bind(guideId, status, Date.now()).run();
+        const res = typeof body.nacsjInstructorVerified === "boolean"
+          ? await env.CORE_DB.prepare(
+            "UPDATE guide_profiles SET publish_status = ?2, nacsj_instructor_verified = ?3, updated_at = ?4 WHERE guide_id = ?1"
+          ).bind(guideId, status, body.nacsjInstructorVerified ? 1 : 0, Date.now()).run()
+          : await env.CORE_DB.prepare(
+            "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
+          ).bind(guideId, status, Date.now()).run();
         const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
         return changes > 0 ? json({ ok: true, guideId, publishStatus: status }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
       }
@@ -3106,8 +3110,16 @@ export const worker = {
           : "school";
         const grade = typeof body.grade === "string" ? body.grade.trim().slice(0, 20) : "";
         const unit = typeof body.unit === "string" ? body.unit.trim().slice(0, 80) : "";
+        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
+        const existingCount = await env.CORE_DB.prepare(
+          "SELECT COUNT(*) AS cnt FROM guide_booking_requests WHERE requester_user_id = ?1 AND place_id = ?2 AND status = 'requested'"
+        ).bind(session.userId, placeId).first<{ cnt?: number }>();
+        if (Number(existingCount?.cnt ?? 0) >= 3) {
+          return json({ ok: false, error: "booking_request_limit_reached" }, 429, { "cache-control": "no-store" });
+        }
         const schoolTemplate = requesterKind === "school" ? getSchool45MinTemplate(grade, unit) : null;
         const requestId = `greq_${crypto.randomUUID().slice(0, 12)}`;
+        const eventCode = `REQ-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
         const nocosilSessionId = `evt_req_${crypto.randomUUID().slice(0, 12)}`;
         const nowIso = new Date().toISOString();
         await env.OBS_DB.prepare(
@@ -3118,7 +3130,7 @@ export const worker = {
           ) VALUES (?, NULL, ?, ?, ?, NULL, 'free', 'guided', '["guided"]', NULL, NULL, 500, ?, NULL, '[]', ?, ?, NULL, ?, ?)`
         ).bind(
           nocosilSessionId,
-          `REQ-${requestId.slice(-4).toUpperCase()}`,
+          eventCode,
           `${organizationName} × ${guide.display_name}`,
           guide.user_id,
           `${preferredDate}T09:00:00.000Z`,
@@ -3127,13 +3139,12 @@ export const worker = {
           nowIso,
           nowIso
         ).run();
-        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
         await env.CORE_DB.prepare(
           `INSERT INTO guide_booking_requests (
             request_id, guide_id, requester_user_id, requester_kind, organization_name, place_id, preferred_date, grade, unit, nocosil_session_id, status, created_at
           ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'requested', ?11)`
         ).bind(requestId, guideId, session.userId, requesterKind, organizationName, placeId, preferredDate, grade, unit, nocosilSessionId, Date.now()).run();
-        return json({ ok: true, requestId, sessionId: nocosilSessionId, schoolTemplate }, 201, { "cache-control": "no-store" });
+        return json({ ok: true, requestId, sessionId: nocosilSessionId, eventCode, schoolTemplate }, 201, { "cache-control": "no-store" });
       }
 
       const supportSeatMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/support-seats$/);

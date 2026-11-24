@@ -32420,9 +32420,25 @@ test("guide public page, booking request -> NOCOSIL event, and support seats enf
     body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-05", grade: "4年", unit: "季節と生きもの" })
   }), env);
   assert.equal(schoolReq.status, 201);
-  const reqBody = await schoolReq.json() as { sessionId: string; schoolTemplate: { timeline: unknown[] } };
+  const reqBody = await schoolReq.json() as { sessionId: string; eventCode: string; schoolTemplate: { timeline: unknown[] } };
+  assert.match(reqBody.eventCode, /^REQ-[A-Z0-9]{12}$/);
   assert.ok(obs.observationEventSessions.has(reqBody.sessionId));
   assert.equal(reqBody.schoolTemplate.timeline.length, 4);
+
+  for (let i = 0; i < 2; i += 1) {
+    const extraReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+      body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-06" })
+    }), env);
+    assert.equal(extraReq.status, 201);
+  }
+  const overLimitReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+    body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-07" })
+  }), env);
+  assert.equal(overLimitReq.status, 429);
 
   const nonAdminSeat = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_1/support-seats", {
     method: "POST",
@@ -32443,6 +32459,16 @@ test("guide public page, booking request -> NOCOSIL event, and support seats enf
   const pageHtml = await pageRes.text();
   assert.match(pageHtml, /鈴木案内人/);
   assert.match(pageHtml, /みなと文具店/);
+  assert.match(pageHtml, /自己申告: NACS-J自然観察指導員（未確認）/);
+
+  const verifyInstructor = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/publish`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${adminToken}` },
+    body: JSON.stringify({ publishStatus: "published", nacsjInstructorVerified: true })
+  }), env);
+  assert.equal(verifyInstructor.status, 200);
+  const verifiedHtml = await (await worker.fetch(new Request(`https://zukan.earth/guides/${guideId}`), env)).text();
+  assert.match(verifiedHtml, /NACS-J自然観察指導員（確認済み）/);
 });
 
 test("POST /api/v1/expert-duty/route requires authentication, record ownership or admin, and ignores client coordinates", async () => {
