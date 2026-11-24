@@ -63,6 +63,12 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+const VERIFIED_FACE_STATUSES = new Set(["verified_no_faces"]);
+
+function facePrivacyLabel(status: string): string {
+  return VERIFIED_FACE_STATUSES.has(status) ? "顔の確認済み（顔0件）" : "顔の確認なし（未確認）";
+}
+
 function toAsciiDigits(text: string): string {
   return text.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
 }
@@ -204,7 +210,7 @@ export async function insertGuideBadgeDiscoveries(
       ? raw.clientEntryId.trim().slice(0, 120)
       : `gv_${crypto.randomUUID()}`;
 
-    const faceStatus = typeof raw.facePrivacyStatus === "string" ? raw.facePrivacyStatus.trim() : "verified_no_faces";
+    const faceStatus = typeof raw.facePrivacyStatus === "string" && raw.facePrivacyStatus.trim() ? raw.facePrivacyStatus.trim() : "unverified";
     if (faceStatus === "faces_present_unblurred" || (raw.faceDetected === true && raw.faceBlurred !== true)) {
       rejected.push({ clientEntryId, error: "face_blur_required" });
       continue;
@@ -318,7 +324,9 @@ export function renderGuideVoiceConsolePage(input: {
       <h1>${escapeHtml(input.title)}</h1>
       <p>参加者の番号と発見を声で話すだけで記録します（例: 「3番、ヤツデの花、ハチ2匹」）。圏外でも端末に保存し、電波が戻ると自動同期します。</p>
       <div class="gv-row">
-        <span>行事コード（2台目連携用）: <strong>${escapeHtml(input.eventCode || input.sessionId)}</strong></span>
+        ${input.eventCode
+          ? `<span>行事コード（2台目連携用）: <strong>${escapeHtml(input.eventCode)}</strong></span><input id="gv-event-code" type="hidden" value="${escapeHtml(input.eventCode)}">`
+          : `<label>行事コード（主催者から受け取った番号）: <input id="gv-event-code" class="gv-input" type="text" autocomplete="off" style="width:auto"></label>`}
         <label>端末役割:
           <select id="gv-recorder-label" class="gv-input" style="width:auto">
             <option value="guide-1">案内人（1台目）</option>
@@ -334,7 +342,6 @@ export function renderGuideVoiceConsolePage(input: {
         <label>発話内容（音声入力または手入力）
           <input id="gv-utterance" class="gv-input" type="text" placeholder="3番、ヤツデの花、ハチ2匹" required>
         </label>
-        <input id="gv-event-code" type="hidden" value="${escapeHtml(input.eventCode)}">
         <button type="submit" class="gv-btn">この内容で記録</button>
         <div id="gv-status" class="gv-status" role="status" aria-live="polite"></div>
       </form>
@@ -350,9 +357,9 @@ export function renderGuideVoiceConsolePage(input: {
     </section>
 
     <section class="gv-card">
-      <h2>記録一覧（顔ぼかし済み・顔0件）</h2>
+      <h2>記録一覧</h2>
       <ul id="gv-discovery-list" class="gv-list">
-        ${input.initialDiscoveries.map((d) => `<li class="gv-item"><strong>${d.badge_number}番・${escapeHtml(d.subject)}（${d.count}）</strong><span>${escapeHtml(d.detail || d.utterance)}</span><small>${escapeHtml(d.recorder_label)} / ${escapeHtml(d.observed_at)} / ${escapeHtml(d.face_privacy_status)}</small></li>`).join("")}
+        ${input.initialDiscoveries.map((d) => `<li class="gv-item"><strong>${d.badge_number}番・${escapeHtml(d.subject)}（${d.count}）</strong><span>${escapeHtml(d.detail || d.utterance)}</span><small>${escapeHtml(d.recorder_label)} / ${escapeHtml(d.observed_at)} / ${escapeHtml(facePrivacyLabel(d.face_privacy_status))}</small></li>`).join("")}
       </ul>
     </section>
   </main>
@@ -396,6 +403,8 @@ export function renderGuideVoiceConsolePage(input: {
           if (res.ok) {
             writeQueue([]);
             if (statusEl) statusEl.textContent = "同期しました（" + queue.length + "件）。";
+          } else if (res.status === 403 && statusEl) {
+            statusEl.textContent = "行事コードが違うため同期できません。";
           }
         } catch {
           if (statusEl) statusEl.textContent = "圏外のため端末に保存しました（オンライン時に同期します）。";
@@ -485,7 +494,7 @@ export function renderGuideBadgeTakeawayPage(input: {
     <section class="gt-card">
       <span class="gt-eyebrow">名札 ${input.badgeNumber}番・登録不要の持ち帰り</span>
       <h1>${escapeHtml(input.eventTitle)}</h1>
-      <p>観察会で見つけた記録を登録なしでそのまま見返せます（人物の顔は含まれません / 顔0件）。</p>
+      <p>観察会で見つけた記録を登録なしでそのまま見返せます${input.discoveries.length > 0 && input.discoveries.every((d) => VERIFIED_FACE_STATUSES.has(d.face_privacy_status)) ? "（人物の顔は含まれません / 顔0件）" : "（顔の確認が済んでいない記録が含まれます）"}。</p>
       <p><strong>記録件数:</strong> ${input.discoveries.length}件</p>
     </section>
 

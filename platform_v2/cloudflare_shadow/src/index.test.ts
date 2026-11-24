@@ -29329,6 +29329,7 @@ test("guide discoveries list hides coordinates from unauthenticated callers and 
   assert.equal(organizerList.status, 200);
   const organizerPayload = await organizerList.json() as { discoveries: Array<Record<string, unknown>> };
   assert.equal(organizerPayload.discoveries[0]!.longitude, 137.8123);
+  assert.equal(organizerPayload.discoveries[0]!.face_privacy_status, "unverified");
 
   const outsiderIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST",
@@ -29352,6 +29353,49 @@ test("guide discoveries list hides coordinates from unauthenticated callers and 
   const expertCookie = (expertIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
   const statsSelf = await worker.fetch(new Request(statsUrl, { headers: { cookie: expertCookie } }), env);
   assert.equal(statsSelf.status, 200);
+});
+
+test("guide voice console shows the event code only to the organizer", async () => {
+  const { env, obs } = createEnv();
+  const sessionId = "evt_guide_page_code_1";
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    legacy_event_id: null,
+    event_code: "PAGE-CODE-7",
+    title: "コード表示観察会",
+    organizer_user_id: "page-organizer-1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "guide_voice",
+    active_modes_json: JSON.stringify(["guide_voice"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
+    started_at: "2026-11-23T09:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+  const pageUrl = `https://shadow.test/ja/events/${sessionId}/guide-voice`;
+  const anonPage = await worker.fetch(new Request(pageUrl), env);
+  assert.equal(anonPage.status, 200);
+  const anonHtml = await anonPage.text();
+  assert.doesNotMatch(anonHtml, /PAGE-CODE-7/);
+  assert.match(anonHtml, /id="gv-event-code"/);
+
+  const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "page-organizer-1", displayName: "Page Organizer", ttlHours: 1 })
+  }), env);
+  const organizerCookie = (organizerIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const organizerPage = await worker.fetch(new Request(pageUrl, { headers: { cookie: organizerCookie } }), env);
+  assert.equal(organizerPage.status, 200);
+  assert.match(await organizerPage.text(), /PAGE-CODE-7/);
 });
 
 test("profile settings saves display language preference, hides header language switches, and respects device Accept-Language for guests", async () => {
