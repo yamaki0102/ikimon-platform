@@ -503,14 +503,17 @@ export async function handleObservationEventPages(request: Request, url: URL, en
     }
     const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
     const cspNonce = createHtmlCspNonce();
+    const consoleAuth = await readCompatibleSession(request, env).catch(() => null);
+    const isOrganizer = Boolean(consoleAuth && !consoleAuth.banned && consoleAuth.userId === session.organizerUserId);
     const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, null);
     const body = renderGuideVoiceConsolePage({
       sessionId: session.sessionId,
       title: session.title,
-      eventCode: session.eventCode ?? "",
+      eventCode: isOrganizer ? (session.eventCode ?? "") : "",
       lang,
       cspNonce,
-      initialDiscoveries: discoveries
+      initialDiscoveries: isOrganizer ? discoveries : [],
+      canViewDiscoveries: isOrganizer
     });
     return new Response(request.method === "HEAD" ? null : body, {
       status: 200,
