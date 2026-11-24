@@ -32193,6 +32193,156 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   assert.doesNotMatch(enHtml, /href="\/en\/(events|places|capture)["\/]|href="\/auth\/login"/);
 });
 
+test("guide public page, booking request -> NOCOSIL event, and support seats enforce 401/403", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const guideSqlite = new DatabaseSync(":memory:");
+  const coreWithGuide = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:guide_profiles|guide_booking_requests|place_support_seats)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return guideSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: guideSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(guideSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const obsWithGuide = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("INSERT INTO observation_event_sessions")) {
+            let vals: D1Value[] = [];
+            const stmt = {
+              bind(...v: D1Value[]) { vals = v; return stmt; },
+              async run() {
+                obs.observationEventSessions.set(String(vals[0]), {
+                  session_id: String(vals[0]),
+                  legacy_event_id: null,
+                  event_code: String(vals[1]),
+                  title: String(vals[2]),
+                  organizer_user_id: String(vals[3]),
+                  corporation_id: null,
+                  plan: "free",
+                  primary_mode: "guided",
+                  active_modes_json: '["guided"]',
+                  location_lat: null,
+                  location_lng: null,
+                  location_radius_m: 500,
+                  started_at: String(vals[4]),
+                  ended_at: null,
+                  target_species_json: "[]",
+                  config_json: String(vals[5]),
+                  field_id: String(vals[6]),
+                  template_source_session_id: null,
+                  created_at: String(vals[7]),
+                  updated_at: String(vals[8])
+                });
+                return { meta: { changes: 1 } };
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithGuide, OBS_DB: obsWithGuide };
+
+  const guideToken = "guide-user-token";
+  const guideHash = createHash("sha256").update(guideToken).digest("hex");
+  baseCore.authSessions.set(guideHash, {
+    token_hash: guideHash, user_id: "guide-u-1", display_name: "鈴木案内人", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const adminToken = "guide-admin-token";
+  const adminHash = createHash("sha256").update(adminToken).digest("hex");
+  baseCore.authSessions.set(adminHash, {
+    token_hash: adminHash, user_id: "guide-admin-1", display_name: "Admin", role_name: "admin", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const schoolToken = "guide-school-token";
+  const schoolHash = createHash("sha256").update(schoolToken).digest("hex");
+  baseCore.authSessions.set(schoolHash, {
+    token_hash: schoolHash, user_id: "school-u-1", display_name: "常盤小学校", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+
+  const unauthProf = await worker.fetch(new Request("https://zukan.earth/api/v1/guides/profile", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ specialties: ["野鳥"] })
+  }), env);
+  assert.equal(unauthProf.status, 401);
+
+  const saveProf = await worker.fetch(new Request("https://zukan.earth/api/v1/guides/profile", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${guideToken}` },
+    body: JSON.stringify({ specialties: ["水辺の生きもの"], places: ["常盤公園"], isNacsjInstructor: true })
+  }), env);
+  assert.equal(saveProf.status, 201);
+  const { guideId } = await saveProf.json() as { guideId: string };
+
+  const nonAdminPub = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/publish`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${guideToken}` },
+    body: JSON.stringify({ publishStatus: "published" })
+  }), env);
+  assert.equal(nonAdminPub.status, 403);
+
+  const adminPub = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/publish`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${adminToken}` },
+    body: JSON.stringify({ publishStatus: "published" })
+  }), env);
+  assert.equal(adminPub.status, 200);
+
+  const unauthReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-05" })
+  }), env);
+  assert.equal(unauthReq.status, 401);
+
+  const schoolReq = await worker.fetch(new Request(`https://zukan.earth/api/v1/guides/${guideId}/requests`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+    body: JSON.stringify({ requesterKind: "school", organizationName: "常盤小学校", placeId: "plc_1", preferredDate: "2026-12-05", grade: "4年", unit: "季節と生きもの" })
+  }), env);
+  assert.equal(schoolReq.status, 201);
+  const reqBody = await schoolReq.json() as { sessionId: string; schoolTemplate: { timeline: unknown[] } };
+  assert.ok(obs.observationEventSessions.has(reqBody.sessionId));
+  assert.equal(reqBody.schoolTemplate.timeline.length, 4);
+
+  const nonAdminSeat = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_1/support-seats", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${schoolToken}` },
+    body: JSON.stringify({ sponsorName: "みなと文具店", equipmentNote: "双眼鏡3台" })
+  }), env);
+  assert.equal(nonAdminSeat.status, 403);
+
+  const adminSeat = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_1/support-seats", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${adminToken}` },
+    body: JSON.stringify({ sponsorName: "みなと文具店", equipmentNote: "双眼鏡3台" })
+  }), env);
+  assert.equal(adminSeat.status, 201);
+
+  const pageRes = await worker.fetch(new Request(`https://zukan.earth/guides/${guideId}`), env);
+  assert.equal(pageRes.status, 200);
+  const pageHtml = await pageRes.text();
+  assert.match(pageHtml, /鈴木案内人/);
+  assert.match(pageHtml, /みなと文具店/);
+});
+
 test("POST /api/v1/expert-duty/route requires authentication, record ownership or admin, and ignores client coordinates", async () => {
   const { env: baseEnv, core: baseCore, obs } = createEnv();
   const dutySqlite = new DatabaseSync(":memory:");
