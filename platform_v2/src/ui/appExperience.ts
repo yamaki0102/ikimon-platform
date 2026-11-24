@@ -120,7 +120,7 @@ export function renderAppExperienceHeader(
     ? `<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a>`
     : `<a class="ik-ui-action zukan-app-account home-header-login site-login-link" href="${prefix}/login?redirect=${encodeURIComponent(loginRedirect)}">${loginLabels[language]}</a>`;
   const accountHtml = options?.authControlsHtml ?? defaultAccountHtml;
-  return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${renderAppExperienceLanguageSwitch(lang, options?.currentPath)}${accountHtml}</div></div></header>`;
+  return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${accountHtml}</div></div></header>`;
 }
 
 export function renderAppExperienceQuickCamera(lang: string, options?: { nonce?: string }): string {
@@ -211,10 +211,10 @@ body[data-zukan-design] :is(button,input,textarea,select),body[data-zukan-app-ex
 body[data-zukan-design] :is(button,[role=button],input:not([type=hidden],[type=checkbox],[type=radio]),select,textarea,summary),body[data-zukan-app-experience] :is(button,[role=button],input:not([type=hidden],[type=checkbox],[type=radio]),select,textarea,summary){min-height:var(--zukan-control-min)}
 body[data-zukan-design] :is(h1,h2,h3),body[data-zukan-app-experience] :is(h1,h2,h3){overflow-wrap:anywhere;text-wrap:balance;line-height:1.35}
 body[data-zukan-design] :is(a,button,input,textarea,select,summary):focus-visible,body[data-zukan-app-experience] :is(a,button,input,textarea,select,summary):focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
-body[data-zukan-design] a:not([class]),body[data-zukan-app-experience] a:not([class]){color:var(--zukan-link);text-decoration-thickness:max(1px,.08em);text-underline-offset:.15em}
-body[data-zukan-design] a:not([class]):visited,body[data-zukan-app-experience] a:not([class]):visited{color:var(--zukan-link-visited)}
+body[data-zukan-design] a:not([class],[aria-current]),body[data-zukan-app-experience] a:not([class],[aria-current]){color:var(--zukan-link);text-decoration-thickness:max(1px,.08em);text-underline-offset:.15em}
+body[data-zukan-design] a:not([class],[aria-current]):visited,body[data-zukan-app-experience] a:not([class],[aria-current]):visited{color:var(--zukan-link-visited)}
 body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state])[hidden]{display:none}
-body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state]){display:block;border-inline-start:4px solid var(--zukan-status-info);padding:var(--zukan-space-3);border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle)}
+body[data-zukan-design] :where([role=status],[role=alert],[data-zukan-ui-state]):not(.is-hidden):not([hidden]){border-inline-start:4px solid var(--zukan-status-info);padding:var(--zukan-space-3);border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle)}
 body[data-zukan-design] [role=alert],body[data-zukan-design] [data-zukan-ui-state=error]{border-inline-start-color:var(--zukan-status-error)}
 body[data-zukan-design] [data-zukan-ui-state=warning],body[data-zukan-design] [data-zukan-ui-state=permission]{border-inline-start-color:var(--zukan-status-warning)}
 body[data-zukan-design] [data-zukan-ui-state=success]{border-inline-start-color:var(--zukan-status-success)}

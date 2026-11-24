@@ -78,13 +78,10 @@ test("route admission and fallback language stay bounded", () => {
   assert.ok(renderAppExperienceNavigation("unknown", 0, "bottom").includes('href="/ja/"'));
 });
 
-test("shared top bar always renders the interactive language switcher across locales", () => {
+test("shared top bar renders no language switch across locales", () => {
   for (const language of ["ja", "en", "es", "pt-br"]) {
     const header = renderAppExperienceHeader(language, 0, false, "main-content", { currentPath: `/${language}/records?view=public` });
-    assert.match(header, /<details class="lang-switch lang-switch-desktop zukan-app-lang" data-language-disclosure>/);
-    for (const target of ["ja", "en", "es", "pt-br"]) {
-      assert.match(header, new RegExp(`href="/${target}/records\\?view=public"`));
-    }
+    assert.doesNotMatch(header, /lang-switch/);
   }
 });
 

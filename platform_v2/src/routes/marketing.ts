@@ -676,7 +676,8 @@ const LOWER_PAGE_STYLES = `
   .doc-term-notes dl { display: grid; gap: 10px; margin: 0; }
   .doc-term-notes div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; }
   .doc-term-notes dt { color: #065f46; font-size: 14px; font-weight: 900; }
-  .doc-term-notes dt a { color: inherit; text-decoration: none; }
+  main a[href*="/terms/"] { display: inline-block; }
+  .doc-term-notes dt a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: none; }
   .doc-term-notes dt a:hover { text-decoration: underline; text-underline-offset: 3px; }
   .doc-term-notes dd { margin: 0; color: #475569; font-size: 14px; line-height: 1.7; }
   .doc-sidebar { position: sticky; top: 82px; }
@@ -726,6 +727,8 @@ const LOWER_PAGE_STYLES = `
   .field-program-demo-actions { display: flex; flex-wrap: wrap; gap: 10px; }
   .field-program-demo-actions a { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 8px 12px; border-radius: 8px; background: #0f172a; color: #fff; font-size: 14px; font-weight: 900; text-decoration: none; }
   .field-program-demo-actions a + a { background: #fff; color: #0f172a; border: 1px solid rgba(15,23,42,.12); }
+  html body .field-program-demo-actions a[href]:is(:link,:visited) { color: #fff; }
+  html body .field-program-demo-actions a[href] + a:is(:link,:visited) { color: #0f172a; }
   .route-gateway { max-width: 760px; margin: 6px auto 0; border-top: 1px solid rgba(15,23,42,.08); padding-top: 24px; }
   .route-gateway .section-header p { max-width: 620px; }
   .route-gateway-grid { display: grid; gap: 10px; }
