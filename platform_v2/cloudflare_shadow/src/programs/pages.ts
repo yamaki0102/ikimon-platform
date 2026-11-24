@@ -20,6 +20,7 @@ import { applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, crea
 import { buildObservationEventGuestCookie, buildObservationEventOperationsDashboard, claimObservationEventGuestParticipant, findObservationEventParticipant, getObservationEventSessionById, isObservationEventActivityOpen, isObservationEventCheckinOpen, listObservationEventLiveEvents, listObservationEventTeams, mapObservationEventSession, observationEventGuestCredentialDigest, observationEventLiveParticipantDetail, observationEventParticipantContext, publicObservationEventLiveEvent, readObservationEventGuestCredential, recordObservationEventParticipantPageMetric, recordObservationEventServerFunnelMetric, requireObservationEventOrganizer, serverObservationEventFunnelContext, shouldDeliverObservationEvent, summarizePublicObservationEventLive, type ObservationEventParticipantD1Row, type ObservationEventSessionD1Row, type ObservationEventTeamD1Row, type ObservationEventTemplate, type PublicObservationEventLiveEvent } from "./runtime";
 import { getObservationEventGuestMedia, getObservationEventSessionByEventCode, getObservationRallyCourseBySession, getObservationRallySnapshot, isObservationEventQaFixture, isPrivateReceivedProgram, isRyuyoDiscoveryEvent, mapObservationRallyCourse, mapObservationRallyMission, mapObservationRallyProgress, mapObservationRallyStation, observationEventGuestMediaActor, observationEventGuestMediaEnabled } from "./rally";
 import { DISCOVERY_CAMPAIGN_VERSION, buildObservationEventOfficialReport, discoveryCampaignConfig, getObservationEventRecap, hasProfessionalReportEntitlement, summarizeObservationEventEffort } from "./sessions";
+import { listGuideBadgeDiscoveries, renderGuideBadgeTakeawayPage, renderGuideVoiceConsolePage } from "../guideVoiceEvent";
 
 const SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH = "/__ops/browser-qa/renri";
 
@@ -493,6 +494,69 @@ export async function handleObservationEventPages(request: Request, url: URL, en
   if (joinMatch?.[1]) {
     return getObservationEventJoinPage(request, env, decodeURIComponent(joinMatch[1]));
   }
+  const guideVoiceMatch = pathname.match(/^\/events\/([^/]+)\/guide-voice$/);
+  if (guideVoiceMatch?.[1]) {
+    const sessionId = decodeURIComponent(guideVoiceMatch[1]);
+    const session = await getObservationEventSessionById(env, sessionId);
+    if (!session) {
+      return observationEventPageHtml("観察会が見つかりません", observationEventEmptyState("観察会が見つかりません", "URLを確認してください。"), "guide-voice-not-found", 404);
+    }
+    const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+    const cspNonce = createHtmlCspNonce();
+    const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, null);
+    const body = renderGuideVoiceConsolePage({
+      sessionId: session.sessionId,
+      title: session.title,
+      eventCode: session.eventCode ?? "",
+      lang,
+      cspNonce,
+      initialDiscoveries: discoveries
+    });
+    return new Response(request.method === "HEAD" ? null : body, {
+      status: 200,
+      headers: {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "x-robots-tag": "noindex, nofollow, noarchive",
+        "x-ikimon-cloudflare-native": "guide-voice-console"
+      }
+    });
+  }
+
+  const takeawayMatch = pathname.match(/^\/events\/([^/]+)\/takeaway\/(\d{1,4})$/);
+  if (takeawayMatch?.[1] && takeawayMatch?.[2]) {
+    const sessionId = decodeURIComponent(takeawayMatch[1]);
+    const badgeNumber = Number(takeawayMatch[2]);
+    const session = await getObservationEventSessionById(env, sessionId);
+    if (!session) {
+      return observationEventPageHtml("持ち帰りページが見つかりません", observationEventEmptyState("観察会が見つかりません", "URLを確認してください。"), "guide-takeaway-not-found", 404);
+    }
+    const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+    const cspNonce = createHtmlCspNonce();
+    const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNumber);
+    const nextEventNote = typeof session.config?.nextEventNote === "string" ? session.config.nextEventNote : "";
+    const body = renderGuideBadgeTakeawayPage({
+      sessionId: session.sessionId,
+      eventTitle: session.title,
+      badgeNumber,
+      nextEventNote,
+      lang,
+      cspNonce,
+      discoveries
+    });
+    return new Response(request.method === "HEAD" ? null : body, {
+      status: 200,
+      headers: {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "x-robots-tag": "noindex, nofollow, noarchive",
+        "x-ikimon-cloudflare-native": "guide-badge-takeaway"
+      }
+    });
+  }
+
   const eventPageMatch = pathname.match(/^\/events\/([^/]+)\/(edit|live|rally|gallery|console|recap|report|discoveries|print)$/);
   if (!eventPageMatch?.[1] || !eventPageMatch[2]) return null;
   return getObservationEventSessionPage(request, url, env, decodeURIComponent(eventPageMatch[1]), eventPageMatch[2]);
