@@ -25154,7 +25154,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         providerAvailable: Boolean(env.GEMINI_API_KEY)
       }).catch(() => null)
     : null;
-  const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null);
+  const recordClassOut: { value: string | null } = { value: null };
+  const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null, recordClassOut);
   if (!detail) {
     if (!ownerStatus && await hasExplicitlyWithdrawnNativeObservation(detailIdToVisitId(rawId), env)) {
       return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
@@ -25223,7 +25224,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         note: detail.note,
         aiFeedback: detail.feedback,
         aiCandidateInsights: detail.aiCandidateInsights,
-        recordClass: detail.recordClass,
+        recordClass: recordClassOut.value,
         signboardTitle: null,
       };
       const [signboardTitle, customTitleObj, expertComments] = await Promise.all([
@@ -25244,7 +25245,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
-        recordClass: detail.recordClass,
+        recordClass: recordClassOut.value,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
         publicLocationLabel: detail.publicLocation.label,
@@ -25632,7 +25633,7 @@ async function hasExplicitlyWithdrawnNativeObservation(observationId: string, en
   return row?.withdrawal_status != null && row.withdrawal_status !== "active";
 }
 
-async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null) {
+async function buildObservationDetail(rawId: string, env: Env, ownerUserId: string | null, recordClassOut?: { value: string | null }) {
   const visitId = detailIdToVisitId(rawId);
   const row = ownerUserId
     ? await env.OBS_DB.prepare(
@@ -25798,6 +25799,10 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     ? "位置は非公開です"
     : (isLocationDelayed24Hours(row.observed_at, Date.now()) ? "位置は24時間後に公開されます" : "位置をぼかしています");
 
+  if (recordClassOut) {
+    recordClassOut.value = publicObservationAiRecordClass(row.ai_source_payload_json);
+  }
+
   return {
     schemaVersion: "shadow_public_observation_detail/v1",
     occurrenceId: `occ:${row.observation_id}:0`,
@@ -25809,7 +25814,6 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiCandidateLabel,
     aiCandidateRank,
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
-    recordClass: publicObservationAiRecordClass(row.ai_source_payload_json),
     ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
     aiRequestStatus: row.ai_request_status,
