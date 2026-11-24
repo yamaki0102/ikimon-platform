@@ -52,6 +52,7 @@ import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipati
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
   LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
   facePrivacyStatusFromMetadata,
@@ -3174,6 +3175,31 @@ export const worker = {
         return json({ ok: true, seatId, placeId, sponsorName, equipmentNote }, 201, { "cache-control": "no-store" });
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/admin/record-health") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const report = await runRecordHealthCheck(env);
+        const history = await listRecordHealthHistory(env, 30);
+        return json({ ok: true, report, history }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/admin/record-health/backfill") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const body = await readJson<{ limit?: unknown; includeArea?: unknown }>(request);
+        const limit = typeof body.limit === "number" && Number.isFinite(body.limit) ? body.limit : 50;
+        const result = await backfillRecordHealthGaps(env, {
+          limit,
+          includeArea: body.includeArea === true
+        });
+        const report = await runRecordHealthCheck(env);
+        return json({ ok: true, ...result, report }, 200, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
         const sameOriginError = assertSameOriginRequest(request);
         if (sameOriginError) return sameOriginError;
@@ -4026,6 +4052,7 @@ export const worker = {
     ctx.waitUntil(runScheduledObservationEventQuests(env));
     ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
     ctx.waitUntil(runScheduledGbifAreaSummaryRefresh(env, controller));
+    ctx.waitUntil(runRecordHealthCheck(env).catch(() => null));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {

@@ -32779,6 +32779,38 @@ test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place aut
   assert.equal(validPublish.status, 200);
 });
 
+test("admin record-health and backfill endpoints enforce 401 unauthenticated and 403 non-admin", async () => {
+  const { env, core } = createEnv();
+  const memberToken = "health-member-token";
+  const memberHash = createHash("sha256").update(memberToken).digest("hex");
+  core.authSessions.set(memberHash, {
+    token_hash: memberHash,
+    user_id: "health-user-1",
+    display_name: "Member",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health"), env)).status, 401);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health/backfill", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ limit: 10 })
+  }), env)).status, 401);
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health", {
+    headers: { cookie: `ikimon_v2_session=${memberToken}` }
+  }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/admin/record-health/backfill", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${memberToken}` },
+    body: JSON.stringify({ limit: 10 })
+  }), env)).status, 403);
+});
+
 test("public observation detail and map cards fall back from weak readmodel taxon_label to observations.taxon_label and observation_identifications", async () => {
   const { env: baseEnv, obs } = createEnv();
   const idSqlite = new DatabaseSync(":memory:");
