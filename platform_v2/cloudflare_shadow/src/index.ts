@@ -25655,7 +25655,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
             AND o.emergency_hidden = 0`
       ).bind(visitId, ownerUserId).first<PublicDetailRow>()
     : await env.OBS_DB.prepare(
-        `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, o.taxon_label AS obs_taxon_label, r.asset_count,
+        `SELECT r.observation_id, r.public_cell, r.observed_at, r.taxon_label, r.asset_count,
                 o.note, o.visibility,
                 art.ai_assessment_status,
                 (SELECT rr.request_state FROM observation_reassessment_requests rr
@@ -25758,11 +25758,15 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
-  let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label)
-    ? row.taxon_label
-    : !isWeakTaxonLabel(row.obs_taxon_label ?? null)
-    ? row.obs_taxon_label!
-    : null;
+  let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
+  if (!effectiveTaxonLabel) {
+    const obsTaxonRow = await env.OBS_DB.prepare(
+      "SELECT taxon_label FROM observations WHERE observation_id = ? LIMIT 1"
+    ).bind(visitId).first<{ taxon_label: string | null }>().catch(() => null);
+    if (!isWeakTaxonLabel(obsTaxonRow?.taxon_label ?? null)) {
+      effectiveTaxonLabel = obsTaxonRow!.taxon_label!;
+    }
+  }
   if (!effectiveTaxonLabel) {
     const idRow = await env.OBS_DB.prepare(
       `SELECT proposed_name

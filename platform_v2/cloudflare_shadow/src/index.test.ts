@@ -32800,6 +32800,17 @@ test("public observation detail and map cards fall back from weak readmodel taxo
     get(target, prop, receiver) {
       if (prop === "prepare") {
         return (query: string) => {
+          if (query.trim().startsWith("SELECT taxon_label FROM observations WHERE observation_id = ?")) {
+            let oid = "";
+            const stmt = {
+              bind(v: D1Value) { oid = String(v); return stmt; },
+              async first() {
+                const found = obs.observations.get(oid);
+                return found ? { taxon_label: found.taxon_label } : null;
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
           if (!/\bobservation_identifications\b/u.test(query)) {
             return target.prepare(query);
           }
