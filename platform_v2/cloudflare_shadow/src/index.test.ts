@@ -33501,12 +33501,12 @@ test("event console shows participant/photo counts and persists config_json.next
   obs.observationEventLiveEvents.push({
     live_event_id: "live-console-1",
     session_id: "evt-console-1",
-    type: "observation_submitted",
+    type: "observation_added",
     scope: "public",
     actor_user_id: "console-part-1",
     actor_guest_token: null,
     team_id: null,
-    payload_json: JSON.stringify({ observationId: "obs-console-1" }),
+    payload_json: JSON.stringify({ observation_id: "obs-console-1" }),
     created_at: "2026-11-24T01:20:00.000Z"
   });
 
