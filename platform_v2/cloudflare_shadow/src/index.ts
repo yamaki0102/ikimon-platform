@@ -25833,6 +25833,13 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
   if (!effectiveTaxonLabel) {
+    const cardMeta = await queryPublicMapCardMeta(env, [visitId]).catch(() => new Map<string, PublicMapCardMeta>());
+    const sharedTaxonLabel = cardMeta.get(visitId)?.taxonLabel ?? null;
+    if (!isWeakTaxonLabel(sharedTaxonLabel)) {
+      effectiveTaxonLabel = sharedTaxonLabel!.trim();
+    }
+  }
+  if (!effectiveTaxonLabel) {
     const obsTaxonRow = await env.OBS_DB.prepare(
       "SELECT taxon_label FROM observations WHERE observation_id = ? LIMIT 1"
     ).bind(visitId).first<{ taxon_label: string | null }>().catch(() => null);
