@@ -26,6 +26,24 @@ test("Records headings, member tabs and search controls use the selected languag
   }
 });
 
+test("Records section overrides :visited link color, preserves top clearance, hides empty status gap, and keeps save button inside card", () => {
+  const html = renderRecordsProductSection(
+    [{ visitId: "obs-1", displayName: "メジロ", observedAt: "2026-11-24T00:00:00.000Z", assetCount: 1, photoUrl: "/media/1.jpg", publicAreaLabel: "公園", isAwaitingId: false } as never],
+    new URL("https://zukan.earth/ja/records?view=mine"),
+    "mine",
+    { userId: "u1", banned: false } as never,
+    false,
+    new Map()
+  );
+  assert.match(html, /\.cf-records-native-tabs a,\.cf-records-native-tabs a:is\(:link,:visited\)\{[^}]*color:#245c3a/);
+  assert.match(html, /\.cf-records-native-tabs a\[aria-current=page\],\.cf-records-native-tabs a\[aria-current=page\]:is\(:link,:visited\)\{[^}]*color:#fff/);
+  assert.match(html, /\.cf-records-native\{[^}]*padding:max\(24px,env\(safe-area-inset-top\)\) 0 0;scroll-margin-top:88px/);
+  assert.match(html, /\.cf-records-native \.zs-status:empty\{display:none\}/);
+  const quietStyleIdx = html.indexOf(".qh p{");
+  const nativeStyleIdx = html.indexOf(".cf-records-native .zs-card>.zs-control{position:absolute");
+  assert.ok(quietStyleIdx >= 0 && nativeStyleIdx > quietStyleIdx);
+});
+
 test("long empty-search headings wrap within Records and preserve usable recovery actions", {
   skip: !existsSync(browserPath) && "Playwright Chromium is unavailable",
 }, async () => {
