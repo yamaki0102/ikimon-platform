@@ -32752,3 +32752,103 @@ test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place aut
   }), env);
   assert.equal(validPublish.status, 200);
 });
+
+test("annual report, portable bundle, and stewardship logs require login and place owner/steward/admin (401/403)", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const annualSqlite = new DatabaseSync(":memory:");
+  const coreWithAnnual = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:place_stewardship_logs|fixed_point_station_records|paper_archive_pages)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return annualSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: annualSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(annualSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithAnnual };
+
+  const otherToken = "annual-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "annual-other-1",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const stewardToken = "annual-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash,
+    user_id: "annual-steward-1",
+    display_name: "Steward User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.fieldManagers.set("fm-annual-1", {
+    manager_id: "fm-annual-1",
+    field_id: "plc_annual_1",
+    user_id: "annual-steward-1",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/places/plc_annual_1/annual-report"), env)).status, 401);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/portable-bundle"), env)).status, 401);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/stewardship-logs", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ workSummary: "草刈り" })
+  }), env)).status, 401);
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/places/plc_annual_1/annual-report", {
+    headers: { cookie: `ikimon_v2_session=${otherToken}` }
+  }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/portable-bundle", {
+    headers: { cookie: `ikimon_v2_session=${otherToken}` }
+  }), env)).status, 403);
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/stewardship-logs", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ workSummary: "草刈り" })
+  }), env)).status, 403);
+
+  const postRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/stewardship-logs", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${stewardToken}` },
+    body: JSON.stringify({ occurredDate: "2026-11-20", participantLabel: "Spoofed Name", workSummary: "外来種除去" })
+  }), env);
+  assert.equal(postRes.status, 201);
+  const logRow = annualSqlite.prepare("SELECT participant_label FROM place_stewardship_logs LIMIT 1").get() as { participant_label: string };
+  assert.equal(logRow.participant_label, "Steward User");
+
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/places/plc_annual_1/annual-report?year=2026", {
+    headers: { cookie: `ikimon_v2_session=${stewardToken}` }
+  }), env)).status, 200);
+  const bundleRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_annual_1/portable-bundle?year=2026", {
+    headers: { cookie: `ikimon_v2_session=${stewardToken}` }
+  }), env);
+  assert.equal(bundleRes.status, 200);
+});
