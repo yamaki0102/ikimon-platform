@@ -33399,3 +33399,90 @@ test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with
   const detailHtml = await detailHtmlRes.text();
   assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
 });
+
+test("observation event capacity returns remaining slots and rejects 3rd applicant with 409", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  Object.assign(env, { OBS_DB: obs });
+  const origin = "https://ikimon.life";
+  const send = async (path: string, method = "GET", cookie = "", body?: unknown) => {
+    const response = await worker.fetch(new Request(origin + path, { method, headers: { cookie, origin, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const issueUser = async (userId: string, displayName: string) => {
+    const res = await send("/api/v1/auth/session/issue", "POST", "", { userId, displayName, ttlHours: 1 });
+    return res.response.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issueUser("cap-organizer", "主催者本名");
+  const user1Cookie = await issueUser("cap-user-1", "参加者1本名");
+  const user2Cookie = await issueUser("cap-user-2", "参加者2本名");
+  const user3Cookie = await issueUser("cap-user-3", "参加者3本名");
+  Object.assign(env, { ENVIRONMENT: "production" });
+
+  const created = await send("/api/v1/observation-events", "POST", ownerCookie, {
+    title: "春の観察会",
+    event_code: "CAP2SLOT",
+    plan: "public",
+    field_id: RYUYO_FIELD_ID,
+    started_at: new Date(Date.now() + 3_600_000).toISOString(),
+    ended_at: new Date(Date.now() + 7_200_000).toISOString(),
+    location_lat: 34.65,
+    location_lng: 137.82
+  });
+  assert.equal(created.response.status, 201, JSON.stringify(created.data));
+  const sessionId = created.data.sessionId as string;
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET field_id = ?, config_json = ? WHERE session_id = ?").run(
+    RYUYO_FIELD_ID,
+    JSON.stringify({
+      guest_media_enabled: true,
+      discovery_journal: { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" },
+      discovery_campaign: { version: "ryuyo-campaign-v1", listed: false, applications_open: true },
+      public_page: { capacity: 2 },
+      event_template: { contract_version: "event-template-v1", key: "ryuyo" }
+    }),
+    sessionId
+  );
+  const api = `/api/v1/observation-events/${sessionId}`;
+
+  // Unauthenticated without guest cookie -> 428 on POST
+  assert.equal((await send(api + "/application", "POST", "", { display_name: "無認証" })).response.status, 428);
+  // Organizer cannot apply -> 403
+  assert.equal((await send(api + "/application", "POST", ownerCookie, { display_name: "主催者" })).response.status, 403);
+
+  const initialStatus = await send(api + "/application");
+  assert.equal(initialStatus.response.status, 200);
+  assert.equal(initialStatus.data.capacity, 2);
+  assert.equal(initialStatus.data.remaining, 2);
+
+  const apply1 = await send(api + "/application", "POST", user1Cookie, { display_name: "公開ニックネーム1" });
+  assert.equal(apply1.response.status, 201, JSON.stringify(apply1.data));
+  assert.equal(apply1.data.capacity, 2);
+  assert.equal(apply1.data.remaining, 1);
+
+  const statusAfter1 = await send(api + "/application", "GET", user3Cookie);
+  assert.equal(statusAfter1.response.status, 200);
+  assert.equal(statusAfter1.data.capacity, 2);
+  assert.equal(statusAfter1.data.remaining, 1);
+  assert.doesNotMatch(JSON.stringify(statusAfter1.data), /公開ニックネーム1|参加者1本名|cap-user-1/u);
+
+  const apply2 = await send(api + "/application", "POST", user2Cookie, { display_name: "公開ニックネーム2" });
+  assert.equal(apply2.response.status, 201, JSON.stringify(apply2.data));
+  assert.equal(apply2.data.capacity, 2);
+  assert.equal(apply2.data.remaining, 0);
+
+  const statusAfter2 = await send(api + "/application", "GET", user3Cookie);
+  assert.equal(statusAfter2.response.status, 200);
+  assert.equal(statusAfter2.data.capacity, 2);
+  assert.equal(statusAfter2.data.remaining, 0);
+  assert.doesNotMatch(JSON.stringify(statusAfter2.data), /公開ニックネーム|参加者|cap-user-/u);
+
+  const apply3 = await send(api + "/application", "POST", user3Cookie, { display_name: "公開ニックネーム3" });
+  assert.equal(apply3.response.status, 409, JSON.stringify(apply3.data));
+  assert.equal(apply3.data.error, "event_capacity_full");
+  assert.equal(apply3.data.capacity, 2);
+  assert.equal(apply3.data.remaining, 0);
+});
