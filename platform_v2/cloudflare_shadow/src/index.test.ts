@@ -32068,6 +32068,108 @@ test("event live map enforces 401/403 participant access, event window/area boun
   assert.equal(endedPost.status, 409);
 });
 
+test("place logger ingest (7 days) and simultaneous day national map enforce 401/403 and protect rare species", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const loggerSqlite = new DatabaseSync(":memory:");
+  const coreWithLogger = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\b(?:place_logger_records|simultaneous_day_entries)\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return loggerSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: loggerSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(loggerSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithLogger };
+
+  const otherToken = "log-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash, user_id: "log-other-1", display_name: "Other", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const stewardToken = "log-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash, user_id: "log-steward-1", display_name: "Steward", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  obs.fieldManagers.set("fm-log-1", {
+    manager_id: "fm-log-1",
+    field_id: "plc_log_1",
+    user_id: "log-steward-1",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  const unauthLog = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ records: [{ deviceKind: "audio_logger", observedDate: "2026-11-20" }] })
+  }), env);
+  assert.equal(unauthLog.status, 401);
+
+  const otherLog = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ records: [{ deviceKind: "audio_logger", observedDate: "2026-11-20" }] })
+  }), env);
+  assert.equal(otherLog.status, 403);
+
+  const sevenDays = Array.from({ length: 7 }, (_, i) => ({
+    deviceKind: "audio_logger",
+    observedDate: `2026-11-${String(14 + i).padStart(2, "0")}`,
+    summaryText: `夜間録音 ${i + 1}日目`
+  }));
+  const validLog = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${stewardToken}` },
+    body: JSON.stringify({ stationId: "fps_1", records: sevenDays })
+  }), env);
+  assert.equal(validLog.status, 201);
+  const anonLogList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records"), env);
+  assert.equal(anonLogList.status, 401);
+  const otherLogList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records", { headers: { cookie: `ikimon_v2_session=${otherToken}` } }), env);
+  assert.equal(otherLogList.status, 403);
+  const logList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records", { headers: { cookie: `ikimon_v2_session=${stewardToken}` } }), env);
+  assert.equal(logList.status, 200);
+  const logListBody = await logList.json() as { count: number };
+  assert.equal(logListBody.count, 7);
+
+  const otherSim = await worker.fetch(new Request("https://zukan.earth/api/v1/simultaneous-days/2026-11-23/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ placeId: "plc_log_1", placeLabel: "常盤公園", answer1: "澄んでいる", answer2: "5輪", answer3: "あり" })
+  }), env);
+  assert.equal(otherSim.status, 403);
+
+  const validSim = await worker.fetch(new Request("https://zukan.earth/api/v1/simultaneous-days/2026-11-23/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${stewardToken}` },
+    body: JSON.stringify({ placeId: "plc_log_1", placeLabel: "常盤公園", coarseCell: "34.7,137.7", answer1: "澄んでいる", answer2: "5輪", answer3: "あり" })
+  }), env);
+  assert.equal(validSim.status, 201);
+
+  const mapPage = await worker.fetch(new Request("https://zukan.earth/simultaneous-days/2026-11-23"), env);
+  assert.equal(mapPage.status, 200);
+  const mapHtml = await mapPage.text();
+  assert.match(mapHtml, /全国一斉の日（2026-11-23）· 参加地点 1件/);
+  assert.match(mapHtml, /常盤公園/);
+});
+
 test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events fallback", async () => {
   const { env: baseEnv, core: baseCore, obs } = createEnv();
   const topSqlite = new DatabaseSync(":memory:");

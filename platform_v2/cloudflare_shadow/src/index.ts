@@ -35,6 +35,13 @@ import {
   renderEventLiveMapPage
 } from "./eventLiveMap";
 import {
+  ingestPlaceLoggerRecords,
+  listPlaceLoggerRecords,
+  loadSimultaneousDayNationalMap,
+  recordSimultaneousDayEntry,
+  renderSimultaneousDayMapHtml
+} from "./loggerAndSimultaneousDay";
+import {
   GUIDE_BOOKING_REQUESTS_CREATE_SQL,
   GUIDE_PROFILES_CREATE_SQL,
   PLACE_SUPPORT_SEATS_CREATE_SQL,
@@ -2973,6 +2980,94 @@ export const worker = {
         const state = await loadEventLiveMapState(env, auth.eventRow);
         const cspNonce = createHtmlCspNonce();
         const page = renderEventLiveMapPage(state, { bigScreen: url.searchParams.get("screen") === "1", cspNonce });
+        return new Response(request.method === "HEAD" ? null : page, {
+          status: 200,
+          headers: {
+            ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store"
+          }
+        });
+      }
+
+      const loggerPostMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/logger-ingest$/);
+      if (request.method === "POST" && loggerPostMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(loggerPostMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ stationId?: unknown; records?: unknown[] }>(request);
+        const rawRecords = Array.isArray(body.records) ? body.records : [];
+        const validRecords = rawRecords.filter((r): r is Record<string, unknown> => Boolean(r && typeof r === "object"));
+        const saved = await ingestPlaceLoggerRecords(env, {
+          placeId,
+          stationId: typeof body.stationId === "string" ? body.stationId : "",
+          createdByUserId: session.userId,
+          records: validRecords
+        });
+        return json({ ok: true, count: saved.length, records: saved }, 201, { "cache-control": "no-store" });
+      }
+
+      const loggerGetMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/logger-records$/);
+      if (request.method === "GET" && loggerGetMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const placeId = decodeURIComponent(loggerGetMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const records = await listPlaceLoggerRecords(env, placeId);
+        return json({ ok: true, count: records.length, records }, 200, { "cache-control": "no-store" });
+      }
+
+      const simEntryMatch = nativePathname.match(/^\/api\/v1\/simultaneous-days\/([0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z0-9_-]{3,32})\/entries$/);
+      if (request.method === "POST" && simEntryMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
+        const dayKey = decodeURIComponent(simEntryMatch[1]);
+        const body = await readJson<{
+          placeId?: unknown;
+          placeLabel?: unknown;
+          coarseCell?: unknown;
+          answer1?: unknown;
+          answer2?: unknown;
+          answer3?: unknown;
+          isRareSpecies?: unknown;
+        }>(request);
+        const placeId = typeof body.placeId === "string" ? body.placeId.trim() : "";
+        if (!placeId) return json({ ok: false, error: "place_id_required" }, 400, { "cache-control": "no-store" });
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const entry = await recordSimultaneousDayEntry(env, {
+          dayKey,
+          placeId,
+          placeLabel: typeof body.placeLabel === "string" ? body.placeLabel : "",
+          coarseCell: typeof body.coarseCell === "string" ? body.coarseCell : "",
+          answer1: typeof body.answer1 === "string" ? body.answer1 : "",
+          answer2: typeof body.answer2 === "string" ? body.answer2 : "",
+          answer3: typeof body.answer3 === "string" ? body.answer3 : "",
+          isRareSpecies: body.isRareSpecies === true,
+          createdByUserId: session.userId
+        });
+        return json({ ok: true, entry }, 201, { "cache-control": "no-store" });
+      }
+
+      const simMapPageMatch = nativePathname.match(/^\/simultaneous-days\/([0-9]{4}-[0-9]{2}-[0-9]{2}|[A-Za-z0-9_-]{3,32})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && simMapPageMatch?.[1]) {
+        const dayKey = decodeURIComponent(simMapPageMatch[1]);
+        const entries = await loadSimultaneousDayNationalMap(env, dayKey);
+        const cspNonce = createHtmlCspNonce();
+        const page = renderSimultaneousDayMapHtml(dayKey, entries, cspNonce);
         return new Response(request.method === "HEAD" ? null : page, {
           status: 200,
           headers: {
@@ -22146,13 +22241,6 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     }
     cameraInput?.addEventListener("change", () => addPhotoFiles(cameraInput));
     photoInput?.addEventListener("change", () => addPhotoFiles(photoInput));
-    document.querySelectorAll(".zukan-app-nav .is-capture").forEach((btn) => {
-      btn.addEventListener("click", (event) => {
-        if (!cameraInput) return;
-        event.preventDefault();
-        cameraInput.click();
-      });
-    });
     if (new URLSearchParams(location.search).get("from") === "quick_camera") {
       void (async () => {
         try {
