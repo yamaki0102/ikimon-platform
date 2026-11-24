@@ -3694,8 +3694,8 @@ export const GUIDE_FLOW_STYLES = `
   .guide-selects { display: flex; gap: 10px; flex-wrap: wrap; }
   .guide-select-label { font-size: 14px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0; display: flex; flex-direction: column; gap: 5px; }
   .guide-select { padding: 9px 12px; border-radius: 999px; border: 1px solid rgba(15,23,42,.12); background: rgba(255,255,255,.92); font-size: 14px; font-weight: 650; color: #0f172a; cursor: pointer; box-shadow: 0 6px 16px rgba(15,23,42,.04); }
-  .guide-start-btn { min-height: 60px; padding: 15px 24px; border-radius: 999px; background: #059669; color: #fff; font-size: 16px; font-weight: 850; border: none; cursor: pointer; box-shadow: 0 12px 26px rgba(5,150,105,.24); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
-  .guide-start-btn:hover { transform: translateY(-2px); background: #047857; box-shadow: 0 16px 30px rgba(5,150,105,.28); }
+  .guide-start-btn { min-height: 60px; padding: 15px 24px; border-radius: 999px; background: #047857; color: #fff; font-size: 16px; font-weight: 850; border: none; cursor: pointer; box-shadow: 0 12px 26px rgba(5,150,105,.24); transition: transform .15s ease, box-shadow .15s ease, background .15s ease; }
+  .guide-start-btn:hover { transform: translateY(-2px); background: #065f46; box-shadow: 0 16px 30px rgba(5,150,105,.28); }
   .guide-start-sheet-backdrop[hidden] { display: none; }
   .guide-start-sheet-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(15,23,42,.48); backdrop-filter: blur(5px); }
   .guide-start-sheet { width: min(100%, 560px); max-height: min(86vh, 720px); overflow-y: auto; display: grid; gap: 14px; padding: 18px; border-radius: 8px; background: #fff; border: 1px solid rgba(15,23,42,.12); box-shadow: 0 24px 60px rgba(15,23,42,.28); }
@@ -3794,7 +3794,7 @@ export const GUIDE_FLOW_STYLES = `
   .guide-trail-header .guide-discoveries-title { margin: 0; }
   .guide-trail-pill { flex: 0 0 auto; border-radius: 999px; padding: 4px 9px; background: rgba(5,150,105,.1); color: #047857; font-size: 14px; font-weight: 900; }
   .guide-discovery-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-  .guide-no-records { font-size: 14px; color: #94a3b8; padding: 12px 0; }
+  .guide-no-records { font-size: 14px; color: #475569; padding: 12px 0; }
   .guide-discovery-item { display: flex; gap: 12px; padding: 12px 14px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); border-radius: 8px; box-shadow: 0 8px 20px rgba(15,23,42,.05); }
   .guide-discovery-pending { background: rgba(248,250,252,.94); }
   .guide-discovery-offline { border-color: rgba(234,88,12,.2); background: rgba(255,247,237,.94); }

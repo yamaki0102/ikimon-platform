@@ -1789,6 +1789,7 @@ interface GbifJapaneseNameDisplayAuditTestRow {
 class FakeD1 {
   users = new Set<string>();
   authUsers = new Map<string, AuthUserRow>();
+  userLanguagePreferences = new Map<string, string>();
   waitlist = new Map<string, { id: string; email: string; locale: string; source_path: string; created_at: number }>();
   oauthAccounts = new Map<string, OAuthAccountRow>();
   areaSubscriptions = new Map<string, AreaSubscriptionRow>();
@@ -1953,6 +1954,13 @@ class FakeStatement {
     const normalized = normalize(this.query);
     const v = this.values;
 
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS user_language_preferences")) {
+      return { meta: { changes: 0 } };
+    }
+    if (normalized.startsWith("INSERT INTO user_language_preferences")) {
+      this.db.userLanguagePreferences.set(string(v[0]), string(v[1]));
+      return { meta: { changes: 1 } };
+    }
     if (normalized.startsWith("CREATE TABLE IF NOT EXISTS zukan_waitlist")) {
       return { meta: { changes: 0 } };
     }
@@ -25430,7 +25438,7 @@ test("production home collapses materialized header actions into a hamburger men
   assert.match(body, /href="\/ja\/login\?redirect=%2Fprofile"/);
   assert.match(body, /href="\/ja\/records"/);
   assert.match(body, /href="\/ja\/map"/);
-  assert.match(body, /href="\/en\/"/);
+  assert.doesNotMatch(body, /href="\/en\/"|<div class="cf-header-menu-languages"/);
   assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-html");
 });
 
@@ -26971,11 +26979,15 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
         assert.match(body, /参加先を探す/);
         assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
         assert.match(body, /href="\/ja\/records\?view=mine"/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"|href="\/ja\/profile\/settings"/);
+        assert.match(body, /href="\/ja\/profile\/settings"/);
+        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
         assert.match(body, /href="\/ja\/community\/events"/);
         assert.doesNotMatch(body, /公開プロフィール|公開範囲|フォロー中|参加履歴|アカウント設定/);
       }
       if (check.path === "/ja/profile/settings") {
+        assert.match(body, /action="\/api\/v1\/profile\/language"/);
+        assert.match(body, /name="lang"/);
+        assert.doesNotMatch(body, /data-language-disclosure/);
         assert.match(body, /プロフィール編集/);
         assert.match(body, /この画面からプロフィールは編集できません。/);
         assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
@@ -29092,6 +29104,60 @@ test("native member Records shows the owner's private record once", async () => 
   assert.equal(ownerMedia.status, 200);
   assert.equal(await ownerMedia.text(), "private-webp");
   assert.equal(ownerMedia.headers.get("cache-control"), "private, no-cache, no-store, must-revalidate");
+});
+
+test("profile settings saves display language preference, hides header language switches, and respects device Accept-Language for guests", async () => {
+  const { env, core } = createEnv();
+
+  const guestEnRoot = await worker.fetch(new Request("https://shadow.test/", {
+    headers: { "accept-language": "en-US,en;q=0.9,ja;q=0.8" }
+  }), env);
+  assert.equal(guestEnRoot.status, 302);
+  assert.equal(guestEnRoot.headers.get("location"), "/en/");
+
+  const guestEsRecords = await worker.fetch(new Request("https://shadow.test/records", {
+    headers: { "accept-language": "es-ES,es;q=0.9" }
+  }), env);
+  assert.equal(guestEsRecords.status, 302);
+  assert.equal(guestEsRecords.headers.get("location"), "/es/records");
+
+  const issue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      userId: "lang-pref-user",
+      rawToken: "lang-pref-token",
+      displayName: "Lang Pref User",
+      expiresAt: "2099-01-01T00:00:00.000Z"
+    })
+  }), env);
+  const authCookie = (issue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+
+  const saveRes = await worker.fetch(new Request("https://shadow.test/api/v1/profile/language", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      origin: "https://shadow.test",
+      "sec-fetch-site": "same-origin",
+      cookie: authCookie
+    },
+    body: JSON.stringify({ lang: "en" })
+  }), env);
+  assert.equal(saveRes.status, 200);
+  assert.deepEqual(await saveRes.json(), { ok: true, lang: "en" });
+  assert.equal(core.userLanguagePreferences.get("lang-pref-user"), "en");
+  const langCookie = (saveRes.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  assert.equal(langCookie, "ikimon_lang=en");
+
+  const nextVisit = await worker.fetch(new Request("https://shadow.test/", {
+    headers: {
+      cookie: `${authCookie}; ${langCookie}`,
+      "accept-language": "ja"
+    }
+  }), env);
+  assert.equal(nextVisit.status, 302);
+  assert.equal(nextVisit.headers.get("location"), "/en/");
 });
 
 test("records public section renders direct links to public place pages when available", async () => {
@@ -31968,4 +32034,202 @@ test("guide public page, booking request -> NOCOSIL event, and support seats enf
   const pageHtml = await pageRes.text();
   assert.match(pageHtml, /鈴木案内人/);
   assert.match(pageHtml, /みなと文具店/);
+});
+
+test("paper archive ingest enforces draft-only, ZUKAN image URL, owner/place authz, and real corrector identity", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const papSqlite = new DatabaseSync(":memory:");
+  const coreWithPap = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bpaper_archive_pages\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return papSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: papSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(papSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithPap };
+
+  const otherToken = "pap-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  baseCore.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "user-other",
+    display_name: "Other User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const stewardToken = "pap-steward-token";
+  const stewardHash = createHash("sha256").update(stewardToken).digest("hex");
+  baseCore.authSessions.set(stewardHash, {
+    token_hash: stewardHash,
+    user_id: "user-steward",
+    display_name: "Steward User",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+  obs.fieldManagers.set("fm-pap-1", {
+    manager_id: "fm-pap-1",
+    field_id: "plc_e3293ec4bb9288a0",
+    user_id: "user-steward",
+    role: "steward",
+    granted_at: "2026-11-01T00:00:00.000Z",
+    granted_by: "admin-1",
+    expires_at: null,
+    note: "",
+    updated_at: "2026-11-01T00:00:00.000Z"
+  });
+
+  const unauthIngest = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ pages: [{ sourceImageUrl: "/media/scan1.webp" }] })
+  }), env);
+  assert.equal(unauthIngest.status, 401);
+
+  const externalUrlIngest = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ pages: [{ placeId: "plc_e3293ec4bb9288a0", sourceImageUrl: "https://evil.example.com/face.jpg" }] })
+  }), env);
+  assert.equal(externalUrlIngest.status, 400);
+
+  const foreignPlaceIngest = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ pages: [{ placeId: "plc_e3293ec4bb9288a0", sourceImageUrl: "/media/scan1.webp" }] })
+  }), env);
+  assert.equal(foreignPlaceIngest.status, 403);
+
+  const ingestRes = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({
+      pages: [{
+        placeId: "plc_e3293ec4bb9288a0",
+        placeName: "常盤公園",
+        sourceImageUrl: "/media/scan1.webp",
+        publishStatus: "published"
+      }]
+    })
+  }), env);
+  assert.equal(ingestRes.status, 201);
+  const ingestBody = await ingestRes.json() as { pages: Array<{ page_id: string; publish_status: string; face_redacted: number }> };
+  const pageId = ingestBody.pages[0]!.page_id;
+  assert.equal(ingestBody.pages[0]!.publish_status, "draft");
+  assert.equal(ingestBody.pages[0]!.face_redacted, 0);
+
+  const overwriteOther = await worker.fetch(new Request("https://zukan.earth/api/v1/paper-archives/ingest", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({
+      pages: [{ pageId, placeName: "乗っ取り", sourceImageUrl: "/media/scan2.webp" }]
+    })
+  }), env);
+  assert.equal(overwriteOther.status, 403);
+
+  const otherCorrect = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/correct`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ placeName: "改ざん", correctedByName: "偽名" })
+  }), env);
+  assert.equal(otherCorrect.status, 403);
+
+  const validCorrect = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/correct`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ speciesList: ["カワセミ"], correctedByName: "偽装名" })
+  }), env);
+  assert.equal(validCorrect.status, 200);
+  const correctedBody = await validCorrect.json() as { page: { last_corrected_by: string } };
+  assert.equal(correctedBody.page.last_corrected_by, "Steward User");
+
+  const otherPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${otherToken}`
+    },
+    body: JSON.stringify({ publishStatus: "published", faceRedacted: true })
+  }), env);
+  assert.equal(otherPublish.status, 403);
+
+  const unredactedPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ publishStatus: "published", faceRedacted: true })
+  }), env);
+  assert.equal(unredactedPublish.status, 400);
+  const unredactedErr = await unredactedPublish.json() as { error: string };
+  assert.equal(unredactedErr.error, "face_redaction_required");
+
+  // Simulate server-side redaction completing
+  papSqlite.prepare("UPDATE paper_archive_pages SET face_redacted = 1 WHERE page_id = ?").run(pageId);
+
+  const validPublish = await worker.fetch(new Request(`https://zukan.earth/api/v1/paper-archives/${pageId}/publish`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      origin: "https://zukan.earth",
+      "sec-fetch-site": "same-origin",
+      cookie: `ikimon_v2_session=${stewardToken}`
+    },
+    body: JSON.stringify({ publishStatus: "published" })
+  }), env);
+  assert.equal(validPublish.status, 200);
 });
