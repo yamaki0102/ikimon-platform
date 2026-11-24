@@ -31916,6 +31916,158 @@ test("fixed-point station creation and record creation require authentication an
   assert.equal(recordBody.record.verified_by_label, "Steward User");
 });
 
+test("event live map enforces 401/403 participant access, event window/area bounds, and syncs across 2 devices", async () => {
+  const { env: baseEnv, core: baseCore, obs } = createEnv();
+  const liveSqlite = new DatabaseSync(":memory:");
+  const coreWithLive = new Proxy(baseCore, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (!/\bevent_live_map_entries\b/u.test(query)) {
+            return target.prepare(query);
+          }
+          let values: D1Value[] = [];
+          const statement = {
+            bind(...input: D1Value[]) { values = input; return statement; },
+            async first() { return liveSqlite.prepare(query).get(...values) ?? null; },
+            async all() { return { results: liveSqlite.prepare(query).all(...values) }; },
+            async run() { return { meta: { changes: Number(liveSqlite.prepare(query).run(...values).changes) } }; }
+          };
+          return statement as unknown as FakeStatement;
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const obsWithLive = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("FROM observation_event_sessions WHERE session_id = ?")) {
+            let sid = "";
+            const stmt = {
+              bind(v: D1Value) { sid = String(v); return stmt; },
+              async first() { return obs.observationEventSessions.get(sid) ?? null; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (query.includes("FROM observation_event_participants WHERE session_id = ? AND user_id = ?")) {
+            let sid = "";
+            let uid = "";
+            const stmt = {
+              bind(s: D1Value, u: D1Value) { sid = String(s); uid = String(u); return stmt; },
+              async first() {
+                const found = [...obs.observationEventParticipants.values()].some((p) => p.session_id === sid && p.user_id === uid);
+                return found ? { ok: 1 } : null;
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, CORE_DB: coreWithLive, OBS_DB: obsWithLive };
+
+  const p1Token = "live-p1-token";
+  const p1Hash = createHash("sha256").update(p1Token).digest("hex");
+  baseCore.authSessions.set(p1Hash, {
+    token_hash: p1Hash, user_id: "live-p1", display_name: "P1", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const p2Token = "live-p2-token";
+  const p2Hash = createHash("sha256").update(p2Token).digest("hex");
+  baseCore.authSessions.set(p2Hash, {
+    token_hash: p2Hash, user_id: "live-p2", display_name: "P2", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+  const outsiderToken = "live-outsider-token";
+  const outsiderHash = createHash("sha256").update(outsiderToken).digest("hex");
+  baseCore.authSessions.set(outsiderHash, {
+    token_hash: outsiderHash, user_id: "live-outsider", display_name: "Outsider", role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null
+  });
+
+  obs.observationEventSessions.set("evt_live_test", {
+    session_id: "evt_live_test",
+    legacy_event_id: null,
+    event_code: "LIVE-1",
+    title: "公園ライブ観察会",
+    organizer_user_id: "live-p1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "live_map",
+    active_modes_json: JSON.stringify(["live_map"]),
+    location_lat: 35.68,
+    location_lng: 139.76,
+    location_radius_m: 500,
+    started_at: "2026-11-23T00:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+  obs.observationEventParticipants.set("part_p2", {
+    participant_id: "part_p2",
+    session_id: "evt_live_test",
+    user_id: "live-p2",
+    guest_token: null,
+    display_name: "P2",
+    team_id: null,
+    role: "participant",
+    declared_job: null,
+    status: "checked_in",
+    checked_in_at: "2026-11-23T00:05:00.000Z",
+    share_location: 0,
+    is_minor: 0,
+    location_share_until: null,
+    location_share_consent_type: null,
+    created_at: "2026-11-23T00:05:00.000Z",
+    updated_at: "2026-11-23T00:05:00.000Z"
+  });
+
+  const unauthGet = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map"), env);
+  assert.equal(unauthGet.status, 401);
+
+  const outsiderGet = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map", {
+    headers: { cookie: `ikimon_v2_session=${outsiderToken}` }
+  }), env);
+  assert.equal(outsiderGet.status, 403);
+
+  const outsideAreaPost = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${p1Token}` },
+    body: JSON.stringify({ lat: 35.9, lng: 139.9, entryKind: "photo", taxonLabel: "カワセミ", badgeNumber: 3 })
+  }), env);
+  assert.equal(outsideAreaPost.status, 400);
+
+  const p1Post = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${p1Token}` },
+    body: JSON.stringify({ lat: 35.6801, lng: 139.7601, entryKind: "photo", taxonLabel: "カワセミ", badgeNumber: 3 })
+  }), env);
+  assert.equal(p1Post.status, 201);
+
+  const p2Get = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map", {
+    headers: { cookie: `ikimon_v2_session=${p2Token}` }
+  }), env);
+  assert.equal(p2Get.status, 200);
+  const p2State = await p2Get.json() as { filledCellsCount: number; firstDiscoveries: Array<{ taxonLabel: string; badgeNumber: number }> };
+  assert.equal(p2State.filledCellsCount, 1);
+  assert.equal(p2State.firstDiscoveries[0]!.taxonLabel, "カワセミ");
+  assert.equal(p2State.firstDiscoveries[0]!.badgeNumber, 3);
+
+  obs.observationEventSessions.get("evt_live_test")!.ended_at = "2026-11-23T03:00:00.000Z";
+  const endedPost = await worker.fetch(new Request("https://zukan.earth/api/v1/observation-events/evt_live_test/live-map/entries", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${p2Token}` },
+    body: JSON.stringify({ lat: 35.6801, lng: 139.7601, entryKind: "zero", summaryText: "聞こえず", badgeNumber: 7 })
+  }), env);
+  assert.equal(endedPost.status, 409);
+});
+
 test("place logger ingest (7 days) and simultaneous day national map enforce 401/403 and protect rare species", async () => {
   const { env: baseEnv, core: baseCore, obs } = createEnv();
   const loggerSqlite = new DatabaseSync(":memory:");
