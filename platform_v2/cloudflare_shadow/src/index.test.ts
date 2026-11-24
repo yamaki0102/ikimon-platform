@@ -32898,3 +32898,112 @@ test("public observation detail and map cards fall back from weak readmodel taxo
   const html2 = await res2.text();
   assert.match(html2, /オキナワキノボリトカゲ/);
 });
+
+
+test("map API and detail page fall back to production_import_occurrences taxon names for migrated records", async () => {
+  const { env: baseEnv, obs } = createEnv();
+  const importSqlite = new DatabaseSync(":memory:");
+  importSqlite.exec(`
+    CREATE TABLE production_import_occurrences (
+      occurrence_id TEXT PRIMARY KEY,
+      visit_id TEXT NOT NULL,
+      scientific_name TEXT,
+      vernacular_name TEXT,
+      created_at TEXT
+    );
+  `);
+  importSqlite.prepare(
+    "INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run("occ-mig-1", "record-1779516928956", "Zosterops japonicus loochooensis", "リュウキュウメジロ", "2026-05-20T00:00:00.000Z");
+
+  const obsWithImport = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bFROM\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return importSqlite.prepare(query).get(...values) ?? null; },
+              async all() { return { results: importSqlite.prepare(query).all(...values) }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (/\bJOIN\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return null; },
+              async all() {
+                const rows: Array<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }> = [];
+                const ids = values.length > 0 ? JSON.parse(String(values[0])) as string[] : [];
+                for (const id of ids) {
+                  const found = importSqlite.prepare("SELECT visit_id AS observation_id, vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ?").get(id) as { observation_id: string; vernacular_name: string | null; scientific_name: string | null } | undefined;
+                  if (found) rows.push(found);
+                }
+                return { results: rows };
+              },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (query.includes("json_each(?)") && /\b(?:observation_identifications|observation_ai_review_targets|observation_environment_records)\b|o\.taxon_label AS obs_taxon_label/iu.test(query)) {
+            const stmt = {
+              bind() { return stmt; },
+              async first() { return null; },
+              async all() { return { results: [] }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithImport };
+
+  for (const idx of [1, 2, 3]) {
+    const uid = `u-k3-${idx}`;
+    obs.observations.set(idx === 1 ? "record-1779516928956" : `record-k3-${idx}`, {
+      observation_id: idx === 1 ? "record-1779516928956" : `record-k3-${idx}`,
+      draft_id: `draft-k3-${idx}`,
+      owner_user_id: uid,
+      observed_at: "2026-05-20T03:00:00.000Z",
+      partition_month: "2026-05",
+      taxon_label: null,
+      note: null,
+      exact_lat: 26.21,
+      exact_lng: 127.68,
+      location_accuracy_m: 10,
+      public_cell: "26.21,127.68",
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "accepted",
+      public_area_label: "沖縄県那覇市"
+    });
+    obs.readmodel.set(idx === 1 ? "record-1779516928956" : `record-k3-${idx}`, {
+      observation_id: idx === 1 ? "record-1779516928956" : `record-k3-${idx}`,
+      public_cell: "26.21,127.68",
+      observed_at: "2026-05-20T03:00:00.000Z",
+      taxon_label: "同定待ち",
+      asset_count: 1,
+      partition_month: "2026-05",
+      public_area_label: "沖縄県那覇市"
+    });
+  }
+
+  const mapRes = await worker.fetch(new Request("https://zukan.earth/api/v1/map/observations?bbox=122.9,24,131.4,27.95"), env);
+  assert.equal(mapRes.status, 200);
+  const mapJson = await mapRes.json() as { items: Array<{ visitId: string; displayName: string }> };
+  const targetMapItem = mapJson.items.find((item) => item.visitId === "record-1779516928956");
+  assert.ok(targetMapItem);
+  assert.equal(targetMapItem.displayName, "リュウキュウメジロ");
+
+  const detailRes = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-1779516928956"), env);
+  assert.equal(detailRes.status, 200);
+  const detailHtml = await detailRes.text();
+  assert.match(detailHtml, /リュウキュウメジロ/);
+});
