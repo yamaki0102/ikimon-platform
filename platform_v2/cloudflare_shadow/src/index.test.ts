@@ -33399,3 +33399,49 @@ test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with
   const detailHtml = await detailHtmlRes.text();
   assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
 });
+
+test("OAuth callback logs and redirects with fixed reason codes without leaking provider error_description", async (t) => {
+  const { env } = createEnv();
+  Object.assign(env, {
+    GOOGLE_CLIENT_ID: "google-id",
+    GOOGLE_CLIENT_SECRET: "google-secret"
+  });
+
+  const startRes = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start"), env);
+  assert.equal(startRes.status, 303);
+  const authUrl = new URL(startRes.headers.get("location") ?? "");
+  const state = authUrl.searchParams.get("state") ?? "";
+  const stateCookie = (startRes.headers.get("set-cookie") ?? "").split(";", 1)[0] ?? "";
+
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    error: "PROVIDER_RAW_ERROR_CODE",
+    error_description: "SENSITIVE_PROVIDER_DESCRIPTION_DO_NOT_LOG"
+  }), {
+    status: 400,
+    headers: { "content-type": "application/json" }
+  })) as typeof fetch;
+  t.after(() => { globalThis.fetch = origFetch; });
+
+  const warnLogs: string[] = [];
+  const origWarn = console.warn;
+  console.warn = (...args: unknown[]) => { warnLogs.push(args.map(String).join(" ")); };
+  t.after(() => { console.warn = origWarn; });
+
+  const callbackRes = await worker.fetch(new Request(
+    `https://ikimon.life/oauth_callback.php?provider=google&state=${encodeURIComponent(state)}&code=test-code`,
+    { headers: { cookie: stateCookie } }
+  ), env);
+  assert.equal(callbackRes.status, 303);
+  const location = callbackRes.headers.get("location") ?? "";
+  assert.match(location, /error=oauth/u);
+  assert.doesNotMatch(location, /SENSITIVE_PROVIDER_DESCRIPTION|PROVIDER_RAW_ERROR_CODE/u);
+
+  assert.equal(warnLogs.length, 1);
+  assert.deepEqual(JSON.parse(warnLogs[0]!), {
+    message: "oauth_callback_failed",
+    provider: "google",
+    error: "oauth_token_failed"
+  });
+  assert.doesNotMatch(warnLogs[0]!, /SENSITIVE_PROVIDER_DESCRIPTION|PROVIDER_RAW_ERROR_CODE/u);
+});
