@@ -116,3 +116,43 @@ test("publication timeout is bounded, reports an unknown result and never automa
   assert.equal(f.button.disabled, false);
   assert.match(f.status.textContent, /作成結果を確認できません/);
 });
+
+
+test("confirmation page renders 定員, 持ち物, 雨天, and 連絡先 for v2 programs", () => {
+  const html = renderPublicProgramConfirmationBody({
+    program: {
+      schema: "ikimon.public-program/v2" as any,
+      requestId: "33333333-4444-4555-8666-777777777777",
+      profile: "observation_event",
+      title: "夕方の観察会",
+      startsAt: "2026-05-01T07:00:00.000Z",
+      endsAt: "2026-05-01T09:00:00.000Z",
+      timezone: "Asia/Tokyo",
+      placeLabel: "せせらぎ広場",
+      description: "夜の生きものを探します。",
+      conditions: "小学生以上",
+      stations: [],
+      public_page: {
+        audience: "親子",
+        capacity: 15,
+        belongings: "懐中電灯・長袖",
+        rain_rule: "雨天中止",
+        contact: "案内窓口",
+        hazards: "足元に注意",
+        organizer_name: "自然観察会",
+        meeting_point: "管理棟前",
+      },
+    } as any,
+    authenticated: true,
+    loginHref: "/ja/login",
+    lang: "ja",
+  });
+  assert.match(html, /定員/);
+  assert.match(html, /15名/);
+  assert.match(html, /持ち物/);
+  assert.match(html, /懐中電灯・長袖/);
+  assert.match(html, /雨天/);
+  assert.match(html, /雨天中止/);
+  assert.match(html, /連絡先/);
+  assert.match(html, /案内窓口/);
+});
