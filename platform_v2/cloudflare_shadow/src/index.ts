@@ -2951,7 +2951,13 @@ export const worker = {
 
       const loggerGetMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/logger-records$/);
       if (request.method === "GET" && loggerGetMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
         const placeId = decodeURIComponent(loggerGetMatch[1]);
+        const fieldRole = await getFieldManagerRoleFromD1(session.userId, placeId, env).catch(() => null);
+        if (!isMunicipalWalkMapAdminRole(session) && fieldRole !== "owner" && fieldRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
         const records = await listPlaceLoggerRecords(env, placeId);
         return json({ ok: true, count: records.length, records }, 200, { "cache-control": "no-store" });
       }
