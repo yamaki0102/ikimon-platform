@@ -29380,12 +29380,25 @@ test("guide voice console shows the event code only to the organizer", async () 
     created_at: "2026-11-23T00:00:00.000Z",
     updated_at: "2026-11-23T00:00:00.000Z"
   });
+  const seed = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://shadow.test", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({
+      eventCode: "PAGE-CODE-7",
+      entries: [{ clientEntryId: "page_1", utterance: "7番、オオカワセミテスト、ハチ3匹", observedAt: "2026-11-23T10:00:00.000Z" }]
+    })
+  }), env);
+  assert.equal(seed.status, 200);
+
   const pageUrl = `https://shadow.test/ja/events/${sessionId}/guide-voice`;
   const anonPage = await worker.fetch(new Request(pageUrl), env);
   assert.equal(anonPage.status, 200);
   const anonHtml = await anonPage.text();
   assert.doesNotMatch(anonHtml, /PAGE-CODE-7/);
   assert.match(anonHtml, /id="gv-event-code"/);
+  assert.doesNotMatch(anonHtml, /オオカワセミテスト/);
+  assert.doesNotMatch(anonHtml, /2026-11-23T10:00/);
+  assert.doesNotMatch(anonHtml, /verified_no_faces/);
 
   const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
     method: "POST",
@@ -29395,7 +29408,9 @@ test("guide voice console shows the event code only to the organizer", async () 
   const organizerCookie = (organizerIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
   const organizerPage = await worker.fetch(new Request(pageUrl, { headers: { cookie: organizerCookie } }), env);
   assert.equal(organizerPage.status, 200);
-  assert.match(await organizerPage.text(), /PAGE-CODE-7/);
+  const organizerHtml = await organizerPage.text();
+  assert.match(organizerHtml, /PAGE-CODE-7/);
+  assert.match(organizerHtml, /オオカワセミテスト/);
 });
 
 test("profile settings saves display language preference, hides header language switches, and respects device Accept-Language for guests", async () => {

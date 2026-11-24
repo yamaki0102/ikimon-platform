@@ -512,7 +512,8 @@ export async function handleObservationEventPages(request: Request, url: URL, en
       eventCode: isOrganizer ? (session.eventCode ?? "") : "",
       lang,
       cspNonce,
-      initialDiscoveries: discoveries
+      initialDiscoveries: isOrganizer ? discoveries : [],
+      canViewDiscoveries: isOrganizer
     });
     return new Response(request.method === "HEAD" ? null : body, {
       status: 200,

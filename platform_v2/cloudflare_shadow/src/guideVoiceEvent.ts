@@ -286,6 +286,7 @@ export function renderGuideVoiceConsolePage(input: {
   lang: string;
   cspNonce?: string;
   initialDiscoveries: GuideBadgeDiscoveryRow[];
+  canViewDiscoveries?: boolean;
 }): string {
   const lang = input.lang === "en" || input.lang === "es" || input.lang === "pt-br" ? input.lang : "ja";
   const prefix = `/${lang}`;
@@ -347,19 +348,19 @@ export function renderGuideVoiceConsolePage(input: {
       </form>
     </section>
 
-    <section class="gv-card">
+    ${input.canViewDiscoveries === false ? "" : `<section class="gv-card">
       <h2>番号別・持ち帰りページ（登録不要QR先）</h2>
       <div id="gv-badge-links" class="gv-badges">
         ${badgeNumbers.length > 0
           ? badgeNumbers.map((n) => `<a class="gv-badge-link" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(input.sessionId)}/takeaway/${n}`)}">${n}番の持ち帰りページ</a>`).join("")
           : `<span>まだ番号付きの記録はありません。</span>`}
       </div>
-    </section>
+    </section>`}
 
-    <section class="gv-card">
+    <section class="gv-card" id="gv-discovery-section"${input.canViewDiscoveries === false ? " hidden" : ""}>
       <h2>記録一覧</h2>
       <ul id="gv-discovery-list" class="gv-list">
-        ${input.initialDiscoveries.map((d) => `<li class="gv-item"><strong>${d.badge_number}番・${escapeHtml(d.subject)}（${d.count}）</strong><span>${escapeHtml(d.detail || d.utterance)}</span><small>${escapeHtml(d.recorder_label)} / ${escapeHtml(d.observed_at)} / ${escapeHtml(facePrivacyLabel(d.face_privacy_status))}</small></li>`).join("")}
+        ${input.canViewDiscoveries === false ? "" : input.initialDiscoveries.map((d) => `<li class="gv-item"><strong>${d.badge_number}番・${escapeHtml(d.subject)}（${d.count}）</strong><span>${escapeHtml(d.detail || d.utterance)}</span><small>${escapeHtml(d.recorder_label)} / ${escapeHtml(d.observed_at)} / ${escapeHtml(facePrivacyLabel(d.face_privacy_status))}</small></li>`).join("")}
       </ul>
     </section>
   </main>
@@ -387,6 +388,28 @@ export function renderGuideVoiceConsolePage(input: {
       }
       writeQueue(readQueue());
 
+      var sectionEl = document.getElementById("gv-discovery-section");
+      var listEl = document.getElementById("gv-discovery-list");
+      function renderEntries(entries) {
+        if (!listEl || !Array.isArray(entries)) return;
+        if (sectionEl) sectionEl.hidden = false;
+        listEl.textContent = "";
+        entries.forEach(function (d) {
+          var li = document.createElement("li");
+          li.className = "gv-item";
+          var head = document.createElement("strong");
+          head.textContent = d.badge_number + "番・" + d.subject + "（" + d.count + "）";
+          var body = document.createElement("span");
+          body.textContent = d.detail || d.utterance || "";
+          var meta = document.createElement("small");
+          meta.textContent = (d.recorder_label || "") + " / " + (d.observed_at || "");
+          li.appendChild(head);
+          li.appendChild(body);
+          li.appendChild(meta);
+          listEl.appendChild(li);
+        });
+      }
+
       async function flushQueue() {
         var queue = readQueue();
         if (!queue.length) return;
@@ -403,6 +426,7 @@ export function renderGuideVoiceConsolePage(input: {
           if (res.ok) {
             writeQueue([]);
             if (statusEl) statusEl.textContent = "同期しました（" + queue.length + "件）。";
+            res.json().then(function (data) { renderEntries(data && data.entries); }).catch(function () {});
           } else if (res.status === 403 && statusEl) {
             statusEl.textContent = "行事コードが違うため同期できません。";
           }
@@ -421,7 +445,7 @@ export function renderGuideVoiceConsolePage(input: {
           utterance: text,
           observedAt: new Date().toISOString(),
           recorderLabel: recorderSelect ? recorderSelect.value : "guide-1",
-          facePrivacyStatus: "verified_no_faces"
+          facePrivacyStatus: "unverified"
         });
         writeQueue(queue);
         input.value = "";
