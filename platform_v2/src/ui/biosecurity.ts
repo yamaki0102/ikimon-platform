@@ -31,7 +31,7 @@ html{scroll-padding-top:24px}body{margin:0}body [hidden]{display:none!important}
 .bio-header>div{max-width:1120px;margin:auto;min-height:72px;padding:12px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
 .bio-brand{display:inline-flex;align-items:center;gap:8px;min-height:44px;flex-shrink:0}.bio-brand img{object-fit:contain}
 .bio-header nav{display:flex;align-items:center;gap:16px}.bio-header nav a{display:inline-flex;align-items:center;min-height:44px;color:var(--zukan-text-primary);font-size:.875rem;text-underline-offset:4px;white-space:nowrap}
-.bio-skip{position:absolute;left:20px;top:-120px;z-index:10;background:white;padding:12px}.bio-skip:focus{top:8px}
+.bio-skip,.bio-skip:link,.bio-skip:visited{color:#10251a}.bio-skip{position:absolute;left:20px;top:-120px;z-index:10;background:white;padding:12px}.bio-skip:focus{top:8px}
 .bio-main{width:min(100%,800px);padding:32px 24px 56px;margin:auto}.bio-main[data-view=guide]{width:min(100%,1040px)}
 .bio-main h1{font-size:clamp(1.65rem,4vw,2rem);margin:8px 0 16px}.bio-main[data-view=guide] h1{font-size:clamp(1.9rem,4.5vw,2.6rem)}
 .bio-main h2{font-size:1.375rem;margin:0 0 16px}.bio-main h3{font-size:1.0625rem;margin:0 0 8px}.bio-main p{margin:0 0 16px}
