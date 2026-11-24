@@ -17,6 +17,15 @@ import {
   type ExpertDutyRow,
   type PlaceLocalExpertRow
 } from "./localExpertDuty";
+import {
+  PaperArchiveHttpError,
+  correctPaperArchivePage,
+  ingestPaperArchivePages,
+  listPublishedPaperArchivesForPlace,
+  loadPaperArchivePageById,
+  renderPaperArchiveTimelineHtml,
+  setPaperArchivePublishStatus
+} from "./paperArchiveIngest";
 import { normalizeWaitlistLang, renderZukanWaitlistPage } from "./waitlistPage";
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
@@ -2354,9 +2363,20 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const fp = await listFixedPointsAndRecordsForPlace(env, canonicalPlaceId);
+  const [paperPages, fp] = await Promise.all([
+    listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
+    listFixedPointsAndRecordsForPlace(env, canonicalPlaceId)
+  ]);
   const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
-  const body = renderGlobalPlaceDetailPage({ profile, lang, savedItem, savedStateAvailable, viewerAuthenticated: authenticated, fixedPointTimelineHtml });
+  const body = renderGlobalPlaceDetailPage({
+    profile,
+    lang,
+    savedItem,
+    savedStateAvailable,
+    viewerAuthenticated: authenticated,
+    fixedPointTimelineHtml,
+    paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages)
+  });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
     "x-ikimon-cloudflare-native": "global-place-detail",
@@ -3452,6 +3472,102 @@ export const worker = {
         const rows = (await env.CORE_DB.prepare("SELECT place_id, specialty, role_kind, verified_count FROM place_local_experts WHERE user_id = ?1").bind(uid).all<PlaceLocalExpertRow>()).results ?? [];
         const totalVerified = rows.reduce((sum, r) => sum + Number(r.verified_count ?? 0), 0);
         return json({ ok: true, userId: uid, totalVerified, places: rows }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/paper-archives/ingest") {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const body = await readJson<{ pages?: unknown[] }>(request);
+        const rawPages = Array.isArray(body.pages) ? body.pages : [];
+        const validPages = rawPages.filter((p): p is { sourceImageUrl: string } & Record<string, unknown> => Boolean(p && typeof p === "object" && typeof (p as { sourceImageUrl?: unknown }).sourceImageUrl === "string"));
+        const isGlobalAdmin = isMunicipalWalkMapAdminRole(session);
+        for (const page of validPages) {
+          const requestedPlaceId = typeof page.placeId === "string" ? page.placeId.trim() : "";
+          if (requestedPlaceId && !isGlobalAdmin) {
+            const role = await getFieldManagerRoleFromD1(session.userId, requestedPlaceId, env).catch(() => null);
+            if (role !== "owner" && role !== "steward") {
+              return json({ ok: false, error: "forbidden_place_scope" }, 403, { "cache-control": "no-store" });
+            }
+          }
+        }
+        try {
+          const saved = await ingestPaperArchivePages(env, session.userId, validPages);
+          return json({ ok: true, count: saved.length, pages: saved }, 201, { "cache-control": "no-store" });
+        } catch (err) {
+          if (err instanceof PaperArchiveHttpError) {
+            return json({ ok: false, error: err.code }, err.status, { "cache-control": "no-store" });
+          }
+          throw err;
+        }
+      }
+
+      const paperCorrectMatch = nativePathname.match(/^\/api\/v1\/paper-archives\/(pap_[A-Za-z0-9_-]{3,80})\/correct$/);
+      if (request.method === "PATCH" && paperCorrectMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const pageId = decodeURIComponent(paperCorrectMatch[1]);
+        const existing = await loadPaperArchivePageById(env, pageId);
+        if (!existing) return json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
+        const isCreator = Boolean(existing.created_by_user_id && existing.created_by_user_id === session.userId);
+        const isGlobalAdmin = isMunicipalWalkMapAdminRole(session);
+        const placeRole = existing.place_id
+          ? await getFieldManagerRoleFromD1(session.userId, existing.place_id, env).catch(() => null)
+          : null;
+        if (!isCreator && !isGlobalAdmin && placeRole !== "owner" && placeRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{
+          placeName?: unknown;
+          observedYear?: unknown;
+          observedDate?: unknown;
+          speciesList?: unknown;
+          participantCount?: unknown;
+        }>(request);
+        const updated = await correctPaperArchivePage(env, pageId, {
+          correctedByName: session.displayName?.trim() || session.userId,
+          ...(typeof body.placeName === "string" ? { placeName: body.placeName } : {}),
+          ...(typeof body.observedYear === "number" ? { observedYear: body.observedYear } : {}),
+          ...(typeof body.observedDate === "string" ? { observedDate: body.observedDate } : {}),
+          ...(Array.isArray(body.speciesList) ? { speciesList: body.speciesList.map(String) } : {}),
+          ...(typeof body.participantCount === "number" ? { participantCount: body.participantCount } : {})
+        });
+        return updated ? json({ ok: true, page: updated }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
+      }
+
+      const paperPublishMatch = nativePathname.match(/^\/api\/v1\/paper-archives\/(pap_[A-Za-z0-9_-]{3,80})\/publish$/);
+      if (request.method === "PATCH" && paperPublishMatch?.[1]) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        const pageId = decodeURIComponent(paperPublishMatch[1]);
+        const existing = await loadPaperArchivePageById(env, pageId);
+        if (!existing) return json({ ok: false, error: "page_not_found" }, 404, { "cache-control": "no-store" });
+        const isGlobalAdmin = isMunicipalWalkMapAdminRole(session);
+        const placeRole = existing.place_id
+          ? await getFieldManagerRoleFromD1(session.userId, existing.place_id, env).catch(() => null)
+          : null;
+        if (!isGlobalAdmin && placeRole !== "owner" && placeRole !== "steward") {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const status = body.publishStatus === "published" ? "published" : "draft";
+        const result = await setPaperArchivePublishStatus(env, pageId, status);
+        if (!result.ok) {
+          const code = result.error === "face_redaction_required" ? 400 : 404;
+          return json({ ok: false, error: result.error ?? "page_not_found" }, code, { "cache-control": "no-store" });
+        }
+        return json({ ok: true, publishStatus: status }, 200, { "cache-control": "no-store" });
+      }
+
+      const placePaperMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/paper-archives$/);
+      if (request.method === "GET" && placePaperMatch?.[1]) {
+        const pages = await listPublishedPaperArchivesForPlace(env, decodeURIComponent(placePaperMatch[1]));
+        return json({ ok: true, count: pages.length, pages }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/profile/language") {
