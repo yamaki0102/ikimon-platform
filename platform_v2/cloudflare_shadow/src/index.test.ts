@@ -14,6 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
+import { safeRedirectPath } from "./core/shared";
 import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
@@ -33398,4 +33399,23 @@ test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with
   assert.equal(detailHtmlRes.status, 200);
   const detailHtml = await detailHtmlRes.text();
   assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
+});
+
+test("safeRedirectPath rejects double-slash, encoded-slash, backslash, and dot-normalized external redirects", () => {
+  for (const dangerous of [
+    "/\\evil.example",
+    "//evil.example",
+    "/%2F%2Fevil.example",
+    "/%2Fevil.example",
+    "/.//evil.example",
+    "/..//evil.example",
+    "/./\\/evil",
+    "https://evil.example/record",
+    "javascript:alert(1)"
+  ]) {
+    assert.equal(safeRedirectPath(dangerous), "/record", `expected fallback for ${dangerous}`);
+    assert.equal(safeRedirectPath(dangerous, "/community/events/new"), "/community/events/new");
+  }
+  assert.equal(safeRedirectPath("/record?tab=places#top"), "/record?tab=places#top");
+  assert.equal(safeRedirectPath("/ja/places/plc_1"), "/ja/places/plc_1");
 });
