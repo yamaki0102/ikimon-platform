@@ -33400,6 +33400,153 @@ test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with
   assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
 });
 
+
+test("event console shows participant/photo counts and persists config_json.nextEventNote with 401/403 guards", async () => {
+  const { env: baseEnv, core, obs } = createEnv();
+  const obsWithUpdate = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.startsWith("UPDATE observation_event_sessions SET config_json = ?")) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async run() {
+                const [configJson, sessionId, organizerUserId] = values;
+                const row = obs.observationEventSessions.get(String(sessionId));
+                if (row && row.organizer_user_id === String(organizerUserId)) {
+                  row.config_json = String(configJson);
+                  return { meta: { changes: 1 } };
+                }
+                return { meta: { changes: 0 } };
+              }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithUpdate };
+  const organizerToken = "console-organizer-token";
+  const organizerHash = createHash("sha256").update(organizerToken).digest("hex");
+  core.authSessions.set(organizerHash, {
+    token_hash: organizerHash,
+    user_id: "console-org-1",
+    display_name: "Organizer",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  const otherToken = "console-other-token";
+  const otherHash = createHash("sha256").update(otherToken).digest("hex");
+  core.authSessions.set(otherHash, {
+    token_hash: otherHash,
+    user_id: "console-other-1",
+    display_name: "Other",
+    role_name: "Observer",
+    rank_label: null,
+    banned: 0,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    last_used_at: null
+  });
+
+  obs.observationEventSessions.set("evt-console-1", {
+    session_id: "evt-console-1",
+    legacy_event_id: null,
+    event_code: "CONSOL1",
+    title: "まとめテスト観察会",
+    organizer_user_id: "console-org-1",
+    corporation_id: null,
+    plan: "community",
+    primary_mode: "discovery",
+    active_modes_json: JSON.stringify(["discovery"]),
+    location_lat: 35.0,
+    location_lng: 136.5,
+    location_radius_m: 1000,
+    started_at: "2026-11-24T01:00:00.000Z",
+    ended_at: "2026-11-24T03:00:00.000Z",
+    target_species_json: "[]",
+    config_json: JSON.stringify({}),
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-24T00:00:00.000Z",
+    updated_at: "2026-11-24T00:00:00.000Z"
+  });
+  obs.observationEventParticipants.set("part-console-1", {
+    participant_id: "part-console-1",
+    session_id: "evt-console-1",
+    user_id: "console-part-1",
+    guest_token: null,
+    display_name: "Participant",
+    team_id: null,
+    role: "participant",
+    status: "checked_in",
+    checked_in_at: "2026-11-24T01:10:00.000Z",
+    share_location: 0,
+    is_minor: 0,
+    location_share_until: null,
+    location_share_consent_type: null,
+    discovery_gemini_notice_version: null,
+    discovery_gemini_notice_at: null,
+    declared_job: null,
+    created_at: "2026-11-24T01:10:00.000Z",
+    updated_at: "2026-11-24T01:10:00.000Z"
+  });
+  obs.observationEventLiveEvents.push({
+    live_event_id: "live-console-1",
+    session_id: "evt-console-1",
+    type: "observation_added",
+    scope: "public",
+    actor_user_id: "console-part-1",
+    actor_guest_token: null,
+    team_id: null,
+    payload_json: JSON.stringify({ observation_id: "obs-console-1" }),
+    created_at: "2026-11-24T01:20:00.000Z"
+  });
+
+  // 401 unauthenticated
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/events/evt-console-1/console", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ nextEventNote: "次回は長靴推奨" })
+  }), env)).status, 401);
+
+  // 403 non-organizer
+  assert.equal((await worker.fetch(new Request("https://zukan.earth/events/evt-console-1/console", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${otherToken}` },
+    body: JSON.stringify({ nextEventNote: "次回は長靴推奨" })
+  }), env)).status, 403);
+
+  // 303 organizer saves nextEventNote
+  const postRes = await worker.fetch(new Request("https://zukan.earth/events/evt-console-1/console", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://zukan.earth", "sec-fetch-site": "same-origin", cookie: `ikimon_v2_session=${organizerToken}` },
+    body: JSON.stringify({ nextEventNote: "次回は長靴推奨" })
+  }), env);
+  assert.equal(postRes.status, 303);
+
+  const savedSession = obs.observationEventSessions.get("evt-console-1");
+  assert.equal(JSON.parse(savedSession!.config_json).nextEventNote, "次回は長靴推奨");
+
+  // GET console displays counts and saved note
+  const getRes = await worker.fetch(new Request("https://zukan.earth/events/evt-console-1/console", {
+    headers: { cookie: `ikimon_v2_session=${organizerToken}` }
+  }), env);
+  assert.equal(getRes.status, 200);
+  const html = await getRes.text();
+  assert.match(html, /参加 1 人/);
+  assert.match(html, /写真 1 枚/);
+  assert.match(html, /次回へのメモ/);
+  assert.match(html, /次回は長靴推奨/);
+});
+
 test("takeaway page links to public place records only when explicitly configured and public", async (t) => {
   const { env } = createEnv();
   const obs = new DiscoveryRouteSqliteD1();

@@ -451,8 +451,12 @@ function renderSyntheticRenriRallyInteractions(
 }
 
 export async function handleObservationEventPages(request: Request, url: URL, env: Env): Promise<Response | null> {
-  if (request.method !== "GET" && request.method !== "HEAD") return null;
   const pathname = stripPublicLangPrefix(url.pathname);
+  const consolePostMatch = pathname.match(/^\/events\/([^/]+)\/console$/);
+  if (request.method === "POST" && consolePostMatch?.[1]) {
+    return postObservationEventConsoleNextNote(request, env, decodeURIComponent(consolePostMatch[1]));
+  }
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
   if (pathname === "/events/ryuyo" || pathname === "/events/ryuyo/print") {
     const response = observationEventPageHtml("こんちゅうクンとめぐる、竜洋のとっておき。", pathname.endsWith("/print")
       ? renderObservationEventDiscoveryPrint() : renderObservationEventDiscoveryCampaign(), "event-discovery-campaign", 200, "ja", false, { standalone: pathname === "/events/ryuyo" });
@@ -1118,8 +1122,14 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
     return pageHtml(`${session.title} 編集`, renderObservationEventEditPage(session), "event-page-edit");
   }
   if (page === "console") {
-    const dashboard = await buildObservationEventOperationsDashboard(env, session);
-    return pageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort, dashboard), "event-page-console");
+    const [dashboard, guestMediaCountRow] = await Promise.all([
+      buildObservationEventOperationsDashboard(env, session),
+      env.OBS_DB.prepare(
+        "SELECT COUNT(*) AS count FROM observation_event_guest_media WHERE session_id = ? AND status <> 'withdrawn'"
+      ).bind(session.sessionId).first<{ count: number }>().catch(() => null),
+    ]);
+    const photoCount = Math.max(dashboard.domain.observationCount, Number(guestMediaCountRow?.count ?? 0));
+    return pageHtml(`${session.title} 管制塔`, renderObservationEventConsolePage(session, teams, events, effort, dashboard, photoCount), "event-page-console");
   }
   await recordObservationEventParticipantPageMetric(request, env, session, "event_live_viewed", "live");
   const participantEvents = events
@@ -1836,12 +1846,36 @@ function renderObservationEventLivePage(
   return `<section><h1>${escapeHtml(session.title)} 参加者向けライブ</h1><p class="muted">チェックイン済みの参加者だけが見られる、観察会の最新情報です。</p>${canManage ? `<div class="actions"><a class="btn" href="/events/${encodeURIComponent(session.sessionId)}/console">管制塔</a></div>` : ""}<div class="grid"><article class="card"><h2>観察の更新</h2><p>${summary.observationCount}件</p></article><article class="card"><h2>最近の動き</h2><p>${summary.eventCount}件</p></article></div><article class="card"><h2>観察の手がかり</h2><p class="muted">記録の内容は個別の記録画面で確認できます。</p></article><h2>最近の動き</h2>${renderObservationEventTimeline(events)}</section>`;
 }
 
+async function postObservationEventConsoleNextNote(request: Request, env: Env, sessionId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const organizer = await requireObservationEventOrganizer(request, env, sessionId);
+  if (organizer instanceof Response) return organizer;
+  const contentType = (request.headers.get("content-type") ?? "").toLowerCase();
+  let rawNote = "";
+  if (contentType.includes("application/json")) {
+    const body = await readJson<Record<string, unknown>>(request);
+    rawNote = typeof body.nextEventNote === "string" ? body.nextEventNote : "";
+  } else {
+    const form = await request.formData();
+    const field = form.get("nextEventNote");
+    rawNote = typeof field === "string" ? field : "";
+  }
+  const nextEventNote = rawNote.trim().slice(0, 2000);
+  const nextConfig = { ...organizer.session.config, nextEventNote };
+  await env.OBS_DB.prepare(
+    "UPDATE observation_event_sessions SET config_json = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ? AND organizer_user_id = ?"
+  ).bind(JSON.stringify(nextConfig), sessionId, organizer.session.organizerUserId).run();
+  return redirect303(`/events/${encodeURIComponent(sessionId)}/console?saved=next-note`, { "cache-control": "no-store" });
+}
+
 function renderObservationEventConsolePage(
   session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>,
   teams: Awaited<ReturnType<typeof listObservationEventTeams>>,
   events: Awaited<ReturnType<typeof listObservationEventLiveEvents>>,
   effort: Awaited<ReturnType<typeof summarizeObservationEventEffort>> | null,
-  dashboard: Awaited<ReturnType<typeof buildObservationEventOperationsDashboard>>
+  dashboard: Awaited<ReturnType<typeof buildObservationEventOperationsDashboard>>,
+  photoCount = dashboard.domain.observationCount,
 ): string {
   const organizerPanel = renderObservationEventTemplateOrganizer({
     sessionId: session.sessionId,
@@ -1849,13 +1883,16 @@ function renderObservationEventConsolePage(
     sessionClosed: !isObservationEventCheckinOpen(session),
     templateKey: isCommonEventTemplateConfig(session.config.event_template) ? session.config.event_template.key : null
   });
+  const participantCount = dashboard.domain.checkedInFamiliesOrGroups;
+  const nextEventNote = typeof session.config.nextEventNote === "string" ? session.config.nextEventNote : "";
+  const summaryCard = `<article class="card" data-organizer-summary><h2>開催のまとめ</h2><p>参加 ${participantCount} 人</p><p>写真 ${photoCount} 枚</p><form method="post" action="/events/${encodeURIComponent(session.sessionId)}/console"><label for="next-event-note">次回へのメモ</label><textarea id="next-event-note" name="nextEventNote" rows="3" maxlength="2000">${escapeHtml(nextEventNote)}</textarea><div class="actions"><button type="submit" class="btn">保存する</button></div></form></article>`;
   const funnelRows = dashboard.funnel.map((stage) => `<tr><th scope="row">${escapeHtml(stage.label)}</th><td>${stage.count}</td><td>${stage.conversionFromPreviousPct === null ? "—" : `${stage.conversionFromPreviousPct}%`}</td></tr>`).join("");
   const unsynced = dashboard.domain.unsynced.status === "not_measurable" ? "計測不可（durable queueなし）" : escapeHtml(dashboard.domain.unsynced.count ?? 0);
   const liveDelay = dashboard.domain.liveAggregationDelay.status === "not_measurable" ? "計測不可（反映時刻を別保持していません）" : `${escapeHtml(dashboard.domain.liveAggregationDelay.seconds ?? 0)}秒`;
   const reportLink = hasProfessionalReportEntitlement(session)
     ? `<a class="btn secondary" href="/events/${encodeURIComponent(session.sessionId)}/report">公式出力</a>`
     : "";
-  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1>${organizerPanel}<div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><h2>当日ドメイン集計</h2><div class="grid"><article class="card"><h3>チェックイン済み家族・グループ</h3><p>${dashboard.domain.checkedInFamiliesOrGroups}</p></article><article class="card"><h3>観察件数</h3><p>${dashboard.domain.observationCount}</p></article><article class="card"><h3>投稿 成功 / 失敗シグナル</h3><p>${dashboard.domain.submissionSucceededCount} / ${dashboard.domain.submissionFailedSignalCount}</p></article><article class="card"><h3>未同期件数</h3><p>${unsynced}</p></article><article class="card"><h3>live集計の遅延</h3><p>${liveDelay}</p></article><article class="card"><h3>recap生成状態</h3><p>${escapeHtml(dashboard.domain.recapStatus)}</p></article></div><p class="muted">最終更新: ${escapeHtml(dashboard.domain.lastUpdatedAt)}</p><h2>Funnel</h2><div class="card"><table><thead><tr><th>段階</th><th>件数</th><th>直前比</th></tr></thead><tbody>${funnelRows}</tbody></table><p class="muted">check-in失敗 ${dashboard.failures.checkin}件 / 観察保存失敗 ${dashboard.failures.observation}件。失敗件数は参加者テレメトリ由来の参考信号であり、単独ではフォールバックを発動しません。スタッフ再現またはドメイン健全性の異常で照合してください。参加組数・観察件数はD1のdomain counterを正本とします。</p></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/dashboard">dashboard API</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a>${reportLink}</div><h2>運営イベント（個人情報なし）</h2>${renderObservationEventOperationalTimeline(events)}</section>`;
+  return `<section><h1>${escapeHtml(session.title)} 管制塔</h1>${summaryCard}${organizerPanel}<div class="grid"><article class="card"><h2>状態</h2><p>${escapeHtml(session.primaryMode)}</p><p class="muted">${escapeHtml(session.startedAt)} - ${escapeHtml(session.endedAt ?? "open")}</p></article><article class="card"><h2>努力量</h2><p>${escapeHtml(effort?.totalEffortPersonHours ?? 0)} person-hours</p><p>${escapeHtml(effort?.coveragePct ?? 0)}% coverage</p></article><article class="card"><h2>チーム</h2><p>${teams.length}</p></article></div><h2>当日ドメイン集計</h2><div class="grid"><article class="card"><h3>チェックイン済み家族・グループ</h3><p>${dashboard.domain.checkedInFamiliesOrGroups}</p></article><article class="card"><h3>観察件数</h3><p>${dashboard.domain.observationCount}</p></article><article class="card"><h3>投稿 成功 / 失敗シグナル</h3><p>${dashboard.domain.submissionSucceededCount} / ${dashboard.domain.submissionFailedSignalCount}</p></article><article class="card"><h3>未同期件数</h3><p>${unsynced}</p></article><article class="card"><h3>live集計の遅延</h3><p>${liveDelay}</p></article><article class="card"><h3>recap生成状態</h3><p>${escapeHtml(dashboard.domain.recapStatus)}</p></article></div><p class="muted">最終更新: ${escapeHtml(dashboard.domain.lastUpdatedAt)}</p><h2>Funnel</h2><div class="card"><table><thead><tr><th>段階</th><th>件数</th><th>直前比</th></tr></thead><tbody>${funnelRows}</tbody></table><p class="muted">check-in失敗 ${dashboard.failures.checkin}件 / 観察保存失敗 ${dashboard.failures.observation}件。失敗件数は参加者テレメトリ由来の参考信号であり、単独ではフォールバックを発動しません。スタッフ再現またはドメイン健全性の異常で照合してください。参加組数・観察件数はD1のdomain counterを正本とします。</p></div><div class="actions"><a class="btn" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/dashboard">dashboard API</a><a class="btn secondary" href="/api/v1/observation-events/${encodeURIComponent(session.sessionId)}/effort">effort API</a>${reportLink}</div><h2>運営イベント（個人情報なし）</h2>${renderObservationEventOperationalTimeline(events)}</section>`;
 }
 
 function renderObservationEventEditPage(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): string {

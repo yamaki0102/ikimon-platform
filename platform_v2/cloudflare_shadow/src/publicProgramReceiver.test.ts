@@ -272,3 +272,61 @@ test("all eight occupied candidates stop with an unavailable error, retain other
     assert.ok(attempted.every(code => /^P[A-Z0-9]{7}$/u.test(code)));
   } finally { f.sqlite.close(); }
 });
+
+
+test("v2 program receive returns 201 and persists config_json.public_page with all 8 fields while v1 remains 201", async () => {
+  const f = fixture();
+  try {
+    const v2Body: PublicProgram = {
+      schema: "ikimon.public-program/v2",
+      requestId: "11111111-2222-4333-8444-555555555555",
+      profile: "observation_event",
+      title: "春の自然観察会",
+      startsAt: "2026-04-12T01:00:00.000Z",
+      endsAt: "2026-04-12T03:00:00.000Z",
+      timezone: "Asia/Tokyo",
+      placeLabel: "水辺の公園",
+      description: "川沿いの生きものを観察します。",
+      conditions: "小学生以上",
+      stations: [],
+      public_page: {
+        audience: "親子・初心者向け",
+        capacity: 20,
+        belongings: "歩きやすい靴・飲み物・帽子",
+        rain_rule: "小雨決行・荒天中止（前日18時連絡）",
+        contact: "観察会窓口",
+        hazards: "水辺は滑りやすいため注意",
+        organizer_name: "水辺の会",
+        meeting_point: "公園南口管理棟前",
+      },
+    };
+    const v2Result = await f.receive(v2Body, true, "organizer-v2");
+    assert.equal(v2Result.status, 201);
+    const savedV2Row = f.rows().find(row => row.session_id === v2Body.requestId);
+    assert.ok(savedV2Row);
+    const savedV2Config = JSON.parse(String(savedV2Row.config_json));
+    assert.deepEqual(savedV2Config.public_page, v2Body.public_page);
+
+    const v1Body: PublicProgram = {
+      schema: "ikimon.public-program/v1",
+      requestId: "22222222-3333-4444-8555-666666666666",
+      profile: "observation_event",
+      title: "v1観察会",
+      startsAt: "2026-04-19T01:00:00.000Z",
+      endsAt: "",
+      timezone: "Asia/Tokyo",
+      placeLabel: "里山",
+      description: "",
+      conditions: "",
+      stations: [],
+    };
+    const v1Result = await f.receive(v1Body, false, "organizer-v1");
+    assert.equal(v1Result.status, 201);
+    const savedV1Row = f.rows().find(row => row.session_id === v1Body.requestId);
+    assert.ok(savedV1Row);
+    const savedV1Config = JSON.parse(String(savedV1Row.config_json));
+    assert.equal(savedV1Config.public_page, undefined);
+  } finally {
+    f.sqlite.close();
+  }
+});
