@@ -7,7 +7,7 @@ import { OBSERVATION_EVENT_MODES, decideObservationEventQuest, getObservationEve
 import { createObservationEventGuestMedia, getObservationEventDiscoveries, getObservationEventGuestMedia, getObservationEventGuestMediaContent, getObservationEventSessionByEventCode, getObservationRallySnapshot, handleObservationEventDiscoveryPaper, handleObservationEventRallyApi, isPrivateReceivedProgram, reviewObservationEventGuestMedia, withdrawObservationEventGuestMedia } from "./rally";
 import { announceObservationEvent, checkinObservationEvent, createObservationEventAbsence, createObservationEventSession, createObservationEventTeam, endObservationEventSession, generateObservationEventCapsule, getObservationEventCapsule, getObservationEventEffort, getObservationEventLiveSnapshot, getObservationEventRecap, getObservationEventRecapPhoto, getObservationEventRecent, getObservationEventSpeciesCsv, pingObservationEventLocation, reviewObservationEventCapsule, suggestObservationEventArea, switchObservationEventMode, updateObservationEventRole, updateObservationEventSession } from "./sessions";
 import { applyToObservationEvent, getObservationEventApplicationStatus, getRyuyoDiscoveryCampaign, manageObservationEventDiscoveryCampaign } from "./pages";
-import { insertGuideBadgeDiscoveries, listGuideBadgeDiscoveries, type GuideSyncEntryInput } from "../guideVoiceEvent";
+import { insertGuideBadgeDiscoveries, listGuideBadgeDiscoveries, toBadgeOnlyDiscovery, type GuideSyncEntryInput } from "../guideVoiceEvent";
 
 export async function handlePublicProgramReceiverApi(request: Request, url: URL, env: Env): Promise<Response | null> {
   const pathname = stripPublicLangPrefix(url.pathname);
@@ -243,7 +243,17 @@ export async function handleObservationEventApi(request: Request, url: URL, env:
     if (badgeParam && (!Number.isInteger(badgeNum) || (badgeNum ?? 0) < 1)) {
       return json({ error: "invalid_badge" }, 400, { "cache-control": "no-store" });
     }
-    const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNum);
+    const auth = await readCompatibleSession(request, env).catch(() => null);
+    const isOrganizer = Boolean(auth && !auth.banned && auth.userId === session.organizerUserId);
+    const headerEventCode = (request.headers.get("x-event-code") ?? "").trim();
+    const hasEventCode = Boolean(session.eventCode && headerEventCode && headerEventCode === session.eventCode);
+    if (isOrganizer || hasEventCode) {
+      const discoveries = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNum);
+      return json({ ok: true, sessionId: session.sessionId, badgeNumber: badgeNum, count: discoveries.length, discoveries }, 200, { "cache-control": "no-store" });
+    }
+    if (!badgeNum) return json({ error: "guide_auth_or_event_code_required" }, 403, { "cache-control": "no-store" });
+    const rows = await listGuideBadgeDiscoveries(env, session.sessionId, badgeNum);
+    const discoveries = rows.map(toBadgeOnlyDiscovery);
     return json({ ok: true, sessionId: session.sessionId, badgeNumber: badgeNum, count: discoveries.length, discoveries }, 200, { "cache-control": "no-store" });
   }
 

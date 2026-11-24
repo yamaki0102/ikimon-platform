@@ -1975,6 +1975,9 @@ class FakeStatement {
     if (normalized.startsWith("CREATE TABLE IF NOT EXISTS guide_badge_discoveries")) {
       return { meta: { changes: 0 } };
     }
+    if (normalized.startsWith("CREATE TABLE IF NOT EXISTS place_local_experts")) {
+      return { meta: { changes: 0 } };
+    }
     if (normalized.startsWith("INSERT OR IGNORE INTO guide_badge_discoveries")) {
       const key = `${string(v[1])}:${string(v[3])}`;
       if (this.db.guideBadgeDiscoveries.has(key)) return { meta: { changes: 0 } };
@@ -6642,6 +6645,9 @@ class FakeStatement {
     const normalized = normalize(this.query);
     const v = this.values;
 
+    if (normalized.includes("FROM place_local_experts WHERE user_id = ?1")) {
+      return { results: [] as T[] };
+    }
     if (normalized.includes("FROM guide_badge_discoveries WHERE session_id = ?1 AND badge_number = ?2")) {
       const sid = string(v[0]);
       const badge = number(v[1]);
@@ -29250,6 +29256,102 @@ test("guide voice console syncs 10 voice entries, allows 2nd recorder via event 
   assert.match(takeawayHtml, /記録件数:<\/strong> 9件/);
   assert.match(takeawayHtml, /次回は12月14日 9:30集合/);
   assert.doesNotMatch(takeawayHtml, /友だちの顔/);
+});
+
+test("guide discoveries list hides coordinates from unauthenticated callers and expert stats require the same user or admin", async () => {
+  const { env, obs } = createEnv();
+  const sessionId = "evt_guide_guard_1";
+  obs.observationEventSessions.set(sessionId, {
+    session_id: sessionId,
+    legacy_event_id: null,
+    event_code: "GUARD-1",
+    title: "ガード観察会",
+    organizer_user_id: "guard-organizer-1",
+    corporation_id: null,
+    plan: "free",
+    primary_mode: "guide_voice",
+    active_modes_json: JSON.stringify(["guide_voice"]),
+    location_lat: null,
+    location_lng: null,
+    location_radius_m: 1000,
+    started_at: "2026-11-23T09:00:00.000Z",
+    ended_at: null,
+    target_species_json: "[]",
+    config_json: "{}",
+    field_id: null,
+    template_source_session_id: null,
+    created_at: "2026-11-23T00:00:00.000Z",
+    updated_at: "2026-11-23T00:00:00.000Z"
+  });
+  const syncHeaders = { "content-type": "application/json", origin: "https://shadow.test", "sec-fetch-site": "same-origin" };
+  const sync = await worker.fetch(new Request(`https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries/sync`, {
+    method: "POST",
+    headers: syncHeaders,
+    body: JSON.stringify({
+      eventCode: "GUARD-1",
+      entries: [{ clientEntryId: "guard_1", utterance: "3番、ヤツデの花、ハチ2匹", latitude: 34.7123, longitude: 137.8123, observedAt: "2026-11-23T09:15:00.000Z" }]
+    })
+  }), env);
+  assert.equal(sync.status, 200);
+
+  const listUrl = `https://shadow.test/api/v1/observation-events/${sessionId}/guide-discoveries`;
+  const anonNoBadge = await worker.fetch(new Request(listUrl), env);
+  assert.equal(anonNoBadge.status, 403);
+  assert.deepEqual(await anonNoBadge.json(), { error: "guide_auth_or_event_code_required" });
+
+  const anonBadge = await worker.fetch(new Request(`${listUrl}?badge=3`), env);
+  assert.equal(anonBadge.status, 200);
+  const anonPayload = await anonBadge.json() as { discoveries: Array<Record<string, unknown>> };
+  assert.equal(anonPayload.discoveries.length, 1);
+  assert.equal("latitude" in anonPayload.discoveries[0]!, false);
+  assert.equal("longitude" in anonPayload.discoveries[0]!, false);
+  assert.equal(anonPayload.discoveries[0]!.observed_at, "2026-11-23");
+  assert.doesNotMatch(JSON.stringify(anonPayload), /34\.7123|137\.8123/);
+
+  const queryCodeOnly = await worker.fetch(new Request(`${listUrl}?eventCode=GUARD-1`), env);
+  assert.equal(queryCodeOnly.status, 403);
+
+  const headerCode = await worker.fetch(new Request(listUrl, { headers: { "x-event-code": "GUARD-1" } }), env);
+  assert.equal(headerCode.status, 200);
+  const headerPayload = await headerCode.json() as { discoveries: Array<Record<string, unknown>> };
+  assert.equal(headerPayload.discoveries[0]!.latitude, 34.7123);
+
+  const wrongHeaderCode = await worker.fetch(new Request(listUrl, { headers: { "x-event-code": "WRONG" } }), env);
+  assert.equal(wrongHeaderCode.status, 403);
+
+  const organizerIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "guard-organizer-1", displayName: "Guard Organizer", ttlHours: 1 })
+  }), env);
+  const organizerCookie = (organizerIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const organizerList = await worker.fetch(new Request(listUrl, { headers: { cookie: organizerCookie } }), env);
+  assert.equal(organizerList.status, 200);
+  const organizerPayload = await organizerList.json() as { discoveries: Array<Record<string, unknown>> };
+  assert.equal(organizerPayload.discoveries[0]!.longitude, 137.8123);
+
+  const outsiderIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "guard-outsider-1", displayName: "Outsider", ttlHours: 1 })
+  }), env);
+  const outsiderCookie = (outsiderIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const outsiderNoBadge = await worker.fetch(new Request(listUrl, { headers: { cookie: outsiderCookie } }), env);
+  assert.equal(outsiderNoBadge.status, 403);
+
+  const statsUrl = "https://shadow.test/api/v1/experts/guard-expert-1/stats";
+  const statsAnon = await worker.fetch(new Request(statsUrl), env);
+  assert.equal(statsAnon.status, 401);
+  const statsOther = await worker.fetch(new Request(statsUrl, { headers: { cookie: outsiderCookie } }), env);
+  assert.equal(statsOther.status, 403);
+  const expertIssue = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "guard-expert-1", displayName: "Expert", ttlHours: 1 })
+  }), env);
+  const expertCookie = (expertIssue.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const statsSelf = await worker.fetch(new Request(statsUrl, { headers: { cookie: expertCookie } }), env);
+  assert.equal(statsSelf.status, 200);
 });
 
 test("profile settings saves display language preference, hides header language switches, and respects device Accept-Language for guests", async () => {

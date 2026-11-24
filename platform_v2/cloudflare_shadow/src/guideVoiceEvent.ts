@@ -168,6 +168,27 @@ export async function listGuideBadgeDiscoveries(
   return res.results ?? [];
 }
 
+export function toBadgeOnlyDiscovery(row: GuideBadgeDiscoveryRow) {
+  const observedDate = String(row.observed_at ?? "").match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? "";
+  const createdDate = Number.isFinite(row.created_at) ? new Date(row.created_at).toISOString().slice(0, 10) : "";
+  return {
+    discovery_id: row.discovery_id,
+    session_id: row.session_id,
+    badge_number: row.badge_number,
+    client_entry_id: row.client_entry_id,
+    utterance: row.utterance,
+    subject: row.subject,
+    count: row.count,
+    detail: row.detail,
+    ai_comment: row.ai_comment,
+    recorder_label: row.recorder_label,
+    area_label: row.area_label,
+    face_privacy_status: row.face_privacy_status,
+    observed_at: observedDate,
+    created_at: createdDate
+  };
+}
+
 export async function insertGuideBadgeDiscoveries(
   env: Env,
   sessionId: string,
