@@ -57,8 +57,7 @@ type PublicHealthScanRow = {
   rm_taxon_label: string | null;
   obs_area_label: string | null;
   rm_area_label: string | null;
-  exact_lat: number | null;
-  exact_lng: number | null;
+  public_cell: string | null;
 };
 
 async function loadPublicHealthRows(env: Env): Promise<PublicHealthScanRow[]> {
@@ -68,8 +67,7 @@ async function loadPublicHealthRows(env: Env): Promise<PublicHealthScanRow[]> {
             r.taxon_label AS rm_taxon_label,
             o.public_area_label AS obs_area_label,
             r.public_area_label AS rm_area_label,
-            o.exact_lat,
-            o.exact_lng
+            COALESCE(NULLIF(TRIM(r.public_cell), ''), NULLIF(TRIM(o.public_cell), '')) AS public_cell
        FROM observations o
        JOIN readmodel_public_observations r ON r.observation_id = o.observation_id
       WHERE o.visibility = 'public'
@@ -195,11 +193,32 @@ export async function listRecordHealthHistory(env: Env, limit = 30): Promise<Rec
   return res.results ?? [];
 }
 
+async function resolveInternalMunicipalityFromCell(env: Env, publicCell: string): Promise<string | null> {
+  try {
+    const place = await env.OBS_DB.prepare(
+      `SELECT prefecture, municipality, locality_label
+         FROM places
+        WHERE public_cell = ?1
+          AND superseded_by_place_id IS NULL
+        ORDER BY updated_at DESC
+        LIMIT 1`
+    ).bind(publicCell).first<{ prefecture: string | null; municipality: string | null; locality_label: string | null }>();
+    if (!place) return null;
+    const pref = String(place.prefecture ?? "").trim();
+    const muni = String(place.municipality ?? "").trim();
+    const combined = pref && muni ? `${pref}${muni}` : muni || String(place.locality_label ?? "").trim();
+    return normalizeMunicipalityLabel(combined);
+  } catch {
+    return null;
+  }
+}
+
 export async function backfillRecordHealthGaps(
   env: Env,
   options: {
     limit?: number;
-    resolveMunicipality?: (lat: number, lng: number) => Promise<string | null>;
+    includeArea?: boolean;
+    resolveMunicipality?: (publicCell: string) => Promise<string | null>;
   } = {}
 ): Promise<{ backfilledTaxon: number; backfilledArea: number }> {
   const maxBatch = Math.max(1, Math.min(100, Math.floor(options.limit ?? 50)));
@@ -237,15 +256,15 @@ export async function backfillRecordHealthGaps(
 
     if (
       backfilledArea < maxBatch
-      && options.resolveMunicipality
+      && (options.includeArea || options.resolveMunicipality)
       && !normalizeMunicipalityLabel(row.rm_area_label)
       && !normalizeMunicipalityLabel(row.obs_area_label)
-      && typeof row.exact_lat === "number"
-      && typeof row.exact_lng === "number"
-      && Number.isFinite(row.exact_lat)
-      && Number.isFinite(row.exact_lng)
+      && row.public_cell
+      && row.public_cell !== "hidden"
     ) {
-      const rawCity = await options.resolveMunicipality(row.exact_lat, row.exact_lng).catch(() => null);
+      const rawCity = options.resolveMunicipality
+        ? await options.resolveMunicipality(row.public_cell).catch(() => null)
+        : await resolveInternalMunicipalityFromCell(env, row.public_cell);
       const city = normalizeMunicipalityLabel(rawCity);
       if (city) {
         await env.OBS_DB.prepare(

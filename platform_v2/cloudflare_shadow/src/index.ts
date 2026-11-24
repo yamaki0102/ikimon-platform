@@ -3189,25 +3189,9 @@ export const worker = {
         if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
         const body = await readJson<{ limit?: unknown; includeArea?: unknown }>(request);
         const limit = typeof body.limit === "number" && Number.isFinite(body.limit) ? body.limit : 50;
-        const resolveMunicipality = body.includeArea === true
-          ? async (lat: number, lng: number): Promise<string | null> => {
-              const res = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(String(lat))}&lon=${encodeURIComponent(String(lng))}&zoom=10&accept-language=ja`,
-                { headers: { "user-agent": "zukan-earth-record-health/1.0" } }
-              );
-              if (!res.ok) return null;
-              const data = await res.json() as { address?: { province?: string; state?: string; city?: string; town?: string; village?: string; county?: string } };
-              const addr = data.address;
-              if (!addr) return null;
-              const pref = (addr.province ?? addr.state ?? "").trim();
-              const city = (addr.city ?? addr.town ?? addr.village ?? addr.county ?? "").trim();
-              const label = `${pref}${city}`.trim();
-              return label || null;
-            }
-          : undefined;
         const result = await backfillRecordHealthGaps(env, {
           limit,
-          ...(resolveMunicipality ? { resolveMunicipality } : {})
+          includeArea: body.includeArea === true
         });
         const report = await runRecordHealthCheck(env);
         return json({ ok: true, ...result, report }, 200, { "cache-control": "no-store" });

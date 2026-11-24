@@ -116,7 +116,10 @@ test("recordHealthCheck counts missing area, missing taxon, and mismatch awaitin
 
   const bf = await backfillRecordHealthGaps(env, {
     limit: 50,
-    resolveMunicipality: async () => "沖縄県那覇市"
+    resolveMunicipality: async (cell) => {
+      assert.ok(!cell.includes("exact"));
+      return "沖縄県那覇市";
+    }
   });
   assert.equal(bf.backfilledTaxon, 2);
   assert.equal(bf.backfilledArea, 2);
