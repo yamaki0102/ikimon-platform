@@ -31988,7 +31988,11 @@ test("place logger ingest (7 days) and simultaneous day national map enforce 401
     body: JSON.stringify({ stationId: "fps_1", records: sevenDays })
   }), env);
   assert.equal(validLog.status, 201);
-  const logList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records"), env);
+  const anonLogList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records"), env);
+  assert.equal(anonLogList.status, 401);
+  const otherLogList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records", { headers: { cookie: `ikimon_v2_session=${otherToken}` } }), env);
+  assert.equal(otherLogList.status, 403);
+  const logList = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_log_1/logger-records", { headers: { cookie: `ikimon_v2_session=${stewardToken}` } }), env);
   assert.equal(logList.status, 200);
   const logListBody = await logList.json() as { count: number };
   assert.equal(logListBody.count, 7);
