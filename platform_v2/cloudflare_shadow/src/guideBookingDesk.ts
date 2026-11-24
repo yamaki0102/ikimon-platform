@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS guide_profiles (
   specialties_json TEXT NOT NULL,
   places_json TEXT NOT NULL,
   is_nacsj_instructor INTEGER NOT NULL DEFAULT 0,
+  nacsj_instructor_verified INTEGER NOT NULL DEFAULT 0,
   verified_expert_count INTEGER NOT NULL DEFAULT 0,
   publish_status TEXT NOT NULL DEFAULT 'draft',
   updated_at INTEGER NOT NULL
@@ -49,6 +50,7 @@ export type GuideProfileRow = {
   specialties_json: string;
   places_json: string;
   is_nacsj_instructor: number;
+  nacsj_instructor_verified?: number;
   verified_expert_count: number;
   publish_status: string;
   updated_at: number;
@@ -108,6 +110,12 @@ export function renderGuidePublicPage(
   try { places = JSON.parse(guide.places_json) as string[]; } catch { places = []; }
   const schoolPlan = getSchool45MinTemplate("3年", "身近な生きもの");
 
+  const instructorLabel = guide.is_nacsj_instructor
+    ? guide.nacsj_instructor_verified
+      ? " · NACS-J自然観察指導員（確認済み）"
+      : " · 自己申告: NACS-J自然観察指導員（未確認）"
+    : "";
+
   return `<!doctype html>
 <html lang="ja">
 <head>
@@ -129,7 +137,7 @@ export function renderGuidePublicPage(
   <main class="gp-wrap" data-guide-public-page="1">
     <section class="gp-card">
       <h1>${escapeHtml(guide.display_name)}</h1>
-      <div class="gp-meta">案内人${guide.is_nacsj_instructor ? " · 属性: NACS-J自然観察指導員" : ""} · 目利き確認 ${guide.verified_expert_count}件</div>
+      <div class="gp-meta">案内人${instructorLabel} · 目利き確認 ${guide.verified_expert_count}件</div>
       <div><strong>得意分野:</strong> ${escapeHtml(specialties.join("、") || "地域の自然観察")}</div>
       <div><strong>歩ける場所:</strong> ${escapeHtml(places.join("、") || "相談のうえ決定")}</div>
       ${options.annualReportLinks?.length ? `<div><strong>年報:</strong> ${options.annualReportLinks.map((r) => `<a href="${escapeHtml(r.href)}">${escapeHtml(r.title)}</a>`).join(" / ")}</div>` : ""}
