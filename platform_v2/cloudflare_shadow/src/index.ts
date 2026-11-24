@@ -22125,13 +22125,6 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     }
     cameraInput?.addEventListener("change", () => addPhotoFiles(cameraInput));
     photoInput?.addEventListener("change", () => addPhotoFiles(photoInput));
-    document.querySelectorAll(".zukan-app-nav .is-capture").forEach((btn) => {
-      btn.addEventListener("click", (event) => {
-        if (!cameraInput) return;
-        event.preventDefault();
-        cameraInput.click();
-      });
-    });
     if (new URLSearchParams(location.search).get("from") === "quick_camera") {
       void (async () => {
         try {
