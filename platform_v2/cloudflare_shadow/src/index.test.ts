@@ -33039,3 +33039,111 @@ test("map API and detail page fall back to production_import_occurrences taxon n
   const detailHtml = await detailRes.text();
   assert.match(detailHtml, /リュウキュウメジロ/);
 });
+
+
+test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with map API when earlier import rows are blank", async () => {
+  const { env: baseEnv, obs } = createEnv();
+  const importSqlite = new DatabaseSync(":memory:");
+  importSqlite.exec(`
+    CREATE TABLE production_import_occurrences (
+      occurrence_id TEXT PRIMARY KEY,
+      visit_id TEXT NOT NULL,
+      scientific_name TEXT,
+      vernacular_name TEXT,
+      created_at TEXT
+    );
+  `);
+  importSqlite.prepare(
+    "INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run("occ-empty-first", "record-1779516928956", null, "", "2026-05-20T00:00:00.000Z");
+  importSqlite.prepare(
+    "INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).run("occ-oxalis", "record-1779516928956", "Oxalis", "カタバミ属", "2026-05-20T00:00:01.000Z");
+
+  const obsWithImport = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bFROM\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return importSqlite.prepare("SELECT vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ? ORDER BY created_at ASC LIMIT 1").get(...values) ?? null; },
+              async all() { return { results: importSqlite.prepare("SELECT vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ? ORDER BY created_at ASC").all(...values) }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (/\bJOIN\s+production_import_occurrences\b/iu.test(query)) {
+            let values: D1Value[] = [];
+            const stmt = {
+              bind(...input: D1Value[]) { values = input; return stmt; },
+              async first() { return null; },
+              async all() {
+                const ids = values.length > 0 ? JSON.parse(String(values[0])) as string[] : [];
+                const rows: Array<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }> = [];
+                for (const id of ids) {
+                  const found = importSqlite.prepare("SELECT visit_id AS observation_id, vernacular_name, scientific_name FROM production_import_occurrences WHERE visit_id = ? ORDER BY created_at ASC").all(id) as Array<{ observation_id: string; vernacular_name: string | null; scientific_name: string | null }>;
+                  rows.push(...found);
+                }
+                return { results: rows };
+              },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          if (query.includes("json_each(?)") && /\b(?:observation_identifications|observation_ai_review_targets|observation_environment_records)\b|o\.taxon_label AS obs_taxon_label/iu.test(query)) {
+            const stmt = {
+              bind() { return stmt; },
+              async first() { return null; },
+              async all() { return { results: [] }; },
+              async run() { return { meta: { changes: 0 } }; }
+            };
+            return stmt as unknown as FakeStatement;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  const env = { ...baseEnv, OBS_DB: obsWithImport };
+
+  obs.observations.set("record-1779516928956", {
+    observation_id: "record-1779516928956",
+    draft_id: "draft-oxalis",
+    owner_user_id: "user-oxalis",
+    observed_at: "2026-05-23T03:00:00.000Z",
+    partition_month: "2026-05",
+    taxon_label: null,
+    note: null,
+    exact_lat: 26.6,
+    exact_lng: 128.0,
+    location_accuracy_m: 10,
+    public_cell: "26.6,128.0",
+    visibility: "public",
+    emergency_hidden: 0,
+    processing_state: "accepted",
+    public_area_label: "沖縄県"
+  });
+  obs.readmodel.set("record-1779516928956", {
+    observation_id: "record-1779516928956",
+    public_cell: "26.6,128.0",
+    observed_at: "2026-05-23T03:00:00.000Z",
+    taxon_label: "同定待ち",
+    asset_count: 1,
+    partition_month: "2026-05",
+    public_area_label: "沖縄県"
+  });
+
+  const detailJsonRes = await worker.fetch(new Request("https://zukan.earth/api/v1/observations/record-1779516928956/public-detail"), env);
+  assert.equal(detailJsonRes.status, 200);
+  const detailJson = await detailJsonRes.json() as { observation: { displayName: string; isAwaitingId: boolean } };
+  assert.equal(detailJson.observation.displayName, "カタバミ属");
+  assert.equal(detailJson.observation.isAwaitingId, false);
+
+  const detailHtmlRes = await worker.fetch(new Request("https://zukan.earth/ja/observations/record-1779516928956"), env);
+  assert.equal(detailHtmlRes.status, 200);
+  const detailHtml = await detailHtmlRes.text();
+  assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
+});
