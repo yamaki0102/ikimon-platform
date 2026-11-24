@@ -2576,9 +2576,15 @@ test("attribution starts collapsed on narrow widths", () => {
   assert.match(script, /attribUserOpened/);
 });
 
-test("bottom-right map controls stay in normal flow above the mobile action space", () => {
+test("bottom-right map controls stay in normal flow above the mobile action space and own-trail panel", () => {
   assert.doesNotMatch(MAP_EXPLORER_STYLES, /maplibregl-ctrl-bottom-right\{[^}]*column-reverse/);
-  assert.match(MAP_EXPLORER_STYLES, /\.me-map \.maplibregl-ctrl-bottom-right\{bottom:calc\(var\(--me-mobile-action-space\) \+ 4px\)/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-map \.maplibregl-ctrl-bottom-right\{bottom:var\(--me-col-b\)/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-section \.maplibregl-ctrl-bottom-right \{ bottom: var\(--me-col-b\); \}/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-section \.me-legend \{ right: 12px; bottom: calc\(var\(--me-col-b\) \+ 116px\); \}/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-section \.me-map-status \{ left: 10px; right: auto; top: auto; bottom: var\(--me-col-b\);/);
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  assert.match(script, /mapShellEl\.closest\('\.me-section'\)/);
+  assert.match(script, /panelHostEl\.style\.setProperty\('--me-panel-h'/);
 });
 
 test("mobile bottom sheet, legend and controls share the bottom nav height variable", () => {

@@ -1624,3 +1624,16 @@ test("site shell includes global record trigger on /guide and 1-tap opens native
   runtime.triggers.photo!.dispatch("contextmenu");
   assert.equal(runtime.sheet.hidden, false, "secondary action (contextmenu/long-press) opens chooser sheet");
 });
+
+test("site shell omits header language switcher, defines shared floating-bottom clearance, and sets :link/:visited color", () => {
+  const html = renderSiteDocument({
+    basePath: "",
+    title: "Test",
+    body: "<p>Hello</p>",
+    lang: "ja",
+    currentPath: "/ja/guide"
+  });
+  assert.doesNotMatch(html, /<details class="lang-switch/);
+  assert.match(html, /--ikimon-floating-bottom-space:/);
+  assert.match(html, /a:where\(:link,:visited\)\{color:inherit;text-decoration:none\}/);
+});

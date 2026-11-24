@@ -820,15 +820,13 @@ function renderHeaderCoreNavigation(basePath: string, lang: SiteLang, currentPat
   </nav>`;
 }
 
-function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: string | undefined, availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
+function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: string | undefined, _availableLangs: SiteLang[], minimalChrome = false, homeChrome?: "guest" | "member"): string {
   const copy = shellCopyFor(lang);
   const accountCopy = accountUiCopy(lang);
   const brandLockupSrc = BRAND_ASSETS.lockupBlack;
   const navLinks = renderHeaderCoreNavigation(basePath, lang, currentPath, homeChrome);
   const desktopSearch = renderSearchForm(basePath, lang, copy, "site-search-desktop", currentPath);
   const mobileSearch = renderSearchForm(basePath, lang, copy, "site-search-mobile", currentPath);
-  const desktopLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-desktop");
-  const mobileLangSwitch = renderLangSwitch(currentPath, lang, availableLangs, "lang-switch-mobile");
   const loginHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/login?redirect=/profile"), lang));
   const profileHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/profile"), lang));
   const myRecordsHref = escapeHtml(appendLangToHref(withBasePath(basePath, "/records?view=mine"), lang));
@@ -5004,7 +5002,7 @@ ${alternateLinks}
     }
     html{scroll-padding-top:80px}
     a:where(:link,:visited){color:inherit;text-decoration:none}
-    .site-shell { min-height: 100vh; }
+    .site-shell { min-height: 100vh; --ikimon-bottom-nav-h: 69px; --ikimon-floating-bottom-space: calc(max(8px, env(safe-area-inset-bottom)) + var(--ikimon-bottom-nav-h) + 15px); }
     .shell {
       --ikimon-shell-target-max: var(--ikimon-content-max);
       width: min(var(--ikimon-shell-target-max), calc(100% - var(--ikimon-page-inline)));

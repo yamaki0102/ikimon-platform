@@ -1057,6 +1057,8 @@ type OwnerHomeRecordItem = ReturnType<typeof publicMapObservationItem> & {
 };
 
 interface PublicDetailRow extends PublicMapRow {
+  obs_taxon_label?: string | null;
+  identified_taxon_label?: string | null;
   note: string | null;
   visibility: string;
   ai_assessment_status: string | null;
@@ -3137,12 +3139,16 @@ export const worker = {
         if (!session?.userId || session.banned) return json({ ok: false, error: "unauthorized" }, 401, { "cache-control": "no-store" });
         if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
         const guideId = decodeURIComponent(guidePublishMatch[1]);
-        const body = await readJson<{ publishStatus?: unknown }>(request);
+        const body = await readJson<{ publishStatus?: unknown; nacsjInstructorVerified?: unknown }>(request);
         const status = body.publishStatus === "published" ? "published" : "draft";
         await env.CORE_DB.prepare(GUIDE_PROFILES_CREATE_SQL).run();
-        const res = await env.CORE_DB.prepare(
-          "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
-        ).bind(guideId, status, Date.now()).run();
+        const res = typeof body.nacsjInstructorVerified === "boolean"
+          ? await env.CORE_DB.prepare(
+            "UPDATE guide_profiles SET publish_status = ?2, nacsj_instructor_verified = ?3, updated_at = ?4 WHERE guide_id = ?1"
+          ).bind(guideId, status, body.nacsjInstructorVerified ? 1 : 0, Date.now()).run()
+          : await env.CORE_DB.prepare(
+            "UPDATE guide_profiles SET publish_status = ?2, updated_at = ?3 WHERE guide_id = ?1"
+          ).bind(guideId, status, Date.now()).run();
         const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
         return changes > 0 ? json({ ok: true, guideId, publishStatus: status }, 200, { "cache-control": "no-store" }) : json({ ok: false, error: "guide_not_found" }, 404, { "cache-control": "no-store" });
       }
@@ -3175,8 +3181,16 @@ export const worker = {
           : "school";
         const grade = typeof body.grade === "string" ? body.grade.trim().slice(0, 20) : "";
         const unit = typeof body.unit === "string" ? body.unit.trim().slice(0, 80) : "";
+        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
+        const existingCount = await env.CORE_DB.prepare(
+          "SELECT COUNT(*) AS cnt FROM guide_booking_requests WHERE requester_user_id = ?1 AND place_id = ?2 AND status = 'requested'"
+        ).bind(session.userId, placeId).first<{ cnt?: number }>();
+        if (Number(existingCount?.cnt ?? 0) >= 3) {
+          return json({ ok: false, error: "booking_request_limit_reached" }, 429, { "cache-control": "no-store" });
+        }
         const schoolTemplate = requesterKind === "school" ? getSchool45MinTemplate(grade, unit) : null;
         const requestId = `greq_${crypto.randomUUID().slice(0, 12)}`;
+        const eventCode = `REQ-${crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
         const nocosilSessionId = `evt_req_${crypto.randomUUID().slice(0, 12)}`;
         const nowIso = new Date().toISOString();
         await env.OBS_DB.prepare(
@@ -3187,7 +3201,7 @@ export const worker = {
           ) VALUES (?, NULL, ?, ?, ?, NULL, 'free', 'guided', '["guided"]', NULL, NULL, 500, ?, NULL, '[]', ?, ?, NULL, ?, ?)`
         ).bind(
           nocosilSessionId,
-          `REQ-${requestId.slice(-4).toUpperCase()}`,
+          eventCode,
           `${organizationName} × ${guide.display_name}`,
           guide.user_id,
           `${preferredDate}T09:00:00.000Z`,
@@ -3196,13 +3210,12 @@ export const worker = {
           nowIso,
           nowIso
         ).run();
-        await env.CORE_DB.prepare(GUIDE_BOOKING_REQUESTS_CREATE_SQL).run();
         await env.CORE_DB.prepare(
           `INSERT INTO guide_booking_requests (
             request_id, guide_id, requester_user_id, requester_kind, organization_name, place_id, preferred_date, grade, unit, nocosil_session_id, status, created_at
           ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'requested', ?11)`
         ).bind(requestId, guideId, session.userId, requesterKind, organizationName, placeId, preferredDate, grade, unit, nocosilSessionId, Date.now()).run();
-        return json({ ok: true, requestId, sessionId: nocosilSessionId, schoolTemplate }, 201, { "cache-control": "no-store" });
+        return json({ ok: true, requestId, sessionId: nocosilSessionId, eventCode, schoolTemplate }, 201, { "cache-control": "no-store" });
       }
 
       const supportSeatMatch = nativePathname.match(/^\/api\/v1\/places\/([^/]+)\/support-seats$/);
@@ -22971,14 +22984,15 @@ export function renderRecordsProductSection(
         }).join("")}</div>`
     : `<div class="cf-records-native-empty"><strong>${escapeHtml(query ? scopeCopy.noMatch(query) : scopeCopy.empty)}</strong>${query ? `<p class="cf-records-native-empty-hint">${escapeHtml(scopeCopy.searchHint)}</p>` : ""}<div class="cf-records-native-empty-actions"><a class="cf-records-native-empty-action" href="${escapeHtml(query ? `${prefix}/records?view=${mode}` : `${prefix}/record`)}">${escapeHtml(query ? scopeCopy.clearSearch : scopeCopy.createRecord)}</a><a class="cf-records-native-empty-secondary" href="${escapeHtml(mode === "public" ? `${prefix}/map?tab=places` : `${prefix}/records?view=public`)}">${escapeHtml(mode === "public" ? scopeCopy.browsePlaces : scopeCopy.browsePublic)}</a></div></div>`;
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
+    ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>` : ""}
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:18px auto 100px;padding:0;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px}.cf-records-native-tabs a{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page]{border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a{min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card{min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:inherit;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a{min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary{background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card{grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-native-tabs{scroll-margin-top:80px}.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){color:#fff}.cf-records-saved-link{margin:0 0 8px}.cf-records-saved-link a{display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:8px;bottom:8px;min-width:44px;min-height:44px;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
     ${session && savedStates !== null ? `<p class="cf-records-saved-link"><a href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a></p>` : ""}
     ${cards}
-    ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>${renderSavedItemsScript(lang)}` : ""}
+    ${session && savedStates !== null ? renderSavedItemsScript(lang) : ""}
   </section>`;
 }
 
@@ -23633,6 +23647,7 @@ function injectCompactHeaderMenu(html: string, url: URL, session?: SessionSnapsh
 }
 
 type PublicMapCardMeta = {
+  taxonLabel: string | null;
   publicAreaLabel: string | null;
   publicNote: string | null;
   aiCandidateLabel: string | null;
@@ -23649,7 +23664,7 @@ async function queryPublicMapCardMeta(
   const ensure = (id: string): PublicMapCardMeta => {
     let entry = map.get(id);
     if (!entry) {
-      entry = { publicAreaLabel: null, publicNote: null, aiCandidateLabel: null, scenePlaceType: null, sceneSurroundingCover: null };
+      entry = { taxonLabel: null, publicAreaLabel: null, publicNote: null, aiCandidateLabel: null, scenePlaceType: null, sceneSurroundingCover: null };
       map.set(id, entry);
     }
     return entry;
@@ -23664,9 +23679,9 @@ async function queryPublicMapCardMeta(
   );
   const observationScope = observationIdScope("o.observation_id", ids);
   const environmentScope = observationIdScope("er.occurrence_id", ids);
-  const [baseRows, aiRows, envRows] = await Promise.all([
-    tolerateMissingSchema<{ observation_id: string; public_area_label: string | null; note: string | null }>(scopedStatement(env,
-      `SELECT r.observation_id, r.public_area_label, o.note
+  const [baseRows, idRows, aiRows, envRows] = await Promise.all([
+    tolerateMissingSchema<{ observation_id: string; obs_taxon_label: string | null; public_area_label: string | null; note: string | null }>(scopedStatement(env,
+      `SELECT r.observation_id, o.taxon_label AS obs_taxon_label, r.public_area_label, o.note
          FROM readmodel_public_observations r
          JOIN observations o ON o.observation_id = r.observation_id
         WHERE o.visibility = 'public'
@@ -23680,7 +23695,26 @@ async function queryPublicMapCardMeta(
           ${observationScope.sql}
         ORDER BY r.observed_at DESC
         LIMIT 5000`, observationScope.binds
-    ).all<{ observation_id: string; public_area_label: string | null; note: string | null }>()),
+    ).all<{ observation_id: string; obs_taxon_label: string | null; public_area_label: string | null; note: string | null }>()),
+    tolerateMissingSchema<{ observation_id: string; proposed_name: string | null }>(scopedStatement(env,
+      `SELECT o.observation_id, oi.proposed_name
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+         JOIN observation_identifications oi ON oi.occurrence_id IN ('occ:' || o.observation_id || ':0', o.observation_id)
+        WHERE o.visibility = 'public'
+          AND o.emergency_hidden = 0
+          AND oi.is_current = 1
+          AND COALESCE(oi.stance, 'propose') <> 'disagree'
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active'
+          )
+          ${observationScope.sql}
+        ORDER BY oi.updated_at DESC, oi.created_at DESC
+        LIMIT 5000`, observationScope.binds
+    ).all<{ observation_id: string; proposed_name: string | null }>()),
     tolerateMissingSchema<{ observation_id: string; ai_candidate_label: string | null; ai_source_payload_json: string | null }>(scopedStatement(env,
       `SELECT o.observation_id,
               COALESCE(art.candidate_vernacular_name, art.candidate_scientific_name, art.ai_recommended_taxon_name) AS ai_candidate_label,
@@ -23720,8 +23754,15 @@ async function queryPublicMapCardMeta(
   ]);
   for (const row of baseRows) {
     const entry = ensure(row.observation_id);
+    if (!isWeakTaxonLabel(row.obs_taxon_label)) entry.taxonLabel = row.obs_taxon_label!.trim();
     entry.publicAreaLabel = normalizeSafePublicAreaLabelCandidate(row.public_area_label);
     entry.publicNote = formatPublicCardNoteLine(row.note);
+  }
+  for (const row of idRows) {
+    const entry = ensure(row.observation_id);
+    if (!entry.taxonLabel && !isWeakTaxonLabel(row.proposed_name)) {
+      entry.taxonLabel = row.proposed_name!.trim();
+    }
   }
   for (const row of aiRows) {
     const aiLabel = normalizeOptionalText(row.ai_candidate_label);
@@ -23779,6 +23820,7 @@ function appendPublicRecordCards(
       const meta = cardMeta.get(row.observation_id);
       const enrichedRow: PublicMapRow = {
         ...row,
+        taxon_label: isWeakTaxonLabel(row.taxon_label) ? (meta?.taxonLabel ?? row.taxon_label) : row.taxon_label,
         public_area_label: normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? meta?.publicAreaLabel ?? null,
         public_note: row.public_note ?? meta?.publicNote ?? null,
         ai_candidate_label: row.ai_candidate_label ?? meta?.aiCandidateLabel ?? null,
@@ -25786,14 +25828,37 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
-  const isAwaitingId = isWeakTaxonLabel(row.taxon_label);
+  let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
+  if (!effectiveTaxonLabel) {
+    const obsTaxonRow = await env.OBS_DB.prepare(
+      "SELECT taxon_label FROM observations WHERE observation_id = ? LIMIT 1"
+    ).bind(visitId).first<{ taxon_label: string | null }>().catch(() => null);
+    if (!isWeakTaxonLabel(obsTaxonRow?.taxon_label ?? null)) {
+      effectiveTaxonLabel = obsTaxonRow!.taxon_label!;
+    }
+  }
+  if (!effectiveTaxonLabel) {
+    const idRow = await env.OBS_DB.prepare(
+      `SELECT proposed_name
+         FROM observation_identifications
+        WHERE occurrence_id IN (?, ?)
+          AND is_current = 1
+          AND COALESCE(stance, 'propose') <> 'disagree'
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 1`
+    ).bind(`occ:${visitId}:0`, visitId).first<{ proposed_name: string | null }>().catch(() => null);
+    if (!isWeakTaxonLabel(idRow?.proposed_name ?? null)) {
+      effectiveTaxonLabel = idRow!.proposed_name!;
+    }
+  }
+  const isAwaitingId = isWeakTaxonLabel(effectiveTaxonLabel);
   const aiPersonPrimaryNames = publicObservationAiPersonPrimaryNames(row.ai_source_payload_json);
   const isEligibleAiCandidate = isPublicObservationAiSubjectEligible(row.ai_candidate_label, aiPersonPrimaryNames);
   const aiCandidateLabel = isEligibleAiCandidate ? row.ai_candidate_label : null;
   const aiCandidateRank = isEligibleAiCandidate ? row.ai_candidate_rank : null;
   const displayName = isAwaitingId
     ? aiCandidateLabel ?? "名前待ち"
-    : row.taxon_label!.trim();
+    : effectiveTaxonLabel!.trim();
 
   const detailLocationLabel = row.public_cell === "hidden"
     ? "位置は非公開です"
