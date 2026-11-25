@@ -145,8 +145,37 @@ export async function handlePlaceAboutOrSeasonsRoute(
   let bodyHtml = "";
   const placeHref = `${prefix}/places/${encodedPlace}`;
   if (tab === "about") {
+    let recordFact: string[] | null = null;
+    try {
+      const recRows = await db
+        .prepare(
+          `SELECT o.observed_at
+           FROM record_place_memberships m
+           JOIN observations o ON o.observation_id = m.record_id
+           WHERE m.place_id = ?
+             AND m.membership_state = 'confirmed'
+             AND m.public_precision = 'place'
+             AND m.removed_at IS NULL
+             AND o.visibility = 'public'
+             AND COALESCE(o.emergency_hidden, 0) = 0`
+        )
+        .bind(place.place_id)
+        .all<{ observed_at: string | null }>();
+      const list = recRows.results ?? [];
+      const years = list.map((r) => Number(String(r.observed_at ?? "").slice(0, 4))).filter((y) => y >= 1900 && y < 3000);
+      if (list.length > 0) {
+        const since = years.length > 0 ? Math.min(...years) : null;
+        recordFact = [
+          isEn ? "Records" : "記録",
+          isEn ? `${list.length}${since ? ` (since ${since})` : ""}` : `${list.length}件${since ? `（${since}年から）` : ""}`,
+        ];
+      }
+    } catch {
+      recordFact = null;
+    }
     const facts = [
       place.locality_label ? [isEn ? "Area" : "所在地", place.locality_label] : null,
+      recordFact,
     ].filter((row): row is string[] => row !== null);
     bodyHtml = `<section class="zt-sp" data-place-about="e6">
       <style>${ZUKAN_SUBPAGE_CSS}</style>
