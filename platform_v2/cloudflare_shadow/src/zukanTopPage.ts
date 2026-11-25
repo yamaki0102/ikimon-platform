@@ -185,6 +185,7 @@ export type TopLibraryPhoto = {
 export type TopLibraryGroup = {
   groupKey: string;
   headerLabel: string;
+  placeId?: string | null;
   placeName: string;
   published: boolean;
   photos: TopLibraryPhoto[];
@@ -221,6 +222,18 @@ CREATE TABLE IF NOT EXISTS zukan_book_publications (
   observation_ids_json TEXT NOT NULL,
   published INTEGER NOT NULL DEFAULT 1,
   updated_at INTEGER NOT NULL
+)
+`.trim();
+
+export const ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL = `
+CREATE TABLE IF NOT EXISTS zukan_observation_publications (
+  user_id TEXT NOT NULL,
+  observation_id TEXT NOT NULL,
+  place_id TEXT,
+  legacy_group_key TEXT,
+  published INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, observation_id)
 )
 `.trim();
 
@@ -495,12 +508,23 @@ export async function loadUserLibraryData(
     });
 
     await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
-    const pubRes = await env.CORE_DB.prepare(
-      "SELECT group_key, published FROM zukan_book_publications WHERE user_id = ?1"
-    ).bind(userId).all<{ group_key: string; published: number }>();
+    await env.CORE_DB.prepare(ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL).run();
+    const [pubRes, obsPubRes, placeLinks] = await Promise.all([
+      env.CORE_DB.prepare(
+        "SELECT group_key, published FROM zukan_book_publications WHERE user_id = ?1"
+      ).bind(userId).all<{ group_key: string; published: number }>(),
+      env.CORE_DB.prepare(
+        "SELECT observation_id, published FROM zukan_observation_publications WHERE user_id = ?1"
+      ).bind(userId).all<{ observation_id: string; published: number }>().catch(() => ({ results: [] as Array<{ observation_id: string; published: number }> })),
+      resolveObservationPlaceLinks(env, filtered.map((r) => r.observation_id)),
+    ]);
     const publishedMap = new Map<string, boolean>();
     for (const p of pubRes.results ?? []) {
       publishedMap.set(p.group_key, p.published === 1);
+    }
+    const obsPublishedMap = new Map<string, boolean>();
+    for (const op of obsPubRes.results ?? []) {
+      obsPublishedMap.set(op.observation_id, op.published === 1);
     }
 
     const groupMap = new Map<string, TopLibraryGroup>();
@@ -508,15 +532,24 @@ export async function loadUserLibraryData(
 
     for (const r of filtered) {
       const dateDay = r.observed_at.slice(0, 10);
+      const placeLink = placeLinks.get(r.observation_id);
+      const placeId = placeLink?.placeId ?? null;
       const placeName = (r.public_area_label ?? "").trim() || "身近な場所";
-      const groupKey = `${dateDay}__${placeName}`;
-      const existing = groupMap.get(groupKey) ?? {
+      const legacyKey = `${dateDay}__${placeName}`;
+      const groupKey = placeId ? `${dateDay}__${placeId}` : legacyKey;
+      const obsPublished = obsPublishedMap.get(r.observation_id);
+      const isPublished = obsPublished !== undefined
+        ? obsPublished
+        : (publishedMap.get(groupKey) === true || publishedMap.get(legacyKey) === true);
+      const existing: TopLibraryGroup = groupMap.get(groupKey) ?? {
         groupKey,
         headerLabel: `${formatMonthDayWeekdayJa(r.observed_at)}・${placeName}`,
+        placeId,
         placeName,
-        published: publishedMap.get(groupKey) === true,
+        published: false,
         photos: []
       };
+      if (isPublished) existing.published = true;
       const photoUrl = r.derivative_key ? publicMediaUrl(r.derivative_key) : null;
       existing.photos.push({
         observationId: r.observation_id,
@@ -718,7 +751,7 @@ export function renderZukanTopPage(
           <div class="zt-group-actions">
             ${grp.published
               ? `<button type="button" class="zt-chip-published" data-zukan-unpublish="${escapeHtml(grp.groupKey)}">${isEn ? "In ZUKAN" : "図鑑に掲載中"}</button>`
-              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-name="${escapeHtml(grp.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`}
+              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-id="${escapeHtml(grp.placeId ?? "")}" data-place-name="${escapeHtml(grp.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`}
           </div>
         </div>
         <div class="zt-lib-grid">${grp.photos.map((ph) => `<a class="zt-lib-thumb" href="${prefix}/observations/${encodeURIComponent(ph.observationId)}" data-obs-id="${escapeHtml(ph.observationId)}">
@@ -796,10 +829,12 @@ export function renderZukanTopPage(
           const unpubBtn = ev.target.closest("[data-zukan-unpublish]");
           if (unpubBtn) {
             const key = unpubBtn.getAttribute("data-zukan-unpublish") || "";
+            const grp = unpubBtn.closest("[data-group-key]");
+            const ids = grp ? [...grp.querySelectorAll(".zt-lib-thumb[data-obs-id]")].map((el) => el.getAttribute("data-obs-id") || "").filter(Boolean) : [];
             const res = await fetch("/api/v1/zukan-top/unpublish", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ groupKey: key })
+              body: JSON.stringify({ groupKey: key, observationIds: ids })
             });
             if (res.ok) location.reload();
           }
@@ -812,10 +847,12 @@ export function renderZukanTopPage(
           ev.preventDefault();
           const ids = [...thumbsEl.querySelectorAll("input[name='obsId']:checked")].map((i) => i.value);
           if (!ids.length) return;
+          const openBtn = document.querySelector('[data-zukan-open-popover="' + CSS.escape(currentGroupKey) + '"]');
+          const placeId = openBtn ? (openBtn.getAttribute("data-place-id") || null) : null;
           const res = await fetch("/api/v1/zukan-top/publish", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ groupKey: currentGroupKey, placeName: currentPlaceName, observationIds: ids })
+            body: JSON.stringify({ groupKey: currentGroupKey, placeId, placeName: currentPlaceName, observationIds: ids })
           });
           if (res.ok) location.reload();
         });
