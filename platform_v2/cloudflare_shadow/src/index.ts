@@ -289,6 +289,7 @@ import {
 } from "./zukanRecordLinkAndDone";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import {
@@ -4601,6 +4602,11 @@ export const worker = {
         if (request.method === "GET") {
           return handleGetObservationComments(obsId, session, env);
         }
+      }
+
+      if (nativePathname === "/library/link/cancel" || nativePathname === "/library/link/share") {
+        const shareUnlinkResponse = await handleZukanShareAndUnlinkRoute(request, env, url, nativePathname);
+        if (shareUnlinkResponse) return shareUnlinkResponse;
       }
 
       const observationShareLinkMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/share-links$/);

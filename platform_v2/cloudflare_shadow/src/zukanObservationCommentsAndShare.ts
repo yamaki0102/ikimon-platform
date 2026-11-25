@@ -18,6 +18,7 @@ type ShareLinkRecord = {
   observationId: string;
   createdBy: string;
   createdAt: string;
+  expiresAt?: string | null;
 };
 
 type SessionLike = {
@@ -190,14 +191,15 @@ export async function handleGetObservationComments(
 export async function handleCreateObservationShareLink(
   observationId: string,
   session: SessionLike,
-  env: EnvLike
+  env: EnvLike,
+  options?: { expiresInDays?: number | null }
 ): Promise<Response> {
   if (!session || session.banned) {
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
   const obs = await env.OBS_DB
-    .prepare("SELECT observation_id, user_id, visibility FROM observations WHERE observation_id = ?")
+    .prepare("SELECT observation_id, owner_user_id AS user_id, visibility FROM observations WHERE observation_id = ?")
     .bind(observationId)
     .first<{ observation_id: string; user_id: string; visibility: string }>();
 
@@ -209,11 +211,13 @@ export async function handleCreateObservationShareLink(
   }
 
   const token = `share_${crypto.randomUUID().replace(/-/g, "")}`;
+  const days = options?.expiresInDays && options.expiresInDays > 0 ? Math.min(Math.trunc(options.expiresInDays), 365) : null;
   const record: ShareLinkRecord = {
     token,
     observationId,
     createdBy: session.userId,
     createdAt: new Date().toISOString(),
+    expiresAt: days ? new Date(Date.now() + days * 86400000).toISOString() : null,
   };
 
   if (env.ASSET_BUCKET) {
@@ -222,7 +226,7 @@ export async function handleCreateObservationShareLink(
     });
   }
 
-  return jsonResponse({ ok: true, token, path: `/ja/share/${token}` }, 201);
+  return jsonResponse({ ok: true, token, path: `/ja/share/${token}`, expiresAt: record.expiresAt ?? null }, 201);
 }
 
 export async function handleResolveShareLinkPage(
@@ -240,6 +244,9 @@ export async function handleResolveShareLinkPage(
   }
   const share = await new Response(obj.body).json().catch(() => null) as ShareLinkRecord | null;
   if (!share?.observationId) {
+    return new Response("Not found", { status: 404 });
+  }
+  if (share.expiresAt && Date.parse(share.expiresAt) <= Date.now()) {
     return new Response("Not found", { status: 404 });
   }
 
