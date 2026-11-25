@@ -24,7 +24,7 @@ export const ZUKAN_SEARCH_CSS = `
 .zs-tabs{flex-wrap:nowrap;overflow-x:auto;gap:8px;scrollbar-width:none}.zs-tabs .zs-chip{padding:0 16px;white-space:nowrap}
 .zs-list{margin:0;padding:0;list-style:none;display:grid}
 .zs-row,.zs-row:visited{display:flex;align-items:center;gap:14px;min-height:84px;padding:12px 0;border-bottom:1px solid #dde2dc;color:#17251b;text-decoration:none}
-.zs-thumb{flex:none;width:64px;height:64px;border-radius:14px;overflow:hidden;background:#e8f0ea}.zs-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.zs-thumb{flex:none;width:64px;height:64px;border-radius:14px;overflow:hidden;background:#e8f0ea;display:grid;place-items:center}.zs-thumb img{display:block;width:100%;height:100%;object-fit:cover}
 .zs-body{flex:1;min-width:0}.zs-body strong{display:block;font-size:1.0625rem;line-height:1.4;overflow-wrap:anywhere}.zs-body small{display:block;margin-top:2px;font-size:.9375rem;color:#55615a;overflow-wrap:anywhere}
 .zs-badge{flex:none;padding:6px 14px;border-radius:999px;background:#f1f3ee;color:#3d4a42;font-weight:700;font-size:.9375rem}
 .zs-chev{width:20px!important;height:20px!important;color:#8a948d}
@@ -68,8 +68,10 @@ export function renderSearchBar(options: { action: string; q: string; placeholde
 <script>(()=>{const b=document.getElementById("zs-mic-btn"),i=document.getElementById("zs-input");if(!b||!i)return;const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R){b.hidden=true;return;}b.addEventListener("click",()=>{const r=new R();r.lang=document.documentElement.lang==="en"?"en-US":"ja-JP";r.interimResults=false;r.onresult=(e)=>{const t=e.results&&e.results[0]&&e.results[0][0]?e.results[0][0].transcript:"";if(t){i.value=t;i.form&&i.form.submit();}};try{r.start();}catch{}});})();</script>`;
 }
 
+const SEARCH_NO_THUMB_ICON = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" data-zs-nothumb><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+
 export function renderSearchRow(options: { href: string; title: string; meta?: string; badge?: string; thumbUrl?: string | null; titleHtml?: string }): string {
-  const thumb = `<span class="zs-thumb" aria-hidden="true">${options.thumbUrl ? `<img src="${esc(options.thumbUrl)}" alt="" loading="lazy" decoding="async">` : ""}</span>`;
+  const thumb = `<span class="zs-thumb" aria-hidden="true">${options.thumbUrl ? `<img src="${esc(options.thumbUrl)}" alt="" loading="lazy" decoding="async">` : SEARCH_NO_THUMB_ICON}</span>`;
   return `<li><a class="zs-row" href="${esc(options.href)}">${thumb}<span class="zs-body"><strong>${options.titleHtml ?? esc(options.title)}</strong>${options.meta ? `<small class="zt-search-meta">${esc(options.meta)}</small>` : ""}</span>${options.badge ? `<span class="zs-badge">${esc(options.badge)}</span>` : ICON_CHEV}</a></li>`;
 }
 
