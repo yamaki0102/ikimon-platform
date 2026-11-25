@@ -133,6 +133,7 @@ export function renderZukanLibraryPage(
               <h2>${escapeHtml(group.headerLabel)}（${group.photos.length}）</h2>
               <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/records?view=mine`)}">${group.published ? (isEn ? "Published" : "公開中・確認") : (isEn ? "Review & publish" : "まとめて確認・公開")}</a>
             </div>
+            <a class="zt-album-share" style="justify-self:start;min-height:44px;display:inline-flex;align-items:center;font-size:14px;font-weight:700;text-decoration:none" href="${escapeHtml(`${prefix}/library/link/album?group=${encodeURIComponent(group.groupKey)}`)}">${isEn ? "Share by link" : "リンクで共有する"}</a>
             <div class="zt-lib-grid">
               ${group.photos
                 .map((item) =>
