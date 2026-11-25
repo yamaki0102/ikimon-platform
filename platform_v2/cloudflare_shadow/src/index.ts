@@ -323,6 +323,7 @@ import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./
 import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
+import { handleZukanNoticesAndConsentRoute, loadLibraryNoticeHtml } from "./zukanNoticesAndConsent";
 import { renderZukanStateDocument, type ZukanStateKind } from "../../src/ui/zukanStateScreens";
 import { handleSharedAlbumView, handleZukanOrgLinkRoute } from "./zukanOrgLinkAndAlbum";
 import {
@@ -3764,7 +3765,8 @@ export const worker = {
         const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
         const searchQuery = url.searchParams.get("q") ?? "";
         const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
-        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
+        const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
       }
 
       if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
@@ -4769,6 +4771,11 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && zukanStateMatch?.[1]) {
         const stateLang = publicLangFromPath(url.pathname) ?? "ja";
         return html(renderZukanStateDocument(zukanStateMatch[1] as ZukanStateKind, { prefix: `/${stateLang}`, retryHref: url.searchParams.get("from") ?? undefined }), 200, { "cache-control": "no-store" });
+      }
+
+      if (nativePathname === "/notices" || nativePathname === "/welcome/consent" || nativePathname === "/welcome/consent/later") {
+        const noticesResponse = await handleZukanNoticesAndConsentRoute(request, env, url, nativePathname);
+        if (noticesResponse) return noticesResponse;
       }
 
       const placeTimelineApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/fixed-point-timeline$/);
