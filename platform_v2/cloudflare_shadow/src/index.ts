@@ -7,6 +7,12 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import {
+  normalizeOtayoriStatus,
+  renderOtayoriPage,
+  shouldNotifyOtayoriStatus,
+  type OtayoriLetterRow,
+} from "./otayori";
+import {
   handleNocosilOutcomeUsageApi,
   listNocosilOutcomeUsagesForPlace,
   listNocosilOutcomeUsagesForRecord,
@@ -3634,6 +3640,21 @@ export const worker = {
       const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
       if (request.method === "POST" && observationActionMatch?.[1]) {
         return handleObservationFirstRecordAction(decodeURIComponent(observationActionMatch[1]), request, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
+        return handleOtayoriPageRequest(request, url, env);
+      }
+      if (request.method === "POST" && url.pathname === "/api/v1/otayori") {
+        return handleCreateOtayoriRequest(request, env);
+      }
+      const otayoriGetMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)$/);
+      if (request.method === "GET" && otayoriGetMatch?.[1]) {
+        return handleGetOtayoriRequest(request, env, decodeURIComponent(otayoriGetMatch[1]));
+      }
+      const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
+      if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
+        return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
@@ -37349,4 +37370,138 @@ function buildSessionCookie(rawToken: string, expiresAt: string, env: Env, ttlSe
 function buildClearedSessionCookie(env: Env): string {
   const secure = secureCookieAttribute(env);
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+async function ensureOtayoriTable(db: D1Database): Promise<void> {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS zukan_otayori_letters (
+      letter_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      body TEXT NOT NULL,
+      page_path TEXT NOT NULL,
+      status TEXT NOT NULL,
+      reply_text TEXT,
+      replied_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`
+  ).run();
+}
+
+async function handleOtayoriPageRequest(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  let letters: OtayoriLetterRow[] = [];
+  if (session && !session.banned) {
+    try {
+      await ensureOtayoriTable(env.CORE_DB);
+      const res = await env.CORE_DB.prepare(
+        `SELECT letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
+           FROM zukan_otayori_letters
+          WHERE user_id = ?
+          ORDER BY created_at DESC
+          LIMIT 50`
+      ).bind(session.userId).all<OtayoriLetterRow>();
+      letters = res.results ?? [];
+    } catch {
+      letters = [];
+    }
+  }
+  return html(
+    renderOtayoriPage({
+      lang,
+      authenticated: Boolean(session && !session.banned),
+      letters,
+      fromPath: url.searchParams.get("from") ?? "/",
+    }),
+    200,
+    { "cache-control": "private, no-store" }
+  );
+}
+
+async function handleCreateOtayoriRequest(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  const contentType = request.headers.get("content-type") ?? "";
+  let rawBody = "";
+  let rawPath = "/";
+  if (contentType.includes("application/json")) {
+    const parsed = await readJson<{ body?: unknown; pagePath?: unknown }>(request);
+    rawBody = typeof parsed.body === "string" ? parsed.body.trim() : "";
+    rawPath = typeof parsed.pagePath === "string" && parsed.pagePath.startsWith("/") ? parsed.pagePath.slice(0, 200) : "/";
+  } else {
+    const form = await request.formData().catch(() => null);
+    rawBody = typeof form?.get("body") === "string" ? String(form.get("body")).trim() : "";
+    const p = typeof form?.get("pagePath") === "string" ? String(form.get("pagePath")) : "/";
+    rawPath = p.startsWith("/") ? p.slice(0, 200) : "/";
+  }
+  if (!rawBody || rawBody.length > 1000) {
+    return json({ ok: false, error: "invalid_body" }, 400, { "cache-control": "no-store" });
+  }
+  await ensureOtayoriTable(env.CORE_DB);
+  const letterId = `otayori_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const senderName = session.displayName || session.userId;
+  await env.CORE_DB.prepare(
+    `INSERT INTO zukan_otayori_letters (
+      letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 'received', NULL, NULL, ?, ?)`
+  ).bind(letterId, session.userId, senderName, rawBody, rawPath, now, now).run();
+  return json({ ok: true, letterId, status: "received", notifyUser: false }, 201, { "cache-control": "no-store" });
+}
+
+async function handleGetOtayoriRequest(request: Request, env: Env, letterId: string): Promise<Response> {
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  await ensureOtayoriTable(env.CORE_DB);
+  const row = await env.CORE_DB.prepare(
+    `SELECT letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
+       FROM zukan_otayori_letters
+      WHERE letter_id = ?
+      LIMIT 1`
+  ).bind(letterId).first<OtayoriLetterRow>();
+  if (!row) return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  if (row.user_id !== session.userId && !isSpecialistAuthorityAdminRole(session)) {
+    return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
+  return json({ ok: true, letter: row }, 200, { "cache-control": "no-store" });
+}
+
+async function handleUpdateOtayoriStatusRequest(request: Request, env: Env, letterId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (!isSpecialistAuthorityAdminRole(session)) {
+    return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
+  const body = await readJson<{ status?: unknown; replyText?: unknown }>(request);
+  const nextStatus = normalizeOtayoriStatus(body.status ?? (typeof body.replyText === "string" ? "replied" : ""));
+  if (!nextStatus) {
+    return json({ ok: false, error: "invalid_status" }, 400, { "cache-control": "no-store" });
+  }
+  await ensureOtayoriTable(env.CORE_DB);
+  const existing = await env.CORE_DB.prepare(
+    "SELECT letter_id, user_id, reply_text, replied_at FROM zukan_otayori_letters WHERE letter_id = ? LIMIT 1"
+  ).bind(letterId).first<{ letter_id: string; user_id: string; reply_text: string | null; replied_at: string | null }>();
+  if (!existing) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const now = new Date().toISOString();
+  const replyText = typeof body.replyText === "string" ? body.replyText.trim().slice(0, 2000) : existing.reply_text;
+  const notifyUser = shouldNotifyOtayoriStatus(nextStatus);
+  const repliedAt = notifyUser ? now : existing.replied_at;
+  await env.CORE_DB.prepare(
+    "UPDATE zukan_otayori_letters SET status = ?, reply_text = ?, replied_at = ?, updated_at = ? WHERE letter_id = ?"
+  ).bind(nextStatus, replyText, repliedAt, now, letterId).run();
+  return json({ ok: true, letterId, status: nextStatus, notifyUser }, 200, { "cache-control": "no-store" });
 }
