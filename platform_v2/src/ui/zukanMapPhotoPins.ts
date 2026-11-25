@@ -92,7 +92,7 @@ function addPins(){
   if(!m||!window.maplibregl||typeof m.getCanvas!=='function'){return false}
   places.forEach(function(p){if(markers[p.placeId]||typeof p.lat!=='number'||typeof p.lng!=='number')return;markers[p.placeId]=new window.maplibregl.Marker({element:pinEl(p),anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(m)});
   render();
-  try{var bd=m.getBounds(),vis=places.some(function(p){return typeof p.lat==='number'&&bd.contains([p.lng,p.lat])});
+  try{var bd=m.getBounds(),mob0=window.innerWidth<960,ch=m.getContainer().clientHeight,vis=places.some(function(p){if(typeof p.lat!=='number'||!bd.contains([p.lng,p.lat]))return false;return !(mob0&&m.project([p.lng,p.lat]).y>ch*0.58)});
   if(!vis){var bb=new window.maplibregl.LngLatBounds();places.forEach(function(p){if(typeof p.lat==='number')bb.extend([p.lng,p.lat])});var mob=window.innerWidth<960;m.fitBounds(bb,{padding:{top:80,left:40,right:40,bottom:mob?Math.round(window.innerHeight*0.42):60},maxZoom:15,duration:0})}}catch(_){}
   if(typeof m.resize==='function')setTimeout(function(){m.resize()},60);
   return true;
