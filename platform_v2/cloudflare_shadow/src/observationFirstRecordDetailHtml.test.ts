@@ -57,7 +57,7 @@ test("detection presentation is derived only from durable assessment facts", () 
 });
 
 test("authenticated detail can carry the private Saved control without changing record meaning", () => {
-  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
     title: "庭の観察",
     observedLabel: "2026年7月22日 18:00",
     note: null,
@@ -1392,7 +1392,8 @@ test("record detail shows owner title edit form and role-based provenance withou
     media: [],
     actionNonce: "nonce-roles",
   });
-  assert.match(ownerHtml, /class="of-title-edit"/);
+  assert.match(ownerHtml, /data-title-edit/);
+  assert.doesNotMatch(ownerHtml, /class="of-title-edit"/);
   assert.match(ownerHtml, /name="action" value="set_title"/);
   assert.match(ownerHtml, /記録した人が確認/);
   assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
@@ -1618,6 +1619,82 @@ test("multi-photo record keeps per-photo switching with a counter chip", () => {
     ],
   });
   assert.match(html, /data-of-counter data-template="写真 \{n\} \/ 2">写真 1 \/ 2<\/span>/);
-  assert.match(html, /<nav class="of-media-nav"/);
+  assert.match(html, /<nav class="of-media-switch"/);
   assert.equal((html.match(/class="of-media-slide"/g) ?? []).length, 2);
+});
+
+const savedFixture = { savedControlHtml: '<div class="of-saved-control"><button type="button" class="zs-control" data-zukan-save aria-pressed="false"><span>保存</span></button></div>', savedScriptHtml: "<script>window.savedFixture=1;</script>" };
+const threePhotos = [
+  { mediaId: "m1", mediaKind: "photo" as const, url: "https://media.example/1.jpg" },
+  { mediaId: "m2", mediaKind: "photo" as const, url: "https://media.example/2.jpg" },
+  { mediaId: "m3", mediaKind: "photo" as const, url: "https://media.example/3.jpg" },
+];
+const blurOnlyPlace = "位置をぼかしています";
+
+test("own multi-photo record has no bookmark, pencil, status card or duplicate blur line at the top", () => {
+  const html = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, {
+    ...mockPresentation, ...savedFixture, viewerAuthenticated: true, media: threePhotos, publicLocationLabel: blurOnlyPlace,
+    processingMessage: null, processingStatusPanel: null,
+  });
+  const main = mainOf(html);
+  assert.doesNotMatch(main, /data-zukan-save|of-fab-save|of-saved-control/);
+  assert.doesNotMatch(html, /savedFixture/);
+  assert.doesNotMatch(main, /of-title-edit|この記録の状態|obs-processing-status|AIの候補を見る|data-observation-processing-status/);
+  assert.doesNotMatch(main.split('<details class="of-reading')[0]!, /位置をぼかしています/);
+  assert.doesNotMatch(main, /of-meta-place/);
+  assert.match(main, /<p class="of-meta-date">2026年9月18日（金）15:20 ・ 写真 3枚<\/p>/);
+  assert.match(main, /<h1>アオサギの記録<\/h1>/);
+  const manage = main.match(/<details class="of-manage[\s\S]*<\/details>/)?.[0] ?? "";
+  assert.match(manage, /data-title-edit/);
+  assert.match(manage, /name="action" value="set_title"/);
+});
+
+test("pending processing status still shows for the owner", () => {
+  const html = renderMain({ ...detail, owner: true }, {
+    ...mockPresentation, viewerAuthenticated: true, media: threePhotos,
+    processingMessage: "写真からわかることを調べています。", processingStatusPanel: '<section data-observation-processing-status>調べています</section>',
+  });
+  assert.match(html, /data-observation-processing-status/);
+  assert.match(html, /写真からわかることを調べています。/);
+});
+
+test("someone else's record carries the bookmark only as a small icon next to share in the photo corner", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, ...savedFixture, viewerAuthenticated: true, media: threePhotos });
+  assert.equal((html.match(/data-zukan-save/g) ?? []).length, 1);
+  const share = html.indexOf("of-fab-share");
+  const save = html.indexOf("of-fab-save");
+  const frameEnd = html.indexOf('class="of-panel"');
+  assert.ok(share >= 0 && save > share && save < frameEnd, JSON.stringify([share, save, frameEnd]));
+  assert.doesNotMatch(html, /<div class="of-actions">/);
+  assert.match(html, /data-record-visibility>公開<\/span>/);
+  assert.doesNotMatch(html, /この記録の状態|of-title-edit|data-owner-visibility/);
+});
+
+test("logged-out viewer gets no bookmark and no status card", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, viewerAuthenticated: false, media: threePhotos });
+  assert.doesNotMatch(html, /data-zukan-save|of-fab-save|この記録の状態|of-title-edit/);
+  assert.match(html, /of-fab-share/);
+});
+
+test("photo switcher uses thumbnails with explicit colors and never the visited-link default", () => {
+  const full = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, media: threePhotos });
+  const switcher = full.match(/<nav class="of-media-switch"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  assert.equal((switcher.match(/<a class="of-thumb"/g) ?? []).length, 3);
+  assert.equal((switcher.match(/<img src="https:\/\/media\.example\/[123]\.jpg"/g) ?? []).length, 3);
+  assert.doesNotMatch(switcher, /<a href=/);
+  assert.match(switcher, /<a class="of-thumb" href="#record-media-1" data-of-thumb="0" aria-label="写真 1" aria-current="true">/);
+  assert.doesNotMatch(full, /class="of-media-nav"/);
+  assert.match(full, /a\.of-thumb:visited\{[^}]*color:var\(--zukan-text-primary\)/);
+  assert.match(full, /:is\(\.of-page,\.of-header\) a:not\(\[class\],\[aria-current\]\):visited\{color:var\(--zukan-link\)\}/);
+  assert.doesNotMatch(full, /purple|#551a8b/i);
+  const single = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true });
+  assert.doesNotMatch(single, /<nav class="of-media-switch"|写真 \d+枚/);
+});
+
+test("own record order: photo, title, date, thumbnails, found, note, band, place, nearby, button, settings", () => {
+  const html = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, media: threePhotos });
+  const marks = ['class="of-media-stage"', "<h1>", 'class="of-meta-date"', 'class="of-media-switch"', 'id="of-summary-title"', "data-ai-feedback", "data-count-band", 'id="of-environment-title"', 'id="of-related-title"', 'class="of-bottom-actions"', 'id="manage"'];
+  const at = marks.map((mark) => html.indexOf(mark));
+  assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
+  assert.deepEqual([...at].sort((a, b) => a - b), at);
 });

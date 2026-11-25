@@ -358,6 +358,7 @@ import {
   publicObservationAiRecordClass,
 } from "./publicObservationAiPresentation";
 import {
+  isObservationProcessingPending,
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
@@ -26278,8 +26279,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
         actionNonce: crypto.randomUUID(),
-        processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
-        processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
+        processingMessage: recordLang === "ja" && ownerStatus && isObservationProcessingPending(ownerStatus) ? ownerStatus.message : null,
+        processingStatusPanel: ownerStatus && isObservationProcessingPending(ownerStatus) ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         aiFeedback: detail.feedback,
         customTitle,
         signboardTitle,

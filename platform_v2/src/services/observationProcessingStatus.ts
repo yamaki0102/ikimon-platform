@@ -73,6 +73,13 @@ function safeObservationHref(id: string, suffix = ""): string {
   return `/observations/${encodeURIComponent(id)}${suffix}`;
 }
 
+export function isObservationProcessingPending(status: Pick<ObservationProcessingStatus, "mediaState" | "aiState">): boolean {
+  return status.mediaState !== "ready"
+    || status.aiState === "queued"
+    || status.aiState === "processing"
+    || status.aiState === "failed_retryable";
+}
+
 export function deriveObservationProcessingStatus(facts: ObservationProcessingFacts): ObservationProcessingStatus {
   const latestJob = normalizedStatus(facts.latestMediaJobStatus);
   const requestStatus = normalizedStatus(facts.aiRequestStatus);

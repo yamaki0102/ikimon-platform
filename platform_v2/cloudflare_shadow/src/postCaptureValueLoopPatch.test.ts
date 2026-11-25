@@ -153,3 +153,9 @@ test("missing CSP nonce fails closed without generating an executable inline han
   assert.equal(patched, dynamicDetailHtml);
   assert.doesNotMatch(patched, /data-ikimon-post-capture-value-loop="v1"/u);
 });
+
+test("owner status panel stays hidden unless processing is pending or the page is the capture return", () => {
+  const patched = applyPostCaptureValueLoopPatch(detailHtml, "abc123");
+  assert.match(patched, /if \(!isCaptureReturn\(\) && !isPendingStatus\(status\)\) \{\s*panel\.hidden = true;\s*panel\.replaceChildren\(\);\s*return;/u);
+  assert.match(patched, /status\.mediaState !== 'ready' \|\| status\.aiState === 'queued' \|\| status\.aiState === 'processing' \|\| status\.aiState === 'failed_retryable'/u);
+});
