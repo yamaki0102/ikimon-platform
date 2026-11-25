@@ -42,35 +42,29 @@ export async function handleProfilePublicSettingsRoute(
   }
 
   const isPublic = await isUserProfilePublic(db, session.userId);
-  const bodyHtml = `<style>${ZUKAN_SUBPAGE_CSS}</style><section class="zt-sp" data-profile-view="i10-pub">
+  const bodyHtml = `<style>${ZUKAN_SUBPAGE_CSS}.zt-pv-opts{display:grid;gap:4px}.zt-pv-opt{display:flex;gap:14px;align-items:flex-start;min-height:56px;padding:12px 0;border-bottom:1px solid #dde2dc}.zt-pv-opt input{width:24px;height:24px;margin-top:2px;accent-color:#143F2E;flex:none}.zt-pv-opt span{display:grid;gap:2px}.zt-pv-opt small{color:#55615a;line-height:1.6}</style><section class="zt-sp" data-profile-view="i10-pub">
     ${renderSubpageHeader({ title: isEn ? "Who can see this" : "公開の範囲", backHref: `${prefix}/profile/settings/edit`, backLabel: isEn ? "Back" : "戻る" })}
-    <p class="zt-sp-lead">${
-      isEn
-        ? "Your profile is private by default. When public, only your public record count, listed species, and recorded places are shown."
-        : "既定は非公開です。公開にすると「公開中の記録」「図鑑に掲載」「記録した場所」の3つの数字だけが表示されます。"
-    }</p>
+    <h2 class="zt-sp-title" style="font-size:1.125rem;margin:8px 0 0">${isEn ? "Profile" : "プロフィール"}</h2>
+    <div class="zt-pv-opts" role="radiogroup" aria-label="${isEn ? "Profile visibility" : "プロフィールの公開"}">
+      <label class="zt-pv-opt"><input type="radio" name="profile-vis" value="false" data-profile-vis-option${isPublic ? "" : " checked"}><span><strong>${isEn ? "Keep private" : "非公開にする"}</strong><small>${isEn ? "Your field name and records are not visible to others." : "フィールドネームも記録も、ほかの人には見えません。"}</small></span></label>
+      <label class="zt-pv-opt"><input type="radio" name="profile-vis" value="true" data-profile-vis-option${isPublic ? " checked" : ""}><span><strong>${isEn ? "Make public" : "公開する"}</strong><small>${isEn ? "Others see only three numbers: public records, listed species, and recorded places." : "「公開中の記録」「図鑑に掲載」「記録した場所」の3つの数字だけが、ほかの人に見えます。"}</small></span></label>
+    </div>
+    <p class="zt-sp-text" style="background:#f4f6f3;border-radius:14px;padding:14px">${isEn ? "Only your field name is used; your real name is never registered. Even when private, you can list records on place pages. Your name is not shown then." : "名前はフィールドネームだけを使います。本名は登録もしません。非公開でも、図鑑や場所のページに記録を載せることはできます。そのとき名前は出ません。"}</p>
     <p class="zt-sp-text">${isEn ? "Current status" : "現在の設定"}: <strong id="profile-vis-label">${
       isPublic ? (isEn ? "Public" : "公開中") : (isEn ? "Private (default)" : "非公開（既定）")
     }</strong></p>
-    <button type="button" class="zt-sp-primary" id="profile-vis-toggle" data-next-public="${isPublic ? "false" : "true"}">${
-      isPublic
-        ? (isEn ? "Switch to private" : "非公開にする")
-        : (isEn ? "Make profile public" : "プロフィールを公開する")
-    }</button>
     <a class="zt-sp-secondary" href="${escapeHtml(`${prefix}/u/${encodeURIComponent(session.userId)}`)}">${isEn ? "Preview public view" : "他人から見た表示を確認"}</a>
     <script>
       (() => {
-        const btn = document.getElementById("profile-vis-toggle");
-        if (!btn) return;
-        btn.addEventListener("click", async () => {
-          const nextPublic = btn.getAttribute("data-next-public") === "true";
+        const opts = document.querySelectorAll("[data-profile-vis-option]");
+        opts.forEach((o) => o.addEventListener("change", async () => {
           const res = await fetch("/api/v1/profile/visibility", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ isPublic: nextPublic }),
+            body: JSON.stringify({ isPublic: o.value === "true" }),
           });
           if (res.ok) location.reload();
-        });
+        }));
       })();
     </script>
   </section>`;

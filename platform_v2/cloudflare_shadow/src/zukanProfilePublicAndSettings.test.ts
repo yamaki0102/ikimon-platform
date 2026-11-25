@@ -78,7 +78,12 @@ test("profile visibility defaults to private (P2), toggles via 401-guarded POST,
   // Settings page (I10/PUB)
   const settingsRes = await handleProfilePublicSettingsRoute("ja", { userId: "u-1", displayName: "タロウ", banned: false }, db);
   assert.equal(settingsRes.status, 200);
-  assert.match(await settingsRes.text(), /data-profile-view="i10-pub"/);
+  const settingsHtml = await settingsRes.text();
+  assert.match(settingsHtml, /data-profile-view="i10-pub"/);
+  assert.match(settingsHtml, /非公開にする/);
+  assert.match(settingsHtml, /公開する/);
+  assert.match(settingsHtml, /type="radio"[^>]*value="false"[^>]*checked/);
+  assert.match(settingsHtml, /名前はフィールドネームだけを使います/);
 
   // Enable public profile (client userId ignored)
   const okPost = await handleUpdateProfileVisibility(
