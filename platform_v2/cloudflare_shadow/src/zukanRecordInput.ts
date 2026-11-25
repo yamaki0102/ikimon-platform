@@ -78,12 +78,7 @@ export function renderRecordVoiceButtonHtml(options: {
 export const ZUKAN_RECORD_INPUT_SCRIPT = `
   (() => {
     const mode = new URLSearchParams(location.search).get("mode") || "standard";
-    const form = document.getElementById("record-form");
-    const submitPanel = document.getElementById("record-submit-panel");
-    if ((mode === "memo" || mode === "voice") && form) {
-      form.hidden = false;
-      if (submitPanel) submitPanel.hidden = false;
-    }
+    if (mode === "memo" || mode === "voice") window.__ztMemoOpenMode = mode;
     const statusEl = document.getElementById("record-voice-status");
     const micButtons = document.querySelectorAll("[data-voice-mic-target]");
     let activeRecorder = null;

@@ -396,6 +396,9 @@ const INJECTED_SCRIPT = String.raw`
   var isCaptureReturn = function () {
     try { return new URLSearchParams(location.search).get('source') === CAPTURE_SOURCE; } catch (_) { return false; }
   };
+  var isPendingStatus = function (status) {
+    return status.mediaState !== 'ready' || status.aiState === 'queued' || status.aiState === 'processing' || status.aiState === 'failed_retryable';
+  };
   var createState = function (label, value) {
     var item = document.createElement('div');
     item.className = 'ikimon-record-value-loop__state';
@@ -423,6 +426,11 @@ const INJECTED_SCRIPT = String.raw`
   var renderPanel = function (status) {
     var panel = ensurePanel();
     if (!panel || !status) return;
+    if (!isCaptureReturn() && !isPendingStatus(status)) {
+      panel.hidden = true;
+      panel.replaceChildren();
+      return;
+    }
     panel.removeAttribute('data-compact');
     panel.replaceChildren();
 
@@ -511,7 +519,7 @@ const INJECTED_SCRIPT = String.raw`
     }, isCaptureReturn() ? 2000 : 5000);
   };
   var loadOwnerStatus = function (resetPoll) {
-    if (!detailId) return Promise.resolve();
+    if (!detailId || document.body.getAttribute('data-record-owner') === '0') return Promise.resolve();
     if (resetPoll) pollCount = 0;
     var visitId = visitIdFromTarget(detailId);
     return fetch('/api/v1/observations/' + encodeURIComponent(visitId) + '/processing-status', {

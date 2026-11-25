@@ -169,6 +169,7 @@ import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipati
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import { addDisplayRotation, exifCorrectionRotation, normalizeDisplayRotation, planDerivativeOrientation, readJpegDimensions, readJpegExifOrientation, type DisplayRotation } from "./imageOrientation";
 import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
   LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
@@ -325,9 +326,7 @@ import {
   ZUKAN_RECORD_INPUT_SCRIPT,
   ZUKAN_RECORD_INPUT_STYLES,
   handleRecordVoiceTranscribe,
-  renderRecordModeBarHtml,
   renderRecordVoiceButtonHtml,
-  resolveRecordInputMode,
 } from "./zukanRecordInput";
 import {
   handleCreateObservationShareLink,
@@ -343,7 +342,7 @@ import {
   renderRecordDoneCardHtml,
   renderRecordLinkSelectorHtml,
 } from "./zukanRecordLinkAndDone";
-import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
+import { ZUKAN_RECORD_CAPTURE_SCRIPT, ZUKAN_RECORD_ENTRY_STYLES, recordCaptureCopy, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
@@ -359,6 +358,7 @@ import {
   publicObservationAiRecordClass,
 } from "./publicObservationAiPresentation";
 import {
+  isObservationProcessingPending,
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
@@ -422,7 +422,7 @@ import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
-import { renderSiteDocument, renderRecordMacroCameraAssets, recordMacroCameraLabel } from "../../src/ui/siteShell";
+import { renderSiteDocument, renderRecordCaptureEngineAssets, recordCaptureCameraCopy } from "../../src/ui/siteShell";
 import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, claimObservationEventGuestParticipant, findObservationEventParticipant, generateNativeObservationEventQuests, getObservationEventSessionById, mapObservationEventSession, observationEventGuestCredentialDigest, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventServerFunnelMetric, type ObservationEventSessionD1Row } from "./programs/runtime";
@@ -22813,6 +22813,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       failed: "The photo is not saved yet. Keep it selected and try saving again."
     };
   const startMode = url.searchParams.get("start") === "video" ? "video" : "photo";
+  const captureEngineLang = lang === "pt-br" ? "pt-BR" : lang;
+  const captureCopy = recordCaptureCopy(lang);
   const eventCode = safeObservationEventContextParam(url, ["event", "eventCode"], 32);
   const eventSessionId = safeObservationEventContextParam(url, ["eventSessionId"], 128);
   const eventTeamId = safeObservationEventContextParam(url, ["teamId"], 128);
@@ -22889,28 +22891,20 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
-<body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
+<body class="zt-capturing" data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
-    ${renderRecordModeBarHtml({ lang, prefix, activeMode: resolveRecordInputMode(url) })}
     ${renderRecordEntryStageHtml({
       lang,
       prefix,
-      title,
-      cameraLabel: mediaCopy.camera,
-      cameraHint: mediaCopy.cameraHint,
-      photoLabel: mediaCopy.photo,
-      photoHint: mediaCopy.photoHint,
-      videoLabel: mediaCopy.video,
-      videoHint: mediaCopy.videoHint,
-      prompt: mediaCopy.prompt,
-      privateBoundary: mediaCopy.privateBoundary,
-      macroLabel: recordMacroCameraLabel(lang === "pt-br" ? "pt-BR" : lang)
+      copy: captureCopy,
+      engineCopy: recordCaptureCameraCopy(captureEngineLang),
+      startMode,
+      voiceButtonHtml: renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })
     })}
-    ${renderRecordMacroCameraAssets("", lang === "pt-br" ? "pt-BR" : lang)}
+    ${renderRecordCaptureEngineAssets("", captureEngineLang)}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
-      <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><div class="zt-field-input-row"><textarea name="note" rows="3"></textarea>${renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })}</div><p id="record-voice-status" class="zt-voice-status" aria-live="polite"></p></label>
       ${renderRecordPlaceAndTimeHtml({
         lang,
         initialPlaceId: safeObservationEventContextParam(url, ["placeId"], 128),
@@ -22984,6 +22978,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
     function showSavedRecordLinks(visitId, resolvedPlaceId) {
+      if (typeof stageSaved === "function") stageSaved(visitId, resolvedPlaceId);
       if (!savedLinks) return;
       savedLinks.textContent = "";
       const isEn = recordPrefix === "/en";
@@ -23009,16 +23004,36 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       savedLinks.hidden = false;
     }
     function setStatus(message, error) {
+      if (typeof stageStatus === "function") stageStatus(message, error);
       if (!status) return;
       status.textContent = message;
       status.style.color = error ? "#b42318" : "";
     }
     let selectedPhotos = [];
     let photoPreviewUrls = [];
+    let capturedVideoFile = null;
     function selectedFiles() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       if (mediaKind === "photo") return selectedPhotos;
+      if (capturedVideoFile) return [capturedVideoFile];
       return input && input.files && input.files[0] ? [input.files[0]] : [];
+    }
+    function removePhotoAt(index) {
+      selectedPhotos.splice(index, 1);
+      preparedPhotoUploads.splice(index, 1);
+      renderPhotoReview();
+      if (selectedPhotos.length === 0) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+        draftRevision += 1;
+        draftWrites = draftWrites.then(async () => {
+          await deleteRecordDraft();
+          volatileDraft = false;
+          setStatus(copy.emptySelection, false);
+        }).catch(() => setStatus(copy.draftFailed, true));
+        return;
+      }
+      queueDraftSave();
     }
     function renderPhotoReview() {
       const review = document.getElementById("record-photo-review");
@@ -23036,23 +23051,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         const zoom = document.createElement("button"); zoom.type = "button"; zoom.className = "cf-record-photo-zoom"; zoom.textContent = copy.zoomPhoto;
         zoom.addEventListener("click", () => { const dialog = document.getElementById("record-photo-zoom"); const preview = dialog.querySelector("img"); preview.src = image.src; preview.alt = file.name || copy.photo; dialog.showModal(); });
         const remove = document.createElement("button"); remove.type = "button"; remove.className = "cf-record-photo-remove"; remove.textContent = "×"; remove.setAttribute("aria-label", copy.removePhoto + ": " + (file.name || (index + 1)));
-        remove.addEventListener("click", () => {
-          selectedPhotos.splice(index, 1);
-          preparedPhotoUploads.splice(index, 1);
-          renderPhotoReview();
-          if (selectedPhotos.length === 0) {
-            clearTimeout(draftTimer);
-            draftTimer = null;
-            draftRevision += 1;
-            draftWrites = draftWrites.then(async () => {
-              await deleteRecordDraft();
-              volatileDraft = false;
-              setStatus(copy.emptySelection, false);
-            }).catch(() => setStatus(copy.draftFailed, true));
-            return;
-          }
-          queueDraftSave();
-        });
+        remove.addEventListener("click", () => removePhotoAt(index));
         item.append(image, zoom, remove); grid.append(item);
       });
     }
@@ -23222,13 +23221,12 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         queueDraftSave();
       }, () => setStatus(copy.positionRequired, true), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
+    const ztCopyData = ${JSON.stringify(captureCopy)};
+    ${ZUKAN_RECORD_CAPTURE_SCRIPT}
     function reveal(kind) {
       mediaKind = kind;
-      if (form) form.hidden = false;
-      if (submitPanel) submitPanel.hidden = false;
-      setStatus(copy.statusReady, false);
+      stageSync();
       queueDraftSave();
-      renderPhotoReview();
     }
     function eventMetric(eventName, values = {}) {
       if (!eventContext.eventSessionId) return Promise.resolve();
@@ -23256,6 +23254,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       return "unknown";
     }
     function addPhotoFiles(input) {
+      if (submitting || submitRequested || serverSaved) return;
       const incoming = input && input.files ? Array.from(input.files).filter(file => file instanceof File && file.size > 0) : [];
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";
@@ -23334,7 +23333,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         return;
       }
       const explicitObservedAtMs = new Date(String(formData.get("observedAtLocal") || "")).getTime();
-      try { if (!await claimDraft(true)) return; } catch { setStatus(copy.draftFailed, true); return; }
+      try { if (!await claimDraft(true)) { setStatus(copy.draftFailed, true); return; } } catch { setStatus(copy.draftFailed, true); return; }
       submitting = true;
       confirmDialog.close();
       document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = true);
@@ -23414,7 +23413,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-          showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
+          showSavedRecordLinks(visitId, (observation && observation.placeId) || initialPlaceId);
           setStatus(copy.saved + " " + files.length + copy.photoSaved, false);
           return;
         }
@@ -23468,7 +23467,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-        showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
+        showSavedRecordLinks(visitId, (observation && observation.placeId) || initialPlaceId);
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         submitting = false;
@@ -26323,6 +26322,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
+        titleStatus: detail.displayNameStatus,
         recordClass: recordClassOut.value,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
@@ -26347,8 +26347,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
         actionNonce: crypto.randomUUID(),
-        processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
-        processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
+        processingMessage: recordLang === "ja" && ownerStatus && isObservationProcessingPending(ownerStatus) ? ownerStatus.message : null,
+        processingStatusPanel: ownerStatus && isObservationProcessingPending(ownerStatus) ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         aiFeedback: detail.feedback,
         customTitle,
         signboardTitle,
@@ -26593,6 +26593,35 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (action === "reset_title") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     await env.ASSET_BUCKET?.delete(`record-title/${recordId}.json`);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
+  if (action === "rotate_media") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const degrees = Number(form.get("degrees") ?? 90);
+    if (![90, 180, 270].includes(degrees)) return json({ ok: false, error: "media_rotation_input_invalid" }, 400, { "cache-control": "no-store" });
+    const mediaAsset = await env.OBS_DB.prepare(
+      `SELECT a.asset_id, a.object_key, a.sha256, a.mime, r.rotation AS display_rotation, a.public_derivative_metadata_json
+         FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id
+        WHERE a.asset_id = ? AND a.observation_id = ? AND a.owner_user_id = ? AND a.mime LIKE 'image/%' LIMIT 1`
+    ).bind(String(form.get("media_id") ?? ""), recordId, session.userId)
+      .first<UploadedAssetRow & { display_rotation: number | null; public_derivative_metadata_json: string | null }>();
+    if (!mediaAsset) return json({ ok: false, error: "media_rotation_target_invalid" }, 400, { "cache-control": "no-store" });
+    const previousRotation = normalizeDisplayRotation(mediaAsset.display_rotation);
+    const saveRotation = (rotation: number) => env.OBS_DB.prepare(
+      "INSERT INTO asset_display_rotation (asset_id, rotation, updated_at) VALUES (?, ?, ?) ON CONFLICT(asset_id) DO UPDATE SET rotation = excluded.rotation, updated_at = excluded.updated_at"
+    ).bind(mediaAsset.asset_id, rotation, new Date().toISOString()).run();
+    await saveRotation(addDisplayRotation(previousRotation, degrees));
+    let priorFacePrivacy: string | null = null;
+    try {
+      const parsed: unknown = JSON.parse(mediaAsset.public_derivative_metadata_json ?? "");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorFacePrivacy = facePrivacyStatusFromMetadata(parsed as Record<string, unknown>);
+    } catch { /* metadata absent */ }
+    const rebuilt = await createRealPublicImageDerivative(mediaAsset, env, { preserveExistingOnFailure: true, priorFacePrivacy }).catch(() => false);
+    if (!rebuilt) {
+      await saveRotation(previousRotation);
+      return json({ ok: false, error: "media_rotation_failed" }, 502, { "cache-control": "no-store" });
+    }
+    await refreshPublicReadmodel(recordId, env);
     return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
   }
   if (action === "add") {
@@ -26898,6 +26927,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
+  let displayNameStatus: "confirmed" | "proposed" = "confirmed";
   if (!effectiveTaxonLabel) {
     const cardMeta = await queryPublicMapCardMeta(env, [visitId]).catch(() => new Map<string, PublicMapCardMeta>());
     const sharedTaxonLabel = cardMeta.get(visitId)?.taxonLabel ?? null;
@@ -26925,6 +26955,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     ).bind(`occ:${visitId}:0`, visitId).first<{ proposed_name: string | null }>().catch(() => null);
     if (!isWeakTaxonLabel(idRow?.proposed_name ?? null)) {
       effectiveTaxonLabel = idRow!.proposed_name!;
+      displayNameStatus = "proposed";
     }
   }
   if (!effectiveTaxonLabel) {
@@ -26971,6 +27002,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
     displayName,
+    displayNameStatus,
     isAwaitingId,
     aiPersonPrimaryNames,
     aiCandidateLabel,
@@ -35102,17 +35134,27 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const originalWidth = Number(originalInfo.width ?? 0);
-  const targetWidth = Number.isFinite(originalWidth) && originalWidth > 0
-    ? Math.min(originalWidth, 1600)
-    : 1600;
+  const originalView = new Uint8Array(originalBytes);
+  const exifOrientation = readJpegExifOrientation(originalView);
+  const rawSize = readJpegDimensions(originalView) ?? { width: Number(originalInfo.width ?? 0), height: Number(originalInfo.height ?? 0) };
+  const rotationRow = await env.OBS_DB.prepare("SELECT a.asset_id, r.rotation AS display_rotation FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id WHERE a.asset_id = ?")
+    .bind(asset.asset_id).first<{ display_rotation: number | null }>().catch(() => null);
+  const displayRotation = normalizeDisplayRotation(rotationRow?.display_rotation);
+  const orientationPlan = planDerivativeOrientation({
+    rawWidth: rawSize.width,
+    rawHeight: rawSize.height,
+    exifOrientation,
+    displayRotation,
+    maxWidth: 1600,
+  });
+  const runTransform = (rotate: DisplayRotation): Promise<ImagesOutput> => images
+    .input(new Response(originalBytes.slice(0)).body!)
+    .transform({ width: orientationPlan.targetWidth, ...(rotate ? { rotate } : {}) })
+    .output({ format: "image/webp", quality: 82, anim: false });
 
   let output: ImagesOutput;
   try {
-    output = await images
-      .input(new Response(originalBytes.slice(0)).body!)
-      .transform({ width: targetWidth })
-      .output({ format: "image/webp", quality: 82, anim: false });
+    output = await runTransform(orientationPlan.rotate);
   } catch (error) {
     await markFailed("image_transform_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
@@ -35133,13 +35175,13 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const derivativeBody = await outputResponse.arrayBuffer();
+  let derivativeBody = await outputResponse.arrayBuffer();
   if (derivativeBody.byteLength === 0) {
     await markFailed("image_transform_empty_output");
     return false;
   }
 
-  const metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
+  let metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
   let derivativeInfo: ImagesInfo = {};
   try {
     derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
@@ -35150,8 +35192,36 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
+  let appliedRotation: DisplayRotation = orientationPlan.rotate;
+  const correctionRotate = exifCorrectionRotation({
+    exifOrientation,
+    displayRotation,
+    expectLandscape: orientationPlan.expectLandscape,
+    derivativeWidth: Number(derivativeInfo.width ?? 0),
+    derivativeHeight: Number(derivativeInfo.height ?? 0),
+  });
+  if (correctionRotate !== null) {
+    try {
+      const corrected = (await runTransform(correctionRotate)).response();
+      const correctedBody = corrected.ok ? await corrected.arrayBuffer() : null;
+      if (correctedBody && correctedBody.byteLength > 0) {
+        const correctedInspection = inspectPublicDerivativeMetadata(correctedBody, contentType);
+        const correctedInfo = await images.info(new Response(correctedBody.slice(0)).body!);
+        derivativeBody = correctedBody;
+        metadataInspection = correctedInspection;
+        derivativeInfo = correctedInfo;
+        appliedRotation = correctionRotate;
+      }
+    } catch (error) {
+      console.warn("[media-derivative] orientation correction skipped", asset.asset_id, error);
+    }
+  }
+
   const verifiedMetadata = {
     ...metadataInspection,
+    sourceOrientation: exifOrientation,
+    displayRotation,
+    appliedRotation,
     tool: "cloudflare-images-public-derivative-v1",
     sourceContentType: asset.mime,
     sourceBytes: originalBytes.byteLength,
