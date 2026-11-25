@@ -4628,7 +4628,7 @@ export const worker = {
         return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
       }
 
-      if (nativePathname === "/library/link/org-request" || nativePathname.startsWith("/library/link/request") || nativePathname === "/library/link/album") {
+      if (nativePathname === "/library/link/org-request" || nativePathname.startsWith("/library/link/request") || nativePathname.startsWith("/library/link/album")) {
         const orgLinkResponse = await handleZukanOrgLinkRoute(request, env, url, nativePathname);
         if (orgLinkResponse) return orgLinkResponse;
       }
