@@ -48,6 +48,10 @@ import {
   handleSetGuestObservationShareScope,
 } from "./guestEventShare";
 import {
+  handleEventDayAlbumTakeRoute,
+  handleSaveEventToPlace,
+} from "./zukanEventDayAlbumTake";
+import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
   shouldNotifyOtayoriStatus,
@@ -3876,6 +3880,20 @@ export const worker = {
             isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
           }
         );
+      }
+
+      const eventSaveToPlaceMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/save-to-place$/);
+      if (request.method === "POST" && eventSaveToPlaceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveEventToPlace(decodeURIComponent(eventSaveToPlaceMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventDayAlbumTakeMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(day|album|take)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDayAlbumTakeMatch?.[2] && eventDayAlbumTakeMatch?.[3]) {
+        const viewLang = (eventDayAlbumTakeMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
       }
 
       const guestEntryMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/guest\/(place|event)\/([^/]+)$/);
