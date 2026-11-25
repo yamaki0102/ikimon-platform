@@ -168,6 +168,7 @@ import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipati
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import { addDisplayRotation, exifCorrectionRotation, normalizeDisplayRotation, planDerivativeOrientation, readJpegDimensions, readJpegExifOrientation, type DisplayRotation } from "./imageOrientation";
 import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
   LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
@@ -26252,6 +26253,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
+        titleStatus: detail.displayNameStatus,
         recordClass: recordClassOut.value,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
@@ -26522,6 +26524,33 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (action === "reset_title") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     await env.ASSET_BUCKET?.delete(`record-title/${recordId}.json`);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
+  if (action === "rotate_media") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const degrees = Number(form.get("degrees") ?? 90);
+    if (![90, 180, 270].includes(degrees)) return json({ ok: false, error: "media_rotation_input_invalid" }, 400, { "cache-control": "no-store" });
+    const mediaAsset = await env.OBS_DB.prepare(
+      `SELECT asset_id, object_key, sha256, mime, display_rotation, public_derivative_metadata_json
+         FROM asset_ledger
+        WHERE asset_id = ? AND observation_id = ? AND owner_user_id = ? AND mime LIKE 'image/%' LIMIT 1`
+    ).bind(String(form.get("media_id") ?? ""), recordId, session.userId)
+      .first<UploadedAssetRow & { display_rotation: number | null; public_derivative_metadata_json: string | null }>();
+    if (!mediaAsset) return json({ ok: false, error: "media_rotation_target_invalid" }, 400, { "cache-control": "no-store" });
+    const previousRotation = normalizeDisplayRotation(mediaAsset.display_rotation);
+    await env.OBS_DB.prepare("UPDATE asset_ledger SET display_rotation = ? WHERE asset_id = ?")
+      .bind(addDisplayRotation(previousRotation, degrees), mediaAsset.asset_id).run();
+    let priorFacePrivacy: string | null = null;
+    try {
+      const parsed: unknown = JSON.parse(mediaAsset.public_derivative_metadata_json ?? "");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorFacePrivacy = facePrivacyStatusFromMetadata(parsed as Record<string, unknown>);
+    } catch { /* metadata absent */ }
+    const rebuilt = await createRealPublicImageDerivative(mediaAsset, env, { preserveExistingOnFailure: true, priorFacePrivacy }).catch(() => false);
+    if (!rebuilt) {
+      await env.OBS_DB.prepare("UPDATE asset_ledger SET display_rotation = ? WHERE asset_id = ?").bind(previousRotation, mediaAsset.asset_id).run();
+      return json({ ok: false, error: "media_rotation_failed" }, 502, { "cache-control": "no-store" });
+    }
+    await refreshPublicReadmodel(recordId, env);
     return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
   }
   if (action === "add") {
@@ -26827,6 +26856,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
+  let displayNameStatus: "confirmed" | "proposed" = "confirmed";
   if (!effectiveTaxonLabel) {
     const cardMeta = await queryPublicMapCardMeta(env, [visitId]).catch(() => new Map<string, PublicMapCardMeta>());
     const sharedTaxonLabel = cardMeta.get(visitId)?.taxonLabel ?? null;
@@ -26854,6 +26884,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     ).bind(`occ:${visitId}:0`, visitId).first<{ proposed_name: string | null }>().catch(() => null);
     if (!isWeakTaxonLabel(idRow?.proposed_name ?? null)) {
       effectiveTaxonLabel = idRow!.proposed_name!;
+      displayNameStatus = "proposed";
     }
   }
   if (!effectiveTaxonLabel) {
@@ -26900,6 +26931,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
     displayName,
+    displayNameStatus,
     isAwaitingId,
     aiPersonPrimaryNames,
     aiCandidateLabel,
@@ -35031,17 +35063,27 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const originalWidth = Number(originalInfo.width ?? 0);
-  const targetWidth = Number.isFinite(originalWidth) && originalWidth > 0
-    ? Math.min(originalWidth, 1600)
-    : 1600;
+  const originalView = new Uint8Array(originalBytes);
+  const exifOrientation = readJpegExifOrientation(originalView);
+  const rawSize = readJpegDimensions(originalView) ?? { width: Number(originalInfo.width ?? 0), height: Number(originalInfo.height ?? 0) };
+  const rotationRow = await env.OBS_DB.prepare("SELECT display_rotation FROM asset_ledger WHERE asset_id = ?")
+    .bind(asset.asset_id).first<{ display_rotation: number | null }>().catch(() => null);
+  const displayRotation = normalizeDisplayRotation(rotationRow?.display_rotation);
+  const orientationPlan = planDerivativeOrientation({
+    rawWidth: rawSize.width,
+    rawHeight: rawSize.height,
+    exifOrientation,
+    displayRotation,
+    maxWidth: 1600,
+  });
+  const runTransform = (rotate: DisplayRotation): Promise<ImagesOutput> => images
+    .input(new Response(originalBytes.slice(0)).body!)
+    .transform({ width: orientationPlan.targetWidth, ...(rotate ? { rotate } : {}) })
+    .output({ format: "image/webp", quality: 82, anim: false });
 
   let output: ImagesOutput;
   try {
-    output = await images
-      .input(new Response(originalBytes.slice(0)).body!)
-      .transform({ width: targetWidth })
-      .output({ format: "image/webp", quality: 82, anim: false });
+    output = await runTransform(orientationPlan.rotate);
   } catch (error) {
     await markFailed("image_transform_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
@@ -35062,13 +35104,13 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const derivativeBody = await outputResponse.arrayBuffer();
+  let derivativeBody = await outputResponse.arrayBuffer();
   if (derivativeBody.byteLength === 0) {
     await markFailed("image_transform_empty_output");
     return false;
   }
 
-  const metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
+  let metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
   let derivativeInfo: ImagesInfo = {};
   try {
     derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
@@ -35079,8 +35121,36 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
+  let appliedRotation: DisplayRotation = orientationPlan.rotate;
+  const correctionRotate = exifCorrectionRotation({
+    exifOrientation,
+    displayRotation,
+    expectLandscape: orientationPlan.expectLandscape,
+    derivativeWidth: Number(derivativeInfo.width ?? 0),
+    derivativeHeight: Number(derivativeInfo.height ?? 0),
+  });
+  if (correctionRotate !== null) {
+    try {
+      const corrected = (await runTransform(correctionRotate)).response();
+      const correctedBody = corrected.ok ? await corrected.arrayBuffer() : null;
+      if (correctedBody && correctedBody.byteLength > 0) {
+        const correctedInspection = inspectPublicDerivativeMetadata(correctedBody, contentType);
+        const correctedInfo = await images.info(new Response(correctedBody.slice(0)).body!);
+        derivativeBody = correctedBody;
+        metadataInspection = correctedInspection;
+        derivativeInfo = correctedInfo;
+        appliedRotation = correctionRotate;
+      }
+    } catch (error) {
+      console.warn("[media-derivative] orientation correction skipped", asset.asset_id, error);
+    }
+  }
+
   const verifiedMetadata = {
     ...metadataInspection,
+    sourceOrientation: exifOrientation,
+    displayRotation,
+    appliedRotation,
     tool: "cloudflare-images-public-derivative-v1",
     sourceContentType: asset.mime,
     sourceBytes: originalBytes.byteLength,
