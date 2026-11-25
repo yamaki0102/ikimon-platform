@@ -1515,7 +1515,7 @@ test("signboard, object, food, and person records do not fall back to 自然の�
 test("AI note renders as one headless paragraph with the AI disclosure, slot 3 only for the owner, and never a banned phrase", () => {
   const aiNote = [
     { slot: 1 as const, text: "水面が写っているので、コサギらしい鳥が待つ場所のようすが分かります。" },
-    { slot: 2 as const, text: "足もとの面は人工の面のようです。" },
+    { slot: 2 as const, text: "足もとの面は人工の面に見えます。" },
     { slot: 3 as const, text: "次は少し離れて、場所全体も一緒に入れると、まわりの変化も残せます。" },
   ];
   const presentation = { lang: "ja" as const, title: "水辺の記録", observedLabel: "2026年11月25日", note: null, media: [], actionNonce: "nonce-ai-note", viewerAuthenticated: true, aiNote };

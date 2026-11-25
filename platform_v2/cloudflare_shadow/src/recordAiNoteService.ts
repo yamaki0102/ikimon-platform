@@ -5,8 +5,12 @@ import {
   AI_NOTE_SLOT_NUMBERS,
   DEFAULT_TAXON_NOTES,
   buildAiNoteEvidence,
+  autoCitedEvidence,
   buildAiNotePrompt,
   checkAiNoteSlot,
+  chooseInviteKind,
+  eligibleInviteKinds,
+  inviteBasisIds,
   evidenceMap,
   evidenceRefs,
   isInviteKind,
@@ -111,7 +115,21 @@ export type GenerateAiNoteInput = {
   taxonNotes?: readonly TaxonNote[];
   counts?: readonly AiNoteCountFact[];
 };
-export type GenerateAiNoteResult = { stored: AiNoteSlotNo[]; dropped: Array<{ slot: AiNoteSlotNo; failures: string[] }>; called: boolean };
+export const AI_NOTE_MAX_ATTEMPTS = 2;
+const FAILURE_HINT_JA: Record<string, string> = {
+  reveal_missing: "「〇〇が写っているので、△△が分かります。」の形にし、△△は〇〇の言い換えや曖昧語（環境・様子・特徴）、否定（入っていない）にしない",
+  length: "1文・句点は最後に1つだけ、枠1と枠2は45字以内、枠3は50字以内にする",
+  narration: "枚数・「写真に」・行動（過ごす、歩く等）の言い方を使わない",
+  hedge: "AIの読み取りの名前は「〇〇らしい鳥」の形にするか、名前を出さず「鳥」「虫」「草」「木」と書く",
+  banned: "評価・称賛・命令・英字を使わない",
+  fluency: "「ようです」を文中に入れない",
+  evidence_missing: "文に出した名前やものの記号を evidence に入れる",
+  capture_fact_missing: "写っているもの・場所のようすの記号を evidence に入れる",
+  number: "根拠一覧にない数字や数え方を使わない",
+  invite_form: "「次は〜すると、〜も残せます／〜が分かります」の形にする（近づく・巣・餌は不可）",
+  invite_kind: "決められた種類の誘いにする",
+};
+export type GenerateAiNoteResult = { stored: AiNoteSlotNo[]; dropped: Array<{ slot: AiNoteSlotNo; text: string; failures: string[] }>; called: boolean };
 
 export async function generateAndStoreAiNote(input: GenerateAiNoteInput): Promise<GenerateAiNoteResult> {
   const { db, recordId, ownerUserId } = input;
@@ -123,22 +141,35 @@ export async function generateAndStoreAiNote(input: GenerateAiNoteInput): Promis
   let called = false;
   if (!input.protectedRecord && reading.analyzed && evidence.some((item) => item.capture)) {
     const avoid = await recentInviteKinds(db, ownerUserId, recordId);
-    const { prompt, aliases } = buildAiNotePrompt({ evidence, allowInvite: true, avoidInviteKinds: avoid });
+    const inviteKind = chooseInviteKind(eligibleInviteKinds(reading), recordId, avoid);
     called = true;
-    const raw = await input.generate({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        maxOutputTokens: 1024,
-        responseMimeType: "application/json",
-        responseJsonSchema: AI_NOTE_OUTPUT_SCHEMA,
-        thinkingConfig: { thinkingLevel: "minimal" },
-      },
-    });
-    for (const draft of parseAiNoteOutput(raw, aliases)) {
-      const failures = checkAiNoteSlot(draft, map) as string[];
-      if (draft.slot === 3 && draft.invite && avoid.includes(draft.invite)) failures.push("invite_recent");
-      if (failures.length > 0) { dropped.push({ slot: draft.slot, failures }); continue; }
-      keep.set(draft.slot, { text: draft.text, refs: evidenceRefs(draft.evidence, map), invite: draft.slot === 3 && isInviteKind(draft.invite) ? draft.invite : null });
+    let feedback = "";
+    for (let attempt = 0; attempt < AI_NOTE_MAX_ATTEMPTS; attempt += 1) {
+      const { prompt, aliases } = buildAiNotePrompt({ evidence, inviteKind });
+      const raw = await input.generate({
+        contents: [{ role: "user", parts: [{ text: feedback ? `${prompt}\n${feedback}` : prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json",
+          responseJsonSchema: AI_NOTE_OUTPUT_SCHEMA,
+          thinkingConfig: { thinkingLevel: "minimal" },
+        },
+      });
+      const failed: Array<{ slot: AiNoteSlotNo; text: string; failures: string[] }> = [];
+      for (const draft of parseAiNoteOutput(raw, aliases)) {
+        if (keep.has(draft.slot)) continue;
+        if (draft.slot === 1) draft.evidence = autoCitedEvidence(draft.text, draft.evidence, evidence);
+        if (draft.slot === 3 && inviteKind) draft.evidence = [...new Set([...draft.evidence, ...inviteBasisIds(inviteKind, evidence)])];
+        const failures = checkAiNoteSlot(draft, map) as string[];
+        if (draft.slot === 3 && (!inviteKind || draft.invite !== inviteKind)) failures.push("invite_not_missing");
+        if (failures.length > 0) { failed.push({ slot: draft.slot, text: draft.text, failures }); continue; }
+        keep.set(draft.slot, { text: draft.text, refs: evidenceRefs(draft.evidence, map), invite: draft.slot === 3 && isInviteKind(draft.invite) ? draft.invite : null });
+      }
+      dropped.length = 0;
+      dropped.push(...failed.filter((entry) => !keep.has(entry.slot)));
+      const missing = ([1, ...(inviteKind ? [3] : [])] as AiNoteSlotNo[]).filter((slot) => !keep.has(slot));
+      if (missing.length === 0) break;
+      feedback = `前回の出力は次の理由で不合格でした。直して、全ての枠をもう一度出力してください。\n${dropped.map((entry) => `枠${entry.slot}「${entry.text}」: ${entry.failures.map((code) => FAILURE_HINT_JA[code] ?? code).join(" / ")}`).join("\n") || missing.map((slot) => `枠${slot}が出力されませんでした。`).join("\n")}`;
     }
   }
   const generationId = await deterministicUuid(`record-ai-note:${recordId}:${AI_NOTE_RULE_VERSION}:${crypto.randomUUID()}`);
