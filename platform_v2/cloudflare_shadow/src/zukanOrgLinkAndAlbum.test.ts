@@ -45,7 +45,7 @@ function setup() {
   `);
   for (const id of ["o1", "o2", "o3"]) {
     obs.prepare("INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, note, visibility) VALUES (?,?,?,?,?,?,?)")
-      .run(id, "u1", "2026-11-22T09:00:00.000Z", `生きもの${id}`, "みなと通り", "", "private");
+      .run(id, "u1", "2026-11-22T09:00:00.000Z", `生きもの${id}`, "みなと通り", "", "public");
     obs.prepare("INSERT INTO asset_ledger VALUES (?,?,?,?,?,?,?,?,?,?)").run(
       `a-${id}`, id, "image/jpeg", "uploaded", `derived/${id}/display.webp`, "2026-11-22T09:01:00.000Z", "{}", "scrubbed", "2026-11-22T09:01:00.000Z", "2026-11-22T09:00:30.000Z"
     );
@@ -179,4 +179,45 @@ test("J8: 共有アルバムはログインなしで見られ、期限切れ・�
 
   const lib = await worker.fetch(new Request(`${base}/ja/library`, { headers: { cookie } }), env);
   assert.match(await lib.text(), /library\/link\/album\?group=/);
+});
+
+test("J8: 非公開の記録は共有アルバムに入らず、あとで非公開にすると消え、取り消すと見られない", async () => {
+  const { env, obs, cookie } = setup();
+  obs.prepare("UPDATE observations SET visibility = 'private' WHERE observation_id = 'o3'").run();
+  const created = await worker.fetch(post(cookie, "album", { group: GROUP }), env);
+  assert.equal(created.status, 303);
+  const location = created.headers.get("location") ?? "";
+  const token = /token=(share_[a-f0-9]{32})/.exec(location)![1]!;
+  const guestHtml = await (await worker.fetch(new Request(`${base}/ja/share/${token}`), env)).text();
+  assert.match(guestHtml, /写真 2枚/);
+  assert.equal((guestHtml.match(/<img /g) ?? []).length, 2);
+  assert.doesNotMatch(guestHtml, /derived\/o3|a-o3|はまっこ|exact_l|"lat"|"lng"|u1/);
+
+  obs.prepare("UPDATE observations SET visibility = 'private' WHERE observation_id = 'o2'").run();
+  assert.match(await (await worker.fetch(new Request(`${base}/ja/share/${token}`), env)).text(), /写真 1枚/);
+
+  const shown = await (await worker.fetch(new Request(`${base}${location}`, { headers: { cookie } }), env)).text();
+  assert.match(shown, /value="30d" checked/);
+  assert.match(shown, /このリンクを取り消す/);
+
+  const stranger = await worker.fetch(new Request(`${base}/ja/library/link/album/revoke`, {
+    method: "POST",
+    headers: { cookie: "ikimon_v2_session=none", origin: base, "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token }),
+  }), env);
+  assert.equal(stranger.status, 302);
+  assert.equal((await worker.fetch(new Request(`${base}/ja/share/${token}`), env)).status, 200);
+
+  const revoked = await worker.fetch(post(cookie, "album/revoke", { token, group: GROUP }), env);
+  assert.equal(revoked.status, 303);
+  assert.equal((await worker.fetch(new Request(`${base}/ja/share/${token}`), env)).status, 404);
+});
+
+test("J8: 全部が非公開なら共有リンクを作らない", async () => {
+  const { env, obs, store, cookie } = setup();
+  obs.prepare("UPDATE observations SET visibility = 'private'").run();
+  const created = await worker.fetch(post(cookie, "album", { group: GROUP }), env);
+  assert.equal(created.status, 303);
+  assert.doesNotMatch(created.headers.get("location") ?? "", /token=/);
+  assert.equal([...store.keys()].filter((k) => k.startsWith("observation-share-links/")).length, 0);
 });
