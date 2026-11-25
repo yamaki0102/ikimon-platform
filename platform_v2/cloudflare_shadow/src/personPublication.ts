@@ -7,7 +7,7 @@ const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const STYLE = `
 .person-page{max-width:960px;margin:auto;padding:24px clamp(20px,5vw,64px) 40px;color:#20312a;font:16px/1.9 system-ui,-apple-system,"Noto Sans JP",sans-serif;overflow-wrap:anywhere}
 .person-page *{box-sizing:border-box}.person-nav{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-bottom:20px;border-bottom:1px solid #d9e0d9}
-.person-page a{color:inherit;text-underline-offset:5px}.person-nav a,.person-links a{display:inline-flex;align-items:center;min-height:44px}.person-brand{font-weight:700;letter-spacing:.12em;text-decoration:none}
+.person-page a,.person-page a:visited{color:inherit;text-underline-offset:5px}.person-nav a,.person-links a{display:inline-flex;align-items:center;min-height:44px}.person-brand{font-weight:700;letter-spacing:.12em;text-decoration:none}
 .person-hero{padding:56px 0 38px}.person-label{font-size:14px;color:#5b6961}.person-page h1{font-size:clamp(36px,7vw,56px);font-weight:600;letter-spacing:.08em;line-height:1.35;margin:16px 0 8px}
 .person-latin{font-size:16px;letter-spacing:.06em;margin:0;color:#5b6961}.person-headline{font-size:18px;font-weight:500;margin:24px 0 12px}.person-summary{max-width:660px;font-size:clamp(18px,3vw,21px);line-height:1.85;margin:0}
 .person-section{padding:30px 0;border-top:1px solid #d9e0d9}.person-page h2{font-size:20px;line-height:1.6;font-weight:600;margin:0 0 20px}.person-page p{max-width:700px}.person-about p{margin:0 0 16px}.person-about p:last-child{margin-bottom:0}

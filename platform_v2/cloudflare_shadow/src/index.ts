@@ -6,6 +6,14 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
+import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
+import {
+  isWeakTaxonLabel,
+  NEUTRAL_TAXON_FALLBACK_JA,
+  publicTaxonDisplayName,
+  resolveUnifiedTaxonName,
+} from "./taxonNameResolver";
 import {
   buildClearedGuestPassCookieHeader,
   buildGuestPassCookieHeader,
@@ -3652,6 +3660,14 @@ export const worker = {
         return handleObservationFirstRecordAction(decodeURIComponent(observationActionMatch[1]), request, env);
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/library") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        const searchQuery = url.searchParams.get("q") ?? "";
+        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
         return handleOtayoriPageRequest(request, url, env);
       }
@@ -4257,6 +4273,16 @@ export const worker = {
           ownerNightPoints: nightPts
         });
         return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/auth/field-name/check") {
+        const result = await checkFieldNameAvailability(env.CORE_DB, url.searchParams.get("name"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/waitlist/status") {
+        const result = await getWaitlistStatusForEmail(env.CORE_DB, url.searchParams.get("email"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
@@ -22871,6 +22897,9 @@ function renderCloudflareProfileHtml(
   options: { lang: string; settings: boolean }
 ): string {
   const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
+  if (!options.settings) {
+    return renderZukanProfileHubPage({ lang, displayName: session.displayName || session.userId });
+  }
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const copy = lang === "ja"
     ? {
@@ -23420,7 +23449,7 @@ function recordsInjectionCopy(url: URL) {
     homeBadge: "地域の記録",
     map: "地図",
     placeContext: "地域の記録",
-    unknown: "名前待ち"
+    unknown: NEUTRAL_TAXON_FALLBACK_JA
   };
 }
 
@@ -23448,7 +23477,7 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
     homeBadge: "自分の記録",
     map: "保存済み",
     placeContext: "保存済み",
-    unknown: "名前待ち"
+    unknown: NEUTRAL_TAXON_FALLBACK_JA
   };
 }
 
@@ -24375,10 +24404,10 @@ function homeRecordDisplayTitle(
 function homeRecordUntitledLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
   const labels: Record<"ja" | "en" | "es" | "pt-br", Record<HomeRecordMediaKind, string>> = {
     ja: {
-      photo: "名前待ちの写真",
-      video: "名前待ちの動画",
-      audio: "名前待ちの音",
-      record: "名前待ちのメモ"
+      photo: "写真の記録",
+      video: "動画の記録",
+      audio: "音の記録",
+      record: "メモの記録"
     },
     en: {
       photo: "Photo record",
@@ -25057,13 +25086,16 @@ function setHomeRecordMediaKind(map: Map<string, HomeRecordMediaKind>, observati
 }
 
 function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, mediaKind: HomeRecordMediaKind = photoUrl ? "photo" : "record") {
-  const displayName = publicTaxonDisplayName(row.taxon_label);
+  const resolved = resolveUnifiedTaxonName({
+    readmodelTaxonLabel: row.taxon_label,
+    aiCandidateLabel: row.ai_candidate_label,
+  });
   return {
     occurrenceId: `occ:${row.observation_id}:0`,
     visitId: row.observation_id,
-    displayName,
+    displayName: resolved.displayName,
     isAiCandidate: false,
-    isAwaitingId: isWeakTaxonLabel(row.taxon_label),
+    isAwaitingId: resolved.isAwaitingId,
     localityLabel: "位置をぼかしています",
     publicAreaLabel: normalizeSafePublicAreaLabelCandidate(row.public_area_label),
     publicNote: formatPublicCardNoteLine(row.public_note),
@@ -26256,14 +26288,16 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       effectiveTaxonLabel = candidate;
     }
   }
-  const isAwaitingId = isWeakTaxonLabel(effectiveTaxonLabel);
   const aiPersonPrimaryNames = publicObservationAiPersonPrimaryNames(row.ai_source_payload_json);
   const isEligibleAiCandidate = isPublicObservationAiSubjectEligible(row.ai_candidate_label, aiPersonPrimaryNames);
   const aiCandidateLabel = isEligibleAiCandidate ? row.ai_candidate_label : null;
   const aiCandidateRank = isEligibleAiCandidate ? row.ai_candidate_rank : null;
-  const displayName = isAwaitingId
-    ? aiCandidateLabel ?? "名前待ち"
-    : effectiveTaxonLabel!.trim();
+  const resolvedTaxon = resolveUnifiedTaxonName({
+    readmodelTaxonLabel: effectiveTaxonLabel,
+    aiCandidateLabel,
+  });
+  const isAwaitingId = resolvedTaxon.isAwaitingId;
+  const displayName = resolvedTaxon.displayName;
 
   const detailLocationLabel = row.public_cell === "hidden"
     ? "位置は非公開です"
@@ -26413,8 +26447,15 @@ async function readLatestPublicObservationEnvironmentRecord(env: Env, visitId: s
 }
 
 async function createDraftObservation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   const input = await readJson<DraftObservationInput>(request);
-  assertNonEmpty(input.userId, "userId");
+  if (input.userId && input.userId !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
+  const ownerUserId = session.userId;
 
   const media = input.media ?? [];
   if (media.length > MAX_MEDIA_PER_DRAFT) {
@@ -26427,14 +26468,14 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
   const visibility = input.visibility === "public" ? "public" : "private";
 
   const statements: D1PreparedStatement[] = [
-    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId),
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(ownerUserId),
     env.OBS_DB.prepare(
       `INSERT INTO draft_observations
        (draft_id, owner_user_id, observed_at, exact_lat, exact_lng, location_accuracy_m, public_cell, visibility, partition_month)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       draftId,
-      input.userId,
+      ownerUserId,
       input.observedAt ?? null,
       numberOrNull(input.exactLat),
       numberOrNull(input.exactLng),
@@ -26457,7 +26498,7 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
       ).bind(
         assetId,
         draftId,
-        input.userId,
+        ownerUserId,
         objectKey,
         asset.sha256 ?? null,
         asset.mime,
@@ -30305,11 +30346,18 @@ function pickNullableEnum(value: unknown, allowed: string[]): string | null {
 }
 
 async function putAssetBody(assetId: string, request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   assertNonEmpty(assetId, "assetId");
-  const asset = await env.OBS_DB.prepare("SELECT object_key, mime FROM asset_ledger WHERE asset_id = ?")
+  const asset = await env.OBS_DB.prepare("SELECT owner_user_id, object_key, mime FROM asset_ledger WHERE asset_id = ?")
     .bind(assetId)
-    .first<{ object_key: string; mime: string }>();
+    .first<{ owner_user_id: string | null; object_key: string; mime: string }>();
   if (!asset) return json({ error: "asset_not_found" }, 404);
+  if (asset.owner_user_id !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
   if (!request.body) return json({ error: "missing_body" }, 400);
 
   await env.ASSET_BUCKET.put(asset.object_key, request.body, { httpMetadata: { contentType: asset.mime } });
@@ -30321,6 +30369,10 @@ async function putAssetBody(assetId: string, request: Request, env: Env): Promis
 }
 
 async function finalizeObservation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   const input = await readJson<FinalizeObservationInput>(request);
   assertNonEmpty(input.draftId, "draftId");
 
@@ -30328,6 +30380,9 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     .bind(input.draftId)
     .first<Record<string, D1Value>>();
   if (!draft) return json({ error: "draft_not_found" }, 404);
+  if (stringValue(draft.owner_user_id) !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
 
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
@@ -32208,7 +32263,7 @@ async function upsertPublicMapSnapshotRow(
       observation.observed_at,
       Number(observation.observed_at.slice(0, 4)) || new Date(observation.observed_at).getUTCFullYear(),
       taxonGroupForLabel(observation.taxon_label),
-      observation.taxon_label ?? "名前待ち",
+      publicTaxonDisplayName(observation.taxon_label),
       isWeakTaxonLabel(observation.taxon_label) ? 1 : 0,
       observation.public_cell,
       observation.public_cell,
@@ -34772,15 +34827,6 @@ function publicMapExactCoordinateGate() {
     ...PUBLIC_MAP_EXACT_COORDINATE_GATE,
     rawCoordinateFieldsExposed: [...PUBLIC_MAP_EXACT_COORDINATE_GATE.rawCoordinateFieldsExposed]
   };
-}
-
-function isWeakTaxonLabel(label: string | null): boolean {
-  const text = (label ?? "").trim().toLowerCase();
-  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "名前待ち", "未同定", "不明"].includes(text);
-}
-
-function publicTaxonDisplayName(label: string | null): string {
-  return isWeakTaxonLabel(label) ? "名前待ち" : (label as string).trim();
 }
 
 function taxonGroupForLabel(label: string | null): string {
