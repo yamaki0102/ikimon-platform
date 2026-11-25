@@ -87,13 +87,14 @@ test("handleRecordVoiceTranscribe validates audio payload and transcribes via Ge
   assert.equal(body.transcript, "アゲハチョウが飛んでいた");
 });
 
-test("renderCloudflareRecordHtml includes C3/C11/C12 mode bar and voice mic button while keeping default form hidden", () => {
+test("renderCloudflareRecordHtml puts the memo and voice mic in the capture stage while keeping the default form hidden", () => {
   const html = renderCloudflareRecordHtml(
     { userId: "user_c3_c11_c12", displayName: "テスター", banned: false } as any,
     new URL("https://ikimon.life/ja/record"),
     "test-nonce"
   );
-  assert.match(html, /data-record-mode-bar="c3-c11-c12"/);
+  assert.match(html, /data-zt-memo-open/);
+  assert.doesNotMatch(html, /data-record-mode-bar=/);
   assert.match(html, /data-voice-mic-target/);
   assert.match(html, /\/api\/v1\/record\/voice-transcribe/);
   assert.match(html, /id="record-form"[^>]*hidden/);

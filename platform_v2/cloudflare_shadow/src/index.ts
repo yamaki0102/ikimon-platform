@@ -324,9 +324,7 @@ import {
   ZUKAN_RECORD_INPUT_SCRIPT,
   ZUKAN_RECORD_INPUT_STYLES,
   handleRecordVoiceTranscribe,
-  renderRecordModeBarHtml,
   renderRecordVoiceButtonHtml,
-  resolveRecordInputMode,
 } from "./zukanRecordInput";
 import {
   handleCreateObservationShareLink,
@@ -342,7 +340,7 @@ import {
   renderRecordDoneCardHtml,
   renderRecordLinkSelectorHtml,
 } from "./zukanRecordLinkAndDone";
-import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
+import { ZUKAN_RECORD_CAPTURE_SCRIPT, ZUKAN_RECORD_ENTRY_STYLES, recordCaptureCopy, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
@@ -421,7 +419,7 @@ import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
-import { renderSiteDocument, renderRecordMacroCameraAssets, recordMacroCameraLabel } from "../../src/ui/siteShell";
+import { renderSiteDocument, renderRecordCaptureEngineAssets, recordCaptureCameraCopy } from "../../src/ui/siteShell";
 import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, claimObservationEventGuestParticipant, findObservationEventParticipant, generateNativeObservationEventQuests, getObservationEventSessionById, mapObservationEventSession, observationEventGuestCredentialDigest, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventServerFunnelMetric, type ObservationEventSessionD1Row } from "./programs/runtime";
@@ -22811,6 +22809,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       failed: "The photo is not saved yet. Keep it selected and try saving again."
     };
   const startMode = url.searchParams.get("start") === "video" ? "video" : "photo";
+  const captureEngineLang = lang === "pt-br" ? "pt-BR" : lang;
+  const captureCopy = recordCaptureCopy(lang);
   const eventCode = safeObservationEventContextParam(url, ["event", "eventCode"], 32);
   const eventSessionId = safeObservationEventContextParam(url, ["eventSessionId"], 128);
   const eventTeamId = safeObservationEventContextParam(url, ["teamId"], 128);
@@ -22887,28 +22887,20 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
-<body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
+<body class="zt-capturing" data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
-    ${renderRecordModeBarHtml({ lang, prefix, activeMode: resolveRecordInputMode(url) })}
     ${renderRecordEntryStageHtml({
       lang,
       prefix,
-      title,
-      cameraLabel: mediaCopy.camera,
-      cameraHint: mediaCopy.cameraHint,
-      photoLabel: mediaCopy.photo,
-      photoHint: mediaCopy.photoHint,
-      videoLabel: mediaCopy.video,
-      videoHint: mediaCopy.videoHint,
-      prompt: mediaCopy.prompt,
-      privateBoundary: mediaCopy.privateBoundary,
-      macroLabel: recordMacroCameraLabel(lang === "pt-br" ? "pt-BR" : lang)
+      copy: captureCopy,
+      engineCopy: recordCaptureCameraCopy(captureEngineLang),
+      startMode,
+      voiceButtonHtml: renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })
     })}
-    ${renderRecordMacroCameraAssets("", lang === "pt-br" ? "pt-BR" : lang)}
+    ${renderRecordCaptureEngineAssets("", captureEngineLang)}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
-      <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><div class="zt-field-input-row"><textarea name="note" rows="3"></textarea>${renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })}</div><p id="record-voice-status" class="zt-voice-status" aria-live="polite"></p></label>
       ${renderRecordPlaceAndTimeHtml({
         lang,
         initialPlaceId: safeObservationEventContextParam(url, ["placeId"], 128),
@@ -22982,6 +22974,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
     function showSavedRecordLinks(visitId, resolvedPlaceId) {
+      if (typeof stageSaved === "function") stageSaved(visitId, resolvedPlaceId);
       if (!savedLinks) return;
       savedLinks.textContent = "";
       const isEn = recordPrefix === "/en";
@@ -23007,16 +23000,36 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       savedLinks.hidden = false;
     }
     function setStatus(message, error) {
+      if (typeof stageStatus === "function") stageStatus(message, error);
       if (!status) return;
       status.textContent = message;
       status.style.color = error ? "#b42318" : "";
     }
     let selectedPhotos = [];
     let photoPreviewUrls = [];
+    let capturedVideoFile = null;
     function selectedFiles() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       if (mediaKind === "photo") return selectedPhotos;
+      if (capturedVideoFile) return [capturedVideoFile];
       return input && input.files && input.files[0] ? [input.files[0]] : [];
+    }
+    function removePhotoAt(index) {
+      selectedPhotos.splice(index, 1);
+      preparedPhotoUploads.splice(index, 1);
+      renderPhotoReview();
+      if (selectedPhotos.length === 0) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+        draftRevision += 1;
+        draftWrites = draftWrites.then(async () => {
+          await deleteRecordDraft();
+          volatileDraft = false;
+          setStatus(copy.emptySelection, false);
+        }).catch(() => setStatus(copy.draftFailed, true));
+        return;
+      }
+      queueDraftSave();
     }
     function renderPhotoReview() {
       const review = document.getElementById("record-photo-review");
@@ -23034,23 +23047,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         const zoom = document.createElement("button"); zoom.type = "button"; zoom.className = "cf-record-photo-zoom"; zoom.textContent = copy.zoomPhoto;
         zoom.addEventListener("click", () => { const dialog = document.getElementById("record-photo-zoom"); const preview = dialog.querySelector("img"); preview.src = image.src; preview.alt = file.name || copy.photo; dialog.showModal(); });
         const remove = document.createElement("button"); remove.type = "button"; remove.className = "cf-record-photo-remove"; remove.textContent = "×"; remove.setAttribute("aria-label", copy.removePhoto + ": " + (file.name || (index + 1)));
-        remove.addEventListener("click", () => {
-          selectedPhotos.splice(index, 1);
-          preparedPhotoUploads.splice(index, 1);
-          renderPhotoReview();
-          if (selectedPhotos.length === 0) {
-            clearTimeout(draftTimer);
-            draftTimer = null;
-            draftRevision += 1;
-            draftWrites = draftWrites.then(async () => {
-              await deleteRecordDraft();
-              volatileDraft = false;
-              setStatus(copy.emptySelection, false);
-            }).catch(() => setStatus(copy.draftFailed, true));
-            return;
-          }
-          queueDraftSave();
-        });
+        remove.addEventListener("click", () => removePhotoAt(index));
         item.append(image, zoom, remove); grid.append(item);
       });
     }
@@ -23220,13 +23217,12 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         queueDraftSave();
       }, () => setStatus(copy.positionRequired, true), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
+    const ztCopyData = ${JSON.stringify(captureCopy)};
+    ${ZUKAN_RECORD_CAPTURE_SCRIPT}
     function reveal(kind) {
       mediaKind = kind;
-      if (form) form.hidden = false;
-      if (submitPanel) submitPanel.hidden = false;
-      setStatus(copy.statusReady, false);
+      stageSync();
       queueDraftSave();
-      renderPhotoReview();
     }
     function eventMetric(eventName, values = {}) {
       if (!eventContext.eventSessionId) return Promise.resolve();
@@ -23254,6 +23250,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       return "unknown";
     }
     function addPhotoFiles(input) {
+      if (submitting || submitRequested || serverSaved) return;
       const incoming = input && input.files ? Array.from(input.files).filter(file => file instanceof File && file.size > 0) : [];
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";
@@ -23332,7 +23329,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         return;
       }
       const explicitObservedAtMs = new Date(String(formData.get("observedAtLocal") || "")).getTime();
-      try { if (!await claimDraft(true)) return; } catch { setStatus(copy.draftFailed, true); return; }
+      try { if (!await claimDraft(true)) { setStatus(copy.draftFailed, true); return; } } catch { setStatus(copy.draftFailed, true); return; }
       submitting = true;
       confirmDialog.close();
       document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = true);
@@ -23412,7 +23409,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-          showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
+          showSavedRecordLinks(visitId, (observation && observation.placeId) || initialPlaceId);
           setStatus(copy.saved + " " + files.length + copy.photoSaved, false);
           return;
         }
@@ -23466,7 +23463,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-        showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
+        showSavedRecordLinks(visitId, (observation && observation.placeId) || initialPlaceId);
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         submitting = false;
