@@ -33931,3 +33931,111 @@ test("OAuth callback logs and redirects with fixed reason codes without leaking 
   });
   assert.doesNotMatch(warnLogs[0]!, /SENSITIVE_PROVIDER_DESCRIPTION|PROVIDER_RAW_ERROR_CODE/u);
 });
+
+test("observation event 3-tier record visibility enforces auth, rare exclusion, aggregate public-summary, and post-event publish", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  const eventDb = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bobservation_event_live_events\b/u.test(query) && query.trim().startsWith("UPDATE ")) {
+            let values: unknown[] = [];
+            const stmt = {
+              bind(...input: unknown[]) { values = input; return stmt; },
+              async run() { return { meta: { changes: Number(obs.sqlite.prepare(query).run(...values as never[]).changes) } }; }
+            };
+            return stmt;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  Object.assign(env, { OBS_DB: eventDb });
+
+  const issue = async (userId: string, displayName: string) => {
+    const res = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+      body: JSON.stringify({ userId, displayName, ttlHours: 1 })
+    }), env);
+    return res.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issue("vis-org", "主催者");
+  const p1Cookie = await issue("vis-p1", "参加者1");
+  const p2Cookie = await issue("vis-p2", "参加者2");
+
+  const sessionId = "evt-vis-3tier";
+  const futureEnd = new Date(Date.now() + 3_600_000).toISOString();
+  obs.sqlite.prepare(
+    `INSERT INTO observation_event_sessions (
+      session_id, event_code, title, organizer_user_id, plan, primary_mode, active_modes_json,
+      location_lat, location_lng, location_radius_m, started_at, ended_at, target_species_json, config_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(sessionId, "VIS3TIER", "公開範囲テスト会", "vis-org", "public", "rally", JSON.stringify(["rally"]), 34.65, 137.82, 500, new Date(Date.now() - 3_600_000).toISOString(), futureEnd, "[]", "{}", new Date().toISOString(), new Date().toISOString());
+
+  obs.sqlite.prepare(
+    `INSERT INTO observation_event_live_events (live_event_id, session_id, type, scope, actor_user_id, payload_json, created_at)
+     VALUES (?, ?, 'observation_added', 'all', ?, ?, CURRENT_TIMESTAMP)`
+  ).run("ev-normal-1", sessionId, "vis-p1", JSON.stringify({ taxon_label: "アオサギ" }));
+  obs.sqlite.prepare(
+    `INSERT INTO observation_event_live_events (live_event_id, session_id, type, scope, actor_user_id, payload_json, created_at)
+     VALUES (?, ?, 'observation_added', 'all', ?, ?, CURRENT_TIMESTAMP)`
+  ).run("ev-rare-1", sessionId, "vis-p1", JSON.stringify({ taxon_label: "希少種", sensitive_precheck_failed: true }));
+
+  // 401 without auth
+  const unauthPatch = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/records/ev-normal-1/visibility`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ visibility: "private" })
+  }), env);
+  assert.equal(unauthPatch.status, 401);
+
+  // 403 for other user
+  const otherPatch = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/records/ev-normal-1/visibility`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: p2Cookie },
+    body: JSON.stringify({ visibility: "private" })
+  }), env);
+  assert.equal(otherPatch.status, 403);
+
+  // 409 for rare species -> public
+  const rarePublic = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/records/ev-rare-1/visibility`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: p1Cookie },
+    body: JSON.stringify({ visibility: "public" })
+  }), env);
+  assert.equal(rarePublic.status, 409);
+
+  // 200 public-summary (outside event: aggregate-only, excludes rare)
+  const summaryRes = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/public-summary`), env);
+  assert.equal(summaryRes.status, 200);
+  const summary = await summaryRes.json() as Record<string, unknown>;
+  assert.equal(summary.aggregateOnly, true);
+  assert.equal(summary.observationCount, 1);
+  assert.equal(summary.excludedRareCount, 1);
+  assert.doesNotMatch(JSON.stringify(summary), /アオサギ|希少種|vis-p1|参加者/);
+
+  // 409 publish-ended before event ends
+  const earlyPub = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/records/publish-ended`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: p1Cookie }
+  }), env);
+  assert.equal(earlyPub.status, 409);
+
+  // End event -> 200 publish-ended publishes normal record and skips rare
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET ended_at = ? WHERE session_id = ?").run(new Date(Date.now() - 10_000).toISOString(), sessionId);
+  const endPub = await worker.fetch(new Request(`https://ikimon.life/api/v1/observation-events/${sessionId}/records/publish-ended`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: p1Cookie }
+  }), env);
+  assert.equal(endPub.status, 200);
+  assert.deepEqual(await endPub.json(), { ok: true, publishedCount: 1, skippedRareCount: 1 });
+  void ownerCookie;
+});

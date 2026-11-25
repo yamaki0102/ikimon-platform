@@ -5,6 +5,7 @@ import { RYUYO_DISCOVERY_GEMINI_NOTICE_VERSION, discoveryNickname, isDiscoveryJo
 import { asPlainObject, isSafePublicDerivedImageKey, jsonArray, jsonObject, presentablePublicPhotoSql, publicAreaApproxPolygon, readCompatibleSession, roundPublicEventCoordinate, stringArray, type PublicDetailAssetRow } from "../core/shared";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, buildObservationEventGuestCookie, claimObservationEventGuestParticipant, countObservationEventTaxa, durationMinutesBetween, findObservationEventParticipant, findObservationEventViewerParticipant, getObservationEventSessionById, isObservationEventActivityOpen, isObservationEventCheckinOpen, isObservationEventParticipatingGroup, listObservationEventAbsences, listObservationEventLiveEvents, listObservationEventParticipants, listObservationEventTeams, observationEventGuestCredentialDigest, observationEventLocationShareUntil, observationEventMode, observationEventModes, observationEventObservationId, observationEventParticipantContext, observationEventRequestActor, observationEventTaxonName, publicObservationEventLiveEvent, publicObservationEventLiveSession, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventRecapView, recordObservationEventServerFunnelMetric, requireObservationEventOrganizer, serverObservationEventFunnelContext, shouldDeliverObservationEvent, summarizePublicObservationEventLive, type ObservationEventCapsuleD1Row, type ObservationEventMeshSummaryRow, type ObservationEventParticipantD1Row, type PublicObservationEventLiveEvent, upsertObservationEventParticipant } from "./runtime";
 import { getObservationRallyCourseBySession, isRyuyoDiscoveryEvent, observationEventGuestMediaEnabled, prepareCommonObservationEventTemplate } from "./rally";
+import { buildPostEventPublishPrompt, canViewEventRecord, isSensitiveOrRareEventRecord, normalizeEventRecordVisibility, resolveEventRecordVisibility } from "./eventRecordVisibility";
 
 export const DISCOVERY_CAMPAIGN_VERSION = "ryuyo-campaign-v1";
 
@@ -725,16 +726,36 @@ export async function getObservationEventRecap(request: Request, url: URL, env: 
   if (!canManage && !viewer) {
     return json({ error: "event participant required" }, 403, { "cache-control": "no-store" });
   }
+  const viewerCtx = {
+    userId: auth?.userId ?? null,
+    guestToken,
+    isOrganizer: canManage,
+    isCheckedInParticipant: Boolean(viewer && viewer.status !== "cancelled")
+  };
+  const visibleObservationEvents = observationEvents.filter((event) => canViewEventRecord({
+    visibility: resolveEventRecordVisibility(event.payload),
+    actorUserId: event.actorUserId,
+    actorGuestToken: event.actorGuestToken,
+    isSensitiveOrRare: isSensitiveOrRareEventRecord(event.payload)
+  }, viewerCtx));
   const myEvents = viewer
-    ? observationEvents.filter((event) => (viewer.user_id && event.actorUserId === viewer.user_id) || (viewer.guest_token && event.actorGuestToken === viewer.guest_token))
+    ? visibleObservationEvents.filter((event) => (viewer.user_id && event.actorUserId === viewer.user_id) || (viewer.guest_token && event.actorGuestToken === viewer.guest_token))
     : [];
-  const photos = await buildObservationEventRecapPhotos(env, sessionId, observationEvents);
+  const postEventPublishPrompt = buildPostEventPublishPrompt(
+    session,
+    myEvents.map((event) => ({
+      visibility: resolveEventRecordVisibility(event.payload),
+      isSensitiveOrRare: isSensitiveOrRareEventRecord(event.payload)
+    }))
+  );
+  const photos = await buildObservationEventRecapPhotos(env, sessionId, visibleObservationEvents);
   await recordObservationEventRecapView(env, sessionId, auth?.userId ?? null, guestToken);
   return json({
     session: publicObservationEventRecapSession(session),
     permissions: { canManage },
+    postEventPublishPrompt,
     highlights: {
-      observationCount: observationEvents.length,
+      observationCount: visibleObservationEvents.length,
       guideSceneCount,
       fieldScanCount,
       absencesCount: absenceRows.length,
@@ -762,7 +783,7 @@ export async function getObservationEventRecap(request: Request, url: URL, env: 
         questsAccepted: 0
       };
     }),
-    timeline: publicObservationEventRecapTimeline(events),
+    timeline: publicObservationEventRecapTimeline(events.filter((event) => event.type !== "observation_added" || visibleObservationEvents.includes(event))),
     photos,
     impacts: [],
     myContribution: viewer ? {
@@ -1204,4 +1225,111 @@ export async function pingObservationEventLocation(request: Request, env: Env, s
 
 function isObservationEventLocationShareOpen(session: NonNullable<Awaited<ReturnType<typeof getObservationEventSessionById>>>): boolean {
   return isObservationEventActivityOpen(session);
+}
+
+export async function getObservationEventPublicSummary(env: Env, sessionId: string): Promise<Response> {
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session_not_found" }, 404, { "cache-control": "no-store" });
+  const [eventsDesc, participants] = await Promise.all([
+    listObservationEventLiveEvents(env, sessionId, 500),
+    listObservationEventParticipants(env, sessionId)
+  ]);
+  const observationEvents = eventsDesc.filter((event) => event.type === "observation_added");
+  const excludedRareCount = observationEvents.filter((event) => isSensitiveOrRareEventRecord(event.payload)).length;
+  const observationCount = observationEvents.length - excludedRareCount;
+  return json({
+    sessionId: session.sessionId,
+    title: session.title,
+    observationCount,
+    participantCount: participants.filter(isObservationEventParticipatingGroup).length,
+    excludedRareCount,
+    aggregateOnly: true
+  }, 200, { "cache-control": "no-store" });
+}
+
+export async function updateObservationEventRecordVisibility(
+  request: Request,
+  env: Env,
+  sessionId: string,
+  eventId: string,
+): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session_not_found" }, 404, { "cache-control": "no-store" });
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
+  if (!auth?.userId && !guestToken) {
+    return json({ error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  const body = await readJson<{ visibility?: unknown }>(request);
+  const visibility = normalizeEventRecordVisibility(body.visibility, "event");
+  if (!visibility || (body.visibility !== "private" && body.visibility !== "event" && body.visibility !== "public")) {
+    return json({ error: "invalid_visibility" }, 400, { "cache-control": "no-store" });
+  }
+  const row = await env.OBS_DB.prepare(
+    `SELECT live_event_id, session_id, actor_user_id, actor_guest_token, payload_json
+       FROM observation_event_live_events
+      WHERE session_id = ? AND live_event_id = ? AND type = 'observation_added'
+      LIMIT 1`
+  ).bind(sessionId, eventId).first<{
+    live_event_id: string;
+    session_id: string;
+    actor_user_id: string | null;
+    actor_guest_token: string | null;
+    payload_json: string;
+  }>();
+  if (!row) return json({ error: "record_not_found" }, 404, { "cache-control": "no-store" });
+  const isOwner = Boolean(
+    (auth?.userId && row.actor_user_id === auth.userId)
+    || (guestToken && row.actor_guest_token === guestToken)
+  );
+  if (!isOwner) return json({ error: "forbidden" }, 403, { "cache-control": "no-store" });
+  let payload: Record<string, unknown> = {};
+  try { payload = JSON.parse(row.payload_json) as Record<string, unknown>; } catch { payload = {}; }
+  if (visibility === "public" && isSensitiveOrRareEventRecord(payload)) {
+    return json({ error: "rare_species_cannot_be_public" }, 409, { "cache-control": "no-store" });
+  }
+  const nextPayload = { ...payload, record_visibility: visibility };
+  await env.OBS_DB.prepare(
+    "UPDATE observation_event_live_events SET payload_json = ? WHERE session_id = ? AND live_event_id = ?"
+  ).bind(JSON.stringify(nextPayload), sessionId, eventId).run();
+  return json({ ok: true, eventId, visibility }, 200, { "cache-control": "no-store" });
+}
+
+export async function publishEndedObservationEventRecords(
+  request: Request,
+  env: Env,
+  sessionId: string,
+): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request, true);
+  if (sameOriginError) return sameOriginError;
+  const session = await getObservationEventSessionById(env, sessionId);
+  if (!session) return json({ error: "session_not_found" }, 404, { "cache-control": "no-store" });
+  if (!session.endedAt || Date.parse(session.endedAt) > Date.now()) {
+    return json({ error: "event_not_ended" }, 409, { "cache-control": "no-store" });
+  }
+  const { auth, guestToken } = await observationEventRequestActor(request, env, sessionId);
+  if (!auth?.userId && !guestToken) {
+    return json({ error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  const eventsDesc = await listObservationEventLiveEvents(env, sessionId, 500);
+  const myRecords = eventsDesc.filter((event) =>
+    event.type === "observation_added"
+    && ((auth?.userId && event.actorUserId === auth.userId) || (guestToken && event.actorGuestToken === guestToken))
+  );
+  let publishedCount = 0;
+  let skippedRareCount = 0;
+  for (const event of myRecords) {
+    if (resolveEventRecordVisibility(event.payload) === "public") continue;
+    if (isSensitiveOrRareEventRecord(event.payload)) {
+      skippedRareCount += 1;
+      continue;
+    }
+    const nextPayload = { ...event.payload, record_visibility: "public" };
+    await env.OBS_DB.prepare(
+      "UPDATE observation_event_live_events SET payload_json = ? WHERE session_id = ? AND live_event_id = ?"
+    ).bind(JSON.stringify(nextPayload), sessionId, event.liveEventId).run();
+    publishedCount += 1;
+  }
+  return json({ ok: true, publishedCount, skippedRareCount }, 200, { "cache-control": "no-store" });
 }

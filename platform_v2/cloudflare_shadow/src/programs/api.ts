@@ -5,7 +5,7 @@ import { ProgramHandoverApplyRuntime } from "../../../src/services/programHandov
 import { readCompatibleSession, stripPublicLangPrefix } from "../core/shared";
 import { OBSERVATION_EVENT_MODES, decideObservationEventQuest, getObservationEventOperationsDashboard, getObservationEventSessionById, recordObservationEventFunnelMetric, runObservationEventQuest } from "./runtime";
 import { createObservationEventGuestMedia, getObservationEventDiscoveries, getObservationEventGuestMedia, getObservationEventGuestMediaContent, getObservationEventSessionByEventCode, getObservationRallySnapshot, handleObservationEventDiscoveryPaper, handleObservationEventRallyApi, isPrivateReceivedProgram, reviewObservationEventGuestMedia, withdrawObservationEventGuestMedia } from "./rally";
-import { announceObservationEvent, checkinObservationEvent, createObservationEventAbsence, createObservationEventSession, createObservationEventTeam, endObservationEventSession, generateObservationEventCapsule, getObservationEventCapsule, getObservationEventEffort, getObservationEventLiveSnapshot, getObservationEventRecap, getObservationEventRecapPhoto, getObservationEventRecent, getObservationEventSpeciesCsv, pingObservationEventLocation, reviewObservationEventCapsule, suggestObservationEventArea, switchObservationEventMode, updateObservationEventRole, updateObservationEventSession } from "./sessions";
+import { announceObservationEvent, checkinObservationEvent, createObservationEventAbsence, createObservationEventSession, createObservationEventTeam, endObservationEventSession, generateObservationEventCapsule, getObservationEventCapsule, getObservationEventEffort, getObservationEventLiveSnapshot, getObservationEventPublicSummary, getObservationEventRecap, getObservationEventRecapPhoto, getObservationEventRecent, getObservationEventSpeciesCsv, pingObservationEventLocation, publishEndedObservationEventRecords, reviewObservationEventCapsule, suggestObservationEventArea, switchObservationEventMode, updateObservationEventRecordVisibility, updateObservationEventRole, updateObservationEventSession } from "./sessions";
 import { applyToObservationEvent, getObservationEventApplicationStatus, getRyuyoDiscoveryCampaign, manageObservationEventDiscoveryCampaign } from "./pages";
 import { insertGuideBadgeDiscoveries, listGuideBadgeDiscoveries, toBadgeOnlyDiscovery, type GuideSyncEntryInput } from "../guideVoiceEvent";
 
@@ -257,6 +257,18 @@ export async function handleObservationEventApi(request: Request, url: URL, env:
     return json({ ok: true, sessionId: session.sessionId, badgeNumber: badgeNum, count: discoveries.length, discoveries }, 200, { "cache-control": "no-store" });
   }
 
+  const recordVisibilityMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/records\/([^/]+)\/visibility$/);
+  if (request.method === "PATCH" && recordVisibilityMatch?.[1] && recordVisibilityMatch?.[2]) {
+    return updateObservationEventRecordVisibility(request, env, decodeURIComponent(recordVisibilityMatch[1]), decodeURIComponent(recordVisibilityMatch[2]));
+  }
+  const publishEndedMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/records\/publish-ended$/);
+  if (request.method === "POST" && publishEndedMatch?.[1]) {
+    return publishEndedObservationEventRecords(request, env, decodeURIComponent(publishEndedMatch[1]));
+  }
+  const publicSummaryMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)\/public-summary$/);
+  if (request.method === "GET" && publicSummaryMatch?.[1]) {
+    return getObservationEventPublicSummary(env, decodeURIComponent(publicSummaryMatch[1]));
+  }
   const sessionMatch = pathname.match(/^\/api\/v1\/observation-events\/([^/]+)(?:\/([^/]+))?$/);
   if (!sessionMatch?.[1]) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
 
