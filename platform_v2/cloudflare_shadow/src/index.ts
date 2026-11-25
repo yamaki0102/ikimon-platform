@@ -413,6 +413,8 @@ import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, a
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
 import { handleRecordCountBandRoute, readPlaceSeasonCountFacts, type BandDeps } from "./recordCountBand";
 import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
+import { handleGbifConsentRoute } from "./gbifConsent";
+import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
@@ -3776,6 +3778,11 @@ export const worker = {
       if (request.method === "GET" && /^\/api\/v1\/records\/[^/]+\/(?:count-band|place-season)$/.test(nativePathname)) {
         const bandResponse = await handleRecordCountBandRoute(recordCountBandDeps(env), async () => readCompatibleSession(request, env), nativePathname);
         if (bandResponse) return bandResponse;
+      }
+
+      if ((request.method === "GET" || request.method === "POST") && /^\/api\/v1\/records\/[^/]+\/gbif-consent$/.test(nativePathname)) {
+        const consentResponse = await handleGbifConsentRoute({ db: gbifDbFromD1(env.OBS_DB) }, async () => readCompatibleSession(request, env), request, nativePathname);
+        if (consentResponse) return consentResponse;
       }
 
       const publicDetailApiMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
