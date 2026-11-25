@@ -70,96 +70,28 @@ export async function loadObservationComments(
   return Array.isArray(parsed) ? (parsed as ObservationCommentEntry[]) : [];
 }
 
-export function renderObservationCommentsHtml(options: {
+export const OBSERVATION_COMMENTS_CLOSED_MESSAGE_JA = "自由なコメントの受付は終了しました。名前や場所のようすは「提案する」から伝えられます。";
+
+export function renderObservationCommentsHtml(_options: {
   observationId: string;
   lang: "ja" | "en" | "es" | "pt-br";
   prefix: string;
   authenticated: boolean;
   comments: ObservationCommentEntry[];
 }): string {
-  const isEn = options.lang === "en";
-  const listHtml =
-    options.comments.length > 0
-      ? options.comments
-          .map(
-            (c) =>
-              `<li class="zt-comment-item"><strong>${escapeHtml(c.authorName)}</strong><p>${escapeHtml(c.body)}</p></li>`
-          )
-          .join("")
-      : `<li class="zt-comment-empty">${isEn ? "No comments yet." : "コメントはまだありません。"}</li>`;
-
-  const actionHtml = options.authenticated
-    ? `<form id="obs-comment-form" class="zt-comment-form" data-observation-id="${escapeHtml(options.observationId)}">
-        <textarea name="body" rows="2" maxlength="500" placeholder="${isEn ? "Write a comment" : "コメントを書く"}" aria-label="${isEn ? "Comment" : "コメント"}"></textarea>
-        <button type="submit" class="zt-comment-submit">${isEn ? "Post comment" : "コメントを送る"}</button>
-      </form>`
-    : `<p class="zt-comment-login"><a href="${escapeHtml(`${options.prefix}/login`)}">${isEn ? "Sign in to comment" : "ログインしてコメントする"}</a></p>`;
-
-  return `<section class="zt-comments-card" data-detail-comments="d5">
-    <style>
-      .zt-comments-card{margin:16px 0;padding:14px;border:1px solid #dce3dd;border-radius:12px;background:#fff;display:grid;gap:10px;min-width:0}
-      .zt-comments-card h3{margin:0;font-size:15px;font-weight:900}
-      .zt-comment-list{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-      .zt-comment-item{padding:10px;border-radius:8px;background:#f6f7f6;display:grid;gap:4px}
-      .zt-comment-item p{margin:0;overflow-wrap:anywhere}
-      .zt-comment-form{display:grid;gap:8px}
-      .zt-comment-form textarea{width:100%;min-height:44px;padding:8px 10px;border:1px solid #dce3dd;border-radius:8px;font:inherit}
-      .zt-comment-submit{min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid #245c3a;background:#245c3a;color:#fff;font:inherit;font-weight:800;cursor:pointer}
-      .zt-comment-login a,.zt-comment-login a:visited{display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}
-      @media (prefers-reduced-motion:reduce){.zt-comments-card,.zt-comments-card *{transition:none!important;animation:none!important}}
-    </style>
-    <h3>${escapeHtml(isEn ? "Comments" : "コメント")}</h3>
-    <ul id="obs-comment-list" class="zt-comment-list">${listHtml}</ul>
-    ${actionHtml}
-  </section>`;
+  return "";
 }
 
 export async function handlePostObservationComment(
-  observationId: string,
-  request: Request,
+  _observationId: string,
+  _request: Request,
   session: SessionLike,
-  env: EnvLike
+  _env: EnvLike
 ): Promise<Response> {
   if (!session || session.banned) {
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
-
-  const payload = await request.json().catch(() => null) as { body?: unknown } | null;
-  const body = typeof payload?.body === "string" ? payload.body.trim().slice(0, 500) : "";
-  if (!body) {
-    return jsonResponse({ ok: false, error: "invalid_comment_body" }, 400);
-  }
-
-  const obs = await env.OBS_DB
-    .prepare("SELECT observation_id, user_id, visibility FROM observations WHERE observation_id = ?")
-    .bind(observationId)
-    .first<{ observation_id: string; user_id: string; visibility: string }>();
-
-  if (!obs) {
-    return jsonResponse({ ok: false, error: "observation_not_found" }, 404);
-  }
-  if (obs.visibility !== "public" && obs.user_id !== session.userId) {
-    return jsonResponse({ ok: false, error: "forbidden" }, 403);
-  }
-
-  const existing = await loadObservationComments(observationId, env);
-  const comment: ObservationCommentEntry = {
-    commentId: `cmt_${crypto.randomUUID()}`,
-    observationId,
-    authorUserId: session.userId,
-    authorName: (session.displayName ?? "").trim() || "参加者",
-    body,
-    createdAt: new Date().toISOString(),
-  };
-  const comments = [...existing, comment];
-
-  if (env.ASSET_BUCKET) {
-    await env.ASSET_BUCKET.put(commentsKey(observationId), JSON.stringify(comments), {
-      httpMetadata: { contentType: "application/json; charset=utf-8" },
-    });
-  }
-
-  return jsonResponse({ ok: true, comment, comments }, 201);
+  return jsonResponse({ ok: false, error: "comments_closed", messageJa: OBSERVATION_COMMENTS_CLOSED_MESSAGE_JA }, 410);
 }
 
 export async function handleGetObservationComments(
@@ -184,8 +116,7 @@ export async function handleGetObservationComments(
     }
   }
 
-  const comments = await loadObservationComments(observationId, env);
-  return jsonResponse({ ok: true, comments }, 200);
+  return jsonResponse({ ok: true, comments: [], closed: true }, 200);
 }
 
 export async function handleCreateObservationShareLink(
