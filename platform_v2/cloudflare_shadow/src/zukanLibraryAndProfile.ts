@@ -1,4 +1,3 @@
-import { renderOtayoriFloatingButton } from "./otayori";
 import type { ZukanTopPageData } from "./zukanTopPage";
 
 const escapeHtml = (value: string): string =>
@@ -68,14 +67,16 @@ export function renderZukanCommonShell(options: {
     .zt-hub-dest,.zt-hub-dest:visited{display:grid;gap:4px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);text-decoration:none}
     .zt-hub-dest strong{color:var(--green);font-size:16px}
     .zt-hub-dest span{color:var(--muted);font-size:14px}
-    .zt-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid var(--line);padding:4px 6px}
-    .zt-nav-item,.zt-nav-item:visited{min-height:48px;display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--muted);font-size:14px;font-weight:700;border-radius:8px}
+    .zt-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:#fff;border-top:1px solid var(--line);padding:4px}
+    .zt-nav-item,.zt-nav-item:visited{min-height:48px;display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--muted);font-size:11px;line-height:1.2;text-align:center;padding:4px 2px;font-weight:700;border-radius:8px}
     .zt-nav-item[aria-current="page"],.zt-nav-item[aria-current="page"]:visited{color:var(--green)}
     .zt-nav-capture,.zt-nav-capture:visited{background:var(--capture);color:#fff}
     .zt-sidebar{display:none}
     @media(min-width:960px){
       .zt-shell{display:grid;grid-template-columns:220px 1fr;padding-bottom:0}
       .zt-sidebar{display:flex;flex-direction:column;gap:8px;padding:16px;border-right:1px solid var(--line);background:#fff;position:sticky;top:0;height:100vh}
+      .zt-sidebar .zt-nav-item{font-size:14px;padding:0 12px;justify-content:flex-start}
+      .zt-sidebar .zt-nav-feedback{border-top:1px solid var(--line);margin-top:4px;padding-top:8px;border-radius:0}
       .zt-bottom-nav{display:none}
     }
   </style>
@@ -88,6 +89,7 @@ export function renderZukanCommonShell(options: {
       <a class="zt-nav-item" href="${escapeHtml(`${prefix}/community/events`)}"${cur("events")}>${isEn ? "Events" : "イベント"}</a>
       <a class="zt-nav-item" href="${escapeHtml(`${prefix}/map`)}"${cur("places")}>${isEn ? "Places" : "場所"}</a>
       <a class="zt-nav-item" href="${escapeHtml(`${prefix}/profile`)}"${cur("profile")}>${isEn ? "Me" : "自分"}</a>
+      <a class="zt-nav-item zt-nav-feedback" data-zukan-otayori-sidebar="1" href="${escapeHtml(`${prefix}/otayori?from=${encodeURIComponent(options.pathname ?? `${prefix}/`)}`)}">${isEn ? "Feedback" : "改善のご要望"}</a>
     </aside>
     <div>
       <header class="zt-topbar">
@@ -106,8 +108,8 @@ export function renderZukanCommonShell(options: {
     <a class="zt-nav-item zt-nav-capture" href="${escapeHtml(`${prefix}/record`)}">${isEn ? "Capture" : "撮る"}</a>
     <a class="zt-nav-item" href="${escapeHtml(`${prefix}/map`)}"${cur("places")}>${isEn ? "Places" : "場所"}</a>
     <a class="zt-nav-item" href="${escapeHtml(`${prefix}/profile`)}"${cur("profile")}>${isEn ? "Me" : "自分"}</a>
+    <a class="zt-nav-item" data-zukan-otayori-menu="1" href="${escapeHtml(`${prefix}/otayori?from=${encodeURIComponent(options.pathname ?? `${prefix}/`)}`)}">${isEn ? "Feedback" : "改善のご要望"}</a>
   </nav>
-  ${renderOtayoriFloatingButton({ lang: isEn ? "en" : "ja", pathname: options.pathname ?? `${prefix}/` })}
 </body>
 </html>`;
 }
@@ -212,6 +214,10 @@ export function renderZukanProfileHubPage(options: {
         <a class="zt-hub-dest" href="${escapeHtml(`${prefix}/profile/settings`)}">
           <strong>${isEn ? "Settings & withdrawal" : "設定・退会"}</strong>
           <span>${isEn ? "Language settings and account withdrawal" : "表示言語と退会の確認"}</span>
+        </a>
+        <a class="zt-hub-dest" data-zukan-otayori-profile="1" href="${escapeHtml(`${prefix}/otayori?from=${encodeURIComponent(`${prefix}/profile`)}`)}">
+          <strong>${isEn ? "Feedback" : "改善のご要望"}</strong>
+          <span>${isEn ? "Send requests or check replies" : "気づいたことやご要望を送る・お返事を見る"}</span>
         </a>
       </div>
     </section>`;
