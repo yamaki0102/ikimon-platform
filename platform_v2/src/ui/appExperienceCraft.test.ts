@@ -108,3 +108,7 @@ test("shared top bar shows localized login action when signed out and profile ac
 test("hidden status and alert regions stay hidden under the design foundation", () => {
   assert.ok(ZUKAN_DESIGN_FOUNDATION_STYLES.includes(":is([role=status],[role=alert],[data-zukan-ui-state])[hidden]{display:none}"));
 });
+
+test("empty status/alert regions are hidden so no empty accent bar shows under forms", () => {
+  assert.ok(ZUKAN_DESIGN_FOUNDATION_STYLES.includes(":is([role=status],[role=alert],[data-zukan-ui-state]):empty{display:none}"));
+});
