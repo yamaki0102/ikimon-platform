@@ -162,7 +162,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
   assert.doesNotMatch(rendered, /AIからの短いメモ|主対象と環境の要素が確認できました/);
-  assert.match(rendered, /次に撮るとよい写真：頭部とくちばしの詳細/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
   assert.match(rendered, /似ている候補との比較/);
   assert.match(rendered, /ナミアゲハ/);
@@ -796,7 +796,7 @@ test("person-only AI detail keeps the record without taxon comparisons or body c
   }
   assert.match(rendered, /地域の行事を見学したときの記録/);
   assert.match(rendered, /\/derived\/public-scene\.webp/);
-  assert.match(rendered, /地域の行事が記録されています/);
+  assert.doesNotMatch(rendered, /地域の行事が記録されています/);
   assert.equal(rendered.includes('class="of-summary"'), false);
   assert.equal(rendered.includes("生きものは見つかりませんでした"), false);
 });
@@ -819,7 +819,7 @@ test("person primary context suppresses novel AI names and learning while preser
     assert.match(rendered, /<h1>自然の記録<\/h1>/);
     assert.match(rendered, /男性のいる地域の行事を記録しました/);
     assert.match(rendered, /\/derived\/public-scene\.webp/);
-    assert.match(rendered, /地域の行事が記録されています/);
+    assert.doesNotMatch(rendered, /地域の行事が記録されています/);
     assert.doesNotMatch(rendered, /男性かもしれません|>男性<|観客が写っています|人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
     assert.doesNotMatch(rendered, /class="of-summary"|生きものは見つかりませんでした/);
   }
@@ -842,7 +842,7 @@ test("person primary context retains coexisting bird and plant suggestions and a
       ],
       aiNextPhoto: subject.advice,
     });
-    for (const text of [subject.name, subject.evidence, subject.advice]) assert.ok(rendered.includes(text), text);
+    for (const text of [subject.name, subject.evidence]) assert.ok(rendered.includes(text), text);
     assert.doesNotMatch(rendered, /男性かもしれません|>男性<|観客が写っています|人物の顔を近くから撮る/);
   }
   const acceptedCard = { ...humanAiCard, assertionStatus: "human_asserted", subjectLabel: "男性", acceptedIdentification: {
@@ -887,7 +887,7 @@ test("mixed AI detail retains bird evidence and mapped guidance while excluding 
   assert.match(rendered, /スズメかもしれません/);
   assert.match(rendered, /頬の黒い斑点が見えます/);
   assert.match(rendered, /翼とくちばしを横から撮る/);
-  assert.match(rendered, /次に撮るとよい写真：翼を開いたところ/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
 });
 
 test("human accepted claims and original notes remain visible when human AI advice is omitted", () => {
@@ -983,7 +983,7 @@ test("record detail resolves the 7 UX polish items: open capture, readable media
   assert.doesNotMatch(rendered, /名前はこれから/);
 });
 
-test("existing landscape record without aiFeedback renders grounded environment feedback and avoids absence wording", () => {
+test("existing landscape record without a stored AI note renders no AI sentence and avoids absence wording", () => {
   const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
     lang: "ja",
     title: "水辺の記録",
@@ -1003,7 +1003,7 @@ test("existing landscape record without aiFeedback renders grounded environment 
     actionNonce: "nonce-water-scene",
     viewerAuthenticated: false,
   });
-  assert.match(rendered, /data-ai-feedback/);
+  assert.doesNotMatch(rendered, /<section class="of-note" data-ai-feedback/);
   assert.match(rendered, /水辺/);
   assert.doesNotMatch(rendered, /水辺のよう/);
   assert.doesNotMatch(rendered, /生きものの姿は見つかりませんでした/);
@@ -1040,6 +1040,7 @@ test("rendered desktop 1440x900 page scales portrait photo height >= 600 and fra
     observedLabel: "2026/11/22 08:15",
     note: null,
     aiFeedback: "水辺の植生が見えます。",
+    aiNote: [{ slot: 1, text: "水面と草が写っているので、水辺のようすが分かります。" }],
     media: [{ mediaId: "p1", mediaKind: "photo", url: portraitSvg }],
     actionNonce: "nonce-browser-measure",
     viewerAuthenticated: false,
@@ -1116,7 +1117,7 @@ test("card mode renders each heading and candidate once without advice prose, co
   assert.doesNotMatch(rendered, /写っているもの/);
   assert.doesNotMatch(rendered, /写真から見える特徴と、まだ確認できない点を並べています/);
   assert.doesNotMatch(rendered, /名前はこれから/);
-  assert.match(rendered, /次に撮るとよい写真：腹部の裏面/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   const feedbackBlock = rendered.match(/data-ai-feedback[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(feedbackBlock, /比べやすくなります/);
 });
@@ -1161,7 +1162,7 @@ test("card mode suppresses saved advice prose, trims next_photo to a noun, omits
     },
   );
   assert.doesNotMatch(rendered, /AIからの短いメモ|伝わりやすくなります|おすすめします/);
-  assert.match(rendered, /次に撮るとよい写真：腹部の裏面<\/p>/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.doesNotMatch(rendered, /が分かる角度からの撮影/);
   assert.doesNotMatch(rendered, /写真から読み取った候補です/);
   assert.match(rendered, />林の中<\/p>/);
@@ -1192,6 +1193,7 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
       observedLabel: "2026年11月23日",
       note: null,
       aiFeedback: null,
+      aiNote: [{ slot: 1, text: "木と地面が写っているので、林のようすが分かります。" }],
       aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
       aiCandidateInsights: [
         {
@@ -1221,7 +1223,7 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
   assert.doesNotMatch(rendered, /of-ai-badge|AIの見立て|AIからの短いメモ|AIが見つけた/);
   assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
   assert.doesNotMatch(rendered, /未確認/);
-  assert.match(rendered, /次に撮るとよい写真：実物の生体や周囲の自然環境<\/p>/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.doesNotMatch(rendered, /の詳細が分かる部位・角度/);
 });
 
@@ -1398,6 +1400,7 @@ test("record detail shows owner title edit form and role-based provenance withou
     title: "キアゲハ",
     customTitle: "里山のチョウと野草",
     aiFeedback: "林縁の草地でよく見られます。",
+    aiNote: [{ slot: 1, text: "木と地面が写っているので、林のようすが分かります。" }],
     observedLabel: "2026年11月23日",
     publicLocationLabel: "静岡県浜松市",
     note: "",
@@ -1507,4 +1510,28 @@ test("signboard, object, food, and person records do not fall back to 自然の�
   assert.match(personHtml, /<h1>活動の記録<\/h1>/);
   assert.match(personHtml, /人の集まり・活動/);
   assert.doesNotMatch(personHtml, /<h1>自然の記録<\/h1>/);
+});
+
+test("AI note renders as one headless paragraph with the AI disclosure, slot 3 only for the owner, and never a banned phrase", () => {
+  const aiNote = [
+    { slot: 1 as const, text: "水面が写っているので、コサギらしい鳥が待つ場所のようすが分かります。" },
+    { slot: 2 as const, text: "足もとの面は人工の面のようです。" },
+    { slot: 3 as const, text: "次は少し離れて、場所全体も一緒に入れると、まわりの変化も残せます。" },
+  ];
+  const presentation = { lang: "ja" as const, title: "水辺の記録", observedLabel: "2026年11月25日", note: null, media: [], actionNonce: "nonce-ai-note", viewerAuthenticated: true, aiNote };
+  const ownerHtml = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, presentation);
+  const otherHtml = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, presentation);
+  for (const slot of [1, 2, 3]) assert.match(ownerHtml, new RegExp(`data-ai-note-slot="${slot}"`));
+  assert.match(otherHtml, /data-ai-note-slot="1"/);
+  assert.match(otherHtml, /data-ai-note-slot="2"/);
+  assert.doesNotMatch(otherHtml, /data-ai-note-slot="3"|次は少し離れて/);
+  const block = ownerHtml.match(/<section class="of-note" data-ai-feedback data-ai-note[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.doesNotMatch(block, /<h2|次に撮るなら|次に撮るとよい写真/);
+  assert.match(block, /題名とこの文章はAIが作成しました/);
+  const banned = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, aiNote: [{ slot: 1, text: "水面がよく撮れています。" }, { slot: 2, text: "上手ですね。" }] });
+  assert.doesNotMatch(banned, /よく撮れ|上手ですね|data-ai-note-slot/);
+  const empty = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, aiNote: [] });
+  assert.doesNotMatch(empty, /<section class="of-note" data-ai-feedback/);
+  const english = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, lang: "en", aiNote });
+  assert.doesNotMatch(english, /data-ai-note-slot/);
 });

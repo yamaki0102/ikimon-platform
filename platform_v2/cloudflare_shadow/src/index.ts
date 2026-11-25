@@ -215,6 +215,7 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
+import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
   buildObservationAiQualityBacklogPayload,
   GEMINI_QUALITY_BACKLOG_MAX_ACTIVE,
@@ -26361,6 +26362,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         customTitle,
         signboardTitle,
         aiNextPhoto: detail.nextPhoto,
+        aiNote: recordLang === "ja" ? await loadRecordAiNoteForPage(env, detail.visitId, observationFirst.detail.owner, ctx) : [],
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
         savedControlHtml: savedContinuity.controlHtml,
@@ -26382,6 +26384,35 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "no-store",
   });
+}
+
+async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: string): Promise<void> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) return;
+  const gate = await publicSafetyGateForObservation(recordId, env);
+  await generateAndStoreAiNote({
+    db: env.OBS_DB,
+    recordId,
+    ownerUserId,
+    model: GEMINI_SUMMARY_MODEL,
+    protectedRecord: gate.blocked,
+    generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
+  });
+}
+
+async function loadRecordAiNoteForPage(env: Env, recordId: string, isOwner: boolean, ctx?: ExecutionContext) {
+  try {
+    const result = await loadVisibleAiNote(env.OBS_DB, recordId, {
+      isOwner,
+      protectedRecord: async () => (await publicSafetyGateForObservation(recordId, env)).blocked,
+    });
+    if (result.claimedStale.length > 0 && result.ownerUserId) {
+      ctx?.waitUntil(refreshRecordAiNote(env, recordId, result.ownerUserId).catch(() => undefined));
+    }
+    return result.slots;
+  } catch {
+    return [];
+  }
 }
 
 async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: string | null, env: Env) {
@@ -32692,6 +32723,9 @@ async function finalizeGeminiObservationReassessment(
     }
   }
   await env.OBS_DB.batch(statements);
+  if (observationDualWriteEnabled(env) && !["person", "document", "object", "food"].includes(merged.recordClass)) {
+    await refreshRecordAiNote(env, observationId, prepared.record.owner_user_id).catch(() => undefined);
+  }
 }
 
 async function refreshPublicReadmodel(observationId: string, env: Env): Promise<void> {
