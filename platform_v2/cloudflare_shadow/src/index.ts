@@ -6,6 +6,7 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -4184,6 +4185,16 @@ export const worker = {
           ownerNightPoints: nightPts
         });
         return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/auth/field-name/check") {
+        const result = await checkFieldNameAvailability(env.CORE_DB, url.searchParams.get("name"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/waitlist/status") {
+        const result = await getWaitlistStatusForEmail(env.CORE_DB, url.searchParams.get("email"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
