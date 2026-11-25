@@ -427,11 +427,13 @@ function renderAuthPage(options: {
   basePath: string;
   lang: SiteLang;
   redirect: string;
+  hasExplicitRedirect?: boolean;
 }): string {
   const isLogin = options.mode === "login";
   const copy = authPageCopy(options.lang);
   const redirectPath = options.redirect.split(/[?#]/, 1)[0] ?? "";
   const isProfileRedirect = redirectPath === "/profile" || redirectPath.startsWith("/profile/");
+  const plainJaLogin = isLogin && options.lang === "ja" && options.hasExplicitRedirect === false;
   const title = isLogin ? copy.titleLogin : copy.titleRegister;
   const endpoint = withBasePath(options.basePath, isLogin ? "/api/v1/auth/login" : "/api/v1/auth/register");
   const switchHref = localizedAuthHref(
@@ -455,13 +457,13 @@ function renderAuthPage(options: {
         <a class="auth-tab${!isLogin ? " is-active" : ""}" href="${escapeHtml(registerHref)}">${escapeHtml(copy.registerTab)}</a>
       </div>
       <div class="eyebrow">${escapeHtml(copy.heroEyebrow)}</div>
-      <h1>${escapeHtml(isProfileRedirect ? (isLogin ? copy.profileLoginHeading : copy.profileRegisterHeading) : (isLogin ? copy.recordLoginHeading : copy.recordRegisterHeading))}</h1>
+      <h1>${escapeHtml(plainJaLogin ? "ログイン" : isProfileRedirect ? (isLogin ? copy.profileLoginHeading : copy.profileRegisterHeading) : (isLogin ? copy.recordLoginHeading : copy.recordRegisterHeading))}</h1>
       <p>${escapeHtml(isProfileRedirect ? copy.profileLead : (isLogin ? copy.recordLoginLead : copy.recordRegisterLead))}</p>
       <form class="auth-form" data-auth-form data-endpoint="${escapeHtml(endpoint)}" data-redirect="${escapeHtml(options.redirect)}">
         ${displayNameField}
         <label class="auth-field"><span>${escapeHtml(copy.email)}</span><input name="email" type="email" autocomplete="email" required /></label>
         <label class="auth-field"><span>${escapeHtml(copy.password)}</span><input name="password" type="password" autocomplete="${isLogin ? "current-password" : "new-password"}" minlength="8" required /></label>
-        <button class="btn btn-solid auth-submit" type="submit">${escapeHtml(isProfileRedirect ? (isLogin ? copy.profileLoginSubmit : copy.profileRegisterSubmit) : (isLogin ? copy.recordLoginSubmit : copy.recordRegisterSubmit))}</button>
+        <button class="btn btn-solid auth-submit" type="submit">${escapeHtml(plainJaLogin ? "ログイン" : isProfileRedirect ? (isLogin ? copy.profileLoginSubmit : copy.profileRegisterSubmit) : (isLogin ? copy.recordLoginSubmit : copy.recordRegisterSubmit))}</button>
         <div class="auth-status" data-auth-status aria-live="polite"></div>
       </form>
       ${socialLogin}
@@ -617,7 +619,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
     const lang = detectLangFromUrl(requestUrl(request));
     reply.type("text/html; charset=utf-8");
-    return renderAuthPage({ mode: "login", basePath, lang, redirect });
+    return renderAuthPage({ mode: "login", basePath, lang, redirect, hasExplicitRedirect: url.searchParams.has("redirect") });
   });
 
   app.get("/register", async (request, reply) => {
