@@ -10613,7 +10613,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(humanCandidateResponse.status, 200);
   assert.deepEqual(humanCandidatePayload.observation, {
     ...candidatePayload.observation,
-    displayName: "名前待ち",
+    displayName: "自然の記録",
     aiCandidateLabel: null,
     aiCandidateRank: null,
     aiCandidateInsights: [],
