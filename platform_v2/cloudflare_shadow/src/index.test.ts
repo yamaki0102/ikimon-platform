@@ -33721,3 +33721,103 @@ test("takeaway page links to public place records only when explicitly configure
   assert.equal(noneRes.status, 200);
   assert.doesNotMatch(await noneRes.text(), /この場所の記録を見る/);
 });
+
+test("GET /api/v1/places/:id returns display name only for exact public place ID, 404 for private/unknown, 400 for non-ID/coords", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  obs.sqlite.exec(await readFile(new URL("../migrations/observations/0047_place_memory_runtime.sql", import.meta.url), "utf8"));
+  obs.sqlite.exec(await readFile(new URL("../migrations/observations/0068_universal_place_atlas.sql", import.meta.url), "utf8"));
+  const placeDb = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("FROM places p")) {
+            let values: unknown[] = [];
+            const stmt = {
+              bind(...input: unknown[]) { values = input; return stmt; },
+              async first() { return obs.sqlite.prepare(query).get(...values as never[]) ?? null; },
+              async all() { return { results: obs.sqlite.prepare(query).all(...values as never[]) }; },
+              async run() { return { meta: { changes: Number(obs.sqlite.prepare(query).run(...values as never[]).changes) } }; }
+            };
+            return stmt;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  Object.assign(env, { OBS_DB: placeDb });
+
+  obs.sqlite.prepare(
+    `INSERT INTO places (
+      place_id, canonical_name, canonical_name_normalized, place_kind,
+      locality_label, verification_status, official_status, public_profile_status,
+      metadata_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    "plc_public_tokiwa",
+    "常磐公園",
+    "常磐公園",
+    "park",
+    "静岡県静岡市",
+    "verified",
+    "official",
+    "published",
+    JSON.stringify({ stewardUserId: "user-steward-secret" }),
+    "2026-11-25T00:00:00Z",
+    "2026-11-25T00:00:00Z"
+  );
+  obs.sqlite.prepare(
+    `INSERT INTO place_policies (
+      place_policy_id, place_id, place_visibility, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?)`
+  ).run("pol_public_tokiwa", "plc_public_tokiwa", "public", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+
+  obs.sqlite.prepare(
+    `INSERT INTO places (
+      place_id, canonical_name, canonical_name_normalized, place_kind,
+      locality_label, verification_status, official_status, public_profile_status,
+      metadata_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    "plc_private_spot",
+    "非公開の調査地",
+    "非公開の調査地",
+    "reserve",
+    "非公開住所",
+    "verified",
+    "unofficial",
+    "published",
+    JSON.stringify({ stewardUserId: "user-private-owner" }),
+    "2026-11-25T00:00:00Z",
+    "2026-11-25T00:00:00Z"
+  );
+  obs.sqlite.prepare(
+    `INSERT INTO place_policies (
+      place_policy_id, place_id, place_visibility, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?)`
+  ).run("pol_private_spot", "plc_private_spot", "private", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+
+  const okRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_public_tokiwa"), env);
+  assert.equal(okRes.status, 200);
+  const okBody = await okRes.json() as Record<string, unknown>;
+  assert.deepEqual(okBody, { placeId: "plc_public_tokiwa", name: "常磐公園" });
+  assert.doesNotMatch(JSON.stringify(okBody), /静岡|user-steward-secret|boundary|lat|lng|bbox/u);
+
+  const privateRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_private_spot"), env);
+  assert.equal(privateRes.status, 404);
+
+  const unknownRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_unknown_999"), env);
+  assert.equal(unknownRes.status, 404);
+
+  const nameInsteadOfId = await worker.fetch(new Request("https://zukan.earth/api/v1/places/" + encodeURIComponent("常磐公園")), env);
+  assert.equal(nameInsteadOfId.status, 400);
+
+  const coordsRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/" + encodeURIComponent("35.6812,139.7671")), env);
+  assert.equal(coordsRes.status, 400);
+
+  const numericRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/123456"), env);
+  assert.equal(numericRes.status, 400);
+});
