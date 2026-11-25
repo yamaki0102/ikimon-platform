@@ -22784,15 +22784,17 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-zoom::backdrop{background:rgba(0,0,0,.78)}
     .cf-record-zoom img{display:block;max-width:100%;max-height:78vh;margin:auto}
     .cf-record-zoom button{min-height:44px;margin-top:8px;border-radius:4px;font:inherit;font-size:16px}
-    .cf-record-confirm{width:min(92vw,560px);max-width:none;padding:20px;border:0;border-radius:8px;color:var(--ink)}
-    .cf-record-confirm h2{margin:0 0 12px;font-size:20px}
-    .cf-record-confirm p{margin:8px 0;font-size:16px;overflow-wrap:anywhere}
-    .cf-record-confirm-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    .cf-record-confirm-actions button{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink);font:inherit;font-size:16px}
-    .cf-record-confirm-actions button[type=submit]{background:var(--teal);border-color:var(--teal);color:white}
-    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-saved-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-    .cf-record-saved-links a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--teal);border-radius:4px;background:white;color:var(--teal);text-decoration:none;font-weight:800}
+    .cf-record-confirm{width:min(92vw,560px);max-width:none;padding:24px 20px;border:0;border-radius:20px;color:var(--ink)}
+    .cf-record-confirm h2{margin:0 0 8px;font-size:18px;text-align:center}
+    .cf-record-confirm p{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;margin:0;padding:12px 0;border-bottom:1px solid var(--line);font-size:16px;overflow-wrap:anywhere}
+    .cf-record-confirm p strong{color:var(--muted);font-weight:700}
+    .cf-record-confirm p.is-note{display:block;border-bottom:0;color:var(--muted);font-size:15px}
+    .cf-record-confirm-actions{display:flex;flex-direction:column-reverse;gap:8px;margin-top:16px}
+    .cf-record-confirm-actions button{min-height:52px;padding:8px 14px;border:0;border-radius:16px;background:transparent;color:var(--teal);font:inherit;font-size:16px;font-weight:700}
+    .cf-record-confirm-actions button[type=submit]{background:var(--teal);color:white;font-size:17px}
+    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900;text-align:center;font-size:17px}
+    .cf-record-saved-links{display:grid;gap:12px;margin-top:12px}
+    .cf-record-saved-links a{display:flex;align-items:center;justify-content:center;min-height:52px;padding:8px 14px;border:1.5px solid var(--teal);border-radius:16px;background:white;color:var(--teal);text-decoration:none;font-weight:700;font-size:16px}
     .cf-record-saved-links a.is-primary{background:var(--teal);color:white}
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
@@ -22858,7 +22860,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     <p><strong>${escapeHtml(mediaCopy.reviewCount)}:</strong> <span id="record-confirm-count"></span></p>
     <p><strong>${escapeHtml(mediaCopy.reviewNote)}:</strong> <span id="record-confirm-note"></span></p>
     <p><strong>${escapeHtml(mediaCopy.reviewLocation)}:</strong> <span id="record-confirm-location"></span></p>
-    <p>${escapeHtml(mediaCopy.reviewAudience)}</p>
+    <p class="is-note">${escapeHtml(mediaCopy.reviewAudience)}</p>
     <div class="cf-record-confirm-actions">
       <button type="button" id="record-confirm-back">${escapeHtml(mediaCopy.reviewBack)}</button>
       <button type="submit" form="record-form" id="record-confirm-save">${escapeHtml(mediaCopy.savePrivate)}</button>

@@ -42,18 +42,18 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 export const ZUKAN_RECORD_PLACE_TIME_STYLES = `
-  .zt-place-time-card{display:grid;gap:12px;margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);min-width:0}
-  .zt-place-time-card h2{margin:0;font-size:16px;font-weight:900}
+  .zt-place-time-card{display:grid;gap:12px;margin:0 0 12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#fff;min-width:0}
+  .zt-place-time-card h2{margin:0;font-size:17px;font-weight:700}
   .zt-place-search-row{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
-  .zt-place-search-row input{flex:1;min-width:160px;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
-  .zt-place-btn{min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--teal);background:#fff;color:var(--teal);font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+  .zt-place-search-row input{flex:1;min-width:160px;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font:inherit}
+  .zt-place-btn{min-height:48px;padding:8px 16px;border-radius:14px;border:1.5px solid var(--teal);background:#fff;color:var(--teal);font:inherit;font-size:15px;font-weight:700;cursor:pointer}
   .zt-place-btn.is-primary{background:var(--teal);color:#fff}
   .zt-nearby-list{display:grid;gap:6px;margin:0;padding:0;list-style:none}
-  .zt-nearby-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;min-width:0}
-  .zt-nearby-item button{min-height:44px;padding:6px 12px;border-radius:8px;border:1px solid var(--teal);background:var(--mint);color:var(--teal);font:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .zt-nearby-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border:0;border-bottom:1px solid var(--line);background:transparent;min-width:0}
+  .zt-nearby-item button{min-height:44px;padding:6px 12px;border-radius:14px;border:1.5px solid var(--teal);background:#fff;color:var(--teal);font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
   .zt-new-place-box{display:grid;gap:8px;padding-top:8px;border-top:1px dashed var(--line)}
   .zt-datetime-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-  .zt-datetime-row input{min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
+  .zt-datetime-row input{min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font:inherit}
   @media (prefers-reduced-motion:reduce){
     .zt-place-time-card,.zt-place-time-card *{transition:none!important;animation:none!important}
   }
