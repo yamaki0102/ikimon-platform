@@ -1,3 +1,4 @@
+import { containsDiscoveryPersonalInformation } from "./eventDiscoveryPrivacy";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 
 const escapeHtml = (value: string): string =>
@@ -254,9 +255,15 @@ export async function handleResolveShareLinkPage(
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const comments = await loadObservationComments(obs.observation_id, env);
   const authenticated = Boolean(session && !session.banned);
+  const defaultNote = lang === "en" ? "Field observation" : "生きものの観察記録";
+  const firstLine = (obs.note ?? "").split(/\r?\n/)[0]?.trim() ?? "";
+  const safeNote =
+    firstLine && !containsDiscoveryPersonalInformation(obs.note ?? "") && !containsDiscoveryPersonalInformation(firstLine)
+      ? firstLine.slice(0, 24)
+      : defaultNote;
   const bodyHtml = `<section class="zt-hub-card" data-share-guest-view="d8">
     <h1>${escapeHtml(lang === "en" ? "Shared observation" : "共有された記録")}</h1>
-    <p>${escapeHtml(obs.note ?? (lang === "en" ? "Field observation" : "生きものの観察記録"))}</p>
+    <p>${escapeHtml(safeNote)}</p>
     <p><small>${escapeHtml(obs.observed_at ?? "—")}</small></p>
     <p><a class="zt-btn-outline" href="${escapeHtml(`${prefix}/observations/${encodeURIComponent(obs.observation_id)}`)}">${
       lang === "en" ? "Open record details" : "記録の詳細を見る"
