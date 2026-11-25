@@ -1,4 +1,5 @@
 import { isLocationDelayed24Hours } from "./locationPrivacy.js";
+import type { AiNoteCountFact } from "./recordAiNote.js";
 
 export type BandQuery = (sql: string, values: unknown[]) => Promise<Array<Record<string, unknown>>>;
 export type BandPublicRow = { observation_id: string; public_cell: string; observed_at: string; public_area_label?: string | null; taxon_label?: string | null };
@@ -113,6 +114,18 @@ async function resolvePlaceSeason(deps: BandDeps, recordId: string): Promise<Res
   const labelOf = deps.safeAreaLabel ?? ((v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null));
   const placeLabel = rows.map((row) => labelOf(row.public_area_label)).find((v): v is string => Boolean(v)) ?? FALLBACK_PLACE_LABEL;
   return { anchor, rows, seasonLabel: key.season.label, placeLabel };
+}
+
+export const AI_NOTE_PLACE_SEASON_COUNT_ID = "count:place-season";
+
+export async function readPlaceSeasonCountFacts(deps: BandDeps, recordId: string): Promise<AiNoteCountFact[]> {
+  try {
+    const resolved = await resolvePlaceSeason(deps, recordId);
+    if (!resolved || resolved.rows.length < BAND_MIN_PUBLIC_COUNT) return [];
+    return [{ id: AI_NOTE_PLACE_SEASON_COUNT_ID, label: "この場所とこの季節の確認済み記録", count: resolved.rows.length }];
+  } catch {
+    return [];
+  }
 }
 
 export const placeSeasonHref = (recordId: string) => `/api/v1/records/${encodeURIComponent(recordId)}/place-season`;

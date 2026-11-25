@@ -69,7 +69,7 @@ export type LoadVisibleAiNoteOptions = {
   isOwner: boolean;
   protectedRecord: boolean | (() => Promise<boolean>);
   taxonNotes?: readonly TaxonNote[];
-  counts?: readonly AiNoteCountFact[];
+  counts?: readonly AiNoteCountFact[] | (() => Promise<readonly AiNoteCountFact[]>);
 };
 
 export async function loadVisibleAiNote(
@@ -82,7 +82,9 @@ export async function loadVisibleAiNote(
   if (stored.slots.length === 0) return none;
   if (typeof options.protectedRecord === "function" ? await options.protectedRecord() : options.protectedRecord) return none;
   const reading = await readRecordReading(d1ReadingQuery(db as unknown as Parameters<typeof d1ReadingQuery>[0]), recordId);
-  const current = buildAiNoteEvidence(reading, { taxonNotes: options.taxonNotes, counts: options.counts });
+  const needsCounts = stored.slots.some((slot) => slot.evidence.some((ref) => ref.id.startsWith("count:")));
+  const counts = typeof options.counts === "function" ? (needsCounts ? await options.counts().catch(() => []) : []) : options.counts;
+  const current = buildAiNoteEvidence(reading, { taxonNotes: options.taxonNotes, counts });
   const { visible, staleSlots } = visibleAiNoteSlots(stored.slots, current, { owner: options.isOwner });
   const claimedStale: AiNoteSlotNo[] = [];
   for (const slot of staleSlots) {
@@ -103,6 +105,17 @@ async function recentInviteKinds(db: NoteDb, ownerUserId: string, recordId: stri
       ORDER BY created_at DESC LIMIT ${AI_NOTE_RECENT_INVITE_WINDOW}`,
   ).bind(ownerUserId, recordId).all<{ invite_kind: string }>()).results;
   return rows.map((row) => row.invite_kind);
+}
+
+export const AI_NOTE_RECENT_TEXT_WINDOW = 3;
+
+async function recentSlotOneTexts(db: NoteDb, ownerUserId: string, recordId: string): Promise<string[]> {
+  const rows = (await db.prepare(
+    `SELECT text_ja FROM record_ai_notes
+      WHERE owner_user_id = ? AND slot = 1 AND status = 'ready' AND record_id <> ?
+      ORDER BY created_at DESC LIMIT ${AI_NOTE_RECENT_TEXT_WINDOW}`,
+  ).bind(ownerUserId, recordId).all<{ text_ja: string }>()).results;
+  return rows.map((row) => row.text_ja);
 }
 
 export type GenerateAiNoteInput = {
@@ -126,6 +139,7 @@ const FAILURE_HINT_JA: Record<string, string> = {
   evidence_missing: "文に出した名前やものの記号を evidence に入れる",
   capture_fact_missing: "写っているもの・場所のようすの記号を evidence に入れる",
   number: "根拠一覧にない数字や数え方を使わない",
+  frequency: "「よく見られます」などの頻度の言い方は、件数の根拠が5件以上の時だけ使う",
   invite_form: "「次は〜すると、〜も残せます／〜が分かります」の形にする（近づく・巣・餌は不可）",
   invite_kind: "決められた種類の誘いにする",
 };
@@ -141,11 +155,12 @@ export async function generateAndStoreAiNote(input: GenerateAiNoteInput): Promis
   let called = false;
   if (!input.protectedRecord && reading.analyzed && evidence.some((item) => item.capture)) {
     const avoid = await recentInviteKinds(db, ownerUserId, recordId);
+    const recentTexts = await recentSlotOneTexts(db, ownerUserId, recordId);
     const inviteKind = chooseInviteKind(eligibleInviteKinds(reading), recordId, avoid);
     called = true;
     let feedback = "";
     for (let attempt = 0; attempt < AI_NOTE_MAX_ATTEMPTS; attempt += 1) {
-      const { prompt, aliases } = buildAiNotePrompt({ evidence, inviteKind });
+      const { prompt, aliases } = buildAiNotePrompt({ evidence, inviteKind, recordId, recentTexts });
       const raw = await input.generate({
         contents: [{ role: "user", parts: [{ text: feedback ? `${prompt}\n${feedback}` : prompt }] }],
         generationConfig: {

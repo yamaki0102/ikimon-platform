@@ -8,7 +8,9 @@ import {
   type GeminiObservationImage,
   type GeminiObservationSummary,
   type GeminiRecordClass,
+  parseGeminiPhotoReadings,
 } from "./geminiObservationBatch";
+import { FEATURE_TERMS, PLACE_SLOTS, PLACE_TERMS } from "./recordReading";
 import { LOOKALIKE_PROMPT, LOOKALIKE_STORE_PREFIX, MEASURE_VERSION, measuredBand, normalizeLookalike, readLookalike, readScene, sceneQuestions, subjectQuestions, type DecideMany, type LookalikeCard, type LookalikeMeasure, type SceneMeasure } from "./observationCardMeasure";
 import { bytesToBase64, cropRgb, decodePngRgb, encodePngRgb, tileRects, wideRect, type PixelRect } from "./observationCardPng";
 
@@ -94,6 +96,7 @@ const ID_PROMPT = (ctx: string) => `${ctx}
 "inventory":["写っている生きものを、名前を決める前に見た目で短く書き出す。最大8"],
 "habitat_type":"${CARD_HABITATS.join("|")}|その他",
 "subjects":[{"name":"和名","scientific_name":"学名","role":"main|host|other_animal|background","group":"bird|mammal|reptile|amphibian|fish|insect|spider|plant|fungus|other","rank":"species|genus|family|order|class","confidence_band":"low|medium|high","view":"close|mid|far","asset_indexes":[0],"features_seen":["この写真で実際に見えた特徴 最大3"],"missing_evidence":["確定に足りない証拠 最大2"]}],
+"photos":[{"asset_index":0,"assessment_state":"informative|not_informative|not_assessable",${PLACE_SLOTS.map((slot) => `"${slot}":"${PLACE_TERMS[slot].map(([code]) => code).join("|")}"`).join(",")},"feature_kinds":["${FEATURE_TERMS.filter(([code]) => code !== "unknown_feature").map(([code]) => code).join("|")}"]}],
 "area_inference":{${Object.keys(AREA_SLOTS).map((k) => `"${k}":[{"label":"","confidence":0.0,"why":""}]`).join(",")}},
 "narrative":"160字以内厳守。何がどう写り、どう読めるか。日時・場所は繰り返さず、情緒的な描写はしない",
 "simple_summary":"80字以内",
@@ -109,7 +112,8 @@ const ID_PROMPT = (ctx: string) => `${ctx}
 - far のものは種まで言わない。科・属・「〜類」などで止め、confidence_band は low。mid は種の決め手が実際に見えるときだけ species、confidence_band は medium まで。
 - 種の確定に必要な形質が見えなければ genus/family/order で止め、confidence_band を下げる。
 - 景観・環境・建物・人の営みが主役なら main_theme は environment。裸地・礫・舗装・看板・建物など非生物は subjects に入れず area_inference と narrative に書く。
-- area_inference は読み取れるキーを1件ずつ、why に写真で見えた根拠を具体的に書く。読み取れないキーは空配列。`;
+- area_inference は読み取れるキーを1件ずつ、why に写真で見えた根拠を具体的に書く。読み取れないキーは空配列。
+- photos は写真1枚ごとに1件（asset_index を必ず付ける）。その写真だけから読み取れる場所のようす5項目と、写っている構造物・地形の種類 feature_kinds（最大6）を選ぶ。写真ごとに違ってよい。他の写真から推測で補わず、その写真で根拠がない項目は unknown、feature_kinds は写っているものだけにする。看板・表札・標識の文字、車のナンバー、人の名前は読まず、どの欄にも書かない（種類のコードだけ）。`;
 
 const HABITAT_PROMPT = (type: string) => `You write habitat cards for a nature observation app. Region: Japan. Habitat type (Japanese label): ${type}
 Return JSON only:
@@ -404,6 +408,7 @@ export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Ar
       fields: { place_type: PLACE_TYPES[str(id.habitat_type)] ?? "unknown", contact_surface: "unknown", surrounding_cover: "unknown", environment_condition: "unknown", human_change: "unknown" },
       cues,
       uncertain_cues: [],
+      photos: parseGeminiPhotoReadings(id.photos),
     },
     relations: [],
     qualityFlags: [],

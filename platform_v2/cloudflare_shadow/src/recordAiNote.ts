@@ -34,6 +34,7 @@ export type AiNoteEvidence = {
   nameJa: string | null;
   aiRead: boolean;
   terms: string[];
+  focus?: boolean;
 };
 export type AiNoteEvidenceRef = { id: string; fp: string };
 export type AiNoteSlotDraft = { slot: AiNoteSlotNo; text: string; evidence: string[]; invite: string | null };
@@ -50,6 +51,7 @@ const PLACE_SLOT_LABEL_JA: Record<PlaceSlot, string> = {
   human_change: "人の手の跡",
 };
 
+const NON_FOCUS_PLACE_CODES = new Set(["unknown", "none_visible", "mixed_cover", "soil_gravel_litter"]);
 const STATE_JA = { ai_read: "AIの読み取り", proposed: "提案あり", confirmed: "確認済み" } as const;
 
 export type AiNoteFailure =
@@ -90,7 +92,7 @@ export function buildAiNoteEvidence(reading: RecordReading, options: AiNoteEvide
     if (!found.labelJa || found.code === "unknown_feature") return;
     put({
       id: `item:${found.itemId}`, kind: "feature", fp: fp("f", found.code, found.state), capture: true, number: null,
-      organismItemId: null, nameJa: null, aiRead: false, terms: termsOf(found.labelJa), label: `写っているもの: ${found.labelJa}（${STATE_JA[found.state]}）`,
+      organismItemId: null, nameJa: null, aiRead: false, terms: termsOf(found.labelJa), label: `写っているもの: ${found.labelJa}（${STATE_JA[found.state]}）`, focus: true,
     });
   };
   const addPlace = (slot: PlaceSlot, value: ReadingPlaceValue | null) => {
@@ -98,6 +100,7 @@ export function buildAiNoteEvidence(reading: RecordReading, options: AiNoteEvide
     put({
       id: `item:${value.itemId}`, kind: "place", fp: fp("p", slot, value.code, value.state), capture: true, number: null,
       organismItemId: null, nameJa: null, aiRead: false, terms: termsOf(value.labelJa), label: `${PLACE_SLOT_LABEL_JA[slot]}: ${value.labelJa}（${STATE_JA[value.state]}）`,
+      focus: slot !== "place_type" && !NON_FOCUS_PLACE_CODES.has(value.code),
     });
   };
   const levels = [...reading.media, reading.recordLevel];
@@ -141,8 +144,8 @@ const BANNED_PATTERNS: readonly RegExp[] = [
   /[A-Za-z]{2,}|画像\s*\d|https?:/u,
   /立派|素敵|すてき|魅力|貴重|大切|嬉しい|うれしい|ぴったり|最適|理想的|ちょうど良|良い場所|いい場所|おすすめ|お見事|ならでは/u,
 ];
-const BEHAVIOR_PATTERN = /過ごし|歩い|飛ん|泳い|食べ|休ん|鳴い|活動する|生息/u;
-const VAGUE_REVEAL = /環境|様子|状況|性質|雰囲気|生息|特徴|入っていない|手つかず|自然のまま|隠れ場所|混ざり合う/u;
+const BEHAVIOR_PATTERN = /過ごし|歩い|飛ん|泳い|食べ|休ん|鳴い|活動する|生息|好ま|好む|集ま|棲|すみか|住み/u;
+const VAGUE_REVEAL = /環境|様子|状況|性質|雰囲気|生息|特徴|入っていない|手つかず|自然のまま|ありのまま|自然の広がり|静か|雨水|隠れ場所|混ざり合う/u;
 const NARRATION_PATTERN = /収め[まて]|記録され|記録しま|撮影され|撮影しま|撮られて|写真に|枚の写真|写真が\d|写真は\d|\d+枚|写っており|写ってお|が見られます|が見られる|見受けられ|確認できます|確認できる/u;
 const FLUENCY_PATTERN = /よう(?:です|で|だ|な)|といえ|と言え|である。|でしょう/u;
 const REVEAL_PATTERN = /^[^。、]{2,24}(?:、[^。、]{2,16})?(?:ので|から|ため)、[^。、]{3,28}(?:分かります|わかります|読み取れます|確かめられます|たどれます|残せます|見えてきます)。$/u;
@@ -305,13 +308,36 @@ export function chooseInviteKind(eligible: readonly InviteKind[], recordId: stri
   return [...pool].sort((left, right) => hashText(`${recordId}:${left}`) - hashText(`${recordId}:${right}`))[0]!;
 }
 
-export type AiNotePromptInput = { evidence: readonly AiNoteEvidence[]; inviteKind: InviteKind | null };
+export type AiNotePromptInput = { evidence: readonly AiNoteEvidence[]; inviteKind: InviteKind | null; recordId?: string; recentTexts?: readonly string[] };
+
+export const AI_NOTE_FOCUS_COUNT = 2;
+
+export function promptEvidence(evidence: readonly AiNoteEvidence[]): AiNoteEvidence[] {
+  const seen = new Set<string>();
+  return evidence.filter((item) => {
+    const key = `${item.kind}:${item.label}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function focusEvidenceIds(evidence: readonly AiNoteEvidence[], recordId: string | undefined): string[] {
+  if (!recordId) return [];
+  return promptEvidence(evidence).filter((item) => item.capture && item.focus)
+    .sort((left, right) => hashText(`${recordId}:${left.id}`) - hashText(`${recordId}:${right.id}`))
+    .slice(0, AI_NOTE_FOCUS_COUNT).map((item) => item.id);
+}
 
 export function buildAiNotePrompt(input: AiNotePromptInput): { prompt: string; aliases: Map<string, string>; allowSlot2: boolean } {
   const aliases = new Map<string, string>();
-  const lines = input.evidence.map((item, index) => {
+  const shown = promptEvidence(input.evidence);
+  const focus = new Set(focusEvidenceIds(input.evidence, input.recordId));
+  const focusAliases: string[] = [];
+  const lines = shown.map((item, index) => {
     const alias = `e${index + 1}`;
     aliases.set(alias, item.id);
+    if (focus.has(item.id)) focusAliases.push(alias);
     return `${alias}: ${item.label}`;
   });
   const allowSlot2 = input.evidence.some((item) => item.kind === "taxon_note" || item.kind === "count");
@@ -319,11 +345,17 @@ export function buildAiNotePrompt(input: AiNotePromptInput): { prompt: string; a
     "記録ページに置く短い日本語を作ってください。使える材料は下の根拠一覧だけです。一覧にない事実・名前・数・習性を足さないでください。",
     "枠1（必須）: 「写っている具体的な事実」＋「ので、それで分かること」を1文で書く。形は『〇〇が写っているので、△△が分かります。』。45字以内、句点は文末に1つだけ、1つの主語と1つの述語で自然な日本語にする。",
     "文に出す名前・もの・場所のようすは、必ずその一覧の記号を evidence に入れる（入れ忘れた文は捨てられる）。名前が「AIの読み取り」のものは、必ず「〇〇らしい〇〇」の形にする。名前が長くなる時は、名前を出さず「鳥」「虫」「草」「木」とだけ書いてよい（その方が自然）。",
-    "枠1の良い例: 「水面と足もとまで写っているので、鳥が待つ場所の深さが分かります。」「柵と低い草が写っているので、人の手が入った草地だと分かります。」「木の茂みと日陰が写っているので、日差しの少ない林だと分かります。」",
+    "枠1の良い例: 「水面と足もとまで写っているので、鳥が待つ場所の深さが分かります。」「柵と低い草が写っているので、人の手が入った草地だと分かります。」「木の茂みと日陰が写っているので、日差しの少ない林だと分かります。」「護岸と水面が写っているので、水際に人の手が入った場所だと分かります。」「岩と砂利が写っているので、足もとが固く乾いた場所だと分かります。」「橋と案内板が写っているので、人が行き来する場所だと分かります。」",
+    ...((input.recentTexts?.length ?? 0) > 0
+      ? [`この投稿者の直近の記録の枠1: ${input.recentTexts!.map((text) => `「${text}」`).join("")}。別の根拠や別の「分かること」を選べる時は、同じ言い回し・同じ書き出しを繰り返さない（材料が同じで言い換えられない時は、同じでよい）。`]
+      : []),
+    focusAliases.length > 0
+      ? `枠1の材料は、次の根拠のうち少なくとも1つを必ず使う（この記録を他の記録と区別する材料）: ${focusAliases.join("、")}。同じ言い回しを避け、その記録の材料に合う「分かること」を選ぶ。`
+      : "枠1は、よくある言い回しに寄せず、その記録の材料に合う「分かること」を選ぶ。",
     "「分かること」は、写っているものから一歩で言えることにする。例: 草刈りの跡・柵・舗装・建物・案内板→人の手が入った（人の暮らしに近い）場所、木の茂みと日陰→日差しの少ない林、水面→水辺、低い草や草むら→草地、岩や土→足もとが固く開けた場所（根拠にある語を繰り返す答えは避ける）。木と低い草→緑の多い場所、濡れている・水が流れている→水気のある場所、日が当たって開けている→日当たりのよい開けた場所。場所の種類の名前を、そのまま「分かること」として繰り返さない。「〜が入っていない」「〜がない」のような否定で締めない。「環境」「様子」「状況」「性質」「特徴」のような曖昧な言葉で締めない。",
-    "枠1で守ること: 「分かること」は、根拠の内容から言えることだけにする。写真の枚数、「写真に」「収めました」「記録されています」のような説明の言い方は使わない。「〜のようです」は使わない。生きものの動き・行動・習性（過ごす、歩く、飛ぶ、食べる等）は書かない。根拠から言えない環境の評価（自然のまま、豊か等）も書かない。",
+    "枠1で守ること: 「分かること」は、根拠の内容から言えることだけにする。写真の枚数、「写真に」「収めました」「記録されています」のような説明の言い方は使わない。「〜のようです」は使わない。生きものの動き・行動・習性（過ごす、歩く、飛ぶ、食べる、好む、集まる等）は書かない。根拠から言えない環境の評価（自然のまま、手つかず、静か、豊か等）や、根拠にない天気・水の話（雨水等）も書かない。",
     allowSlot2
-      ? "枠2（任意）: 根拠の「保存済みの解説」「件数」にある内容だけで、その生きもの・場所の学びを1文（45字以内）で書く。言い換えや場所の説明の繰り返しにはしない。"
+      ? "枠2（任意）: 根拠の「保存済みの解説」「件数」にある内容だけで、その生きもの・場所の学びを1文（45字以内）で書く。言い換えや場所の説明の繰り返しにはしない。件数は根拠に書かれた数のまま使い、「よく見られます」「多く見られます」のような頻度の言い方は、件数の根拠が5件以上の時だけ使う（5件未満は件数だけを書く）。"
       : "枠2は出さない（保存済みの解説も件数も無い）。",
     input.inviteKind
       ? `枠3: 次の一歩の誘いを1文（50字以内）。種類は ${input.inviteKind}（${INVITE_HINT_JA[input.inviteKind]}）に決まっている。「次は〜すると、〜も残せます」または「次は〜すると、〜が分かります」の形だけ。命令にしない。生きものの名前は書かず「この生きもの」と書く。近づく・触る・捕まえる・巣や餌に関わる誘いは書かない。`

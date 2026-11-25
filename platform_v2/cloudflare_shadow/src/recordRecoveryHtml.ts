@@ -917,6 +917,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
           await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
             ...upload,
             mediaRole: index === 0 ? "primary" : "context",
+            position: index,
             facePrivacy: photoFacePrivacyStatus(upload),
           });
           prepared[index] = null;

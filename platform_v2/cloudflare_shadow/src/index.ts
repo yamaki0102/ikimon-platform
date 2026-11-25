@@ -215,6 +215,7 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
+import { writeRecordMediaOrder } from "./recordReading";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
   buildObservationAiQualityBacklogPayload,
@@ -295,6 +296,7 @@ import {
   buildOwnerObservationUpsertPlan,
   buildRecordProposalPolicyPlan,
   buildRecordVisibilityPlan,
+  observationIdForRecord,
   type ObservationDualWritePlan,
 } from "./cloudflareObservationDualWrite";
 import {
@@ -409,7 +411,8 @@ import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
-import { handleRecordCountBandRoute } from "./recordCountBand";
+import { handleRecordCountBandRoute, readPlaceSeasonCountFacts, type BandDeps } from "./recordCountBand";
+import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
 import { handleGbifConsentRoute } from "./gbifConsent";
 import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
@@ -787,6 +790,7 @@ interface LegacyPhotoUploadInput {
   base64Data?: string | null;
   mediaRole?: string | null;
   facePrivacy?: string | null;
+  position?: number | null;
 }
 
 interface LegacyPhotoAssetRow {
@@ -3758,13 +3762,21 @@ export const worker = {
         return getShadowVideoThumbnail(decodeURIComponent(shadowVideoThumbnailMatch[1]), env);
       }
 
+      if (/^\/api\/v1\/(?:records\/[^/]+\/reading-(?:proposals|history)|admin\/reading-proposals\/[^/]+)$/.test(nativePathname)) {
+        const proposalResponse = await handleRecordProposalRoute({
+          ...recordProposalDeps(env),
+          fieldNames: async (userIds) => {
+            const rows = (await env.CORE_DB.prepare(`SELECT user_id, display_name FROM auth_users WHERE user_id IN (${userIds.map(() => "?").join(", ")})`).bind(...userIds).all<{ user_id: string; display_name: string }>()).results;
+            return new Map(rows.map((row) => [row.user_id, row.display_name]));
+          },
+          readSession: async () => readCompatibleSession(request, env),
+          isAdmin: (session) => isSpecialistAuthorityAdminRole(session as SessionSnapshot),
+        }, request, nativePathname);
+        if (proposalResponse) return proposalResponse;
+      }
+
       if (request.method === "GET" && /^\/api\/v1\/records\/[^/]+\/(?:count-band|place-season)$/.test(nativePathname)) {
-        const bandResponse = await handleRecordCountBandRoute({
-          query: async (sql, values) => (await env.OBS_DB.prepare(sql).bind(...(values as Array<string | number | null>)).all<Record<string, unknown>>()).results,
-          publicRows: () => queryPublicMapRows(env),
-          nowMs: Date.now(),
-          safeAreaLabel: normalizeSafePublicAreaLabelCandidate,
-        }, async () => readCompatibleSession(request, env), nativePathname);
+        const bandResponse = await handleRecordCountBandRoute(recordCountBandDeps(env), async () => readCompatibleSession(request, env), nativePathname);
         if (bandResponse) return bandResponse;
       }
 
@@ -6701,6 +6713,22 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
   const ownerPlan = recordRow
     ? await existingOwnerObservationDualWritePlan(recordId, recordRow.owner_user_id, env)
     : null;
+  if (observationDualWriteEnabled(env) && recordRow) {
+    if (ownerPlan) await env.OBS_DB.batch(observationDualWriteStatements(env, ownerPlan));
+    const gate = await submitReadingProposal({ db: env.OBS_DB as unknown as ProposalDb }, {
+      recordId,
+      actor: session,
+      body: {
+        requestId: `legacy-${(await sha256Hex(textToArrayBuffer(`${sourceKey}:${proposedName}`))).slice(0, 48)}`,
+        op: "propose",
+        observationId: await observationIdForRecord(recordId),
+        name: proposedName.slice(0, 160),
+      },
+    });
+    if (gate.status === 429 || (gate.status === 403 && gate.body.error === "proposer_suspended")) {
+      return json(gate.body, gate.status, { "cache-control": "no-store", ...(gate.headers ?? {}) });
+    }
+  }
   const identificationPlan = observationDualWriteEnabled(env) && recordRow
     ? await buildIdentificationClaimDualWritePlan({
       recordId,
@@ -23290,6 +23318,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
             await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
               ...upload,
               mediaRole: index === 0 ? "primary" : "context",
+            position: index,
               facePrivacy: photoFacePrivacyStatus(upload)
             });
             preparedPhotoUploads[index] = null;
@@ -26309,7 +26338,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId),
-        loadObservationComments(detail.visitId, env),
+        Promise.resolve([] as Awaited<ReturnType<typeof loadObservationComments>>),
       ]);
       const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
         buildObservationDetailEvidence({
@@ -26393,6 +26422,15 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
   });
 }
 
+function recordCountBandDeps(env: Env): BandDeps {
+  return {
+    query: async (sql, values) => (await env.OBS_DB.prepare(sql).bind(...(values as Array<string | number | null>)).all<Record<string, unknown>>()).results,
+    publicRows: () => queryPublicMapRows(env),
+    nowMs: Date.now(),
+    safeAreaLabel: normalizeSafePublicAreaLabelCandidate,
+  };
+}
+
 async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: string): Promise<void> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) return;
@@ -26403,6 +26441,7 @@ async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: stri
     ownerUserId,
     model: GEMINI_SUMMARY_MODEL,
     protectedRecord: gate.blocked,
+    counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
     generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
   });
 }
@@ -26412,6 +26451,7 @@ async function loadRecordAiNoteForPage(env: Env, recordId: string, isOwner: bool
     const result = await loadVisibleAiNote(env.OBS_DB, recordId, {
       isOwner,
       protectedRecord: async () => (await publicSafetyGateForObservation(recordId, env)).blocked,
+      counts: () => readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
     });
     if (result.claimedStale.length > 0 && result.ownerUserId) {
       ctx?.waitUntil(refreshRecordAiNote(env, recordId, result.ownerUserId).catch(() => undefined));
@@ -26535,6 +26575,21 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
     : { state: "forbidden" as const, detail: null };
 }
 
+function recordProposalDeps(env: Env): ProposalDeps {
+  return {
+    db: env.OBS_DB as unknown as ProposalDb,
+    organismClaim: async (input) => (await buildIdentificationClaimDualWritePlan({
+      recordId: input.recordId,
+      targetObservationId: input.observationId,
+      legacyIdentificationId: `record-ui:${input.requestId}`,
+      actorUserId: input.actorUserId,
+      actorKind: input.owner ? "owner" : "community_member",
+      proposedName: input.name,
+      sourcePayload: { source: "observation_first_record_ui" },
+    })).mutations,
+  };
+}
+
 async function handleObservationFirstRecordAction(recordId: string, request: Request, env: Env): Promise<Response> {
   if (!observationReadCutoverEnabled(env) || !observationDualWriteEnabled(env)) {
     return json({ ok: false, error: "observation_first_write_disabled" }, 503, { "cache-control": "no-store" });
@@ -26651,15 +26706,13 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     ).bind(sourceObservationId, recordId).first<{ observation_id: string }>();
     const proposedName = String(form.get("proposed_name") ?? "").trim();
     if (!target || proposedName.length < 1 || proposedName.length > 160) return json({ ok: false, error: "identification_input_invalid" }, 400, { "cache-control": "no-store" });
-    plan = await buildIdentificationClaimDualWritePlan({
+    const proposal = await submitReadingProposal(recordProposalDeps(env), {
       recordId,
-      targetObservationId: sourceObservationId,
-      legacyIdentificationId: `record-ui:${operationId}`,
-      actorUserId: session.userId,
-      actorKind: owner ? "owner" : "community_member",
-      proposedName,
-      sourcePayload: { source: "observation_first_record_ui", notePresent: Boolean(String(form.get("note") ?? "").trim()) },
+      actor: session,
+      body: { requestId: operationId.length <= 120 ? operationId : await sha256Hex(textToArrayBuffer(operationId)).then((digest) => digest.slice(0, 64)), op: "propose", observationId: sourceObservationId, name: proposedName },
     });
+    if (proposal.status !== 200) return json(proposal.body, proposal.status, { "cache-control": "no-store", ...(proposal.headers ?? {}) });
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
   } else if (action === "media_reassign") {
     if (!owner || !targetObservationId) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const mediaId = String(form.get("media_id") ?? "");
@@ -29285,6 +29338,7 @@ async function attachVideoAssetToObservation(input: {
     })
   ]);
 
+  await writeRecordMediaOrder(env.OBS_DB, input.observationId, assetId);
   const pending = await env.OBS_DB.prepare(
     `SELECT outbox_id, topic, target_id FROM outbox
       WHERE outbox_id IN (?, ?) AND dispatch_state = 'pending'`
@@ -30524,6 +30578,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     if (!existingObject || existingObject.size !== body.byteLength) {
       return json({ ok: false, error: "media_integrity_missing" }, 503, { "cache-control": "no-store" });
     }
+    await writeRecordMediaOrder(env.OBS_DB, observationId, asset.asset_id, input.position);
     return json({
       ok: true,
       visitId: observationId,
@@ -30656,6 +30711,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     throw error;
   }
 
+  await writeRecordMediaOrder(env.OBS_DB, observationId, assetId, input.position);
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
     { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
