@@ -123,13 +123,15 @@ export function renderGuidePublicPage(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(guide.display_name)} — 案内人 | ZUKAN</title>
   <style${nonceAttr}>
-    body{margin:0;font-family:"Noto Sans JP",system-ui,sans-serif;background:#fff;color:#17251b;padding:20px}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Noto Sans JP",system-ui,sans-serif;background:#fff;color:#17251b;padding:16px;overflow-x:hidden}
+    a,a:visited{color:#245c3a}
     .gp-wrap{max-width:860px;margin:0 auto;display:grid;gap:20px}
-    .gp-card{padding:18px;border-radius:12px;background:#f6f7f6;display:grid;gap:10px}
+    .gp-card{min-width:0;padding:18px;border-radius:12px;background:#f6f7f6;display:grid;gap:10px;overflow-wrap:anywhere}
     .gp-meta{color:#485a4e;font-size:14px}
     .gp-list{margin:0;padding-left:20px}
-    label{display:grid;gap:4px;font-size:14px;font-weight:700}
-    input,select{min-height:44px;padding:8px 12px;border:1px solid #c5d1c8;border-radius:8px;font:inherit}
+    label{display:grid;gap:4px;font-size:14px;font-weight:700;min-width:0}
+    input,select{width:100%;max-width:100%;min-height:44px;padding:8px 12px;border:1px solid #c5d1c8;border-radius:8px;font:inherit}
     button{min-height:44px;padding:10px 18px;border:0;border-radius:8px;background:#245c3a;color:#fff;font-weight:700;cursor:pointer}
   </style>
 </head>
