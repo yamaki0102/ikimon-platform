@@ -3,6 +3,7 @@ import { renderObservationOwnerDeletePanel, renderObservationOwnerDeleteScript }
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import type { ObservationFirstCard, ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import { isPublicObservationAiSubjectEligible } from "./publicObservationAiPresentation";
+import { finalizeVisibleAiNoteSlots } from "./recordAiNote";
 import {
   observationFirstRecordDetailCopy,
   type ObservationFirstRecordDetailCopy,
@@ -90,6 +91,7 @@ export type ObservationFirstRecordPresentation = {
   customTitle?: string | null;
   signboardTitle?: string | null;
   aiNextPhoto?: string | null;
+  aiNote?: ReadonlyArray<{ slot: 1 | 2 | 3; text: string }> | null;
   mediaDedup?: {
     sourcePhotoCount: number;
     representativePhotoCount: number;
@@ -346,39 +348,6 @@ function renderAiCandidateComparison(
   }).join("")}</ul></section>`;
 }
 
-function environmentFallbackFeedback(
-  detail: ObservationFirstRecordDetail,
-  presentation: ObservationFirstRecordPresentation,
-  copy: ObservationFirstRecordDetailCopy,
-  lang: ObservationRecordLang,
-): string | null {
-  const activeCount = detail.observations.filter((card) => card.state === "active").length;
-  if (activeCount > 0 && presentation.detectionState !== "not_detected") return null;
-  const env = presentation.environment;
-  const placeHeadline = env?.place_type && env.place_type !== "unknown" ? copy.environmentHeadlines[env.place_type] : null;
-  const detailLabels = (["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).flatMap((field) => {
-    const val = env?.[field];
-    const label = val && val !== "unknown" ? copy.environmentValues[val] : null;
-    return label ? [label] : [];
-  });
-  const sceneLabels = (presentation.sceneElements ?? derivedSceneElements(env))
-    .filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item])
-    .map((item) => copy.sceneElements[item]);
-  const parts = [...new Set([...detailLabels, ...sceneLabels])].slice(0, 3);
-  if (!placeHeadline && parts.length === 0) return null;
-  const sep = lang === "ja" ? "・" : ", ";
-  if (lang === "ja") {
-    const summary = placeHeadline && parts.length > 0
-      ? `${placeHeadline}（${parts.join(sep)}）`
-      : placeHeadline ?? `${parts.join(sep)}`;
-    return summary;
-  }
-  const summary = placeHeadline && parts.length > 0
-    ? `${placeHeadline} (${parts.join(sep)}).`
-    : placeHeadline ? `${placeHeadline}.` : `${parts.join(sep)}.`;
-  return summary;
-}
-
 function conciseNextPhotoItem(value: string): string {
   return value
     .trim()
@@ -388,8 +357,6 @@ function conciseNextPhotoItem(value: string): string {
     .replace(/(?:を撮影すると|が撮れると|の撮影をおすすめします)[^。]*。?$/u, "")
     .trim() || value.trim();
 }
-
-const adviceProsePattern = /(?:おすすめします|伝わりやすくなります|比べやすくなります|残すと|撮影することで|確認すると)/u;
 
 const SIGNBOARD_CANDIDATE_PATTERN = /案内板|看板|イラスト|パノラマ図|案内図|標柱|掲示板|ポスター|パンフレット|signboard|illustration|diagram/u;
 
@@ -461,21 +428,11 @@ function renderAiFeedback(
   const eligible = (names: Array<string | null>) => isPublicObservationAiSubjectEligible(names[0], presentation.aiPersonPrimaryNames, names[1]);
   const humanOnly = subjects.some((names) => !eligible(names))
     && !subjects.some((names) => eligible(names) && names.some((name) => publicSubjectName(name)));
-  const rawFeedback = (presentation.aiFeedback ? aiProseForLang(presentation.aiFeedback, lang) : null)
-    ?? (!humanOnly ? environmentFallbackFeedback(detail, presentation, copy, lang) : null);
-  const feedback = rawFeedback && !adviceProsePattern.test(rawFeedback) ? rawFeedback : null;
-  const defaultEnvironmentNextPhoto = !humanOnly && !presentation.aiFeedback && rawFeedback && lang === "ja"
-    ? "足元・水際・植生の境目"
-    : null;
-  const rawNextPhoto = (!humanOnly && presentation.aiNextPhoto ? aiProseForLang(presentation.aiNextPhoto, lang) : null)
-    ?? defaultEnvironmentNextPhoto;
-  const nextPhoto = rawNextPhoto ? conciseNextPhotoItem(rawNextPhoto) : null;
+  if (humanOnly) return "";
+  const slots = lang === "ja" ? finalizeVisibleAiNoteSlots(presentation.aiNote ?? [], detail.owner) : [];
+  if (slots.length === 0) return "";
   const feedbackAiNote = presentation.customTitle?.trim() ? copy.aiGeneratedNote : copy.aiGeneratedTitleAndNote;
-  if (nextPhoto) {
-    return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2><p>${escapeHtml(copy.aiNextPhotoTitle)}：${escapeHtml(nextPhoto)}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
-  }
-  if (!feedback) return "";
-  return `<section class="of-note" data-ai-feedback aria-labelledby="of-ai-feedback-title"><h2 id="of-ai-feedback-title">${escapeHtml(copy.aiFeedbackTitle)}</h2><p>${escapeHtml(feedback)}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
+  return `<section class="of-note" data-ai-feedback data-ai-note aria-label="${escapeHtml(copy.aiFeedbackTitle)}"><p class="of-ai-note-text">${slots.map((slot) => `<span data-ai-note-slot="${slot.slot}">${escapeHtml(slot.text)}</span>`).join("")}</p><p class="of-ai-note">${escapeHtml(feedbackAiNote)}</p></section>`;
 }
 
 function renderIdentificationForm(
