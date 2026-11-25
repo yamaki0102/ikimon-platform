@@ -93,3 +93,48 @@ export async function handleEventAlbumOrShareRoute(
     },
   });
 }
+
+export type EventGalleryTile = { href: string; isVideo: boolean; statusLabel: string };
+
+export function renderEventGalleryDocument(options: {
+  lang: "ja" | "en" | "es" | "pt-br";
+  pathPrefix: string;
+  event: { sessionId: string; title: string; startedAt: string; endedAt: string | null };
+  tiles: EventGalleryTile[];
+  organizerSectionHtml: string | null;
+  authenticated: boolean;
+  displayName?: string | null;
+}): string {
+  const { lang, pathPrefix: p, event } = options;
+  const id = encodeURIComponent(event.sessionId);
+  const timing = eventTiming(event, lang);
+  const tiles = options.tiles
+    .map((t) => `<div class="ze-tile" data-private-gallery-item>${t.isVideo
+      ? `<video class="event-private-media" controls playsinline preload="metadata" src="${escapeHtml(t.href)}"></video>`
+      : `<a href="${escapeHtml(t.href)}" rel="noreferrer"><img class="event-private-media" src="${escapeHtml(t.href)}" alt="保存した非公開写真" loading="lazy"></a>`}<span class="ze-tile-state">${escapeHtml(t.statusLabel)}</span></div>`)
+    .join("");
+  const empty = `<p class="ze-empty" data-gallery-empty>保存した写真・動画はありません。観察ラリーから記録できます。</p>`;
+  const meta = [timing.dateLabel, options.organizerSectionHtml ? "" : `写真 ${options.tiles.length}枚`].filter(Boolean).join(" ・ ");
+  const bodyHtml = `<style>${ZUKAN_EVENT_CSS}
+.ze-grid .ze-tile{position:relative;aspect-ratio:1/1;border-radius:14px;overflow:hidden;background:#eef1ed}
+.ze-tile img,.ze-tile video{display:block;width:100%;height:100%;object-fit:cover}
+.ze-tile-state{position:absolute;left:6px;right:6px;bottom:6px;padding:2px 8px;border-radius:999px;background:rgba(23,33,27,.72);color:#fff;font-size:.6875rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ze-dot{display:block;line-height:1.7}.ze-dot::before{display:inline-block;vertical-align:middle;margin-right:8px}
+</style><div class="ze" data-event-view="f9" style="max-width:720px">
+    ${renderEventSubHead(event.title, `${p}/events/${id}/preview`, lang === "en" ? "Back to the event" : "イベントに戻る")}
+    <p class="ze-note">${escapeHtml(meta)}</p>
+    ${options.organizerSectionHtml ?? (options.tiles.length ? `<div class="ze-grid" data-event-album-grid="1">${tiles}</div>` : empty)}
+    <p class="ze-dot">ここにはご自身の写真・動画だけが表示されます。すべて非公開で、公開ページやみんなの振り返りには表示されません。</p>
+    <a class="ze-btn" href="${escapeHtml(`${p}/events/${id}/rally`)}">${EVENT_ICON_CAMERA}写真を加える</a>
+    <a class="ze-btn is-outline" href="${escapeHtml(`${p}/events/${id}/share`)}">${EVENT_ICON_SHARE}アルバムを共有</a>
+  </div>`;
+  return renderZukanCommonShell({
+    lang,
+    title: `アルバム — ${event.title}`,
+    activeNav: "events",
+    authenticated: options.authenticated,
+    displayName: options.displayName ?? null,
+    bodyHtml,
+    pathname: `${p}/events/${id}/gallery`,
+  });
+}
