@@ -482,8 +482,8 @@ interface LegacyObservationUpsertInput {
   clientSubmissionId?: string | null;
   userId: string;
   observedAt: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   locationAccuracyM?: number | null;
   note?: string | null;
   siteId?: string | null;
@@ -23320,13 +23320,15 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       const formData = new FormData(form);
       const latitudeText = String(formData.get("latitude") || "").trim();
       const longitudeText = String(formData.get("longitude") || "").trim();
-      const latitude = Number(latitudeText);
-      const longitude = Number(longitudeText);
+      const locationUnset = !latitudeText && !longitudeText;
+      const latitude = locationUnset ? null : Number(latitudeText);
+      const longitude = locationUnset ? null : Number(longitudeText);
       const userId = form.dataset.userId || "";
-      if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      if (!locationUnset && (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
         setStatus(copy.positionRequired, true);
         return;
       }
+      const explicitObservedAtMs = new Date(String(formData.get("observedAtLocal") || "")).getTime();
       try { if (!await claimDraft(true)) return; } catch { setStatus(copy.draftFailed, true); return; }
       submitting = true;
       confirmDialog.close();
@@ -23336,7 +23338,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       document.getElementById("record-confirm-save").disabled = true;
       if (!recoverySubmissionId) {
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
-        recoveryObservedAt = new Date().toISOString();
+        recoveryObservedAt = Number.isFinite(explicitObservedAtMs) && explicitObservedAtMs <= Date.now() && explicitObservedAtMs >= Date.UTC(1900, 0, 1)
+          ? new Date(explicitObservedAtMs).toISOString()
+          : new Date().toISOString();
       }
       if (mediaKind === "video" && !pendingVideoIdempotencyKey) pendingVideoIdempotencyKey = newVideoUploadKey();
       if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
@@ -25582,7 +25586,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     displayName: resolved.displayName,
     isAiCandidate: false,
     isAwaitingId: resolved.isAwaitingId,
-    localityLabel: "位置をぼかしています",
+    localityLabel: row.public_cell === "unknown" ? "場所未設定" : "位置をぼかしています",
     publicAreaLabel: normalizeSafePublicAreaLabelCandidate(row.public_area_label),
     publicNote: formatPublicCardNoteLine(row.public_note),
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
@@ -26858,7 +26862,9 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
   const isAwaitingId = resolvedTaxon.isAwaitingId;
   const displayName = resolvedTaxon.displayName;
 
-  const detailLocationLabel = row.public_cell === "hidden"
+  const detailLocationLabel = row.public_cell === "unknown"
+    ? "場所未設定"
+    : row.public_cell === "hidden"
     ? "位置は非公開です"
     : (isLocationDelayed24Hours(row.observed_at, Date.now()) ? "位置は24時間後に公開されます" : "位置をぼかしています");
 
@@ -28924,6 +28930,14 @@ function normalizeCompatibleObservedAt(value: unknown): string {
   return parsed.toISOString();
 }
 
+function assertLegacyObservedAtBounds(value: unknown): void {
+  const parsed = new Date(String(value ?? "").trim());
+  const time = parsed.getTime();
+  if (Number.isNaN(time) || time > Date.now() + 5 * 60 * 1000 || time < Date.UTC(1900, 0, 1)) {
+    throw new HttpError(400, "invalid_observed_at");
+  }
+}
+
 function normalizeCompatibleLatitude(value: unknown): number {
   const latitude = Number(value);
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
@@ -29507,10 +29521,21 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     assertNonEmpty(input.userId, "userId");
     authenticatedSession = await readCompatibleSession(request, env).catch(() => null);
   }
-  if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
+  const locationUnset = (input.latitude === null || input.latitude === undefined)
+    && (input.longitude === null || input.longitude === undefined);
+  if (locationUnset) {
+    input.latitude = null;
+    input.longitude = null;
+    input.locationAccuracyM = null;
+  } else if (
+    typeof input.latitude !== "number" || typeof input.longitude !== "number"
+    || !Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)
+    || input.latitude < -90 || input.latitude > 90 || input.longitude < -180 || input.longitude > 180
+  ) {
     throw new HttpError(400, "missing_location");
   }
   assertNonEmpty(input.observedAt, "observedAt");
+  assertLegacyObservedAtBounds(input.observedAt);
 
   const requestedObservationId = normalizeOptionalId(input.observationId);
   if (requestedObservationId) {
@@ -29557,7 +29582,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
                 updated_at = CURRENT_TIMESTAMP
           WHERE client_submission_id = ?`
       ).bind(clientSubmissionId).run();
-      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${blurLocation(input.latitude, input.longitude)}`;
+      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${blurLocation(input.latitude ?? undefined, input.longitude ?? undefined)}`;
       const placeName = normalizeOptionalText(input.siteName)
         ?? normalizeOptionalText(input.municipality)
         ?? normalizeOptionalText(input.prefecture)
@@ -29641,20 +29666,22 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     : null;
   const publicCell = locationShareMode === "hidden"
     ? "hidden"
-    : blurLocation(input.latitude, input.longitude);
+    : blurLocation(input.latitude ?? undefined, input.longitude ?? undefined);
   const taxonLabel = resolveLegacyTaxonLabel(input);
   const placeName = normalizeOptionalText(input.siteName)
     ?? normalizeOptionalText(input.municipality)
     ?? normalizeOptionalText(input.prefecture)
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
-  const visibility = input.visibility === "private" ? "private" : "public";
+  const visibility = input.visibility === "private" || locationUnset ? "private" : "public";
   const publicAreaLabel = visibility === "public" && locationShareMode !== "hidden"
     ? resolveSafePublicAreaLabel(input)
     : null;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
-  const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
+  const placeMemory = locationUnset
+    ? { result: null, sample: [], statements: [] as D1PreparedStatement[] }
+    : await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
   const civicContextStatements = civicContext
     ? [env.OBS_DB.prepare(
       `INSERT INTO civic_observation_contexts (
@@ -29727,8 +29754,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       draftId,
       input.userId,
       input.observedAt,
-      input.latitude,
-      input.longitude,
+      input.latitude ?? null,
+      input.longitude ?? null,
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
@@ -29761,8 +29788,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       input.observedAt,
       taxonLabel,
       input.note ?? null,
-      input.latitude,
-      input.longitude,
+      input.latitude ?? null,
+      input.longitude ?? null,
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
@@ -29826,8 +29853,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         observedAt: input.observedAt,
         taxonLabel,
         note: input.note ?? null,
-        exactLat: input.latitude,
-        exactLng: input.longitude,
+        exactLat: input.latitude ?? null,
+        exactLng: input.longitude ?? null,
         locationAccuracyM: numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility,
@@ -29841,8 +29868,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         input.observedAt,
         taxonLabel,
         input.note ?? null,
-        input.latitude,
-        input.longitude,
+        input.latitude ?? null,
+        input.longitude ?? null,
         numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility
@@ -29852,11 +29879,11 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   observationBatchIssued = true;
   await env.OBS_DB.batch(observationBatch);
 
-  await insertCompatibleAutoEnvironmentRecordIfPresent({
+  if (!locationUnset) await insertCompatibleAutoEnvironmentRecordIfPresent({
     occurrenceId: visitId,
     actorUserId: input.userId,
-    latitude: input.latitude,
-    longitude: input.longitude,
+    latitude: input.latitude as number,
+    longitude: input.longitude as number,
     draft: input.environmentRecordDraft ?? input.sourcePayload?.environment_record_draft,
     sourceMethod: "record_photo_feedback_v1"
   }, env).catch((error) => {
@@ -29874,12 +29901,12 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     targetTaxaScope: normalizeOptionalText(input.targetTaxaScope)
   });
 
-  await autoMatchObservationToActiveRalliesNative(env, {
+  if (!locationUnset) await autoMatchObservationToActiveRalliesNative(env, {
     userId: input.userId,
     visitId,
     occurrenceId,
-    lat: input.latitude,
-    lng: input.longitude,
+    lat: input.latitude as number,
+    lng: input.longitude as number,
     observedAt: input.observedAt
   }).catch((error) => {
     console.error("[observation-rally-auto-match] native post-save match failed", error);
@@ -30105,8 +30132,8 @@ async function hookLegacyObservationToEventNative(
         occurrence_ids: result.occurrenceIds,
         observation_id: result.visitId,
         taxon_name: result.taxonLabel,
-        public_lat: roundPublicEventCoordinate(input.latitude),
-        public_lng: roundPublicEventCoordinate(input.longitude),
+        public_lat: input.latitude == null ? null : roundPublicEventCoordinate(input.latitude),
+        public_lng: input.longitude == null ? null : roundPublicEventCoordinate(input.longitude),
         observed_at: input.observedAt,
         source_type: eventType === "field_scan_added" ? "field_scan" : "record",
         participant_role: normalizeOptionalText(input.participantRole)
@@ -30126,7 +30153,7 @@ async function hookLegacyObservationToEventNative(
     network_state: "unknown"
   }, participant ? `participant:${participant.participant_id}` : `user:${input.userId}`);
   try {
-    await recordObservationEventMeshVisit(env, {
+    if (input.latitude != null && input.longitude != null) await recordObservationEventMeshVisit(env, {
       sessionId: session.sessionId,
       lat: roundPublicEventCoordinate(input.latitude),
       lng: roundPublicEventCoordinate(input.longitude),

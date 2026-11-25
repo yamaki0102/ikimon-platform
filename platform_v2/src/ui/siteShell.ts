@@ -1587,6 +1587,7 @@ export const GLOBAL_RECORD_SHEET_STYLES = `
       color: #4a211e;
     }
     .global-record-camera-error[hidden] { display: none; }
+    .global-record-camera-error > div[hidden] { display: none; }
     .global-record-camera-error p {
       margin: 0;
       color: #68413d;
@@ -1795,6 +1796,8 @@ type GlobalRecordEntryCopy = {
   errorBody: string;
   permissionBody: string;
   startErrors: Record<"no_device" | "device_busy" | "constraints_unsupported" | "focus_unsupported" | "timeout", string>;
+  focusFallbackDevice: string;
+  focusFallbackStandard: string;
   retry: string;
   cancel: string;
   discardPreviewConfirm: string;
@@ -1878,9 +1881,11 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         no_device: "利用できるカメラが見つかりません。写真を選んで記録を続けられます。",
         device_busy: "カメラをほかのアプリが使用している可能性があります。閉じて再試行するか、写真を選んでください。",
         constraints_unsupported: "このブラウザーではカメラの設定を使えません。再試行するか、写真を選んでください。",
-        focus_unsupported: "このブラウザーでは接写用のピント調整を使えません。標準カメラか写真の選択で続けられます。",
+        focus_unsupported: "このブラウザでは接写のピントを調整できません",
         timeout: "カメラの起動を確認できませんでした。再試行するか、写真を選んでください。",
       },
+      focusFallbackDevice: "端末のカメラで撮る",
+      focusFallbackStandard: "標準に戻る",
       trimTitle: "記録に残す最大60秒を選ぶ",
       trimStart: "開始",
       trimEnd: "終了",
@@ -1911,6 +1916,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         focus_unsupported: "This browser cannot adjust close-up focus. Use the device camera or choose a photo.",
         timeout: "The camera did not start in time. Retry or choose a photo.",
       },
+      focusFallbackDevice: "Take with device camera",
+      focusFallbackStandard: "Back to standard",
       trimTitle: "Choose up to 60 seconds",
       trimStart: "Start",
       trimEnd: "End",
@@ -1941,6 +1948,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         focus_unsupported: "Este navegador no permite ajustar el enfoque de cerca. Usa la cámara del dispositivo o elige una foto.",
         timeout: "La cámara no se inició a tiempo. Reintenta o elige una foto.",
       },
+      focusFallbackDevice: "Tomar con la cámara del dispositivo",
+      focusFallbackStandard: "Volver al modo estándar",
       trimTitle: "Elige hasta 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fin",
@@ -1971,6 +1980,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         focus_unsupported: "Este navegador não permite ajustar o foco de perto. Use a câmera do aparelho ou escolha uma foto.",
         timeout: "A câmera não iniciou a tempo. Tente novamente ou escolha uma foto.",
       },
+      focusFallbackDevice: "Tirar com a câmera do aparelho",
+      focusFallbackStandard: "Voltar ao padrão",
       trimTitle: "Escolha ate 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fim",
@@ -2090,7 +2101,11 @@ function globalRecordSheetMarkup(lang: SiteLang): string {
     <div class="global-record-camera-error" data-global-record-camera-error role="alert" hidden>
       <strong>${escapeHtml(copy.errorTitle)}</strong>
       <p data-global-record-camera-error-body>${escapeHtml(copy.errorBody)}</p>
-      <div>
+      <div data-global-record-camera-focus-fallback hidden>
+        <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera data-global-record-os-camera-focus>${escapeHtml(copy.focusFallbackDevice)}</button>
+        <button type="button" data-global-record-camera-standard>${escapeHtml(copy.focusFallbackStandard)}</button>
+      </div>
+      <div data-global-record-camera-error-actions>
         <button type="button" data-global-record-camera-retry>${escapeHtml(copy.retry)}</button>
         <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera data-global-record-os-camera-fallback>${escapeHtml(sourceChoiceCopy(lang).native)}</button>
         <button type="button" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
@@ -2704,7 +2719,14 @@ ${configPrelude}
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
   };
+  const cameraErrorActions = document.querySelector('[data-global-record-camera-error-actions]');
+  const cameraFocusFallback = document.querySelector('[data-global-record-camera-focus-fallback]');
+  const setFocusFallbackActions = (enabled) => {
+    if (cameraErrorActions) cameraErrorActions.hidden = enabled;
+    if (cameraFocusFallback) cameraFocusFallback.hidden = !enabled;
+  };
   const hideCameraError = () => {
+    setFocusFallbackActions(false);
     if (cameraError) cameraError.hidden = true;
     if (sheet) sheet.removeAttribute('data-camera-error');
   };
@@ -3829,6 +3851,7 @@ ${configPrelude}
       if (cameraErrorBody) cameraErrorBody.textContent = permissionDenied
         ? CAMERA_COPY.permissionBody
         : CAMERA_COPY.startErrors[reason] || CAMERA_COPY.errorBody;
+      if (reason === 'focus_unsupported') setFocusFallbackActions(true);
       sendGlobalRecordEvent(permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', {
         reason,
       });
@@ -4315,6 +4338,19 @@ ${configPrelude}
     void startCamera();
   });
   if (cameraCancelButton) cameraCancelButton.addEventListener('click', closeSheet);
+  document.querySelectorAll('[data-global-record-camera-standard]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      hideCameraError();
+      if (startButton) {
+        startButton.hidden = false;
+        startButton.disabled = false;
+        startButton.textContent = (labels[activeKind] || labels.photo).start;
+      }
+      setFooterActionMode('start');
+      setStatus(${sourceChoice("chooser")});
+    });
+  });
   if (startButton) startButton.addEventListener('click', () => {
     resetPhotoDraftSubmitConfirm();
     if (activeKind === 'photo' && photoCaptureSource === 'native' && !capturedReviewFile) {

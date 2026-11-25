@@ -112,7 +112,7 @@ async function loadCandidates(input: BuildInput, afterId: string, limit: number)
     ${withCivic ? "LEFT JOIN civic_observation_contexts c ON c.visit_id = o.observation_id" : ""}
    WHERE ro.observation_id > ? AND ro.lifecycle_status = 'active' AND ro.subject_type = 'organism' AND ${captive}
      AND o.visibility = 'public' AND COALESCE(p.visibility, o.visibility) = 'public' AND o.emergency_hidden = 0 AND o.processing_state = 'accepted'
-     AND o.public_cell <> 'hidden' AND o.owner_user_id NOT LIKE 'guest%' AND ro.owner_user_id NOT LIKE 'guest%'
+     AND o.public_cell NOT IN ('hidden', 'unknown') AND o.owner_user_id NOT LIKE 'guest%' AND ro.owner_user_id NOT LIKE 'guest%'
      AND COALESCE(r.withdrawal_status, 'active') = 'active'
      ${withCivic ? "AND COALESCE(c.audience_scope, 'public') = 'public' AND COALESCE(c.risk_lane, 'normal') = 'normal' AND COALESCE(c.public_precision, 'municipality') NOT IN ('hidden', 'exact_private')" : ""}
    ORDER BY ro.observation_id LIMIT ?`;
