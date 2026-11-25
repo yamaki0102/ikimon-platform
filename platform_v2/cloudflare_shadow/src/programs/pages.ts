@@ -924,6 +924,19 @@ export async function manageObservationEventDiscoveryCampaign(request: Request, 
   return json({ campaign: { listed: campaign.listed, applicationsOpen: campaign.applications_open }, canManageListing, canManageApplications: true, campaignHref: discoveryCampaignHref(session), participantCounts: counts ?? { registered: 0, checkedIn: 0 } }, 200, headers);
 }
 
+function observationEventCapacity(config: Record<string, unknown>): number | null {
+  const publicPage = asPlainObject(config.public_page);
+  const raw = publicPage?.capacity ?? config.capacity;
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : null;
+}
+
+async function countObservationEventActiveParticipants(env: Env, sessionId: string): Promise<number> {
+  const row = await env.OBS_DB.prepare(
+    "SELECT COUNT(*) AS count FROM observation_event_participants WHERE session_id = ? AND role <> 'organizer' AND status <> 'cancelled'"
+  ).bind(sessionId).first<{ count: number }>().catch(() => null);
+  return Number(row?.count ?? 0);
+}
+
 export async function getObservationEventApplicationStatus(request: Request, env: Env, sessionId: string): Promise<Response> {
   const session = await getObservationEventSessionById(env, sessionId);
   const auth = await readCompatibleSession(request, env);
@@ -932,7 +945,15 @@ export async function getObservationEventApplicationStatus(request: Request, env
   if (!session || !await discoveryCampaignSelectionAllowed(request, env, session, auth)) return json({ error: "event_application_unavailable" }, 404, headers);
   const { credential, participant } = await ownObservationEventApplication(request, env, session, auth);
   const event = await discoveryCampaignEventContext(env, session, auth, participant);
-  const response = json({ event, participant: participant?.role === "participant" ? { status: participant.status, displayName: participant.display_name?.trim() || null } : null, confirmed: false }, 200, headers);
+  const capacity = observationEventCapacity(session.config);
+  const activeCount = capacity !== null ? await countObservationEventActiveParticipants(env, sessionId) : 0;
+  const remaining = capacity !== null ? Math.max(0, capacity - activeCount) : null;
+  const response = json({
+    event,
+    participant: participant?.role === "participant" ? { status: participant.status, displayName: participant.display_name?.trim() || null } : null,
+    confirmed: false,
+    ...(capacity !== null ? { capacity, remaining } : {}),
+  }, 200, headers);
   if (!auth && (credential || event.canApply || event.canCheckIn)) response.headers.set("set-cookie", await buildObservationEventGuestCookie(session, credential ?? randomToken()));
   return response;
 }
@@ -996,8 +1017,15 @@ export async function applyToObservationEvent(request: Request, env: Env, sessio
   }
   const guestToken = guestCredential ? await observationEventGuestCredentialDigest(guestCredential) : null;
   let participant = await findObservationEventParticipant(env, sessionId, userId, guestToken);
+  const capacity = observationEventCapacity(session.config);
   let created = false;
   if (!participant) {
+    if (capacity !== null) {
+      const currentCount = await countObservationEventActiveParticipants(env, sessionId);
+      if (currentCount >= capacity) {
+        return json({ error: "event_capacity_full", capacity, remaining: 0 }, 409, { "cache-control": "no-store" });
+      }
+    }
     const participantId = crypto.randomUUID();
     try {
       await env.OBS_DB.prepare(
@@ -1015,7 +1043,15 @@ export async function applyToObservationEvent(request: Request, env: Env, sessio
   if (!participant || participant.role === "organizer") {
     return json({ error: "event_application_readback_failed" }, 503, { "cache-control": "no-store" });
   }
-  return json({ participant: { status: participant.status }, confirmed: false, created }, created ? 201 : 200, { "cache-control": "no-store" });
+  const remaining = capacity !== null
+    ? Math.max(0, capacity - await countObservationEventActiveParticipants(env, sessionId))
+    : null;
+  return json({
+    participant: { status: participant.status },
+    confirmed: false,
+    created,
+    ...(capacity !== null ? { capacity, remaining } : {}),
+  }, created ? 201 : 200, { "cache-control": "no-store" });
 }
 
 async function getObservationEventSessionPage(request: Request, url: URL, env: Env, sessionId: string, page: string): Promise<Response> {
