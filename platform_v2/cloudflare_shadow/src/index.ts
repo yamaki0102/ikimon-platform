@@ -215,6 +215,7 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
+import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects, mergedFromVideoReadings, readVideos, videoReadingInputs, type VideoAssetSource, type VideoReadResult } from "./recordVideoReading";
 import { writeRecordMediaOrder } from "./recordReading";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
@@ -31440,6 +31441,9 @@ type PreparedGeminiObservation = {
   images: GeminiObservationImage[];
   mediaDedup: ObservationMediaDedupPlan<ObservationMediaDedupInput>;
   unselectedUniqueAssetIds: string[];
+  videos: VideoAssetSource[];
+  videoOnly: boolean;
+  videoRead?: VideoReadResult;
 };
 
 function publicDerivativeMetadata(value: string | null | undefined): Record<string, unknown> {
@@ -31709,7 +31713,7 @@ async function assertPublicQualityBacklogEligibility(observationId: string, env:
   if (safety.blocked) throw new Error("public_quality_backlog_public_safety_blocked");
 }
 
-async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env): Promise<PreparedGeminiObservation> {
+async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env, options: { allowVideoOnly?: boolean } = {}): Promise<PreparedGeminiObservation> {
   const isPublicQualityBacklog = reassessmentPayload(request.source_payload_json).qualityBacklogVersion
     === GEMINI_QUALITY_BACKLOG_VERSION;
   if (isPublicQualityBacklog) {
@@ -31719,7 +31723,20 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     "SELECT owner_user_id, observed_at, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
   ).bind(request.observation_id).first<ObservationAiRecordRow>();
   if (!record) throw new Error("ai_record_missing");
-  const selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
+  const videos: VideoAssetSource[] = isPublicQualityBacklog ? [] : (await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, mime, bytes, duration_ms FROM asset_ledger
+      WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'video/%'
+      ORDER BY created_at, asset_id LIMIT 4`
+  ).bind(request.observation_id).all<VideoAssetSource>().catch(() => ({ results: [] as VideoAssetSource[] }))).results;
+  let videoOnly = false;
+  let selection: Awaited<ReturnType<typeof loadObservationAiAssetSelection>>;
+  try {
+    selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
+  } catch (error) {
+    if (!(options.allowVideoOnly && videos.length > 0 && error instanceof Error && error.message === "ai_photo_missing")) throw error;
+    videoOnly = true;
+    selection = { sourceAssets: [], assets: [], plan: buildObservationMediaDedupPlan([]), unselectedUniqueAssetIds: [] };
+  }
   const images: GeminiObservationImage[] = [];
   for (const asset of selection.assets) {
     images.push(await observationAiImageInput(asset, env, isPublicQualityBacklog));
@@ -31733,7 +31750,31 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     images,
     mediaDedup: selection.plan,
     unselectedUniqueAssetIds: selection.unselectedUniqueAssetIds,
+    videos,
+    videoOnly,
   };
+}
+
+async function preparedVideoRead(prepared: PreparedGeminiObservation, env: Env): Promise<VideoReadResult> {
+  if (prepared.videoRead) return prepared.videoRead;
+  const apiKey = env.GEMINI_API_KEY;
+  prepared.videoRead = prepared.videos.length === 0 || !apiKey
+    ? { readings: [], coverage: [] }
+    : await readVideos(prepared.request.observation_id, prepared.videos, {
+      fetchBytes: async (objectKey) => {
+        const object = await env.ASSET_BUCKET.get(objectKey);
+        return object?.body ? new Response(object.body).arrayBuffer() : null;
+      },
+      toBase64: imageBytesToBase64,
+      generate: async (request) => (await generateGeminiContent(apiKey, VIDEO_READ_MODEL, request)).text,
+    });
+  return prepared.videoRead;
+}
+
+async function finalizeVideoOnlyReassessment(prepared: PreparedGeminiObservation, env: Env): Promise<void> {
+  const video = await preparedVideoRead(prepared, env);
+  if (video.readings.length === 0) throw new Error("ai_video_unreadable");
+  await finalizeGeminiObservationReassessment(prepared, mergedFromVideoReadings(video.readings), env, { mode: "direct_generate_content", source: "google_gemini_video_scene_reading" });
 }
 
 async function loadPendingGeminiRequests(observationIds: string[], env: Env): Promise<ObservationReassessmentRequestRow[]> {
@@ -31819,7 +31860,7 @@ async function failPendingDirectGeminiReassessment(request: ObservationReassessm
 async function submitDirectGeminiObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
   let prepared: PreparedGeminiObservation;
   try {
-    prepared = await loadPreparedGeminiObservation(request, env);
+    prepared = await loadPreparedGeminiObservation(request, env, { allowVideoOnly: true });
   } catch (error) {
     await failPendingDirectGeminiReassessment(request, error, env);
     return;
@@ -31854,6 +31895,10 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (prepared.videoOnly) {
+      await finalizeVideoOnlyReassessment(prepared, env);
+      return;
+    }
     if (reassessmentPayload(request.source_payload_json).qualityBacklogVersion === GEMINI_QUALITY_BACKLOG_VERSION) {
       await assertPublicQualityBacklogEligibility(request.observation_id, env);
     }
@@ -31964,7 +32009,7 @@ function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): Car
 async function submitCardObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
   let prepared: PreparedGeminiObservation;
   try {
-    prepared = await loadPreparedGeminiObservation(request, env);
+    prepared = await loadPreparedGeminiObservation(request, env, { allowVideoOnly: true });
   } catch (error) {
     await failPendingDirectGeminiReassessment(request, error, env);
     return;
@@ -31993,6 +32038,10 @@ async function submitCardObservationReassessment(request: ObservationReassessmen
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (prepared.videoOnly) {
+      await finalizeVideoOnlyReassessment(prepared, env);
+      return;
+    }
     const result = await runObservationCardPipeline({ observedAt: prepared.record.observed_at, images: prepared.images }, observationCardDeps(prepared, env));
     await finalizeGeminiObservationReassessment(prepared, result.merged, env, { mode: "card_v1", source: "observation_card_v1_reassessment", card: { stats: result.stats } });
   } catch (error) {
@@ -32526,7 +32575,9 @@ async function finalizeGeminiObservationReassessment(
   }
   const request = prepared.request;
   const observationId = request.observation_id;
-  const candidate = merged.candidate;
+  const video = await preparedVideoRead(prepared, env).catch(() => ({ readings: [], coverage: [] } as VideoReadResult));
+  const videoInputs = videoReadingInputs(video.readings, prepared.assets.map((asset) => asset.asset_id), observationAiSubjects(merged.candidate).map((subject) => subject.candidate));
+  const candidate = prepared.videoOnly ? merged.candidate : candidateWithVideoSubjects(merged.candidate, videoInputs.subjects);
   const subjects = observationAiSubjects(candidate);
   const occurrenceId = `occ:${observationId}:0`;
   const aiRunId = newId("gemini_batch_run");
@@ -32591,6 +32642,7 @@ async function finalizeGeminiObservationReassessment(
     specialistEscalation: merged.specialistEscalation,
     specialistApplied,
     environment: merged.environment,
+    videoReading: prepared.videos.length > 0 ? { promptVersion: VIDEO_READ_PROMPT_VERSION, model: VIDEO_READ_MODEL, coverage: video.coverage, videoOnly: prepared.videoOnly } : null,
     relations: merged.relations,
     summary: merged.summary,
     subjectCount: subjects.length,
@@ -32601,12 +32653,18 @@ async function finalizeGeminiObservationReassessment(
     ? await buildObservationAiDualWritePlan({
       recordId: observationId,
       ownerUserId: prepared.record.owner_user_id,
-      mediaIds: prepared.assets.map((asset) => asset.asset_id),
+      mediaIds: [...prepared.assets.map((asset) => asset.asset_id), ...videoInputs.mediaIds],
+      mediaMeta: [...prepared.assets.map(() => ({ durationMs: null })), ...videoInputs.mediaMeta],
       legacyOccurrenceId: occurrenceId,
       requestId: request.request_id,
       aiRunId,
       candidate,
-      ...recordReadingInputs(merged, prepared.assets.length, Boolean(provider.card)),
+      ...(prepared.videoOnly
+        ? { features: videoInputs.features, place: videoInputs.place }
+        : (() => {
+          const photo = recordReadingInputs(merged, prepared.assets.length, Boolean(provider.card));
+          return { features: [...photo.features, ...videoInputs.features], place: [...photo.place, ...videoInputs.place] };
+        })()),
     })
     : { observationIds: [], mutations: [] };
   const commitToken = crypto.randomUUID();
