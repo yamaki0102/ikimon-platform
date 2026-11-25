@@ -7,6 +7,7 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { findYearAgoSamePlaceObservations } from "./zukanLibraryComparisonAndSelect";
+import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
   isWeakTaxonLabel,
@@ -14,6 +15,16 @@ import {
   publicTaxonDisplayName,
   resolveUnifiedTaxonName,
 } from "./taxonNameResolver";
+import {
+  buildClearedGuestPassCookieHeader,
+  buildGuestPassCookieHeader,
+  findActiveGuestPass,
+  isGuestPostingEnabled,
+  issueGuestPass,
+  normalizeGuestDestination,
+  revokeGuestPass,
+  setDestinationQrStopped,
+} from "./guestPosting";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -96,6 +107,9 @@ import {
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
+import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
+import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   createFixedPointStationRecord,
   listFixedPointsAndRecordsForPlace,
@@ -213,6 +227,21 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  handleCreateObservationShareLink,
+  handleGetObservationComments,
+  handlePostObservationComment,
+  handleResolveShareLinkPage,
+  loadObservationComments,
+  renderObservationCommentsHtml,
+} from "./zukanObservationCommentsAndShare";
+import {
+  ZUKAN_RECORD_LINK_DONE_STYLES,
+  handleSaveRecordLinks,
+  renderRecordDoneCardHtml,
+  renderRecordLinkSelectorHtml,
+} from "./zukanRecordLinkAndDone";
+import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -3689,6 +3718,69 @@ export const worker = {
         return json({ ok: true, placeId, items }, 200, { "cache-control": "private, no-store" });
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/issue") {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const body = await readJson<{ destinationKind?: unknown; destinationId?: unknown }>(request);
+        const destination = normalizeGuestDestination(body.destinationKind, body.destinationId);
+        if (body.destinationKind !== undefined && !destination) {
+          return json({ ok: false, error: "invalid_destination" }, 400, { "cache-control": "no-store" });
+        }
+        const issued = await issueGuestPass(env.OBS_DB, { destination });
+        const secure = url.protocol === "https:";
+        return json(
+          { ok: true, passId: issued.passId, expiresAt: issued.expiresAt },
+          201,
+          { "set-cookie": buildGuestPassCookieHeader(issued.rawToken, secure), "cache-control": "no-store" }
+        );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/discard") {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const pass = await findActiveGuestPass(env.OBS_DB, request);
+        if (!pass) {
+          return json({ ok: false, error: "guest_pass_required" }, 401, { "cache-control": "no-store" });
+        }
+        await revokeGuestPass(env.OBS_DB, pass.pass_id, "user_discarded", "guest");
+        const secure = url.protocol === "https:";
+        return json(
+          { ok: true, revoked: true },
+          200,
+          { "set-cookie": buildClearedGuestPassCookieHeader(secure), "cache-control": "no-store" }
+        );
+      }
+
+      const guestQrStopMatch = url.pathname.match(/^\/api\/v1\/admin\/guest-destinations\/([^/]+)\/([^/]+)\/qr-stop$/);
+      if (request.method === "POST" && guestQrStopMatch?.[1] && guestQrStopMatch?.[2]) {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        if (!isSpecialistAuthorityAdminRole(session)) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const dest = normalizeGuestDestination(decodeURIComponent(guestQrStopMatch[1]), decodeURIComponent(guestQrStopMatch[2]));
+        if (!dest) {
+          return json({ ok: false, error: "invalid_destination" }, 400, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ stopped?: unknown }>(request);
+        const stopped = body.stopped !== false;
+        await setDestinationQrStopped(env.OBS_DB, dest, stopped);
+        return json({ ok: true, destination: `${dest.kind}:${dest.id}`, qrStopped: stopped }, 200, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
         return recordUiKpiEventShim(request);
       }
@@ -4218,6 +4310,16 @@ export const worker = {
         return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/auth/field-name/check") {
+        const result = await checkFieldNameAvailability(env.CORE_DB, url.searchParams.get("name"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/waitlist/status") {
+        const result = await getWaitlistStatusForEmail(env.CORE_DB, url.searchParams.get("email"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
         return registerWithPasswordNative(request, env);
       }
@@ -4258,6 +4360,14 @@ export const worker = {
         return uploadStagingCompatibleAudio(decodeURIComponent(audioUploadMatch[1]), request, env);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/record/links") {
+        const session = await readCompatibleSession(request, env);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "unauthorized" }, 401);
+        }
+        return handleSaveRecordLinks(request, session.userId, env.OBS_DB, env.CORE_DB);
+      }
+
       const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
       if (request.method === "POST" && hideObservationMatch?.[1]) {
         return hideCompatibleObservation(decodeURIComponent(hideObservationMatch[1]), request, env);
@@ -4266,6 +4376,64 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const observationCommentMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/comments$/);
+      if (observationCommentMatch?.[1]) {
+        const obsId = decodeURIComponent(observationCommentMatch[1]);
+        const session = await readCompatibleSession(request, env);
+        if (request.method === "POST") {
+          return handlePostObservationComment(obsId, request, session, env);
+        }
+        if (request.method === "GET") {
+          return handleGetObservationComments(obsId, session, env);
+        }
+      }
+
+      const observationShareLinkMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/share-links$/);
+      if (request.method === "POST" && observationShareLinkMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
+      }
+
+      const sharePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/share\/([^/]+)$/);
+      if (request.method === "GET" && sharePageMatch?.[2]) {
+        const shareLang = (sharePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env);
+        return handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
+      }
+
+      const placeTimelineApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/fixed-point-timeline$/);
+      if (request.method === "GET" && placeTimelineApiMatch?.[1]) {
+        return handlePlaceFixedPointTimelineApi(decodeURIComponent(placeTimelineApiMatch[1]), env.OBS_DB);
+      }
+
+      const placeTimelinePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/timeline$/);
+      if (request.method === "GET" && placeTimelinePageMatch?.[2]) {
+        const viewLang = (placeTimelinePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceTimelinePageRoute(decodeURIComponent(placeTimelinePageMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const placeSeasonsApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/seasons$/);
+      if (request.method === "GET" && placeSeasonsApiMatch?.[1]) {
+        return handlePlaceSeasonsApi(decodeURIComponent(placeSeasonsApiMatch[1]), env.OBS_DB);
+      }
+
+      const placeAboutSeasonsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(about|seasons)$/);
+      if (request.method === "GET" && placeAboutSeasonsMatch?.[2] && placeAboutSeasonsMatch?.[3]) {
+        const viewLang = (placeAboutSeasonsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeAboutSeasonsMatch[3] as "about" | "seasons";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceAboutOrSeasonsRoute(decodeURIComponent(placeAboutSeasonsMatch[2]), tab, viewLang, session, env.OBS_DB);
+      }
+
+      const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
+      if (request.method === "GET" && placeSubViewMatch?.[2] && placeSubViewMatch?.[3]) {
+        const viewLang = (placeSubViewMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeSubViewMatch[3] as "records" | "photos";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceRecordsOrPhotosRoute(decodeURIComponent(placeSubViewMatch[2]), tab, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -22127,20 +22295,26 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
+    ${ZUKAN_RECORD_LINK_DONE_STYLES}
+    ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
 <body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
-    <section class="cf-record-hero">
-      <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(mediaCopy.prompt)}</p><p>${escapeHtml(mediaCopy.privateBoundary)}</p>
-    </section>
-    <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
-      <label class="cf-record-pick is-primary">${escapeHtml(mediaCopy.camera)}<span>${escapeHtml(mediaCopy.cameraHint)}</span><input id="record-media-camera" type="file" accept="image/*" capture="environment"></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>${escapeHtml(mediaCopy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
-    </div>
+    ${renderRecordEntryStageHtml({
+      lang,
+      prefix,
+      title,
+      cameraLabel: mediaCopy.camera,
+      cameraHint: mediaCopy.cameraHint,
+      photoLabel: mediaCopy.photo,
+      photoHint: mediaCopy.photoHint,
+      videoLabel: mediaCopy.video,
+      videoHint: mediaCopy.videoHint,
+      prompt: mediaCopy.prompt,
+      privateBoundary: mediaCopy.privateBoundary
+    })}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
@@ -22161,9 +22335,10 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         </select>
         <small id="record-public-location-preview" data-public-location-preview>${lang === "ja" ? "ほかの人にはこう見える: 正確な位置は非公開・24時間後にマス目または日付のみで表示" : "Public view: exact coordinates hidden; shown as grid/date after 24h"}</small>
       </div>
+      ${renderRecordLinkSelectorHtml({ lang, hasEventContext: Boolean(eventSessionId || eventCode) })}
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
-      <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
+      ${renderRecordDoneCardHtml({ lang, prefix })}
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
@@ -25635,16 +25810,24 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordClass: recordClassOut.value,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, recordUsages, expertComments] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, observationComments] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
           : Promise.resolve(null),
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
-        listHumanExpertCommentsForRecord(env, detail.visitId)
+        listHumanExpertCommentsForRecord(env, detail.visitId),
+        loadObservationComments(detail.visitId, env),
       ]);
-      const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
+      const commentsHtml = renderObservationCommentsHtml({
+        observationId: detail.visitId,
+        lang: recordLang,
+        prefix: recordLang === "ja" ? "/ja" : `/${recordLang}`,
+        authenticated: Boolean(session && !session.banned),
+        comments: observationComments,
+      });
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${commentsHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
