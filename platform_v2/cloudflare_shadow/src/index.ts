@@ -6,6 +6,7 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
   isWeakTaxonLabel,
@@ -95,6 +96,7 @@ import {
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   createFixedPointStationRecord,
   listFixedPointsAndRecordsForPlace,
@@ -218,6 +220,7 @@ import {
   renderRecordDoneCardHtml,
   renderRecordLinkSelectorHtml,
 } from "./zukanRecordLinkAndDone";
+import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -4207,6 +4210,16 @@ export const worker = {
         return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/auth/field-name/check") {
+        const result = await checkFieldNameAvailability(env.CORE_DB, url.searchParams.get("name"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/waitlist/status") {
+        const result = await getWaitlistStatusForEmail(env.CORE_DB, url.searchParams.get("email"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
         return registerWithPasswordNative(request, env);
       }
@@ -4263,6 +4276,14 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
+      if (request.method === "GET" && placeSubViewMatch?.[2] && placeSubViewMatch?.[3]) {
+        const viewLang = (placeSubViewMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeSubViewMatch[3] as "records" | "photos";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceRecordsOrPhotosRoute(decodeURIComponent(placeSubViewMatch[2]), tab, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -22125,20 +22146,25 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
     ${ZUKAN_RECORD_LINK_DONE_STYLES}
+    ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
 <body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
-    <section class="cf-record-hero">
-      <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(mediaCopy.prompt)}</p><p>${escapeHtml(mediaCopy.privateBoundary)}</p>
-    </section>
-    <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
-      <label class="cf-record-pick is-primary">${escapeHtml(mediaCopy.camera)}<span>${escapeHtml(mediaCopy.cameraHint)}</span><input id="record-media-camera" type="file" accept="image/*" capture="environment"></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>${escapeHtml(mediaCopy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
-    </div>
+    ${renderRecordEntryStageHtml({
+      lang,
+      prefix,
+      title,
+      cameraLabel: mediaCopy.camera,
+      cameraHint: mediaCopy.cameraHint,
+      photoLabel: mediaCopy.photo,
+      photoHint: mediaCopy.photoHint,
+      videoLabel: mediaCopy.video,
+      videoHint: mediaCopy.videoHint,
+      prompt: mediaCopy.prompt,
+      privateBoundary: mediaCopy.privateBoundary
+    })}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
@@ -26379,8 +26405,15 @@ async function readLatestPublicObservationEnvironmentRecord(env: Env, visitId: s
 }
 
 async function createDraftObservation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   const input = await readJson<DraftObservationInput>(request);
-  assertNonEmpty(input.userId, "userId");
+  if (input.userId && input.userId !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
+  const ownerUserId = session.userId;
 
   const media = input.media ?? [];
   if (media.length > MAX_MEDIA_PER_DRAFT) {
@@ -26393,14 +26426,14 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
   const visibility = input.visibility === "public" ? "public" : "private";
 
   const statements: D1PreparedStatement[] = [
-    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId),
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(ownerUserId),
     env.OBS_DB.prepare(
       `INSERT INTO draft_observations
        (draft_id, owner_user_id, observed_at, exact_lat, exact_lng, location_accuracy_m, public_cell, visibility, partition_month)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       draftId,
-      input.userId,
+      ownerUserId,
       input.observedAt ?? null,
       numberOrNull(input.exactLat),
       numberOrNull(input.exactLng),
@@ -26423,7 +26456,7 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
       ).bind(
         assetId,
         draftId,
-        input.userId,
+        ownerUserId,
         objectKey,
         asset.sha256 ?? null,
         asset.mime,
@@ -30271,11 +30304,18 @@ function pickNullableEnum(value: unknown, allowed: string[]): string | null {
 }
 
 async function putAssetBody(assetId: string, request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   assertNonEmpty(assetId, "assetId");
-  const asset = await env.OBS_DB.prepare("SELECT object_key, mime FROM asset_ledger WHERE asset_id = ?")
+  const asset = await env.OBS_DB.prepare("SELECT owner_user_id, object_key, mime FROM asset_ledger WHERE asset_id = ?")
     .bind(assetId)
-    .first<{ object_key: string; mime: string }>();
+    .first<{ owner_user_id: string | null; object_key: string; mime: string }>();
   if (!asset) return json({ error: "asset_not_found" }, 404);
+  if (asset.owner_user_id !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
   if (!request.body) return json({ error: "missing_body" }, 400);
 
   await env.ASSET_BUCKET.put(asset.object_key, request.body, { httpMetadata: { contentType: asset.mime } });
@@ -30287,6 +30327,10 @@ async function putAssetBody(assetId: string, request: Request, env: Env): Promis
 }
 
 async function finalizeObservation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   const input = await readJson<FinalizeObservationInput>(request);
   assertNonEmpty(input.draftId, "draftId");
 
@@ -30294,6 +30338,9 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     .bind(input.draftId)
     .first<Record<string, D1Value>>();
   if (!draft) return json({ error: "draft_not_found" }, 404);
+  if (stringValue(draft.owner_user_id) !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
 
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
