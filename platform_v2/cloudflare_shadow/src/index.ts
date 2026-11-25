@@ -6,6 +6,7 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -3640,6 +3641,14 @@ export const worker = {
       const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
       if (request.method === "POST" && observationActionMatch?.[1]) {
         return handleObservationFirstRecordAction(decodeURIComponent(observationActionMatch[1]), request, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/library") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        const searchQuery = url.searchParams.get("q") ?? "";
+        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
@@ -22798,6 +22807,9 @@ function renderCloudflareProfileHtml(
   options: { lang: string; settings: boolean }
 ): string {
   const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
+  if (!options.settings) {
+    return renderZukanProfileHubPage({ lang, displayName: session.displayName || session.userId });
+  }
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const copy = lang === "ja"
     ? {
