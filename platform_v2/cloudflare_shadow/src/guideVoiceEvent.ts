@@ -489,6 +489,7 @@ export function renderGuideBadgeTakeawayPage(input: {
   lang: string;
   cspNonce?: string;
   discoveries: GuideBadgeDiscoveryRow[];
+  publicPlace?: { placeId: string; name: string } | null;
 }): string {
   const lang = input.lang === "en" || input.lang === "es" || input.lang === "pt-br" ? input.lang : "ja";
   const prefix = `/${lang}`;
@@ -538,6 +539,7 @@ export function renderGuideBadgeTakeawayPage(input: {
     <section class="gt-card">
       <h2>次回の予定</h2>
       <p>${escapeHtml(input.nextEventNote || "次回の観察会の予定は主催者の案内をご確認ください。")}</p>
+      ${input.publicPlace ? `<div><a href="${escapeHtml(`${prefix}/places/${encodeURIComponent(input.publicPlace.placeId)}`)}">この場所の記録を見る</a></div>` : ""}
       <div><a href="${escapeHtml(`${prefix}/map?tab=places`)}">公開マップを見る</a></div>
     </section>
   </main>

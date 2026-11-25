@@ -33547,6 +33547,95 @@ test("event console shows participant/photo counts and persists config_json.next
   assert.match(html, /次回は長靴推奨/);
 });
 
+test("takeaway page links to public place records only when explicitly configured and public", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0047_place_memory_runtime.sql", "0068_universal_place_atlas.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  const placeDb = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("FROM places p")) {
+            let values: unknown[] = [];
+            const stmt = {
+              bind(...input: unknown[]) { values = input; return stmt; },
+              async first() { return obs.sqlite.prepare(query).get(...values as never[]) ?? null; },
+              async all() { return { results: obs.sqlite.prepare(query).all(...values as never[]) }; },
+              async run() { return { meta: { changes: Number(obs.sqlite.prepare(query).run(...values as never[]).changes) } }; }
+            };
+            return stmt;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  Object.assign(env, { OBS_DB: placeDb });
+
+  obs.sqlite.prepare(
+    `INSERT INTO places (place_id, canonical_name, canonical_name_normalized, place_kind, verification_status, official_status, public_profile_status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run("plc_tokiwa_takeaway", "常磐公園", "常磐公園", "park", "verified", "official", "published", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+  obs.sqlite.prepare(
+    `INSERT INTO place_policies (place_policy_id, place_id, place_visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
+  ).run("pol_tokiwa_takeaway", "plc_tokiwa_takeaway", "public", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+
+  obs.sqlite.prepare(
+    `INSERT INTO places (place_id, canonical_name, canonical_name_normalized, place_kind, verification_status, official_status, public_profile_status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run("plc_private_takeaway", "非公開公園", "非公開公園", "reserve", "verified", "unofficial", "published", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+  obs.sqlite.prepare(
+    `INSERT INTO place_policies (place_policy_id, place_id, place_visibility, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
+  ).run("pol_private_takeaway", "plc_private_takeaway", "private", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+
+  const insertEvent = (sessionId: string, eventCode: string, config: Record<string, unknown>) => {
+    obs.sqlite.prepare(
+      `INSERT INTO observation_event_sessions (
+        session_id, event_code, title, organizer_user_id, plan, primary_mode, active_modes_json,
+        location_lat, location_lng, location_radius_m, started_at, ended_at, target_species_json, config_json, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      sessionId,
+      eventCode,
+      "持ち帰り観察会",
+      "org-1",
+      "public",
+      "rally",
+      JSON.stringify(["rally"]),
+      34.97,
+      138.38,
+      500,
+      "2026-11-25T00:00:00Z",
+      "2026-11-25T06:00:00Z",
+      JSON.stringify([]),
+      JSON.stringify(config),
+      "2026-11-25T00:00:00Z",
+      "2026-11-25T00:00:00Z"
+    );
+  };
+
+  insertEvent("evt_takeaway_pub", "TAKEPUB", { placeId: "plc_tokiwa_takeaway" });
+  insertEvent("evt_takeaway_priv", "TAKEPRIV", { placeId: "plc_private_takeaway" });
+  insertEvent("evt_takeaway_none", "TAKENONE", {});
+
+  const pubRes = await worker.fetch(new Request("https://zukan.earth/events/evt_takeaway_pub/takeaway/3"), env);
+  assert.equal(pubRes.status, 200);
+  const pubHtml = await pubRes.text();
+  assert.match(pubHtml, /href="\/ja\/places\/plc_tokiwa_takeaway">この場所の記録を見る<\/a>/);
+
+  const privRes = await worker.fetch(new Request("https://zukan.earth/events/evt_takeaway_priv/takeaway/3"), env);
+  assert.equal(privRes.status, 200);
+  assert.doesNotMatch(await privRes.text(), /この場所の記録を見る/);
+
+  const noneRes = await worker.fetch(new Request("https://zukan.earth/events/evt_takeaway_none/takeaway/3"), env);
+  assert.equal(noneRes.status, 200);
+  assert.doesNotMatch(await noneRes.text(), /この場所の記録を見る/);
+});
+
 test("GET /api/v1/places/:id returns display name only for exact public place ID, 404 for private/unknown, 400 for non-ID/coords", async (t) => {
   const { env } = createEnv();
   const obs = new DiscoveryRouteSqliteD1();
