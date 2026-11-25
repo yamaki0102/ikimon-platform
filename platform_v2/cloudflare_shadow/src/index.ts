@@ -65,6 +65,10 @@ import {
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
 import {
+  handleSearchSeasonsApi,
+  handleSearchSeasonsRoute,
+} from "./zukanSearchEmptyAndSeasons";
+import {
   handleAccountSettingsDetailRoute,
   handleSaveAccountSettingsDetail,
   type SettingsDetailSection,
@@ -3988,6 +3992,17 @@ export const worker = {
         const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/seasons") {
+        return handleSearchSeasonsApi(url, env.OBS_DB);
+      }
+
+      const searchSeasonsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/seasons$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchSeasonsMatch) {
+        const viewLang = (searchSeasonsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchSeasonsRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/profile/my-records") {
