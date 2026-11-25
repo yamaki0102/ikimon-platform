@@ -28,6 +28,7 @@ export type AlbumShareRecord = {
   createdBy: string;
   createdAt: string;
   expiresAt: string | null;
+  revokedAt?: string | null;
   placeId: string | null;
   placeName: string;
   observedOn: string;
@@ -202,11 +203,12 @@ export function renderAlbumShareCreatePage(options: {
   group: TopLibraryGroup;
   linkUrl: string | null;
   expiresLabel: string | null;
+  token?: string | null;
 }): string {
   const prefix = `/${options.lang}`;
   const { group } = options;
   const linkBox = options.linkUrl
-    ? `<div class="oa-linkbox" data-album-link-box><input type="text" readonly value="${escapeHtml(options.linkUrl)}" aria-label="共有リンク"></div>${options.expiresLabel ? `<p class="oa-note">${escapeHtml(options.expiresLabel)}</p>` : ""}`
+    ? `<div class="oa-linkbox" data-album-link-box><input type="text" readonly value="${escapeHtml(options.linkUrl)}" aria-label="共有リンク"></div>${options.expiresLabel ? `<p class="oa-note">${escapeHtml(options.expiresLabel)}</p>` : ""}${options.token ? `<form method="post" action="${prefix}/library/link/album/revoke"><input type="hidden" name="token" value="${escapeHtml(options.token)}"><input type="hidden" name="group" value="${escapeHtml(group.groupKey)}"><button class="oa-text-danger" type="submit">このリンクを取り消す</button></form>` : ""}`
     : "";
   return pageDoc(
     "共有リンク",
@@ -217,8 +219,8 @@ export function renderAlbumShareCreatePage(options: {
 ${linkBox}
 <div class="oa-label">見られる期間</div>
 <fieldset class="oa-opts">
-<label class="oa-opt"><input type="radio" name="expires" value="none" checked><span class="oa-radio"></span><span><strong>無期限</strong><span class="oa-hint">取り消すまで見られます</span></span></label>
-<label class="oa-opt"><input type="radio" name="expires" value="30d"><span class="oa-radio"></span><span><strong>30日</strong><span class="oa-hint">30日たつと見られなくなります</span></span></label>
+<label class="oa-opt"><input type="radio" name="expires" value="none"><span class="oa-radio"></span><span><strong>無期限</strong><span class="oa-hint">取り消すまで見られます</span></span></label>
+<label class="oa-opt"><input type="radio" name="expires" value="30d" checked><span class="oa-radio"></span><span><strong>30日</strong><span class="oa-hint">30日たつと見られなくなります</span></span></label>
 </fieldset>
 <p class="oa-note">アルバムには、あなたの名前は出ません。</p>
 <input type="hidden" name="group" value="${escapeHtml(group.groupKey)}">
@@ -278,6 +280,7 @@ export async function handleSharedAlbumView(
 ): Promise<Response | null> {
   const record = await readJsonObject<AlbumShareRecord>(env, shareKey(token));
   if (!record || record.kind !== "album") return null;
+  if (record.revokedAt) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   if (record.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
@@ -286,7 +289,7 @@ export async function handleSharedAlbumView(
     try {
       const placeholders = photos.map(() => "?").join(", ");
       const rows = await env.OBS_DB.prepare(
-        `SELECT observation_id FROM observations WHERE observation_id IN (${placeholders}) AND COALESCE(emergency_hidden, 0) = 0`
+        `SELECT observation_id FROM observations WHERE observation_id IN (${placeholders}) AND COALESCE(emergency_hidden, 0) = 0 AND visibility = 'public'`
       ).bind(...photos.map((p) => p.observationId)).all<{ observation_id: string }>();
       const visible = new Set((rows.results ?? []).map((r) => r.observation_id));
       photos = photos.filter((p) => visible.has(p.observationId));
@@ -313,6 +316,7 @@ export async function handleZukanOrgLinkRoute(
     "/library/link/request/cancel",
     "/library/link/request/connect",
     "/library/link/album",
+    "/library/link/album/revoke",
   ];
   if (!routes.includes(nativePathname)) return null;
   const lang = publicLangFromPath(url.pathname) ?? "ja";
@@ -397,6 +401,17 @@ export async function handleZukanOrgLinkRoute(
     return redirect(`${prefix}/library/link/request?id=${found.id}`, 303);
   }
 
+  if (nativePathname === "/library/link/album/revoke" && isPost) {
+    const token = param("token");
+    if (/^share_[a-f0-9]{32}$/.test(token)) {
+      const stored = await readJsonObject<AlbumShareRecord>(env, shareKey(token));
+      if (stored && stored.kind === "album" && stored.createdBy === session.userId && !stored.revokedAt) {
+        await putJson(env, shareKey(token), { ...stored, revokedAt: new Date().toISOString() });
+      }
+    }
+    return redirect(`${prefix}/library`, 303);
+  }
+
   if (nativePathname === "/library/link/album") {
     const group = await findGroup();
     if (!group) return redirect(`${prefix}/library`, isPost ? 303 : 302);
@@ -412,13 +427,25 @@ export async function handleZukanOrgLinkRoute(
           expiresLabel = exp ? `${exp.getUTCMonth() + 1}月${exp.getUTCDate()}日まで見られます` : "取り消すまで見られます";
         }
       }
-      return html(renderAlbumShareCreatePage({ lang, group, linkUrl, expiresLabel }), 200, headers);
+      return html(renderAlbumShareCreatePage({ lang, group, linkUrl, expiresLabel, token: linkUrl ? token : null }), 200, headers);
     }
-    const photos = group.photos
-      .filter((p): p is typeof p & { photoUrl: string } => Boolean(p.photoUrl))
+    const candidates = group.photos.filter((p): p is typeof p & { photoUrl: string } => Boolean(p.photoUrl));
+    let publicIds = new Set<string>();
+    if (candidates.length > 0) {
+      try {
+        const rows = await env.OBS_DB.prepare(
+          `SELECT observation_id FROM observations WHERE observation_id IN (${candidates.map(() => "?").join(", ")}) AND owner_user_id = ? AND visibility = 'public' AND COALESCE(emergency_hidden, 0) = 0`
+        ).bind(...candidates.map((p) => p.observationId), session.userId).all<{ observation_id: string }>();
+        publicIds = new Set((rows.results ?? []).map((r) => r.observation_id));
+      } catch {
+        publicIds = new Set();
+      }
+    }
+    const photos = candidates
+      .filter((p) => publicIds.has(p.observationId))
       .map((p) => ({ observationId: p.observationId, photoUrl: p.photoUrl }));
     if (photos.length === 0) return redirect(`${prefix}/library`, 303);
-    const days = param("expires") === "30d" ? 30 : null;
+    const days = param("expires") === "none" ? null : 30;
     const token = `share_${crypto.randomUUID().replace(/-/g, "")}`;
     const record: AlbumShareRecord = {
       token,
