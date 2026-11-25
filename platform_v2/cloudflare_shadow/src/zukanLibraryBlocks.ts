@@ -8,6 +8,7 @@ export const ZUKAN_LIBRARY_CSS = `
     .zk-sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 12px}
     .zk-sec-head h2{margin:0;font-size:20px;font-weight:700;line-height:1.4}
     .zk-year{display:grid}
+    .zk-more,.zk-more:visited{min-height:44px;display:inline-flex;align-items:center;font-size:14px;font-weight:700;color:var(--link);text-decoration:none}
     .zk-pair{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:2px;border-radius:20px;overflow:hidden;background:#17211b;aspect-ratio:1.72/1;border:1px solid var(--line)}
     .zk-pair.zk-pair-one{grid-template-columns:1fr}
     .zk-pair a{position:relative;display:block;min-width:0;overflow:hidden}
@@ -70,7 +71,7 @@ function monthLabel(raw: string): string {
   return raw;
 }
 
-export function renderYearPairCard(pair: TopOneYearPair, isEn: boolean): string {
+export function renderYearPairCard(pair: TopOneYearPair, isEn: boolean, prefix = "/ja"): string {
   const heading = pair.kind === "year_ago" ? (isEn ? "This place, a year ago" : "1年前のこの場所") : (isEn ? "This place now" : "この場所の今");
   const caption = pair.kind === "year_ago" ? (isEn ? "Same place, last year and this year." : "同じ場所の、去年と今年。") : "";
   const photos = pair.photos.filter((p) => Boolean(p.photoUrl));
@@ -83,7 +84,7 @@ export function renderYearPairCard(pair: TopOneYearPair, isEn: boolean): string 
     })
     .join("");
   return `<section class="zk-year" aria-labelledby="zt-year-heading" data-library-one-year-pair="1">
-      <div class="zk-sec-head"><h2 id="zt-year-heading">${esc(heading)}</h2></div>
+      <div class="zk-sec-head"><h2 id="zt-year-heading">${esc(heading)}</h2>${pair.kind === "year_ago" ? `<a class="zk-more" href="${esc(`${prefix}/library/year-ago`)}">${isEn ? "See all" : "すべて見る"}</a>` : ""}</div>
       <div class="zk-pair${photos.length === 1 ? " zk-pair-one" : ""}">${cells}<span class="zk-pair-shade"></span><div class="zk-pair-copy"><strong>${esc(pair.placeName)}</strong>${caption ? `<span>${esc(caption)}</span>` : ""}</div></div>
     </section>`;
 }
@@ -132,7 +133,7 @@ export function renderLibraryGroup(
   return `<section class="zk-group" data-group-key="${esc(group.groupKey)}" data-library-group="${esc(group.groupKey)}">
       <div class="zk-group-head">
         <h2><span>${esc(dateLabel)}</span>${placeLabel ? `<span class="zk-place">${esc(placeLabel)}</span>` : ""}</h2>
-        <a class="zk-count" href="${esc(`${prefix}/records?view=mine`)}">${esc(count)}</a>
+        <a class="zk-count" href="${esc(`${prefix}/library/group?group=${encodeURIComponent(group.groupKey)}`)}">${esc(count)}</a>
       </div>
       <div class="zk-mosaic${mosaicClass}">${tiles}</div>${hiddenObs}
       <p class="zk-status${group.published ? "" : " is-private"}">${esc(statusText)}</p>
@@ -161,6 +162,7 @@ export function renderLibraryEmpty(options: { prefix: string; isEn: boolean }): 
           ${step(I.camera, isEn ? "Capture" : "撮る", isEn ? "Place and time are attached on the spot" : "その場で、場所と日時がつきます")}
           ${step(I.library, isEn ? "Pile up" : "たまる", isEn ? "Kept as bundles by day and event" : "日にちと催しごとに、束になって残ります")}
           ${step(I.book, isEn ? "Connect" : "つながる", isEn ? "Can join a place's ZUKAN or an event album" : "場所の図鑑や、催しのアルバムに載せられます")}
+          <li><a class="zk-step" href="${esc(`${prefix}/welcome`)}"><span class="zk-step-ic">${I.book}</span><span><strong>${isEn ? "A quick tour" : "はじめの案内を見る"}</strong><span class="zk-step-sub">${isEn ? "3 short steps" : "3つのステップで使い方を見られます"}</span></span><span class="zk-step-chev" aria-hidden="true">›</span></a></li>
         </ul>
       </div>
       <div>

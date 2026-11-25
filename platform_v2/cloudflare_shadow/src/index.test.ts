@@ -32487,6 +32487,32 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   assert.match(ownerHtml, /class="zt-avatar"[^>]*>T</);
   assert.match(ownerHtml, /祭り・川・去年の秋で探す/);
   assert.match(ownerHtml, /class="zk-mosaic|data-library-empty="1"/);
+
+  const welcome = await worker.fetch(new Request("https://zukan.earth/ja/welcome?step=2"), prodEnv);
+  assert.equal(welcome.status, 200);
+  const welcomeHtml = await welcome.text();
+  assert.match(welcomeHtml, /data-zukan-welcome-invite="onboarding"/);
+  assert.match(welcomeHtml, /最初は、/);
+  assert.match(welcomeHtml, /href="\/ja\/welcome\?step=3"/);
+  const missingInvite = await worker.fetch(new Request("https://zukan.earth/ja/invite/no-such-code"), prodEnv);
+  assert.equal(missingInvite.status, 404);
+  assert.match(await missingInvite.text(), /この招待は見つかりませんでした/);
+
+  const yearAgoGuest = await worker.fetch(new Request("https://zukan.earth/ja/library/year-ago", { redirect: "manual" }), prodEnv);
+  assert.equal(yearAgoGuest.status, 302);
+  assert.match(yearAgoGuest.headers.get("location") ?? "", /^\/ja\/login\?redirect=/);
+  const yearAgoOwner = await worker.fetch(new Request("https://zukan.earth/ja/library/year-ago", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  assert.equal(yearAgoOwner.status, 200);
+  assert.match(await yearAgoOwner.text(), /data-library-year-ago-list="1"/);
+  const ownerLibrary = await worker.fetch(new Request("https://zukan.earth/ja/library", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  const groupKey = /data-group-key="([^"]+)"/.exec(await ownerLibrary.text())?.[1];
+  if (groupKey) {
+    const groupRes = await worker.fetch(new Request(`https://zukan.earth/ja/library/group?group=${encodeURIComponent(groupKey.replace(/&amp;/g, "&"))}`, { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+    assert.equal(groupRes.status, 200);
+    const groupHtml = await groupRes.text();
+    assert.match(groupHtml, /data-library-group-detail=/);
+    assert.match(groupHtml, /写真 \d+枚/);
+  }
 });
 
 test("guide public page, booking request -> NOCOSIL event, and support seats enforce 401/403", async () => {

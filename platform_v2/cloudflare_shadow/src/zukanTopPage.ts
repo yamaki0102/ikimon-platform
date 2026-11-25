@@ -198,6 +198,9 @@ export type TopLibraryGroup = {
 export type TopOneYearPair = {
   kind: "year_ago" | "place_now";
   placeName: string;
+  placeId?: string | null;
+  recordCount?: number;
+  lastObservedAt?: string;
   photos: Array<{
     observationId: string;
     photoUrl: string;
@@ -519,7 +522,7 @@ export async function loadUserLibraryData(
   env: Env,
   userId: string,
   searchQuery = ""
-): Promise<{ groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null }> {
+): Promise<{ groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[] }> {
   try {
     const rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
@@ -568,6 +571,7 @@ export async function loadUserLibraryData(
 
     const groupMap = new Map<string, TopLibraryGroup>();
     const byPlace = new Map<string, Array<{ observationId: string; photoUrl: string; observedAt: string }>>();
+    const placeIdByName = new Map<string, string>();
 
     for (const r of filtered) {
       const dateDay = r.observed_at.slice(0, 10);
@@ -602,10 +606,11 @@ export async function loadUserLibraryData(
         const list = byPlace.get(placeName) ?? [];
         list.push({ observationId: r.observation_id, photoUrl, observedAt: r.observed_at });
         byPlace.set(placeName, list);
+        if (placeId) placeIdByName.set(placeName, placeId);
       }
     }
 
-    let oneYearPair: TopOneYearPair | null = null;
+    const yearPairs: TopOneYearPair[] = [];
     for (const [placeName, list] of byPlace.entries()) {
       if (list.length >= 2) {
         const newest = list[0]!;
@@ -614,9 +619,12 @@ export async function loadUserLibraryData(
           return diffDays >= 300 && diffDays <= 430;
         });
         if (yearAgo) {
-          oneYearPair = {
+          yearPairs.push({
             kind: "year_ago",
             placeName,
+            placeId: placeIdByName.get(placeName) ?? null,
+            recordCount: list.length,
+            lastObservedAt: newest.observedAt,
             photos: [
               {
                 observationId: yearAgo.observationId,
@@ -631,11 +639,11 @@ export async function loadUserLibraryData(
                 href: `/ja/observations/${encodeURIComponent(newest.observationId)}`
               }
             ]
-          };
-          break;
+          });
         }
       }
     }
+    let oneYearPair: TopOneYearPair | null = yearPairs[0] ?? null;
 
     if (!oneYearPair) {
       let bestPlace: { placeName: string; list: Array<{ observationId: string; photoUrl: string; observedAt: string }> } | null = null;
@@ -661,9 +669,9 @@ export async function loadUserLibraryData(
       }
     }
 
-    return { groups: [...groupMap.values()], oneYearPair };
+    return { groups: [...groupMap.values()], oneYearPair, yearPairs };
   } catch {
-    return { groups: [], oneYearPair: null };
+    return { groups: [], oneYearPair: null, yearPairs: [] };
   }
 }
 
@@ -677,7 +685,7 @@ export async function loadZukanTopPageData(
     loadOwnerHeroPhotos(env, 5, lang),
     loadPublicPlacesStrip(env, 6, lang),
     loadRecentPublicRecords(env, 6, lang),
-    userId ? loadUserLibraryData(env, userId, searchQuery) : Promise.resolve({ groups: [], oneYearPair: null })
+    userId ? loadUserLibraryData(env, userId, searchQuery) : Promise.resolve({ groups: [], oneYearPair: null, yearPairs: [] as TopOneYearPair[] })
   ]);
 
   const eventSection = await loadEventSectionWithFallback(env, heroPhotos, recentPublicRecords, new Date().toISOString(), lang);
@@ -773,10 +781,11 @@ export function renderZukanTopPage(
     <nav class="zk-more-links" aria-label="${isEn ? "Explore" : "見てみる"}">
       <a href="${prefix}/community/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
       <a href="${prefix}/map">${isEn ? "Find places on the map" : "地図で場所を探す"}</a>
+      <a href="${prefix}/welcome">${isEn ? "New here? A quick tour" : "はじめての方へ（使い方）"}</a>
     </nav>
   `;
 
-  const oneYearHtml = data.oneYearPair ? renderYearPairCard(data.oneYearPair, isEn) : "";
+  const oneYearHtml = data.oneYearPair ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
 
   const libraryBodyHtml = data.libraryGroups.length > 0
     ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "top" })
