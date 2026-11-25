@@ -67,3 +67,13 @@ test("H1-H2 search explore page renders mic input, recent species, and suggestio
   assert.match(html, /id="zukan-search-suggestions"/);
   assert.match(html, /<mark>佐鳴<\/mark>湖公園/);
 });
+
+test("test-data taxon names never appear as suggestion chips, real names do", async () => {
+  const { isTestTaxonLabel } = await import("./zukanSearchPromptAndSuggest");
+  for (const bad of ["fallback-free smoke plant", "native public cutover plant", "production synthetic plant", "unidentified", "PR973 prod rally"]) {
+    assert.equal(isTestTaxonLabel(bad), true, bad);
+  }
+  for (const ok of ["モウソウチク", "カワセミ", "Kingfisher"]) {
+    assert.equal(isTestTaxonLabel(ok), false, ok);
+  }
+});
