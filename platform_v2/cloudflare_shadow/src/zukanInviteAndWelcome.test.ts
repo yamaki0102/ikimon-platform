@@ -92,3 +92,18 @@ test("welcome and invite screens render A5-A8 flows", () => {
   const a8 = renderZukanWelcomeAndInvitePage({ mode: "event_invite", lang: "ja", targetTitle: "竜洋の野鳥観察会", targetHref: "/ja/community/events/RYUYO2026/join" });
   assert.match(a8, /竜洋の野鳥観察会 への招待/);
 });
+
+test("A6 onboarding pages by step and A7/A8 invites match the mock layout", () => {
+  const s1 = renderZukanWelcomeAndInvitePage({ mode: "onboarding", lang: "ja", step: 1 });
+  assert.match(s1, /href="\/ja\/welcome\?step=2"/);
+  assert.match(s1, /スキップ/);
+  const s3 = renderZukanWelcomeAndInvitePage({ mode: "onboarding", lang: "ja", step: 3, authenticated: false });
+  assert.match(s3, /href="\/ja\/register"/);
+  assert.doesNotMatch(s3, /スキップ/);
+  const a7 = renderZukanWelcomeAndInvitePage({ mode: "place_invite", lang: "ja", targetTitle: "連理の木の下で", targetHref: "/ja/places/p1" });
+  assert.match(a7, /参加する/);
+  assert.match(a7, /ログインして参加/);
+  assert.match(a7, /href="\/ja\/login\?redirect=%2Fplaces%2Fp1"/);
+  const member = renderZukanWelcomeAndInvitePage({ mode: "event_invite", lang: "ja", targetTitle: "秋まつり", targetHref: "/ja/community/events/X/join", authenticated: true });
+  assert.doesNotMatch(member, /ログインして参加/);
+});

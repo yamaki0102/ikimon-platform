@@ -29,14 +29,14 @@ function setupDb(t: test.TestContext) {
     CREATE TABLE observations (
       observation_id TEXT PRIMARY KEY,
       owner_user_id TEXT NOT NULL,
-      taxon_display_name TEXT NOT NULL,
+      taxon_label TEXT,
       observed_at TEXT NOT NULL,
       visibility TEXT NOT NULL DEFAULT 'private'
     );
   `);
-  sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, ?, 'public')").run("obs-u1-pub", "user-1", "カワセミ", "2026-06-01T09:00:00Z");
-  sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, ?, 'private')").run("obs-u1-priv", "user-1", "アオサギ", "2026-06-02T09:00:00Z");
-  sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, ?, 'private')").run("obs-u2-priv", "user-2", "他人の秘密", "2026-06-03T09:00:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, ?, 'public')").run("obs-u1-pub", "user-1", "カワセミ", "2026-06-01T09:00:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, ?, 'private')").run("obs-u1-priv", "user-1", "アオサギ", "2026-06-02T09:00:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, ?, 'private')").run("obs-u2-priv", "user-2", "他人の秘密", "2026-06-03T09:00:00Z");
   return sqliteObsDb(sqlite);
 }
 

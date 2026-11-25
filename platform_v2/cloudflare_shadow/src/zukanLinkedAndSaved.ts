@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader, renderSubpageRow } from "./zukanSubpageUi";
 
 type SessionLike = {
   userId: string;
@@ -22,9 +23,10 @@ type SavedRow = {
   item_id: string;
   title: string;
   created_at: string;
+  path?: string | null;
 };
 
-async function queryLinkedAndSaved(userId: string, db: Env["OBS_DB"]) {
+async function queryLinkedAndSaved(userId: string, db: Env["OBS_DB"], savedDb: Env["OBS_DB"] = db) {
   const [linked, saved] = await Promise.all([
     db
       .prepare(
@@ -38,9 +40,9 @@ async function queryLinkedAndSaved(userId: string, db: Env["OBS_DB"]) {
       .all<LinkedRow>()
       .then((r) => r.results)
       .catch(() => [] as LinkedRow[]),
-    db
+    savedDb
       .prepare(
-        `SELECT object_id AS save_id, object_kind AS item_type, object_id AS item_id, display_title AS title, saved_at AS created_at
+        `SELECT object_id AS save_id, object_kind AS item_type, object_id AS item_id, display_title AS title, saved_at AS created_at, canonical_path AS path
            FROM user_saved_items
           WHERE user_id = ? AND state = 'saved'
           ORDER BY saved_at DESC
@@ -66,18 +68,20 @@ async function queryLinkedAndSaved(userId: string, db: Env["OBS_DB"]) {
       itemId: s.item_id,
       title: s.title,
       createdAt: s.created_at,
+      path: s.path ?? null,
     })),
   };
 }
 
 export async function handleLinkedAndSavedApi(
   session: SessionLike,
-  db: Env["OBS_DB"]
+  db: Env["OBS_DB"],
+  savedDb: Env["OBS_DB"] = db
 ): Promise<Response> {
   if (!session?.userId) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
-  const data = await queryLinkedAndSaved(session.userId, db);
+  const data = await queryLinkedAndSaved(session.userId, db, savedDb);
   return json({ ok: true, ...data });
 }
 
@@ -85,7 +89,8 @@ export async function handleLinkedAndSavedRoute(
   url: URL,
   lang: "ja" | "en" | "es" | "pt-br",
   session: SessionLike,
-  db: Env["OBS_DB"]
+  db: Env["OBS_DB"],
+  savedDb: Env["OBS_DB"] = db
 ): Promise<Response> {
   if (!session?.userId) {
     const html = renderZukanCommonShell({
@@ -106,47 +111,42 @@ export async function handleLinkedAndSavedRoute(
   }
 
   const tab = url.searchParams.get("tab") === "saved" ? "saved" : "linked";
-  const data = await queryLinkedAndSaved(session.userId, db);
+  const data = await queryLinkedAndSaved(session.userId, db, savedDb);
 
-  const linkedCards = data.linked
-    .map(
-      (l) => `<a class="zt-ls-card" href="/${lang}/places/${encodeURIComponent(l.targetId)}">
-        <span class="zt-ls-badge">${escapeHtml(l.targetType === "event" ? "観察会" : "場所の図鑑")}</span>
-        <strong>${escapeHtml(l.targetTitle)}</strong>
-        <span class="zt-ls-date">${escapeHtml(l.createdAt.slice(0, 10))}</span>
-      </a>`
+  const kindLabel: Record<string, string> = { place: "場所", event: "イベント", record: "記録" };
+  const linkedRows = data.linked
+    .map((l) =>
+      renderSubpageRow({
+        href: `/${lang}/places/${encodeURIComponent(l.targetId)}`,
+        title: l.targetTitle,
+        meta: `${l.targetType === "event" ? "観察会" : "場所の図鑑"} ・ ${l.createdAt.slice(0, 10)}`,
+      })
     )
     .join("");
-
-  const savedCards = data.saved
-    .map(
-      (s) => `<a class="zt-ls-card" href="/${lang}/places/${encodeURIComponent(s.itemId)}">
-        <span class="zt-ls-badge">${escapeHtml(s.itemType)}</span>
-        <strong>${escapeHtml(s.title)}</strong>
-        <span class="zt-ls-date">${escapeHtml(s.createdAt.slice(0, 10))}</span>
-      </a>`
-    )
+  const savedRows = data.saved
+    .map((s) => {
+      const path = s.path && s.path.startsWith("/") && !s.path.startsWith("//") ? s.path : `/places/${encodeURIComponent(s.itemId)}`;
+      return renderSubpageRow({
+        href: `/${lang}${path}`,
+        title: s.title,
+        meta: `${kindLabel[s.itemType] ?? s.itemType} ・ ${s.createdAt.slice(0, 10)}`,
+      });
+    })
     .join("");
+  const shownRows = tab === "linked" ? linkedRows : savedRows;
 
-  const body = `<style>
-    .zt-ls-wrap{display:grid;gap:14px;padding:16px 0}
-    .zt-ls-tabs{display:flex;flex-wrap:wrap;gap:8px}
-    .zt-ls-tab,.zt-ls-tab:visited{min-height:40px;padding:6px 16px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-size:14px;font-weight:700;display:inline-flex;align-items:center}
-    .zt-ls-tab.is-active,.zt-ls-tab.is-active:visited{background:var(--green);border-color:var(--green);color:#fff}
-    .zt-ls-list{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}
-    .zt-ls-card,.zt-ls-card:visited{display:grid;gap:6px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);text-decoration:none}
-    .zt-ls-badge{width:fit-content;padding:2px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--green);font-size:12px;font-weight:700}
-    .zt-ls-date{font-size:12px;color:var(--muted)}
+  const body = `<style>${ZUKAN_SUBPAGE_CSS}
+    .zt-ls-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;scrollbar-width:none}
+    .zt-ls-tab,.zt-ls-tab:visited{flex:none;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #dde2dc;background:#fff;color:#17251b;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;white-space:nowrap}
+    .zt-ls-tab.is-active,.zt-ls-tab.is-active:visited{background:#143F2E;border-color:#143F2E;color:#fff}
   </style>
-  <section class="zt-ls-wrap" data-profile-view="i4-i5" data-tab="${tab}">
-    <h1>つないだ先と保存したもの</h1>
+  <section class="zt-sp" data-profile-view="i4-i5" data-tab="${tab}">
+    ${renderSubpageHeader({ title: "保存した場所・イベント", backHref: `/${lang}/profile`, backLabel: "自分に戻る" })}
     <nav class="zt-ls-tabs" aria-label="表示切り替え">
       <a class="zt-ls-tab${tab === "linked" ? " is-active" : ""}" href="/${lang}/profile/linked-saved?tab=linked"${tab === "linked" ? ' aria-current="page"' : ""}>つないだ先 (${data.linked.length})</a>
       <a class="zt-ls-tab${tab === "saved" ? " is-active" : ""}" href="/${lang}/profile/linked-saved?tab=saved"${tab === "saved" ? ' aria-current="page"' : ""}>保存したもの (${data.saved.length})</a>
     </nav>
-    <div class="zt-ls-list">
-      ${tab === "linked" ? linkedCards || "<p>つないだ先はまだありません。</p>" : savedCards || "<p>保存したものはまだありません。</p>"}
-    </div>
+    ${shownRows ? `<ul class="zt-sp-list">${shownRows}</ul>` : `<p class="zt-sp-empty">${tab === "linked" ? "つないだ先はまだありません。" : "保存したものはまだありません。場所のページの保存ボタンから残せます。"}</p>`}
   </section>`;
 
   const html = renderZukanCommonShell({

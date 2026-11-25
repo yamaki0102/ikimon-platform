@@ -3,6 +3,7 @@ import { getShortCopy } from "../content/index.js";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl } from "../i18n.js";
 import { MAP_EXPLORER_CRITICAL_STYLES, mapExplorerBootScript, mapExplorerHeadPreloadHtml, renderMapExplorer } from "../ui/mapExplorer.js";
+import { renderZukanMapPhotoPins } from "../ui/zukanMapPhotoPins.js";
 import { renderSiteDocument } from "../ui/siteShell.js";
 
 function requestBasePath(request: { headers: Record<string, unknown> }): string {
@@ -34,7 +35,8 @@ export async function registerMapReadRoutes(app: FastifyInstance): Promise<void>
       // while the explorer component carries a one-line context strip.
       hideFooter: true,
       body: `${renderMapExplorer({ basePath, lang, years })}
-${mapExplorerBootScript({ basePath, lang })}`,
+${mapExplorerBootScript({ basePath, lang })}
+${renderZukanMapPhotoPins({ basePath, lang })}`,
       footerNote: mapPageCopy.footerNote,
     });
   });

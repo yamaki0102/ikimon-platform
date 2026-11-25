@@ -53,7 +53,7 @@ test("site shell applies the shared design foundation once to both product and a
   for (const currentPath of ["/ja/", "/ja/learn/field-loop"]) {
     const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
     assert.match(html, /<body data-zukan-design="v1"/);
-    assert.equal((html.match(/--zukan-action-primary:#245c3a/g) ?? []).length, 1);
+    assert.equal((html.match(/--zukan-action-primary:#143f2e/g) ?? []).length, 1);
     assert.match(html, /--ikimon-page-max: var\(--zukan-content-max\);/);
     assert.match(html, /box-shadow: 0 0 0 4px var\(--zukan-focus-yellow-300\);/);
   }
@@ -382,8 +382,8 @@ test("app records search belongs to the content, with public guest navigation", 
   const html = renderRecordPage({basePath: "", title: "Records", body: "<p>records</p>", lang: "ja", currentPath: "/ja/records?view=public&q=bird"});
   assert.doesNotMatch(html, /<form class="site-search/);
   assert.doesNotMatch(html, /<aside class="desktop-side-nav/);
-  assert.match(html, /data-auth-guest-href="\/ja\/records\?view=public"/);
-  assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
+  assert.match(html, /data-auth-guest-href="\/ja\/"/);
+  assert.match(html, /data-auth-member-href="\/ja\/library"/);
   assert.match(html, /data-home-header/);
 });
 
@@ -811,15 +811,15 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   });
   const launcher = html.match(/<nav class="[^"]*global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
-  assert.match(launcher, />ホーム<\/span>/);
+  assert.match(launcher, />ライブラリ<\/span>/);
+  assert.match(launcher, />イベント<\/span>/);
   assert.match(launcher, />撮る<\/span>/);
   assert.match(launcher, />場所<\/span>/);
-  assert.match(launcher, />記録<\/span>/);
-  assert.match(launcher, />参加<\/span>/);
-  assert.ok(launcher.indexOf(">ホーム</span>") < launcher.indexOf(">記録</span>"));
-  assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">撮る</span>"));
+  assert.match(launcher, />自分<\/span>/);
+  assert.ok(launcher.indexOf(">ライブラリ</span>") < launcher.indexOf(">イベント</span>"));
+  assert.ok(launcher.indexOf(">イベント</span>") < launcher.indexOf(">撮る</span>"));
   assert.ok(launcher.indexOf(">撮る</span>") < launcher.indexOf(">場所</span>"));
-  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">参加</span>"));
+  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">自分</span>"));
   assert.match(launcher, /data-global-record-trigger="photo"/);
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/"[^>]*aria-current="page"/);
@@ -846,16 +846,16 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
     currentPath: "/ja/profile",
   });
   const profileLauncher = profileHtml.match(/<nav class="[^"]*global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
-  assert.doesNotMatch(profileLauncher, />自分<\/span>/);
+  assert.match(profileLauncher, /aria-current="page"[^>]*>[\s\S]*?<span>自分<\/span>/);
 });
 
 test("browse navigation gives active state to the matching destination", () => {
   const surfaces = [
-    { path: "/ja/", label: "ホーム", mobile: true },
+    { path: "/ja/", label: "ライブラリ", mobile: true },
     { path: "/ja/map?tab=places", label: "場所" },
-    { path: "/ja/records?view=mine", label: "記録" },
-    { path: "/ja/community/events", label: "参加" },
-    { path: "/ja/profile", label: "自分", mobile: false },
+    { path: "/ja/records?view=mine", label: "ライブラリ" },
+    { path: "/ja/community/events", label: "イベント" },
+    { path: "/ja/profile", label: "自分" },
   ];
 
   for (const surface of surfaces) {
@@ -944,12 +944,11 @@ test("site shell localizes the mobile global record launcher", () => {
   });
 
   assert.match(html, /aria-label="Main pages"/);
-  assert.match(html, />Home<\/span>/);
+  assert.match(html, />Library<\/span>/);
+  assert.match(html, />Events<\/span>/);
   assert.match(html, />Capture<\/span>/);
   assert.match(html, />Places<\/span>/);
-  assert.match(html, />Records<\/span>/);
-  assert.match(html, />Join<\/span>/);
-  assert.doesNotMatch(html, />Me<\/span>/);
+  assert.match(html, />Me<\/span>/);
   assert.match(html, /class="home-header-login site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
   assert.match(html, /Choose from device/);

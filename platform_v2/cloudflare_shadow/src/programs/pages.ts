@@ -20,6 +20,8 @@ import { applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, crea
 import { buildObservationEventGuestCookie, buildObservationEventOperationsDashboard, claimObservationEventGuestParticipant, findObservationEventParticipant, getObservationEventSessionById, isObservationEventActivityOpen, isObservationEventCheckinOpen, listObservationEventLiveEvents, listObservationEventTeams, mapObservationEventSession, observationEventGuestCredentialDigest, observationEventLiveParticipantDetail, observationEventParticipantContext, publicObservationEventLiveEvent, readObservationEventGuestCredential, recordObservationEventParticipantPageMetric, recordObservationEventServerFunnelMetric, requireObservationEventOrganizer, serverObservationEventFunnelContext, shouldDeliverObservationEvent, summarizePublicObservationEventLive, type ObservationEventParticipantD1Row, type ObservationEventSessionD1Row, type ObservationEventTeamD1Row, type ObservationEventTemplate, type PublicObservationEventLiveEvent } from "./runtime";
 import { getObservationEventGuestMedia, getObservationEventSessionByEventCode, getObservationRallyCourseBySession, getObservationRallySnapshot, isObservationEventQaFixture, isPrivateReceivedProgram, isRyuyoDiscoveryEvent, mapObservationRallyCourse, mapObservationRallyMission, mapObservationRallyProgress, mapObservationRallyStation, observationEventGuestMediaActor, observationEventGuestMediaEnabled } from "./rally";
 import { DISCOVERY_CAMPAIGN_VERSION, buildObservationEventOfficialReport, discoveryCampaignConfig, getObservationEventRecap, hasProfessionalReportEntitlement, summarizeObservationEventEffort } from "./sessions";
+import { renderEventGalleryDocument } from "../zukanEventAlbumAndShare";
+import { renderZukanEventListDocument } from "../zukanEventList";
 import { listGuideBadgeDiscoveries, renderGuideBadgeTakeawayPage, renderGuideVoiceConsolePage } from "../guideVoiceEvent";
 
 const SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH = "/__ops/browser-qa/renri";
@@ -702,15 +704,19 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
     sessions.length = 0;
   }
   const strings = getObservationEventStrings(lang);
-  return pageHtml(
-    strings.listHeroHeading,
-    renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, {
+  const listHeading = publicLang === "ja" ? "近くのイベント" : strings.listHeroHeading;
+  const listDocument = renderZukanEventListDocument({
+    lang: publicLang,
+    title: listHeading,
+    bodyHtml: renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, {
       loadFailed,
       partial: scanLimitReached,
       retryHref: "/community/events",
-    }),
-    "event-page-list",
-  );
+    }).replace(`<h1>${escapeHtml(strings.listHeroHeading)}</h1>`, `<h1>${escapeHtml(listHeading)}</h1>`),
+    authenticated: Boolean(auth && !auth.banned),
+    displayName: auth?.displayName ?? null,
+  });
+  return html(listDocument, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "event-page-list" });
 }
 
 async function getObservationEventJoinPage(request: Request, env: Env, eventCode: string): Promise<Response> {
@@ -1134,7 +1140,26 @@ async function getObservationEventSessionPage(request: Request, url: URL, env: E
       return pageHtml(status === 403 ? "権限がありません" : "写真・動画を読み込めません", observationEventGuestGalleryErrorPage(session.sessionId, message), status === 403 ? "event-gallery-forbidden" : "event-gallery-error", status);
     }
     const data = await mediaResponse.json() as Record<string, unknown>;
-    return pageHtml(`${session.title} 非公開ギャラリー`, renderObservationEventGuestGalleryPage(session, data, canManage), "event-page-private-gallery");
+    const galleryLang = publicLangFromPath(url.pathname);
+    const receiptStatusLabel: Record<string, string> = { pending: "権利確認待ち・非公開", approved: "権利確認済み・非公開", rejected: "掲載対象外・非公開" };
+    const tiles = (Array.isArray(data.receipts) ? data.receipts : []).map(asPlainObject)
+      .filter((r): r is Record<string, unknown> => Boolean(r))
+      .filter((r) => typeof r.privateContentHref === "string" && r.privateContentHref && String(r.rightsReviewStatus ?? "pending") !== "withdrawn")
+      .map((r) => ({
+        href: String(r.privateContentHref),
+        isVideo: String(typeof r.mediaType === "string" ? r.mediaType : typeof r.mime === "string" ? r.mime : "").startsWith("video/"),
+        statusLabel: receiptStatusLabel[String(r.rightsReviewStatus ?? "pending")] ?? "状態を確認できません・非公開",
+      }));
+    const galleryDocument = renderEventGalleryDocument({
+      lang: galleryLang ?? "ja",
+      pathPrefix: galleryLang ? `/${galleryLang}` : "",
+      event: { sessionId: session.sessionId, title: session.title, startedAt: session.startedAt, endedAt: session.endedAt ?? null },
+      tiles,
+      organizerSectionHtml: canManage ? renderObservationEventGuestGalleryPage(session, data, canManage) : null,
+      authenticated: Boolean(auth && !auth.banned),
+      displayName: auth?.displayName ?? null,
+    });
+    return html(galleryDocument, 200, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive", "x-ikimon-cloudflare-native": "event-page-private-gallery" });
   }
   if (page === "rally") {
     let rally: Awaited<ReturnType<typeof getObservationRallySnapshot>>;

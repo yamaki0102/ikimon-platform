@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader, renderSubpageRow } from "./zukanSubpageUi";
 
 export type SettingsDetailSection = "edit" | "notifications" | "account";
 
@@ -144,9 +145,9 @@ export async function handleAccountSettingsDetailRoute(
 
   const navTabs = (
     [
-      { key: "edit", label: "プロフィール (I8)" },
-      { key: "notifications", label: "通知 (I9)" },
-      { key: "account", label: "連携とアカウント (I11)" },
+      { key: "edit", label: "プロフィール" },
+      { key: "notifications", label: "通知" },
+      { key: "account", label: "アカウント" },
     ] as const
   )
     .map((t) => {
@@ -155,65 +156,74 @@ export async function handleAccountSettingsDetailRoute(
     })
     .join("");
 
+  const initial = (displayName.trim() || "自分").slice(0, 1);
+  const chevron = '<svg class="zt-sp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  const linkRow = (href: string, title: string, meta: string) =>
+    `<li><a class="zt-sp-row" href="${escapeHtml(href)}"><span class="zt-sp-body"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(meta)}</small></span>${chevron}</a></li>`;
+
   let panelHtml = "";
+  let heading = "プロフィール";
   if (section === "edit") {
-    panelHtml = `<form class="zt-as-form" data-settings-form="profile">
-      <label class="zt-as-field">
-        <span>表示名</span>
-        <input type="text" name="displayName" maxlength="80" value="${escapeHtml(displayName)}" />
+    panelHtml = `<form class="zt-sp" data-settings-form="profile" style="gap:20px">
+      <div style="display:flex;align-items:center;gap:16px"><span class="zt-sp-avatar" aria-hidden="true">${escapeHtml(initial)}</span></div>
+      <label class="zt-sp-field">
+        <span>フィールドネーム</span>
+        <input class="zt-sp-input" type="text" name="displayName" maxlength="80" value="${escapeHtml(displayName)}" />
+        <small class="zt-sp-lead">ほかの人に見えるのは、この名前だけです。本名は登録しません。</small>
       </label>
-      <label class="zt-as-field">
+      <label class="zt-sp-field">
         <span>自己紹介</span>
-        <textarea name="bio" rows="4" maxlength="400">${escapeHtml(bio)}</textarea>
+        <textarea class="zt-sp-input" name="bio" rows="4" maxlength="400">${escapeHtml(bio)}</textarea>
       </label>
-      <button class="zt-btn-capture" type="submit">保存する</button>
+      <ul class="zt-sp-list">${linkRow(`/${lang}/profile/public-settings`, "公開の範囲", "ほかの人に何が見えるかを決めます")}</ul>
+      <button class="zt-sp-primary" type="submit">保存する</button>
+      <p class="zt-sp-lead" data-settings-status role="status" aria-live="polite"></p>
     </form>`;
   } else if (section === "notifications") {
-    panelHtml = `<form class="zt-as-form" data-settings-form="notifications">
-      <label class="zt-as-toggle">
+    heading = "通知";
+    panelHtml = `<form class="zt-sp" data-settings-form="notifications" style="gap:12px">
+      <label class="zt-sp-toggle">
+        <span><strong>コメントや同定のお知らせ</strong><small>自分の記録に届いたら知らせます</small></span>
         <input type="checkbox" name="notifyComments"${notifyComments ? " checked" : ""} />
-        <span>コメントや同定のお知らせを受け取る</span>
       </label>
-      <label class="zt-as-toggle">
+      <label class="zt-sp-toggle">
+        <span><strong>参加中の観察会のお知らせ</strong><small>前日と当日にお知らせします</small></span>
         <input type="checkbox" name="notifyEvents"${notifyEvents ? " checked" : ""} />
-        <span>参加中の観察会のお知らせを受け取る</span>
       </label>
-      <button class="zt-btn-capture" type="submit">通知設定を保存</button>
+      <button class="zt-sp-primary" type="submit">通知設定を保存</button>
+      <p class="zt-sp-lead" data-settings-status role="status" aria-live="polite"></p>
     </form>`;
   } else {
-    panelHtml = `<div class="zt-as-account">
-      <div class="zt-as-row">
-        <strong>公開範囲の設定</strong>
-        <a class="zt-btn-outline" href="/${lang}/profile/public-settings">変更する</a>
-      </div>
-      <div class="zt-as-row">
-        <strong>表示言語・退会</strong>
-        <a class="zt-btn-outline" href="/${lang}/profile/settings">開く</a>
-      </div>
-      <div class="zt-as-row">
-        <strong>つないだ先・保存したもの</strong>
-        <a class="zt-btn-outline" href="/${lang}/profile/linked-saved">確認する</a>
-      </div>
-    </div>`;
+    heading = "アカウント";
+    panelHtml = `<ul class="zt-sp-list">
+      ${linkRow(`/${lang}/profile/public-settings`, "公開範囲の設定", "プロフィールを公開するかどうか")}
+      ${linkRow(`/${lang}/profile/linked-saved`, "つないだ先・保存したもの", "保存した場所やイベント")}
+      ${linkRow(`/${lang}/profile/settings`, "表示言語・退会", "言語の切り替えと退会の確認")}
+    </ul>
+    <h2 class="zt-sp-title" style="font-size:1.125rem;margin:20px 0 0">そのほか</h2>
+    <ul class="zt-sp-list">
+      ${linkRow(`/${lang}/terms`, "利用規約", "ご利用にあたってのお約束")}
+      ${linkRow(`/${lang}/privacy`, "プライバシーポリシー", "写真や位置の扱い")}
+      ${linkRow(`/${lang}/profile/settings`, "退会する", "記録とアカウントを消します")}
+    </ul>`;
   }
 
-  const body = `<style>
-    .zt-as-wrap{display:grid;gap:14px;padding:16px 0}
-    .zt-as-tabs{display:flex;flex-wrap:wrap;gap:8px}
-    .zt-as-tab,.zt-as-tab:visited{min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-size:14px;font-weight:700;display:inline-flex;align-items:center}
-    .zt-as-tab.is-active,.zt-as-tab.is-active:visited{background:var(--green);border-color:var(--green);color:#fff}
-    .zt-as-card{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:grid;gap:14px}
-    .zt-as-form,.zt-as-account{display:grid;gap:12px}
-    .zt-as-field{display:grid;gap:6px;font-weight:700;font-size:14px}
-    .zt-as-field input,.zt-as-field textarea{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:#fff;color:var(--ink)}
-    .zt-as-toggle{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-weight:700}
-    .zt-as-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  const settingsScript = `<script>(()=>{document.querySelectorAll("[data-settings-form]").forEach((form)=>{form.addEventListener("submit",async(e)=>{e.preventDefault();const kind=form.getAttribute("data-settings-form");const status=form.querySelector("[data-settings-status]");const button=form.querySelector("button[type=submit]");const body=kind==="notifications"?{section:"notifications",notifyComments:form.elements.notifyComments.checked,notifyEvents:form.elements.notifyEvents.checked}:{section:"profile",displayName:form.elements.displayName.value,bio:form.elements.bio.value};if(button)button.disabled=true;try{const res=await fetch("/api/v1/profile/settings-detail",{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",body:JSON.stringify(body)});if(!res.ok)throw new Error("failed");if(status)status.textContent="保存しました。";}catch{if(status)status.textContent="保存できませんでした。もう一度試してください。";}finally{if(button)button.disabled=false;}});});})();</script>`;
+
+  const body = `<style>${ZUKAN_SUBPAGE_CSS}
+    .zt-as-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;scrollbar-width:none}
+    .zt-as-tab,.zt-as-tab:visited{flex:none;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #dde2dc;background:#fff;color:#17251b;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;white-space:nowrap}
+    .zt-as-tab.is-active,.zt-as-tab.is-active:visited{background:#143F2E;border-color:#143F2E;color:#fff}
+    .zt-sp-avatar{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:#143F2E;color:#fff;font-size:1.75rem;font-weight:700}
+    .zt-sp-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:72px;padding:14px 0;border-bottom:1px solid #dde2dc}
+    .zt-sp-toggle span{display:grid;gap:2px}.zt-sp-toggle small{color:#55615a}
+    .zt-sp-toggle input{width:28px;height:28px;accent-color:#143F2E;flex:none}
   </style>
-  <section class="zt-as-wrap" data-profile-view="i8-i9-i11" data-settings-section="${section}">
-    <h1>設定</h1>
+  <section class="zt-sp" data-profile-view="i8-i9-i11" data-settings-section="${section}">
+    ${renderSubpageHeader({ title: heading, backHref: `/${lang}/profile`, backLabel: "自分に戻る" })}
     <nav class="zt-as-tabs" aria-label="設定メニュー">${navTabs}</nav>
-    <div class="zt-as-card">${panelHtml}</div>
-  </section>`;
+    ${panelHtml}
+  </section>${settingsScript}`;
 
   const html = renderZukanCommonShell({
     title: "設定 | ikimon",

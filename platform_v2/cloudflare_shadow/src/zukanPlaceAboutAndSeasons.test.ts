@@ -86,6 +86,8 @@ test("GET /api/v1/places/:id/seasons returns 404 for private/missing place and 2
   const aboutHtml = await aboutPage.text();
   assert.match(aboutHtml, /data-place-about="e6"/);
   assert.match(aboutHtml, /水辺と森の公園です。/);
+  assert.ok(aboutHtml.includes("<dt>所在地</dt><dd>浜松市</dd>"));
+  assert.ok(aboutHtml.includes("<dt>記録</dt><dd>1件（2026年から）</dd>"));
 
   const seasonsPage = await handlePlaceAboutOrSeasonsRoute("place_sanaru", "seasons", "ja", null, pubDb as any);
   assert.equal(seasonsPage.status, 200);
