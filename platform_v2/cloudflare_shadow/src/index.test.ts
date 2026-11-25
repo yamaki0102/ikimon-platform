@@ -32396,7 +32396,8 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   const guestTop = await worker.fetch(new Request("https://zukan.earth/ja/"), env);
   assert.equal(guestTop.status, 200);
   const guestHtml = await guestTop.text();
-  assert.match(guestHtml, /ウェイティングリストに登録/);
+  assert.match(guestHtml, /新規登録（無料）/);
+  assert.match(guestHtml, /撮ると、まちの今が図鑑になる。/);
   assert.doesNotMatch(guestHtml, /0件|まだありません/);
 
   const unauthPub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/publish", {
@@ -32462,27 +32463,30 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.equal(prodRes.status, 200, topUrl);
     assert.equal(prodRes.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2", topUrl);
     const prodHtml = await prodRes.text();
-    assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
-    assert.match(prodHtml, /常盤公園・11月22日/, topUrl);
-    assert.match(prodHtml, /浜松市・11月23日/, topUrl);
-    assert.equal(prodHtml.match(/class="zt-hero-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
-    assert.equal(prodHtml.match(/class="zt-thumb-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
+    assert.match(prodHtml, /新規登録（無料）/, topUrl);
+    assert.match(prodHtml, /写真は最初、自分だけに見えます/, topUrl);
+    assert.match(prodHtml, /<img src="\/assets\/brand\/zukan-lockup\.svg"/, topUrl);
+    assert.match(prodHtml, /<img src="\/derived-transform\/w680\/derived\/obs-top-\d\/display\.webp"/, topUrl);
     assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
-    assert.match(prodHtml, />イベント</, topUrl);
-    assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
+    assert.match(prodHtml, />近くのイベントを見る</, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
   }
   const enRes = await worker.fetch(new Request("https://zukan.earth/en/"), prodEnv);
   assert.equal(enRes.status, 200);
   const enHtml = await enRes.text();
-  assert.match(enHtml, /Join the waitlist/);
+  assert.match(enHtml, /Sign up \(free\)/);
   assert.match(enHtml, /Nearby events/);
-  assert.match(enHtml, /Hamamatsu · Nov 23/);
-  assert.match(enHtml, /href="\/en\/observations\/obs-top-2"/);
-  assert.doesNotMatch(enHtml, /浜松市・11月23日|href="\/ja\/observations\//);
-  assert.match(enHtml, />Events</);
   assert.doesNotMatch(enHtml, />イベント<|>場所<|近くの場所|祭り・川|aria-label="ナビ"|aria-label="メニュー"/);
   assert.doesNotMatch(enHtml, /href="\/en\/(events|places|capture)["\/]|href="\/auth\/login"/);
+
+  const ownerTop = await worker.fetch(new Request("https://zukan.earth/ja/", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  assert.equal(ownerTop.status, 200);
+  const ownerHtml = await ownerTop.text();
+  assert.match(ownerHtml, /class="zt-bottom-nav"/);
+  assert.match(ownerHtml, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
+  assert.match(ownerHtml, /class="zt-avatar"[^>]*>T</);
+  assert.match(ownerHtml, /祭り・川・去年の秋で探す/);
+  assert.match(ownerHtml, /class="zk-mosaic|data-library-empty="1"/);
 });
 
 test("guide public page, booking request -> NOCOSIL event, and support seats enforce 401/403", async () => {
