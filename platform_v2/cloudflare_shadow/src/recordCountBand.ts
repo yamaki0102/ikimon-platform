@@ -218,13 +218,22 @@ export type BandSessionReader = () => Promise<{ userId: string; banned?: boolean
 const NO_STORE = { "cache-control": "private, no-store", "content-type": "application/json; charset=utf-8" };
 const respond = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: NO_STORE });
 
-export async function handleRecordCountBandRoute(deps: BandDeps, readSession: BandSessionReader, pathname: string): Promise<Response | null> {
+const escapeBandHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+export function renderPlaceSeasonListHtml(list: PlaceSeasonList): string {
+  const title = `${list.placeLabel}の${list.seasonLabel}の記録`;
+  const items = list.items.map((item) => `<li><a href="/ja${escapeBandHtml(item.href)}"><span>${escapeBandHtml(item.observedAt)}</span><strong>${escapeBandHtml(item.displayName ?? "")}</strong></a></li>`).join("");
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${escapeBandHtml(title)} | ZUKAN</title><style>body{margin:0;background:#fff;color:#17211B;font:16px/1.65 "Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}main{max-width:640px;margin:0 auto;padding:20px}a{color:#0055AD;text-decoration:none}h1{margin:18px 0 4px;font-size:21px;line-height:1.4}p{margin:0 0 12px;color:#55615A;font-size:14px}ul{margin:0;padding:0;list-style:none}li{border-bottom:1px solid #EDF0EA}li a{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;color:#17211B}li strong{font-weight:600}</style></head><body><main data-place-season-list><a href="/ja/observations/${encodeURIComponent(list.anchorId)}">← 記録にもどる</a><h1>${escapeBandHtml(title)}</h1><p>${list.count}件</p><ul>${items}</ul></main></body></html>`;
+}
+
+export async function handleRecordCountBandRoute(deps: BandDeps, readSession: BandSessionReader, pathname: string, renderHtml?: (list: PlaceSeasonList) => Response): Promise<Response | null> {
   const match = /^\/api\/v1\/records\/([^/]+)\/(count-band|place-season)$/.exec(pathname);
   if (!match) return null;
   const recordId = decodeURIComponent(match[1]!);
   if (recordId.length > 160) return respond({ ok: false, error: "not_found" }, 404);
   if (match[2] === "place-season") {
     const list = await readPlaceSeasonList(deps, recordId);
+    if (list && renderHtml) return renderHtml(list);
     return list ? respond({ ok: true, ...list }) : respond({ ok: false, error: "not_found" }, 404);
   }
   const session = await readSession().catch(() => null);

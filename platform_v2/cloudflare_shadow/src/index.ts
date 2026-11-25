@@ -414,7 +414,7 @@ import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
-import { handleRecordCountBandRoute, readPlaceSeasonCountFacts, type BandDeps } from "./recordCountBand";
+import { computeRecordCountBand, handleRecordCountBandRoute, readPlaceSeasonCountFacts, renderPlaceSeasonListHtml, type BandDeps } from "./recordCountBand";
 import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
 import { handleGbifConsentRoute } from "./gbifConsent";
 import { gbifDbFromD1 } from "./gbifDb";
@@ -3784,7 +3784,10 @@ export const worker = {
       }
 
       if (request.method === "GET" && /^\/api\/v1\/records\/[^/]+\/(?:count-band|place-season)$/.test(nativePathname)) {
-        const bandResponse = await handleRecordCountBandRoute(recordCountBandDeps(env), async () => readCompatibleSession(request, env), nativePathname);
+        const wantsHtml = (request.headers.get("accept") ?? "").includes("text/html");
+        const bandResponse = await handleRecordCountBandRoute(recordCountBandDeps(env), async () => readCompatibleSession(request, env), nativePathname, wantsHtml
+          ? (list) => html(renderPlaceSeasonListHtml(list), 200, { ...browserSecurityHeaders(createHtmlCspNonce(), env.ENVIRONMENT === "production"), "cache-control": "private, no-store" })
+          : undefined);
         if (bandResponse) return bandResponse;
       }
 
@@ -26161,7 +26164,16 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       const recordLang: ObservationRecordLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
       const locale = recordLang === "ja" ? "ja-JP" : recordLang === "pt-br" ? "pt-BR" : recordLang;
       const copy = observationFirstRecordDetailCopy(recordLang);
+      const jaDateText = (value: string, withTime: boolean): string => {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        const parts = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(date);
+        const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+        const day = `${part("year")}年${part("month")}月${part("day")}日`;
+        return withTime ? `${day}（${part("weekday")}）${part("hour")}:${part("minute")}` : day;
+      };
       const formatRecordDate = (value: string): string => {
+        if (recordLang === "ja") return jaDateText(value, true);
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, {
           timeZone: "Asia/Tokyo",
@@ -26192,7 +26204,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordClass: recordClassOut.value,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, recordUsages, expertComments, observationComments] = await Promise.all([
+      const bandViewerId = session && !session.banned ? session.userId : null;
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, observationComments, countBand] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
@@ -26201,6 +26214,16 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId),
         Promise.resolve([] as Awaited<ReturnType<typeof loadObservationComments>>),
+        recordLang === "ja"
+          ? Promise.race([
+              (async () => {
+                if ((await publicSafetyGateForObservation(detail.visitId, env)).blocked) return null;
+                const band = await computeRecordCountBand(recordCountBandDeps(env), detail.visitId, { userId: bandViewerId });
+                return band ? { text: band.text, href: band.href } : null;
+              })().catch(() => null),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+            ])
+          : Promise.resolve(null),
       ]);
       const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
         buildObservationDetailEvidence({
@@ -26248,9 +26271,10 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
           title: item.isAwaitingId
             ? (item.publicAreaLabel || (recordLang === "ja" ? "近くの記録" : "Nearby record"))
             : item.displayName,
-          observedLabel: formatRecordDate(item.observedAt),
+          observedLabel: recordLang === "ja" ? jaDateText(item.observedAt, false) : formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),
+        countBand,
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
         actionNonce: crypto.randomUUID(),

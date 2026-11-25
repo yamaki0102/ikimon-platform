@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { handleRecordCountBandRoute, seasonOf, type BandDeps, type BandPublicRow } from "./recordCountBand.js";
+import { handleRecordCountBandRoute, renderPlaceSeasonListHtml, seasonOf, type BandDeps, type BandPublicRow } from "./recordCountBand.js";
 
 const migration = (name: string) => readFileSync(path.join(process.cwd(), "migrations", "observations", name), "utf8");
 const NOW = Date.parse("2026-11-25T12:00:00+09:00");
@@ -138,4 +138,29 @@ test("season: month based, southern hemisphere flipped, tropics use month", () =
   assert.equal(seasonOf("2025-10-01T00:00:00+09:00", -35)?.label, "春");
   assert.equal(seasonOf("2025-12-31T00:00:00+09:00", 35)?.label, "冬");
   assert.equal(seasonOf("2025-11-05T00:00:00+09:00", 10)?.label, "11月");
+});
+
+test("band link opens an HTML list whose rows equal the band count, only for navigations", async () => {
+  const db = openDb();
+  seedFour(db);
+  const band = await call(db, "/api/v1/records/r2/count-band", "u-x");
+  const res = await handleRecordCountBandRoute(depsOf(db), async () => null, "/api/v1/records/r2/place-season", (list) => new Response(renderPlaceSeasonListHtml(list), { headers: { "content-type": "text/html; charset=utf-8" } }));
+  assert.ok(res);
+  const page = await res.text();
+  assert.equal((page.match(/<li>/g) ?? []).length, band.json.band.count);
+  assert.match(page, /みなと川の土手の秋の記録/);
+  assert.match(page, /<meta name="robots" content="noindex">/);
+  assert.doesNotMatch(page, /cell:|34\.71|137\.73/);
+  for (const id of ["r1", "r2", "r3", "r4"]) assert.match(page, new RegExp(`href="/ja/observations/${id}"`));
+  assert.equal((await call(db, "/api/v1/records/r2/place-season", null)).json.count, band.json.band.count);
+});
+
+test("record page wires the band behind the safety gate, with the viewer, for Japanese only", () => {
+  const index = readFileSync(path.join(process.cwd(), "src", "index.ts"), "utf8").replace(/\r\n/g, "\n");
+  const wiring = index.slice(index.indexOf("recordLang === \"ja\"\n          ? Promise.race(["), index.indexOf("const detailEvidenceHtml"));
+  assert.match(wiring, /publicSafetyGateForObservation\(detail\.visitId, env\)\)\.blocked\) return null/);
+  assert.match(wiring, /computeRecordCountBand\(recordCountBandDeps\(env\), detail\.visitId, \{ userId: bandViewerId \}\)/);
+  assert.ok(wiring.indexOf("publicSafetyGateForObservation") < wiring.indexOf("computeRecordCountBand"));
+  assert.match(index, /const bandViewerId = session && !session\.banned \? session\.userId : null;/);
+  assert.match(index, /countBand,\n\s+canonicalUrl:/);
 });
