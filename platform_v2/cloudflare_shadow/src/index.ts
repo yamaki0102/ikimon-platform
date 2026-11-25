@@ -26538,10 +26538,21 @@ async function handleOAuthCallback(request: Request, providerInput: unknown, env
     headers.append("set-cookie", buildClearedOAuthStateCookie(env));
     return new Response(null, { status: 303, headers });
   } catch (error) {
+    const rawCode = error instanceof Error ? error.message : "";
+    const reasonCode = new Set([
+      "oauth_state_invalid",
+      "oauth_provider_not_configured",
+      "oauth_token_failed",
+      "oauth_profile_failed",
+      "oauth_profile_invalid",
+      "oauth_email_conflict",
+      "registration_closed_waitlist_only",
+      "account_disabled"
+    ]).has(rawCode) ? rawCode : "oauth_exchange_failed";
     console.warn(JSON.stringify({
       message: "oauth_callback_failed",
       provider,
-      error: error instanceof Error ? error.message : "unknown"
+      error: reasonCode
     }));
     if (error instanceof OAuthEmailConflictError) return oauthEmailConflictRedirect(env, conflictState);
     if (error instanceof OAuthRegistrationClosedError) {
@@ -27206,11 +27217,10 @@ async function postForm(url: string, body: URLSearchParams, headers: Record<stri
     },
     body: body.toString()
   });
-  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
   if (!response.ok) {
-    throw new Error(String(payload.error_description ?? payload.error ?? "oauth_token_failed"));
+    throw new Error("oauth_token_failed");
   }
-  return payload;
+  return await response.json().catch(() => ({})) as Record<string, unknown>;
 }
 
 async function getJson(url: string, accessToken: string): Promise<Record<string, unknown>> {
@@ -27220,9 +27230,8 @@ async function getJson(url: string, accessToken: string): Promise<Record<string,
       accept: "application/json"
     }
   });
-  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-  if (!response.ok) throw new Error(String(payload.error ?? "oauth_profile_failed"));
-  return payload;
+  if (!response.ok) throw new Error("oauth_profile_failed");
+  return await response.json().catch(() => ({})) as Record<string, unknown>;
 }
 
 async function findOrCreateOAuthUser(profile: OAuthProfile, env: Env): Promise<AuthUserRow> {
