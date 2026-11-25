@@ -47,6 +47,7 @@ import {
   handleOrganizerRemoveGuestObservation,
   handleSetGuestObservationShareScope,
 } from "./guestEventShare";
+import { handleEventPreAndPcRoute } from "./zukanEventPreAndPc";
 import {
   handleEventDayAlbumTakeRoute,
   handleSaveEventToPlace,
@@ -3880,6 +3881,13 @@ export const worker = {
             isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
           }
         );
+      }
+
+      const eventPreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/preview$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventPreMatch?.[2]) {
+        const viewLang = (eventPreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventPreAndPcRoute(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
       }
 
       const eventSaveToPlaceMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/save-to-place$/);
