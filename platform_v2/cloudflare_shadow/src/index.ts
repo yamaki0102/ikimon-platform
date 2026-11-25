@@ -13,6 +13,7 @@ import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage } from "./zukanLibraryAndProfile";
 import { decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
+import { ownerAreaLabelFromInput, saveOwnerAreaLabel } from "./ownerAreaLabel";
 import { loadProfileHubData, renderNotificationDetail, renderNotificationsList, renderProfileHub, renderProfileSettingsHub, type AlertItem } from "./zukanProfileHub";
 import {
   isWeakTaxonLabel,
@@ -30003,6 +30004,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   ];
   observationBatchIssued = true;
   await env.OBS_DB.batch(observationBatch);
+  if (visibility === "private" && !locationUnset) {
+    await saveOwnerAreaLabel(env, visitId, ownerAreaLabelFromInput(input));
+  }
 
   if (!locationUnset) await insertCompatibleAutoEnvironmentRecordIfPresent({
     occurrenceId: visitId,

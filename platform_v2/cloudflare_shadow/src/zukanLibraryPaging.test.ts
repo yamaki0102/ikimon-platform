@@ -30,7 +30,8 @@ function fixture(t: test.TestContext) {
   const core = new DatabaseSync(":memory:");
   t.after(() => { obs.close(); core.close(); });
   obs.exec(`
-    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, observed_at TEXT NOT NULL, taxon_label TEXT, note TEXT, public_area_label TEXT, visibility TEXT DEFAULT 'private', emergency_hidden INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL, observed_at TEXT NOT NULL, taxon_label TEXT, note TEXT, public_area_label TEXT, visibility TEXT DEFAULT 'private', emergency_hidden INTEGER NOT NULL DEFAULT 0, exact_lat REAL, exact_lng REAL);
+    CREATE TABLE owner_area_label_cache (observation_id TEXT PRIMARY KEY, label TEXT NOT NULL, updated_at TEXT NOT NULL);
     CREATE TABLE asset_ledger (observation_id TEXT, processing_state TEXT, public_derivative_key TEXT, public_derivative_verified_at TEXT, public_derivative_metadata_json TEXT, exif_scrub_state TEXT, public_ready_at TEXT, uploaded_at TEXT, mime TEXT, width INTEGER, height INTEGER, bytes INTEGER);
     CREATE TABLE observation_ai_review_targets (occurrence_id TEXT, ai_assessment_status TEXT, candidate_vernacular_name TEXT, candidate_scientific_name TEXT, ai_recommended_taxon_name TEXT);
     CREATE TABLE observation_reassessment_requests (observation_id TEXT, request_kind TEXT, request_state TEXT, updated_at TEXT);
@@ -53,6 +54,10 @@ function fixture(t: test.TestContext) {
     insert.run(`other-${i}`, OTHER, new Date(novBase + i * 1000).toISOString(), "他人の記録", "他人の場所");
   }
   obs.prepare("INSERT INTO readmodel_public_observations (observation_id, public_area_label) VALUES (?, ?)").run("old-010", "今帰仁村");
+  const photo = obs.prepare("INSERT INTO asset_ledger (observation_id, processing_state, public_derivative_key, public_derivative_verified_at, exif_scrub_state, public_ready_at, uploaded_at, mime) VALUES (?, 'uploaded', ?, '2026-01-01', 'scrubbed', '2026-01-01', '2026-01-01', 'image/webp')");
+  for (const row of obs.prepare("SELECT observation_id FROM observations").all() as Array<{ observation_id: string }>) {
+    photo.run(row.observation_id, `derived/${row.observation_id}/display.webp`);
+  }
   const env = { OBS_DB: d1(obs), CORE_DB: d1(core) } as unknown as Env;
   return { env, obs };
 }
@@ -109,7 +114,7 @@ test("library: a group of an old day resolves by key (detail and link flows)", a
 
 test("library page: more button is a plain link with the cursor and keeps the search", () => {
   const cursor = encodePageCursor("2026-05-21T00:00:00.000Z", "old-069");
-  const data = { libraryGroups: [{ groupKey: "2026-05-21__身近な場所", headerLabel: "5月21日・身近な場所", placeName: "身近な場所", published: false, photos: [{ observationId: "o1", title: "x", observedAt: "2026-05-21T00:00:00Z", photoUrl: null }] }], oneYearPair: null, libraryNextCursor: cursor };
+  const data = { libraryGroups: [{ groupKey: "2026-05-21__身近な場所", headerLabel: "5月21日・身近な場所", placeName: "身近な場所", published: false, photos: [{ observationId: "o1", title: "x", observedAt: "2026-05-21T00:00:00Z", photoUrl: "https://example.test/a.webp" }] }], oneYearPair: null, libraryNextCursor: cursor };
   const html = renderZukanLibraryPage(data, { lang: "ja", authenticated: true, searchQuery: "沖縄" });
   const m = /<a class="zk-more-btn" data-load-more="1" href="([^"]+)">もっと見る<\/a>/.exec(html);
   assert.ok(m);

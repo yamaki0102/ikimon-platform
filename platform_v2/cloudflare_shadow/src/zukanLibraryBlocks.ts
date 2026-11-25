@@ -37,13 +37,15 @@ export const ZUKAN_LIBRARY_CSS = `
     .zk-mosaic.is-one a:first-child,.zk-mosaic.is-two a:first-child{grid-row:auto}
     .zk-mosaic img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
     .zk-mosaic .zk-fallback{display:flex;align-items:center;justify-content:center;height:100%;padding:8px;font-size:14px;text-align:center}
-    .zk-status{display:flex;align-items:center;gap:10px;margin:0;font-size:15px;font-weight:700;color:var(--green);line-height:1.5}
-    .zk-status::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:var(--green)}
-    .zk-status.is-private{color:var(--muted)}
-    .zk-status.is-private::before{background:#aeb6b0}
-    .zk-actions{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:center}
-    .zk-actions a,.zk-actions a:visited,.zk-act{min-height:44px;display:inline-flex;align-items:center;padding:0;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:var(--link);text-decoration:underline;cursor:pointer}
-    .zk-actions .zk-danger,.zk-actions .zk-danger:visited{color:#b3261e}
+    .zk-foot{display:grid;gap:10px;justify-items:start}
+    .zk-chip{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:700;line-height:1;white-space:nowrap}
+    .zk-chip.is-private{background:var(--surface-2);color:var(--muted)}
+    .zk-chip.is-public{background:var(--green);color:#fff}
+    .zk-chip.is-public::before{content:"";width:6px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+    .zk-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    .zk-actions .zk-btn,.zk-actions .zk-btn:visited,.zk-actions .zk-btn:hover,.zk-actions .zk-btn:active{box-sizing:border-box;min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 18px;border-radius:999px;border:1.5px solid var(--green);font:inherit;font-size:14px;font-weight:700;line-height:1.2;text-decoration:none;cursor:pointer;background:#fff;color:var(--green)}
+    .zk-actions .zk-btn.is-primary,.zk-actions .zk-btn.is-primary:visited,.zk-actions .zk-btn.is-primary:hover,.zk-actions .zk-btn.is-primary:active{background:var(--green);color:#fff}
+    .zk-actions .zk-btn.is-danger,.zk-actions .zk-btn.is-danger:visited,.zk-actions .zk-btn.is-danger:hover,.zk-actions .zk-btn.is-danger:active{border-color:#e3b9b5;color:#b3261e}
     .zk-empty{display:grid;gap:28px}
     .zk-empty-hero{display:grid;justify-items:center;gap:12px;text-align:center;padding-top:8px}
     .zk-empty-ic{width:76px;height:76px;border-radius:50%;background:var(--surface-2);color:var(--green);display:flex;align-items:center;justify-content:center;margin-bottom:8px}
@@ -120,18 +122,18 @@ export function renderLibraryGroup(
   const mosaicClass = shown.length >= 3 ? "" : shown.length === 2 ? " is-two" : " is-one";
   const statusText = group.published
     ? isEn ? `On the ${group.placeName} page in ZUKAN` : `${group.placeName}の図鑑に載っています`
-    : isEn ? "Only you can see this for now" : "まだ自分だけに見えています";
+    : isEn ? "Only me" : "自分のみ";
   const count = isEn ? `${group.photos.length}` : `${group.photos.length}枚`;
   let actions = "";
   if (mode === "top") {
     actions = group.published
-      ? `<button type="button" class="zk-act" data-zukan-unpublish="${esc(group.groupKey)}">${isEn ? "In ZUKAN" : "図鑑に掲載中"}</button>`
-      : `<button type="button" class="zk-act" data-zukan-open-popover="${esc(group.groupKey)}" data-place-id="${esc(group.placeId ?? "")}" data-place-name="${esc(group.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`;
+      ? `<button type="button" class="zk-btn is-secondary zk-act" data-zukan-unpublish="${esc(group.groupKey)}">${isEn ? "In ZUKAN" : "図鑑に掲載中"}</button>`
+      : `<button type="button" class="zk-btn is-primary zk-act" data-zukan-open-popover="${esc(group.groupKey)}" data-place-id="${esc(group.placeId ?? "")}" data-place-name="${esc(group.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`;
   } else {
     const k = encodeURIComponent(group.groupKey);
-    actions = `<a href="${esc(group.published ? `${prefix}/records?view=mine` : `${prefix}/library/link?group=${k}`)}">${group.published ? (isEn ? "Published" : "公開中・確認") : (isEn ? "Review & publish" : "まとめて確認・公開")}</a>
-      <a href="${esc(`${prefix}/library/link/album?group=${k}`)}">${isEn ? "Share by link" : "リンクで共有する"}</a>
-      ${group.published ? `<a class="zk-danger" href="${esc(`${prefix}/library/link/cancel?group=${k}`)}">${isEn ? "Undo link" : "つなぎを取り消す"}</a>` : ""}`;
+    actions = `<a class="zk-btn ${group.published ? "is-secondary" : "is-primary"}" href="${esc(group.published ? `${prefix}/records?view=mine` : `${prefix}/library/link?group=${k}`)}">${group.published ? (isEn ? "Published" : "公開中・確認") : (isEn ? "Review & publish" : "まとめて確認・公開")}</a>
+      <a class="zk-btn is-secondary" href="${esc(`${prefix}/library/link/album?group=${k}`)}">${isEn ? "Share by link" : "リンクで共有する"}</a>
+      ${group.published ? `<a class="zk-btn is-danger" href="${esc(`${prefix}/library/link/cancel?group=${k}`)}">${isEn ? "Undo link" : "つなぎを取り消す"}</a>` : ""}`;
   }
   return `<section class="zk-group" data-group-key="${esc(group.groupKey)}" data-library-group="${esc(group.groupKey)}">
       <div class="zk-group-head">
@@ -139,8 +141,10 @@ export function renderLibraryGroup(
         <a class="zk-count" href="${esc(`${prefix}/library/group?group=${encodeURIComponent(group.groupKey)}`)}">${esc(count)}</a>
       </div>
       <div class="zk-mosaic${mosaicClass}">${tiles}</div>${hiddenObs}
-      <p class="zk-status${group.published ? "" : " is-private"}">${esc(statusText)}</p>
-      <div class="zk-actions">${actions}</div>
+      <div class="zk-foot">
+        <span class="zk-chip ${group.published ? "is-public" : "is-private"}" data-library-status="${group.published ? "public" : "private"}">${esc(statusText)}</span>
+        <div class="zk-actions">${actions}</div>
+      </div>
     </section>`;
 }
 
@@ -181,7 +185,7 @@ export function renderLibraryGroups(
   groups: TopLibraryGroup[],
   options: { prefix: string; isEn: boolean; mode: LibraryGroupMode },
 ): string {
-  return `<div class="zk-groups">${groups.map((g) => renderLibraryGroup(g, options)).join("")}</div>`;
+  return `<div class="zk-groups">${groups.filter((g) => g.photos.some((p) => Boolean(p.photoUrl))).map((g) => renderLibraryGroup(g, options)).join("")}</div>`;
 }
 
 export function renderLibraryMore(options: { href: string; isEn: boolean }): string {

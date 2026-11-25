@@ -83,7 +83,7 @@ test("renderZukanTopPage logged-in renders library groups with 圖鑑に載せ�
   assert.match(withLibrary, /1年前のこの場所/);
   assert.match(withLibrary, /11月22日（土）/);
   assert.match(withLibrary, /みなと通り 朝市/);
-  assert.match(withLibrary, /まだ自分だけに見えています/);
+  assert.match(withLibrary, /自分のみ/);
   assert.match(withLibrary, /図鑑に載せる/);
 
   const emptyLibrary = renderZukanTopPage(emptyEventsBaseData, {

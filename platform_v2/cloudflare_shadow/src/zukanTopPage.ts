@@ -1,5 +1,6 @@
 import type { Env } from "./core/env";
 import { renderOtayoriFloatingButton } from "./otayori";
+import { OWNER_AREA_LABEL_NO_LOCATION, loadOwnerAreaLabels } from "./ownerAreaLabel";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
 import { dayBoundsFromGroupKey, decodePageCursor, encodePageCursor, likePatternFromQuery } from "./ownerRecordPaging";
 import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderYearPairCard } from "./zukanLibraryBlocks";
@@ -192,6 +193,8 @@ export type TopLibraryGroup = {
   headerLabel: string;
   placeId?: string | null;
   placeName: string;
+  areaLabel?: string | null;
+  noLocation?: boolean;
   published: boolean;
   photos: TopLibraryPhoto[];
 };
@@ -529,6 +532,7 @@ type UserLibraryRow = {
   observed_at: string;
   taxon_label: string | null;
   public_area_label: string | null;
+  has_loc: number | null;
   derivative_key: string | null;
 };
 
@@ -563,6 +567,7 @@ function buildUserLibraryQuery(userId: string, like: string | null, limit: numbe
   const bounds = options.day ? dayBoundsFromGroupKey(options.day) : null;
   if (bounds) where.push(`o.observed_at >= ${p(bounds.from)} AND o.observed_at < ${p(bounds.to)}`);
   const sql = `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
+              CASE WHEN o.exact_lat IS NOT NULL AND o.exact_lng IS NOT NULL THEN 1 ELSE 0 END AS has_loc,
               ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE ${where.join(" AND ")}
@@ -571,12 +576,27 @@ function buildUserLibraryQuery(userId: string, like: string | null, limit: numbe
   return { sql, params };
 }
 
+type UserLibraryResult = { groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[]; nextCursor: string | null };
+
 export async function loadUserLibraryData(
   env: Env,
   userId: string,
   searchQuery = "",
   options: UserLibraryPageOptions = {}
-): Promise<{ groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[]; nextCursor: string | null }> {
+): Promise<UserLibraryResult> {
+  let result = await loadUserLibraryPage(env, userId, searchQuery, options);
+  for (let guard = 0; guard < 4 && result.groups.length === 0 && result.nextCursor; guard += 1) {
+    result = await loadUserLibraryPage(env, userId, searchQuery, { ...options, before: result.nextCursor });
+  }
+  return result;
+}
+
+async function loadUserLibraryPage(
+  env: Env,
+  userId: string,
+  searchQuery: string,
+  options: UserLibraryPageOptions
+): Promise<UserLibraryResult> {
   try {
     const limit = options.limit ?? (options.day ? 500 : USER_LIBRARY_PAGE_SIZE);
     const like = likePatternFromQuery(searchQuery);
@@ -605,6 +625,7 @@ export async function loadUserLibraryData(
       ).bind(userId).all<{ observation_id: string; published: number }>().catch(() => ({ results: [] as Array<{ observation_id: string; published: number }> })),
       resolveObservationPlaceLinks(env, filtered.map((r) => r.observation_id)),
     ]);
+    const ownerLabels = await loadOwnerAreaLabels(env, filtered.filter((r) => !(r.public_area_label ?? "").trim()).map((r) => r.observation_id));
     const publishedMap = new Map<string, boolean>();
     for (const p of pubRes.results ?? []) {
       publishedMap.set(p.group_key, p.published === 1);
@@ -622,8 +643,12 @@ export async function loadUserLibraryData(
       const dateDay = r.observed_at.slice(0, 10);
       const placeLink = placeLinks.get(r.observation_id);
       const placeId = placeLink?.placeId ?? null;
-      const placeName = (r.public_area_label ?? "").trim() || "身近な場所";
-      const legacyKey = `${dateDay}__${placeName}`;
+      const storedName = (r.public_area_label ?? "").trim();
+      const keyName = storedName || "身近な場所";
+      const areaLabel = storedName || ownerLabels.get(r.observation_id) || null;
+      const noLocation = !areaLabel && !r.has_loc;
+      const placeName = areaLabel ?? "身近な場所";
+      const legacyKey = `${dateDay}__${keyName}`;
       const groupKey = placeId ? `${dateDay}__${placeId}` : legacyKey;
       const obsPublished = obsPublishedMap.get(r.observation_id);
       const isPublished = obsPublished !== undefined
@@ -631,13 +656,20 @@ export async function loadUserLibraryData(
         : (publishedMap.get(groupKey) === true || publishedMap.get(legacyKey) === true);
       const existing: TopLibraryGroup = groupMap.get(groupKey) ?? {
         groupKey,
-        headerLabel: `${formatMonthDayWeekdayJa(r.observed_at)}・${placeName}`,
+        headerLabel: formatMonthDayWeekdayJa(r.observed_at),
         placeId,
         placeName,
+        areaLabel: null,
+        noLocation: true,
         published: false,
         photos: []
       };
       if (isPublished) existing.published = true;
+      if (areaLabel && !existing.areaLabel) {
+        existing.areaLabel = areaLabel;
+        existing.placeName = areaLabel;
+      }
+      if (!noLocation) existing.noLocation = false;
       const photoUrl = r.derivative_key ? publicMediaUrl(r.derivative_key) : null;
       existing.photos.push({
         observationId: r.observation_id,
@@ -714,7 +746,12 @@ export async function loadUserLibraryData(
       }
     }
 
-    return { groups: [...groupMap.values()], oneYearPair, yearPairs, nextCursor };
+    const groups = [...groupMap.values()].filter((g) => g.photos.some((p) => Boolean(p.photoUrl)));
+    for (const g of groups) {
+      g.photos = g.photos.filter((p) => Boolean(p.photoUrl));
+      g.headerLabel = g.areaLabel ? `${g.headerLabel}・${g.areaLabel}` : g.noLocation ? `${g.headerLabel}・${OWNER_AREA_LABEL_NO_LOCATION}` : g.headerLabel;
+    }
+    return { groups, oneYearPair, yearPairs, nextCursor };
   } catch {
     return { groups: [], oneYearPair: null, yearPairs: [], nextCursor: null };
   }
