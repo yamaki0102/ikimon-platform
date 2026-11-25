@@ -107,6 +107,7 @@ import {
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
+import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   createFixedPointStationRecord,
@@ -4362,6 +4363,19 @@ export const worker = {
         const viewLang = (placeTimelinePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env);
         return handlePlaceTimelinePageRoute(decodeURIComponent(placeTimelinePageMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const placeSeasonsApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/seasons$/);
+      if (request.method === "GET" && placeSeasonsApiMatch?.[1]) {
+        return handlePlaceSeasonsApi(decodeURIComponent(placeSeasonsApiMatch[1]), env.OBS_DB);
+      }
+
+      const placeAboutSeasonsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(about|seasons)$/);
+      if (request.method === "GET" && placeAboutSeasonsMatch?.[2] && placeAboutSeasonsMatch?.[3]) {
+        const viewLang = (placeAboutSeasonsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeAboutSeasonsMatch[3] as "about" | "seasons";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceAboutOrSeasonsRoute(decodeURIComponent(placeAboutSeasonsMatch[2]), tab, viewLang, session, env.OBS_DB);
       }
 
       const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
