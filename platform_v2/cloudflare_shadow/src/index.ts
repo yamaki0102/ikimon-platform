@@ -26,10 +26,16 @@ import {
   setDestinationQrStopped,
 } from "./guestPosting";
 import {
+  handleClaimGuestHandoff,
+  handleIssueGuestHandoffCode,
+  handleRecoverGuestPass,
+} from "./guestHandoff";
+import {
   handleCreateGuestObservation,
   handleListGuestObservations,
   handleUploadGuestObservationPhoto,
 } from "./guestObservationPost";
+import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
   handleGetEventGuestPhoto,
   handleListEventGuestObservations,
@@ -3775,6 +3781,19 @@ export const worker = {
         );
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff-code") {
+        return handleIssueGuestHandoffCode(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff/claim") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleClaimGuestHandoff(request, env, session);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff/recover") {
+        return handleRecoverGuestPass(request, env);
+      }
+
       const guestQrStopMatch = url.pathname.match(/^\/api\/v1\/admin\/guest-destinations\/([^/]+)\/([^/]+)\/qr-stop$/);
       if (request.method === "POST" && guestQrStopMatch?.[1] && guestQrStopMatch?.[2]) {
         if (!isGuestPostingEnabled(env)) {
@@ -3870,6 +3889,18 @@ export const worker = {
         const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      const guestEntryMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/guest\/(place|event)\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && guestEntryMatch?.[2] && guestEntryMatch?.[3]) {
+        const viewLang = (guestEntryMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        return handleGuestEntryPageRoute(
+          guestEntryMatch[2],
+          decodeURIComponent(guestEntryMatch[3]),
+          viewLang,
+          request,
+          env
+        );
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
