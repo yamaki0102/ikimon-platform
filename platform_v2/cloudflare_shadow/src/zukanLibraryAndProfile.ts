@@ -62,6 +62,7 @@ export function renderZukanCommonShell(options: {
     .zt-pair-card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}
     .zt-btn-capture,.zt-btn-capture:visited{min-height:44px;padding:10px 18px;border-radius:8px;background:var(--capture);color:#fff;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
     .zt-btn-outline,.zt-btn-outline:visited{min-height:44px;padding:10px 18px;border-radius:8px;background:#fff;color:var(--green);border:1px solid var(--green);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+    .zt-link-cancel,.zt-link-cancel:visited{justify-self:start;min-height:44px;display:inline-flex;align-items:center;color:#b3261e;font-size:14px;font-weight:700;text-decoration:none}
     .zt-hub-card{padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:grid;gap:12px}
     .zt-hub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
     .zt-hub-dest,.zt-hub-dest:visited{display:grid;gap:4px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);text-decoration:none}
@@ -144,6 +145,7 @@ export function renderZukanLibraryPage(
                 )
                 .join("")}
             </div>
+            ${group.published ? `<a class="zt-link-cancel" href="${escapeHtml(`${prefix}/library/link/cancel?group=${encodeURIComponent(group.groupKey)}`)}">${isEn ? "Undo link" : "つなぎを取り消す"}</a>` : ""}
           </section>`
         )
         .join("")
