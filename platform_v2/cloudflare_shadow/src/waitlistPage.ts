@@ -140,34 +140,33 @@ export function renderZukanWaitlistPage(
       padding: 0 16px;
     }
     .waitlist-card {
-      background: var(--surface, #ffffff);
-      border: 1px solid var(--border, #d8e1d9);
-      border-radius: 18px;
-      padding: 28px 24px;
-      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+      background: #ffffff;
+      border: 0;
+      border-radius: 0;
+      padding: 8px 4px;
+      box-shadow: none;
     }
     .waitlist-eyebrow {
       display: inline-block;
-      font-size: 12px;
+      font-size: 14px;
       font-weight: 700;
-      letter-spacing: 0.04em;
-      color: var(--accent, #1e6f4c);
-      background: rgba(30, 111, 76, 0.1);
+      color: #143f2e;
+      background: #e8efea;
       border-radius: 999px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       margin-bottom: 12px;
     }
     .waitlist-card h1 {
       margin: 0 0 10px;
-      font-size: 1.45rem;
-      line-height: 1.35;
+      font-size: 1.75rem;
+      line-height: 1.4;
       color: var(--ink, #17211b);
     }
     .waitlist-lead {
       margin: 0 0 20px;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      color: var(--muted, #4b5a51);
+      font-size: 1rem;
+      line-height: 1.8;
+      color: #4f5d54;
     }
     .waitlist-form {
       display: grid;
@@ -176,16 +175,17 @@ export function renderZukanWaitlistPage(
     .waitlist-label {
       display: grid;
       gap: 6px;
-      font-size: 0.88rem;
-      font-weight: 600;
+      font-size: 0.95rem;
+      font-weight: 700;
       color: var(--ink, #17211b);
     }
     .waitlist-input {
       width: 100%;
       box-sizing: border-box;
+      min-height: 52px;
       padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border, #c8d3ca);
+      border-radius: 14px;
+      border: 1px solid #dde2dc;
       font-size: 1rem;
       background: #fff;
       color: #17211b;
@@ -201,12 +201,13 @@ export function renderZukanWaitlistPage(
     .waitlist-submit {
       appearance: none;
       border: 0;
-      border-radius: 12px;
+      border-radius: 16px;
+      min-height: 52px;
       padding: 13px 18px;
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       cursor: pointer;
-      background: var(--accent, #1e6f4c);
+      background: #143f2e;
       color: #ffffff;
     }
     .waitlist-submit:disabled {
@@ -220,8 +221,11 @@ export function renderZukanWaitlistPage(
       margin-top: 12px;
     }
     .waitlist-status[data-tone="ok"] {
-      color: #14532d;
-      font-weight: 600;
+      color: #143f2e;
+      font-weight: 700;
+      background: #e8efea;
+      border-radius: 14px;
+      padding: 14px 16px;
     }
     .waitlist-status[data-tone="error"] {
       color: #991b1b;
@@ -237,8 +241,8 @@ export function renderZukanWaitlistPage(
       color: var(--muted, #4b5a51);
     }
     .waitlist-footer a {
-      color: var(--accent, #1e6f4c);
-      font-weight: 600;
+      color: #143f2e;
+      font-weight: 700;
     }
   </style>
 </head>

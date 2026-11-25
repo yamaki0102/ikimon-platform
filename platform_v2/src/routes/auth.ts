@@ -102,7 +102,7 @@ function postAuthRedirect(input: unknown): string {
 const AUTH_STYLES = `
   .auth-wrap { max-width: var(--ikimon-content-max); margin: 24px auto 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(280px, .95fr); gap: 22px; align-items: start; }
   .auth-panel, .auth-note { border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 18px 42px rgba(15,23,42,.07); padding: 24px; }
-  .auth-panel h2 { margin: 6px 0 4px; font-size: 28px; line-height: 1.25; color: #0f172a; }
+  .auth-panel h1, .auth-panel h2 { margin: 6px 0 4px; font-size: 28px; line-height: 1.25; color: #0f172a; }
   .auth-panel p, .auth-note p { color: #64748b; line-height: 1.75; }
   .auth-tabs { display: inline-flex; gap: 6px; padding: 4px; border-radius: 999px; background: #f1f5f9; margin-bottom: 18px; }
   .auth-tab { min-height: 38px; padding: 8px 14px; border-radius: 999px; font-weight: 850; font-size: 13px; color: #475569; }
@@ -120,6 +120,21 @@ const AUTH_STYLES = `
   .auth-note h3 { margin: 0; color: #0f172a; font-size: 22px; line-height: 1.35; }
   .auth-note ul { margin: 0; padding-left: 20px; color: #475569; line-height: 1.8; }
   @media (max-width: 820px) { .auth-wrap { grid-template-columns: 1fr; } }
+  body:has(.auth-wrap) { background: #ffffff; }
+  body:has(.auth-wrap) .hero-panel { display: none; }
+  .auth-wrap { display: block; max-width: 420px; margin: 8px auto 0; }
+  .auth-panel { border: 0; box-shadow: none; background: transparent; padding: 0 4px; border-radius: 0; }
+  .auth-tabs, .auth-panel .eyebrow, .auth-panel > p { display: none; }
+  .auth-panel h1 { margin: 6px 0 4px; font-size: 28px; line-height: 1.3; color: #17251b; }
+  .auth-field span { font-size: 14px; }
+  .auth-field input { min-height: 52px; border-radius: 14px; border: 1px solid #dde2dc; }
+  .auth-submit.btn-solid { min-height: 52px; border-radius: 16px; background: #143f2e; border-color: #143f2e; box-shadow: none; }
+  .auth-status { font-size: 14px; }
+  .auth-social { border-top: 0; padding-top: 4px; }
+  .auth-social a, .auth-social .auth-social-disabled { min-height: 52px; border-radius: 16px; border: 1.5px solid #143f2e; color: #143f2e; font-weight: 700; }
+  .auth-note { margin-top: 20px; padding: 16px; border: 0; box-shadow: none; border-radius: 16px; background: #f7f7f3; gap: 10px; }
+  .auth-note .eyebrow, .auth-note h3, .auth-note p, .auth-note ul { display: none; }
+  .auth-note .btn-ghost { min-height: 48px; border-radius: 14px; border: 1.5px solid #143f2e; color: #143f2e; justify-content: center; font-weight: 700; }
 `;
 
 type AuthPageCopy = {
@@ -440,7 +455,7 @@ function renderAuthPage(options: {
         <a class="auth-tab${!isLogin ? " is-active" : ""}" href="${escapeHtml(registerHref)}">${escapeHtml(copy.registerTab)}</a>
       </div>
       <div class="eyebrow">${escapeHtml(copy.heroEyebrow)}</div>
-      <h2>${escapeHtml(isProfileRedirect ? (isLogin ? copy.profileLoginHeading : copy.profileRegisterHeading) : (isLogin ? copy.recordLoginHeading : copy.recordRegisterHeading))}</h2>
+      <h1>${escapeHtml(isProfileRedirect ? (isLogin ? copy.profileLoginHeading : copy.profileRegisterHeading) : (isLogin ? copy.recordLoginHeading : copy.recordRegisterHeading))}</h1>
       <p>${escapeHtml(isProfileRedirect ? copy.profileLead : (isLogin ? copy.recordLoginLead : copy.recordRegisterLead))}</p>
       <form class="auth-form" data-auth-form data-endpoint="${escapeHtml(endpoint)}" data-redirect="${escapeHtml(options.redirect)}">
         ${displayNameField}
