@@ -6,6 +6,7 @@ const esc = (value: string): string =>
   value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
 export const ZUKAN_STATE_STYLES = `
+html body[data-zukan-design]{display:block;min-height:0;padding:0;background:#fff}
 .st-wrap{width:min(520px,100%);margin:0 auto;padding:56px 20px 40px;text-align:center;display:grid;gap:14px}
 .st-circle{width:76px;height:76px;margin:0 auto 6px;border-radius:50%;background:#edf2ee;color:#143f2e;display:grid;place-items:center}
 .st-circle.warn{background:#fdeceb;color:#b3261e}
@@ -80,7 +81,6 @@ ${savedRecordsRow(prefix)}
 
 export function offlineStateMain(prefix: string): string {
   return `<main class="offline st-wrap" data-zukan-state="k3">
-<div class="mark"><img src="${BRAND_ASSETS.mark192}" alt="ZUKAN" /></div>
 <div class="st-circle">${ICON.wifiOff}</div>
 <h1>オフラインです</h1>
 <p>いまは通信できません。<br>撮った写真は端末に保存され、通信が戻ると自動で送られます。</p>
