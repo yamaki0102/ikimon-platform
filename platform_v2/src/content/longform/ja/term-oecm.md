@@ -21,3 +21,9 @@ ZUKAN では、OECM を「認定を取るための言葉」としてだけ扱い
 - [自然共生サイト](/learn/terms/nature-symbiosis-site)
 - [30by30](/learn/terms/30by30)
 - [生物多様性モニタリング](/learn/terms/biodiversity-monitoring)
+
+## 現地での解説
+
+浜松市都田で愛管株式会社が運営する「連理の木の下で」では、この言葉を現地の取り組みに引き寄せて解説しています。
+
+- [自然共生サイトはすべてOECMになる？登録される区域と時期](https://lenrinokinoshitade.com/articles/oecm-registration-boundary/)
