@@ -5387,9 +5387,9 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
-    if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
+    if (normalized.startsWith("SELECT owner_user_id, object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
-      return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
+      return asset ? ({ owner_user_id: asset.owner_user_id, object_key: asset.object_key, mime: asset.mime } as T) : null;
     }
 
     if (normalized.startsWith("SELECT asset_id, observation_id, owner_user_id, object_key, sha256, mime, bytes, visibility, processing_state FROM asset_ledger")) {
@@ -8635,6 +8635,12 @@ test("finalize preserves canonical row and pending outbox when queue dispatch fa
   const queue = new FakeQueue();
   queue.fail = true;
   const { env, obs } = createEnv(queue);
+  const issueRes = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://shadow.test" },
+    body: JSON.stringify({ userId: "user-1", displayName: "user-1", ttlHours: 1 })
+  }), env);
+  const cookie = issueRes.headers.get("set-cookie") ?? "";
 
   const draftResponse = await post("/api/v0/draft-observations", env, {
     userId: "user-1",
@@ -8648,12 +8654,12 @@ test("finalize preserves canonical row and pending outbox when queue dispatch fa
       { mime: "image/jpeg", bytes: 1001, sha256: "b" },
       { mime: "image/jpeg", bytes: 1002, sha256: "c" }
     ]
-  });
+  }, { cookie });
 
   const finalizeResponse = await post("/api/v0/observations/finalize", env, {
     draftId: draftResponse.draftId,
     taxonLabel: "test taxon"
-  });
+  }, { cookie });
 
   assert.equal(finalizeResponse.processingState, "accepted");
   assert.equal(finalizeResponse.dispatch.sent, 0);
@@ -8672,10 +8678,22 @@ test("synthetic 10k daily profile creates one durable observation and three medi
   const { env, obs, queue } = createEnv();
   const records = 10_000;
   const mediaPerRecord = 3;
+  const userCookies = new Map<string, string>();
+  for (let u = 0; u < 100; u++) {
+    const userId = `load-user-${u}`;
+    const res = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://shadow.test" },
+      body: JSON.stringify({ userId, displayName: userId, ttlHours: 1 })
+    }), env);
+    userCookies.set(userId, res.headers.get("set-cookie") ?? "");
+  }
 
   for (let i = 0; i < records; i++) {
+    const userId = `load-user-${i % 100}`;
+    const cookie = userCookies.get(userId) ?? "";
     const draft = await post("/api/v0/draft-observations", env, {
-      userId: `load-user-${i % 100}`,
+      userId,
       observedAt: "2026-06-15T00:00:00.000Z",
       exactLat: 34.7 + ((i % 100) / 1000),
       exactLng: 137.7 + ((i % 100) / 1000),
@@ -8686,11 +8704,11 @@ test("synthetic 10k daily profile creates one durable observation and three medi
         bytes: 850000 + mediaIndex,
         sha256: `synthetic-${i}-${mediaIndex}`
       }))
-    });
+    }, { cookie });
     await post("/api/v0/observations/finalize", env, {
       draftId: draft.draftId,
       taxonLabel: "synthetic field record"
-    });
+    }, { cookie });
   }
 
   assert.equal(obs.drafts.size, records);
@@ -8719,12 +8737,19 @@ test("internal endpoints require an explicit bearer token in shadow", async () =
 
 test("r2 inventory is limited to shadow environment and bounded prefixes", async () => {
   const { env } = createEnv();
+  const issueRes = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://shadow.test" },
+    body: JSON.stringify({ userId: "r2-user", displayName: "r2-user", ttlHours: 1 })
+  }), env);
+  const cookie = issueRes.headers.get("set-cookie") ?? "";
   const draft = await post("/api/v0/draft-observations", env, {
     userId: "r2-user",
     media: [{ mime: "text/plain", bytes: 6, sha256: "r2" }]
-  });
+  }, { cookie });
   await worker.fetch(new Request(`https://shadow.test${draft.assets[0].uploadUrl}`, {
     method: "PUT",
+    headers: { cookie },
     body: "sample"
   }), env);
 
@@ -8745,6 +8770,12 @@ test("r2 inventory is limited to shadow environment and bounded prefixes", async
 
 test("public read model waits until uploaded media has scrubbed public derivatives", async () => {
   const { env, obs } = createEnv();
+  const issueRes = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://shadow.test" },
+    body: JSON.stringify({ userId: "public-user", displayName: "public-user", ttlHours: 1 })
+  }), env);
+  const cookie = issueRes.headers.get("set-cookie") ?? "";
   const draft = await post("/api/v0/draft-observations", env, {
     userId: "public-user",
     observedAt: "2026-06-15T00:00:00.000Z",
@@ -8752,16 +8783,17 @@ test("public read model waits until uploaded media has scrubbed public derivativ
     exactLng: 137.81234,
     visibility: "public",
     media: [{ mime: "image/jpeg", bytes: 1200, sha256: "asset-sha" }]
-  });
+  }, { cookie });
 
   await worker.fetch(new Request(`https://shadow.test${draft.assets[0].uploadUrl}`, {
     method: "PUT",
+    headers: { cookie },
     body: "sample"
   }), env);
   const finalized = await post("/api/v0/observations/finalize", env, {
     draftId: draft.draftId,
     taxonLabel: "public gated"
-  });
+  }, { cookie });
 
   await worker.queue({ messages: [{ body: { outboxId: "manual-readmodel", topic: "readmodel.refresh", targetId: finalized.observationId } }] }, env);
   assert.equal(obs.readmodel.size, 0);
@@ -29601,10 +29633,10 @@ test("production reflection loop manifest is served by Cloudflare instead of ori
   }
 });
 
-async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown): Promise<any> {
+async function post(path: string, env: ReturnType<typeof createEnv>["env"], body: unknown, extraHeaders: Record<string, string> = {}): Promise<any> {
   const response = await worker.fetch(new Request(`https://shadow.test${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...extraHeaders },
     body: JSON.stringify(body)
   }), env);
   const payload = await response.json() as any;
@@ -34230,4 +34262,71 @@ test("account withdrawal I12 shows what disappears first, requires confirmation,
   assert.equal(payload.ok, true);
   assert.equal(payload.withdrawn, true);
   assert.match(withdrawRes.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970/u);
+});
+
+test("v0 observation endpoints enforce 401 unauthenticated and 403 cross-user ownership", async () => {
+  const { env } = createEnv();
+  const issue = async (userId: string) => {
+    const res = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://shadow.test" },
+      body: JSON.stringify({ userId, displayName: userId, ttlHours: 1 })
+    }), env);
+    return res.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issue("v0-owner");
+  const otherCookie = await issue("v0-other");
+
+  // 401 unauthenticated on /api/v0/draft-observations
+  const unauthDraft = await worker.fetch(new Request("https://shadow.test/api/v0/draft-observations", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ userId: "v0-owner", media: [{ mime: "image/jpeg", bytes: 100 }] })
+  }), env);
+  assert.equal(unauthDraft.status, 401);
+
+  // 403 when userId in body mismatches session
+  const spoofDraft = await worker.fetch(new Request("https://shadow.test/api/v0/draft-observations", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: otherCookie },
+    body: JSON.stringify({ userId: "v0-owner", media: [{ mime: "image/jpeg", bytes: 100 }] })
+  }), env);
+  assert.equal(spoofDraft.status, 403);
+
+  // Owner creates draft
+  const draft = await post("/api/v0/draft-observations", env, {
+    media: [{ mime: "image/jpeg", bytes: 100 }]
+  }, { cookie: ownerCookie });
+  const uploadUrl = String(draft.assets[0].uploadUrl);
+
+  // 401 unauthenticated on PUT /api/v0/assets/:id/body
+  const unauthAsset = await worker.fetch(new Request(`https://shadow.test${uploadUrl}`, {
+    method: "PUT",
+    body: "data"
+  }), env);
+  assert.equal(unauthAsset.status, 401);
+
+  // 403 cross-user on PUT /api/v0/assets/:id/body
+  const otherAsset = await worker.fetch(new Request(`https://shadow.test${uploadUrl}`, {
+    method: "PUT",
+    headers: { cookie: otherCookie },
+    body: "data"
+  }), env);
+  assert.equal(otherAsset.status, 403);
+
+  // 401 unauthenticated on POST /api/v0/observations/finalize
+  const unauthFinalize = await worker.fetch(new Request("https://shadow.test/api/v0/observations/finalize", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ draftId: draft.draftId })
+  }), env);
+  assert.equal(unauthFinalize.status, 401);
+
+  // 403 cross-user on POST /api/v0/observations/finalize
+  const otherFinalize = await worker.fetch(new Request("https://shadow.test/api/v0/observations/finalize", {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: otherCookie },
+    body: JSON.stringify({ draftId: draft.draftId })
+  }), env);
+  assert.equal(otherFinalize.status, 403);
 });

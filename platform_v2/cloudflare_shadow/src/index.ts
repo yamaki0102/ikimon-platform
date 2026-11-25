@@ -26340,8 +26340,15 @@ async function readLatestPublicObservationEnvironmentRecord(env: Env, visitId: s
 }
 
 async function createDraftObservation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   const input = await readJson<DraftObservationInput>(request);
-  assertNonEmpty(input.userId, "userId");
+  if (input.userId && input.userId !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
+  const ownerUserId = session.userId;
 
   const media = input.media ?? [];
   if (media.length > MAX_MEDIA_PER_DRAFT) {
@@ -26354,14 +26361,14 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
   const visibility = input.visibility === "public" ? "public" : "private";
 
   const statements: D1PreparedStatement[] = [
-    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(input.userId),
+    env.CORE_DB.prepare("INSERT OR IGNORE INTO users (user_id) VALUES (?)").bind(ownerUserId),
     env.OBS_DB.prepare(
       `INSERT INTO draft_observations
        (draft_id, owner_user_id, observed_at, exact_lat, exact_lng, location_accuracy_m, public_cell, visibility, partition_month)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       draftId,
-      input.userId,
+      ownerUserId,
       input.observedAt ?? null,
       numberOrNull(input.exactLat),
       numberOrNull(input.exactLng),
@@ -26384,7 +26391,7 @@ async function createDraftObservation(request: Request, env: Env): Promise<Respo
       ).bind(
         assetId,
         draftId,
-        input.userId,
+        ownerUserId,
         objectKey,
         asset.sha256 ?? null,
         asset.mime,
@@ -30232,11 +30239,18 @@ function pickNullableEnum(value: unknown, allowed: string[]): string | null {
 }
 
 async function putAssetBody(assetId: string, request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   assertNonEmpty(assetId, "assetId");
-  const asset = await env.OBS_DB.prepare("SELECT object_key, mime FROM asset_ledger WHERE asset_id = ?")
+  const asset = await env.OBS_DB.prepare("SELECT owner_user_id, object_key, mime FROM asset_ledger WHERE asset_id = ?")
     .bind(assetId)
-    .first<{ object_key: string; mime: string }>();
+    .first<{ owner_user_id: string | null; object_key: string; mime: string }>();
   if (!asset) return json({ error: "asset_not_found" }, 404);
+  if (asset.owner_user_id !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
   if (!request.body) return json({ error: "missing_body" }, 400);
 
   await env.ASSET_BUCKET.put(asset.object_key, request.body, { httpMetadata: { contentType: asset.mime } });
@@ -30248,6 +30262,10 @@ async function putAssetBody(assetId: string, request: Request, env: Env): Promis
 }
 
 async function finalizeObservation(request: Request, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env);
+  if (!session || session.banned) {
+    return json({ error: "session_required" }, 401);
+  }
   const input = await readJson<FinalizeObservationInput>(request);
   assertNonEmpty(input.draftId, "draftId");
 
@@ -30255,6 +30273,9 @@ async function finalizeObservation(request: Request, env: Env): Promise<Response
     .bind(input.draftId)
     .first<Record<string, D1Value>>();
   if (!draft) return json({ error: "draft_not_found" }, 404);
+  if (stringValue(draft.owner_user_id) !== session.userId) {
+    return json({ error: "forbidden" }, 403);
+  }
 
   const observationId = newId("obs");
   const outboxMediaId = newId("outbox");
