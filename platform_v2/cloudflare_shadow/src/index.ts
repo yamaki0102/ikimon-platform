@@ -6,6 +6,7 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { findYearAgoSamePlaceObservations } from "./zukanLibraryComparisonAndSelect";
 import { resolveInviteTarget } from "./zukanInviteAndWelcome";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
@@ -3799,6 +3800,22 @@ export const worker = {
       const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
       if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
         return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/library/year-ago") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        const placeId = url.searchParams.get("placeId") ?? "";
+        if (!placeId.trim()) {
+          return json({ ok: false, error: "place_id_required" }, 400, { "cache-control": "no-store" });
+        }
+        const items = await findYearAgoSamePlaceObservations(env.OBS_DB, {
+          userId: session.userId,
+          placeId,
+        });
+        return json({ ok: true, placeId, items }, 200, { "cache-control": "private, no-store" });
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/invites/resolve") {
