@@ -227,6 +227,14 @@ import {
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import {
+  handleCreateObservationShareLink,
+  handleGetObservationComments,
+  handlePostObservationComment,
+  handleResolveShareLinkPage,
+  loadObservationComments,
+  renderObservationCommentsHtml,
+} from "./zukanObservationCommentsAndShare";
+import {
   ZUKAN_RECORD_LINK_DONE_STYLES,
   handleSaveRecordLinks,
   renderRecordDoneCardHtml,
@@ -4351,6 +4359,31 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const observationCommentMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/comments$/);
+      if (observationCommentMatch?.[1]) {
+        const obsId = decodeURIComponent(observationCommentMatch[1]);
+        const session = await readCompatibleSession(request, env);
+        if (request.method === "POST") {
+          return handlePostObservationComment(obsId, request, session, env);
+        }
+        if (request.method === "GET") {
+          return handleGetObservationComments(obsId, session, env);
+        }
+      }
+
+      const observationShareLinkMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/share-links$/);
+      if (request.method === "POST" && observationShareLinkMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
+      }
+
+      const sharePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/share\/([^/]+)$/);
+      if (request.method === "GET" && sharePageMatch?.[2]) {
+        const shareLang = (sharePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env);
+        return handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
       }
 
       const placeTimelineApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/fixed-point-timeline$/);
@@ -25760,16 +25793,24 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordClass: recordClassOut.value,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, recordUsages, expertComments] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, observationComments] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
           : Promise.resolve(null),
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
-        listHumanExpertCommentsForRecord(env, detail.visitId)
+        listHumanExpertCommentsForRecord(env, detail.visitId),
+        loadObservationComments(detail.visitId, env),
       ]);
-      const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
+      const commentsHtml = renderObservationCommentsHtml({
+        observationId: detail.visitId,
+        lang: recordLang,
+        prefix: recordLang === "ja" ? "/ja" : `/${recordLang}`,
+        authenticated: Boolean(session && !session.banned),
+        comments: observationComments,
+      });
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${commentsHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
