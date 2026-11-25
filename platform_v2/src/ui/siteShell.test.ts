@@ -1240,12 +1240,18 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
   const photoInput = sourceChoice ? makeNode('[data-global-record-input="photo"]', "data-global-record-input", "photo") : null;
   const native = sourceChoice ? makeNode("[data-global-record-os-camera]") : null;
   const nativeFallback = sourceChoice ? makeNode("[data-global-record-os-camera-fallback]") : null;
+  const focusFallback = cameraNode("focus-fallback");
+  const errorActions = cameraNode("error-actions");
+  const focusDevice = makeNode("[data-global-record-os-camera-focus]");
+  const standard = makeNode("[data-global-record-camera-standard]");
+  focusFallback.hidden = true;
   const nodeLists: Record<string, CameraTestNode[]> = {
     "[data-global-record-trigger]": Object.values(triggers),
     "[data-global-record-camera-close]": [],
     "[data-global-record-gallery-select]": [gallery],
     "[data-global-record-input]": photoInput ? [galleryInput, photoInput] : [galleryInput],
-    "[data-global-record-os-camera]": native && nativeFallback ? [native, nativeFallback] : [],
+    "[data-global-record-os-camera]": native && nativeFallback ? [native, nativeFallback, focusDevice] : [],
+    "[data-global-record-camera-standard]": [standard],
   };
   const configJson = recordConfigJson(html);
   const documentElement = new CameraTestNode();
@@ -1292,6 +1298,7 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
     },
   });
   return {
+    focusFallback, errorActions, focusDevice, standard, constraintsOf: () => requests.map((request) => JSON.stringify(request.constraints)),
     sheet, video, start, capture, error, errorBody, retry, close, gallery, galleryInput, photoInput, native, nativeFallback,
     triggers, requests, timers, events,
     startPhoto() { triggers.photo!.dispatch("contextmenu"); if (sourceChoice) start.click(); },
@@ -1484,7 +1491,7 @@ test("returning from the native camera keeps its photo ready to submit across a 
 });
 
 test("camera startup failures expose localized recovery text and a stable reason in all supported languages", async () => {
-  const firstWords = { ja: /カメラ|このブラウザー/, en: /camera|browser/i, es: /cámara|navegador/i, "pt-BR": /câmera|navegador/i };
+  const firstWords = { ja: /カメラ|このブラウザ/, en: /camera|browser/i, es: /cámara|navegador/i, "pt-BR": /câmera|navegador/i };
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
     for (const [name, reason] of [
       ["NotFoundError", "no_device"],
@@ -1510,6 +1517,41 @@ test("camera startup failures expose localized recovery text and a stable reason
   }
 });
 
+
+test("supported close-up camera keeps the exact photo constraints and goes live", async () => {
+  const runtime = cameraRuntime("ja");
+  runtime.startPhoto();
+  assert.equal(
+    runtime.constraintsOf()[0],
+    '{"video":{"facingMode":{"ideal":"environment"},"width":{"ideal":2560},"height":{"ideal":1920}},"audio":false}'
+  );
+  runtime.requests[0]!.resolve(cameraTestStream({ focusMode: ["continuous"] }));
+  await flushCameraTasks();
+  assert.equal(runtime.error.hidden, true);
+  assert.equal(runtime.focusFallback.hidden, true);
+  assert.equal(runtime.capture.hidden, false);
+});
+
+test("unsupported close-up focus offers device camera and back-to-standard instead of a dead end", async () => {
+  const runtime = cameraRuntime("ja");
+  runtime.startPhoto();
+  runtime.requests[0]!.resolve(cameraTestStream({}));
+  await flushCameraTasks();
+  assert.equal(runtime.error.hidden, false);
+  assert.equal(runtime.errorBody.textContent, "このブラウザでは接写のピントを調整できません");
+  assert.equal(runtime.focusFallback.hidden, false);
+  assert.equal(runtime.errorActions.hidden, true);
+  assert.equal(runtime.events.find((event) => event.actionKey === "camera_start_failed")?.metadata.error, "focus_unsupported");
+  const html = compactMaterializedCapture(renderRecordPage({ basePath: "", title: "t", body: "<p>c</p>", lang: "ja", currentPath: "/ja/learn/field-loop" }));
+  assert.match(html, /data-global-record-camera-focus-fallback[\s\S]*?端末のカメラで撮る[\s\S]*?標準に戻る/);
+  runtime.focusDevice.click();
+  assert.equal(runtime.photoInput?.clicks, 1);
+  runtime.standard.click();
+  assert.equal(runtime.error.hidden, true);
+  assert.equal(runtime.focusFallback.hidden, true);
+  assert.equal(runtime.errorActions.hidden, false);
+  assert.equal(runtime.start.hidden, false);
+});
 
 test("privacy and terms render the operator statement; other pages do not", () => {
   for (const path of ["/ja/privacy", "/ja/terms", "/en/privacy"]) {

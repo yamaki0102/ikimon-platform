@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import zlib from "node:zlib";
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
@@ -11554,6 +11555,93 @@ test("v1 observation upsert honors private visibility before public readmodel re
   );
   assert.equal(obs.readmodel.has("private-post-smoke-contract"), false);
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
+});
+
+test("v1 observation upsert accepts a record with no location and forces it private", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "no-location-record",
+    userId: "no-location-user",
+    observedAt: "2026-05-01T03:00:00.000Z",
+    visibility: "public",
+    taxon: { vernacularName: "未同定", rank: "unknown" }
+  });
+  assert.equal(response.ok, true);
+  const row = obs.observations.get("no-location-record");
+  assert.equal(row?.exact_lat, null);
+  assert.equal(row?.exact_lng, null);
+  assert.equal(row?.public_cell, "unknown");
+  assert.equal(row?.visibility, "private");
+  assert.equal(row?.observed_at, "2026-05-01T03:00:00.000Z");
+  assert.equal(obs.readmodel.has("no-location-record"), false);
+  const nullCoords = await post("/api/v1/observations/upsert", env, {
+    observationId: "null-location-record",
+    userId: "no-location-user",
+    observedAt: "2026-05-01T03:00:00.000Z",
+    latitude: null,
+    longitude: null
+  });
+  assert.equal(nullCoords.ok, true);
+  assert.equal(obs.observations.get("null-location-record")?.public_cell, "unknown");
+});
+
+test("v1 observation upsert rejects half-set coordinates and out-of-bounds observedAt", async () => {
+  const { env } = createEnv();
+  const send = async (body: Record<string, unknown>) => {
+    try {
+      const response = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: "bounds-user", observedAt: "2026-05-01T03:00:00.000Z", ...body })
+      }), env);
+      return response.status;
+    } catch (error) {
+      return (error as { status?: number }).status ?? 500;
+    }
+  };
+  assert.equal(await send({ latitude: 34.7 }), 400);
+  assert.equal(await send({ latitude: 95, longitude: 137 }), 400);
+  assert.equal(await send({ observedAt: new Date(Date.now() + 3600_000).toISOString() }), 400);
+  assert.equal(await send({ observedAt: "1899-12-31T00:00:00.000Z" }), 400);
+  assert.equal(await send({ observedAt: "not-a-date" }), 400);
+});
+
+test("v1 observation accepts many photos in one record", async () => {
+  const { env, obs } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "many-photos-record",
+    userId: "many-photos-user",
+    observedAt: "2026-05-01T03:00:00.000Z",
+    visibility: "private"
+  });
+  const distinctPng = (seed: number): string => {
+    const chunk = (type: string, data: Buffer): Buffer => {
+      const body = Buffer.concat([Buffer.from(type), data]);
+      const out = Buffer.alloc(12 + data.length);
+      out.writeUInt32BE(data.length, 0);
+      body.copy(out, 4);
+      out.writeUInt32BE(zlib.crc32(body), 8 + data.length);
+      return out;
+    };
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    return Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk("IHDR", ihdr),
+      chunk("IDAT", zlib.deflateSync(Buffer.from([0, seed * 20, 50, 90]))),
+      chunk("IEND", Buffer.alloc(0))
+    ]).toString("base64");
+  };
+  for (let index = 0; index < 8; index += 1) {
+    const photo = await post("/api/v1/observations/many-photos-record/photos/upload", env, {
+      filename: `p${index}.png`, mimeType: "image/png", base64Data: distinctPng(index), mediaRole: index === 0 ? "primary" : "context", position: index
+    });
+    assert.equal(photo.ok, true);
+  }
+  assert.equal([...obs.assets.values()].filter((row: any) => row.observation_id === "many-photos-record").length, 8);
 });
 
 test("v1 observation upsert materializes only safe coarse public area labels", async () => {

@@ -125,6 +125,14 @@ test("eligible: two independent people confirmed, consent on, 14+ days, protecti
   assert.doesNotMatch(edition.files["occurrence.txt"], /exact|owner-1|user-2/);
 });
 
+test("a record with unset location (public_cell unknown) is never eligible", async () => {
+  const db = openDb();
+  await eligibleScene(db);
+  assert.equal((await build(db)).rows.length, 1);
+  db.prepare("UPDATE observations SET public_cell = 'unknown', exact_lat = NULL, exact_lng = NULL WHERE observation_id = 'rec-1'").run();
+  assert.equal((await build(db)).rows.length, 0);
+});
+
 test("AI-only, owner-only, disputed, no consent and under 14 days all give zero rows", async () => {
   // AI only: organism with an AI suggestion but no human claim
   const db = openDb();
