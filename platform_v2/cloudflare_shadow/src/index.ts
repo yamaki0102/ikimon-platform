@@ -7,6 +7,12 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import {
+  isWeakTaxonLabel,
+  NEUTRAL_TAXON_FALLBACK_JA,
+  publicTaxonDisplayName,
+  resolveUnifiedTaxonName,
+} from "./taxonNameResolver";
+import {
   handleNocosilOutcomeUsageApi,
   listNocosilOutcomeUsagesForPlace,
   listNocosilOutcomeUsagesForRecord,
@@ -23321,7 +23327,7 @@ function recordsInjectionCopy(url: URL) {
     homeBadge: "地域の記録",
     map: "地図",
     placeContext: "地域の記録",
-    unknown: "名前待ち"
+    unknown: NEUTRAL_TAXON_FALLBACK_JA
   };
 }
 
@@ -23349,7 +23355,7 @@ function ownerHomeRecordsCopy(url: URL): ReturnType<typeof recordsInjectionCopy>
     homeBadge: "自分の記録",
     map: "保存済み",
     placeContext: "保存済み",
-    unknown: "名前待ち"
+    unknown: NEUTRAL_TAXON_FALLBACK_JA
   };
 }
 
@@ -24276,10 +24282,10 @@ function homeRecordDisplayTitle(
 function homeRecordUntitledLabel(mediaKind: HomeRecordMediaKind, lang: "ja" | "en" | "es" | "pt-br"): string {
   const labels: Record<"ja" | "en" | "es" | "pt-br", Record<HomeRecordMediaKind, string>> = {
     ja: {
-      photo: "名前待ちの写真",
-      video: "名前待ちの動画",
-      audio: "名前待ちの音",
-      record: "名前待ちのメモ"
+      photo: "写真の記録",
+      video: "動画の記録",
+      audio: "音の記録",
+      record: "メモの記録"
     },
     en: {
       photo: "Photo record",
@@ -24958,13 +24964,16 @@ function setHomeRecordMediaKind(map: Map<string, HomeRecordMediaKind>, observati
 }
 
 function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, mediaKind: HomeRecordMediaKind = photoUrl ? "photo" : "record") {
-  const displayName = publicTaxonDisplayName(row.taxon_label);
+  const resolved = resolveUnifiedTaxonName({
+    readmodelTaxonLabel: row.taxon_label,
+    aiCandidateLabel: row.ai_candidate_label,
+  });
   return {
     occurrenceId: `occ:${row.observation_id}:0`,
     visitId: row.observation_id,
-    displayName,
+    displayName: resolved.displayName,
     isAiCandidate: false,
-    isAwaitingId: isWeakTaxonLabel(row.taxon_label),
+    isAwaitingId: resolved.isAwaitingId,
     localityLabel: "位置をぼかしています",
     publicAreaLabel: normalizeSafePublicAreaLabelCandidate(row.public_area_label),
     publicNote: formatPublicCardNoteLine(row.public_note),
@@ -26157,14 +26166,16 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
       effectiveTaxonLabel = candidate;
     }
   }
-  const isAwaitingId = isWeakTaxonLabel(effectiveTaxonLabel);
   const aiPersonPrimaryNames = publicObservationAiPersonPrimaryNames(row.ai_source_payload_json);
   const isEligibleAiCandidate = isPublicObservationAiSubjectEligible(row.ai_candidate_label, aiPersonPrimaryNames);
   const aiCandidateLabel = isEligibleAiCandidate ? row.ai_candidate_label : null;
   const aiCandidateRank = isEligibleAiCandidate ? row.ai_candidate_rank : null;
-  const displayName = isAwaitingId
-    ? aiCandidateLabel ?? "名前待ち"
-    : effectiveTaxonLabel!.trim();
+  const resolvedTaxon = resolveUnifiedTaxonName({
+    readmodelTaxonLabel: effectiveTaxonLabel,
+    aiCandidateLabel,
+  });
+  const isAwaitingId = resolvedTaxon.isAwaitingId;
+  const displayName = resolvedTaxon.displayName;
 
   const detailLocationLabel = row.public_cell === "hidden"
     ? "位置は非公開です"
@@ -32109,7 +32120,7 @@ async function upsertPublicMapSnapshotRow(
       observation.observed_at,
       Number(observation.observed_at.slice(0, 4)) || new Date(observation.observed_at).getUTCFullYear(),
       taxonGroupForLabel(observation.taxon_label),
-      observation.taxon_label ?? "名前待ち",
+      publicTaxonDisplayName(observation.taxon_label),
       isWeakTaxonLabel(observation.taxon_label) ? 1 : 0,
       observation.public_cell,
       observation.public_cell,
@@ -34673,15 +34684,6 @@ function publicMapExactCoordinateGate() {
     ...PUBLIC_MAP_EXACT_COORDINATE_GATE,
     rawCoordinateFieldsExposed: [...PUBLIC_MAP_EXACT_COORDINATE_GATE.rawCoordinateFieldsExposed]
   };
-}
-
-function isWeakTaxonLabel(label: string | null): boolean {
-  const text = (label ?? "").trim().toLowerCase();
-  return !text || ["unidentified", "unknown", "unresolved", "awaiting id", "同定待ち", "名前待ち", "未同定", "不明"].includes(text);
-}
-
-function publicTaxonDisplayName(label: string | null): string {
-  return isWeakTaxonLabel(label) ? "名前待ち" : (label as string).trim();
 }
 
 function taxonGroupForLabel(label: string | null): string {
