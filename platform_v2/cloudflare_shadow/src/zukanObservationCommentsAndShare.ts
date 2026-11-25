@@ -1,3 +1,4 @@
+import { containsDiscoveryPersonalInformation } from "./eventDiscoveryPrivacy";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 
 const escapeHtml = (value: string): string =>
@@ -17,6 +18,7 @@ type ShareLinkRecord = {
   observationId: string;
   createdBy: string;
   createdAt: string;
+  expiresAt?: string | null;
 };
 
 type SessionLike = {
@@ -189,14 +191,15 @@ export async function handleGetObservationComments(
 export async function handleCreateObservationShareLink(
   observationId: string,
   session: SessionLike,
-  env: EnvLike
+  env: EnvLike,
+  options?: { expiresInDays?: number | null }
 ): Promise<Response> {
   if (!session || session.banned) {
     return jsonResponse({ ok: false, error: "unauthorized" }, 401);
   }
 
   const obs = await env.OBS_DB
-    .prepare("SELECT observation_id, user_id, visibility FROM observations WHERE observation_id = ?")
+    .prepare("SELECT observation_id, owner_user_id AS user_id, visibility FROM observations WHERE observation_id = ?")
     .bind(observationId)
     .first<{ observation_id: string; user_id: string; visibility: string }>();
 
@@ -208,11 +211,13 @@ export async function handleCreateObservationShareLink(
   }
 
   const token = `share_${crypto.randomUUID().replace(/-/g, "")}`;
+  const days = options?.expiresInDays && options.expiresInDays > 0 ? Math.min(Math.trunc(options.expiresInDays), 365) : null;
   const record: ShareLinkRecord = {
     token,
     observationId,
     createdBy: session.userId,
     createdAt: new Date().toISOString(),
+    expiresAt: days ? new Date(Date.now() + days * 86400000).toISOString() : null,
   };
 
   if (env.ASSET_BUCKET) {
@@ -221,7 +226,7 @@ export async function handleCreateObservationShareLink(
     });
   }
 
-  return jsonResponse({ ok: true, token, path: `/ja/share/${token}` }, 201);
+  return jsonResponse({ ok: true, token, path: `/ja/share/${token}`, expiresAt: record.expiresAt ?? null }, 201);
 }
 
 export async function handleResolveShareLinkPage(
@@ -241,6 +246,9 @@ export async function handleResolveShareLinkPage(
   if (!share?.observationId) {
     return new Response("Not found", { status: 404 });
   }
+  if (share.expiresAt && Date.parse(share.expiresAt) <= Date.now()) {
+    return new Response("Not found", { status: 404 });
+  }
 
   const obs = await env.OBS_DB
     .prepare("SELECT observation_id, visibility, note, observed_at FROM observations WHERE observation_id = ?")
@@ -254,9 +262,15 @@ export async function handleResolveShareLinkPage(
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const comments = await loadObservationComments(obs.observation_id, env);
   const authenticated = Boolean(session && !session.banned);
+  const defaultNote = lang === "en" ? "Field observation" : "生きものの観察記録";
+  const firstLine = (obs.note ?? "").split(/\r?\n/)[0]?.trim() ?? "";
+  const safeNote =
+    firstLine && !containsDiscoveryPersonalInformation(obs.note ?? "") && !containsDiscoveryPersonalInformation(firstLine)
+      ? firstLine.slice(0, 24)
+      : defaultNote;
   const bodyHtml = `<section class="zt-hub-card" data-share-guest-view="d8">
     <h1>${escapeHtml(lang === "en" ? "Shared observation" : "共有された記録")}</h1>
-    <p>${escapeHtml(obs.note ?? (lang === "en" ? "Field observation" : "生きものの観察記録"))}</p>
+    <p>${escapeHtml(safeNote)}</p>
     <p><small>${escapeHtml(obs.observed_at ?? "—")}</small></p>
     <p><a class="zt-btn-outline" href="${escapeHtml(`${prefix}/observations/${encodeURIComponent(obs.observation_id)}`)}">${
       lang === "en" ? "Open record details" : "記録の詳細を見る"

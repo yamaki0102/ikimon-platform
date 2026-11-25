@@ -6,6 +6,8 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
@@ -24,6 +26,69 @@ import {
   revokeGuestPass,
   setDestinationQrStopped,
 } from "./guestPosting";
+import {
+  handleClaimGuestHandoff,
+  handleIssueGuestHandoffCode,
+  handleRecoverGuestPass,
+} from "./guestHandoff";
+import {
+  handleCreateGuestObservation,
+  handleListGuestObservations,
+  handleUploadGuestObservationPhoto,
+} from "./guestObservationPost";
+import { handleGuestEntryPageRoute } from "./guestEntryPage";
+import {
+  handleConfirmEventParticipation,
+  handleEventConfirmOrJoinedRoute,
+} from "./zukanEventConfirmAndJoined";
+import {
+  handleEventDetailsRoute,
+  handleNearbyEventsApi,
+  handleNearbyEventsPageRoute,
+} from "./zukanEventsNearbyAndDetails";
+import { handleMapExploreRoute, handleMapPlacesBoundsApi } from "./zukanMapView";
+import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
+import {
+  handleGetEventGuestPhoto,
+  handleListEventGuestObservations,
+  handleOrganizerRemoveGuestObservation,
+  handleSetGuestObservationShareScope,
+} from "./guestEventShare";
+import { handleEventPreAndPcRoute } from "./zukanEventPreAndPc";
+import {
+  handleProfilePublicSettingsRoute,
+  handlePublicUserProfileRoute,
+  handleUpdateProfileVisibility,
+} from "./zukanProfilePublicAndSettings";
+import {
+  handleEventDayAlbumTakeRoute,
+  handleSaveEventToPlace,
+} from "./zukanEventDayAlbumTake";
+import {
+  handleSearchSeasonsApi,
+  handleSearchSeasonsRoute,
+} from "./zukanSearchEmptyAndSeasons";
+import {
+  handleAccountSettingsDetailRoute,
+  handleSaveAccountSettingsDetail,
+  type SettingsDetailSection,
+} from "./zukanAccountSettingsDetail";
+import {
+  handleMyRecordsApi,
+  handleMyRecordsRoute,
+} from "./zukanMyRecordsList";
+import {
+  handleMapFilteredPinsApi,
+  handleMapFiltersRoute,
+} from "./zukanMapFiltersAndPins";
+import {
+  handleLinkedAndSavedApi,
+  handleLinkedAndSavedRoute,
+} from "./zukanLinkedAndSaved";
+import {
+  handleSearchResultsApi,
+  handleSearchResultsRoute,
+} from "./zukanSearchResults";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -109,6 +174,11 @@ import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from ".
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
+import {
+  handleCreatePlaceProposal,
+  handlePlaceNearbyApi,
+  handlePlaceProposeOrNearbyRoute,
+} from "./zukanPlaceProposalsAndNearby";
 import {
   createFixedPointStationRecord,
   listFixedPointsAndRecordsForPlace,
@@ -234,6 +304,14 @@ import {
   renderRecordPlaceAndTimeHtml,
 } from "./zukanRecordPlaceAndTime";
 import {
+  ZUKAN_RECORD_INPUT_SCRIPT,
+  ZUKAN_RECORD_INPUT_STYLES,
+  handleRecordVoiceTranscribe,
+  renderRecordModeBarHtml,
+  renderRecordVoiceButtonHtml,
+  resolveRecordInputMode,
+} from "./zukanRecordInput";
+import {
   handleCreateObservationShareLink,
   handleGetObservationComments,
   handlePostObservationComment,
@@ -249,8 +327,12 @@ import {
 } from "./zukanRecordLinkAndDone";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
+import { handleZukanNoticesAndConsentRoute, loadLibraryNoticeHtml } from "./zukanNoticesAndConsent";
+import { renderZukanStateDocument, type ZukanStateKind } from "../../src/ui/zukanStateScreens";
+import { handleSharedAlbumView, handleZukanOrgLinkRoute } from "./zukanOrgLinkAndAlbum";
 import {
   isPublicObservationAiSubjectEligible,
   publicObservationAiCandidateInsights,
@@ -3690,7 +3772,13 @@ export const worker = {
         const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
         const searchQuery = url.searchParams.get("q") ?? "";
         const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
-        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
+        const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
+      }
+
+      if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
+        const linkFlowResponse = await handleZukanLinkFlowRoute(request, env, url, nativePathname);
+        if (linkFlowResponse) return linkFlowResponse;
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
@@ -3706,6 +3794,12 @@ export const worker = {
       const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
       if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
         return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/invites/resolve") {
+        const result = await resolveInviteTarget(env.OBS_DB, url.searchParams.get("code"));
+        const status = result.ok ? 200 : result.error === "invalid_invite_code" ? 400 : 404;
+        return json(result, status, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/issue") {
@@ -3747,6 +3841,19 @@ export const worker = {
         );
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff-code") {
+        return handleIssueGuestHandoffCode(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff/claim") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleClaimGuestHandoff(request, env, session);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff/recover") {
+        return handleRecoverGuestPass(request, env);
+      }
+
       const guestQrStopMatch = url.pathname.match(/^\/api\/v1\/admin\/guest-destinations\/([^/]+)\/([^/]+)\/qr-stop$/);
       if (request.method === "POST" && guestQrStopMatch?.[1] && guestQrStopMatch?.[2]) {
         if (!isGuestPostingEnabled(env)) {
@@ -3769,6 +3876,238 @@ export const worker = {
         const stopped = body.stopped !== false;
         await setDestinationQrStopped(env.OBS_DB, dest, stopped);
         return json({ ok: true, destination: `${dest.kind}:${dest.id}`, qrStopped: stopped }, 200, { "cache-control": "no-store" });
+      }
+
+      if (url.pathname === "/api/v1/guest/observations") {
+        if (request.method === "POST") {
+          return handleCreateGuestObservation(request, env);
+        }
+        if (request.method === "GET") {
+          return handleListGuestObservations(request, env);
+        }
+      }
+
+      const guestObsPhotoMatch = url.pathname.match(/^\/api\/v1\/guest\/observations\/([^/]+)\/photos$/);
+      if (request.method === "POST" && guestObsPhotoMatch?.[1]) {
+        return handleUploadGuestObservationPhoto(decodeURIComponent(guestObsPhotoMatch[1]), request, env);
+      }
+
+      const guestShareScopeMatch = url.pathname.match(/^\/api\/v1\/guest\/observations\/([^/]+)\/share-scope$/);
+      if (request.method === "POST" && guestShareScopeMatch?.[1]) {
+        return handleSetGuestObservationShareScope(decodeURIComponent(guestShareScopeMatch[1]), request, env);
+      }
+
+      const eventGuestObsListMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/guest-observations$/);
+      if (request.method === "GET" && eventGuestObsListMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleListEventGuestObservations(decodeURIComponent(eventGuestObsListMatch[1]), request, env, {
+          sessionUserId: session && !session.banned ? session.userId : null,
+          isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
+        });
+      }
+
+      const eventGuestPhotoMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/guest-observations\/([^/]+)\/photos\/([^/]+)$/);
+      if (request.method === "GET" && eventGuestPhotoMatch?.[1] && eventGuestPhotoMatch?.[2] && eventGuestPhotoMatch?.[3]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleGetEventGuestPhoto(
+          decodeURIComponent(eventGuestPhotoMatch[1]),
+          decodeURIComponent(eventGuestPhotoMatch[2]),
+          decodeURIComponent(eventGuestPhotoMatch[3]),
+          request,
+          env,
+          {
+            sessionUserId: session && !session.banned ? session.userId : null,
+            isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
+          }
+        );
+      }
+
+      const eventGuestRemoveMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/guest-observations\/([^/]+)\/remove$/);
+      if (request.method === "POST" && eventGuestRemoveMatch?.[1] && eventGuestRemoveMatch?.[2]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleOrganizerRemoveGuestObservation(
+          decodeURIComponent(eventGuestRemoveMatch[1]),
+          decodeURIComponent(eventGuestRemoveMatch[2]),
+          request,
+          env,
+          {
+            sessionUserId: session && !session.banned ? session.userId : null,
+            isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
+          }
+        );
+      }
+
+      const eventPreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/preview$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventPreMatch?.[2]) {
+        const viewLang = (eventPreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventPreAndPcRoute(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const eventSaveToPlaceMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/save-to-place$/);
+      if (request.method === "POST" && eventSaveToPlaceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveEventToPlace(decodeURIComponent(eventSaveToPlaceMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventDayAlbumTakeMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(day|album|take)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDayAlbumTakeMatch?.[2] && eventDayAlbumTakeMatch?.[3]) {
+        const viewLang = (eventDayAlbumTakeMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      const guestEntryMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/guest\/(place|event)\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && guestEntryMatch?.[2] && guestEntryMatch?.[3]) {
+        const viewLang = (guestEntryMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        return handleGuestEntryPageRoute(
+          guestEntryMatch[2],
+          decodeURIComponent(guestEntryMatch[3]),
+          viewLang,
+          request,
+          env
+        );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/visibility") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleUpdateProfileVisibility(request, session, env.OBS_DB);
+      }
+
+      const profilePublicSettingsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/public-settings$/);
+      if ((request.method === "GET" || request.method === "HEAD") && profilePublicSettingsMatch) {
+        const viewLang = (profilePublicSettingsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleProfilePublicSettingsRoute(viewLang, session, env.OBS_DB);
+      }
+
+      const publicUserProfileMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/u\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && publicUserProfileMatch?.[2]) {
+        const viewLang = (publicUserProfileMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handlePublicUserProfileRoute(decodeURIComponent(publicUserProfileMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const eventConfirmApiMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/confirm$/);
+      if (request.method === "POST" && eventConfirmApiMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleConfirmEventParticipation(decodeURIComponent(eventConfirmApiMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventConfirmJoinedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(confirm|joined)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventConfirmJoinedMatch?.[2] && eventConfirmJoinedMatch?.[3]) {
+        const viewLang = (eventConfirmJoinedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/seasons") {
+        return handleSearchSeasonsApi(url, env.OBS_DB);
+      }
+
+      const searchSeasonsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/seasons$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchSeasonsMatch) {
+        const viewLang = (searchSeasonsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchSeasonsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/my-records") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMyRecordsApi(url, session, env.OBS_DB);
+      }
+
+      const myRecordsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/records$/);
+      if ((request.method === "GET" || request.method === "HEAD") && myRecordsMatch) {
+        const viewLang = (myRecordsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMyRecordsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/filtered-pins") {
+        return handleMapFilteredPinsApi(url, env.OBS_DB);
+      }
+
+      const mapFiltersMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/filters$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapFiltersMatch) {
+        const viewLang = (mapFiltersMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapFiltersRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/results") {
+        return handleSearchResultsApi(url, env.OBS_DB);
+      }
+
+      const searchResultsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/results$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchResultsMatch) {
+        const viewLang = (searchResultsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchResultsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/settings-detail") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveAccountSettingsDetail(request, session, env.OBS_DB);
+      }
+
+      const accountSettingsDetailMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/settings\/(edit|notifications|account)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && accountSettingsDetailMatch?.[2]) {
+        const viewLang = (accountSettingsDetailMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const section = accountSettingsDetailMatch[2] as SettingsDetailSection;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleAccountSettingsDetailRoute(section, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleLinkedAndSavedApi(session, env.OBS_DB);
+      }
+
+      const linkedSavedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/linked-saved$/);
+      if ((request.method === "GET" || request.method === "HEAD") && linkedSavedMatch) {
+        const viewLang = (linkedSavedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
+        return handleNearbyEventsApi(url, env.OBS_DB);
+      }
+
+      const eventsNearbyPageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/nearby$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventsNearbyPageMatch) {
+        const viewLang = (eventsNearbyPageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleNearbyEventsPageRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      const eventDetailsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/details$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDetailsMatch?.[2]) {
+        const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/places") {
+        return handleMapPlacesBoundsApi(url, env.OBS_DB);
+      }
+
+      const mapExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/explore$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapExploreMatch) {
+        const viewLang = (mapExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapExploreRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      const eventGalleryShareMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(gallery|share)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventGalleryShareMatch?.[2] && eventGalleryShareMatch?.[3]) {
+        const viewLang = (eventGalleryShareMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventGalleryShareMatch[3] as "gallery" | "share";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventAlbumOrShareRoute(decodeURIComponent(eventGalleryShareMatch[2]), view, url.origin, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
@@ -4366,6 +4705,14 @@ export const worker = {
         return handleCreateRecordPlace(request, session.userId, env.OBS_DB);
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/record/voice-transcribe") {
+        const session = await readCompatibleSession(request, env);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "unauthorized" }, 401);
+        }
+        return handleRecordVoiceTranscribe(request, env);
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/record/links") {
         const session = await readCompatibleSession(request, env);
         if (!session || session.banned) {
@@ -4384,6 +4731,25 @@ export const worker = {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
       }
 
+      const placeProposalApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/proposals$/);
+      if (request.method === "POST" && placeProposalApiMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleCreatePlaceProposal(decodeURIComponent(placeProposalApiMatch[1]), request, session, env);
+      }
+
+      const placeNearbyApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/nearby$/);
+      if (request.method === "GET" && placeNearbyApiMatch?.[1]) {
+        return handlePlaceNearbyApi(decodeURIComponent(placeNearbyApiMatch[1]), env.OBS_DB);
+      }
+
+      const placeProposeNearbyMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(propose|nearby)$/);
+      if (request.method === "GET" && placeProposeNearbyMatch?.[2] && placeProposeNearbyMatch?.[3]) {
+        const viewLang = (placeProposeNearbyMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeProposeNearbyMatch[3] as "propose" | "nearby";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceProposeOrNearbyRoute(decodeURIComponent(placeProposeNearbyMatch[2]), tab, viewLang, session, env.OBS_DB);
+      }
+
       const observationCommentMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/comments$/);
       if (observationCommentMatch?.[1]) {
         const obsId = decodeURIComponent(observationCommentMatch[1]);
@@ -4396,17 +4762,43 @@ export const worker = {
         }
       }
 
+      if (nativePathname === "/library/link/cancel" || nativePathname === "/library/link/share") {
+        const shareUnlinkResponse = await handleZukanShareAndUnlinkRoute(request, env, url, nativePathname);
+        if (shareUnlinkResponse) return shareUnlinkResponse;
+      }
+
       const observationShareLinkMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/share-links$/);
       if (request.method === "POST" && observationShareLinkMatch?.[1]) {
         const session = await readCompatibleSession(request, env);
         return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
       }
 
+      if (nativePathname === "/library/link/org-request" || nativePathname.startsWith("/library/link/request") || nativePathname.startsWith("/library/link/album")) {
+        const orgLinkResponse = await handleZukanOrgLinkRoute(request, env, url, nativePathname);
+        if (orgLinkResponse) return orgLinkResponse;
+      }
+
       const sharePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/share\/([^/]+)$/);
       if (request.method === "GET" && sharePageMatch?.[2]) {
         const shareLang = (sharePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env);
-        return handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
+        const albumResponse = await handleSharedAlbumView(decodeURIComponent(sharePageMatch[2]), shareLang, env, Boolean(session && !session.banned)).catch(() => null);
+        if (albumResponse) return albumResponse;
+        const shareResponse = await handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
+        return shareResponse.status === 404 && shareLang === "ja"
+          ? html(renderZukanStateDocument("no-access", { prefix: "/ja" }), 404, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" })
+          : shareResponse;
+      }
+
+      const zukanStateMatch = nativePathname.match(/^\/state\/(loading|error|offline|no-access)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && zukanStateMatch?.[1]) {
+        const stateLang = publicLangFromPath(url.pathname) ?? "ja";
+        return html(renderZukanStateDocument(zukanStateMatch[1] as ZukanStateKind, { prefix: `/${stateLang}`, retryHref: url.searchParams.get("from") ?? undefined }), 200, { "cache-control": "no-store" });
+      }
+
+      if (nativePathname === "/notices" || nativePathname === "/welcome/consent" || nativePathname === "/welcome/consent/later") {
+        const noticesResponse = await handleZukanNoticesAndConsentRoute(request, env, url, nativePathname);
+        if (noticesResponse) return noticesResponse;
       }
 
       const placeTimelineApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/fixed-point-timeline$/);
@@ -4517,13 +4909,20 @@ export const worker = {
       if (error instanceof DiscoveryError) {
         return json({ error: error.message }, error.status, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" });
       }
+      const stateScreen = zukanHtmlNavigationFailureScreen(request, error instanceof HttpError ? error.status : 500);
+      if (stateScreen) return stateScreen;
       if (error instanceof HttpError) {
         return json({ error: error.message }, error.status);
       }
       console.error(error);
       return json({ error: "internal_error" }, 500);
     }
-    })();
+    })().catch((error: unknown): Response => {
+      const failureScreen = zukanHtmlNavigationFailureScreen(request, 500);
+      if (!failureScreen) throw error;
+      console.error(error);
+      return failureScreen;
+    });
     const policyResponse = withAiContentPolicy(response, request, env);
     return journeyReadOnly ? withJourneyPrivacy(policyResponse) : policyResponse;
   },
@@ -4558,6 +4957,19 @@ export const worker = {
     if (reassessmentIds.length > 0) await submitGeminiObservationReassessmentGroups(reassessmentIds, env);
   }
 };
+
+function zukanHtmlNavigationFailureScreen(request: Request, status: number): Response | null {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (status !== 500 && status !== 403) return null;
+  if (!(request.headers.get("accept") ?? "").includes("text/html")) return null;
+  const failUrl = new URL(request.url);
+  if (failUrl.pathname.startsWith("/api/") || (publicLangFromPath(failUrl.pathname) ?? "ja") !== "ja") return null;
+  return html(
+    renderZukanStateDocument(status === 403 ? "no-access" : "error", { prefix: "/ja", retryHref: `${failUrl.pathname}${failUrl.search}` }),
+    status,
+    { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" }
+  );
+}
 
 export function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
   const isCanonicalWww = url.hostname === "www.zukan.earth";
@@ -22302,6 +22714,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
     ${ZUKAN_RECORD_PLACE_TIME_STYLES}
+    ${ZUKAN_RECORD_INPUT_STYLES}
     ${ZUKAN_RECORD_LINK_DONE_STYLES}
     ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
@@ -22309,6 +22722,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
 <body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
+    ${renderRecordModeBarHtml({ lang, prefix, activeMode: resolveRecordInputMode(url) })}
     ${renderRecordEntryStageHtml({
       lang,
       prefix,
@@ -22324,7 +22738,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     })}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
-      <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
+      <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><div class="zt-field-input-row"><textarea name="note" rows="3"></textarea>${renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })}</div><p id="record-voice-status" class="zt-voice-status" aria-live="polite"></p></label>
       ${renderRecordPlaceAndTimeHtml({
         lang,
         initialPlaceId: safeObservationEventContextParam(url, ["placeId"], 128),
@@ -22370,6 +22784,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   window.ikimonFacePrivacyAssetBase = "/assets/face-privacy";
   ${FACE_PRIVACY_CLIENT_SCRIPT}
   ${ZUKAN_RECORD_PLACE_TIME_SCRIPT}
+  ${ZUKAN_RECORD_INPUT_SCRIPT}
   </script>
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
