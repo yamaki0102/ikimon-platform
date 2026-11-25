@@ -76,4 +76,17 @@ test("renderGuideVoiceConsolePage and renderGuideBadgeTakeawayPage render offlin
   assert.match(takeawayHtml, /この説明はAIが作成しました/);
   assert.match(takeawayHtml, /次回は12月14日です/);
   assert.match(takeawayHtml, /data-global-record-trigger="photo"/);
+  assert.doesNotMatch(takeawayHtml, /この場所の記録を見る/);
+
+  const takeawayWithPlaceHtml = renderGuideBadgeTakeawayPage({
+    sessionId: "evt_guide_1",
+    eventTitle: "秋の観察会",
+    badgeNumber: 3,
+    nextEventNote: "次回は12月14日です",
+    lang: "ja",
+    cspNonce: "nonce-2",
+    discoveries: [],
+    publicPlace: { placeId: "plc_public_tokiwa", name: "常磐公園" }
+  });
+  assert.match(takeawayWithPlaceHtml, /href="\/ja\/places\/plc_public_tokiwa">この場所の記録を見る<\/a>/);
 });
