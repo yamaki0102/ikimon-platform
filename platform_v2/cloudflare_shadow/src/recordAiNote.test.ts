@@ -83,6 +83,11 @@ test("check 2: praise, evaluation, commands and decorations are never accepted",
   ]) assert.ok(failures(draft(1, text, [ids.water])).includes("banned"), text);
 });
 
+test("check 2b: a hedge phrase glued into the middle of a sentence is rejected", () => {
+  assert.ok(failures(draft(1, "3枚の写真にアオサギの仲間のようですと岩が写っています。", [ids.water, ids.heron])).includes("fluency"));
+  assert.ok(!failures(draft(1, GOOD1, [ids.water, ids.heron])).includes("fluency"));
+});
+
 test("check 3: length is one sentence within 45/45/50 characters", () => {
   assert.ok(failures(draft(1, `水面が写っているので、${"広い".repeat(30)}が分かります。`, [ids.water])).includes("length"));
   assert.ok(failures(draft(1, "水面が写っています。水辺のようすが分かります。", [ids.water])).includes("length"));

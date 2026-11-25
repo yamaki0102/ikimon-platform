@@ -53,7 +53,7 @@ const STATE_JA = { ai_read: "AIの読み取り", proposed: "提案あり", confi
 
 export type AiNoteFailure =
   | "evidence_missing" | "evidence_unknown" | "evidence_stale" | "capture_fact_missing"
-  | "banned" | "length" | "number" | "frequency" | "hedge" | "learning_basis" | "invite_form" | "invite_kind";
+  | "banned" | "fluency" | "length" | "number" | "frequency" | "hedge" | "learning_basis" | "invite_form" | "invite_kind";
 
 export type AiNoteEvidenceOptions = { taxonNotes?: readonly TaxonNote[]; counts?: readonly AiNoteCountFact[] };
 
@@ -161,6 +161,7 @@ export function aiNoteTextFailures(slot: AiNoteSlotNo, text: string, invite: str
   const failures: AiNoteFailure[] = [];
   const normalized = text.normalize("NFKC");
   if (BANNED_PATTERNS.some((pattern) => pattern.test(normalized))) failures.push("banned");
+  if (/ようです[^。]/u.test(normalized)) failures.push("fluency");
   const length = [...text].length;
   if (!/^[^。\n]+。$/u.test(text) || length > AI_NOTE_SLOT_MAX_CHARS[slot]) failures.push("length");
   if (slot === 3) {
@@ -238,7 +239,7 @@ export function buildAiNotePrompt(input: AiNotePromptInput): { prompt: string; a
       ? `枠3: 次の一歩の誘い（1文・50字以内）。「次は〜すると、〜も残せます」「次は〜すると、〜が分かります」の形だけ。命令にしない。invite_kindは次から選ぶ: ${invites.join(" / ")}。生きものに近づく・触る・捕まえる・巣や餌に関わる誘いは書かない。`
       : "枠3は出さない。",
     "禁止: 評価・称賛（よく撮れています、上手ですね等）、正解や不正解の判定、命令（〜してください）、言い切り（絶対・確実）、感嘆符、絵文字、英字、内部の番号。「あなたは」で始めない。",
-    "名前が「AIの読み取り」の生きものは、「〜の仲間のようです」のように言い切らずに書く。数字は根拠一覧に書かれた数だけ使う。件数や「よく見られる」は根拠に件数がある時だけ。",
+    "名前が「AIの読み取り」の生きものは、「〜の仲間のようです」のように言い切らずに書く。「ようです」は文末だけに使い、1枠は必ず1文（句点は最後に1つだけ）にする。数字は根拠一覧に書かれた数だけ使う。件数や「よく見られる」は根拠に件数がある時だけ。",
     "各枠には、根拠として使った一覧の記号（e1など）を evidence に入れる。材料が足りない枠は出力しない（slotsに含めない）。invite_kindは枠3以外では none。",
     "根拠一覧:",
     ...lines,
