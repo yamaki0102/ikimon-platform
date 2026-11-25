@@ -28,8 +28,9 @@ function setupDb(t: test.TestContext) {
   sqlite.exec(`
     CREATE TABLE places (
       place_id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'public'
+      canonical_name TEXT NOT NULL,
+      public_profile_status TEXT NOT NULL DEFAULT 'published',
+      superseded_by_place_id TEXT
     );
     CREATE TABLE observations (
       observation_id TEXT PRIMARY KEY,
