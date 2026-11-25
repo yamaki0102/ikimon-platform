@@ -37,6 +37,10 @@ import {
 } from "./guestObservationPost";
 import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
+  handleConfirmEventParticipation,
+  handleEventConfirmOrJoinedRoute,
+} from "./zukanEventConfirmAndJoined";
+import {
   handleEventDetailsRoute,
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
@@ -3915,6 +3919,20 @@ export const worker = {
           request,
           env
         );
+      }
+
+      const eventConfirmApiMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/confirm$/);
+      if (request.method === "POST" && eventConfirmApiMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleConfirmEventParticipation(decodeURIComponent(eventConfirmApiMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventConfirmJoinedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(confirm|joined)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventConfirmJoinedMatch?.[2] && eventConfirmJoinedMatch?.[3]) {
+        const viewLang = (eventConfirmJoinedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
