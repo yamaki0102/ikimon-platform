@@ -22827,6 +22827,23 @@ function renderCloudflareProfileHtml(
             <button type="submit">${escapeHtml(lang === "ja" ? "保存" : lang === "es" ? "Guardar" : lang === "pt-br" ? "Salvar" : "Save")}</button>
           </div>
         </form>
+        <details class="cf-profile-withdrawal" data-testid="withdrawal-confirmation">
+          <summary>${escapeHtml(lang === "ja" ? "退会・アカウント削除の確認" : "Account withdrawal")}</summary>
+          <div class="cf-profile-withdrawal-body">
+            <h3>${escapeHtml(lang === "ja" ? "退会すると消えるもの" : "What disappears when you withdraw")}</h3>
+            <ul>
+              <li>${escapeHtml(lang === "ja" ? "アカウント情報（表示名・ログイン情報・言語設定）は削除されます。" : "Your account details (display name, sign-in credentials, and language settings) will be deleted.")}</li>
+              <li>${escapeHtml(lang === "ja" ? "非公開の記録・下書き・個人メモは削除され、元に戻せません。" : "Private records, drafts, and personal notes will be permanently deleted and cannot be restored.")}</li>
+              <li>${escapeHtml(lang === "ja" ? "公開中の記録・写真は一覧と公開ページから非表示になります。" : "Public records and photos will be removed from listings and public pages.")}</li>
+              <li>${escapeHtml(lang === "ja" ? "すでに外部へ保存・引用された情報は回収できません。" : "Information already saved or quoted externally cannot be recalled.")}</li>
+            </ul>
+            <label class="cf-profile-withdraw-check">
+              <input type="checkbox" data-withdrawal-ack>
+              <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
+            </label>
+            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会をご希望の場合は、上記の消える内容をご確認のうえお問い合わせ窓口（support@ikimon.life）までご連絡ください。" : "To complete withdrawal after reviewing what will be removed, please contact support@ikimon.life.")}</p>
+          </div>
+        </details>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
       </section>`
     : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
@@ -25482,18 +25499,18 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       }).catch(() => null)
     : null;
   const recordClassOut: { value: string | null } = { value: null };
+  const detailLang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const detail = await buildObservationDetail(rawId, env, ownerStatus ? session?.userId ?? null : null, recordClassOut);
   if (!detail) {
     if (!ownerStatus && await hasExplicitlyWithdrawnNativeObservation(detailIdToVisitId(rawId), env)) {
-      return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
+      return html(renderObservationNotFoundHtml({ withdrawn: true, lang: detailLang }), 404, { "cache-control": "no-store" });
     }
     const materialized = await getOriginalUiHtml(request, url, env);
     if (materialized.status !== 404) {
       return materialized;
     }
-    return html(renderObservationNotFoundHtml(), 404, { "cache-control": "no-store" });
+    return html(renderObservationNotFoundHtml({ lang: detailLang }), 404, { "cache-control": "no-store" });
   }
-  const detailLang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const canonicalRedirect = rawId !== detail.visitId || url.searchParams.has("subject") || url.searchParams.has("occurrence")
     ? new Response(null, {
         status: 302,
@@ -34982,11 +34999,32 @@ function renderPlaceSnapshotHtml(row: FieldDetailReadmodelRow, lang: string): st
 </html>`;
 }
 
-function renderObservationNotFoundHtml(): string {
+function renderObservationNotFoundHtml(options: { withdrawn?: boolean; lang?: "ja" | "en" | "es" | "pt-br" } = {}): string {
+  const lang = options.lang ?? "ja";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  if (options.withdrawn) {
+    const title = lang === "ja" ? "この記録は公開が取り消されました" : "This record has been withdrawn";
+    const body = lang === "ja"
+      ? "投稿者によって公開が取り消されたか、削除されたため、この記録は公開されていません。"
+      : "This record is no longer public because it was withdrawn or deleted by its contributor.";
+    const detail = lang === "ja"
+      ? "写真・場所の詳細・メモ・投稿者情報は公開面に表示されません。"
+      : "Photos, location details, notes, and contributor details are not shown on public pages.";
+    const backLabel = lang === "ja" ? "公開記録一覧へ戻る" : "Back to public records";
+    return `<!doctype html>
+<html lang="${escapeHtml(lang)}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} | ZUKAN</title></head>
+<body><main data-observation-withdrawn="1"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p><p>${escapeHtml(detail)}</p><p><a href="${escapeHtml(`${prefix}/records`)}">${escapeHtml(backLabel)}</a></p></main></body>
+</html>`;
+  }
+  const title = lang === "ja" ? "記録が見つかりません" : "Observation not found";
+  const body = lang === "ja"
+    ? "この記録は公開されていないか、URLが正しくありません。"
+    : "This observation is not public or the URL is invalid.";
   return `<!doctype html>
-<html lang="ja">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Observation not found</title></head>
-<body><main><h1>見つかりません</h1><p>この観察はまだ取得できません。</p></main></body>
+<html lang="${escapeHtml(lang)}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} | ZUKAN</title></head>
+<body><main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p></main></body>
 </html>`;
 }
 

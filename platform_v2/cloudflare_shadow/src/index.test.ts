@@ -34039,3 +34039,36 @@ test("observation event 3-tier record visibility enforces auth, rare exclusion, 
   assert.deepEqual(await endPub.json(), { ok: true, publishedCount: 1, skippedRareCount: 1 });
   void ownerCookie;
 });
+
+test("withdrawal confirmation copy shows what disappears first and withdrawn public observation page shows clear non-exposed state", async () => {
+  const { env, obs } = createEnv();
+  await env.ASSET_BUCKET.put("original-ui/html/ja/profile/settings.html", "<!doctype html><html><head><title>settings</title></head><body><main>materialized</main></body></html>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const issueRes = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ userId: "withdraw-user", displayName: "退会テスト", ttlHours: 1 })
+  }), env);
+  const cookie = issueRes.headers.get("set-cookie") ?? "";
+
+  const settingsRes = await worker.fetch(new Request("https://ikimon.life/ja/profile/settings", {
+    headers: { cookie }
+  }), env);
+  assert.equal(settingsRes.status, 200);
+  const settingsHtml = await settingsRes.text();
+  assert.match(settingsHtml, /data-testid="withdrawal-confirmation"/u);
+  assert.match(settingsHtml, /退会すると消えるもの/u);
+  assert.match(settingsHtml, /元に戻せません/u);
+
+  const obsId = "obs-withdrawn-public-check";
+  await obs.prepare(
+    "INSERT INTO observation_data_rights (visit_id, occurrence_id, record_consent, research_use_consent, enterprise_report_consent, dataset_license, media_license, external_export_allowed, withdrawal_status, source_payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+  ).bind(obsId, obsId, "granted", "denied", "denied", null, null, 0, "withdrawn", "{}").run();
+
+  const publicRes = await worker.fetch(new Request(`https://ikimon.life/observations/${obsId}`), env);
+  assert.equal(publicRes.status, 404);
+  const publicHtml = await publicRes.text();
+  assert.match(publicHtml, /公開が取り消されました/u);
+  assert.doesNotMatch(publicHtml, /この観察はまだ取得できません|秘密のメモ|退会テスト/u);
+});
