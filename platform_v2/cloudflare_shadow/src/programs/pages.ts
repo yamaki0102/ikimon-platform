@@ -20,6 +20,7 @@ import { applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, crea
 import { buildObservationEventGuestCookie, buildObservationEventOperationsDashboard, claimObservationEventGuestParticipant, findObservationEventParticipant, getObservationEventSessionById, isObservationEventActivityOpen, isObservationEventCheckinOpen, listObservationEventLiveEvents, listObservationEventTeams, mapObservationEventSession, observationEventGuestCredentialDigest, observationEventLiveParticipantDetail, observationEventParticipantContext, publicObservationEventLiveEvent, readObservationEventGuestCredential, recordObservationEventParticipantPageMetric, recordObservationEventServerFunnelMetric, requireObservationEventOrganizer, serverObservationEventFunnelContext, shouldDeliverObservationEvent, summarizePublicObservationEventLive, type ObservationEventParticipantD1Row, type ObservationEventSessionD1Row, type ObservationEventTeamD1Row, type ObservationEventTemplate, type PublicObservationEventLiveEvent } from "./runtime";
 import { getObservationEventGuestMedia, getObservationEventSessionByEventCode, getObservationRallyCourseBySession, getObservationRallySnapshot, isObservationEventQaFixture, isPrivateReceivedProgram, isRyuyoDiscoveryEvent, mapObservationRallyCourse, mapObservationRallyMission, mapObservationRallyProgress, mapObservationRallyStation, observationEventGuestMediaActor, observationEventGuestMediaEnabled } from "./rally";
 import { DISCOVERY_CAMPAIGN_VERSION, buildObservationEventOfficialReport, discoveryCampaignConfig, getObservationEventRecap, hasProfessionalReportEntitlement, summarizeObservationEventEffort } from "./sessions";
+import { renderZukanEventListDocument } from "../zukanEventList";
 import { listGuideBadgeDiscoveries, renderGuideBadgeTakeawayPage, renderGuideVoiceConsolePage } from "../guideVoiceEvent";
 
 const SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH = "/__ops/browser-qa/renri";
@@ -702,15 +703,19 @@ async function getObservationEventListPage(request: Request, env: Env): Promise<
     sessions.length = 0;
   }
   const strings = getObservationEventStrings(lang);
-  return pageHtml(
-    strings.listHeroHeading,
-    renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, {
+  const listHeading = publicLang === "ja" ? "近くのイベント" : strings.listHeroHeading;
+  const listDocument = renderZukanEventListDocument({
+    lang: publicLang,
+    title: listHeading,
+    bodyHtml: renderEventListBody(sessions.slice(0, OBSERVATION_EVENT_PUBLIC_LIST_LIMIT), strings, lang, {
       loadFailed,
       partial: scanLimitReached,
       retryHref: "/community/events",
-    }),
-    "event-page-list",
-  );
+    }).replace(`<h1>${escapeHtml(strings.listHeroHeading)}</h1>`, `<h1>${escapeHtml(listHeading)}</h1>`),
+    authenticated: Boolean(auth && !auth.banned),
+    displayName: auth?.displayName ?? null,
+  });
+  return html(listDocument, 200, { "cache-control": "no-store", "x-ikimon-cloudflare-native": "event-page-list" });
 }
 
 async function getObservationEventJoinPage(request: Request, env: Env, eventCode: string): Promise<Response> {
