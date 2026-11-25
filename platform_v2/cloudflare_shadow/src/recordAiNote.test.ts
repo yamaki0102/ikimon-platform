@@ -4,6 +4,9 @@ import {
   buildAiNoteEvidence,
   buildAiNotePrompt,
   checkAiNoteSlot,
+  chooseInviteKind,
+  eligibleInviteKinds,
+  autoCitedEvidence,
   checkAiNoteSlotWithRefs,
   evidenceMap,
   evidenceRefs,
@@ -45,7 +48,7 @@ const ids = { heron: `item:${HERON}`, water: `item:${WATER}`, surface: `item:${S
 const draft = (slot: 1 | 2 | 3, text: string, evidence: string[], invite: string | null = null): AiNoteSlotDraft => ({ slot, text, evidence, invite });
 const failures = (d: AiNoteSlotDraft, opts: Parameters<typeof buildAiNoteEvidence>[1] = {}) => checkAiNoteSlot(d, evidenceMap(ev(opts)));
 
-const GOOD1 = "水面が写っているので、アオサギらしい鳥が待つ場所のようすが分かります。";
+const GOOD1 = "水面とアオサギらしい鳥が写っているので、鳥が待つ場所の深さが分かります。";
 const GOOD2 = "アオサギは浅い水辺でじっと待って魚をとります。";
 const GOOD3 = "次は少し離れて、土手全体も一緒に入れると、場所の変化も残せます。";
 
@@ -71,8 +74,10 @@ test("a clean slot 1, 2 and 3 pass every check", () => {
 test("check 1: evidence ids must exist, be present, and slot 1 must cite a capture fact", () => {
   assert.ok(failures(draft(1, GOOD1, [])).includes("evidence_missing"));
   assert.ok(failures(draft(1, GOOD1, ["item:does-not-exist", ids.water])).includes("evidence_unknown"));
-  assert.ok(failures(draft(1, "アオサギらしい鳥が写っているのが分かります。", [ids.heron])).includes("capture_fact_missing"));
-  assert.ok(failures(draft(1, "水面が写っているので、アオサギらしい鳥が分かります。", [ids.water])).includes("evidence_missing"));
+  assert.ok(failures(draft(1, "アオサギらしい鳥が写っているので、鳥がいる場所が分かります。", [ids.heron])).includes("capture_fact_missing"));
+  assert.ok(failures(draft(1, "水面とアオサギらしい鳥が写っているので、鳥が待つ場所の深さが分かります。", [ids.water])).includes("evidence_missing"));
+  const text = "水面とアオサギらしい鳥が写っているので、鳥が待つ場所の深さが分かります。";
+  assert.deepEqual(autoCitedEvidence(text, [], ev()).sort(), [ids.heron, ids.water].sort());
 });
 
 test("check 2: praise, evaluation, commands and decorations are never accepted", () => {
@@ -92,10 +97,9 @@ test("check 3: length is one sentence within 45/45/50 characters", () => {
 
 test("check 4: numbers need a stored count; frequency claims need a count of 5 or more", () => {
   assert.ok(failures(draft(1, "水面が写っているので、12件の記録の中の一枚と分かります。", [ids.water])).includes("number"));
-  assert.ok(failures(draft(1, "水面が写っているので、三枚の写真から水辺が分かります。", [ids.water])).includes("number"));
-  const multi = evidenceMap(buildAiNoteEvidence(reading({ found: [feature(WATER, "water_surface", "水面")] }, 2)));
-  assert.deepEqual(checkAiNoteSlot(draft(1, "水面が写っているので、2枚の写真から水辺が分かります。", ["fact:photo_count", ids.water]), multi), []);
-  assert.deepEqual(numbersInText("一瞬で一緒に二枚と3件と十二羽"), [3, 2, 12]);
+  assert.ok(failures(draft(2, "この場所の秋の確認済みの記録は6件です。", [ids.surface, "count:place-season"])).includes("number"));
+  assert.deepEqual(failures(draft(2, "この場所の秋の確認済みの記録は6件で、よく見られます。", ["count:place-season"]), { counts: [countFact(6)] }), []);
+  assert.deepEqual(numbersInText("一瞬で一緒に二枚と3件と十二羽とヨコバイの一種"), [3, 2, 12]);
   const freq = "この土手では秋によく見られます。";
   assert.ok(failures(draft(2, freq, [ids.surface])).includes("frequency"));
   assert.ok(failures(draft(2, freq, [ids.surface, "count:place-season"]), { counts: [countFact(4)] }).includes("frequency"));
@@ -106,7 +110,7 @@ test("check 5: learning only for taxa with a stored explanation", () => {
   assert.ok(failures(draft(2, GOOD2, [ids.heron])).includes("learning_basis"));
   assert.ok(failures(draft(2, GOOD2, [ids.heron]), { taxonNotes: [note] }).includes("learning_basis"));
   assert.ok(failures(draft(2, "水は流れるものです。", [ids.water])).includes("learning_basis"));
-  assert.ok(!failures(draft(2, "足もとの面は水と読み取れます。", [ids.surface])).includes("learning_basis"));
+  assert.ok(failures(draft(2, "足もとの面は水と読み取れます。", [ids.surface])).includes("learning_basis"));
 });
 
 test("check 5b: a name still only read by AI must be phrased as a hedge", () => {
@@ -122,12 +126,15 @@ test("check 6: slot 3 is an invitation, never an order, and carries a known kind
   ]) assert.ok(failures(draft(3, text, [ids.water], "step_back_whole")).some((code) => code === "invite_form" || code === "banned"), text);
   assert.ok(failures(draft(3, GOOD3, [ids.water], "approach_closely")).includes("invite_kind"));
   assert.ok(failures(draft(3, GOOD3, [ids.water], null)).includes("invite_kind"));
+  assert.ok(failures(draft(3, GOOD3, [ids.water], "sound")).includes("invite_kind"));
 });
 
 test("model output is parsed with aliases mapped to stored ids and unknown refs kept for rejection", () => {
-  const { prompt, aliases } = buildAiNotePrompt({ evidence: ev(), allowInvite: true, avoidInviteKinds: ["sound"] });
+  const { prompt, aliases } = buildAiNotePrompt({ evidence: ev(), inviteKind: "other_angle" });
   assert.match(prompt, /e1: /);
-  assert.doesNotMatch(prompt, /sound=/);
+  assert.match(prompt, /種類は other_angle/);
+  assert.match(prompt, /枠2は出さない/);
+  assert.doesNotMatch(buildAiNotePrompt({ evidence: ev(), inviteKind: null }).prompt, /種類は/);
   const out = JSON.stringify({ slots: [
     { slot: 3, text: GOOD3, evidence: ["e2"], invite_kind: "step_back_whole" },
     { slot: 1, text: GOOD1, evidence: ["e2", "e9", "e1"], invite_kind: "none" },
@@ -145,7 +152,7 @@ const stored = (slot: 1 | 2 | 3, text: string, evidenceIds: string[], invite: st
 });
 
 test("only passing slots show; a corrected evidence item hides exactly the slots that cite it", () => {
-  const rows = [stored(1, GOOD1, [ids.water, ids.heron]), stored(2, "足もとの面は水と読み取れます。", [ids.surface]), stored(3, GOOD3, [ids.water], "step_back_whole")];
+  const rows = [stored(1, GOOD1, [ids.water, ids.heron]), stored(2, GOOD2, [ids.heron, ids.note]), stored(3, GOOD3, [ids.water], "step_back_whole")];
   const now = ev({ taxonNotes: [note] });
   assert.deepEqual(visibleAiNoteSlots(rows, now, { owner: true }).visible.map((s) => s.slot), [1, 2, 3]);
   const corrected = buildAiNoteEvidence(reading({
@@ -153,8 +160,8 @@ test("only passing slots show; a corrected evidence item hides exactly the slots
     place: base.recordLevel.place,
   }), { taxonNotes: [note] });
   const after = visibleAiNoteSlots(rows, corrected, { owner: true });
-  assert.deepEqual(after.visible.map((s) => s.slot), [2, 3]);
-  assert.deepEqual(after.staleSlots, [1]);
+  assert.deepEqual(after.visible.map((s) => s.slot), [3]);
+  assert.deepEqual(after.staleSlots, [1, 2]);
   const removed = visibleAiNoteSlots(rows, ev({ taxonNotes: [note] }, reading()), { owner: true });
   assert.deepEqual(removed.visible, []);
   assert.deepEqual([...removed.staleSlots].sort(), [1, 2, 3]);
@@ -170,6 +177,57 @@ test("slot 3 is never visible to a viewer who is not the owner, even if stored a
 test("stale-status rows, rule-breaking stored text and over-long totals are never rendered", () => {
   assert.deepEqual(visibleAiNoteSlots([stored(1, GOOD1, [ids.water, ids.heron], null, "stale")], ev(), { owner: true }).visible, []);
   assert.deepEqual(visibleAiNoteSlots([stored(1, "水面が写っているので、よく撮れています。", [ids.water])], ev(), { owner: true }).visible, []);
+  assert.deepEqual(visibleAiNoteSlots([stored(1, "6枚の写真には、舗装された人工の面の上にいるコガネムシの仲間のようです。", [ids.water])], ev(), { owner: true }).visible, []);
   assert.deepEqual(finalizeVisibleAiNoteSlots([{ slot: 1, text: "上手ですね。" }, { slot: 2, text: "水面があります。" }], true).map((s) => s.slot), [2]);
   assert.ok(checkAiNoteSlotWithRefs(draft(1, GOOD1, []), [{ id: ids.water, fp: "x" }, { id: ids.heron, fp: "y" }], evidenceMap(ev())).includes("evidence_stale"));
+});
+
+test("slot 1 must be a visible fact plus what it lets us know, in natural one-clause Japanese", () => {
+  for (const text of [
+    "6枚の写真には、舗装された人工の面の上にいるコガネムシの仲間のようです。",
+    "水面が写っています。",
+    "水面を写真に収めました。",
+    "水面が記録されています。",
+    "水面が写っているので、よい場所です。",
+    "水面が写っているので、水辺の環境が分かります。",
+    "水面が写っているので、水面が広がる場所が分かります。",
+    "水面が写っているので、人の手が入っていない場所だと分かります。",
+    "コガネムシの仲間のようですと水面が写っているので、水辺だと分かります。",
+    "水面が写っていて、水辺で、浅くて、深さが分かります。",
+  ]) assert.ok(failures(draft(1, text, [ids.water])).some((code) => ["reveal_missing", "narration", "fluency", "length", "banned"].includes(code)), text);
+  for (const text of [
+    "水面と足もとまで写っているので、鳥が待つ場所の深さが分かります。",
+    "柵と低い草が写っているので、人の手が入った草地だと分かります。",
+    "木の茂みと日陰が写っているので、日差しの少ない林だと分かります。",
+  ]) assert.deepEqual(failures(draft(1, text, [ids.water])).filter((code) => code !== "evidence_missing"), [], text);
+});
+
+test("check 2c: narration and evaluation-like wording is rejected in every slot", () => {
+  for (const text of ["写真に収めました。", "記録されています。", "貴重な場所です。", "素敵な景色です。", "魅力のある水辺です。", "草むらで過ごしています。"]) {
+    assert.ok(failures(draft(2, text, [ids.water])).some((code) => code === "narration" || code === "banned"), text);
+  }
+});
+
+test("slot 3 is chosen from what the stored readings lack and does not collapse to one pattern", () => {
+  const oneClose = reading({ found: [organism(HERON, "アオサギ")], place: place() }, 1);
+  assert.ok(eligibleInviteKinds(oneClose).includes("step_back_whole"));
+  assert.ok(eligibleInviteKinds(oneClose).includes("other_angle"));
+  assert.ok(eligibleInviteKinds(oneClose).includes("sound"));
+  assert.ok(eligibleInviteKinds(oneClose).includes("ground_contact"));
+  const withFence = reading({ found: [organism(HERON, "コガネムシ"), feature(WATER, "fence", "柵")], place: place({ place_type: { itemId: SURFACE, code: "urban", labelJa: "まちなか", state: "ai_read", actorKind: "ai", locator: full } }) }, 4);
+  assert.ok(!eligibleInviteKinds(withFence).includes("scale_reference"));
+  assert.ok(!eligibleInviteKinds(withFence).includes("other_angle"));
+  assert.ok(!eligibleInviteKinds(withFence).includes("step_back_whole"));
+  assert.deepEqual(eligibleInviteKinds(reading({}, 1)), ["ground_contact"]);
+  assert.equal(chooseInviteKind([], "r", []), null);
+  assert.equal(chooseInviteKind(["sound"], "r", ["sound"]), null);
+  const eligible = eligibleInviteKinds(oneClose);
+  const counts = new Map<string, number>();
+  for (let index = 0; index < 400; index += 1) {
+    const kind = chooseInviteKind([...eligible, "other_season"], `record-${index}`, [])!;
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  assert.ok(Math.max(...counts.values()) <= 400 * 0.3, JSON.stringify([...counts]));
+  assert.ok(counts.size >= 4);
+  assert.ok((counts.get("other_season") ?? 0) < 400 * 0.3);
 });
