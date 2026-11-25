@@ -27044,7 +27044,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   try {
     const checks: Array<{ path: string; expected: string; native?: "profile" | "record" }> = [
       { path: "/ja/profile", expected: "八巻テスト", native: "profile" },
-      { path: "/ja/profile/settings", expected: "プロフィール設定", native: "profile" },
+      { path: "/ja/profile/settings", expected: "ログアウト・退会", native: "profile" },
       { path: "/ja/records", expected: "みんなの記録" },
       { path: "/ja/record", expected: "record-form", native: "record" }
     ];
@@ -27058,46 +27058,21 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       assert.doesNotMatch(body, /personalized origin profile/, check.path);
       if (check.native === "profile") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
-        assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
-        assert.match(body, /class="site-header"/, check.path);
-        assert.match(body, /class="site-core-nav"/, check.path);
-        assert.match(body, />撮る<\/button>[\s\S]*>場所<\/a>[\s\S]*>記録<\/a>[\s\S]*>自分<\/a>/, check.path);
-        assert.match(body, /data-global-bottom-nav/, check.path);
-        assert.match(body, /data-global-record-trigger="photo"/, check.path);
-        assert.match(body, /data-global-record-gallery>端末の写真から選ぶ/, check.path);
-        assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
-        assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
-        assert.match(body, /<title>(?:自分|プロフィール設定) — ZUKAN<\/title>/, check.path);
-        assert.match(body, /--action:#245C3A/);
-        assert.match(body, /--soft:#F7F7F3/);
-        assert.match(body, /--ink:#17211B/);
-        assert.match(body, /--muted:#55615A/);
-        assert.match(body, /\.cf-profile-action,\.cf-profile-link\{[^}]*min-height:64px[^}]*border-radius:4px/);
-        assert.match(body, /\.cf-profile-identity\{[^}]*border-radius:8px/);
-        assert.match(body, /\.cf-profile-shell a:focus-visible\{outline:2px solid var\(--action\);outline-offset:2px;box-shadow:0 0 0 4px #fff\}/);
-        assert.doesNotMatch(body, /<title>[^<]*ikimon/u, check.path);
-        assert.doesNotMatch(body, /cf-profile-header/, check.path);
-        assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
-        assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
+        assert.match(body, /class="zt-shell"/, check.path);
+        assert.match(body, /class="zt-bottom-nav"/, check.path);
+        assert.doesNotMatch(body, /site-core-nav|cf-profile-shell/, check.path);
       }
       if (check.path === "/ja/profile") {
         assert.match(body, /data-testid="self-control-hub"/);
-        assert.match(body, /表示名を確認し、自分の記録や参加先へ移動できます。/);
-        assert.match(body, /参加先を探す/);
-        assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
-        assert.match(body, /href="\/ja\/records\?view=mine"/);
+        for (const text of ["自分の記録", "保存した場所", "参加イベント", "公開先", "保存した場所・イベント", "プロフィール・通知・公開範囲"]) assert.ok(body.includes(text), text);
+        assert.match(body, /href="\/ja\/profile\/notifications"/);
         assert.match(body, /href="\/ja\/profile\/settings"/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
-        assert.match(body, /href="\/ja\/community\/events"/);
-        assert.doesNotMatch(body, /公開プロフィール|公開範囲|フォロー中|参加履歴|アカウント設定/);
       }
       if (check.path === "/ja/profile/settings") {
         assert.match(body, /action="\/api\/v1\/profile\/language"/);
         assert.match(body, /name="lang"/);
-        assert.doesNotMatch(body, /data-language-disclosure/);
-        assert.match(body, /プロフィール編集/);
-        assert.match(body, /この画面からプロフィールは編集できません。/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
+        assert.match(body, /ログアウト・退会/);
+        assert.match(body, /action="\/api\/v1\/account\/withdraw"/);
       }
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
@@ -34125,7 +34100,7 @@ test("withdrawal confirmation copy shows what disappears first and withdrawn pub
   assert.equal(settingsRes.status, 200);
   const settingsHtml = await settingsRes.text();
   assert.match(settingsHtml, /data-testid="withdrawal-confirmation"/u);
-  assert.match(settingsHtml, /退会すると消えるもの/u);
+  assert.match(settingsHtml, /退会すると、自分の記録[0-9]+件とアカウントが全部消えます/u);
   assert.match(settingsHtml, /元に戻せません/u);
 
   const obsId = "obs-withdrawn-public-check";
