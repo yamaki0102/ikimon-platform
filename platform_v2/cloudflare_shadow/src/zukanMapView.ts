@@ -9,6 +9,7 @@ type PlacePinRow = {
   lng: number | null;
   record_count?: number | null;
   photo_asset_id?: string | null;
+  latest_record?: string | null;
 };
 
 const PUBLIC_MEMBERSHIP_FILTER = `m.place_id = p.place_id
@@ -26,7 +27,13 @@ const PLACE_CARD_COLUMNS = `,
                JOIN observations o ON o.observation_id = m.record_id
                JOIN asset_ledger a ON a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed'
               WHERE ${PUBLIC_MEMBERSHIP_FILTER}
-              ORDER BY o.observed_at DESC LIMIT 1) AS photo_asset_id`;
+              ORDER BY o.observed_at DESC LIMIT 1) AS photo_asset_id,
+            (SELECT json_object('id', o.observation_id, 'label', o.taxon_label, 'at', o.observed_at,
+                      'asset', (SELECT a.asset_id FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed' LIMIT 1))
+               FROM record_place_memberships m
+               JOIN observations o ON o.observation_id = m.record_id
+              WHERE ${PUBLIC_MEMBERSHIP_FILTER}
+              ORDER BY o.observed_at DESC LIMIT 1) AS latest_record`;
 
 type SessionLike = {
   userId: string;
@@ -91,6 +98,15 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
     }
   }
 
+  const parseLatest = (raw: string | null | undefined) => {
+    if (!raw) return null;
+    try {
+      const v = JSON.parse(raw) as { id?: string; label?: string | null; at?: string | null; asset?: string | null };
+      return v.id ? { observationId: v.id, label: v.label ?? null, observedAt: v.at ?? null, photoAssetId: v.asset ?? null } : null;
+    } catch {
+      return null;
+    }
+  };
   return rows.map((row) => ({
     placeId: row.place_id,
     name: row.name,
@@ -98,6 +114,7 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
     lng: row.lng,
     recordCount: Number(row.record_count ?? 0) || 0,
     photoAssetId: row.photo_asset_id ?? null,
+    latestRecord: parseLatest(row.latest_record),
   }));
 }
 
