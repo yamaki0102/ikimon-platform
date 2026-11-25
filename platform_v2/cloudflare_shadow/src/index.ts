@@ -41,6 +41,7 @@ import {
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
+import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
   handleGetEventGuestPhoto,
   handleListEventGuestObservations,
@@ -3906,6 +3907,14 @@ export const worker = {
         const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const eventGalleryShareMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(gallery|share)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventGalleryShareMatch?.[2] && eventGalleryShareMatch?.[3]) {
+        const viewLang = (eventGalleryShareMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventGalleryShareMatch[3] as "gallery" | "share";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventAlbumOrShareRoute(decodeURIComponent(eventGalleryShareMatch[2]), view, url.origin, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
