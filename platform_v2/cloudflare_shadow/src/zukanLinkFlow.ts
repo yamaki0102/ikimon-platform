@@ -24,6 +24,8 @@ export type LinkLedgerRecord = {
   linkedAt: string;
 };
 
+const LINK_FLOW_PATHS = ["/library/link", "/library/link/confirm", "/library/link/done"];
+
 export const LINK_TARGETS_ENABLED: LinkTargetKind[] = ["place", "event"];
 
 export const ZUKAN_LINK_FLOW_STYLES = `
@@ -246,7 +248,7 @@ export async function handleZukanLinkFlowRoute(
   url: URL,
   nativePathname: string
 ): Promise<Response | null> {
-  if (nativePathname !== "/library/link" && !nativePathname.startsWith("/library/link/")) return null;
+  if (!LINK_FLOW_PATHS.includes(nativePathname)) return null;
   const lang = publicLangFromPath(url.pathname) ?? "ja";
   const prefix = `/${lang}`;
   const session = await readCompatibleSession(request, env).catch(() => null);

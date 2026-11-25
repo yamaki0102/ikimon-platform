@@ -3723,7 +3723,7 @@ export const worker = {
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
       }
 
-      if (nativePathname === "/library/link" || nativePathname.startsWith("/library/link/")) {
+      if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
         const linkFlowResponse = await handleZukanLinkFlowRoute(request, env, url, nativePathname);
         if (linkFlowResponse) return linkFlowResponse;
       }
