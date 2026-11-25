@@ -113,7 +113,7 @@ export async function handleGetObservationEvidence(
 ): Promise<Response> {
   const row = await obsDb
     .prepare(
-      `SELECT observation_id, user_id, visibility, observed_at, location_precision, place_id
+      `SELECT observation_id, owner_user_id AS user_id, visibility, observed_at, 'grid' AS location_precision, NULL AS place_id
        FROM observations
        WHERE observation_id = ?`
     )
