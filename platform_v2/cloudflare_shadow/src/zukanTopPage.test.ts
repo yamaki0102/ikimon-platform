@@ -50,6 +50,9 @@ test("renderZukanTopPage logged-out renders owner hero photos, waitlist CTA, and
   assert.match(html, /公開されている場所の図鑑/);
   assert.match(html, /記録 128件/);
   assert.match(html, /近くのイベントを見る/);
+  assert.match(html, /data-zk-hero="designed"/);
+  assert.doesNotMatch(html, /<section class="zk-hero[^>]*>s*<img/);
+  assert.match(html, /zk-place-ph/);
   assert.doesNotMatch(html, /0件|まだありません/);
 });
 
