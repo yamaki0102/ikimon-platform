@@ -33,12 +33,13 @@ test("POST /api/v1/record/links enforces auth (401) and owner check (403)", asyn
   assert.equal(unauthRes.status, 401);
 
   const obsDbOther = {
-    prepare() {
+    prepare(sql: string) {
+      assert.match(sql, /SELECT\s+owner_user_id\s+FROM\s+observations/i);
       return {
         bind() {
           return {
             async first() {
-              return { user_id: "other_user" };
+              return { owner_user_id: "other_user" };
             },
           };
         },
@@ -61,12 +62,13 @@ test("POST /api/v1/record/links enforces auth (401) and owner check (403)", asyn
 test("handleSaveRecordLinks saves link targets for observation owner", async () => {
   const writes: unknown[][] = [];
   const obsDb = {
-    prepare() {
+    prepare(sql: string) {
+      assert.match(sql, /SELECT\s+owner_user_id\s+FROM\s+observations/i);
       return {
         bind() {
           return {
             async first() {
-              return { user_id: "owner_1" };
+              return { owner_user_id: "owner_1" };
             },
           };
         },
