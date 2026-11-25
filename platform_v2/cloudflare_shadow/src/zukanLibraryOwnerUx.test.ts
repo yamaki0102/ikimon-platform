@@ -120,3 +120,11 @@ test("owner area backfill: select-only, rounded cells, idempotent sql", () => {
   assert.match(sql.updates, /'a''b'/);
   assert.match(sql.rollback, /DELETE FROM owner_area_label_cache/);
 });
+
+test("owner area from reverse geocode: municipality, ward, village coarsening, non-Japan rejected", async () => {
+  const { ownerAreaLabelFromNominatim } = await import("./ownerAreaLabel");
+  assert.equal(ownerAreaLabelFromNominatim({ address: { country_code: "jp", state: "静岡県", city: "磐田市" } }), "磐田市");
+  assert.equal(ownerAreaLabelFromNominatim({ address: { country_code: "jp", state: "静岡県", city: "浜松市", city_district: "中央区" } }), "浜松市中央区");
+  assert.equal(ownerAreaLabelFromNominatim({ address: { country_code: "jp", state: "沖縄県", village: "今帰仁村" } }), "沖縄県");
+  assert.equal(ownerAreaLabelFromNominatim({ address: { country_code: "us", state: "X", city: "Y" } }), null);
+});

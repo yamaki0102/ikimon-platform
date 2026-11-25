@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { areaLabelForLocality, cellLocalityFromNominatim, type CellLocality } from "../src/areaLabelBackfill";
 import {
   OWNER_AREA_BACKFILL_SQL,
   buildOwnerAreaBackfillSql,
   ownerAreaCellKey,
+  ownerAreaLabelFromNominatim,
   type OwnerAreaBackfillRow,
 } from "../src/ownerAreaLabel";
 
@@ -36,7 +36,7 @@ async function main(): Promise<void> {
   await mkdir(outDir, { recursive: true });
   const cacheFile = path.resolve(arg("--cache") ?? path.join(outDir, "cell-cache.json"));
   const rows: OwnerAreaBackfillRow[] = snapshot ? JSON.parse(await readFile(snapshot, "utf8")) : d1Select<OwnerAreaBackfillRow>(d1!, OWNER_AREA_BACKFILL_SQL);
-  let cache: Record<string, CellLocality | null> = {};
+  let cache: Record<string, string | null> = {};
   try { cache = JSON.parse(await readFile(cacheFile, "utf8")); } catch { cache = {}; }
   const cells = new Set<string>();
   for (const row of rows) { const key = ownerAreaCellKey(row); if (key) cells.add(key); }
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     const [lat, lng] = key.split(",");
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&accept-language=ja&zoom=12&lat=${lat}&lon=${lng}`, { headers: { Accept: "application/json", "User-Agent": UA } });
-      cache[key] = response.ok ? cellLocalityFromNominatim(await response.json()) : null;
+      cache[key] = response.ok ? ownerAreaLabelFromNominatim(await response.json()) : null;
     } catch {
       cache[key] = null;
     }
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   const preview = ["observation_id,cell,label"];
   for (const row of rows) {
     const key = ownerAreaCellKey(row);
-    const label = key ? areaLabelForLocality(cache[key] ?? null, "none") : null;
+    const label = key ? cache[key] ?? null : null;
     const reason = !key ? "no_cell" : label ? "fill" : "unresolved";
     byReason[reason] = (byReason[reason] ?? 0) + 1;
     preview.push([row.observation_id, key ?? "", label ?? ""].join(","));

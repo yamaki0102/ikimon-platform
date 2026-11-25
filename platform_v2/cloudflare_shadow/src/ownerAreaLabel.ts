@@ -64,3 +64,12 @@ export function buildOwnerAreaBackfillSql(entries: ReadonlyArray<{ observationId
   const down = entries.map((e) => `DELETE FROM owner_area_label_cache WHERE observation_id = ${sqlText(e.observationId)} AND label = ${sqlText(e.label)};`);
   return { updates: up.join("\n") + (up.length ? "\n" : ""), rollback: down.join("\n") + (down.length ? "\n" : "") };
 }
+
+export function ownerAreaLabelFromNominatim(response: unknown): string | null {
+  const address = (response as { address?: Record<string, string | undefined> } | null)?.address;
+  if (!address || typeof address !== "object" || String(address.country_code ?? "").toLowerCase() !== "jp") return null;
+  const city = String(address.city || address.town || address.village || address.municipality || address.county || "").trim();
+  const ward = String(address.city_district || address.borough || address.district || address.ward || "").trim();
+  const municipality = /市$/u.test(city) && /区$/u.test(ward) && !ward.startsWith(city) ? city + ward : city;
+  return resolveSafePublicAreaLabel({ municipality, prefecture: String(address.state || address.province || address.region || "").trim() });
+}
