@@ -1553,6 +1553,36 @@ test("unsupported close-up focus offers device camera and back-to-standard inste
   assert.equal(runtime.start.hidden, false);
 });
 
+test("close-up internals stay identical after the capture-screen rebuild: constraints, timeouts, zoom, focus, tap-focus, torch and capability gate", () => {
+  const engine = globalRecordEntryAsset().content.toString("utf8");
+  for (const fragment of [
+    "const CAMERA_START_TIMEOUT_MS = 10000;",
+    "const CAMERA_PHOTO_IDEAL_WIDTH = 2560;",
+    "const CAMERA_PHOTO_IDEAL_HEIGHT = 1920;",
+    "const CAMERA_VIDEO_IDEAL_WIDTH = 1280;",
+    "const CAMERA_VIDEO_IDEAL_HEIGHT = 720;",
+    "facingMode: { ideal: 'environment' },",
+    "width: { ideal: CAMERA_PHOTO_IDEAL_WIDTH },",
+    "height: { ideal: CAMERA_PHOTO_IDEAL_HEIGHT },",
+    "['continuous', 'single-shot', 'manual'].includes(mode)",
+    "if (options.requireFocusMode && !streamHasCloseupFocusMode(stream)) {\n        throw makeError('focus_unsupported');\n      }",
+    "cameraZoomTrack.applyConstraints({ advanced: [{ zoom: next }] })",
+    "cameraFocusTrack.applyConstraints({ advanced: [manualConstraint] })",
+    "cameraFocusTrack.applyConstraints({ advanced: [{ focusMode: cameraFocusAutoMode }] })",
+    "track.applyConstraints({ advanced: [constraint] })",
+    "track.applyConstraints({ advanced: [{ torch: Boolean(on) }] })",
+  ]) assert.ok(engine.includes(fragment), fragment);
+  assert.equal(engine.split("getUserMedia(constraints)").length - 1, 1);
+});
+
+test("capture-screen engine mode is inert unless the capture stage exists and exposes only the documented API", () => {
+  const engine = globalRecordEntryAsset().content.toString("utf8");
+  assert.ok(engine.includes("const embeddedCapture = Boolean(document.querySelector('[data-zukan-capture-stage]'));"));
+  assert.ok(engine.includes("window.ikimonCaptureEngine = {"));
+  assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*window\.ikimonCaptureEngine = \{\s*begin: embeddedBegin,\s*setCloseup: embeddedApplyCloseup,\s*shutter:[\s\S]*stop:[\s\S]*state: embeddedState,\s*caps: embeddedCaps,\s*clearError: hideCameraError,\s*torch:/);
+  assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*emitCapture\('ikimon-capture-photo'/);
+});
+
 test("privacy and terms render the operator statement; other pages do not", () => {
   for (const path of ["/ja/privacy", "/ja/terms", "/en/privacy"]) {
     const html = renderRecordPage({ basePath: "", title: "t", body: "<p>b</p>", lang: path.startsWith("/en") ? "en" : "ja", currentPath: path });

@@ -2048,6 +2048,33 @@ export function recordMacroCameraLabel(lang: SiteLang): string {
   return sourceChoiceCopy(lang).macro;
 }
 
+export function renderRecordCaptureEngineAssets(basePath: string, lang: SiteLang): string {
+  return globalRecordEntryScript(basePath, lang, true);
+}
+
+export function recordCaptureCameraCopy(lang: SiteLang): {
+  errorTitle: string;
+  errorBody: string;
+  focusUnsupported: string;
+  focusFallbackDevice: string;
+  focusFallbackStandard: string;
+  retry: string;
+  gallery: string;
+  native: string;
+} {
+  const copy = globalRecordEntryCopy(lang);
+  return {
+    errorTitle: copy.errorTitle,
+    errorBody: copy.errorBody,
+    focusUnsupported: copy.startErrors.focus_unsupported,
+    focusFallbackDevice: copy.focusFallbackDevice,
+    focusFallbackStandard: copy.focusFallbackStandard,
+    retry: copy.retry,
+    gallery: copy.gallery,
+    native: sourceChoiceCopy(lang).native,
+  };
+}
+
 function globalRecordSheetMarkup(lang: SiteLang): string {
   const copy = globalRecordEntryCopy(lang);
   return `
@@ -2137,6 +2164,12 @@ function globalRecordEntryScriptBody(configPrelude: string, sourceChoice: (key: 
 ${configPrelude}
   const CAMERA_START_TIMEOUT_MS = 10000;
   const REQUIRE_CLOSEUP_FOCUS = true;
+  const streamHasCloseupFocusMode = (stream) => {
+    const track = stream.getVideoTracks()[0];
+    const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
+    const modes = capabilities && capabilities.focusMode;
+    return Array.isArray(modes) && modes.some((mode) => ['continuous', 'single-shot', 'manual'].includes(mode));
+  };
   const requestCameraStream = async (mediaDevices, constraints, options = {}) => {
     const makeError = (reason, cause) => {
       const error = new Error(reason, { cause });
@@ -2161,13 +2194,8 @@ ${configPrelude}
           }, options.timeoutMs ?? CAMERA_START_TIMEOUT_MS);
         }),
       ]);
-      if (options.requireFocusMode) {
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
-        const modes = capabilities && capabilities.focusMode;
-        if (!Array.isArray(modes) || !modes.some((mode) => ['continuous', 'single-shot', 'manual'].includes(mode))) {
-          throw makeError('focus_unsupported');
-        }
+      if (options.requireFocusMode && !streamHasCloseupFocusMode(stream)) {
+        throw makeError('focus_unsupported');
       }
       return stream;
     } catch (error) {
@@ -2216,6 +2244,11 @@ ${configPrelude}
   let photoDraftSubmitConfirmUntil = 0;
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
+  let closeupRequired = true;
+  const embeddedCapture = Boolean(document.querySelector('[data-zukan-capture-stage]'));
+  const emitCapture = (name, detail) => {
+    try { document.dispatchEvent(new CustomEvent(name, { detail: detail || {} })); } catch (_) {}
+  };
   let cameraZoomTrack = null;
   let cameraZoomMin = 1;
   let cameraZoomMax = 1;
@@ -2976,6 +3009,7 @@ ${configPrelude}
     const capabilities = track.getCapabilities ? track.getCapabilities() : {};
     const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
     const attempts = [];
+    emitCapture('ikimon-capture-focus', { phase: 'start', clientX, clientY });
     if (modes.indexOf('single-shot') >= 0) attempts.push({ focusMode: 'single-shot', pointsOfInterest: [point] });
     attempts.push({ pointsOfInterest: [point] });
     if (modes.indexOf('continuous') >= 0) attempts.push({ focusMode: 'continuous', pointsOfInterest: [point] });
@@ -2984,9 +3018,11 @@ ${configPrelude}
         await track.applyConstraints({ advanced: [constraint] });
         if (focusValue) focusValue.textContent = 'AF';
         setStatus('タップした位置にフォーカスを合わせました。');
+        emitCapture('ikimon-capture-focus', { phase: 'done', clientX, clientY });
         return true;
       } catch (_) {}
     }
+    emitCapture('ikimon-capture-focus', { phase: 'fail', clientX, clientY });
     return false;
   };
   const photoDraftSubmitLabel = () => selectedPhotoDraftFiles().length > 0 ? '投稿' : '写真を撮る';
@@ -3778,6 +3814,7 @@ ${configPrelude}
     hideCameraError();
     if (window.isSecureContext === false || !(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function')) {
       showCameraError(false);
+      emitCapture('ikimon-capture-start-failed', { reason: window.isSecureContext === false ? 'insecure_context' : 'unsupported', permissionDenied: false });
       sendGlobalRecordEvent('camera_unavailable', 'camera_unavailable', { reason: window.isSecureContext === false ? 'insecure_context' : 'unsupported' });
       sendGlobalRecordErrorKpi('camera_start_failed', 'media_devices_unavailable', {
         durationMs: durationSince(cameraStartedAt),
@@ -3805,7 +3842,7 @@ ${configPrelude}
         audio: activeKind === 'video',
       };
       const stream = await requestCameraStream(navigator.mediaDevices, constraints, {
-        requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS,
+        requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS && closeupRequired,
       });
       if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) {
         stream.getTracks().forEach((track) => track.stop());
@@ -3852,6 +3889,7 @@ ${configPrelude}
         ? CAMERA_COPY.permissionBody
         : CAMERA_COPY.startErrors[reason] || CAMERA_COPY.errorBody;
       if (reason === 'focus_unsupported') setFocusFallbackActions(true);
+      emitCapture('ikimon-capture-start-failed', { reason, permissionDenied });
       sendGlobalRecordEvent(permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', {
         reason,
       });
@@ -4054,7 +4092,7 @@ ${configPrelude}
     const captureRequestId = cameraRequestId;
     const captureEpoch = photoPreviewEpoch;
     const capturePagePath = String(window.location.pathname || '');
-    const captureOwnerContext = draftOwnerContext();
+    const captureOwnerContext = embeddedCapture ? null : draftOwnerContext();
     const captureIsCurrent = () => captureRequestId === cameraRequestId
       && captureEpoch === photoPreviewEpoch
       && activeKind === 'photo'
@@ -4075,6 +4113,18 @@ ${configPrelude}
       if (!captureIsCurrent()) return;
       if (!blob) {
         setStatus('写真を保存できませんでした。');
+        return;
+      }
+      if (embeddedCapture) {
+        const embeddedFile = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+        sendGlobalRecordEvent('capture_completed', 'capture_completed', { mediaType: 'photo' });
+        sendGlobalRecordKpi('capture_encode_ms', durationSince(encodeStartedAt), {
+          width,
+          height,
+          blobBytes: Number(blob.size || 0),
+        });
+        capturePressedAt = 0;
+        emitCapture('ikimon-capture-photo', { file: embeddedFile, width, height, closeup: closeupRequired, capturedAt: Date.now() });
         return;
       }
       let capturedOwner;
@@ -4143,6 +4193,13 @@ ${configPrelude}
       const type = recordedChunks[0] ? recordedChunks[0].type || 'video/webm' : 'video/webm';
       const blob = new Blob(recordedChunks, { type });
       const file = new File([blob], 'ikimon-video-' + Date.now() + '.webm', { type, lastModified: Date.now() });
+      if (embeddedCapture) {
+        mediaRecorder = null;
+        recordedChunks = [];
+        emitCapture('ikimon-capture-recording', { recording: false, seconds: 0 });
+        emitCapture('ikimon-capture-video', { file, capturedAt: Date.now() });
+        return;
+      }
       if (captureButton) {
         captureButton.disabled = false;
         captureButton.textContent = '録画開始';
@@ -4161,11 +4218,14 @@ ${configPrelude}
     };
     recordingStartedAt = Date.now();
     mediaRecorder.start(1000);
+    emitCapture('ikimon-capture-recording', { recording: true, seconds: 0 });
     if (captureButton) captureButton.textContent = '録画停止';
     setFooterActionMode('capture');
     setStatus('録画中 0秒 / 記録は最大60秒。あとで区間を選べます');
     recordingTimer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
+      emitCapture('ikimon-capture-recording', { recording: true, seconds: elapsed });
+      if (embeddedCapture && elapsed >= VIDEO_MAX_SECONDS) stopVideoRecording();
       setStatus('録画中 ' + String(elapsed) + '秒 / 記録は最大60秒。あとで区間を選べます');
     }, 500);
   };
@@ -4476,6 +4536,98 @@ ${configPrelude}
     if (captureButton) captureButton.hidden = true;
     setFooterActionMode('start');
   });
+
+  if (embeddedCapture) {
+    let embeddedStart = null;
+    const embeddedCaps = () => {
+      const track = activeStream && activeStream.getVideoTracks ? activeStream.getVideoTracks()[0] : null;
+      const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+      const modes = Array.isArray(caps.focusMode) ? caps.focusMode : [];
+      return {
+        zoom: Boolean(cameraZoomTrack && cameraZoomMax > cameraZoomMin),
+        zoomMax: cameraZoomMax,
+        focusDistance: Boolean(cameraFocusTrack),
+        autoFocusReturn: Boolean(cameraFocusAutoMode),
+        tapFocus: modes.indexOf('single-shot') >= 0 || modes.indexOf('continuous') >= 0,
+        torch: Boolean(caps.torch),
+      };
+    };
+    const embeddedState = () => ({
+      live: Boolean(activeStream),
+      kind: activeKind,
+      closeup: activeKind === 'photo' && closeupRequired,
+      recording: Boolean(mediaRecorder && mediaRecorder.state === 'recording'),
+      caps: embeddedCaps(),
+    });
+    const embeddedApplyCloseup = async (closeup) => {
+      closeupRequired = Boolean(closeup);
+      if (!activeStream || activeKind !== 'photo') return embeddedState();
+      if (!closeupRequired) {
+        hideCameraError();
+        return embeddedState();
+      }
+      if (!streamHasCloseupFocusMode(activeStream)) {
+        if (cameraErrorBody) cameraErrorBody.textContent = (CAMERA_COPY.startErrors || {}).focus_unsupported || CAMERA_COPY.errorBody || '';
+        setFocusFallbackActions(true);
+        if (cameraError) cameraError.hidden = false;
+        sendGlobalRecordEvent('camera_unavailable', 'camera_unavailable', { reason: 'focus_unsupported' });
+        emitCapture('ikimon-capture-closeup', { ok: false, reason: 'focus_unsupported' });
+        return embeddedState();
+      }
+      hideCameraError();
+      emitCapture('ikimon-capture-closeup', { ok: true });
+      return embeddedState();
+    };
+    const embeddedBegin = async (kind, closeup) => {
+      if (photoPreviewCloseInFlight) return embeddedState();
+      const nextKind = kind === 'video' ? 'video' : 'photo';
+      photoPreviewDismissed = false;
+      if (embeddedStart) await embeddedStart.catch(() => undefined);
+      if (activeKind && activeKind !== nextKind) {
+        cameraRequestId += 1;
+        cameraStartInFlight = false;
+        stopActiveStream();
+      }
+      activeKind = nextKind;
+      closeupRequired = nextKind === 'photo' && Boolean(closeup);
+      photoCaptureSource = nextKind === 'photo' ? 'camera' : '';
+      if (!activeStream) {
+        sheetOpenedAt = nowMs();
+        embeddedStart = startCamera().finally(() => { embeddedStart = null; });
+        await embeddedStart;
+        return embeddedState();
+      }
+      return embeddedApplyCloseup(closeupRequired);
+    };
+    window.ikimonCaptureEngine = {
+      begin: embeddedBegin,
+      setCloseup: embeddedApplyCloseup,
+      shutter: () => {
+        if (!activeStream) return false;
+        void captureFromSheet();
+        return true;
+      },
+      stop: () => {
+        cameraRequestId += 1;
+        cameraStartInFlight = false;
+        stopActiveStream();
+      },
+      state: embeddedState,
+      caps: embeddedCaps,
+      clearError: hideCameraError,
+      torch: async (on) => {
+        const track = activeStream && activeStream.getVideoTracks ? activeStream.getVideoTracks()[0] : null;
+        if (!track || !track.applyConstraints) return false;
+        try {
+          await track.applyConstraints({ advanced: [{ torch: Boolean(on) }] });
+          return true;
+        } catch (_) {
+          return false;
+        }
+      },
+    };
+    emitCapture('ikimon-capture-engine-ready');
+  }
 
   const restorePhotoPreview = async () => {
     // /record owns its own recovery: never steal its IndexedDB draft into the global sheet.

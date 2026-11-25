@@ -7,6 +7,10 @@ const indexSource = readFileSync(
   fileURLToPath(new URL("./index.ts", import.meta.url)),
   "utf8",
 );
+const entrySource = readFileSync(
+  fileURLToPath(new URL("./zukanRecordEntry.ts", import.meta.url)),
+  "utf8",
+);
 
 test("native record capture persists a stable media retry draft", () => {
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*indexedDB\.open\("ikimon-record-draft", 1\)/);
@@ -20,7 +24,7 @@ test("native record capture persists a stable media retry draft", () => {
   assert.match(indexSource, /if \(!recoverySubmissionId\) \{[\s\S]*recoveryObservedAt = new Date\(\)\.toISOString\(\)/);
   assert.match(indexSource, /observedAt: recoveryObservedAt/);
   assert.match(indexSource, /function renderCloudflareRecordHtml[\s\S]*location\.assign\(recordRecoveryHref\(\)\)/);
-  assert.match(indexSource, /id="record-media-photo"[^>]*multiple/);
+  assert.match(entrySource, /id="record-media-photo"[^>]*multiple/);
   assert.match(indexSource, /id="record-photo-review"/);
   assert.match(indexSource, /selectedPhotos\.push\(\.\.\.incoming\)/);
   assert.match(indexSource, /copy\.removePhoto \+ ": " \+ \(file\.name/);
