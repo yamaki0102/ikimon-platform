@@ -38,7 +38,7 @@ test("library (B1-B3, B6, B7) renders in common ZUKAN shell without changing bun
   assert.match(html, /1年前のこの場所/);
   assert.match(html, /zt-bottom-nav/);
   assert.match(html, /class="zt-avatar"[^>]*>テ</);
-  assert.match(html, /まだ自分だけに見えています/);
+  assert.match(html, /自分のみ/);
   assert.doesNotMatch(html, /data-zukan-otayori-fab="1"/);
   assert.match(html, /data-zukan-otayori-sidebar="1"[^>]*>改善のご要望<\/a>/);
   assert.match(html, /data-zukan-otayori-menu="1"[^>]*>改善のご要望<\/a>/);

@@ -1,6 +1,6 @@
 import type { Env } from "./core/env";
 import type { TopLibraryGroup, TopOneYearPair } from "./zukanTopPage";
-import { loadUserLibraryData } from "./zukanTopPage";
+import { loadUserLibraryData, loadUserLibraryGroup } from "./zukanTopPage";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 
 type Lang = "ja" | "en" | "es" | "pt-br";
@@ -158,13 +158,13 @@ export async function handleLibraryDetailRoute(
     const back = `${prefix}${nativePathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
     return new Response(null, { status: 302, headers: { location: `${prefix}/login?redirect=${encodeURIComponent(back)}`, "cache-control": "no-store" } });
   }
-  const data = await loadUserLibraryData(env, session.userId);
   const headers = { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store" };
   if (nativePathname === "/library/year-ago") {
+    const data = await loadUserLibraryData(env, session.userId);
     return new Response(renderLibraryYearAgoListPage(data.yearPairs, { lang, displayName: session.displayName }), { status: 200, headers });
   }
-  const key = searchParams.get("group") ?? "";
-  const group = data.groups.find((g) => g.groupKey === key);
+  const key = (searchParams.get("group") ?? "").slice(0, 160);
+  const group = await loadUserLibraryGroup(env, session.userId, key);
   if (!group) return new Response(null, { status: 302, headers: { location: `${prefix}/library`, "cache-control": "no-store" } });
   return new Response(renderLibraryGroupDetailPage(group, { lang, displayName: session.displayName }), { status: 200, headers });
 }

@@ -5,7 +5,7 @@ import { publicLangFromPath, readCompatibleSession } from "./core/shared";
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
   ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL,
-  loadUserLibraryData,
+  loadUserLibraryGroup,
   type TopLibraryGroup,
 } from "./zukanTopPage";
 
@@ -276,8 +276,7 @@ export async function handleZukanLinkFlowRoute(
   };
 
   const groupKey = param("group").slice(0, 160);
-  const library = groupKey ? await loadUserLibraryData(env, session.userId) : null;
-  const group = library?.groups.find((g) => g.groupKey === groupKey) ?? null;
+  const group = groupKey ? await loadUserLibraryGroup(env, session.userId, groupKey) : null;
   if (!group) return new Response(null, { status: 302, headers: { location: `${prefix}/library`, "cache-control": "no-store" } });
   const event = await findEventCandidate(env, session.userId, group.groupKey);
 

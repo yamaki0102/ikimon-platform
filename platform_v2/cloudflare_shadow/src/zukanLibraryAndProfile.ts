@@ -1,5 +1,6 @@
 import type { ZukanTopPageData } from "./zukanTopPage";
-import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderYearPairCard } from "./zukanLibraryBlocks";
+import { loadMoreScript } from "./ownerRecordPaging";
+import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderLibraryMore, renderYearPairCard } from "./zukanLibraryBlocks";
 import { ZUKAN_SHELL_CSS, renderZukanChrome, type ZukanShellNavKey } from "./zukanShellChrome";
 
 const escapeHtml = (value: string): string =>
@@ -46,13 +47,14 @@ export function renderZukanCommonShell(options: {
 }
 
 export function renderZukanLibraryPage(
-  data: Pick<ZukanTopPageData, "libraryGroups" | "oneYearPair">,
+  data: Pick<ZukanTopPageData, "libraryGroups" | "oneYearPair"> & { libraryNextCursor?: string | null },
   options: {
     lang: "ja" | "en" | "es" | "pt-br";
     authenticated: boolean;
     displayName?: string | null;
     searchQuery?: string;
     noticeHtml?: string;
+    continuation?: boolean;
   }
 ): string {
   const isEn = options.lang === "en";
@@ -60,11 +62,19 @@ export function renderZukanLibraryPage(
   const groupsHtml = data.libraryGroups.length > 0
     ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "library" })
     : renderLibraryEmpty({ prefix, isEn });
-  const pairHtml = data.oneYearPair && data.oneYearPair.photos.length > 0 ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
+  const pairHtml = !options.continuation && data.oneYearPair && data.oneYearPair.photos.length > 0 ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
+  let moreHtml = "";
+  if (data.libraryNextCursor && data.libraryGroups.length > 0) {
+    const params = new URLSearchParams();
+    if (options.searchQuery) params.set("q", options.searchQuery);
+    params.set("before", data.libraryNextCursor);
+    moreHtml = `${renderLibraryMore({ href: `${prefix}/library?${params.toString()}`, isEn })}${loadMoreScript({ list: ".zk-groups", more: "[data-library-more]", loading: isEn ? "Loading..." : "読み込み中…" })}`;
+  }
   const bodyHtml = `<h1 class="zt-sr-only">${isEn ? "Library" : "ライブラリ"}</h1>
     ${options.noticeHtml ?? ""}
     ${pairHtml}
-    ${groupsHtml}`;
+    ${groupsHtml}
+    ${moreHtml}`;
 
   return renderZukanCommonShell({
     lang: options.lang,

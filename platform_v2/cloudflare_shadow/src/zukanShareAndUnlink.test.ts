@@ -40,12 +40,12 @@ function setup() {
     createHash("sha256").update(token).digest("hex"), "u1", "はまっこ", "Observer", null, 0, "2099-01-01T00:00:00.000Z", null
   );
   obs.exec(`
-    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, public_area_label TEXT, note TEXT, visibility TEXT);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, public_area_label TEXT, note TEXT, visibility TEXT, exact_lat REAL, exact_lng REAL);
     CREATE TABLE asset_ledger (asset_id TEXT, observation_id TEXT, mime TEXT, processing_state TEXT, public_derivative_key TEXT, public_derivative_verified_at TEXT, public_derivative_metadata_json TEXT, exif_scrub_state TEXT, public_ready_at TEXT, uploaded_at TEXT);
   `);
-  obs.prepare("INSERT INTO observations VALUES (?,?,?,?,?,?,?)").run("o1", "u1", "2026-11-20T09:00:00.000Z", "朝の光のクスノキ", "連理の木の下で", "朝のクスノキ", "public");
-  obs.prepare("INSERT INTO observations VALUES (?,?,?,?,?,?,?)").run("o2", "u1", "2026-11-21T09:00:00.000Z", "ひみつ", "別の場所", "メモ", "private");
-  obs.prepare("INSERT INTO observations VALUES (?,?,?,?,?,?,?)").run("o3", "u2", "2026-11-21T09:00:00.000Z", "他人", "別の場所", "メモ", "public");
+  obs.prepare("INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, note, visibility) VALUES (?,?,?,?,?,?,?)").run("o1", "u1", "2026-11-20T09:00:00.000Z", "朝の光のクスノキ", "連理の木の下で", "朝のクスノキ", "public");
+  obs.prepare("INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, note, visibility) VALUES (?,?,?,?,?,?,?)").run("o2", "u1", "2026-11-21T09:00:00.000Z", "ひみつ", "別の場所", "メモ", "private");
+  obs.prepare("INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label, note, visibility) VALUES (?,?,?,?,?,?,?)").run("o3", "u2", "2026-11-21T09:00:00.000Z", "他人", "別の場所", "メモ", "public");
   for (const id of ["o1", "o2"]) {
     obs.prepare("INSERT INTO asset_ledger VALUES (?,?,?,?,?,?,?,?,?,?)").run(
       `a-${id}`, id, "image/jpeg", "uploaded", `derived/${id}/display.webp`, "2026-11-20T09:01:00.000Z", "{}", "scrubbed", "2026-11-20T09:01:00.000Z", "2026-11-20T09:00:30.000Z"

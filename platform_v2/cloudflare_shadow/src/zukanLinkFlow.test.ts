@@ -40,13 +40,13 @@ function setup() {
     createHash("sha256").update(token).digest("hex"), "u1", "はまっこ", "Observer", null, 0, "2099-01-01T00:00:00.000Z", null
   );
   obs.exec(`
-    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, public_area_label TEXT);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, public_area_label TEXT, exact_lat REAL, exact_lng REAL);
     CREATE TABLE asset_ledger (asset_id TEXT, observation_id TEXT, mime TEXT, processing_state TEXT, public_derivative_key TEXT, public_derivative_verified_at TEXT, public_derivative_metadata_json TEXT, exif_scrub_state TEXT, public_ready_at TEXT, uploaded_at TEXT);
     CREATE TABLE observation_event_sessions (session_id TEXT PRIMARY KEY, event_code TEXT, title TEXT, organizer_user_id TEXT, started_at TEXT, ended_at TEXT);
     CREATE TABLE observation_event_participants (session_id TEXT, user_id TEXT);
   `);
   for (const [id, label] of [["o1", "アオサギ"], ["o2", "カワセミ"], ["o3", "ススキ"]] as const) {
-    obs.prepare("INSERT INTO observations VALUES (?,?,?,?,?)").run(id, "u1", "2026-11-15T09:00:00.000Z", label, "東川の河川敷");
+    obs.prepare("INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label, public_area_label) VALUES (?,?,?,?,?)").run(id, "u1", "2026-11-15T09:00:00.000Z", label, "東川の河川敷");
     obs.prepare("INSERT INTO asset_ledger VALUES (?,?,?,?,?,?,?,?,?,?)").run(
       `a-${id}`, id, "image/jpeg", "uploaded", `derived/${id}/display.webp`, "2026-11-15T09:01:00.000Z", "{}", "scrubbed", "2026-11-15T09:01:00.000Z", "2026-11-15T09:00:30.000Z"
     );

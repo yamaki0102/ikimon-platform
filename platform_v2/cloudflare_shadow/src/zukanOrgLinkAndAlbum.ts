@@ -1,7 +1,7 @@
 import type { Env } from "./core/env";
 import { assertSameOriginRequest, escapeHtml, html } from "./core/http";
 import { publicLangFromPath, readCompatibleSession } from "./core/shared";
-import { loadUserLibraryData, type TopLibraryGroup } from "./zukanTopPage";
+import { loadUserLibraryGroup, type TopLibraryGroup } from "./zukanTopPage";
 
 export type OrgLinkStatus = "pending" | "approved" | "declined" | "cancelled" | "linked";
 
@@ -340,8 +340,7 @@ export async function handleZukanOrgLinkRoute(
   const findGroup = async (): Promise<TopLibraryGroup | null> => {
     const groupKey = param("group").slice(0, 160);
     if (!groupKey) return null;
-    const library = await loadUserLibraryData(env, session.userId);
-    return library.groups.find((g) => g.groupKey === groupKey) ?? null;
+    return loadUserLibraryGroup(env, session.userId, groupKey);
   };
   const loadRequest = async (): Promise<OrgLinkRequest | null> => {
     const id = param("id");
