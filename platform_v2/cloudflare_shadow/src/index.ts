@@ -7,6 +7,7 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
@@ -3730,6 +3731,11 @@ export const worker = {
         const searchQuery = url.searchParams.get("q") ?? "";
         const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
+      }
+
+      if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
+        const linkFlowResponse = await handleZukanLinkFlowRoute(request, env, url, nativePathname);
+        if (linkFlowResponse) return linkFlowResponse;
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {

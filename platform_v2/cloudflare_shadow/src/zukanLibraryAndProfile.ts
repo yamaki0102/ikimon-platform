@@ -131,7 +131,7 @@ export function renderZukanLibraryPage(
           (group) => `<section class="zt-group" data-library-group="${escapeHtml(group.groupKey)}">
             <div class="zt-group-head">
               <h2>${escapeHtml(group.headerLabel)}（${group.photos.length}）</h2>
-              <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/records?view=mine`)}">${group.published ? (isEn ? "Published" : "公開中・確認") : (isEn ? "Review & publish" : "まとめて確認・公開")}</a>
+              <a class="zt-btn-outline" href="${escapeHtml(group.published ? `${prefix}/records?view=mine` : `${prefix}/library/link?group=${encodeURIComponent(group.groupKey)}`)}">${group.published ? (isEn ? "Published" : "公開中・確認") : (isEn ? "Review & publish" : "まとめて確認・公開")}</a>
             </div>
             <div class="zt-lib-grid">
               ${group.photos
