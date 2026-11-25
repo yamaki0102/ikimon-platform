@@ -229,6 +229,7 @@ body[data-zukan-design] :is(a,button,input,textarea,select,summary):focus-visibl
 body[data-zukan-design] a:not([class],[aria-current]),body[data-zukan-app-experience] a:not([class],[aria-current]){color:var(--zukan-link);text-decoration-thickness:max(1px,.08em);text-underline-offset:.15em}
 body[data-zukan-design] a:not([class],[aria-current]):visited,body[data-zukan-app-experience] a:not([class],[aria-current]):visited{color:var(--zukan-link-visited)}
 body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state])[hidden]{display:none}
+body[data-zukan-design] :is([role=status],[role=alert],[data-zukan-ui-state]):empty{display:none}
 body[data-zukan-design] :where([role=status],[role=alert],[data-zukan-ui-state]):not(.is-hidden):not([hidden]){border-inline-start:4px solid var(--zukan-status-info);padding:var(--zukan-space-3);border-radius:var(--zukan-radius-content);background:var(--zukan-surface-subtle)}
 body[data-zukan-design] [role=alert],body[data-zukan-design] [data-zukan-ui-state=error]{border-inline-start-color:var(--zukan-status-error)}
 body[data-zukan-design] [data-zukan-ui-state=warning],body[data-zukan-design] [data-zukan-ui-state=permission]{border-inline-start-color:var(--zukan-status-warning)}

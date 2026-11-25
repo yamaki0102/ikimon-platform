@@ -175,3 +175,10 @@ test("K6: 初回同意の画面、2つ同意しないと進めない、同意す
   const lib2 = await worker.fetch(new Request(`${base}/ja/library`, { headers: { cookie } }), env);
   assert.doesNotMatch(await lib2.text(), /data-library-consent-prompt/);
 });
+
+test("K5 お知らせ: ロゴは画像、背景は白に固定", async () => {
+  const { renderNoticesPage } = await import("./zukanNoticesAndConsent");
+  const page = renderNoticesPage({ lang: "ja", notices: { maintenance: null, items: [] }, backHref: "/ja/" });
+  assert.match(page, /<img src="\/assets\/brand\/zukan-lockup\.svg" alt="ZUKAN"/);
+  assert.match(page, /html body\[data-zukan-design\],body\{margin:0;background:#fff/);
+});

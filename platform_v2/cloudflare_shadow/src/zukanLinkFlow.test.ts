@@ -170,3 +170,9 @@ test("名前なしでつないだ後、公開の面（未ログイン）にフ�
     assert.doesNotMatch(body, /はまっこ/, `${path} が名前を出している`);
   }
 });
+
+test("J1 つなぐ先: ロゴは画像、背景は白に固定", async () => {
+  const { ZUKAN_LINK_FLOW_STYLES } = await import("./zukanLinkFlow");
+  assert.match(ZUKAN_LINK_FLOW_STYLES, /html body\[data-zukan-design\],body\{margin:0;background:#fff/);
+  assert.match(ZUKAN_LINK_FLOW_STYLES, /\.lk-logo img/);
+});

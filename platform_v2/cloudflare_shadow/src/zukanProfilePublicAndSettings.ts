@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json, readJson } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader } from "./zukanSubpageUi";
 
 type SessionLike = {
   userId: string;
@@ -41,24 +42,22 @@ export async function handleProfilePublicSettingsRoute(
   }
 
   const isPublic = await isUserProfilePublic(db, session.userId);
-  const bodyHtml = `<section class="zt-hub-card" data-profile-view="i10-pub">
-    <h1>${isEn ? "Profile visibility settings" : "プロフィールの公開設定"}</h1>
-    <p>${
+  const bodyHtml = `<style>${ZUKAN_SUBPAGE_CSS}</style><section class="zt-sp" data-profile-view="i10-pub">
+    ${renderSubpageHeader({ title: isEn ? "Who can see this" : "公開の範囲", backHref: `${prefix}/profile/settings/edit`, backLabel: isEn ? "Back" : "戻る" })}
+    <p class="zt-sp-lead">${
       isEn
         ? "Your profile is private by default. When public, only your public record count, listed species, and recorded places are shown."
         : "既定は非公開です。公開にすると「公開中の記録」「図鑑に掲載」「記録した場所」の3つの数字だけが表示されます。"
     }</p>
-    <p>${isEn ? "Current status" : "現在の設定"}: <strong id="profile-vis-label">${
+    <p class="zt-sp-text">${isEn ? "Current status" : "現在の設定"}: <strong id="profile-vis-label">${
       isPublic ? (isEn ? "Public" : "公開中") : (isEn ? "Private (default)" : "非公開（既定）")
     }</strong></p>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      <button type="button" class="zt-btn-capture" id="profile-vis-toggle" data-next-public="${isPublic ? "false" : "true"}">${
-        isPublic
-          ? (isEn ? "Switch to private" : "非公開にする")
-          : (isEn ? "Make profile public" : "プロフィールを公開する")
-      }</button>
-      <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/u/${encodeURIComponent(session.userId)}`)}">${isEn ? "Preview public view" : "他人から見た表示を確認"}</a>
-    </div>
+    <button type="button" class="zt-sp-primary" id="profile-vis-toggle" data-next-public="${isPublic ? "false" : "true"}">${
+      isPublic
+        ? (isEn ? "Switch to private" : "非公開にする")
+        : (isEn ? "Make profile public" : "プロフィールを公開する")
+    }</button>
+    <a class="zt-sp-secondary" href="${escapeHtml(`${prefix}/u/${encodeURIComponent(session.userId)}`)}">${isEn ? "Preview public view" : "他人から見た表示を確認"}</a>
     <script>
       (() => {
         const btn = document.getElementById("profile-vis-toggle");
@@ -131,9 +130,9 @@ export async function handlePublicUserProfileRoute(
 
   let bodyHtml = "";
   if (!isPublic) {
-    bodyHtml = `<section class="zt-hub-card" data-profile-view="p2">
-      <h1>${isEn ? "Private profile" : "非公開のプロフィール"}</h1>
-      <p>${isEn ? "This profile is currently private." : "このプロフィールは非公開です。"}</p>
+    bodyHtml = `<style>${ZUKAN_SUBPAGE_CSS}</style><section class="zt-sp" data-profile-view="p2">
+      ${renderSubpageHeader({ title: isEn ? "Profile" : "プロフィール", backHref: `${prefix}/library`, backLabel: isEn ? "Back" : "戻る" })}
+      <p class="zt-sp-empty"><strong>${isEn ? "Private profile" : "非公開のプロフィール"}</strong><br>${isEn ? "This profile is currently private." : "このプロフィールは非公開です。"}</p>
     </section>`;
   } else {
     const stats = await db.prepare(
@@ -152,21 +151,16 @@ export async function handlePublicUserProfileRoute(
     const zukanSpecies = Number(stats?.zukan_species ?? 0);
     const placesCount = Number(stats?.places_count ?? 0);
 
-    bodyHtml = `<section class="zt-hub-card" data-profile-view="p1">
-      <h1>${isEn ? "Public profile" : "公開プロフィール"}</h1>
-      <div class="zt-hub-grid">
-        <div class="zt-hub-dest" data-stat-public-records="${publicRecords}">
-          <strong>${publicRecords}</strong>
-          <span>${isEn ? "Public records" : "公開中の記録"}</span>
-        </div>
-        <div class="zt-hub-dest" data-stat-zukan-species="${zukanSpecies}">
-          <strong>${zukanSpecies}</strong>
-          <span>${isEn ? "Listed in ZUKAN" : "図鑑に掲載"}</span>
-        </div>
-        <div class="zt-hub-dest" data-stat-places="${placesCount}">
-          <strong>${placesCount}</strong>
-          <span>${isEn ? "Recorded places" : "記録した場所"}</span>
-        </div>
+    bodyHtml = `<style>${ZUKAN_SUBPAGE_CSS}
+      .zt-pp-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid #dde2dc;border-radius:20px;background:#fff}
+      .zt-pp-stats div{display:grid;justify-items:center;gap:2px;padding:16px 4px;border-left:1px solid #dde2dc}.zt-pp-stats div:first-child{border-left:0}
+      .zt-pp-stats strong{font-size:1.5rem}.zt-pp-stats span{color:#55615a;font-size:.875rem;text-align:center}
+    </style><section class="zt-sp" data-profile-view="p1">
+      ${renderSubpageHeader({ title: isEn ? "Public profile" : "公開プロフィール", backHref: `${prefix}/library`, backLabel: isEn ? "Back" : "戻る" })}
+      <div class="zt-pp-stats">
+        <div data-stat-public-records="${publicRecords}"><strong>${publicRecords}</strong><span>${isEn ? "Public records" : "公開中の記録"}</span></div>
+        <div data-stat-zukan-species="${zukanSpecies}"><strong>${zukanSpecies}</strong><span>${isEn ? "Listed in ZUKAN" : "図鑑に掲載"}</span></div>
+        <div data-stat-places="${placesCount}"><strong>${placesCount}</strong><span>${isEn ? "Recorded places" : "記録した場所"}</span></div>
       </div>
     </section>`;
   }

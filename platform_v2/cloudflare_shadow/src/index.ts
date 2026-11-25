@@ -11,7 +11,8 @@ import { renderZukanInviteNotFoundPage, renderZukanWelcomeAndInvitePage, resolve
 import { handleLibraryDetailRoute } from "./zukanLibraryDetail";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
-import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
+import { renderZukanLibraryPage } from "./zukanLibraryAndProfile";
+import { loadProfileHubData, renderNotificationDetail, renderNotificationsList, renderProfileHub, renderProfileSettingsHub, type AlertItem } from "./zukanProfileHub";
 import {
   isWeakTaxonLabel,
   NEUTRAL_TAXON_FALLBACK_JA,
@@ -3174,6 +3175,11 @@ export const worker = {
         return getOriginalUiStaticAsset(request, url, env);
       }
 
+      const assetThumbMatch = url.pathname.match(/^\/thumb\/(\d{2,4})\/([A-Za-z0-9._-]{3,160})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && assetThumbMatch?.[1] && assetThumbMatch[2]) {
+        return getAssetLedgerThumbRedirect(request, Number(assetThumbMatch[1]), assetThumbMatch[2], env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiThumbPath(url.pathname)) {
         return getOriginalUiThumb(request, url, env);
       }
@@ -4122,6 +4128,38 @@ export const worker = {
         return handleMyRecordsApi(url, session, env.OBS_DB);
       }
 
+      const notificationsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/notifications(?:\/([^/]+))?$/);
+      if ((request.method === "GET" || request.method === "HEAD") && notificationsMatch) {
+        const viewLang = (notificationsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return new Response(null, { status: 302, headers: { location: `/${viewLang}/login?redirect=${encodeURIComponent(url.pathname)}`, "cache-control": "no-store" } });
+        }
+        const alertsRes = await getPersonalAlerts(session, env).catch(() => null);
+        const alertsJson = (alertsRes ? await alertsRes.json().catch(() => null) : null) as { alerts?: AlertItem[] } | null;
+        const alerts = alertsJson?.alerts ?? [];
+        const noStore = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
+        const who = session.displayName || session.userId;
+        if (!notificationsMatch[2]) {
+          return new Response(request.method === "HEAD" ? null : renderNotificationsList(viewLang, who, alerts), { status: 200, headers: noStore });
+        }
+        const found = alerts.find((a) => a.deliveryId === decodeURIComponent(notificationsMatch[2]!));
+        if (!found) {
+          return new Response(request.method === "HEAD" ? null : renderNotificationsList(viewLang, who, alerts), { status: 404, headers: noStore });
+        }
+        const rec = found.occurrenceId
+          ? await env.OBS_DB.prepare(
+              `SELECT o.observation_id AS id, o.taxon_label AS title, o.observed_at AS observedAt, o.public_area_label AS area,
+                      (SELECT a.asset_id FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed' LIMIT 1) AS assetId
+                 FROM observations o WHERE o.observation_id = ? AND o.owner_user_id = ?`
+            ).bind(found.occurrenceId, session.userId).first<{ id: string; title: string | null; observedAt: string; area: string | null; assetId: string | null }>().catch(() => null)
+          : null;
+        return new Response(
+          request.method === "HEAD" ? null : renderNotificationDetail(viewLang, who, found, rec ? { ...rec, title: (rec.title ?? "").trim() || "名前なしの記録" } : null),
+          { status: 200, headers: noStore }
+        );
+      }
+
       const myRecordsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/records$/);
       if ((request.method === "GET" || request.method === "HEAD") && myRecordsMatch) {
         const viewLang = (myRecordsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
@@ -4166,14 +4204,14 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleLinkedAndSavedApi(session, env.OBS_DB);
+        return handleLinkedAndSavedApi(session, env.OBS_DB, env.CORE_DB as never);
       }
 
       const linkedSavedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/linked-saved$/);
       if ((request.method === "GET" || request.method === "HEAD") && linkedSavedMatch) {
         const viewLang = (linkedSavedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB);
+        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB, env.CORE_DB as never);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
@@ -23523,261 +23561,24 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
     lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
     settings
   };
-  const originalResponse = await getOriginalUiHtml(request, url, env, session);
-  const headers = new Headers(originalResponse.headers);
-  headers.set("content-type", "text/html; charset=utf-8");
-  headers.set("cache-control", "no-store");
-  headers.set("vary", "cookie, authorization");
-  headers.set("x-ikimon-cloudflare-native", "profile-session");
-
-  if (request.method === "HEAD") {
-    return new Response(null, { status: originalResponse.status, headers });
-  }
-
-  const originalHtml = await originalResponse.text();
-  const cloudflareHtml = renderCloudflareProfileHtml(session, options);
-  const body = injectCloudflareProfileIntoOriginalShell(originalHtml, cloudflareHtml);
-  return new Response(body, { status: originalResponse.status, headers });
-}
-
-function injectCloudflareProfileIntoOriginalShell(originalHtml: string, cloudflareHtml: string): string {
-  const originalMain = originalHtml.match(/<main\b[\s\S]*?<\/main>/i)?.[0] ?? "";
-  const cloudflareMain = cloudflareHtml.match(/<main\b[\s\S]*?<\/main>/i)?.[0] ?? "";
-  const cloudflareStyle = cloudflareHtml.match(/<style>[\s\S]*?<\/style>/i)?.[0] ?? "";
-  const cloudflareTitle = cloudflareHtml.match(/<title>[\s\S]*?<\/title>/i)?.[0] ?? "";
-  if (!originalMain || !cloudflareMain || !cloudflareStyle || !/<\/head>/i.test(originalHtml)) {
-    return cloudflareHtml;
-  }
-
-  return originalHtml
-    .replace(/<title>[\s\S]*?<\/title>/i, cloudflareTitle)
-    .replace(/<\/head>/i, `${cloudflareStyle}\n</head>`)
-    .replace(/<body(?![^>]*\bdata-cloudflare-profile=)([^>]*)>/i, '<body$1 data-cloudflare-profile="signed-in">')
-    .replace(/<main\b[\s\S]*?<\/main>/i, cloudflareMain);
-}
-
-function renderCloudflareProfileHtml(
-  session: SessionSnapshot,
-  options: { lang: string; settings: boolean }
-): string {
-  const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
-  if (!options.settings) {
-    return renderZukanProfileHubPage({ lang, displayName: session.displayName || session.userId });
-  }
-  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const copy = lang === "ja"
-    ? {
-      title: options.settings ? "プロフィール設定" : "自分",
-      eyebrow: "アカウント",
-      lead: "表示名を確認し、自分の記録や参加先へ移動できます。",
-      identity: "ZUKAN上の表示名",
-      participation: "参加先を探す",
-      participationLead: "イベントや活動の一覧を見る",
-      records: "自分の記録",
-      recordsLead: "保存した記録を時系列で見る",
-      settings: "プロフィール編集",
-      settingsLead: "この画面からプロフィールは編集できません。",
-      back: "自分へ",
-      displayName: "表示名"
-    }
-    : {
-      title: options.settings ? "Profile Settings" : "My Page",
-      eyebrow: "My Page",
-      lead: "Check your display name and open your records or participation destinations.",
-      identity: "Name shown on ZUKAN",
-      participation: "Find activities",
-      participationLead: "Browse events and activities",
-      records: "My records",
-      recordsLead: "Review your saved records",
-      settings: "Profile editing",
-      settingsLead: "Profile editing is not available on this screen.",
-      back: "Back to profile",
-      displayName: "Display name"
+  {
+    const hubLang = (options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja") as "ja" | "en" | "es" | "pt-br";
+    const hubHeaders = {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      vary: "cookie, authorization",
+      "x-ikimon-cloudflare-native": "profile-session"
     };
-  const title = escapeHtml(copy.title);
-  const displayName = escapeHtml(session.displayName || session.userId);
-  const settingsBody = options.settings
-    ? `<section class="cf-profile-settings" data-testid="profile-settings">
-        <div>
-          <span>${escapeHtml(copy.eyebrow)}</span>
-          <h2>${escapeHtml(copy.settings)}</h2>
-          <p>${escapeHtml(copy.settingsLead)}</p>
-        </div>
-        <dl><div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div></dl>
-        <form class="cf-profile-lang-form" action="/api/v1/profile/language" method="post">
-          <label for="cf-profile-lang">${escapeHtml(lang === "ja" ? "表示言語" : lang === "es" ? "Idioma" : lang === "pt-br" ? "Idioma" : "Display language")}</label>
-          <div class="cf-profile-lang-row">
-            <select id="cf-profile-lang" name="lang">
-              <option value="ja"${lang === "ja" ? " selected" : ""}>日本語</option>
-              <option value="en"${lang === "en" ? " selected" : ""}>English</option>
-              <option value="es"${lang === "es" ? " selected" : ""}>Español</option>
-              <option value="pt-br"${lang === "pt-br" ? " selected" : ""}>Português</option>
-            </select>
-            <button type="submit">${escapeHtml(lang === "ja" ? "保存" : lang === "es" ? "Guardar" : lang === "pt-br" ? "Salvar" : "Save")}</button>
-          </div>
-        </form>
-        <details class="cf-profile-withdrawal" data-testid="withdrawal-confirmation">
-          <summary>${escapeHtml(lang === "ja" ? "退会・アカウント削除の確認" : "Account withdrawal")}</summary>
-          <div class="cf-profile-withdrawal-body">
-            <h3>${escapeHtml(lang === "ja" ? "退会すると消えるもの" : "What disappears when you withdraw")}</h3>
-            <ul>
-              <li>${escapeHtml(lang === "ja" ? "アカウント情報（表示名・ログイン情報・言語設定）は削除されます。" : "Your account details (display name, sign-in credentials, and language settings) will be deleted.")}</li>
-              <li>${escapeHtml(lang === "ja" ? "非公開の記録・下書き・個人メモは削除され、元に戻せません。" : "Private records, drafts, and personal notes will be permanently deleted and cannot be restored.")}</li>
-              <li>${escapeHtml(lang === "ja" ? "公開中の記録・写真は一覧と公開ページから非表示になります。" : "Public records and photos will be removed from listings and public pages.")}</li>
-              <li>${escapeHtml(lang === "ja" ? "すでに外部へ保存・引用された情報は回収できません。" : "Information already saved or quoted externally cannot be recalled.")}</li>
-            </ul>
-            <form class="cf-profile-withdraw-form" method="post" action="/api/v1/account/withdraw">
-              <label class="cf-profile-withdraw-check">
-                <input type="checkbox" name="acknowledged" value="yes" required data-withdrawal-ack>
-                <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
-              </label>
-              <button type="submit" class="cf-profile-withdraw-submit" data-withdrawal-submit>${escapeHtml(lang === "ja" ? "退会してアカウントを削除する" : "Withdraw and delete account")}</button>
-            </form>
-            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会を実行すると即時にログアウトし、上記の公開表示とアカウント情報が削除・非表示になります。" : "Submitting will sign you out immediately and remove your public listings and account data.")}</p>
-          </div>
-        </details>
-        <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
-      </section>`
-    : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
-        <div class="cf-profile-hero">
-          <div class="cf-profile-hero-copy">
-            <span>${escapeHtml(copy.eyebrow)}</span>
-            <h1 data-testid="profile-heading">${displayName}</h1>
-            <p>${escapeHtml(copy.lead)}</p>
-          </div>
-          <p class="cf-profile-identity"><strong>${escapeHtml(copy.identity)}</strong><span>${displayName}</span></p>
-        </div>
-        <nav class="cf-profile-destinations" aria-label="${escapeHtml(copy.title)}">
-          ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
-          ${renderCloudflareProfileAction(`${prefix}/community/events`, copy.participation, copy.participationLead)}
-          ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead)}
-        </nav>
-      </section>`;
-
-  return `<!doctype html>
-<html lang="${escapeHtml(lang)}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} — ZUKAN</title>
-  <style>
-    :root{color-scheme:light;--ink:#17211B;--muted:#55615A;--line:#c8d0ca;--surface:#fff;--soft:#F7F7F3;--action:#245C3A}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--soft);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
-    .site-header{position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(15,23,42,.08);background:rgba(255,255,255,.92);backdrop-filter:blur(14px)}
-    .site-header-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 18px}
-    .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}
-    .desktop-side-nav-toggle{display:none}
-    .brand{display:inline-flex;align-items:center;min-width:0;color:var(--ink);text-decoration:none;font-weight:900}
-    .brand-logo-lockup{display:inline-flex;align-items:center;gap:7px;min-width:0}
-    .brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}
-    .brand-mark img{width:100%;height:100%;object-fit:cover;display:block}
-    .brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}
-    .brand-wordmark-img{display:block;width:auto;height:100%;object-fit:contain}
-    .site-nav{display:flex;align-items:center;gap:6px}
-    .site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
-    .site-nav-link:hover{background:#e8f1ed}
-    .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}
-    .site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:13px}
-    .site-search-icon{font-size:13px;opacity:.72}
-    .site-header-actions{display:flex;align-items:center;gap:8px}
-    .site-header-actions-mobile{display:none}
-    .site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}
-    .lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}
-    .lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}
-    .site-account-icons{gap:4px;padding:3px;border-radius:999px}
-    .site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}
-    .desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-    .zukan-app-lang{position:relative}
-    .zukan-app-lang summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 10px;border:1px solid #d6e3dc;border-radius:999px;background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
-    .zukan-app-lang summary::-webkit-details-marker{display:none}
-    .zukan-app-lang summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-    .zukan-app-lang .lang-switch-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:95;min-width:176px;padding:6px;border:1px solid #d6e3dc;border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(15,23,42,.16)}
-    .zukan-app-lang[open] .lang-switch-options{display:grid;gap:4px}
-    .zukan-app-lang .lang-switch-link{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:650}
-    .zukan-app-lang .lang-switch-link:hover,.zukan-app-lang .lang-switch-link:focus-visible{background:#edf3ee}
-    .zukan-app-lang .lang-switch-link.is-active{background:#edf3ee;color:var(--teal)}
-    .zukan-app-lang .lang-switch-code{font-size:12px;font-weight:800;opacity:.75;min-width:22px}
-    .site-mobile-menu{position:relative;display:none}
-    .site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:var(--ink);cursor:pointer}
-    .site-mobile-menu-toggle::-webkit-details-marker{display:none}
-    .site-mobile-menu-icon,.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{display:block;width:14px;height:2px;border-radius:999px;background:currentColor}
-    .site-mobile-menu-icon{position:relative}
-    .site-mobile-menu-icon::before,.site-mobile-menu-icon::after{content:"";position:absolute;left:0}
-    .site-mobile-menu-icon::before{top:-5px}
-    .site-mobile-menu-icon::after{top:5px}
-    .site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
-    .cf-profile-shell{width:min(1200px,calc(100% - 40px));margin:32px auto 40px}
-    .cf-profile-dashboard{display:grid;gap:24px}
-    .cf-profile-hero{display:grid;gap:16px;align-items:start}
-    .cf-profile-hero-copy{min-width:0;padding:0}
-    .cf-profile-hero-copy span,.cf-profile-settings span{display:block;color:var(--muted);font-size:14px;line-height:1.4;font-weight:600}
-    .cf-profile-hero-copy h1{margin:8px 0;font-size:32px;line-height:1.25;letter-spacing:0;overflow-wrap:anywhere}
-    .cf-profile-hero-copy p{margin:0;max-width:680px;color:var(--muted);font-size:16px;line-height:1.6}
-    .cf-profile-identity{display:grid;gap:4px;margin:0;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
-    .cf-profile-identity strong{font-size:14px;font-weight:600;color:var(--muted)}
-    .cf-profile-identity span{font-size:16px;overflow-wrap:anywhere}
-    .cf-profile-destinations{display:grid;gap:12px}
-    .cf-profile-action,.cf-profile-link{min-width:0;min-height:64px;display:grid;align-content:center;gap:4px;padding:12px 16px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-decoration:none}
-    .cf-profile-action strong{font-size:17px;line-height:1.25;font-weight:950;overflow-wrap:anywhere}
-    .cf-profile-action strong{font-size:16px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
-    .cf-profile-action span{color:var(--muted);font-size:14px;line-height:1.4}
-    .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
-    .cf-profile-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
-    .cf-profile-section-head h2,.cf-profile-settings h2{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
-    .cf-profile-record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    .cf-profile-record{min-width:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;padding:10px;border:1px solid rgba(15,23,42,.08);border-radius:14px;background:var(--soft);color:var(--ink);text-decoration:none}
-    .cf-profile-record-media{width:96px;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,var(--mint),var(--sky));display:grid;place-items:center;overflow:hidden;color:var(--teal);font-size:13px;font-weight:950}
-    .cf-profile-record-media img{width:100%;height:100%;object-fit:cover;display:block}
-    .cf-profile-record strong{display:block;font-size:15px;line-height:1.3;font-weight:950;overflow-wrap:anywhere}
-    .cf-profile-record span{display:block;margin-top:4px;color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
-    .cf-profile-empty{grid-column:1/-1;display:grid;gap:8px;padding:16px;border-radius:14px;background:var(--soft);border:1px dashed var(--line)}
-    .cf-profile-empty strong{font-size:17px}
-    .cf-profile-empty p{margin:0;color:var(--muted);font-weight:700}
-    .cf-profile-empty a,.cf-profile-link{width:fit-content;min-height:44px;padding:10px 14px;font-weight:950}
-    .cf-profile-flow{display:grid;gap:12px}
-    .cf-profile-flow ol{counter-reset:profile-flow;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
-    .cf-profile-flow li{counter-increment:profile-flow;min-width:0}
-    .cf-profile-flow a{min-height:52px;display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:13px;background:var(--soft);color:var(--ink);text-decoration:none;font-weight:900}
-    .cf-profile-flow a::before{content:counter(profile-flow);width:26px;height:26px;display:grid;place-items:center;flex:0 0 auto;border-radius:999px;background:#10251a;color:#fff;font-size:12px;font-weight:950}
-    .cf-profile-settings{display:grid;gap:16px}
-    .cf-profile-settings p{margin:6px 0 0;color:var(--muted);font-weight:700}
-    .cf-profile-settings dl{display:grid;grid-template-columns:1fr;gap:10px;margin:0}
-    .cf-profile-settings dl div{min-width:0;padding:13px;border-radius:8px;background:var(--soft)}
-    .cf-profile-settings dt{color:var(--muted);font-size:14px;font-weight:600}
-    .cf-profile-settings dd{margin:4px 0 0;font-size:16px;overflow-wrap:anywhere}
-    .cf-profile-settings p[role="status"]{margin:0;color:var(--muted);font-size:16px}
-    .cf-profile-lang-form{display:grid;gap:8px}
-    .cf-profile-lang-form label{font-size:14px;font-weight:700;color:var(--ink)}
-    .cf-profile-lang-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .cf-profile-lang-row select{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
-    .cf-profile-lang-row button{min-height:44px;padding:8px 18px;border:0;border-radius:8px;background:var(--action);color:#fff;font:inherit;font-weight:750;cursor:pointer}
-    .cf-profile-shell a:focus-visible{outline:2px solid var(--action);outline-offset:2px;box-shadow:0 0 0 4px #fff}
-    @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:44px;padding:10px 12px}}
-    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 40px);margin:24px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy h1{font-size:28px}}
-  </style>
-</head>
-<body data-cloudflare-profile="signed-in">
-  ${renderCloudflareProfileHeader(prefix)}
-  <main id="main-content" class="cf-profile-shell" tabindex="-1">
-    ${settingsBody}
-  </main>
-</body>
-</html>`;
-}
-
-function renderCloudflareProfileAction(href: string, title: string, body: string, primary = false): string {
-  return `<a class="cf-profile-action${primary ? " is-primary" : ""}" href="${escapeHtml(href)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></a>`;
-}
-
-function renderCloudflareProfileHeader(prefix: string): string {
-  const safePrefix = escapeHtml(prefix);
-  const lang = prefix.replace(/^\//, "") || "ja";
-  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "")
-    .replace('href="/ja/login?redirect=%2Fprofile"', `href="${safePrefix}/profile"`)
-    .replace('href="/ja/login?redirect=%2Fprofile%2Fsettings"', `href="${safePrefix}/profile/settings"`)
-    .replaceAll('href="/ja/', `href="${safePrefix}/`)
-    .replaceAll('action="/ja/', `action="${safePrefix}/`);
+    const hubData = await loadProfileHubData(env, session);
+    let hubHtml: string;
+    if (settings) {
+      const authUser = await getAuthUserByUserId(env, session.userId).catch(() => null);
+      hubHtml = renderProfileSettingsHub(hubLang, { displayName: hubData.displayName, email: authUser?.email ?? null, recordCount: hubData.recordCount, flash: url.searchParams.get("saved") });
+    } else {
+      hubHtml = renderProfileHub(hubLang, hubData);
+    }
+    return new Response(request.method === "HEAD" ? null : hubHtml, { status: 200, headers: hubHeaders });
+  }
 }
 
 function renderCloudflareProfileRecordCard(
@@ -25320,6 +25121,25 @@ function publicDerivedImageSrcset(
     })
     .filter((value): value is string => Boolean(value));
   return candidates.join(", ");
+}
+
+async function getAssetLedgerThumbRedirect(request: Request, size: number, assetId: string, env: Env): Promise<Response> {
+  const miss = () => new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+  const width = size <= 400 ? 360 : size <= 720 ? 680 : 1020;
+  const row = await env.OBS_DB.prepare(
+    "SELECT public_derivative_key FROM asset_ledger WHERE asset_id = ? AND public_derivative_key IS NOT NULL LIMIT 1"
+  ).bind(assetId).first<{ public_derivative_key: string | null }>().catch(() => null);
+  const key = normalizeOptionalText(row?.public_derivative_key);
+  if (!key || !isSafePublicDerivedImageKey(key)) return miss();
+  const access = await publicDerivedMediaAccess(request, key, env).catch(() => "denied" as const);
+  if (access === "denied") return miss();
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: `/derived-transform/w${width}/${key.replace(/^\/+/, "")}`,
+      "cache-control": access === "public" ? "public, max-age=300" : "private, no-store"
+    }
+  });
 }
 
 async function getPublicDerivedImageTransform(request: Request, url: URL, env: Env): Promise<Response> {
