@@ -17,6 +17,8 @@ export const ZUKAN_RECORD_ENTRY_STYLES = `
   .zt-capture-side-btn{position:relative;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:14px;cursor:pointer;min-width:0}
   .zt-capture-side-btn span{font-size:12px;color:#d6e4da;font-weight:500}
   .zt-capture-side-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .zt-capture-macro{min-height:48px;width:100%;padding:8px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+  .zt-capture-macro{min-height:48px;width:100%;padding:8px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
   .zt-capture-privacy{margin:0;font-size:13px;color:#cfe0d4;text-align:center}
   [data-otayori-fab],.otayori-fab{display:none!important}
   @media (min-width:960px){
@@ -40,6 +42,7 @@ export function renderRecordEntryStageHtml(options: {
   videoHint: string;
   prompt: string;
   privateBoundary: string;
+  macroLabel?: string;
 }): string {
   const isEn = options.lang === "en";
   const closeLabel = isEn ? "Close" : "とじる";
@@ -60,6 +63,7 @@ export function renderRecordEntryStageHtml(options: {
       <label class="cf-record-pick is-primary zt-shutter-wrap" aria-label="${escapeHtml(captureAria)}" title="${escapeHtml(options.cameraHint)}"><span class="zt-shutter-dot" aria-hidden="true"></span><input id="record-media-camera" type="file" accept="image/*" capture="environment"></label>
       <label class="cf-record-pick zt-capture-side-btn">${escapeHtml(options.videoLabel)}<span>${escapeHtml(options.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
     </div>
+    ${options.macroLabel ? `<button type="button" class="zt-capture-macro" data-global-record-macro-open>${escapeHtml(options.macroLabel)}</button>` : ""}
     <p class="zt-capture-privacy">${escapeHtml(options.privateBoundary)}</p>
   </section>`;
 }
