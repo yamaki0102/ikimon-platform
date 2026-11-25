@@ -1,5 +1,7 @@
 import type { Env } from "./core/env";
 import { renderOtayoriFloatingButton } from "./otayori";
+import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
+import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderYearPairCard } from "./zukanLibraryBlocks";
 
 function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
   const cleanKey = key.replace(/^\/+/, "");
@@ -166,6 +168,7 @@ export type TopPlaceCard = {
   name: string;
   photoUrl: string | null;
   href: string;
+  recordCount?: number | null;
 };
 
 export type TopPublicRecordThumb = {
@@ -362,12 +365,47 @@ export async function loadPublicPlacesStrip(env: Env, limit = 6, lang: ZukanTopL
        ORDER BY p.updated_at DESC
        LIMIT ?1`
     ).bind(limit).all<{ place_id: string; canonical_name: string }>();
-    return (res.results ?? []).map((row) => ({
+    const cards: TopPlaceCard[] = (res.results ?? []).map((row) => ({
       placeId: row.place_id,
       name: localizePlaceLabel(row.canonical_name, lang),
       photoUrl: null,
-      href: `${prefix}/places/${encodeURIComponent(row.place_id)}`
+      href: `${prefix}/places/${encodeURIComponent(row.place_id)}`,
+      recordCount: null
     }));
+    if (cards.length === 0) return cards;
+    try {
+      const ids = cards.map((c) => c.placeId);
+      const ph = ids.map((_, i) => `?${i + 1}`).join(", ");
+      const rich = await env.OBS_DB.prepare(
+        `SELECT p.place_id AS place_id,
+                (SELECT COUNT(*) FROM civic_observation_contexts c
+                   JOIN observations o ON o.observation_id = c.visit_id
+                  WHERE c.field_id = p.place_id
+                    AND COALESCE(o.visibility, 'public') = 'public'
+                    AND COALESCE(o.emergency_hidden, 0) = 0) AS record_count,
+                (SELECT ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY}
+                   FROM observations o
+                   JOIN civic_observation_contexts c ON c.visit_id = o.observation_id
+                  WHERE c.field_id = p.place_id
+                    AND COALESCE(o.visibility, 'public') = 'public'
+                    AND COALESCE(o.emergency_hidden, 0) = 0
+                    AND ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} IS NOT NULL
+                  ORDER BY o.observed_at DESC
+                  LIMIT 1) AS derivative_key
+           FROM places p
+          WHERE p.place_id IN (${ph})`
+      ).bind(...ids).all<{ place_id: string; record_count: number | null; derivative_key: string | null }>();
+      const byId = new Map((rich.results ?? []).map((r) => [r.place_id, r]));
+      for (const card of cards) {
+        const r = byId.get(card.placeId);
+        if (!r) continue;
+        card.recordCount = typeof r.record_count === "number" ? r.record_count : null;
+        card.photoUrl = r.derivative_key ? publicMediaUrl(r.derivative_key, 360) : null;
+      }
+    } catch {
+      // Place photos and counts are best-effort; the list still renders without them.
+    }
+    return cards;
   } catch {
     return [];
   }
@@ -705,68 +743,44 @@ export function renderZukanTopPage(
     </a>`).join("")}</div>`;
   }
 
-  const eventFallbackAction = options.authenticated
-    ? `<a class="zt-inline-link" href="${prefix}/community/events/new">${isEn ? "Host an event" : "イベントを開く"}</a>`
-    : `<a class="zt-inline-link" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>`;
-
-  const placesStripHtml = data.placesStrip.length > 0
-    ? `<section class="zt-section" aria-labelledby="zt-places-heading">
-        <h2 id="zt-places-heading">${isEn ? "Places" : "場所"}</h2>
-        <div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}">
-          ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="${escapeHtml(pl.name)}" loading="lazy">` : `<div class="zt-place-fallback" aria-hidden="true"></div>`}
-          <span>${escapeHtml(pl.name)}</span>
-        </a>`).join("")}</div>
+  const heroPhoto = data.heroPhotos[0];
+  const heroSrc = heroPhoto ? heroPhoto.photoUrl.replace("/derived-transform/w360/", "/derived-transform/w680/") : "";
+  const placeRows = data.placesStrip.length > 0
+    ? `<section class="zk-places" aria-labelledby="zt-places-heading">
+        <div class="zk-sec-head"><h2 id="zt-places-heading">${isEn ? "Public place ZUKANs" : "公開されている場所の図鑑"}</h2></div>
+        <ul class="zk-place-list">${data.placesStrip.map((pl) => `<li><a class="zk-place-row" href="${escapeHtml(pl.href)}">
+          ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"></span>`}
+          <span class="zk-place-text"><strong>${escapeHtml(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>${isEn ? `${pl.recordCount} records` : `記録 ${pl.recordCount}件`}</span>` : ""}</span>
+          <span class="zk-chev" aria-hidden="true">›</span>
+        </a></li>`).join("")}</ul>
       </section>`
     : "";
 
   const loggedOutMain = `
-    <h1 class="zt-sr-only">ZUKAN</h1>
-    ${heroHtml}
-    <div class="zt-cta-row">
-      <a class="zt-btn-primary" href="${prefix}/waitlist">${isEn ? "Join the waitlist" : "ウェイティングリストに登録"}</a>
-      <a class="zt-btn-outline" href="${prefix}/community/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
-    </div>
-    <section class="zt-section" aria-labelledby="zt-events-heading">
-      <h2 id="zt-events-heading">${escapeHtml(isEn && data.eventSectionHeading === "最近の記録" ? "Recent records" : data.eventSectionHeading)}</h2>
-      ${eventBlockBody}
-      <div class="zt-section-foot">${eventFallbackAction}</div>
+    <section class="zk-hero${heroSrc ? " has-photo" : ""}" aria-labelledby="zk-hero-title">
+      ${heroSrc ? `<img src="${escapeHtml(heroSrc)}" alt="" fetchpriority="high" decoding="async">` : ""}
+      <div class="zk-hero-copy">
+        <h1 id="zk-hero-title">${isEn ? "Shoot it, and the town's today becomes your ZUKAN." : "撮ると、まちの今が図鑑になる。"}</h1>
+        <p>${isEn ? "Festivals, morning markets, riverside nature, local work. Your photos pile up by place and date." : "祭り、朝市、川辺の自然、まちの仕事。撮った写真が場所と日付でたまります。"}</p>
+      </div>
     </section>
-    ${placesStripHtml}
+    <div class="zk-cta">
+      <a class="zk-btn-primary" href="${prefix}/register">${isEn ? "Sign up (free)" : "新規登録（無料）"}</a>
+      <a class="zk-btn-secondary" href="${prefix}/login">${isEn ? "Sign in" : "ログイン"}</a>
+      <p class="zk-cta-note">${isEn ? "Photos are visible only to you at first. You choose which places to make public." : "写真は最初、自分だけに見えます。公開する場所は自分で選べます。"}</p>
+    </div>
+    ${placeRows}
+    <nav class="zk-more-links" aria-label="${isEn ? "Explore" : "見てみる"}">
+      <a href="${prefix}/community/events">${isEn ? "Nearby events" : "近くのイベントを見る"}</a>
+      <a href="${prefix}/map">${isEn ? "Find places on the map" : "地図で場所を探す"}</a>
+    </nav>
   `;
 
-  const oneYearHtml = data.oneYearPair
-    ? `<section class="zt-section" aria-labelledby="zt-year-heading">
-        <h2 id="zt-year-heading">${data.oneYearPair.kind === "year_ago" ? "1年前のこの場所" : "この場所の今"}</h2>
-        <p class="zt-place-sub">${escapeHtml(data.oneYearPair.placeName)}</p>
-        <div class="zt-pair-grid">${data.oneYearPair.photos.map((p) => `<a class="zt-pair-card" href="${escapeHtml(p.href)}">
-          <img src="${escapeHtml(p.photoUrl)}" alt="${escapeHtml(`${data.oneYearPair!.placeName} ${p.monthLabel}`)}" loading="lazy">
-          <span>${escapeHtml(p.monthLabel)}</span>
-        </a>`).join("")}</div>
-      </section>`
-    : "";
+  const oneYearHtml = data.oneYearPair ? renderYearPairCard(data.oneYearPair, isEn) : "";
 
   const libraryBodyHtml = data.libraryGroups.length > 0
-    ? data.libraryGroups.map((grp) => `<section class="zt-group" data-group-key="${escapeHtml(grp.groupKey)}">
-        <div class="zt-group-head">
-          <h2>${escapeHtml(grp.headerLabel)}</h2>
-          <div class="zt-group-actions">
-            ${grp.published
-              ? `<button type="button" class="zt-chip-published" data-zukan-unpublish="${escapeHtml(grp.groupKey)}">${isEn ? "In ZUKAN" : "図鑑に掲載中"}</button>`
-              : `<button type="button" class="zt-btn-outline-sm" data-zukan-open-popover="${escapeHtml(grp.groupKey)}" data-place-id="${escapeHtml(grp.placeId ?? "")}" data-place-name="${escapeHtml(grp.placeName)}">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</button>`}
-          </div>
-        </div>
-        <div class="zt-lib-grid">${grp.photos.map((ph) => `<a class="zt-lib-thumb" href="${prefix}/observations/${encodeURIComponent(ph.observationId)}" data-obs-id="${escapeHtml(ph.observationId)}">
-          ${ph.photoUrl ? `<img src="${escapeHtml(ph.photoUrl)}" alt="${escapeHtml(ph.title)}" loading="lazy">` : `<span class="zt-lib-fallback">${escapeHtml(ph.title)}</span>`}
-        </a>`).join("")}</div>
-      </section>`).join("")
-    : `<section class="zt-section">
-        <div class="zt-capture-row">
-          <button type="button" class="zt-btn-capture" data-global-record-trigger="photo">${isEn ? "Capture" : "撮る"}</button>
-        </div>
-        ${data.placesStrip.length > 0 ? `<h2 class="zt-subhead">${isEn ? "Nearby places" : "近くの場所"}</h2><div class="zt-place-strip">${data.placesStrip.map((pl) => `<a class="zt-place-card" href="${escapeHtml(pl.href)}"><div class="zt-place-fallback" aria-hidden="true"></div><span>${escapeHtml(pl.name)}</span></a>`).join("")}</div>` : ""}
-        <h2 class="zt-subhead">${escapeHtml(data.eventSectionHeading)}</h2>
-        ${eventBlockBody}
-      </section>`;
+    ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "top" })
+    : renderLibraryEmpty({ prefix, isEn });
 
   const loggedInMain = `
     <h1 class="zt-sr-only">${isEn ? "ZUKAN library" : "ZUKAN ライブラリ"}</h1>
@@ -784,18 +798,16 @@ export function renderZukanTopPage(
     </dialog>
   `;
 
-  const topBar = options.authenticated
-    ? `<header class="zt-topbar">
-        <a class="zt-logo" href="${prefix}/">ZUKAN</a>
-        <form class="zt-search" action="${prefix}/" method="get">
-          <input type="search" name="q" value="${escapeHtml(options.searchQuery ?? "")}" placeholder="${isEn ? "Search: festival, river, last autumn" : "祭り・川・去年の秋で探す"}" aria-label="${isEn ? "Search" : "検索"}">
-        </form>
-        <a class="zt-avatar" href="${prefix}/profile" aria-label="${isEn ? "Me" : "自分"}">${escapeHtml((options.displayName ?? (isEn ? "M" : "私")).slice(0, 1))}</a>
-      </header>`
-    : `<header class="zt-topbar">
-        <a class="zt-logo" href="${prefix}/">ZUKAN</a>
-        <a class="zt-login-btn" href="${prefix}/login">${isEn ? "Log in" : "ログイン"}</a>
-      </header>`;
+  const chrome = renderZukanChrome({
+    lang: options.lang,
+    activeNav: "library",
+    authenticated: options.authenticated,
+    displayName: options.displayName,
+    searchAction: options.authenticated ? `${prefix}/` : undefined,
+    searchQuery: options.searchQuery,
+    pathname: `${prefix}/`,
+    homeHref: `${prefix}/`,
+  });
 
   const popTitleJs = isEn ? `"Add " + currentPlaceName + " to ZUKAN"` : `currentPlaceName + "の図鑑に載せる"`;
   const publishScript = options.authenticated
@@ -831,7 +843,7 @@ export function renderZukanTopPage(
           if (unpubBtn) {
             const key = unpubBtn.getAttribute("data-zukan-unpublish") || "";
             const grp = unpubBtn.closest("[data-group-key]");
-            const ids = grp ? [...grp.querySelectorAll(".zt-lib-thumb[data-obs-id]")].map((el) => el.getAttribute("data-obs-id") || "").filter(Boolean) : [];
+            const ids = grp ? [...grp.querySelectorAll("[data-obs-id]")].map((el) => el.getAttribute("data-obs-id") || "").filter(Boolean) : [];
             const res = await fetch("/api/v1/zukan-top/unpublish", {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -867,96 +879,76 @@ export function renderZukanTopPage(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ZUKAN</title>
-  <style${nonceAttr}>
-    :root{color-scheme:light;--bg:#ffffff;--surface:#f6f7f6;--ink:#17251b;--muted:#485a4e;--green:#245c3a;--capture:#b94f18;--line:#dce3dd}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5}
-    a,a:visited{color:var(--green)}
-    .zt-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-    .zt-shell{min-height:100vh;padding-bottom:76px}
-    .zt-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
-    .zt-logo,.zt-logo:visited{font-weight:800;font-size:18px;letter-spacing:.04em;color:var(--green);text-decoration:none;min-height:44px;display:inline-flex;align-items:center}
-    .zt-login-btn,.zt-login-btn:visited,.zt-avatar,.zt-avatar:visited{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;color:var(--green);font-weight:700;text-decoration:none;border-radius:999px}
-    .zt-avatar{background:var(--surface);border:1px solid var(--line)}
-    .zt-search{flex:1;max-width:460px}
-    .zt-search input{width:100%;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font:inherit;font-size:14px}
-    .zt-main{max-width:1120px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
-    .zt-main>*,.zt-shell>*{min-width:0}
-    .zt-hero-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto}
-    .zt-hero-card{position:relative;display:block;border-radius:10px;overflow:hidden;background:var(--surface);aspect-ratio:4/3;text-decoration:none}
-    .zt-hero-card img{width:100%;height:100%;object-fit:cover;display:block}
-    .zt-hero-label{position:absolute;left:8px;bottom:8px;padding:4px 10px;border-radius:6px;background:rgba(23,37,27,.78);color:#fff;font-size:14px;font-weight:600}
-    .zt-cta-row{display:flex;flex-wrap:wrap;gap:10px}
-    .zt-btn-primary,.zt-btn-primary:visited{min-height:44px;padding:10px 18px;border-radius:8px;background:var(--green);color:#fff;font-weight:700;text-decoration:none;border:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
-    .zt-btn-outline,.zt-btn-outline:visited{min-height:44px;padding:10px 18px;border-radius:8px;background:#fff;color:var(--green);border:1px solid var(--green);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
-    .zt-btn-outline-sm{min-height:44px;padding:6px 14px;border-radius:8px;background:#fff;color:var(--green);border:1px solid var(--green);font-weight:700;cursor:pointer;font-size:14px}
-    .zt-chip-published{min-height:44px;padding:6px 14px;border-radius:999px;background:#e5f2ea;color:var(--green);border:1px solid #b6d8c2;font-weight:700;cursor:pointer;font-size:14px}
-    .zt-btn-capture{min-height:44px;padding:10px 22px;border-radius:999px;background:var(--capture);color:#fff;border:0;font-weight:700;cursor:pointer;font-size:15px}
-    .zt-section{background:var(--surface);border-radius:12px;padding:16px;display:grid;gap:12px}
-    .zt-section h2,.zt-subhead{margin:0;font-size:18px;font-weight:700}
-    .zt-event-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-    .zt-event-row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:44px;padding:10px 12px;background:#fff;border-radius:8px;text-decoration:none;color:var(--ink)}
-    .zt-event-date{font-weight:700;color:var(--green);font-size:14px}
-    .zt-event-main{display:grid;gap:2px}
-    .zt-event-main span{font-size:14px;color:var(--muted)}
-    .zt-thumb-grid,.zt-place-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
-    .zt-thumb-card,.zt-place-card{display:grid;gap:6px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:600}
-    .zt-thumb-card img,.zt-place-card img,.zt-thumb-placeholder,.zt-place-fallback{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#e4ebe6;display:flex;align-items:center;justify-content:center;padding:8px;text-align:center}
-    .zt-group{display:grid;gap:10px}
-    .zt-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-    .zt-group-head h2{margin:0;font-size:16px;font-weight:700}
-    .zt-lib-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-    @media(min-width:900px){.zt-lib-grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
-    .zt-lib-thumb{display:block;aspect-ratio:1/1;border-radius:6px;overflow:hidden;background:var(--surface);text-decoration:none;color:var(--ink)}
-    .zt-lib-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-    .zt-lib-fallback{display:flex;align-items:center;justify-content:center;height:100%;padding:6px;font-size:14px;text-align:center}
-    .zt-pair-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-    .zt-pair-card{display:grid;gap:4px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:700}
-    .zt-pair-card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px}
-    .zt-inline-link{color:var(--green);font-weight:700;font-size:14px;text-decoration:none;min-height:44px;display:inline-flex;align-items:center}
-    .zt-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid var(--line);padding:4px 6px}
-    .zt-nav-item{min-height:48px;display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--muted);font-size:14px;font-weight:700;border-radius:8px;border:0;background:transparent;cursor:pointer}
-    .zt-nav-item[aria-current="page"]{color:var(--green)}
-    .zt-nav-capture{background:var(--capture);color:#fff}
-    .zt-sidebar{display:none}
-    @media(min-width:960px){
-      .zt-shell{display:grid;grid-template-columns:220px 1fr;padding-bottom:0}
-      .zt-sidebar{display:flex;flex-direction:column;gap:8px;padding:16px;border-right:1px solid var(--line);background:#fff;position:sticky;top:0;height:100vh}
-      .zt-bottom-nav{display:none}
-    }
-    .zt-popover{border:1px solid var(--line);border-radius:12px;padding:16px;max-width:420px;width:92vw}
-    .zt-popover-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-    .zt-pop-item{display:grid;gap:4px;justify-items:center}
-    .zt-pop-item img{width:64px;height:64px;object-fit:cover;border-radius:6px}
-    .zt-popover-actions{display:flex;gap:10px;align-items:center}
-    .zt-btn-text{min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--muted);font-weight:700;cursor:pointer;font-size:14px}
-  </style>
+  <style${nonceAttr}>${ZUKAN_SHELL_CSS}${ZUKAN_LIBRARY_CSS}${TOP_PAGE_CSS}</style>
 </head>
 <body>
-  <div class="zt-shell">
-    <aside class="zt-sidebar" aria-label="${isEn ? "Navigation" : "ナビ"}">
-      <a class="zt-btn-capture" href="${prefix}/record" style="text-align:center;text-decoration:none;display:inline-flex;align-items:center;justify-content:center">${isEn ? "Capture" : "撮る"}</a>
-      <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-      <a class="zt-nav-item" href="${prefix}/community/events">${isEn ? "Events" : "イベント"}</a>
-      <a class="zt-nav-item" href="${prefix}/map">${isEn ? "Places" : "場所"}</a>
-      <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
-    </aside>
+  <div class="zt-shell${options.authenticated ? "" : " zt-landing"}">
+    ${options.authenticated ? chrome.sidebarHtml : ""}
     <div>
-      ${topBar}
+      ${chrome.topbarHtml}
       <main class="zt-main">
+        ${options.authenticated ? chrome.searchHtml : ""}
         ${options.authenticated ? loggedInMain : loggedOutMain}
+        ${options.authenticated ? chrome.feedbackFootHtml : ""}
       </main>
     </div>
   </div>
-  <nav class="zt-bottom-nav" aria-label="${isEn ? "Menu" : "メニュー"}">
-    <a class="zt-nav-item" href="${prefix}/" aria-current="page">${homeLabel}</a>
-    <a class="zt-nav-item" href="${prefix}/community/events">${isEn ? "Events" : "イベント"}</a>
-    <a class="zt-nav-item zt-nav-capture" href="${prefix}/record">${isEn ? "Capture" : "撮る"}</a>
-    <a class="zt-nav-item" href="${prefix}/map">${isEn ? "Places" : "場所"}</a>
-    <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
-  </nav>
+  ${options.authenticated ? chrome.bottomNavHtml : ""}
   ${publishScript}
   ${renderOtayoriFloatingButton({ lang: options.lang, pathname: `${prefix}/` })}
 </body>
 </html>`;
 }
+
+const TOP_PAGE_CSS = `
+    [hidden]{display:none!important}
+    .zt-landing{padding-bottom:24px}
+    .zt-landing .zt-main{padding-top:8px;gap:24px}
+    .zk-hero{position:relative;display:flex;align-items:flex-end;min-height:min(86vw,340px);margin:0 -20px;overflow:hidden;background:var(--green);color:#fff}
+    .zk-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+    .zk-hero.has-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,12,.05) 18%,rgba(8,18,12,.72) 100%)}
+    .zk-hero-copy{position:relative;z-index:1;padding:0 20px 20px;display:grid;gap:8px}
+    .zk-hero-copy h1{margin:0;color:#fff;font-size:30px;line-height:1.35;font-weight:700}
+    .zk-hero-copy p{margin:0;color:#fff;font-size:16px;line-height:1.7}
+    .zk-cta{display:grid;gap:14px}
+    .zk-btn-primary,.zk-btn-primary:visited{min-height:56px;display:flex;align-items:center;justify-content:center;border-radius:16px;background:var(--green);color:#fff;font-size:18px;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(20,63,46,.2)}
+    .zk-btn-secondary,.zk-btn-secondary:visited{min-height:56px;display:flex;align-items:center;justify-content:center;border-radius:16px;background:#fff;color:var(--green);border:2px solid var(--green);font-size:18px;font-weight:700;text-decoration:none}
+    .zk-cta-note{margin:0;text-align:center;color:var(--muted);font-size:15px;line-height:1.7}
+    .zk-places{display:grid}
+    .zk-place-list{list-style:none;margin:0;padding:0;display:grid}
+    .zk-place-list li{border-bottom:1px solid var(--line)}
+    .zk-place-row,.zk-place-row:visited{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:16px;padding:14px 0;color:var(--ink);text-decoration:none;min-height:76px}
+    .zk-place-row img,.zk-place-ph{width:76px;height:76px;border-radius:16px;object-fit:cover;background:var(--surface-2);display:block}
+    .zk-place-text{display:grid;gap:2px;min-width:0}
+    .zk-place-text strong{font-size:19px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
+    .zk-place-text span{font-size:15px;color:var(--muted)}
+    .zk-chev{color:var(--control);font-size:28px;line-height:1}
+    .zk-more-links{display:flex;flex-wrap:wrap;gap:4px 24px}
+    .zk-more-links a,.zk-more-links a:visited{min-height:44px;display:inline-flex;align-items:center;color:var(--link);font-weight:700;font-size:15px;text-decoration:underline}
+    @media(min-width:720px){
+      .zk-hero{margin:0;border-radius:24px;min-height:360px}
+      .zk-hero-copy{padding:0 36px 32px;max-width:640px}
+      .zk-hero-copy h1{font-size:38px}
+      .zk-cta{grid-template-columns:1fr 1fr;max-width:640px}
+      .zk-cta-note{grid-column:1/-1;text-align:left}
+    }
+    .zt-place-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+    .zt-place-card,.zt-place-card:visited{display:grid;gap:6px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:700}
+    .zt-place-card img,.zt-place-fallback{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:14px;background:var(--surface-2);display:block}
+    .zt-thumb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+    .zt-thumb-card,.zt-thumb-card:visited{display:grid;gap:6px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:700}
+    .zt-thumb-card img,.zt-thumb-placeholder{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:14px;background:var(--surface-2);display:block}
+    .zt-event-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+    .zt-event-row,.zt-event-row:visited{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px;padding:10px 14px;background:var(--surface);border-radius:14px;text-decoration:none;color:var(--ink)}
+    .zt-event-date{font-weight:700;color:var(--green);font-size:14px}
+    .zt-event-main{display:grid;gap:2px}
+    .zt-event-main span{font-size:14px;color:var(--muted)}
+    .zt-btn-primary,.zt-btn-primary:visited{min-height:48px;padding:10px 22px;border-radius:999px;background:var(--green);color:#fff;font-weight:700;text-decoration:none;border:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+    .zt-popover{border:1px solid var(--line);border-radius:20px;padding:20px;max-width:420px;width:92vw}
+    .zt-popover h2{margin:0;font-size:18px}
+    .zt-popover-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+    .zt-pop-item{display:grid;gap:4px;justify-items:center}
+    .zt-pop-item img{width:64px;height:64px;object-fit:cover;border-radius:10px}
+    .zt-popover-actions{display:flex;gap:10px;align-items:center}
+    .zt-btn-text{min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--muted);font-weight:700;cursor:pointer;font-size:14px}
+`;

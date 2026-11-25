@@ -30,7 +30,8 @@ const emptyEventsBaseData: ZukanTopPageData = {
       placeId: "plc_1",
       name: "常盤公園",
       photoUrl: null,
-      href: "/ja/places/plc_1"
+      href: "/ja/places/plc_1",
+      recordCount: 128
     }
   ],
   libraryGroups: [],
@@ -43,10 +44,12 @@ test("renderZukanTopPage logged-out renders owner hero photos, waitlist CTA, and
     authenticated: false,
     cspNonce: "n1"
   });
-  assert.match(html, /常盤公園・11月22日/);
-  assert.match(html, /ウェイティングリストに登録/);
+  assert.match(html, /撮ると、まちの今が図鑑になる。/);
+  assert.match(html, /新規登録（無料）/);
+  assert.match(html, /写真は最初、自分だけに見えます/);
+  assert.match(html, /公開されている場所の図鑑/);
+  assert.match(html, /記録 128件/);
   assert.match(html, /近くのイベントを見る/);
-  assert.match(html, /最近の記録/);
   assert.doesNotMatch(html, /0件|まだありません/);
 });
 
@@ -75,7 +78,9 @@ test("renderZukanTopPage logged-in renders library groups with 圖鑑に載せ�
     { lang: "ja", authenticated: true, displayName: "ゆい", cspNonce: "n1" }
   );
   assert.match(withLibrary, /1年前のこの場所/);
-  assert.match(withLibrary, /11月22日（土）・みなと通り 朝市/);
+  assert.match(withLibrary, /11月22日（土）/);
+  assert.match(withLibrary, /みなと通り 朝市/);
+  assert.match(withLibrary, /まだ自分だけに見えています/);
   assert.match(withLibrary, /図鑑に載せる/);
 
   const emptyLibrary = renderZukanTopPage(emptyEventsBaseData, {
@@ -84,8 +89,8 @@ test("renderZukanTopPage logged-in renders library groups with 圖鑑に載せ�
     displayName: "新人",
     cspNonce: "n1"
   });
-  assert.match(emptyLibrary, /撮る/);
-  assert.match(emptyLibrary, /近くの場所/);
-  assert.match(emptyLibrary, /最近の記録/);
-  assert.doesNotMatch(emptyLibrary, /0件|まだありません/);
+  assert.match(emptyLibrary, /まだ写真がありません/);
+  assert.match(emptyLibrary, /記録すると、こうなります/);
+  assert.match(emptyLibrary, /zt-bottom-nav/);
+  assert.doesNotMatch(emptyLibrary, /0件/);
 });
