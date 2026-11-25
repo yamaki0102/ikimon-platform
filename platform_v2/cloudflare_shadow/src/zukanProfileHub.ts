@@ -107,7 +107,7 @@ export function renderProfileHub(lang: Lang, data: ProfileHubData): string {
   const p = pfx(lang);
   const initial = esc1(data.displayName);
   const withPhoto = data.records.filter((r) => r.assetId);
-  const cover = withPhoto[0] ? `<img src="/thumb/800/${encodeURIComponent(withPhoto[0].assetId!)}" alt="" decoding="async">` : "";
+  const cover = withPhoto[0] ? `<img src="/thumb/600/${encodeURIComponent(withPhoto[0].assetId!)}" alt="" decoding="async">` : "";
   const mosaic = withPhoto.slice(0, 3);
   const mosaicHtml = mosaic.length
     ? `<div class="zt-ph-mosaic is-${mosaic.length === 1 ? 1 : 3}" data-testid="profile-hub-mosaic">${mosaic
