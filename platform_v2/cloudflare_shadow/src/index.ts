@@ -69,6 +69,10 @@ import {
   handleSearchSeasonsRoute,
 } from "./zukanSearchEmptyAndSeasons";
 import {
+  handleMapFilteredPinsApi,
+  handleMapFiltersRoute,
+} from "./zukanMapFiltersAndPins";
+import {
   handleSearchResultsApi,
   handleSearchResultsRoute,
 } from "./zukanSearchResults";
@@ -3986,6 +3990,17 @@ export const worker = {
         const viewLang = (searchSeasonsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleSearchSeasonsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/filtered-pins") {
+        return handleMapFilteredPinsApi(url, env.OBS_DB);
+      }
+
+      const mapFiltersMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/filters$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapFiltersMatch) {
+        const viewLang = (mapFiltersMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapFiltersRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/search/results") {
