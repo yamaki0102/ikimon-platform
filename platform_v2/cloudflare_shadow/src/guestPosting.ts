@@ -234,3 +234,46 @@ export async function guestAdmit(
     destinationKey: key,
   };
 }
+
+export async function commitGuestReservation(
+  db: D1Db,
+  reservationId: string,
+  destKey: string,
+  now = Date.now()
+): Promise<boolean> {
+  const res = await db.prepare(
+    "UPDATE guest_slot_reservations SET status = 'used' WHERE reservation_id = ? AND status = 'reserved'"
+  ).bind(reservationId).run();
+  const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
+  if (changes === 1) {
+    await db.prepare(
+      `UPDATE guest_destination_quotas
+          SET reserved_count = MAX(0, reserved_count - 1),
+              used_count = used_count + 1,
+              updated_at = ?
+        WHERE destination_key = ?`
+    ).bind(now, destKey).run();
+  }
+  return changes === 1;
+}
+
+export async function releaseGuestReservation(
+  db: D1Db,
+  reservationId: string,
+  destKey: string,
+  now = Date.now()
+): Promise<boolean> {
+  const res = await db.prepare(
+    "UPDATE guest_slot_reservations SET status = 'released' WHERE reservation_id = ? AND status = 'reserved'"
+  ).bind(reservationId).run();
+  const changes = Number((res as { meta?: { changes?: number } } | null)?.meta?.changes ?? 0);
+  if (changes === 1) {
+    await db.prepare(
+      `UPDATE guest_destination_quotas
+          SET reserved_count = MAX(0, reserved_count - 1),
+              updated_at = ?
+        WHERE destination_key = ?`
+    ).bind(now, destKey).run();
+  }
+  return changes === 1;
+}
