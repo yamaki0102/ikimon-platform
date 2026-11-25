@@ -122,6 +122,7 @@ export function renderZukanLibraryPage(
     authenticated: boolean;
     displayName?: string | null;
     searchQuery?: string;
+    noticeHtml?: string;
   }
 ): string {
   const isEn = options.lang === "en";
@@ -175,6 +176,7 @@ export function renderZukanLibraryPage(
       <h1>${isEn ? "Library" : "ライブラリ"}</h1>
       <p>${isEn ? "Your saved observations grouped by date and place." : "撮った記録を日付と場所ごとにまとめて見返せます。"}</p>
     </header>
+    ${options.noticeHtml ?? ""}
     ${pairHtml}
     ${groupsHtml}`;
 
