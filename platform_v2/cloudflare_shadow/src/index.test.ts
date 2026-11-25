@@ -5387,6 +5387,11 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT owner_user_id, object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ owner_user_id: asset.owner_user_id, object_key: asset.object_key, mime: asset.mime } as T) : null;
