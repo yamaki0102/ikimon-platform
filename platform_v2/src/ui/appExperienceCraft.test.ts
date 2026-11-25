@@ -20,9 +20,9 @@ test("guest controls reuse canonical shape and touch targets", () => {
   assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /prefers-reduced-motion:reduce/);
 });
 
-test("capture navigation uses its dedicated orange action with white text", () => {
-  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /--zukan-action-primary:#245c3a/);
-  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /--zukan-action-capture:#b94f18/);
+test("capture navigation uses its dedicated deep-green action with white text", () => {
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /--zukan-action-primary:#143f2e/);
+  assert.match(ZUKAN_DESIGN_FOUNDATION_STYLES, /--zukan-action-capture:#143f2e/);
   assert.match(styles, /\.zukan-app-nav a\.is-capture\{background:var\(--zukan-action-capture\);color:#fff\}/);
   assert.match(styles, /\.zukan-app-nav a\.is-capture:hover\{background:var\(--zukan-action-capture-hover\)\}/);
   assert.match(styles, /\.zukan-app-nav a\.is-capture:active\{background:var\(--zukan-action-capture-active\)\}/);
@@ -60,8 +60,9 @@ for (const language of ["ja", "en", "es", "pt-br"]) {
       const member = renderAppExperienceNavigation(language, 0, placement, true);
       assert.equal((guest.match(/<a /g) ?? []).length, 5);
       assert.equal((guest.match(/aria-current="page"/g) ?? []).length, 1);
-      assert.ok(guest.includes(`/${language}/records?view=public`));
-      assert.ok(member.includes(`/${language}/records?view=mine`));
+      assert.ok(guest.includes(`/${language}/`));
+      assert.ok(member.includes(`/${language}/library`));
+      assert.ok(member.includes(`/${language}/profile`));
       assert.ok(guest.includes(`/${language}/map?tab=places`));
       assert.ok(guest.includes(`/${language}/community/events`));
       assert.ok(guest.includes(`/${language}/record`));

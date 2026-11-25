@@ -10,6 +10,12 @@ const labels = {
   es: ["Inicio", "Registros", "Capturar", "Lugares", "Participar", "Cuenta", "Ir al contenido", "Páginas principales"],
   "pt-br": ["Início", "Registros", "Capturar", "Lugares", "Participar", "Conta", "Ir ao conteúdo", "Páginas principais"],
 };
+const navLabels: Record<keyof typeof labels, Record<"lib" | "events" | "capture" | "places" | "me", string>> = {
+  ja: { lib: "ライブラリ", events: "イベント", capture: "撮る", places: "場所", me: "自分" },
+  en: { lib: "Library", events: "Events", capture: "Capture", places: "Places", me: "Me" },
+  es: { lib: "Biblioteca", events: "Eventos", capture: "Capturar", places: "Lugares", me: "Yo" },
+  "pt-br": { lib: "Biblioteca", events: "Eventos", capture: "Capturar", places: "Lugares", me: "Eu" },
+};
 const loginLabels: Record<keyof typeof labels, string> = {
   ja: "ログイン",
   en: "Sign in",
@@ -22,13 +28,13 @@ const langSwitchMeta = [
   { code: "es", short: "ES", label: "Español", aria: "Idioma" },
   { code: "pt-br", short: "PT", label: "Português", aria: "Idioma" },
 ] as const;
-const icons = [
-  '<path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10M9 20v-6h6v6"/>',
-  '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/>',
-  '<path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="12.5" r="3.5"/>',
-  '<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2"/>',
-  '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3M8 17h5"/>',
-];
+const navIcons = {
+  lib: '<rect x="3.5" y="4" width="17" height="16" rx="3"/><circle cx="9" cy="9.5" r="1.6"/><path d="m4 17 5-4.5 3.5 3L15 13.5l5 4.5"/>',
+  events: '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+  capture: '<path d="M14.5 5h-5L8 7H5.5A2.5 2.5 0 0 0 3 9.5v8A2.5 2.5 0 0 0 5.5 20h13a2.5 2.5 0 0 0 2.5-2.5v-8A2.5 2.5 0 0 0 18.5 7H16z"/><circle cx="12" cy="13" r="3.4"/>',
+  places: '<path d="M19 10.2c0 5-7 10.8-7 10.8S5 15.2 5 10.2a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.4"/>',
+  me: '<circle cx="12" cy="8.2" r="3.6"/><path d="M5 20c.6-3.7 3.4-5.6 7-5.6s6.4 1.9 7 5.6"/>',
+} as const;
 
 function normalizeAppLang(lang: string): keyof typeof labels {
   const lower = lang.toLowerCase();
@@ -54,6 +60,7 @@ export function appExperienceActiveIndex(path: string): number {
   if (pathname === "/record" || pathname.startsWith("/record/")) return 2;
   if (pathname === "/map" || pathname.startsWith("/map/") || pathname.startsWith("/places/")) return 3;
   if (pathname === "/community/events" || pathname.startsWith("/community/events/")) return 4;
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) return 5;
   return -1;
 }
 
@@ -71,28 +78,36 @@ export function renderAppExperienceLanguageSwitch(lang: string, currentPath?: st
 export function renderAppExperienceNavigation(lang: string, active: number, placement: "header" | "bottom", member = false): string {
   const language = normalizeAppLang(lang);
   const copy = labels[language];
+  const names = navLabels[language];
   const prefix = `/${language}`;
-  const guestRecordsPath = `${prefix}/records?view=public`;
-  const memberRecordsPath = `${prefix}/records?view=mine`;
-  const paths = [`${prefix}/`, member ? memberRecordsPath : guestRecordsPath, `${prefix}/record`, `${prefix}/map?tab=places`, `${prefix}/community/events`];
+  const guestLibraryPath = `${prefix}/`;
+  const memberLibraryPath = `${prefix}/library`;
+  // Nav keys keep the historical index space used by callers: 0 home/library, 1 records, 2 capture, 3 places, 4 events, 5 me.
+  const items: Array<{ key: number; name: keyof typeof navIcons; href: string; library?: boolean }> = [
+    { key: 0, name: "lib", href: member ? memberLibraryPath : guestLibraryPath, library: true },
+    { key: 4, name: "events", href: `${prefix}/community/events` },
+    { key: 2, name: "capture", href: `${prefix}/record` },
+    { key: 3, name: "places", href: `${prefix}/map?tab=places` },
+    { key: 5, name: "me", href: `${prefix}/profile` },
+  ];
   const order = placement === "header" ? [0, 1, 3, 4, 2] : [0, 1, 2, 3, 4];
   const navClass = placement === "bottom" ? "zukan-app-nav is-bottom global-record-launcher" : "zukan-app-nav is-header";
-  return `<nav class="${navClass}" aria-label="${copy[7]}">${order.map((index) => {
-    const isActive = active === index;
-    const isCapture = index === 2;
+  return `<nav class="${navClass}" aria-label="${copy[7]}">${order.map((position) => {
+    const item = items[position]!;
+    const isActive = active === item.key || (item.library === true && active === 1);
+    const isCapture = item.name === "capture";
     const classes = placement === "bottom"
       ? `global-record-choice${isActive ? " is-active" : ""}${isCapture ? " is-primary is-capture" : ""} ik-ui-action`
       : `ik-ui-action${isCapture ? " is-capture" : ""}`;
-    const authAttrs = index === 1
-      ? ` data-bottom-nav-auth data-auth-guest-href="${escapeAttr(guestRecordsPath)}" data-auth-member-href="${escapeAttr(memberRecordsPath)}"`
+    const authAttrs = item.library
+      ? ` data-bottom-nav-auth data-auth-guest-href="${escapeAttr(guestLibraryPath)}" data-auth-member-href="${escapeAttr(memberLibraryPath)}"`
       : "";
     const captureAttrs = isCapture && !isActive
       ? ` data-global-record-trigger="photo" data-kpi-event="capture_nav_tap" data-kpi-action="${placement === "bottom" ? "capture_nav" : "header_capture"}"`
       : "";
-    const iconHtml = placement === "bottom"
-      ? `<span class="global-record-choice-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${icons[index]}</svg></span>`
-      : `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[index]}</svg>`;
-    return `<a class="${classes}" href="${escapeAttr(paths[index] ?? "")}"${authAttrs}${captureAttrs}${isActive ? ' aria-current="page"' : ""}>${iconHtml}<span>${copy[index]}</span></a>`;
+    const svg = `<svg viewBox="0 0 24 24" aria-hidden="true">${navIcons[item.name]}</svg>`;
+    const iconHtml = placement === "bottom" ? `<span class="global-record-choice-icon" aria-hidden="true">${svg}</span>` : svg;
+    return `<a class="${classes}" href="${escapeAttr(item.href)}"${authAttrs}${captureAttrs}${isActive ? ' aria-current="page"' : ""}>${iconHtml}<span>${names[item.name]}</span></a>`;
   }).join("")}</nav>`;
 }
 
@@ -117,7 +132,7 @@ export function renderAppExperienceHeader(
   const brandSrc = options?.brandLockupSrc ? escapeAttr(options.brandLockupSrc) : "/assets/brand/zukan-lockup.svg";
   const loginRedirect = options?.currentPath ?? `${prefix}/profile`;
   const defaultAccountHtml = member
-    ? `<a class="ik-ui-action zukan-app-account" href="${prefix}/profile">${copy[5]}</a>`
+    ? `<a class="ik-ui-action zukan-app-account is-member" href="${prefix}/profile" aria-label="${copy[5]}"><svg viewBox="0 0 24 24" aria-hidden="true">${navIcons.me}</svg></a>`
     : `<a class="ik-ui-action zukan-app-account home-header-login site-login-link" href="${prefix}/login?redirect=${encodeURIComponent(loginRedirect)}">${loginLabels[language]}</a>`;
   const accountHtml = options?.authControlsHtml ?? defaultAccountHtml;
   return `<a class="zukan-app-skip" href="#${escapeAttr(mainId)}">${copy[6]}</a><header class="${headerClass}"${headerAttrs}><div><a class="brand zukan-app-brand" href="${prefix}/" aria-label="ZUKAN" data-kpi-event="logo_home_tap" data-kpi-action="logo_home"><img src="${brandSrc}" alt="" width="132" height="32"></a>${renderAppExperienceNavigation(lang, active, "header", member)}<div class="zukan-app-header-tools">${accountHtml}</div></div></header>`;
@@ -138,20 +153,20 @@ export function renderAppExperienceQuickCamera(lang: string, options?: { nonce?:
 export const ZUKAN_DESIGN_FOUNDATION_STYLES = `
 :root{
   color-scheme:light;
-  --zukan-action-primary:#245c3a;
-  --zukan-action-hover:#1c492e;
-  --zukan-action-active:#153923;
-  --zukan-action-capture:#b94f18;
-  --zukan-action-capture-hover:#963f13;
-  --zukan-action-capture-active:#78320f;
+  --zukan-action-primary:#143f2e;
+  --zukan-action-hover:#0f3023;
+  --zukan-action-active:#0a241a;
+  --zukan-action-capture:#143f2e;
+  --zukan-action-capture-hover:#0f3023;
+  --zukan-action-capture-active:#0a241a;
   --zukan-on-action-primary:#ffffff;
   --zukan-text-primary:#17251b;
   --zukan-text-secondary:#40564a;
-  --zukan-surface-base:#fff9ec;
-  --zukan-surface-subtle:#fff9ec;
+  --zukan-surface-base:#ffffff;
+  --zukan-surface-subtle:#f7f7f3;
   --zukan-border-control:#52685a;
   --zukan-border-decorative:#dde2dc;
-  --zukan-link:#245c3a;
+  --zukan-link:#143f2e;
   --zukan-link-visited:#663399;
   --zukan-status-success:#146c43;
   --zukan-status-warning:#8a4b00;
@@ -263,7 +278,14 @@ body[data-zukan-app-experience] .site-core-nav-link.is-capture{color:#fff;backgr
 .zukan-app-account{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 12px;color:var(--zukan-green);font-size:14px;text-decoration:none;white-space:nowrap}
 .zukan-app-nav{display:flex;gap:6px}.zukan-app-nav a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;text-decoration:none;color:var(--zukan-muted);font-size:15px;font-weight:650;border-radius:8px}.zukan-app-nav a:visited{color:var(--zukan-muted)}.zukan-app-nav a[aria-current=page]{color:var(--zukan-green);background:#edf3ee}.zukan-app-nav a[aria-current=page]:visited{color:var(--zukan-green)}.zukan-app-nav a.is-capture{background:var(--zukan-action-capture);color:#fff}.zukan-app-nav a.is-capture:visited{color:#fff}.zukan-app-nav a.is-capture:hover{background:var(--zukan-action-capture-hover)}.zukan-app-nav a.is-capture:active{background:var(--zukan-action-capture-active)}.zukan-app-nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round;flex-shrink:0}.zukan-app-nav.is-header svg{display:none}.zukan-app-nav.is-bottom{display:none}
 .zukan-app-nav.is-bottom .global-record-choice-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px}
-.zukan-app-nav.is-bottom a.is-capture .global-record-choice-icon{width:32px;height:24px;border-radius:999px;background:var(--zukan-action-capture-hover)}
+.zukan-app-nav.is-bottom a.is-capture .global-record-choice-icon{width:52px;height:52px;margin-top:-22px;border-radius:50%;background:var(--zukan-action-capture);color:#fff;border:4px solid #fff;box-shadow:0 2px 10px rgba(20,63,46,.28)}
+.zukan-app-nav.is-bottom a.is-capture,.zukan-app-nav.is-bottom a.is-capture:hover,.zukan-app-nav.is-bottom a.is-capture:active{background:none;color:var(--zukan-green);font-weight:700}
+.zukan-app-nav.is-bottom a[aria-current=page]{background:none;font-weight:700}
+.zukan-app-nav.is-bottom a:not(.is-capture) svg{width:26px;height:26px}
+.zukan-app-nav.is-bottom a>span:last-child{white-space:nowrap}
+.zukan-app-account.is-member{width:44px;height:44px;padding:0;border-radius:50%;background:var(--zukan-green);color:#fff}
+.zukan-app-account.is-member svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.zukan-app-account.home-header-login{border:2px solid var(--zukan-green);border-radius:999px;padding:0 20px;font-size:16px;font-weight:700}
 .zukan-app-skip{position:fixed;top:-120px;left:16px;z-index:200;padding:12px 20px;background:#fff;color:var(--zukan-green)}.zukan-app-skip:focus{top:8px}
 body[data-zukan-app-experience] .home-state-view{gap:56px;padding-top:32px}
 /* Guest Home is composed independently from the member workspace.
@@ -329,8 +351,8 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
  body[data-zukan-app-experience]{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
  body[data-zukan-app-experience] .site-header-inner,.zukan-app-header>div{height:64px;padding:0 12px;gap:10px}
  body[data-zukan-app-experience] .site-core-nav,.zukan-app-nav.is-header{display:none!important}
- body[data-zukan-app-experience] .global-record-launcher,.zukan-app-nav.is-bottom{box-sizing:border-box;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;z-index:85;left:0;right:0;bottom:0;width:100%;max-width:none;transform:none;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));border:0;border-top:1px solid var(--zukan-line);border-radius:0;background:#fff;box-shadow:none}
- .zukan-app-nav.is-bottom a,.zukan-app-nav.is-bottom .global-record-choice{flex-direction:column;gap:3px;font-size:14px;min-height:56px;padding:5px 2px;border-radius:8px;line-height:1.15;text-align:center}
+ body[data-zukan-app-experience] .global-record-launcher,.zukan-app-nav.is-bottom{box-sizing:border-box;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;z-index:85;left:0;right:0;bottom:0;width:100%;max-width:none;transform:none;gap:0;padding:6px 2px calc(6px + env(safe-area-inset-bottom));border:0;border-top:1px solid var(--zukan-line);border-radius:0;background:#fff;box-shadow:none}
+ .zukan-app-nav.is-bottom a,.zukan-app-nav.is-bottom .global-record-choice{flex-direction:column;gap:3px;font-size:14px;font-weight:500;min-height:56px;padding:5px 2px;border-radius:8px;line-height:1.15;text-align:center}
  body[data-zukan-app-experience] .site-shell.has-global-record-launcher{padding-bottom:calc(112px + max(0px, env(safe-area-inset-bottom)))}
  body[data-zukan-app-experience] .home-recent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
  body[data-zukan-app-experience] .of-media-column{top:80px}
