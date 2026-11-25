@@ -215,6 +215,7 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
+import { writeRecordMediaOrder } from "./recordReading";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
   buildObservationAiQualityBacklogPayload,
@@ -785,6 +786,7 @@ interface LegacyPhotoUploadInput {
   base64Data?: string | null;
   mediaRole?: string | null;
   facePrivacy?: string | null;
+  position?: number | null;
 }
 
 interface LegacyPhotoAssetRow {
@@ -23283,6 +23285,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
             await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
               ...upload,
               mediaRole: index === 0 ? "primary" : "context",
+            position: index,
               facePrivacy: photoFacePrivacyStatus(upload)
             });
             preparedPhotoUploads[index] = null;
@@ -29278,6 +29281,7 @@ async function attachVideoAssetToObservation(input: {
     })
   ]);
 
+  await writeRecordMediaOrder(env.OBS_DB, input.observationId, assetId);
   const pending = await env.OBS_DB.prepare(
     `SELECT outbox_id, topic, target_id FROM outbox
       WHERE outbox_id IN (?, ?) AND dispatch_state = 'pending'`
@@ -30517,6 +30521,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     if (!existingObject || existingObject.size !== body.byteLength) {
       return json({ ok: false, error: "media_integrity_missing" }, 503, { "cache-control": "no-store" });
     }
+    await writeRecordMediaOrder(env.OBS_DB, observationId, asset.asset_id, input.position);
     return json({
       ok: true,
       visitId: observationId,
@@ -30649,6 +30654,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     throw error;
   }
 
+  await writeRecordMediaOrder(env.OBS_DB, observationId, assetId, input.position);
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
     { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
