@@ -60,6 +60,11 @@ import {
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
 import {
+  handleAccountSettingsDetailRoute,
+  handleSaveAccountSettingsDetail,
+  type SettingsDetailSection,
+} from "./zukanAccountSettingsDetail";
+import {
   handleSearchResultsApi,
   handleSearchResultsRoute,
 } from "./zukanSearchResults";
@@ -3957,6 +3962,19 @@ export const worker = {
         const viewLang = (searchResultsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleSearchResultsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/settings-detail") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveAccountSettingsDetail(request, session, env.OBS_DB);
+      }
+
+      const accountSettingsDetailMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/settings\/(edit|notifications|account)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && accountSettingsDetailMatch?.[2]) {
+        const viewLang = (accountSettingsDetailMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const section = accountSettingsDetailMatch[2] as SettingsDetailSection;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleAccountSettingsDetailRoute(section, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
