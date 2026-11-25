@@ -751,13 +751,11 @@ export function renderZukanTopPage(
     </a>`).join("")}</div>`;
   }
 
-  const heroPhoto = data.heroPhotos[0];
-  const heroSrc = heroPhoto ? heroPhoto.photoUrl.replace("/derived-transform/w360/", "/derived-transform/w680/") : "";
   const placeRows = data.placesStrip.length > 0
     ? `<section class="zk-places" aria-labelledby="zt-places-heading">
         <div class="zk-sec-head"><h2 id="zt-places-heading">${isEn ? "Public place ZUKANs" : "公開されている場所の図鑑"}</h2></div>
         <ul class="zk-place-list">${data.placesStrip.map((pl) => `<li><a class="zk-place-row" href="${escapeHtml(pl.href)}">
-          ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"></span>`}
+          ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>`}
           <span class="zk-place-text"><strong>${escapeHtml(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>${isEn ? `${pl.recordCount} records` : `記録 ${pl.recordCount}件`}</span>` : ""}</span>
           <span class="zk-chev" aria-hidden="true">›</span>
         </a></li>`).join("")}</ul>
@@ -765,8 +763,8 @@ export function renderZukanTopPage(
     : "";
 
   const loggedOutMain = `
-    <section class="zk-hero${heroSrc ? " has-photo" : ""}" aria-labelledby="zk-hero-title">
-      ${heroSrc ? `<img src="${escapeHtml(heroSrc)}" alt="" fetchpriority="high" decoding="async">` : ""}
+    <section class="zk-hero" data-zk-hero="designed" aria-labelledby="zk-hero-title">
+      <svg class="zk-hero-art" aria-hidden="true" focusable="false" viewBox="0 0 400 340" preserveAspectRatio="xMidYMid slice"><defs><radialGradient id="zk-sun" cx="78%" cy="16%" r="40%"><stop offset="0" stop-color="#fff3c4" stop-opacity=".75"/><stop offset="1" stop-color="#fff3c4" stop-opacity="0"/></radialGradient></defs><rect width="400" height="340" fill="#1d5a3f"/><rect width="400" height="340" fill="url(#zk-sun)"/><g fill="#2f7a4e"><circle cx="40" cy="40" r="90"/><circle cx="170" cy="10" r="80"/><circle cx="300" cy="60" r="70"/><circle cx="395" cy="20" r="70"/></g><g fill="#3f9160" opacity=".85"><circle cx="90" cy="90" r="55"/><circle cx="230" cy="70" r="60"/><circle cx="350" cy="120" r="48"/></g><g fill="#7fbf7a" opacity=".55"><circle cx="130" cy="40" r="26"/><circle cx="270" cy="30" r="22"/><circle cx="60" cy="120" r="18"/><circle cx="330" cy="70" r="16"/></g><path d="M0 300 C90 270 170 285 260 262 C320 248 370 255 400 240 V340 H0Z" fill="#143F2E" opacity=".85"/></svg>
       <div class="zk-hero-copy">
         <h1 id="zk-hero-title">${isEn ? "Shoot it, and the town's today becomes your ZUKAN." : "撮ると、まちの今が図鑑になる。"}</h1>
         <p>${isEn ? "Festivals, morning markets, riverside nature, local work. Your photos pile up by place and date." : "祭り、朝市、川辺の自然、まちの仕事。撮った写真が場所と日付でたまります。"}</p>
@@ -914,8 +912,8 @@ const TOP_PAGE_CSS = `
     .zt-landing{padding-bottom:24px}
     .zt-landing .zt-main{padding-top:8px;gap:24px}
     .zk-hero{position:relative;display:flex;align-items:flex-end;min-height:min(86vw,340px);margin:0 -20px;overflow:hidden;background:var(--green);color:#fff}
-    .zk-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
-    .zk-hero.has-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,12,.05) 18%,rgba(8,18,12,.72) 100%)}
+    .zk-hero-art{position:absolute;inset:0;width:100%;height:100%;display:block}
+    .zk-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,18,12,.05) 18%,rgba(8,18,12,.72) 100%)}
     .zk-hero-copy{position:relative;z-index:1;padding:0 20px 20px;display:grid;gap:8px}
     .zk-hero-copy h1{margin:0;color:#fff;font-size:30px;line-height:1.35;font-weight:700}
     .zk-hero-copy p{margin:0;color:#fff;font-size:16px;line-height:1.7}
@@ -928,6 +926,7 @@ const TOP_PAGE_CSS = `
     .zk-place-list li{border-bottom:1px solid var(--line)}
     .zk-place-row,.zk-place-row:visited{display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:16px;padding:14px 0;color:var(--ink);text-decoration:none;min-height:76px}
     .zk-place-row img,.zk-place-ph{width:76px;height:76px;border-radius:16px;object-fit:cover;background:var(--surface-2);display:block}
+    .zk-place-ph{display:grid;place-items:center;background:#e3efe6}
     .zk-place-text{display:grid;gap:2px;min-width:0}
     .zk-place-text strong{font-size:19px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
     .zk-place-text span{font-size:15px;color:var(--muted)}
