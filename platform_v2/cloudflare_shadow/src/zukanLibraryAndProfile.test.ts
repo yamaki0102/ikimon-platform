@@ -36,7 +36,9 @@ test("library (B1-B3, B6, B7) renders in common ZUKAN shell without changing bun
   assert.match(html, /まとめて確認・公開/);
   assert.match(html, /data-library-one-year-pair="1"/);
   assert.match(html, /去年の今日/);
-  assert.match(html, /data-zukan-otayori-fab="1"/);
+  assert.doesNotMatch(html, /data-zukan-otayori-fab="1"/);
+  assert.match(html, /data-zukan-otayori-sidebar="1"[^>]*>改善のご要望<\/a>/);
+  assert.match(html, /data-zukan-otayori-menu="1"[^>]*>改善のご要望<\/a>/);
 
   const emptyHtml = renderZukanLibraryPage(
     { libraryGroups: [], oneYearPair: null },
@@ -56,4 +58,6 @@ test("profile hub (I1) renders in common ZUKAN shell with library, events, and s
   assert.match(html, /href="\/ja\/records\?view=mine"/);
   assert.match(html, /href="\/ja\/community\/events"/);
   assert.match(html, /href="\/ja\/profile\/settings"/);
+  assert.match(html, /data-zukan-otayori-profile="1"/);
+  assert.match(html, /改善のご要望/);
 });
