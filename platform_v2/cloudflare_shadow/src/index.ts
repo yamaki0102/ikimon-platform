@@ -408,6 +408,7 @@ import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
+import { handleRecordCountBandRoute } from "./recordCountBand";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
@@ -3752,6 +3753,16 @@ export const worker = {
       const shadowVideoThumbnailMatch = url.pathname.match(/^\/shadow\/stream\/([^/]+)\/thumbnail\.jpg$/);
       if (request.method === "GET" && shadowVideoThumbnailMatch?.[1]) {
         return getShadowVideoThumbnail(decodeURIComponent(shadowVideoThumbnailMatch[1]), env);
+      }
+
+      if (request.method === "GET" && /^\/api\/v1\/records\/[^/]+\/(?:count-band|place-season)$/.test(nativePathname)) {
+        const bandResponse = await handleRecordCountBandRoute({
+          query: async (sql, values) => (await env.OBS_DB.prepare(sql).bind(...(values as Array<string | number | null>)).all<Record<string, unknown>>()).results,
+          publicRows: () => queryPublicMapRows(env),
+          nowMs: Date.now(),
+          safeAreaLabel: normalizeSafePublicAreaLabelCandidate,
+        }, async () => readCompatibleSession(request, env), nativePathname);
+        if (bandResponse) return bandResponse;
       }
 
       const publicDetailApiMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
