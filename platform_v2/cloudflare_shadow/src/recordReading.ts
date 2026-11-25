@@ -274,37 +274,114 @@ export async function buildFeaturePlaceMutations(input: ReadingPlanInput): Promi
 }
 
 export type ReadingState = "ai_read" | "proposed" | "confirmed";
-export type ReadingRevisionLike = { seq: number; action: string; actorKind: string; actorId: string | null; valueCode: string | null };
-export type ReadingComputed = { state: ReadingState; valueCode: string | null; actorKind: string; removed: boolean };
+export type ReadingKind = "organism" | "feature" | "place_field";
+export type ReadingRevisionLike = {
+  seq: number;
+  action: string;
+  actorKind: string;
+  actorId: string | null;
+  valueCode: string | null;
+  revisionId?: string | null;
+  revertsRevisionId?: string | null;
+  valueKey?: string | null;
+  removedFlag?: boolean;
+  voided?: boolean;
+};
+export type ReadingComputeOptions = { kind?: ReadingKind; suspendedActors?: ReadonlySet<string> };
+export type ReadingComputed = {
+  state: ReadingState;
+  valueCode: string | null;
+  valueKey: string | null;
+  actorKind: string;
+  removed: boolean;
+  ownerPinned: boolean;
+  otherViewCount: number;
+  contested: boolean;
+  disputed: boolean;
+  supporterCount: number;
+};
 
-export function computeReadingState(revisions: readonly ReadingRevisionLike[]): ReadingComputed {
-  const ordered = [...revisions].sort((left, right) => left.seq - right.seq);
+export const REMOVE_VOTE_KEY = "__remove__";
+export const normalizeReadingName = (value: string): string => value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase();
+
+const isDecisive = (revision: ReadingRevisionLike | undefined): revision is ReadingRevisionLike =>
+  Boolean(revision) && ["set", "agree", "revert", "remove"].includes(revision!.action);
+const keyOf = (revision: ReadingRevisionLike): string | null => revision.valueKey ?? revision.valueCode;
+
+export function computeReadingState(revisions: readonly ReadingRevisionLike[], options: ReadingComputeOptions = {}): ReadingComputed {
+  const suspended = options.suspendedActors ?? new Set<string>();
+  const ordered = revisions.filter((revision) => !revision.voided).sort((left, right) => left.seq - right.seq);
   const lastAi = [...ordered].reverse().find((revision) => revision.actorKind === "ai" && revision.action === "read");
+  const aiKey = lastAi ? keyOf(lastAi) : null;
   const aiValue = lastAi?.valueCode ?? null;
-  const lastBy = (kind: string): ReadingRevisionLike | undefined => [...ordered].reverse().find((revision) => revision.actorKind === kind);
-  const decisive = (revision: ReadingRevisionLike | undefined): revision is ReadingRevisionLike =>
-    Boolean(revision) && ["set", "agree", "revert", "remove"].includes(revision!.action);
+  const lastBy = (kind: string): ReadingRevisionLike | undefined => [...ordered].reverse().find((revision) => revision.actorKind === kind && revision.action !== "read");
+  const reverted = new Set<string>();
+  for (const revision of ordered) if (revision.action === "revert" && revision.actorKind === "owner" && revision.revertsRevisionId) reverted.add(revision.revertsRevisionId);
+
+  const latestByActor = new Map<string, { key: string | null; kind: "vote" | "object" | "none"; seq: number }>();
+  let shown: string | null = null;
+  const tally = (): Map<string, { count: number; firstSeq: number }> => {
+    const result = new Map<string, { count: number; firstSeq: number }>();
+    for (const [actor, vote] of latestByActor) {
+      if (vote.kind !== "vote" || vote.key === null || suspended.has(actor)) continue;
+      const entry = result.get(vote.key) ?? { count: 0, firstSeq: vote.seq };
+      entry.count += 1;
+      entry.firstSeq = Math.min(entry.firstSeq, vote.seq);
+      result.set(vote.key, entry);
+    }
+    return result;
+  };
+  for (const revision of ordered) {
+    if (revision.actorKind !== "community") continue;
+    const actor = revision.actorId ?? `anon:${revision.seq}`;
+    if (revision.revisionId && reverted.has(revision.revisionId)) latestByActor.set(actor, { key: null, kind: "none", seq: revision.seq });
+    else if (revision.action === "object") latestByActor.set(actor, { key: null, kind: "object", seq: revision.seq });
+    else if (revision.action === "remove") latestByActor.set(actor, { key: REMOVE_VOTE_KEY, kind: "vote", seq: revision.seq });
+    else if (revision.action === "propose" || revision.action === "agree") {
+      const key = keyOf(revision);
+      latestByActor.set(actor, key ? { key, kind: "vote", seq: revision.seq } : { key: null, kind: "none", seq: revision.seq });
+    }
+    const counts = tally();
+    if (counts.size === 0) shown = null;
+    else {
+      const top = Math.max(...[...counts.values()].map((entry) => entry.count));
+      const leaders = [...counts.entries()].filter(([, entry]) => entry.count === top);
+      shown = shown !== null && leaders.some(([key]) => key === shown) ? shown : leaders.sort((left, right) => left[1].firstSeq - right[1].firstSeq)[0]![0];
+    }
+  }
+  const counts = tally();
+  const total = [...counts.values()].reduce((sum, entry) => sum + entry.count, 0);
+  const disputed = [...latestByActor.entries()].some(([actor, vote]) => vote.kind === "object" && !suspended.has(actor));
+  const contested = counts.size > 1;
+  const cap = (state: ReadingState): ReadingState => (options.kind === "organism" && state === "confirmed" ? "proposed" : state);
+  const base = { contested, disputed };
 
   const owner = lastBy("owner");
-  if (decisive(owner)) return { state: "confirmed", valueCode: owner.action === "remove" ? null : owner.valueCode, actorKind: "owner", removed: owner.action === "remove" };
+  if (isDecisive(owner)) {
+    const removed = owner.action === "remove" || (owner.action === "revert" && owner.removedFlag === true);
+    const ownerKey = removed ? null : keyOf(owner) ?? aiKey;
+    return {
+      ...base, state: cap("confirmed"), valueCode: removed ? null : owner.valueCode ?? aiValue, valueKey: ownerKey, actorKind: "owner", removed, ownerPinned: true,
+      otherViewCount: total - (counts.get(removed ? REMOVE_VOTE_KEY : ownerKey ?? "")?.count ?? 0), supporterCount: 0,
+    };
+  }
   const curator = lastBy("curator");
-  if (decisive(curator) && curator.action !== "agree") return { state: "confirmed", valueCode: curator.action === "remove" ? null : curator.valueCode, actorKind: "curator", removed: curator.action === "remove" };
-
-  const latestByActor = new Map<string, ReadingRevisionLike>();
-  for (const revision of ordered) if (revision.actorKind === "community") latestByActor.set(revision.actorId ?? `anon:${revision.seq}`, revision);
-  const supporters = new Map<string, number>();
-  let objections = 0;
-  for (const revision of latestByActor.values()) {
-    if (revision.action === "object") objections += 1;
-    else if (["propose", "agree"].includes(revision.action) && revision.valueCode) supporters.set(revision.valueCode, (supporters.get(revision.valueCode) ?? 0) + 1);
+  if (isDecisive(curator) && curator.action !== "agree") {
+    const removed = curator.action === "remove";
+    return { ...base, state: cap("confirmed"), valueCode: removed ? null : curator.valueCode, valueKey: removed ? null : keyOf(curator), actorKind: "curator", removed, ownerPinned: false, otherViewCount: 0, supporterCount: 0 };
   }
-  if (supporters.size > 0) {
-    const total = [...supporters.values()].reduce((sum, count) => sum + count, 0);
-    const [topValue, topCount] = [...supporters.entries()].sort((left, right) => right[1] - left[1])[0]!;
-    const confirmed = topCount >= 2 && objections === 0 && topCount / total >= 2 / 3;
-    return { state: confirmed ? "confirmed" : "proposed", valueCode: topValue, actorKind: "community", removed: false };
+  if (shown !== null && counts.has(shown)) {
+    const shownCount = counts.get(shown)!.count;
+    const top = Math.max(...[...counts.values()].map((entry) => entry.count));
+    const confirmed = shownCount === top && shownCount >= 2 && !disputed && shownCount / total >= 2 / 3;
+    const removed = shown === REMOVE_VOTE_KEY;
+    const valueCode = removed || options.kind === "organism" ? null : shown;
+    return {
+      ...base, state: cap(confirmed ? "confirmed" : "proposed"), valueCode, valueKey: removed ? null : shown, actorKind: "community", removed, ownerPinned: false,
+      otherViewCount: total - shownCount, supporterCount: shownCount,
+    };
   }
-  return { state: "ai_read", valueCode: aiValue, actorKind: "ai", removed: false };
+  return { ...base, state: "ai_read", valueCode: aiValue, valueKey: aiKey, actorKind: "ai", removed: false, ownerPinned: false, otherViewCount: 0, supporterCount: 0 };
 }
 
 export type ReadingQuery = (sql: string, values: unknown[]) => Promise<Array<Record<string, unknown>>>;
@@ -321,8 +398,15 @@ export type ReadingFoundItem = {
   observationId: string | null;
   name: { vernacular: string | null; scientific: string | null; rank: string | null } | null;
   locator: ReadingLocator;
+  otherViewCount?: number;
+  contested?: boolean;
+  disputed?: boolean;
+  ownerPinned?: boolean;
 };
-export type ReadingPlaceValue = { itemId: string; code: string; labelJa: string | null; state: ReadingState; actorKind: string; locator: ReadingLocator };
+export type ReadingPlaceValue = {
+  itemId: string; code: string; labelJa: string | null; state: ReadingState; actorKind: string; locator: ReadingLocator;
+  otherViewCount?: number; contested?: boolean; disputed?: boolean; ownerPinned?: boolean;
+};
 export type ReadingPlaceFields = Record<PlaceSlot, ReadingPlaceValue | null>;
 export type RecordReadingMedia = {
   assetId: string;
@@ -366,8 +450,25 @@ function linkLocator(kind: string | null, json: Record<string, unknown>): Readin
   return { kind: "full" };
 }
 
+export function revisionLikeFromRow(row: Record<string, unknown>): ReadingRevisionLike {
+  const valueJson = parseJson(row.value_json);
+  const name = typeof valueJson.name === "string" ? normalizeReadingName(valueJson.name) : null;
+  return {
+    seq: num(row.seq) ?? 0,
+    action: str(row.action) ?? "",
+    actorKind: str(row.actor_kind) ?? "",
+    actorId: str(row.actor_id),
+    valueCode: str(row.value_code),
+    revisionId: str(row.revision_id),
+    revertsRevisionId: str(row.reverts_revision_id),
+    valueKey: name || null,
+    removedFlag: valueJson.removed === true,
+    voided: num(row.voided) === 1,
+  };
+}
+
 export async function readRecordReading(query: ReadingQuery, recordId: string): Promise<RecordReading> {
-  const [assets, items, revisions, organisms, links] = await Promise.all([
+  const [assets, items, revisions, organisms, links, standing, voids] = await Promise.all([
     query(
       `SELECT a.asset_id, a.mime, a.duration_ms, o.position
          FROM asset_ledger a
@@ -384,7 +485,7 @@ export async function readRecordReading(query: ReadingQuery, recordId: string): 
       [recordId],
     ),
     query(
-      `SELECT r.item_id, r.seq, r.action, r.actor_kind, r.actor_id, r.value_code
+      `SELECT r.item_id, r.revision_id, r.seq, r.action, r.actor_kind, r.actor_id, r.value_code, r.value_json, r.reverts_revision_id
          FROM record_reading_revisions r
          JOIN record_reading_items i ON i.item_id = r.item_id
         WHERE i.record_runtime = 'cloudflare_d1' AND i.record_id = ?
@@ -409,14 +510,23 @@ export async function readRecordReading(query: ReadingQuery, recordId: string): 
         ORDER BY m.created_at, m.link_id`,
       [recordId],
     ),
+    query("SELECT user_id FROM record_proposer_standing WHERE status = 'suspended'", []).catch(() => []),
+    query(
+      `SELECT v.revision_id FROM record_reading_revision_voids v JOIN record_reading_items i ON i.item_id = v.item_id
+        WHERE i.record_runtime = 'cloudflare_d1' AND i.record_id = ?`,
+      [recordId],
+    ).catch(() => []),
   ]);
+  const voidedIds = new Set(voids.map((row) => str(row.revision_id)).filter((id): id is string => Boolean(id)));
+  const suspendedActors = new Set(standing.map((row) => str(row.user_id)).filter((id): id is string => Boolean(id)));
 
   const revisionsByItem = new Map<string, ReadingRevisionLike[]>();
   for (const row of revisions) {
     const itemId = str(row.item_id);
     if (!itemId) continue;
     const list = revisionsByItem.get(itemId) ?? [];
-    list.push({ seq: num(row.seq) ?? 0, action: str(row.action) ?? "", actorKind: str(row.actor_kind) ?? "", actorId: str(row.actor_id), valueCode: str(row.value_code) });
+    const like = revisionLikeFromRow(row);
+    list.push(like.revisionId && voidedIds.has(like.revisionId) ? { ...like, voided: true } : like);
     revisionsByItem.set(itemId, list);
   }
   const organismRows = new Map(organisms.map((row) => [str(row.observation_id) ?? "", row]));
@@ -448,7 +558,8 @@ export async function readRecordReading(query: ReadingQuery, recordId: string): 
   for (const item of items) {
     const itemId = str(item.item_id) ?? "";
     const kind = str(item.kind);
-    const computed = computeReadingState(revisionsByItem.get(itemId) ?? []);
+    const computed = computeReadingState(revisionsByItem.get(itemId) ?? [], { kind: kind === "organism" || kind === "feature" || kind === "place_field" ? kind : undefined, suspendedActors });
+    const proposalView = { otherViewCount: computed.otherViewCount, contested: computed.contested, disputed: computed.disputed, ownerPinned: computed.ownerPinned };
     if (computed.removed) continue;
     if (kind === "organism") {
       const observationId = str(item.observation_id) ?? "";
@@ -458,7 +569,7 @@ export async function readRecordReading(query: ReadingQuery, recordId: string): 
       const name = accepted
         ? { vernacular: str(organism.accepted_name), scientific: str(organism.accepted_scientific), rank: str(organism.accepted_rank) }
         : { vernacular: str(organism.ai_name), scientific: str(organism.ai_scientific), rank: str(organism.ai_rank) };
-      const base = { itemId, kind: "organism" as const, state: accepted ? "confirmed" as const : computed.state, code: null, labelJa: null, observationId, name };
+      const base = { itemId, kind: "organism" as const, state: accepted ? "confirmed" as const : computed.state, code: null, labelJa: null, observationId, name, ...proposalView };
       const organismLinks = linksByObservation.get(observationId) ?? [];
       const placed = organismLinks.filter((link) => byAsset.has(link.mediaId));
       if (placed.length === 0) recordLevel.found.push({ ...base, locator: { kind: "full" } });
@@ -469,7 +580,7 @@ export async function readRecordReading(query: ReadingQuery, recordId: string): 
     const locator = itemLocator(str(item.anchor_locator_key) ?? "full", parseJson(item.anchor_locator_json));
     if (kind === "feature") {
       const code = computed.valueCode;
-      const found: ReadingFoundItem = { itemId, kind: "feature", state: computed.state, code, labelJa: code ? featureLabelJa(code) : null, observationId: null, name: null, locator };
+      const found: ReadingFoundItem = { itemId, kind: "feature", state: computed.state, code, labelJa: code ? featureLabelJa(code) : null, observationId: null, name: null, locator, ...proposalView };
       if (!anchorAsset) recordLevel.found.push(found);
       else byAsset.get(anchorAsset)?.found.push(found);
       continue;
@@ -477,7 +588,7 @@ export async function readRecordReading(query: ReadingQuery, recordId: string): 
     if (kind === "place_field") {
       const slot = str(item.slot);
       if (!isPlaceSlot(slot) || !computed.valueCode) continue;
-      const value: ReadingPlaceValue = { itemId, code: computed.valueCode, labelJa: placeLabelJa(slot, computed.valueCode), state: computed.state, actorKind: computed.actorKind, locator };
+      const value: ReadingPlaceValue = { itemId, code: computed.valueCode, labelJa: placeLabelJa(slot, computed.valueCode), state: computed.state, actorKind: computed.actorKind, locator, ...proposalView };
       const target = anchorAsset ? byAsset.get(anchorAsset) : recordLevel;
       if (!target) continue;
       target.place[slot] = value;
