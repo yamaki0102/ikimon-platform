@@ -31,7 +31,7 @@ async function queryPublicSuggestions(q: string, db: Env["OBS_DB"]): Promise<Sug
                 AND TRIM(taxon_label) <> ''
                 AND taxon_label LIKE ?
               ORDER BY created_at DESC
-              LIMIT 6`
+              LIMIT 18`
           )
           .bind(like)
           .all<{ label: string }>()
@@ -43,7 +43,7 @@ async function queryPublicSuggestions(q: string, db: Env["OBS_DB"]): Promise<Sug
                 AND taxon_label IS NOT NULL
                 AND TRIM(taxon_label) <> ''
               ORDER BY created_at DESC
-              LIMIT 6`
+              LIMIT 18`
           )
           .all<{ label: string }>()
   ).results;
@@ -69,9 +69,13 @@ async function queryPublicSuggestions(q: string, db: Env["OBS_DB"]): Promise<Sug
   }
 
   return [
-    ...speciesRows.map((r) => ({ kind: "species" as const, label: r.label })),
+    ...speciesRows.filter((r) => !isTestTaxonLabel(r.label)).slice(0, 6).map((r) => ({ kind: "species" as const, label: r.label })),
     ...placeRows.map((r) => ({ kind: "place" as const, label: r.name, id: r.placeId, place: r })),
   ];
+}
+
+export function isTestTaxonLabel(label: string): boolean {
+  return /\b(?:smoke|fallback|cutover|synthetic|sandbox|canary|e2e|dummy|prod[\s_-]*rally|PR\d+)\b|^(?:test|unidentified)$|テスト|試験/i.test(label.trim());
 }
 
 export async function handleSearchSuggestApi(url: URL, db: Env["OBS_DB"]): Promise<Response> {
