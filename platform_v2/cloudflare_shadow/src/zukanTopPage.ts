@@ -1,4 +1,5 @@
 import type { Env } from "./core/env";
+import { renderOtayoriFloatingButton } from "./otayori";
 
 function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
   const cleanKey = key.replace(/^\/+/, "");
@@ -954,6 +955,7 @@ export function renderZukanTopPage(
     <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
   </nav>
   ${publishScript}
+  ${renderOtayoriFloatingButton({ lang: options.lang, pathname: `${prefix}/` })}
 </body>
 </html>`;
 }
