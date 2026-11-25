@@ -410,7 +410,7 @@ import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
-import { handleRecordCountBandRoute } from "./recordCountBand";
+import { handleRecordCountBandRoute, readPlaceSeasonCountFacts, type BandDeps } from "./recordCountBand";
 import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
@@ -3772,12 +3772,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && /^\/api\/v1\/records\/[^/]+\/(?:count-band|place-season)$/.test(nativePathname)) {
-        const bandResponse = await handleRecordCountBandRoute({
-          query: async (sql, values) => (await env.OBS_DB.prepare(sql).bind(...(values as Array<string | number | null>)).all<Record<string, unknown>>()).results,
-          publicRows: () => queryPublicMapRows(env),
-          nowMs: Date.now(),
-          safeAreaLabel: normalizeSafePublicAreaLabelCandidate,
-        }, async () => readCompatibleSession(request, env), nativePathname);
+        const bandResponse = await handleRecordCountBandRoute(recordCountBandDeps(env), async () => readCompatibleSession(request, env), nativePathname);
         if (bandResponse) return bandResponse;
       }
 
@@ -26417,6 +26412,15 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
   });
 }
 
+function recordCountBandDeps(env: Env): BandDeps {
+  return {
+    query: async (sql, values) => (await env.OBS_DB.prepare(sql).bind(...(values as Array<string | number | null>)).all<Record<string, unknown>>()).results,
+    publicRows: () => queryPublicMapRows(env),
+    nowMs: Date.now(),
+    safeAreaLabel: normalizeSafePublicAreaLabelCandidate,
+  };
+}
+
 async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: string): Promise<void> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) return;
@@ -26427,6 +26431,7 @@ async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: stri
     ownerUserId,
     model: GEMINI_SUMMARY_MODEL,
     protectedRecord: gate.blocked,
+    counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
     generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
   });
 }
@@ -26436,6 +26441,7 @@ async function loadRecordAiNoteForPage(env: Env, recordId: string, isOwner: bool
     const result = await loadVisibleAiNote(env.OBS_DB, recordId, {
       isOwner,
       protectedRecord: async () => (await publicSafetyGateForObservation(recordId, env)).blocked,
+      counts: () => readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
     });
     if (result.claimedStale.length > 0 && result.ownerUserId) {
       ctx?.waitUntil(refreshRecordAiNote(env, recordId, result.ownerUserId).catch(() => undefined));
