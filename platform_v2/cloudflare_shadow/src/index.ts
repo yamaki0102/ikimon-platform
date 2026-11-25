@@ -26,6 +26,11 @@ import {
   setDestinationQrStopped,
 } from "./guestPosting";
 import {
+  handleClaimGuestHandoff,
+  handleIssueGuestHandoffCode,
+  handleRecoverGuestPass,
+} from "./guestHandoff";
+import {
   handleCreateGuestObservation,
   handleListGuestObservations,
   handleUploadGuestObservationPhoto,
@@ -3763,6 +3768,19 @@ export const worker = {
           200,
           { "set-cookie": buildClearedGuestPassCookieHeader(secure), "cache-control": "no-store" }
         );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff-code") {
+        return handleIssueGuestHandoffCode(request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff/claim") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleClaimGuestHandoff(request, env, session);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/handoff/recover") {
+        return handleRecoverGuestPass(request, env);
       }
 
       const guestQrStopMatch = url.pathname.match(/^\/api\/v1\/admin\/guest-destinations\/([^/]+)\/([^/]+)\/qr-stop$/);
