@@ -6,6 +6,7 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
   isWeakTaxonLabel,
@@ -95,6 +96,7 @@ import {
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   createFixedPointStationRecord,
   listFixedPointsAndRecordsForPlace,
@@ -218,6 +220,7 @@ import {
   loadObservationCorrectionHistory,
   renderObservationEditAndCorrectionHtml,
 } from "./zukanObservationEditAndCorrection";
+import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -4207,6 +4210,16 @@ export const worker = {
         return json({ ok: true, preview }, 200, { "cache-control": "no-store" });
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/auth/field-name/check") {
+        const result = await checkFieldNameAvailability(env.CORE_DB, url.searchParams.get("name"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/waitlist/status") {
+        const result = await getWaitlistStatusForEmail(env.CORE_DB, url.searchParams.get("email"));
+        return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
         return registerWithPasswordNative(request, env);
       }
@@ -4267,6 +4280,14 @@ export const worker = {
         if (request.method === "GET") {
           return handleGetObservationCorrections(obsId, session, env);
         }
+      }
+
+      const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
+      if (request.method === "GET" && placeSubViewMatch?.[2] && placeSubViewMatch?.[3]) {
+        const viewLang = (placeSubViewMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeSubViewMatch[3] as "records" | "photos";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceRecordsOrPhotosRoute(decodeURIComponent(placeSubViewMatch[2]), tab, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -22128,20 +22149,25 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
+    ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
 <body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
-    <section class="cf-record-hero">
-      <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(mediaCopy.prompt)}</p><p>${escapeHtml(mediaCopy.privateBoundary)}</p>
-    </section>
-    <div class="cf-record-picker" aria-label="${escapeHtml(title)}">
-      <label class="cf-record-pick is-primary">${escapeHtml(mediaCopy.camera)}<span>${escapeHtml(mediaCopy.cameraHint)}</span><input id="record-media-camera" type="file" accept="image/*" capture="environment"></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.photo)}<span>${escapeHtml(mediaCopy.photoHint)}</span><input id="record-media-photo" type="file" accept="image/*" multiple></label>
-      <label class="cf-record-pick">${escapeHtml(mediaCopy.video)}<span>${escapeHtml(mediaCopy.videoHint)}</span><input id="record-media-video" type="file" accept="video/*"></label>
-    </div>
+    ${renderRecordEntryStageHtml({
+      lang,
+      prefix,
+      title,
+      cameraLabel: mediaCopy.camera,
+      cameraHint: mediaCopy.cameraHint,
+      photoLabel: mediaCopy.photo,
+      photoHint: mediaCopy.photoHint,
+      videoLabel: mediaCopy.video,
+      videoHint: mediaCopy.videoHint,
+      prompt: mediaCopy.prompt,
+      privateBoundary: mediaCopy.privateBoundary
+    })}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><textarea name="note" rows="3"></textarea></label>
