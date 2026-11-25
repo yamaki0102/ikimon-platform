@@ -11,9 +11,9 @@ export const ZUKAN_RECORD_ENTRY_STYLES = `
   .zt-capture-viewfinder-copy strong{font-size:18px;font-weight:800;color:#fff}
   .zt-capture-viewfinder-copy span{font-size:14px;color:#cfe0d4}
   .zt-capture-controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
-  .zt-shutter-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:999px;border:3px solid #fff;background:#b94f18;color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+  .zt-shutter-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:999px;border:4px solid #fff;background:transparent;color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.35)}
   .zt-shutter-wrap input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-  .zt-shutter-dot{width:52px;height:52px;border-radius:999px;background:#b94f18;border:2px solid rgba(255,255,255,.75)}
+  .zt-shutter-dot{width:52px;height:52px;border-radius:999px;background:#fff;border:0}
   .zt-capture-side-btn{position:relative;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.1);color:#fff;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:14px;cursor:pointer;min-width:0}
   .zt-capture-side-btn span{font-size:12px;color:#d6e4da;font-weight:500}
   .zt-capture-side-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
