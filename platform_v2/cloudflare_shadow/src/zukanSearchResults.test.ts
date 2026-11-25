@@ -28,8 +28,9 @@ function setupDb(t: test.TestContext) {
   sqlite.exec(`
     CREATE TABLE places (
       place_id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'public'
+      canonical_name TEXT NOT NULL,
+      public_profile_status TEXT NOT NULL DEFAULT 'draft',
+      superseded_by_place_id TEXT
     );
     CREATE TABLE observation_event_sessions (
       session_id TEXT PRIMARY KEY,
@@ -43,8 +44,8 @@ function setupDb(t: test.TestContext) {
       visibility TEXT NOT NULL DEFAULT 'public'
     );
   `);
-  sqlite.prepare("INSERT INTO places (place_id, name, visibility) VALUES (?, ?, 'public')").run("p-1", "佐鳴湖カワセミ観察地");
-  sqlite.prepare("INSERT INTO places (place_id, name, visibility) VALUES (?, ?, 'private')").run("p-priv", "非公開カワセミ場所");
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'published')").run("p-1", "佐鳴湖カワセミ観察地");
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'draft')").run("p-priv", "非公開カワセミ場所");
   sqlite.prepare("INSERT INTO observation_event_sessions (session_id, title, started_at) VALUES (?, ?, ?)").run("ev-1", "初夏カワセミ観察会", "2026-06-01T09:00:00Z");
   sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-1", "カワセミ", "2026-06-02T08:30:00Z");
   sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'private')").run("obs-priv", "カワセミ（非公開）", "2026-06-02T08:40:00Z");

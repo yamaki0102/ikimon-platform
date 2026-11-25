@@ -27,23 +27,25 @@ test("resolveInviteTarget resolves published places and observation events while
   t.after(() => sqlite.close());
   sqlite.exec(`
     CREATE TABLE observation_event_sessions (session_id TEXT PRIMARY KEY, event_code TEXT NOT NULL, title TEXT NOT NULL);
-    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, admin_area_label TEXT, public_profile_status TEXT NOT NULL);
+    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, prefecture TEXT, municipality TEXT, locality_label TEXT, public_profile_status TEXT NOT NULL);
   `);
   sqlite.prepare("INSERT INTO observation_event_sessions (session_id, event_code, title) VALUES (?, ?, ?)").run(
     "evt-1",
     "RYUYO2026",
     "竜洋の野鳥観察会"
   );
-  sqlite.prepare("INSERT INTO places (place_id, canonical_name, admin_area_label, public_profile_status) VALUES (?, ?, ?, ?)").run(
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, prefecture, municipality, public_profile_status) VALUES (?, ?, ?, ?, ?)").run(
     "place-sanaru",
     "佐鳴湖公園",
-    "静岡県浜松市",
+    "静岡県",
+    "浜松市",
     "published"
   );
-  sqlite.prepare("INSERT INTO places (place_id, canonical_name, admin_area_label, public_profile_status) VALUES (?, ?, ?, ?)").run(
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, prefecture, municipality, public_profile_status) VALUES (?, ?, ?, ?, ?)").run(
     "place-private",
     "非公開の庭",
-    "非公開",
+    null,
+    null,
     "draft"
   );
 

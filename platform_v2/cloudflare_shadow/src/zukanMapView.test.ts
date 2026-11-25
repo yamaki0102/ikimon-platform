@@ -28,15 +28,25 @@ function setupDb(t: test.TestContext) {
   sqlite.exec(`
     CREATE TABLE places (
       place_id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      lat REAL,
-      lng REAL,
-      visibility TEXT NOT NULL DEFAULT 'public'
+      canonical_name TEXT NOT NULL,
+      public_profile_status TEXT NOT NULL DEFAULT 'draft',
+      superseded_by_place_id TEXT
+    );
+    CREATE TABLE place_boundaries (
+      boundary_id TEXT PRIMARY KEY,
+      place_id TEXT NOT NULL,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      boundary_version INTEGER NOT NULL DEFAULT 1,
+      valid_to TEXT,
+      superseded_by_boundary_id TEXT,
+      bbox_west REAL, bbox_south REAL, bbox_east REAL, bbox_north REAL
     );
   `);
-  sqlite.prepare("INSERT INTO places (place_id, name, lat, lng, visibility) VALUES (?, ?, ?, ?, 'public')").run("p-in", "佐鳴湖公園", 34.71, 137.72);
-  sqlite.prepare("INSERT INTO places (place_id, name, lat, lng, visibility) VALUES (?, ?, ?, ?, 'private')").run("p-priv", "秘密の場所", 34.71, 137.72);
-  sqlite.prepare("INSERT INTO places (place_id, name, lat, lng, visibility) VALUES (?, ?, ?, ?, 'public')").run("p-out", "東京公園", 35.68, 139.76);
+  const ins = sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, ?)");
+  const bnd = sqlite.prepare("INSERT INTO place_boundaries (boundary_id, place_id, is_primary, bbox_west, bbox_south, bbox_east, bbox_north) VALUES (?, ?, 1, ?, ?, ?, ?)");
+  ins.run("p-in", "佐鳴湖公園", "published"); bnd.run("b1", "p-in", 137.71, 34.70, 137.73, 34.72);
+  ins.run("p-priv", "秘密の場所", "draft"); bnd.run("b2", "p-priv", 137.71, 34.70, 137.73, 34.72);
+  ins.run("p-out", "東京公園", "published"); bnd.run("b3", "p-out", 139.75, 35.67, 139.77, 35.69);
   return sqliteObsDb(sqlite);
 }
 
@@ -63,4 +73,11 @@ test("G1-G3 map explore page renders MapLibre canvas and G3 selected place card 
   assert.match(html, /id="zukan-maplibre-canvas"/);
   assert.match(html, /id="zukan-map-selected-card"/);
   assert.match(html, /佐鳴湖公園/);
+});
+
+test("map places API degrades to empty when the query fails", async () => {
+  const broken = { prepare() { throw new Error("no such column"); } } as unknown as Env["OBS_DB"];
+  const res = await handleMapPlacesBoundsApi(new URL("https://ikimon.life/api/v1/map/places"), broken);
+  assert.equal(res.status, 200);
+  assert.deepEqual(((await res.json()) as { places: unknown[] }).places, []);
 });
