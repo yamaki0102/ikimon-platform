@@ -42,3 +42,17 @@ test("native record capture persists a stable media retry draft", () => {
   const captureSource = indexSource.slice(indexSource.indexOf("export function renderCloudflareRecordHtml"), indexSource.indexOf("async function getSessionAwareProfileHtml"));
   assert.doesNotMatch(captureSource, /visibility:\s*"public"|publication\/publish/);
 });
+
+const recoverySource = readFileSync(
+  fileURLToPath(new URL("./recordRecoveryHtml.ts", import.meta.url)),
+  "utf8",
+);
+
+test("offline capture recovery assigns stable single-record id on media selection and queues without duplicating on reconnect", () => {
+  assert.match(recoverySource, /offlineSaved:/);
+  assert.match(recoverySource, /onlineReady:/);
+  assert.match(recoverySource, /pendingOfflineUpload:\s*navigator\.onLine === false/);
+  assert.match(recoverySource, /if \(navigator\.onLine === false\) \{[\s\S]*copy\.offlineSaved/);
+  assert.match(recoverySource, /window\.addEventListener\("online"/);
+  assert.match(recoverySource, /clientSubmissionId:\s*recoverySubmissionId \+ "-cloudflare-record-recovery"/);
+});
