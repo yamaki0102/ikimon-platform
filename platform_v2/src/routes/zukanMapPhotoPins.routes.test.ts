@@ -18,6 +18,7 @@ test("real /map and /ja/map routes carry the mock's photo-pin sheet and use the 
       assert.match(res.body, /設定を開く/);
       assert.match(res.body, /名前で探す/);
       assert.match(res.body, /最新の記録/);
+      assert.match(res.body, /ctrl-bottom-right{bottom:0!important/);
       assert.match(res.body, /me-tabs[^{]*{display:none/);
     }
   } finally {

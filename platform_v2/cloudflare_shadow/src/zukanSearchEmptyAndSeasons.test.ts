@@ -65,3 +65,14 @@ test("H7-H8 page renders H7 empty guidance when empty and H8 season tabs in zuka
   assert.match(html, /春/);
   assert.match(html, /秋/);
 });
+
+test("H7 shows 未同定 instead of the raw English 'unidentified' label", async (t) => {
+  const sqlite = new DatabaseSync(":memory:");
+  t.after(() => sqlite.close());
+  sqlite.exec("CREATE TABLE observations (observation_id TEXT PRIMARY KEY, taxon_label TEXT NOT NULL, observed_at TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'public');");
+  sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-u", "unidentified", "2026-04-05T10:00:00Z");
+  const res = await handleSearchSeasonsRoute(new URL("https://ikimon.life/ja/search/seasons?season=spring"), "ja", null, sqliteObsDb(sqlite));
+  const html = await res.text();
+  assert.match(html, /未同定/);
+  assert.doesNotMatch(html, />unidentified</i);
+});
