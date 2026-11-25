@@ -212,6 +212,12 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  handleGetObservationCorrections,
+  handlePostObservationCorrection,
+  loadObservationCorrectionHistory,
+  renderObservationEditAndCorrectionHtml,
+} from "./zukanObservationEditAndCorrection";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -4249,6 +4255,18 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const observationCorrectionMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/corrections$/);
+      if (observationCorrectionMatch?.[1]) {
+        const obsId = decodeURIComponent(observationCorrectionMatch[1]);
+        const session = await readCompatibleSession(request, env);
+        if (request.method === "POST") {
+          return handlePostObservationCorrection(obsId, request, session, env);
+        }
+        if (request.method === "GET") {
+          return handleGetObservationCorrections(obsId, session, env);
+        }
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -25618,16 +25636,25 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordClass: recordClassOut.value,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, recordUsages, expertComments] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
           : Promise.resolve(null),
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
-        listHumanExpertCommentsForRecord(env, detail.visitId)
+        listHumanExpertCommentsForRecord(env, detail.visitId),
+        loadObservationCorrectionHistory(detail.visitId, env),
       ]);
-      const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
+      const editAndCorrectionHtml = renderObservationEditAndCorrectionHtml({
+        observationId: detail.visitId,
+        lang: recordLang,
+        isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
+        currentNote: detail.note ?? null,
+        currentTaxon: detail.displayName,
+        history: correctionHistory,
+      });
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${editAndCorrectionHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
