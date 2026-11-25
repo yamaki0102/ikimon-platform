@@ -1,4 +1,5 @@
 import type { Env } from "./core/env";
+import { writeRecordMediaOrder } from "./recordReading";
 import {
   assertSameOriginRequest,
   base64ToArrayBuffer,
@@ -226,6 +227,7 @@ export async function handleUploadGuestObservationPhoto(
     await env.ASSET_BUCKET.delete(objectKey).catch(() => undefined);
     throw error;
   }
+  await writeRecordMediaOrder(env.OBS_DB, observationId, assetId);
 
   return json(
     {

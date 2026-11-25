@@ -2,7 +2,7 @@ import {
   type ObservationAiCandidate,
   type ObservationAiSubjectCandidate,
 } from "./cloudflareObservationAi";
-import { featureKindFromLabel, type FeatureKind } from "./recordReading";
+import { FEATURE_TERMS, PLACE_SLOTS, PLACE_TERMS, featureKindFromLabel, isFeatureKind, type FeatureKind, type PlaceSlot } from "./recordReading";
 
 export const GEMINI_PRIMARY_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_ANALYSIS_MODEL = "gemini-3.1-flash-lite";
@@ -90,9 +90,17 @@ export type GeminiEnvironmentFields = {
   human_change: "trampling_mowing" | "mowing" | "trampling" | "planting" | "construction" | "release" | "none_visible" | "unknown";
 };
 
+export type GeminiPhotoReading = {
+  asset_index: number;
+  assessment_state: GeminiInformationState;
+  fields: Partial<Record<PlaceSlot, string>>;
+  feature_kinds: FeatureKind[];
+};
+
 export type GeminiEnvironmentEvidence = {
   assessment_state: GeminiInformationState;
   fields: GeminiEnvironmentFields;
+  photos?: GeminiPhotoReading[];
   cues: Array<{
     slot: "vegetation_structure" | "substrate" | "moisture" | "human_influence" | "management_signs";
     label: string;
@@ -294,6 +302,22 @@ export const GEMINI_SPECIALIST_SCHEMA: JsonSchema = {
   required: ["assessment_state", "candidates", "comparison_summary", "needs_review"],
 };
 
+const PHOTO_FEATURE_CODES = FEATURE_TERMS.map(([code]) => code).filter((code) => code !== "unknown_feature");
+const photoPlaceProperties = Object.fromEntries(PLACE_SLOTS.map((slot) => [slot, { type: "string", enum: PLACE_TERMS[slot].map(([code]) => code) }]));
+export const GEMINI_PHOTO_READINGS_SCHEMA: JsonSchema = {
+  type: "array", maxItems: 12,
+  items: {
+    type: "object",
+    properties: {
+      asset_index: { type: "integer", minimum: 0 },
+      assessment_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
+      ...photoPlaceProperties,
+      feature_kinds: { type: "array", maxItems: 6, items: { type: "string", enum: PHOTO_FEATURE_CODES } },
+    },
+    required: ["asset_index", "assessment_state", ...PLACE_SLOTS, "feature_kinds"],
+  },
+};
+
 export const GEMINI_ENVIRONMENT_SCHEMA: JsonSchema = {
   type: "object",
   properties: {
@@ -310,8 +334,9 @@ export const GEMINI_ENVIRONMENT_SCHEMA: JsonSchema = {
       label: { type: "string" }, evidence: { type: "string" }, asset_index: { type: "integer", minimum: 0 }, confidence: { type: "number", minimum: 0, maximum: 1 },
     }, required: ["slot", "label", "evidence", "asset_index", "confidence"] } },
     uncertain_cues: { type: "array", maxItems: 6, items: { type: "string" } },
+    photos: GEMINI_PHOTO_READINGS_SCHEMA,
   },
-  required: ["assessment_state", "fields", "cues", "uncertain_cues"],
+  required: ["assessment_state", "fields", "cues", "uncertain_cues", "photos"],
 };
 
 export const GEMINI_SUMMARY_SCHEMA: JsonSchema = {
@@ -333,6 +358,8 @@ const imageParts = (images: GeminiObservationImage[]): Array<Record<string, unkn
 ]);
 
 const JAPANESE_HUMAN_TEXT_CONTRACT = "All human-facing string values MUST be written in natural Japanese. English prose, descriptive phrases, and comparison sentences are forbidden. Scientific names, IDs, enum values, and JSON keys may remain non-Japanese.";
+
+export const PHOTO_READING_INSTRUCTION = "photosには、写真1枚ごとに1件ずつ、その写真だけから読み取れる場所のようす5項目（place_type・contact_surface・surrounding_cover・environment_condition・human_change）と、写っている構造物・地形の種類（feature_kinds）を返してください。写真ごとに違ってよく、他の写真から推測で補わず、その写真で根拠がない項目はunknown、構造物は写っているものだけにします。看板・表札・標識の文字、車のナンバー、人の名前は読まず、書きません（種類のコードだけ）。";
 
 const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperature: number) => ({
   temperature: 1,
@@ -356,8 +383,9 @@ ${JAPANESE_HUMAN_TEXT_CONTRACT}`;
 
 export function buildGeminiEnvironmentRequest(recordId: string, images: GeminiObservationImage[]) {
   const prompt = `公開写真から、環境・場所の「写っている証拠」だけを棚卸ししてください。生物同定や一般知識による生息地推測は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を比較し、植生構造、地表、水分、人為物、管理痕跡を具体的な画像証拠とasset_index付きで返してください。地域、土壌性質、長期的な湿潤状態、管理主体を推測しません。人物の属性や個人情報を書きません。fieldsは画像から支持できる選択肢だけを選び、根拠がなければunknownです。不在と画質等による判定不能をassessment_stateで分け、日本語、JSONのみを返してください。
+${PHOTO_READING_INSTRUCTION}
 ${JAPANESE_HUMAN_TEXT_CONTRACT}`;
-  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 2048, 0.1) };
+  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 3072, 0.1) };
 }
 
 const specialistTraits: Record<GeminiSpecialistKind, string> = {
@@ -693,6 +721,30 @@ export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence =>
     review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
   };
 };
+export function parseGeminiPhotoReadings(value: unknown): GeminiPhotoReading[] {
+  if (!Array.isArray(value)) return [];
+  const states = new Set<string>(["informative", "not_informative", "not_assessable"]);
+  const readings: GeminiPhotoReading[] = [];
+  for (const entry of value.slice(0, 12)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const source = entry as Record<string, unknown>;
+    const assetIndex = source.asset_index;
+    if (typeof assetIndex !== "number" || !Number.isInteger(assetIndex) || assetIndex < 0) continue;
+    const fields: Partial<Record<PlaceSlot, string>> = {};
+    for (const slot of PLACE_SLOTS) if (typeof source[slot] === "string") fields[slot] = source[slot] as string;
+    const kinds = Array.isArray(source.feature_kinds)
+      ? [...new Set(source.feature_kinds.filter((kind): kind is FeatureKind => isFeatureKind(kind) && kind !== "unknown_feature"))].slice(0, 6)
+      : [];
+    readings.push({
+      asset_index: assetIndex,
+      assessment_state: typeof source.assessment_state === "string" && states.has(source.assessment_state) ? source.assessment_state as GeminiInformationState : "not_assessable",
+      fields,
+      feature_kinds: kinds,
+    });
+  }
+  return readings;
+}
+
 export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => {
   const parsed = parseJson<Partial<GeminiEnvironmentEvidence>>(text);
   const fields = parsed.fields && typeof parsed.fields === "object" && !Array.isArray(parsed.fields)
@@ -709,6 +761,7 @@ export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentE
     },
     cues: Array.isArray(parsed.cues) ? parsed.cues : [],
     uncertain_cues: Array.isArray(parsed.uncertain_cues) ? parsed.uncertain_cues : [],
+    photos: parseGeminiPhotoReadings((parsed as { photos?: unknown }).photos),
   };
 };
 export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => {

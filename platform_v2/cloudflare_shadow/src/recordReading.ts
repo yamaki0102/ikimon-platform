@@ -125,6 +125,30 @@ function anchorFor(input: { mediaIds: readonly string[]; mediaMeta?: readonly Re
   return { assetId, key: "full", locatorJson: "{}" };
 }
 
+export const MEDIA_ORDER_MAX_POSITION = 255;
+const MEDIA_ORDER_SQL = `INSERT OR IGNORE INTO record_media_order (record_runtime, record_id, asset_id, position)
+SELECT 'cloudflare_d1', ?, ?,
+  CASE WHEN ? IS NOT NULL AND NOT EXISTS (SELECT 1 FROM record_media_order WHERE record_runtime = 'cloudflare_d1' AND record_id = ? AND position = ?)
+    THEN ? ELSE (SELECT COALESCE(MAX(position), -1) + 1 FROM record_media_order WHERE record_runtime = 'cloudflare_d1' AND record_id = ?) END`;
+
+export function mediaOrderMutation(recordId: string, assetId: string, requestedPosition: unknown): ReadingSqlMutation {
+  const position = typeof requestedPosition === "number" && Number.isInteger(requestedPosition) && requestedPosition >= 0 && requestedPosition <= MEDIA_ORDER_MAX_POSITION ? requestedPosition : null;
+  return { sql: MEDIA_ORDER_SQL, values: [recordId, assetId, position, recordId, position, position, recordId] };
+}
+
+type OrderDb = { prepare(sql: string): { bind(...values: unknown[]): { run(): Promise<unknown> } } };
+
+export async function writeRecordMediaOrder(db: OrderDb, recordId: string, assetId: string, requestedPosition?: unknown): Promise<boolean> {
+  const mutation = mediaOrderMutation(recordId, assetId, requestedPosition);
+  try {
+    await db.prepare(mutation.sql).bind(...mutation.values).run();
+    return true;
+  } catch (error) {
+    console.warn(JSON.stringify({ message: "record_media_order_write_failed", recordId, error: error instanceof Error ? error.message : String(error) }));
+    return false;
+  }
+}
+
 const ITEM_UPSERT_SQL = `INSERT INTO record_reading_items (
   item_id, record_runtime, record_id, kind, slot, source_key, observation_id,
   anchor_asset_id, anchor_locator_key, anchor_locator_json, display_order, status

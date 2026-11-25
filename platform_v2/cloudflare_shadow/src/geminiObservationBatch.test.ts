@@ -40,16 +40,17 @@ test("production model stack uses the measured exact Flash-Lite IDs and every im
   assert.equal(GEMINI_PRIMARY_MODEL, "gemini-3.5-flash-lite");
   assert.equal(GEMINI_ANALYSIS_MODEL, "gemini-3.1-flash-lite");
   assert.equal(GEMINI_SUMMARY_MODEL, "gemini-3.1-flash-lite");
+  const environmentRequest = buildGeminiEnvironmentRequest("record-1", images);
   for (const request of [
     buildGeminiPrimaryRequest("record-1", "2026-07-19", images),
     buildGeminiCensusRequest("record-1", images),
-    buildGeminiEnvironmentRequest("record-1", images),
+    environmentRequest,
   ]) {
     const text = JSON.stringify(request);
     assert.match(text, /asset_index=0/);
     assert.match(text, /asset_index=1/);
     assert.equal((text.match(/inlineData/g) ?? []).length, 2);
-    assert.equal(request.generationConfig.maxOutputTokens, 2048);
+    assert.equal(request.generationConfig.maxOutputTokens, request === environmentRequest ? 3072 : 2048);
     assert.equal(request.generationConfig.responseMimeType, "application/json");
     assert.equal(request.generationConfig.temperature, 1);
     assert.equal(request.generationConfig.thinkingConfig.thinkingLevel, "minimal");
