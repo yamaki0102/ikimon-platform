@@ -107,3 +107,7 @@ export function formatShortDate(value: string | null | undefined, isEn: boolean)
   if (!Number.isFinite(time)) return "";
   return new Intl.DateTimeFormat(isEn ? "en" : "ja", { month: isEn ? "short" : "long", day: "numeric", timeZone: "Asia/Tokyo" }).format(new Date(time));
 }
+
+export function displayRecordName(raw: string, isEn: boolean): string {
+  return /^unidentified$/i.test(raw.trim()) ? (isEn ? "Unidentified" : "未同定") : raw;
+}

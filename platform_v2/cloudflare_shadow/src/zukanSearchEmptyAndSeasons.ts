@@ -1,7 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
-import { RECORD_THUMB_SQL, SEARCH_ICON_CALENDAR, ZUKAN_SEARCH_CSS, formatShortDate, highlightMatch, renderSearchBar, renderSearchEmptyIcon, renderSearchHead, renderSearchRow, thumbUrlOf } from "./zukanSearchUi";
+import { displayRecordName, RECORD_THUMB_SQL, SEARCH_ICON_CALENDAR, ZUKAN_SEARCH_CSS, formatShortDate, highlightMatch, renderSearchBar, renderSearchEmptyIcon, renderSearchHead, renderSearchRow, thumbUrlOf } from "./zukanSearchUi";
 
 export type SeasonKey = "spring" | "summer" | "autumn" | "winter";
 
@@ -122,8 +122,8 @@ export async function handleSearchSeasonsRoute(
     .map((r) =>
       renderSearchRow({
         href: `${prefix}/observations/${encodeURIComponent(r.observationId)}`,
-        title: r.taxonDisplayName || (isEn ? "Unnamed record" : "名前なしの記録"),
-        titleHtml: r.taxonDisplayName ? highlightMatch(r.taxonDisplayName, query) : escapeHtml(isEn ? "Unnamed record" : "名前なしの記録"),
+        title: displayRecordName(r.taxonDisplayName, isEn) || (isEn ? "Unnamed record" : "名前なしの記録"),
+        titleHtml: r.taxonDisplayName ? highlightMatch(displayRecordName(r.taxonDisplayName, isEn), query) : escapeHtml(isEn ? "Unnamed record" : "名前なしの記録"),
         meta: [formatShortDate(r.observedAt, isEn), r.areaLabel ?? ""].filter(Boolean).join(" ・ "),
         badge: isEn ? "Record" : "記録",
         thumbUrl: thumbUrlOf(r.assetId),
