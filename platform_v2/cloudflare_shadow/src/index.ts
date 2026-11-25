@@ -6,6 +6,7 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
+import { resolveInviteTarget } from "./zukanInviteAndWelcome";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -3655,6 +3656,12 @@ export const worker = {
       const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
       if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
         return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/invites/resolve") {
+        const result = await resolveInviteTarget(env.OBS_DB, url.searchParams.get("code"));
+        const status = result.ok ? 200 : result.error === "invalid_invite_code" ? 400 : 404;
+        return json(result, status, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
