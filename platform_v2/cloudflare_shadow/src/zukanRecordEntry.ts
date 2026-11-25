@@ -206,156 +206,174 @@ export const ZUKAN_RECORD_ENTRY_STYLES = `
   .zt-cap{position:fixed;inset:0;z-index:60;background:#0b120d;color:#fff;overflow:hidden;font-family:var(--zukan-font-sans);line-height:1.5;-webkit-tap-highlight-color:transparent;animation:zt-cap-in var(--zt-d2) var(--zt-ease) both}
   @keyframes zt-cap-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
   .zt-cap [hidden]{display:none!important}
-  .zt-cap button,.zt-cap label{font:inherit;color:inherit}
+  :where(.zt-cap) button,:where(.zt-cap) label{font:inherit;color:inherit}
   .zt-cap :focus-visible{outline:3px solid #fff;outline-offset:2px;box-shadow:0 0 0 5px #087f7c}
-  .zt-cap-view{position:absolute;inset:0;display:grid;place-items:center;background:#000}
-  .zt-cap-frame{position:relative;width:min(100%,calc(100dvh*var(--zt-ar,.75)));aspect-ratio:var(--zt-ar,.75);max-height:100%;background:#050806;overflow:hidden;touch-action:none}
-  .zt-cap-frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#050806}
-  .zt-cap-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
-  .zt-cap-flash.is-on{animation:zt-flash var(--zt-d1) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-view{position:absolute;inset:0;overflow:hidden;background:#000;container-type:size}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-frame{position:absolute;left:50%;top:50%;translate:-50% -50%;width:max(100cqw,calc(100cqh*var(--zt-ar,.75)));aspect-ratio:var(--zt-ar,.75);background:#050806;overflow:hidden;touch-action:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-frame video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#050806}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-flash.is-on{animation:zt-flash var(--zt-d1) var(--zt-ease)}
   @keyframes zt-flash{0%{opacity:.85}100%{opacity:0}}
-  .zt-cap-focus{position:absolute;width:96px;height:96px;margin:-48px 0 0 -48px;border:2px solid #fff;border-radius:10px;pointer-events:none;transition:left var(--zt-d2) var(--zt-ease),top var(--zt-d2) var(--zt-ease),border-color var(--zt-d2) var(--zt-ease),opacity var(--zt-d2) var(--zt-ease)}
-  .zt-cap-focus.is-ok{border-color:#4ade80}
-  .zt-cap-top{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 16px 0;pointer-events:none}
-  .zt-cap-top>*{pointer-events:auto}
-  .zt-cap-top-end{display:grid;justify-items:end;gap:10px}
-  .zt-cap-round,.zt-cap-device,.zt-cap-torch{min-height:44px;min-width:44px;border:0;border-radius:999px;background:rgba(20,28,23,.66);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;font-weight:700;font-size:15px;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:relative}
-  .zt-cap-round{padding:0;width:48px;height:48px}
-  .zt-cap-device input{position:absolute;inline-size:1px;block-size:1px;opacity:.01;pointer-events:none}
-  .zt-cap-torch{width:48px;height:48px;padding:0}
-  .zt-cap-torch[aria-pressed="true"]{background:#fff;color:#0b120d}
-  .zt-cap .zt-cap-device.is-panel{display:none!important}
-  .zt-cap [data-zt-device-video],.zt-cap [data-zt-pick-video-label]{display:none}
-  .zt-cap[data-mode="video"] [data-zt-device-photo],.zt-cap[data-mode="video"] [data-zt-pick-photo]{display:none}
-  .zt-cap[data-mode="video"] [data-zt-device-video]{display:inline-flex}
-  .zt-cap[data-mode="video"] [data-zt-pick-video-label]{display:inline-flex}
-  .zt-cap-panel{position:absolute;left:0;right:0;bottom:0;z-index:3;display:grid;gap:12px;padding:28px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(to top,rgba(8,14,10,.94) 0%,rgba(8,14,10,.78) 62%,rgba(8,14,10,0) 100%)}
-  .zt-cap-title{display:none;margin:0;font-size:18px;font-weight:800}
-  .zt-cap-note{justify-self:center;margin:0;min-height:44px;padding:0 20px;display:inline-flex;align-items:center;border-radius:999px;background:rgba(20,28,23,.78);font-size:17px;font-weight:700;opacity:0;transform:translateY(6px);transition:opacity var(--zt-d2) var(--zt-ease),transform var(--zt-d2) var(--zt-ease);pointer-events:none;position:absolute;left:50%;bottom:calc(100% - 4px);translate:-50% 0;white-space:nowrap}
-  .zt-cap-note.is-on{opacity:1;transform:none}
-  .zt-cap-macro{display:grid;gap:8px;visibility:hidden;opacity:0;transform:translateY(14px);pointer-events:none;max-height:0;overflow:hidden;transition:transform var(--zt-d2) var(--zt-ease),opacity var(--zt-d2) var(--zt-ease),max-height var(--zt-d2) var(--zt-ease),visibility 0s linear var(--zt-d2)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus{position:absolute;width:104px;height:104px;margin:-52px 0 0 -52px;pointer-events:none;transition:left var(--zt-d3) var(--zt-ease),top var(--zt-d3) var(--zt-ease),opacity var(--zt-d2) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus i{position:absolute;width:26px;height:26px;border:0 solid #fff;transition:border-color var(--zt-d2) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus.is-ok i{border-color:#4cc38a}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus i:nth-child(1){left:0;top:0;border-left-width:3px;border-top-width:3px;border-top-left-radius:6px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus i:nth-child(2){right:0;top:0;border-right-width:3px;border-top-width:3px;border-top-right-radius:6px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus i:nth-child(3){left:0;bottom:0;border-left-width:3px;border-bottom-width:3px;border-bottom-left-radius:6px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-focus i:nth-child(4){right:0;bottom:0;border-right-width:3px;border-bottom-width:3px;border-bottom-right-radius:6px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-top{position:absolute;left:0;right:0;top:0;z-index:3;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 14px 0;pointer-events:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-top>*{pointer-events:auto}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-top-end{display:grid;justify-items:end;gap:10px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-round,.zt-cap[data-zukan-capture-stage] .zt-cap-device,.zt-cap[data-zukan-capture-stage] .zt-cap-torch{position:relative;min-height:36px;min-width:40px;border:0;border-radius:999px;background:rgba(20,28,23,.62);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;font-weight:700;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-round::after,.zt-cap[data-zukan-capture-stage] .zt-cap-device::after,.zt-cap[data-zukan-capture-stage] .zt-cap-torch::after{content:"";position:absolute;inset:-4px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-round{padding:0;width:40px;height:40px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-round svg{width:22px;height:22px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-device svg{width:20px;height:20px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-device input{position:absolute;inline-size:1px;block-size:1px;opacity:.01;pointer-events:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-torch{width:40px;height:40px;padding:0}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-torch svg{width:20px;height:20px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-torch[aria-pressed="true"]{background:#fff;color:#0b120d}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-device.is-panel{display:none!important}
+  .zt-cap[data-zukan-capture-stage] [data-zt-device-video],.zt-cap[data-zukan-capture-stage] [data-zt-pick-video-label]{display:none!important}
+  .zt-cap[data-mode="video"] [data-zt-device-photo],.zt-cap[data-mode="video"] [data-zt-pick-photo]{display:none!important}
+  .zt-cap[data-mode="video"] [data-zt-device-video]{display:inline-flex!important}
+  .zt-cap[data-mode="video"] [data-zt-pick-video-label]{display:inline-flex!important}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-panel{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;flex-direction:column;padding:34px 20px calc(26px + env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(8,18,12,.88) 62%,rgba(8,18,12,0))}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-title{display:none;margin:0;font-size:15px;font-weight:700}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-note{margin:0;padding:7px 14px;display:inline-flex;align-items:center;border-radius:999px;background:rgba(10,20,14,.68);font-size:13px;font-weight:700;opacity:0;transition:opacity var(--zt-d2) var(--zt-ease);pointer-events:none;position:absolute;left:50%;bottom:calc(100% - 6px);translate:-50% 0;white-space:nowrap}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-note.is-on{opacity:1}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-macro{display:flex;flex-direction:column;visibility:hidden;opacity:0;transform:translateY(14px);pointer-events:none;max-height:0;overflow:hidden;transition:transform var(--zt-d2) var(--zt-ease),opacity var(--zt-d2) var(--zt-ease),max-height var(--zt-d2) var(--zt-ease),visibility 0s linear var(--zt-d2)}
   .zt-cap[data-mode="closeup"] .zt-cap-macro{visibility:visible;opacity:1;transform:none;pointer-events:auto;max-height:140px;transition-delay:0s}
-  .zt-cap-row{display:grid;grid-template-columns:auto auto 1fr auto auto;align-items:center;gap:10px;font-size:15px;font-weight:700;color:#e4eee7}
-  .zt-cap-row input[type=range]{width:100%;min-width:0;height:32px;accent-color:#fff}
-  .zt-cap-row-zoom{grid-template-columns:auto auto 1fr auto}
-  .zt-cap-mini{min-height:44px;min-width:44px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:rgba(20,28,23,.66);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
-  .zt-cap-bundle{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px}
-  .zt-cap-stack{position:relative;width:56px;height:56px;padding:0;border:0;background:transparent;cursor:pointer}
-  .zt-cap-stack-thumb{position:absolute;inset:0;border:2px solid #fff;border-radius:10px;overflow:hidden;background:#222;transition:transform var(--zt-d2) var(--zt-ease)}
-  .zt-cap-stack-thumb img,.zt-cap-stack-thumb video{width:100%;height:100%;object-fit:cover;display:block}
-  .zt-cap-stack-thumb:nth-child(1){transform:translate(8px,-6px) rotate(6deg);opacity:.55}
-  .zt-cap-stack-thumb:nth-child(2){transform:translate(4px,-3px) rotate(3deg);opacity:.8}
-  .zt-cap-badge{position:absolute;right:-8px;top:-10px;min-width:26px;height:26px;padding:0 6px;border-radius:999px;background:#c2410c;color:#fff;font-size:14px;font-weight:800;display:grid;place-items:center;z-index:2}
-  .zt-cap-bundle-text{display:grid;gap:2px;min-width:0;font-size:14px;color:#d6e4da}
-  .zt-cap-bundle-text strong{font-size:16px;color:#fff;white-space:nowrap}
-  .zt-cap-bundle-text span{display:none}
-  .zt-cap-save,.zt-btn{min-height:52px;padding:0 18px;white-space:nowrap;border:0;border-radius:999px;background:#17402e;color:#fff;font-weight:800;font-size:17px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
-  .zt-cap-save{border:1px solid rgba(255,255,255,.28)}
-  .zt-cap-save[disabled]{opacity:.7;cursor:progress}
-  .zt-cap-err{margin:0;color:#fecaca;font-weight:700;font-size:14px;text-align:center}
-  .zt-cap-modes{position:relative;justify-self:center;display:inline-grid;grid-auto-flow:column;gap:0;padding:4px;border-radius:999px;background:rgba(14,22,17,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-  .zt-cap-pill{position:relative;z-index:1;min-height:44px;min-width:76px;padding:0 18px;border:0;border-radius:999px;background:transparent;color:#e4eee7;font-weight:800;font-size:17px;cursor:pointer;transition:color var(--zt-d2) var(--zt-ease)}
-  .zt-cap-pill[aria-pressed="true"]{color:#0b120d}
-  .zt-cap-pill[aria-disabled="true"]{opacity:.45}
-  .zt-cap-pill-thumb{position:absolute;top:4px;bottom:4px;left:0;width:0;border-radius:999px;background:#fff;transition:transform var(--zt-d2) var(--zt-ease),width var(--zt-d2) var(--zt-ease)}
-  .zt-cap-controls{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;grid-template-areas:"pick shutter memo"}
-  .zt-cap-side{position:relative;min-height:44px;min-width:44px;padding:4px 6px;border:0;background:transparent;color:#fff;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-weight:700;font-size:13px;cursor:pointer;text-align:center}
-  .zt-cap-side input{position:absolute;inline-size:1px;block-size:1px;opacity:.01;pointer-events:none}
-  .zt-cap-side.is-pick{grid-area:pick;justify-self:start}
-  .zt-cap-side.is-memo{grid-area:memo;justify-self:end}
-  .zt-cap-side.is-video-pick{display:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row{display:flex;align-items:center;gap:12px;padding:0 8px 16px;font-size:12.5px;font-weight:700;color:#e7ede8}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row>span:first-child{color:#c9d4cb}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row output{min-width:2.6em;font-variant-numeric:tabular-nums}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row input[type=range]{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:24px;margin:0;background:transparent}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-10px;border:0;border-radius:50%;background:#fff}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-row input[type=range]::-moz-range-thumb{width:24px;height:24px;border:0;border-radius:50%;background:#fff}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-mini{position:relative;min-height:26px;padding:0 10px;border-radius:999px;border:1px solid rgba(255,255,255,.45);background:transparent;color:#fff;font-weight:700;font-size:12.5px;cursor:pointer}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-mini::after{content:"";position:absolute;inset:-9px -4px}
+  .zt-cap [data-global-record-camera-focus-auto]{display:none!important}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-bundle{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-stack{position:relative;width:52px;height:52px;flex:none;padding:0;border:0;background:transparent;cursor:pointer}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-stack::before{content:"";position:absolute;left:8px;top:-6px;width:46px;height:46px;border-radius:9px;background:#5b7263;transform:rotate(-8deg)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-stack-thumb{position:absolute;inset:0;border:2px solid #fff;border-radius:9px;overflow:hidden;background:#222}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-stack-thumb img,.zt-cap[data-zukan-capture-stage] .zt-cap-stack-thumb video{width:100%;height:100%;object-fit:cover;object-position:bottom;display:block}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-badge{position:absolute;right:-7px;top:-9px;min-width:23px;height:23px;padding:0 5px;border-radius:999px;background:#b4492b;color:#fff;font-size:12.5px;font-weight:800;display:grid;place-items:center;z-index:3}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-bundle-text{flex:1;min-width:0;font-size:13.5px;font-weight:700;line-height:1.5;color:#fff}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-bundle-text strong{display:block;font-weight:700;white-space:nowrap}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-bundle-text span{display:block;font-size:12px;font-weight:600;color:#c9d4cb}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-save,.zt-cap[data-zukan-capture-stage] .zt-btn{min-height:48px;padding:13px 16px;white-space:nowrap;border:0;border-radius:999px;background:#143f2e;color:#fff;font-weight:800;font-size:15px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-save[disabled]{opacity:.7;cursor:progress}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-err{margin:0 0 10px;color:#fecaca;font-weight:700;font-size:13px;text-align:center}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-modes{position:relative;align-self:center;display:flex;padding:3px;border-radius:999px;background:rgba(10,20,14,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-pill{position:relative;z-index:1;min-height:34px;padding:0 18px;border:0;border-radius:999px;background:transparent;color:#e7ede8;font-weight:700;font-size:14px;cursor:pointer;transition:color var(--zt-d2) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-pill::after{content:"";position:absolute;inset:-5px -2px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-pill[aria-pressed="true"]{color:#17211b}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-pill-thumb{position:absolute;top:3px;bottom:3px;left:0;width:0;border-radius:999px;background:#fff;transition:transform var(--zt-d2) var(--zt-ease),width var(--zt-d2) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-controls{display:grid;grid-template-columns:72px 1fr 72px;align-items:end;margin-top:18px;padding:0 6px;grid-template-areas:"pick shutter memo"}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side{position:relative;min-height:44px;width:72px;padding:0;border:0;background:transparent;color:#fff;display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px;font-weight:600;font-size:11.5px;line-height:1.4;cursor:pointer;text-align:center}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side svg{width:24px;height:24px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side input{position:absolute;inline-size:1px;block-size:1px;opacity:.01;pointer-events:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side.is-pick{grid-area:pick}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side.is-memo{grid-area:memo}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side.is-video-pick{display:none}
   .zt-cap[data-mode="video"] .zt-cap-side.is-photo-pick{display:none}
   .zt-cap[data-mode="video"] .zt-cap-side.is-video-pick{display:inline-flex}
-  .zt-cap-side.is-photo-pick,.zt-cap-side.is-video-pick{grid-area:pick;justify-self:start}
-  .zt-cap-memo-dot{position:absolute;right:6px;top:2px;width:10px;height:10px;border-radius:50%;background:#4ade80}
-  .zt-cap-shutter{grid-area:shutter;width:80px;height:80px;border-radius:50%;border:4px solid #fff;background:transparent;padding:0;display:grid;place-items:center;cursor:pointer;transition:transform var(--zt-d1) var(--zt-ease)}
-  .zt-cap-shutter:active{transform:scale(.94)}
-  .zt-cap-shutter-dot{width:60px;height:60px;border-radius:50%;background:#fff;transition:transform var(--zt-d1) var(--zt-ease),border-radius var(--zt-d1) var(--zt-ease),background-color var(--zt-d1) var(--zt-ease)}
-  .zt-cap-shutter:active .zt-cap-shutter-dot{transform:scale(.88)}
-  .zt-cap-shutter[aria-pressed="true"] .zt-cap-shutter-dot{background:#dc2626;border-radius:14px;transform:scale(.62)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side.is-photo-pick,.zt-cap[data-zukan-capture-stage] .zt-cap-side.is-video-pick{grid-area:pick}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-memo-dot{position:absolute;right:16px;top:0;width:10px;height:10px;border-radius:50%;background:#4ade80}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-shutter{grid-area:shutter;justify-self:center;width:74px;height:74px;border-radius:50%;border:4px solid #fff;background:transparent;padding:0;display:grid;place-items:center;cursor:pointer;transition:transform var(--zt-d1) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-shutter:active{transform:scale(.94)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-shutter-dot{width:58px;height:58px;border-radius:50%;background:#fff;transition:transform var(--zt-d1) var(--zt-ease),border-radius var(--zt-d1) var(--zt-ease),background-color var(--zt-d1) var(--zt-ease)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-shutter:active .zt-cap-shutter-dot{transform:scale(.9)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-shutter[aria-pressed="true"] .zt-cap-shutter-dot{background:#dc2626;border-radius:14px;transform:scale(.62)}
   .zt-cap[data-live="false"] .zt-cap-shutter{opacity:.8}
-  .zt-cap-side-caption{display:none;margin:0;font-size:13px;color:#c3d5c7}
-  .zt-cap-card{position:absolute;left:16px;right:16px;top:50%;z-index:4;max-width:420px;margin:0 auto;transform:translateY(-62%);padding:24px;border-radius:20px;background:#fff;color:#17251b;display:grid;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.4)}
-  .zt-cap-card-main{margin:0;font-size:21px;line-height:1.45;font-weight:800}
-  .zt-cap-card-sub{margin:0;font-size:15px;color:#40564a}
-  .zt-cap-card-actions{display:grid;gap:10px}
-  .zt-cap-card .zt-btn{width:100%;background:#17402e;color:#fff;cursor:pointer}
-  .zt-cap-card .zt-btn.is-ghost{background:#fff;color:#17402e;border:2px solid #17402e}
-  .zt-cap-card :focus-visible{outline-color:#087f7c;box-shadow:none}
-  .zt-cap-card .zt-btn input{position:absolute;inline-size:1px;block-size:1px;opacity:.01;pointer-events:none}
-  .zt-cap-card .zt-btn{position:relative}
-  .zt-cap-review,.zt-cap-saved{position:absolute;inset:0;z-index:7;background:#fff;color:#17251b;overflow:auto;display:flex;flex-direction:column}
-  .zt-cap-review :focus-visible,.zt-cap-saved :focus-visible{outline-color:#087f7c;box-shadow:none}
-  .zt-rv-head{display:flex;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;border-bottom:1px solid #dde2dc}
-  .zt-rv-head h2{margin:0;font-size:20px;font-weight:800}
-  .zt-rv-back{min-height:44px;min-width:44px;border:0;background:transparent;color:#17251b;cursor:pointer;display:inline-grid;place-items:center}
-  .zt-rv-main{position:relative;background:#000;aspect-ratio:3/4;max-height:56dvh;width:100%;display:grid;place-items:center;overflow:hidden}
-  .zt-rv-main img,.zt-rv-main video{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;display:block;transform-origin:0 0}
-  .zt-rv-count{position:absolute;right:12px;bottom:12px;padding:2px 12px;border-radius:999px;background:rgba(14,22,17,.78);color:#fff;font-weight:800;font-size:16px}
-  .zt-rv-body{display:grid;gap:12px;padding:16px;width:100%;max-width:640px;margin:0 auto}
-  .zt-rv-thumbs{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 8px}
-  .zt-rv-thumb{position:relative;flex:0 0 auto;display:grid;gap:4px;justify-items:center;font-size:14px;color:#40564a}
-  .zt-rv-thumb-img{position:relative;width:104px;height:104px;border-radius:14px;overflow:hidden;border:3px solid transparent;padding:0;background:#222;cursor:pointer}
-  .zt-rv-thumb-img[aria-current="true"]{border-color:#17402e}
-  .zt-rv-thumb-img img,.zt-rv-thumb-img video{width:100%;height:100%;object-fit:cover;display:block}
-  .zt-rv-x{position:absolute;right:4px;top:4px;width:44px;height:44px;border:0;border-radius:50%;background:rgba(14,22,17,.82);color:#fff;display:grid;place-items:center;cursor:pointer;z-index:2}
-  .zt-rv-help,.zt-rv-foot{margin:0;font-size:15px;color:#40564a}
-  .zt-rv-foot{text-align:center}
-  .zt-rv-more{min-height:48px;border:0;background:transparent;color:#0055ad;font-weight:800;font-size:18px;cursor:pointer}
-  .zt-cap-review .zt-btn,.zt-cap-saved .zt-btn{width:100%;background:#17402e;color:#fff}
-  .zt-cap-review .zt-btn[disabled]{opacity:.7}
-  .zt-sv{display:grid;gap:18px;justify-items:center;width:100%;max-width:560px;margin:0 auto;padding:calc(56px + env(safe-area-inset-top)) 16px 32px;text-align:center}
-  .zt-sv-check{width:144px;height:144px}
-  .zt-sv-check circle{fill:#146c43;transform-origin:center;transform:scale(1)}
-  .zt-sv-check path{fill:none;stroke:#fff;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:0}
-  .zt-cap-saved.is-anim .zt-sv-check circle{animation:zt-circle var(--zt-d3) var(--zt-ease) both}
-  .zt-cap-saved.is-anim .zt-sv-check path{animation:zt-check var(--zt-d3) var(--zt-ease) var(--zt-d1) both}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-side-caption{display:none;margin:0;font-size:12px;line-height:1.6;color:#b8c9bc}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card{position:absolute;left:21px;right:21px;top:50%;z-index:4;max-width:420px;margin:0 auto;transform:translateY(-58%);padding:22px;border-radius:20px;background:#fff;color:#17211b;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card-main{margin:0 0 10px;font-size:19px;line-height:1.45;font-weight:800}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card-sub{margin:0 0 22px;font-size:14px;line-height:1.75;color:#55615a}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card-actions{display:grid;gap:12px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card-main+.zt-cap-card-actions{margin-top:12px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card .zt-btn{width:100%;min-height:54px;padding:15px;border-radius:14px;background:#143f2e;color:#fff;font-size:16px;white-space:normal;position:relative}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card .zt-btn.is-ghost{min-height:52px;padding:13.5px;background:#fff;color:#143f2e;border:1.5px solid #143f2e;font-size:15.5px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card :focus-visible{outline-color:#087f7c;box-shadow:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-card .zt-btn input{position:absolute;inline-size:1px;block-size:1px;opacity:.01;pointer-events:none}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-review,.zt-cap[data-zukan-capture-stage] .zt-cap-saved{position:absolute;inset:0;z-index:7;background:#fff;color:#17211b;overflow:auto;display:flex;flex-direction:column}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-review :focus-visible,.zt-cap[data-zukan-capture-stage] .zt-cap-saved :focus-visible{outline-color:#087f7c;box-shadow:none}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-head{display:flex;align-items:center;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;border-bottom:1px solid #dde2dc}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-head h2{margin:0;font-size:16.5px;font-weight:800}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-back{position:relative;min-height:28px;min-width:28px;border:0;background:transparent;color:#17211b;cursor:pointer;display:inline-grid;place-items:center;padding:0}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-back::after{content:"";position:absolute;inset:-8px}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-back svg{width:22px;height:22px}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-main{position:relative;background:#000;height:min(388px,46dvh);width:100%;max-width:640px;margin:0 auto;display:block;overflow:hidden;flex:none}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-main img,.zt-cap[data-zukan-capture-stage] .zt-rv-main video{width:100%;height:100%;object-fit:cover;display:block;transform-origin:0 0}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-count{position:absolute;right:12px;bottom:12px;padding:5px 11px;border-radius:999px;background:rgba(10,20,14,.68);color:#fff;font-weight:700;font-size:12.5px;line-height:1.4}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-body{display:flex;flex-direction:column;padding:18px 16px 28px;width:100%;max-width:640px;margin:0 auto}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-thumbs{display:flex;gap:12px;overflow-x:auto;padding:0}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-thumb{position:relative;flex:0 0 auto;display:grid;gap:5px;justify-items:center;font-size:12px;color:#55615a}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-thumb-img{position:relative;width:104px;height:104px;border:0;border-radius:12px;overflow:hidden;padding:0;background:#222;cursor:pointer;display:block}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-thumb-img img,.zt-cap[data-zukan-capture-stage] .zt-rv-thumb-img video{width:100%;height:100%;object-fit:cover;display:block}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-x{position:absolute;right:6px;top:6px;width:26px;height:26px;min-width:0;min-height:0;border:0;border-radius:50%;background:rgba(10,20,14,.72);color:#fff;display:grid;place-items:center;cursor:pointer;z-index:2;padding:0;font-size:15px;line-height:1}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-x::after{content:"";position:absolute;inset:-9px}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-help{margin:14px 0 0;font-size:13px;line-height:1.7;color:#55615a}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-foot{margin:14px 0 0;font-size:13.5px;line-height:1.7;color:#55615a;text-align:center}
+  .zt-cap[data-zukan-capture-stage] .zt-rv-more{align-self:center;min-height:44px;margin-top:2px;padding:0 16px;border:0;background:transparent;color:#0055ad;font-weight:700;font-size:15px;cursor:pointer}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-review .zt-btn,.zt-cap[data-zukan-capture-stage] .zt-cap-saved .zt-btn{width:100%;min-height:54px;padding:15px;border-radius:14px;background:#143f2e;color:#fff;font-size:16px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-review .zt-btn{margin-top:16px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-review .zt-btn[disabled]{opacity:.7}
+  .zt-cap[data-zukan-capture-stage] .zt-sv{display:flex;flex-direction:column;align-items:center;width:100%;max-width:560px;margin:0 auto;padding:calc(64px + env(safe-area-inset-top)) 16px 32px;text-align:center}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-check{width:74px;height:74px}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-check circle{fill:#146c43;transform-origin:center;transform:scale(1)}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-check path{fill:none;stroke:#fff;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:60;stroke-dashoffset:0}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-saved.is-anim .zt-sv-check circle{animation:zt-circle var(--zt-d3) var(--zt-ease) both}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-saved.is-anim .zt-sv-check path{animation:zt-check var(--zt-d3) var(--zt-ease) var(--zt-d1) both}
   @keyframes zt-circle{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
   @keyframes zt-check{from{stroke-dashoffset:60}to{stroke-dashoffset:0}}
-  .zt-sv h2{margin:0;font-size:30px;line-height:1.3;font-weight:800}
-  .zt-sv-sub{margin:0;font-size:17px;color:#40564a}
-  .zt-sv-card{display:flex;align-items:center;gap:16px;width:100%;padding:16px;border:1px solid #dde2dc;border-radius:22px;text-align:left}
-  .zt-sv-card img,.zt-sv-card video{width:84px;height:84px;border-radius:14px;object-fit:cover;flex:0 0 auto;background:#222}
-  .zt-sv-card strong{display:block;font-size:20px}
-  .zt-sv-card span{color:#40564a;font-size:16px}
-  .zt-sv-actions{display:grid;gap:12px;width:100%}
-  .zt-sv-actions .zt-btn.is-ghost,.zt-sv-actions a.zt-btn.is-ghost,.zt-sv-actions a.zt-btn.is-ghost:visited{background:#fff;color:#17402e;border:2px solid #17402e}
-  .zt-sv-actions a.zt-btn,.zt-sv-actions a.zt-btn:visited{color:#fff}
-  .zt-sv-actions a.zt-btn.is-ghost,.zt-sv-actions a.zt-btn.is-ghost:visited{color:#17402e}
-  .zt-sv-foot{margin:0;font-size:15px;color:#40564a}
-  .zt-memo{width:min(92vw,520px);max-width:none;padding:20px;border:0;border-radius:20px;color:#17251b;background:#fff}
-  .zt-memo::backdrop{background:rgba(0,0,0,.6)}
-  .zt-memo h2{margin:0 0 10px;font-size:20px}
-  .zt-memo textarea{width:100%;min-height:140px;padding:12px;border:1px solid #52685a;border-radius:12px;font:inherit;font-size:16px;color:#17251b;background:#fff;resize:vertical}
-  .zt-memo-row{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap}
-  .zt-memo .zt-voice-mic-btn{min-height:48px}
-  .zt-memo-done{min-height:48px;padding:0 22px;border:0;border-radius:999px;background:#17402e;color:#fff;font-weight:800;font-size:16px;cursor:pointer}
-  .zt-memo :focus-visible{outline:3px solid #087f7c;outline-offset:2px}
-  .zt-cap-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .zt-cap-inputs{position:absolute;width:1px;height:1px;overflow:hidden;opacity:.01;pointer-events:none}
+  .zt-cap[data-zukan-capture-stage] .zt-sv h2{margin:22px 0 0;font-size:21px;line-height:1.4;font-weight:800}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-sub{margin:10px 0 0;font-size:14px;line-height:1.75;color:#55615a}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-card{display:flex;align-items:center;gap:12px;width:100%;margin-top:26px;padding:12px;border:1px solid #dde2dc;border-radius:16px;text-align:left}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-card img,.zt-cap[data-zukan-capture-stage] .zt-sv-card video{width:64px;height:64px;border-radius:10px;object-fit:cover;flex:0 0 auto;background:#222;display:block}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-card strong{display:block;font-size:15.5px;font-weight:800}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-card span{color:#55615a;font-size:13px;line-height:1.6}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-card strong+span{display:block;margin-top:3px}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-actions{display:grid;gap:12px;width:100%;margin-top:26px}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-actions .zt-btn.is-ghost,.zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn.is-ghost,.zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn.is-ghost:visited{min-height:52px;padding:13.5px;background:#fff;color:#143f2e;border:1.5px solid #143f2e;font-size:15.5px}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn,.zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn:visited{color:#fff}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn.is-ghost,.zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn.is-ghost:visited{color:#143f2e}
+  .zt-cap[data-zukan-capture-stage] .zt-sv-foot{margin:18px 0 0;font-size:13.5px;line-height:1.7;color:#55615a}
+  .zt-cap[data-zukan-capture-stage] .zt-memo{width:min(92vw,520px);max-width:none;padding:20px;border:0;border-radius:20px;color:#17251b;background:#fff}
+  .zt-cap[data-zukan-capture-stage] .zt-memo::backdrop{background:rgba(0,0,0,.6)}
+  .zt-cap[data-zukan-capture-stage] .zt-memo h2{margin:0 0 10px;font-size:20px}
+  .zt-cap[data-zukan-capture-stage] .zt-memo textarea{width:100%;min-height:140px;padding:12px;border:1px solid #52685a;border-radius:12px;font:inherit;font-size:16px;color:#17251b;background:#fff;resize:vertical}
+  .zt-cap[data-zukan-capture-stage] .zt-memo-row{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap}
+  .zt-cap[data-zukan-capture-stage] .zt-memo .zt-voice-mic-btn{min-height:48px}
+  .zt-cap[data-zukan-capture-stage] .zt-memo-done{min-height:48px;padding:0 22px;border:0;border-radius:999px;background:#143f2e;color:#fff;font-weight:800;font-size:16px;cursor:pointer}
+  .zt-cap[data-zukan-capture-stage] .zt-memo :focus-visible{outline:3px solid #087f7c;outline-offset:2px}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-inputs{position:absolute;width:1px;height:1px;overflow:hidden;opacity:.01;pointer-events:none}
   [data-otayori-fab],.otayori-fab{display:none!important}
-  .zt-cap-link,.zt-cap-link:visited{color:inherit}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-link,.zt-cap[data-zukan-capture-stage] .zt-cap-link:visited{color:inherit}
   @media (min-width:960px){
     .zt-cap{display:grid;grid-template-columns:minmax(0,1fr) 320px}
-    .zt-cap-view{position:relative;inset:auto}
-    .zt-cap-panel{position:relative;left:auto;right:auto;bottom:auto;padding:24px 20px calc(20px + env(safe-area-inset-bottom));background:#0b120d;display:flex;flex-direction:column;align-content:flex-start;gap:16px;overflow:auto}
-    .zt-cap-title{display:block;order:1}
-    .zt-cap-modes{order:2;justify-self:start}
-    .zt-cap .zt-cap-device.is-top{display:none!important}
-    .zt-cap .zt-cap-device.is-panel{display:inline-flex!important;order:3;justify-self:start;border:1px solid rgba(255,255,255,.4);background:transparent}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-view{position:relative;inset:auto;min-height:0;height:100%}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-panel{position:relative;left:auto;right:auto;bottom:auto;padding:24px 22px 34px;background:#0b120d;display:flex;flex-direction:column;overflow:auto}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-title{display:block;order:1;margin-bottom:20px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-modes{order:2;align-self:center;margin-bottom:18px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-device.is-top{display:none!important}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-device.is-panel{display:inline-flex!important;order:3;align-self:center;min-height:36px;padding:0 16px;border:1px solid rgba(255,255,255,.4);background:transparent;font-size:13.5px}
     .zt-cap[data-mode="video"] .zt-cap-device.is-panel[data-zt-device-photo],.zt-cap:not([data-mode="video"]) .zt-cap-device.is-panel[data-zt-device-video]{display:none!important}
-    .zt-cap-note{position:relative;left:auto;bottom:auto;translate:none;order:4;justify-self:start;opacity:0;min-height:0;height:0;padding:0 20px;overflow:hidden}
-    .zt-cap-note.is-on{min-height:44px;height:auto}
-    .zt-cap-macro{order:5}
-    .zt-cap-bundle{order:7;margin-top:auto;grid-template-columns:auto 1fr}
-    .zt-cap-bundle .zt-cap-save{grid-column:1/-1}
-    .zt-cap-bundle-text span{display:block}
-    .zt-cap-controls{order:8;grid-template-columns:1fr 1fr;grid-template-areas:"shutter shutter" "pick memo";row-gap:14px;justify-items:center}
-    .zt-cap-side.is-photo-pick,.zt-cap-side.is-video-pick{justify-self:center}
-    .zt-cap-side.is-memo{justify-self:center}
-    .zt-cap-side-caption{display:block;order:9}
-    .zt-cap-err{order:6}
-    .zt-cap-top{padding-right:16px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-note{position:relative;left:auto;bottom:auto;translate:none;order:4;align-self:center;opacity:0;height:0;padding:0 14px;overflow:hidden;margin-top:14px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-note.is-on{height:auto;padding:7px 14px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-macro{order:5;margin-top:14px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-err{order:6}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-bundle{order:7;flex-wrap:wrap;margin-top:auto;margin-bottom:22px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-bundle .zt-cap-save{flex:1 0 100%}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-controls{order:8;grid-template-columns:1fr 1fr;grid-template-areas:"shutter shutter" "pick memo";row-gap:24px;margin-top:0;padding:0}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-bundle[hidden]~.zt-cap-controls{margin-top:auto}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-side{justify-self:center}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-side-caption{display:block;order:9;margin-top:24px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-top{padding-right:14px}
   }
   @media (prefers-reduced-motion:reduce){
     .zt-cap,.zt-cap *,.zukan-app-header,.zukan-app-nav.is-bottom{transition:none!important;animation:none!important}
@@ -383,12 +401,12 @@ export function renderRecordEntryStageHtml(options: {
   const c = options.copy;
   const e = (value: string) => escapeHtml(value);
   const startMode = options.startMode === "video" ? "video" : "standard";
-  const deviceLabel = (cls: string) => `<label class="zt-cap-device ${cls}" data-zt-device-photo>${ICON_CAMERA}<span>${e(c.deviceCamera)}</span><input id="${cls === "is-top" ? "record-media-camera" : "record-media-camera-panel"}" type="file" accept="image/*" capture="environment"></label><label class="zt-cap-device ${cls}" data-zt-device-video for="record-media-video-camera">${ICON_CAMERA}<span>${e(c.deviceCamera)}</span></label>`;
+  const deviceLabel = (cls: string) => `<label class="zt-cap-device ${cls}" data-zt-device-photo>${ICON_CAMERA}<span>${e(cls === "is-top" ? c.deviceCamera : c.deviceCameraShoot)}</span><input id="${cls === "is-top" ? "record-media-camera" : "record-media-camera-panel"}" type="file" accept="image/*" capture="environment"></label><label class="zt-cap-device ${cls}" data-zt-device-video for="record-media-video-camera">${ICON_CAMERA}<span>${e(cls === "is-top" ? c.deviceCamera : c.deviceCameraShoot)}</span></label>`;
   return `<section class="zt-cap" data-zukan-capture-stage data-record-stage="capture-v2" data-mode="${startMode}" data-phase="boot" data-live="false" aria-label="${e(c.title)}">
     <div class="zt-cap-view">
       <div class="zt-cap-frame" data-global-record-camera-preview>
         <video data-global-record-camera-video playsinline muted autoplay></video>
-        <div class="zt-cap-focus" data-zt-focus-frame hidden aria-hidden="true"></div>
+        <div class="zt-cap-focus" data-zt-focus-frame hidden aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         <div class="zt-cap-flash" data-zt-flash aria-hidden="true"></div>
       </div>
       <div class="zt-cap-top">
@@ -595,16 +613,6 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       if (!video || !video.videoWidth || !video.videoHeight) return;
       ztStage.style.setProperty("--zt-ar", String(video.videoWidth / video.videoHeight));
     }
-    function ztSyncModes() {
-      const items = ztItems();
-      const hasPhotos = items.length > 0 && items[0].kind === "photo";
-      const hasVideo = items.length > 0 && items[0].kind === "video";
-      for (const pill of ztQA("[data-zt-mode]")) {
-        const mode = pill.getAttribute("data-zt-mode");
-        const blocked = (mode === "video" && hasPhotos) || (mode !== "video" && hasVideo);
-        if (blocked) pill.setAttribute("aria-disabled", "true"); else pill.removeAttribute("aria-disabled");
-      }
-    }
     function stageSync() {
       if (!ztStage) return;
       const items = ztItems();
@@ -621,24 +629,14 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       const thumbs = ztQ("[data-zt-stack-thumbs]");
       if (thumbs) {
         thumbs.replaceChildren();
-        const top = items.slice(-3);
-        top.forEach((item, index) => {
+        const last = items[items.length - 1];
+        if (last) {
           const wrap = ztEl("span", "zt-cap-stack-thumb");
-          wrap.style.zIndex = String(index + 1);
-          wrap.appendChild(ztMedia(item, ""));
+          wrap.appendChild(ztMedia(last, ""));
           thumbs.appendChild(wrap);
-        });
-        const children = Array.from(thumbs.children);
-        const offset = 3 - children.length;
-        children.forEach((child, index) => {
-          const depth = children.length - 1 - index;
-          child.style.transform = depth === 0 ? "none" : "translate(" + (depth * 4) + "px," + (-depth * 3) + "px) rotate(" + (depth * 3) + "deg)";
-          child.style.opacity = depth === 0 ? "1" : (depth === 1 ? ".8" : ".55");
-          void offset;
-        });
+        }
       }
       ztReleaseUrls(items.map((item) => item.file).concat(ztSavedInfo ? ztSavedInfo.keep : []));
-      ztSyncModes();
       if (ztReviewOpen) ztRenderReview();
       if (ztPendingFly) {
         const fly = ztPendingFly;
@@ -787,7 +785,8 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       }
       if (phase === "done") {
         marker.classList.add("is-ok");
-        ztFocusTimer = setTimeout(() => { note.classList.remove("is-on"); marker.style.opacity = "0"; setTimeout(() => { marker.hidden = true; }, 240); }, 700);
+        note.classList.remove("is-on");
+        ztFocusTimer = setTimeout(() => { marker.style.opacity = "0"; setTimeout(() => { marker.hidden = true; }, 240); }, 700);
         return;
       }
       note.classList.remove("is-on");
@@ -855,6 +854,13 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       if (ztPhase === "boot" || ztPhase === "saving" || ztPhase === "saved") return;
       const engine = ztEngine();
       const state = engine ? engine.state() : null;
+      const held = ztItems();
+      if (state && state.live && held.length > 0) {
+        if (ztMode === "video" && held[0].kind === "photo") { ztHint(ztCopy.videoBlocked); return; }
+        if (ztMode !== "video" && held[0].kind === "video") { ztHint(ztCopy.photoBlocked); return; }
+      }
+      ztHint("");
+      ztStartLocation();
       if (!state || !state.live) {
         const input = ztMode === "video" ? document.getElementById("record-media-video-camera") : document.getElementById("record-media-camera");
         if (input) { ztStopCameraForPicker(); input.click(); }
@@ -870,7 +876,7 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       engine.shutter();
     }
     function ztAfterAdded(file, fromShutter) {
-      const frame = ztQ(".zt-cap-frame");
+      const frame = ztQ(".zt-cap-view");
       if (fromShutter && frame) {
         const rect = frame.getBoundingClientRect();
         ztPendingFly = { rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }, url: ztUrlFor(file) };
@@ -930,16 +936,31 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       ztSetPhase("error");
       ztShowCard(detail.reason);
     });
+    function ztResetCloseup() {
+      const engine = ztEngine();
+      const zoom = ztQ("[data-global-record-camera-zoom-range]");
+      if (zoom && !ztQ("[data-zt-zoom-row]").hidden) {
+        zoom.value = zoom.min || "1";
+        zoom.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      const focus = ztQ("[data-global-record-camera-focus-range]");
+      const auto = ztQ("[data-global-record-camera-focus-auto]");
+      if (focus && !ztQ("[data-global-record-camera-focus]").hidden) {
+        if (auto && !auto.disabled) auto.click();
+        focus.value = focus.min || "0";
+      }
+      const torch = ztQ("[data-zt-torch]");
+      if (torch && torch.getAttribute("aria-pressed") === "true") {
+        torch.setAttribute("aria-pressed", "false");
+        if (engine) void engine.torch(false);
+      }
+    }
     function ztChooseMode(mode) {
       if (!ztStage || mode === ztMode || ztPhase === "saving") return;
-      const items = ztItems();
-      const hasPhotos = items.length > 0 && items[0].kind === "photo";
-      const hasVideo = items.length > 0 && items[0].kind === "video";
-      if (mode === "video" && hasPhotos) { ztHint(ztCopy.videoBlocked); return; }
-      if (mode !== "video" && hasVideo) { ztHint(ztCopy.photoBlocked); return; }
       ztHint("");
       const engine = ztEngine();
       const previous = ztMode;
+      if (previous === "closeup" && mode !== "closeup") ztResetCloseup();
       ztSetMode(mode);
       const card = ztQ("[data-zt-card]");
       if (card && !card.hidden && mode !== "closeup") { card.hidden = true; if (engine) engine.clearError(); }
@@ -968,6 +989,14 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
     }
     const ztExif = [];
+    let ztLocPromise = null;
+    let ztLocValue = null;
+    function ztStartLocation() {
+      if (ztLocPromise) return;
+      const engine = ztEngine();
+      if (!engine || typeof engine.location !== "function") return;
+      ztLocPromise = Promise.resolve(engine.location(false)).then((found) => { ztLocValue = found || null; return ztLocValue; }, () => null);
+    }
     async function ztExifTime(file) {
       try {
         if (!file || !/jpe?g/i.test((file.type || "") + " " + (file.name || ""))) return 0;
@@ -1013,13 +1042,12 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       for (const file of Array.from(list || [])) ztExif.push(ztExifTime(file).then((ms) => { if (ms) ztTimes.set(file, ms); }));
     }
     async function ztResolveSaveInputs() {
-      const engine = ztEngine();
       const waiting = Promise.all(ztExif.splice(0));
-      const place = engine && typeof engine.location === "function"
-        ? Promise.race([engine.location(true), new Promise((resolve) => setTimeout(() => resolve(null), 9000))]).catch(() => null)
+      const place = ztLocPromise
+        ? Promise.race([ztLocPromise, new Promise((resolve) => setTimeout(() => resolve(null), 1500))])
         : Promise.resolve(null);
-      const resolved = await Promise.all([waiting, place]);
-      const found = resolved[1];
+      await Promise.all([waiting, place]);
+      const found = ztLocValue;
       if (form && form.elements) {
         if (found && Number.isFinite(Number(found.latitude)) && Number.isFinite(Number(found.longitude))) {
           if (form.elements.latitude) form.elements.latitude.value = String(found.latitude);
@@ -1087,7 +1115,8 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       const title = ztQ("[data-zt-saved-card-title]");
       if (title) title.textContent = info.video ? ztCopy.savedCardVideo : ztFmt(ztCopy.savedCardPhotos, { n: info.count });
       const meta = ztQ("[data-zt-saved-card-meta]");
-      if (meta) meta.textContent = ztDateLabel(info.observedAt) + " ・ " + ztCopy.savedPlaceUnset;
+      const placed = Boolean(form && form.elements && form.elements.latitude && form.elements.longitude && String(form.elements.latitude.value || "").trim() && String(form.elements.longitude.value || "").trim());
+      if (meta) meta.textContent = ztDateLabel(info.observedAt) + (placed ? "" : " ・ " + ztCopy.savedPlaceUnset);
       const view = ztQ("[data-zt-view]");
       if (view) view.setAttribute("href", recordPrefix + "/observations/" + encodeURIComponent(visitId));
       const back = ztQ("[data-zt-back-to]");
@@ -1135,7 +1164,11 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       if (form && form.elements) {
         if (form.elements.note) form.elements.note.value = "";
         if (form.elements.observedAtLocal) form.elements.observedAtLocal.value = "";
+        if (form.elements.latitude) form.elements.latitude.value = "";
+        if (form.elements.longitude) form.elements.longitude.value = "";
       }
+      ztLocPromise = null;
+      ztLocValue = null;
       const dot = ztQ("[data-zt-memo-dot]");
       if (dot) dot.hidden = true;
       document.querySelectorAll("#record-form input, #record-form textarea, #record-use-location").forEach((el) => { el.disabled = false; });

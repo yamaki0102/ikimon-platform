@@ -55,7 +55,7 @@ browserTest("shutter keeps the camera running and stacks photos with a live coun
     assert.equal(text.save, "記録する（3枚）");
     assert.equal(text.hidden, false);
     assert.equal(text.gum, 1);
-    assert.equal(text.thumbs, 3);
+    assert.equal(text.thumbs, 1);
     await page.waitForTimeout(400);
     await shot(page, "cap4-390");
   } finally {
@@ -202,7 +202,7 @@ browserTest("close-up on a device without focus control shows the fallback and n
         errorActions: visible(root.querySelector("[data-global-record-camera-error-actions]")),
       };
     });
-    assert.equal(card.main, "このブラウザでは接写のピントを調整できません");
+    assert.equal(card.main, "このブラウザでは、接写のピントを調整できません");
     assert.equal(card.deviceText, "端末のカメラで撮る");
     assert.equal(card.standardText, "標準に戻る");
     assert.deepEqual({ device: card.device, standard: card.standard, errorActions: card.errorActions }, { device: true, standard: true, errorActions: false });
@@ -310,7 +310,7 @@ browserTest("1280px puts the camera on the left and the controls in a 320px righ
         const box = document.querySelector(selector)!.getBoundingClientRect();
         return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width };
       };
-      return { frame: rect(".zt-cap-frame"), panel: rect(".zt-cap-panel"), modes: rect("[data-zt-modes]"), shutter: rect("[data-zt-shutter]"), pick: rect("[data-zt-pick]"), memo: rect("[data-zt-memo-open]") };
+      return { frame: rect(".zt-cap-view"), panel: rect(".zt-cap-panel"), modes: rect("[data-zt-modes]"), shutter: rect("[data-zt-shutter]"), pick: rect("[data-zt-pick]"), memo: rect("[data-zt-memo-open]") };
     });
     assert.equal(Math.round(layout.panel.width), 320);
     assert.ok(layout.frame.right <= layout.panel.left + 1);
@@ -370,26 +370,28 @@ browserTest("the memo opens from the right button and its text is saved with the
   }
 });
 
-browserTest("video mode records on its own stream and keeps photos and video apart", async () => {
+browserTest("video mode can be chosen with photos in the stack, keeps them, and recording waits until they are saved or removed", async () => {
   const { page, close } = await openRecord();
   try {
     await waitPhase(page, "live");
     await shoot(page, 1);
-    await page.click('[data-zt-mode="video"]', { force: true });
-    assert.equal(await page.evaluate(() => document.querySelector("[data-zukan-capture-stage]")?.getAttribute("data-mode")), "standard");
-    assert.match(String(await page.textContent("[data-zt-error]")), /動画/);
-    assert.equal((await camLog(page)).getUserMedia.length, 1);
-    await page.click("[data-zt-stack]");
-    await page.click("[data-zt-review-thumbs] .zt-rv-x");
-    await page.waitForFunction(() => document.querySelector("[data-zt-count]")?.textContent === "0");
-    await page.evaluate(() => { const review = document.querySelector("[data-zt-review]") as HTMLElement; if (!review.hidden) (document.querySelector("[data-zt-review-more]") as HTMLElement).click(); });
+    assert.equal(await page.getAttribute('[data-zt-mode="video"]', "aria-disabled"), null);
     await page.click('[data-zt-mode="video"]');
     await page.waitForFunction(() => document.querySelector("[data-zukan-capture-stage]")?.getAttribute("data-mode") === "video");
     await waitPhase(page, "live");
+    assert.equal(await page.evaluate(() => document.querySelector("[data-zt-count]")?.textContent), "1");
     const gum = (await camLog(page)).getUserMedia;
     assert.equal(gum.length, 2);
     assert.deepEqual(gum[1], { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true });
     await waitVideo(page);
+    await page.click("[data-zt-shutter]");
+    assert.match(String(await page.textContent("[data-zt-error]")), /動画/);
+    assert.equal(await page.getAttribute("[data-zt-shutter]", "aria-pressed"), null);
+    await page.click("[data-zt-stack]");
+    await page.click("[data-zt-review-thumbs] .zt-rv-x");
+    await page.waitForFunction(() => document.querySelector("[data-zt-count]")?.textContent === "0");
+    await page.evaluate(() => { const review = document.querySelector("[data-zt-review]") as HTMLElement; if (!review.hidden) (document.querySelector("[data-zt-review-more]") as HTMLElement).click(); });
+    await page.waitForTimeout(300);
     await page.click("[data-zt-shutter]");
     await page.waitForFunction(() => document.querySelector("[data-zt-shutter]")?.getAttribute("aria-pressed") === "true");
     await page.waitForTimeout(1200);
@@ -401,20 +403,62 @@ browserTest("video mode records on its own stream and keeps photos and video apa
   }
 });
 
-browserTest("location granted: the shutter never asks for it, and saving attaches the coordinates with the old record flow's options", async () => {
+browserTest("going back from close-up to standard resets zoom, focus and the light on the camera", async () => {
+  const { page, close } = await openRecord();
+  try {
+    await waitPhase(page, "live");
+    await waitVideo(page);
+    await page.click('[data-zt-mode="closeup"]');
+    await page.waitForFunction(() => !(document.querySelector("[data-global-record-camera-focus]") as HTMLElement).hidden);
+    await page.evaluate(() => {
+      const zoom = document.querySelector("[data-global-record-camera-zoom-range]") as HTMLInputElement;
+      zoom.value = "3";
+      zoom.dispatchEvent(new Event("input", { bubbles: true }));
+      const range = document.querySelector("[data-global-record-camera-focus-range]") as HTMLInputElement;
+      range.value = "0.1";
+      range.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await page.click("[data-zt-torch]");
+    await page.waitForFunction(() => (window as unknown as { __cam: { applyConstraints: unknown[] } }).__cam.applyConstraints.length >= 3);
+    const before = (await camLog(page)).applyConstraints.length;
+    await page.click('[data-zt-mode="standard"]');
+    await page.waitForFunction((n) => (window as unknown as { __cam: { applyConstraints: unknown[] } }).__cam.applyConstraints.length >= n + 3, before);
+    const after = (await camLog(page)).applyConstraints.slice(before) as Array<{ advanced: Array<Record<string, unknown>> }>;
+    const flat = after.map((entry) => entry.advanced[0]!);
+    assert.ok(flat.some((entry) => entry.zoom === 1), JSON.stringify(flat));
+    assert.ok(flat.some((entry) => entry.focusMode === "continuous"), JSON.stringify(flat));
+    assert.ok(flat.some((entry) => entry.torch === false), JSON.stringify(flat));
+    assert.equal(await page.getAttribute("[data-zt-torch]", "aria-pressed"), "false");
+    assert.equal((await camLog(page)).getUserMedia.length, 1);
+  } finally {
+    await close();
+  }
+});
+
+browserTest("location granted: asked in the background at the first shutter press only, attached at save, and the saved screen shows no 場所は未設定", async () => {
   const { page, api, close } = await openRecord({ geo: "granted" });
   try {
     await waitPhase(page, "live");
-    await shoot(page, 2);
+    await waitVideo(page);
     assert.deepEqual(await geoLog(page), []);
+    await shoot(page, 1);
+    assert.deepEqual(await geoLog(page), [{ enableHighAccuracy: false, timeout: 8000, maximumAge: 15000 }]);
+    await page.waitForTimeout(200);
+    await page.click("[data-zt-shutter]");
+    await page.waitForFunction(() => document.querySelector("[data-zt-count]")?.textContent === "2");
+    assert.equal((await geoLog(page)).length, 1);
     await page.click("[data-zt-save]");
     await waitPhase(page, "saved");
-    assert.deepEqual(await geoLog(page), [{ enableHighAccuracy: false, timeout: 8000, maximumAge: 0 }]);
+    assert.equal((await geoLog(page)).length, 1);
     assert.equal(api.upsert.length, 1);
     assert.equal(api.upsert[0]!.latitude, 34.7108);
     assert.equal(api.upsert[0]!.longitude, 137.7261);
     assert.equal(api.upsert[0]!.visibility, "private");
     assert.equal(api.uploads.length, 2);
+    assert.doesNotMatch(String(await page.textContent("[data-zt-saved-card-meta]")), /場所は未設定/);
+    await page.click("[data-zt-again]");
+    await waitPhase(page, "live");
+    assert.equal(await page.evaluate(() => (document.querySelector('#record-form [name="latitude"]') as HTMLInputElement).value), "");
   } finally {
     await close();
   }
@@ -437,19 +481,23 @@ browserTest("location denied: the record is saved private and shown as 場所未
   }
 });
 
-browserTest("location that never answers does not block the shutter and still saves without a place", async () => {
+browserTest("location that never answers does not block the shutter and save waits at most 1.5 seconds", async () => {
   const { page, api, close } = await openRecord({ geo: "hang" });
   try {
     await waitPhase(page, "live");
     const started = Date.now();
     await shoot(page, 3);
     assert.ok(Date.now() - started < 6000);
-    assert.deepEqual(await geoLog(page), []);
+    assert.equal((await geoLog(page)).length, 1);
+    const clicked = Date.now();
     await page.click("[data-zt-save]");
-    await waitPhase(page, "saved", 15000);
+    await waitPhase(page, "saved", 6000);
+    assert.ok(Date.now() - clicked < 4500, String(Date.now() - clicked));
     assert.equal(api.upsert[0]!.latitude, null);
     assert.equal(api.upsert[0]!.longitude, null);
+    assert.equal(api.upsert[0]!.visibility, "private");
     assert.equal(api.uploads.length, 3);
+    assert.match(String(await page.textContent("[data-zt-saved-card-meta]")), /場所は未設定/);
   } finally {
     await close();
   }
@@ -500,7 +548,105 @@ browserTest("observedAt keeps seconds: shutter time for camera shots, EXIF DateT
     await library.page.click("[data-zt-save]");
     await waitPhase(library.page, "saved");
     assert.equal(library.api.upsert[0]!.observedAt, new Date(2025, 2, 4, 11, 22, 33).toISOString());
+    assert.deepEqual(await geoLog(library.page), []);
+    assert.equal(library.api.upsert[0]!.latitude, null);
   } finally {
     await library.close();
+  }
+});
+
+browserTest("mock typography and sizes apply: bold labels, 74px shutter, 48px save, video fills the screen with no bands", async () => {
+  for (const [width, height] of [[390, 844], [1280, 800]] as const) {
+    const { page, close } = await openRecord({ width, height });
+    try {
+      await waitPhase(page, "live");
+      await waitVideo(page);
+      await shoot(page, 3);
+      const m = await page.evaluate(() => {
+        const st = (sel: string) => { const el = document.querySelector(sel)!; const c = getComputedStyle(el); const r = el.getBoundingClientRect(); return { fs: c.fontSize, fw: c.fontWeight, h: Math.round(r.height), w: Math.round(r.width) }; };
+        const view = document.querySelector(".zt-cap-view")!.getBoundingClientRect();
+        const frame = document.querySelector(".zt-cap-frame")!.getBoundingClientRect();
+        return {
+          pill: st('[data-zt-mode="standard"]'), side: st("[data-zt-pick] span"), memo: st("[data-zt-memo-open] span"), shutter: st("[data-zt-shutter]"), save: st("[data-zt-save]"), title: st("[data-zt-stack-title]"),
+          badge: st("[data-zt-count]"), badgeBg: getComputedStyle(document.querySelector("[data-zt-count]")!).backgroundColor,
+          covers: frame.left <= view.left + 1 && frame.right >= view.right - 1 && frame.top <= view.top + 1 && frame.bottom >= view.bottom - 1,
+          videoFits: (() => { const v = document.querySelector("video[data-global-record-camera-video]")!.getBoundingClientRect(); return v.left <= view.left + 1 && v.right >= view.right - 1 && v.top <= view.top + 1 && v.bottom >= view.bottom - 1; })(),
+          autoVisible: (() => { const a = document.querySelector("[data-global-record-camera-focus-auto]") as HTMLElement | null; return a ? getComputedStyle(a).display !== "none" : false; })(),
+        };
+      });
+      assert.deepEqual({ fs: m.pill.fs, fw: m.pill.fw }, { fs: "14px", fw: "700" }, `${width} pill`);
+      assert.deepEqual({ fs: m.side.fs, fw: m.side.fw }, { fs: "11.5px", fw: "600" });
+      assert.deepEqual({ fs: m.memo.fs, fw: m.memo.fw }, { fs: "11.5px", fw: "600" });
+      assert.equal(m.shutter.h, 74);
+      assert.equal(m.shutter.w, 74);
+      assert.deepEqual({ fs: m.save.fs, fw: m.save.fw }, { fs: "15px", fw: "800" });
+      assert.ok(m.save.h >= 46 && m.save.h <= 52, String(m.save.h));
+      assert.deepEqual({ fs: m.title.fs, fw: m.title.fw }, { fs: "13.5px", fw: "700" });
+      assert.ok(m.badge.h >= 23);
+      assert.equal(m.badgeBg, "rgb(180, 73, 43)");
+      assert.equal(m.covers, true, `${width} frame covers view`);
+      assert.equal(m.videoFits, true, `${width} video covers view`);
+      assert.equal(m.autoVisible, false);
+    } finally {
+      await close();
+    }
+  }
+});
+
+browserTest("review and saved screens match the mock sizes and the 動画 tab is a normal tab", async () => {
+  const { page, close } = await openRecord();
+  try {
+    await waitPhase(page, "live");
+    await shoot(page, 3);
+    const pill = await page.evaluate(() => { const el = document.querySelector('[data-zt-mode="video"]')!; return { opacity: getComputedStyle(el).opacity, dis: el.getAttribute("aria-disabled") }; });
+    assert.deepEqual(pill, { opacity: "1", dis: null });
+    await page.click("[data-zt-stack]");
+    await page.waitForFunction(() => !(document.querySelector("[data-zt-review]") as HTMLElement).hidden);
+    await page.waitForTimeout(450);
+    const rv = await page.evaluate(() => {
+      const st = (sel: string) => { const el = document.querySelector(sel)!; const c = getComputedStyle(el); const r = el.getBoundingClientRect(); return { fs: c.fontSize, fw: c.fontWeight, h: Math.round(r.height), w: Math.round(r.width), color: c.color, bg: c.backgroundColor, radius: c.borderTopLeftRadius, border: c.borderTopWidth }; };
+      return { save: st("[data-zt-review-save]"), more: st("[data-zt-review-more]"), x: st(".zt-rv-x"), thumb: st(".zt-rv-thumb-img"), head: st("[data-zt-review-title]") };
+    });
+    assert.equal(rv.save.h, 54);
+    assert.deepEqual({ fs: rv.save.fs, fw: rv.save.fw, radius: rv.save.radius }, { fs: "16px", fw: "800", radius: "14px" });
+    assert.deepEqual({ fs: rv.more.fs, fw: rv.more.fw, color: rv.more.color }, { fs: "15px", fw: "700", color: "rgb(0, 85, 173)" });
+    assert.deepEqual({ w: rv.x.w, h: rv.x.h, color: rv.x.color }, { w: 26, h: 26, color: "rgb(255, 255, 255)" });
+    assert.equal(rv.thumb.border, "0px");
+    await page.click("[data-zt-review-save]");
+    await waitPhase(page, "saved");
+    await page.waitForTimeout(500);
+    const sv = await page.evaluate(() => {
+      const st = (sel: string) => { const el = document.querySelector(sel)!; const c = getComputedStyle(el); const r = el.getBoundingClientRect(); return { fs: c.fontSize, fw: c.fontWeight, h: Math.round(r.height), w: Math.round(r.width) }; };
+      return { check: st(".zt-sv-check"), title: st("[data-zt-saved-title]"), img: st(".zt-sv-card img"), again: st("[data-zt-again]"), view: st("[data-zt-view]") };
+    });
+    assert.equal(sv.check.w, 74);
+    assert.equal(sv.title.fs, "21px");
+    assert.equal(sv.img.w, 64);
+    assert.equal(sv.again.h, 54);
+    assert.ok(sv.view.h >= 52 && sv.view.h <= 54, String(sv.view.h));
+  } finally {
+    await close();
+  }
+});
+
+browserTest("focus reticle is corner brackets, the focusing text disappears the moment the frame turns green, and no extra auto button shows", async () => {
+  const { page, close } = await openRecord({ focusDelay: 700 });
+  try {
+    await waitPhase(page, "live");
+    await waitVideo(page);
+    await page.click('[data-zt-mode="closeup"]');
+    await page.waitForFunction(() => !(document.querySelector("[data-global-record-camera-focus]") as HTMLElement).hidden);
+    await page.mouse.click(190, 420);
+    await page.waitForFunction(() => document.querySelector("[data-zt-note]")?.classList.contains("is-on"));
+    const during = await page.evaluate(() => {
+      const marker = document.querySelector("[data-zt-focus-frame]") as HTMLElement;
+      return { corners: marker.querySelectorAll("i").length, border: getComputedStyle(marker).borderTopWidth, ok: marker.classList.contains("is-ok"), note: getComputedStyle(document.querySelector("[data-zt-note]")!).opacity };
+    });
+    assert.deepEqual({ corners: during.corners, border: during.border, ok: during.ok }, { corners: 4, border: "0px", ok: false });
+    await page.waitForFunction(() => document.querySelector("[data-zt-focus-frame]")?.classList.contains("is-ok"), undefined, { timeout: 4000 });
+    assert.equal(await page.evaluate(() => document.querySelector("[data-zt-note]")?.classList.contains("is-on")), false);
+    assert.equal(await page.evaluate(() => { const a = document.querySelector("[data-global-record-camera-focus-auto]") as HTMLElement; return getComputedStyle(a).display; }), "none");
+  } finally {
+    await close();
   }
 });

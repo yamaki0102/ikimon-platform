@@ -25,17 +25,22 @@ const FAKE_CAMERA = `(() => {
   window.__camCaps = null;
   const draw = (canvas, tick) => {
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "hsl(" + ((tick * 9) % 360) + ",55%,45%)";
+    const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    grad.addColorStop(0, "hsl(" + (95 + (tick % 8)) + ",38%,26%)");
+    grad.addColorStop(1, "hsl(" + (78 + (tick % 8)) + ",46%,52%)");
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#fff";
-    ctx.font = "48px sans-serif";
-    ctx.fillText("cam " + tick, 40, 90);
+    ctx.fillStyle = "rgba(255,255,255,.16)";
+    for (let i = 0; i < 6; i += 1) { ctx.beginPath(); ctx.ellipse(canvas.width * (0.15 + i * 0.14), canvas.height * (0.3 + (i % 3) * 0.2), canvas.width * 0.12, canvas.height * 0.05, i, 0, 6.3); ctx.fill(); }
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.font = "28px sans-serif";
+    ctx.fillText("cam " + tick, 24, 48);
   };
   navigator.mediaDevices.getUserMedia = async (constraints) => {
     calls.getUserMedia.push(JSON.parse(JSON.stringify(constraints)));
     if (window.__camDeny) throw new DOMException("denied", window.__camDeny);
     const canvas = document.createElement("canvas");
-    canvas.width = 640; canvas.height = 480;
+    canvas.width = window.__camPortrait ? 480 : 640; canvas.height = window.__camPortrait ? 640 : 480;
     let tick = 0;
     draw(canvas, tick);
     const timer = setInterval(() => draw(canvas, ++tick), 60);
@@ -43,8 +48,8 @@ const FAKE_CAMERA = `(() => {
     const track = stream.getVideoTracks()[0];
     const caps = window.__camCaps || {};
     track.getCapabilities = () => caps;
-    track.getSettings = () => ({ width: 640, height: 480, zoom: 1 });
-    track.applyConstraints = async (c) => { calls.applyConstraints.push(JSON.parse(JSON.stringify(c))); };
+    track.getSettings = () => ({ width: canvas.width, height: canvas.height, zoom: 1 });
+    track.applyConstraints = async (c) => { calls.applyConstraints.push(JSON.parse(JSON.stringify(c))); if (window.__camDelay) await new Promise((r) => setTimeout(r, window.__camDelay)); };
     const nativeStop = track.stop.bind(track);
     track.stop = () => { calls.stops += 1; clearInterval(timer); nativeStop(); };
     calls.started += 1;
@@ -84,6 +89,7 @@ export async function openRecord(options: {
   path?: string;
   reducedMotion?: "reduce" | "no-preference";
   saveFails?: boolean;
+  focusDelay?: number;
   geo?: "granted" | "denied" | "hang";
 } = {}): Promise<{ page: Page; context: BrowserContext; api: ApiLog; close: () => Promise<void> }> {
   const width = options.width ?? 390;
@@ -96,6 +102,7 @@ export async function openRecord(options: {
   });
   const api: ApiLog = { upsert: [], uploads: [], other: [] };
   await context.addInitScript("window.__name = (fn) => fn;");
+  await context.addInitScript(`window.__camPortrait = ${width < 700}; window.__camDelay = ${options.focusDelay ?? 0};`);
   await context.addInitScript(FAKE_CAMERA);
   await context.addInitScript(`window.__geoMode = ${JSON.stringify(options.geo ?? "denied")};`);
   await context.addInitScript(FAKE_GEO);

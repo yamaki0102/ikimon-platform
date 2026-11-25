@@ -41,7 +41,7 @@ test("capture stage keeps the macro fallback copy and device/standard exits wire
   assert.match(html, /data-global-record-camera-focus-fallback/);
   assert.match(html, /data-global-record-camera-error-actions/);
   assert.match(html, /data-zt-standard/);
-  assert.equal(recordCaptureCameraCopy("ja").focusUnsupported, "このブラウザでは接写のピントを調整できません");
+  assert.equal(recordCaptureCameraCopy("ja").focusUnsupported, "このブラウザでは、接写のピントを調整できません");
   assert.equal(recordCaptureCameraCopy("ja").focusFallbackDevice, "端末のカメラで撮る");
   assert.equal(recordCaptureCameraCopy("ja").focusFallbackStandard, "標準に戻る");
   assert.match(html, /端末のカメラで撮る/);

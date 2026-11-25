@@ -1538,7 +1538,7 @@ test("unsupported close-up focus offers device camera and back-to-standard inste
   runtime.requests[0]!.resolve(cameraTestStream({}));
   await flushCameraTasks();
   assert.equal(runtime.error.hidden, false);
-  assert.equal(runtime.errorBody.textContent, "このブラウザでは接写のピントを調整できません");
+  assert.equal(runtime.errorBody.textContent, "このブラウザでは、接写のピントを調整できません");
   assert.equal(runtime.focusFallback.hidden, false);
   assert.equal(runtime.errorActions.hidden, true);
   assert.equal(runtime.events.find((event) => event.actionKey === "camera_start_failed")?.metadata.error, "focus_unsupported");

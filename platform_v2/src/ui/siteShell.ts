@@ -1881,7 +1881,7 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         no_device: "利用できるカメラが見つかりません。写真を選んで記録を続けられます。",
         device_busy: "カメラをほかのアプリが使用している可能性があります。閉じて再試行するか、写真を選んでください。",
         constraints_unsupported: "このブラウザーではカメラの設定を使えません。再試行するか、写真を選んでください。",
-        focus_unsupported: "このブラウザでは接写のピントを調整できません",
+        focus_unsupported: "このブラウザでは、接写のピントを調整できません",
         timeout: "カメラの起動を確認できませんでした。再試行するか、写真を選んでください。",
       },
       focusFallbackDevice: "端末のカメラで撮る",
