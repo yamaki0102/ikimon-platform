@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { PLACE_SEARCH_SELECT, ZUKAN_SEARCH_CSS, highlightMatch, mapPlaceSearchRow, renderSearchBar, renderSearchHead, renderSearchRow, thumbUrlOf, type PlaceSearchInfo } from "./zukanSearchUi";
 
 type SessionLike = {
   userId: string;
@@ -12,6 +13,7 @@ type SuggestionItem = {
   kind: "species" | "place";
   label: string;
   id?: string;
+  place?: PlaceSearchInfo;
 };
 
 async function queryPublicSuggestions(q: string, db: Env["OBS_DB"]): Promise<SuggestionItem[]> {
@@ -46,31 +48,29 @@ async function queryPublicSuggestions(q: string, db: Env["OBS_DB"]): Promise<Sug
           .all<{ label: string }>()
   ).results;
 
-  const placeRows = (
-    trimmed
-      ? await db
-          .prepare(
-            `SELECT place_id, canonical_name AS name
-               FROM places
-              WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL
-                AND canonical_name LIKE ?
-              LIMIT 6`
-          )
-          .bind(like)
-          .all<{ place_id: string; name: string }>()
-      : await db
-          .prepare(
-            `SELECT place_id, canonical_name AS name
-               FROM places
-              WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL
-              LIMIT 6`
-          )
-          .all<{ place_id: string; name: string }>()
-  ).results;
+  const placeWhere = `WHERE p.public_profile_status = 'published' AND p.superseded_by_place_id IS NULL`;
+  const placeBound = trimmed ? [like] : [];
+  const placeFilter = trimmed ? " AND p.canonical_name LIKE ?" : "";
+  let placeRows: PlaceSearchInfo[] = [];
+  try {
+    placeRows = (
+      await db
+        .prepare(`${PLACE_SEARCH_SELECT} ${placeWhere}${placeFilter} ORDER BY p.canonical_name ASC LIMIT 6`)
+        .bind(...placeBound)
+        .all<Parameters<typeof mapPlaceSearchRow>[0]>()
+    ).results.map(mapPlaceSearchRow);
+  } catch {
+    placeRows = (
+      await db
+        .prepare(`SELECT p.place_id AS place_id, p.canonical_name AS name FROM places p ${placeWhere}${placeFilter} LIMIT 6`)
+        .bind(...placeBound)
+        .all<{ place_id: string; name: string }>()
+    ).results.map(mapPlaceSearchRow);
+  }
 
   return [
     ...speciesRows.map((r) => ({ kind: "species" as const, label: r.label })),
-    ...placeRows.map((r) => ({ kind: "place" as const, label: r.name, id: r.place_id })),
+    ...placeRows.map((r) => ({ kind: "place" as const, label: r.name, id: r.placeId, place: r })),
   ];
 }
 
@@ -92,34 +92,46 @@ export async function handleSearchExploreRoute(
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
 
-  const suggestHtml = suggestions.length > 0
-    ? suggestions
-        .map((item) => {
-          const href =
-            item.kind === "place" && item.id
-              ? `${prefix}/places/${encodeURIComponent(item.id)}`
-              : `${prefix}/search/results?q=${encodeURIComponent(item.label)}`;
-          return `<a class="zt-hub-dest" href="${escapeHtml(href)}"><strong>${escapeHtml(item.label)}</strong><span>${
-            item.kind === "place" ? (isEn ? "Place" : "場所") : (isEn ? "Species" : "生きもの")
-          }</span></a>`;
-        })
-        .join("")
-    : `<p>${isEn ? "No matching suggestions." : "一致する候補はまだありません。"}</p>`;
+  const speciesItems = suggestions.filter((s) => s.kind === "species");
+  const placeItems = suggestions.filter((s) => s.kind === "place" && s.place);
+  const placeRowsHtml = placeItems
+    .map((s) => {
+      const info = s.place!;
+      const meta = [info.locality ?? "", info.recordCount !== null && info.recordCount > 0 ? (isEn ? `${info.recordCount} records` : `記録 ${info.recordCount}件`) : ""].filter(Boolean).join(" ・ ");
+      return renderSearchRow({
+        href: `${prefix}/places/${encodeURIComponent(info.placeId)}`,
+        title: info.name,
+        titleHtml: highlightMatch(info.name, q),
+        meta,
+        badge: isEn ? "Place" : "場所",
+        thumbUrl: thumbUrlOf(info.thumbAssetId),
+      });
+    })
+    .join("");
+  const speciesChips = speciesItems
+    .map((s) => `<a class="zs-chip" href="${escapeHtml(`${prefix}/search/results?q=${encodeURIComponent(s.label)}`)}">${highlightMatch(s.label, q)}</a>`)
+    .join("");
+  const nothing = speciesItems.length === 0 && placeItems.length === 0;
 
-  const bodyHtml = `<style>
-    .zs-bar{display:flex;gap:8px;align-items:center}
-    .zs-bar input{flex:1;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;font:inherit}
-    .zs-mic{min-height:44px;min-width:44px;border-radius:999px;border:1px solid var(--green);background:#fff;color:var(--green);font:inherit;font-weight:700;cursor:pointer}
-  </style>
-  <section class="zt-hub-card" data-search-view="h1-h2">
-    <h1>${isEn ? "Explore" : "探す"}</h1>
-    <form class="zs-bar" method="get" action="${escapeHtml(`${prefix}/search/results`)}">
-      <input id="zs-input" type="search" name="q" value="${escapeHtml(q)}" placeholder="${isEn ? "Search species, places, or events" : "生きもの・場所・イベントを探す"}" aria-label="${isEn ? "Search" : "検索"}">
-      <button type="button" class="zs-mic" data-search-mic-btn="1" id="zs-mic-btn" aria-label="${isEn ? "Voice search" : "音声で探す"}">🎙</button>
-      <button type="submit" class="zt-btn-capture">${isEn ? "Search" : "探す"}</button>
-    </form>
-    <h2>${q ? (isEn ? "Suggestions" : "候補") : (isEn ? "Recent species & places" : "最近の種・場所")}</h2>
-    <div id="zukan-search-suggestions" class="zt-hub-grid">${suggestHtml}</div>
+  const bodyHtml = `<style>${ZUKAN_SEARCH_CSS}</style>
+  <section class="zs" data-search-view="h1-h2">
+    ${renderSearchHead(isEn ? "Explore" : "探す", `${prefix}/library`, isEn ? "Back" : "戻る")}
+    ${renderSearchBar({
+      action: `${prefix}/search/results`,
+      q,
+      placeholder: isEn ? "Search species, places, or events" : "祭り・川・去年の秋で探す",
+      label: isEn ? "Search" : "検索",
+      micLabel: isEn ? "Voice search" : "音声で探す",
+    })}
+    <div id="zukan-search-suggestions" style="display:grid;gap:16px">
+      ${
+        nothing
+          ? `<p class="zs-count">${isEn ? "No matching suggestions." : "一致する候補はまだありません。"}</p>`
+          : `${speciesChips ? `<h2 class="zs-h2">${q ? (isEn ? "Species" : "生きもの") : (isEn ? "Recently found" : "最近見つかった生きもの")}</h2><div class="zs-chips">${speciesChips}</div>` : ""}
+      ${placeRowsHtml ? `<h2 class="zs-h2">${q ? (isEn ? "Places" : "場所") : (isEn ? "Popular places" : "よく見られている場所")}</h2><ul class="zs-list">${placeRowsHtml}</ul>` : ""}`
+      }
+    </div>
+    <a class="zs-btn" href="${escapeHtml(`${prefix}/search/seasons`)}">${isEn ? "Search by season" : "時期で探す"}</a>
   </section>`;
 
   const html = renderZukanCommonShell({

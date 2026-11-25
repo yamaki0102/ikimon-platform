@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { PLACE_SEARCH_SELECT, RECORD_THUMB_SQL, SEARCH_ICON_CALENDAR, ZUKAN_SEARCH_CSS, formatShortDate, highlightMatch, mapPlaceSearchRow, renderSearchBar, renderSearchEmptyIcon, renderSearchHead, renderSearchRow, thumbUrlOf, type PlaceSearchInfo } from "./zukanSearchUi";
 
 export type SearchResultType = "all" | "places" | "events" | "records";
 
@@ -13,6 +14,9 @@ type SessionLike = {
 type PlaceSearchRow = {
   place_id: string;
   name: string;
+  locality_label?: string | null;
+  record_count?: number | null;
+  thumb_asset_id?: string | null;
 };
 
 type EventSearchRow = {
@@ -23,8 +27,10 @@ type EventSearchRow = {
 
 type RecordSearchRow = {
   observation_id: string;
-  taxon_display_name: string;
+  taxon_label: string | null;
   observed_at: string;
+  public_area_label?: string | null;
+  asset_id?: string | null;
 };
 
 function normalizeType(raw: string | null): SearchResultType {
@@ -40,20 +46,21 @@ async function querySearchResults(query: string, type: SearchResultType, db: Env
 
   const [places, events, records] = await Promise.all([
     type === "all" || type === "places"
-      ? db
-          .prepare(
-            `SELECT place_id, canonical_name AS name
-               FROM places
-              WHERE public_profile_status = 'published'
-                AND superseded_by_place_id IS NULL
-                AND (? = '' OR canonical_name LIKE ?)
-              ORDER BY canonical_name ASC
-              LIMIT 30`
-          )
-          .bind(trimmed, like)
-          .all<PlaceSearchRow>()
-          .then((r) => r.results)
-          .catch(() => [] as PlaceSearchRow[])
+      ? (async () => {
+          const filter = `WHERE p.public_profile_status = 'published' AND p.superseded_by_place_id IS NULL AND (? = '' OR p.canonical_name LIKE ?) ORDER BY p.canonical_name ASC LIMIT 30`;
+          try {
+            return (await db.prepare(`${PLACE_SEARCH_SELECT} ${filter}`).bind(trimmed, like).all<PlaceSearchRow>()).results;
+          } catch {
+            return (
+              await db
+                .prepare(`SELECT p.place_id AS place_id, p.canonical_name AS name FROM places p ${filter}`)
+                .bind(trimmed, like)
+                .all<PlaceSearchRow>()
+                .then((r) => r.results)
+                .catch(() => [] as PlaceSearchRow[])
+            );
+          }
+        })()
       : Promise.resolve([] as PlaceSearchRow[]),
     type === "all" || type === "events"
       ? db
@@ -72,29 +79,46 @@ async function querySearchResults(query: string, type: SearchResultType, db: Env
     type === "all" || type === "records"
       ? db
           .prepare(
-            `SELECT observation_id, taxon_display_name, observed_at
-               FROM observations
-              WHERE visibility = 'public'
-                AND (? = '' OR taxon_display_name LIKE ?)
-              ORDER BY observed_at DESC
+            `SELECT o.observation_id AS observation_id, o.taxon_label AS taxon_label, o.observed_at AS observed_at, o.public_area_label AS public_area_label,
+                    ${RECORD_THUMB_SQL} AS asset_id
+               FROM observations o
+              WHERE o.visibility = 'public'
+                AND COALESCE(o.emergency_hidden, 0) = 0
+                AND (? = '' OR o.taxon_label LIKE ?)
+              ORDER BY o.observed_at DESC
               LIMIT 30`
           )
           .bind(trimmed, like)
           .all<RecordSearchRow>()
           .then((r) => r.results)
-          .catch(() => [] as RecordSearchRow[])
+          .catch(() =>
+            db
+              .prepare(
+                `SELECT observation_id, taxon_label, observed_at
+                   FROM observations
+                  WHERE visibility = 'public' AND (? = '' OR taxon_label LIKE ?)
+                  ORDER BY observed_at DESC
+                  LIMIT 30`
+              )
+              .bind(trimmed, like)
+              .all<RecordSearchRow>()
+              .then((r) => r.results)
+              .catch(() => [] as RecordSearchRow[])
+          )
       : Promise.resolve([] as RecordSearchRow[]),
   ]);
 
   return {
     query: trimmed,
     type,
-    places: places.map((p) => ({ placeId: p.place_id, name: p.name })),
+    places: places.map((p) => mapPlaceSearchRow(p)),
     events: events.map((e) => ({ sessionId: e.session_id, title: e.title, startedAt: e.started_at })),
     records: records.map((r) => ({
       observationId: r.observation_id,
-      taxonDisplayName: r.taxon_display_name,
+      taxonDisplayName: (r.taxon_label ?? "").trim(),
       observedAt: r.observed_at,
+      areaLabel: r.public_area_label ?? null,
+      assetId: r.asset_id ?? null,
     })),
   };
 }
@@ -116,82 +140,85 @@ export async function handleSearchResultsRoute(
   const type = normalizeType(url.searchParams.get("type"));
   const data = await querySearchResults(query, type, db);
   const encodedQ = encodeURIComponent(data.query);
+  const isEn = lang === "en";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const q = data.query;
 
   const tabs: Array<{ key: SearchResultType; label: string }> = [
-    { key: "all", label: "すべて" },
-    { key: "places", label: "場所" },
-    { key: "events", label: "イベント" },
-    { key: "records", label: "記録" },
+    { key: "all", label: isEn ? "All" : "すべて" },
+    { key: "places", label: isEn ? "Places" : "場所" },
+    { key: "events", label: isEn ? "Events" : "イベント" },
+    { key: "records", label: isEn ? "Records" : "記録" },
   ];
-
   const tabLinks = tabs
-    .map((t) => {
-      const active = t.key === type;
-      return `<a class="zt-search-tab${active ? " is-active" : ""}" href="/${lang}/search/results?q=${encodedQ}&amp;type=${t.key}"${active ? ' aria-current="page"' : ""}>${t.label}</a>`;
+    .map((tab) => {
+      const active = tab.key === type;
+      return `<a class="zs-chip${active ? " is-active" : ""}" href="${prefix}/search/results?q=${encodedQ}&amp;type=${tab.key}"${active ? ' aria-current="page"' : ""}>${tab.label}</a>`;
     })
     .join("");
 
-  const placeCards = data.places
-    .map(
-      (p) => `<a class="zt-search-card" href="/${lang}/places/${encodeURIComponent(p.placeId)}">
-        <div class="zt-search-meta">
-          <span class="zt-search-badge">場所</span>
-        </div>
-        <strong class="zt-search-title">${escapeHtml(p.name)}</strong>
-      </a>`
+  const placeRows = data.places
+    .map((p) =>
+      renderSearchRow({
+        href: `${prefix}/places/${encodeURIComponent(p.placeId)}`,
+        title: p.name,
+        titleHtml: highlightMatch(p.name, q),
+        meta: [p.locality ?? "", p.recordCount !== null && p.recordCount > 0 ? (isEn ? `${p.recordCount} records` : `記録 ${p.recordCount}件`) : ""].filter(Boolean).join(" ・ "),
+        badge: isEn ? "Place" : "場所",
+        thumbUrl: thumbUrlOf(p.thumbAssetId),
+      })
     )
     .join("");
-
-  const eventCards = data.events
-    .map(
-      (e) => `<a class="zt-search-card" href="/${lang}/events/${encodeURIComponent(e.sessionId)}/details">
-        <div class="zt-search-meta">
-          <span class="zt-search-badge">イベント</span>
-          <span class="zt-search-date">${escapeHtml(e.startedAt.slice(0, 10))}</span>
-        </div>
-        <strong class="zt-search-title">${escapeHtml(e.title)}</strong>
-      </a>`
+  const eventRows = data.events
+    .map((e) =>
+      renderSearchRow({
+        href: `${prefix}/events/${encodeURIComponent(e.sessionId)}/preview`,
+        title: e.title,
+        titleHtml: highlightMatch(e.title, q),
+        meta: formatShortDate(e.startedAt, isEn),
+        badge: isEn ? "Event" : "イベント",
+      })
     )
     .join("");
-
-  const recordCards = data.records
-    .map(
-      (r) => `<a class="zt-search-card" href="/${lang}/records/${encodeURIComponent(r.observationId)}">
-        <div class="zt-search-meta">
-          <span class="zt-search-badge">記録</span>
-          <span class="zt-search-date">${escapeHtml(r.observedAt.slice(0, 10))}</span>
-        </div>
-        <strong class="zt-search-title">${escapeHtml(r.taxonDisplayName)}</strong>
-      </a>`
+  const recordRows = data.records
+    .map((r) =>
+      renderSearchRow({
+        href: `${prefix}/observations/${encodeURIComponent(r.observationId)}`,
+        title: r.taxonDisplayName || (isEn ? "Unnamed record" : "名前なしの記録"),
+        titleHtml: r.taxonDisplayName ? highlightMatch(r.taxonDisplayName, q) : escapeHtml(isEn ? "Unnamed record" : "名前なしの記録"),
+        meta: [formatShortDate(r.observedAt, isEn), r.areaLabel ?? ""].filter(Boolean).join(" ・ "),
+        badge: isEn ? "Record" : "記録",
+        thumbUrl: thumbUrlOf(r.assetId),
+      })
     )
     .join("");
+  const section = (label: string, count: number, rows: string) =>
+    rows
+      ? `${type === "all" ? `<h2 class="zs-h2">${label}</h2>` : ""}<ul class="zs-list">${rows}</ul><p class="zs-count">${isEn ? `${label} ${count}` : `${label} ${count}件`}</p>`
+      : "";
+  const hasAny = Boolean(placeRows || eventRows || recordRows);
 
-  const body = `<style>
-    .zt-search-results{display:grid;gap:14px;padding:16px 0}
-    .zt-search-form{display:flex;gap:8px;align-items:center}
-    .zt-search-input{flex:1;min-width:0;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;font-size:16px;background:#fff;color:var(--ink)}
-    .zt-search-submit{min-height:44px;padding:0 16px;border-radius:12px;border:none;background:var(--green);color:#fff;font-weight:700;cursor:pointer}
-    .zt-search-tabs{display:flex;flex-wrap:wrap;gap:8px}
-    .zt-search-tab,.zt-search-tab:visited{min-height:36px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-size:14px;font-weight:700;display:inline-flex;align-items:center}
-    .zt-search-tab.is-active,.zt-search-tab.is-active:visited{background:var(--green);border-color:var(--green);color:#fff}
-    .zt-search-list{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
-    .zt-search-card,.zt-search-card:visited{display:grid;gap:6px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);text-decoration:none;min-width:0}
-    .zt-search-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12px;color:var(--muted)}
-    .zt-search-badge{padding:2px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--green);font-weight:700;white-space:nowrap}
-    .zt-search-date{white-space:nowrap}
-    .zt-search-title{font-size:16px;line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
-  </style>
-  <section class="zt-search-results" data-search-view="h3-h6" data-search-type="${type}">
-    <form class="zt-search-form" action="/${lang}/search/results" method="get">
-      <input class="zt-search-input" type="search" name="q" value="${escapeHtml(data.query)}" placeholder="生きもの・場所・イベントを探す" aria-label="検索キーワード" />
-      <input type="hidden" name="type" value="${type}" />
-      <button class="zt-search-submit" type="submit">探す</button>
-    </form>
-    <nav class="zt-search-tabs" aria-label="検索種別">${tabLinks}</nav>
-    ${placeCards ? `<div class="zt-search-section"><h2>場所</h2><div class="zt-search-list">${placeCards}</div></div>` : ""}
-    ${eventCards ? `<div class="zt-search-section"><h2>イベント</h2><div class="zt-search-list">${eventCards}</div></div>` : ""}
-    ${recordCards ? `<div class="zt-search-section"><h2>記録</h2><div class="zt-search-list">${recordCards}</div></div>` : ""}
-    ${!placeCards && !eventCards && !recordCards ? `<p class="zt-search-empty">該当する結果が見つかりませんでした。</p>` : ""}
+  const body = `<style>${ZUKAN_SEARCH_CSS}</style>
+  <section class="zs" data-search-view="h3-h6" data-search-type="${type}">
+    ${renderSearchHead(isEn ? "Explore" : "探す", `${prefix}/search/explore`, isEn ? "Back" : "戻る")}
+    ${renderSearchBar({
+      action: `${prefix}/search/results`,
+      q,
+      placeholder: isEn ? "Search species, places, or events" : "生きもの・場所・イベントを探す",
+      label: isEn ? "Search" : "検索キーワード",
+      micLabel: isEn ? "Voice search" : "音声で探す",
+      hidden: { type },
+    })}
+    <nav class="zs-chips zs-tabs" aria-label="${isEn ? "Result type" : "検索種別"}">${tabLinks}</nav>
+    ${section(isEn ? "Places" : "場所", data.places.length, placeRows)}
+    ${section(isEn ? "Events" : "イベント", data.events.length, eventRows)}
+    ${section(isEn ? "Records" : "記録", data.records.length, recordRows)}
+    ${
+      hasAny
+        ? ""
+        : `<div class="zs-empty zt-search-empty">${renderSearchEmptyIcon()}<h2>${q ? (isEn ? `No results for "${escapeHtml(q)}"` : `「${escapeHtml(q)}」は見つかりませんでした`) : isEn ? "Nothing found" : "該当する結果が見つかりませんでした"}</h2><p>${isEn ? "Try different words." : "言葉を変えると、見つかるかもしれません。"}</p></div>
+    <a class="zs-btn" href="${prefix}/search/seasons">${SEARCH_ICON_CALENDAR}${isEn ? "Search by season" : "時期で探す"}</a>`
+    }
   </section>`;
 
   const html = renderZukanCommonShell({

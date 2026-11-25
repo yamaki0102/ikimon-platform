@@ -39,7 +39,7 @@ function setupDb(t: test.TestContext) {
     );
     CREATE TABLE observations (
       observation_id TEXT PRIMARY KEY,
-      taxon_display_name TEXT NOT NULL,
+      taxon_label TEXT,
       observed_at TEXT NOT NULL,
       visibility TEXT NOT NULL DEFAULT 'public'
     );
@@ -47,8 +47,8 @@ function setupDb(t: test.TestContext) {
   sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'published')").run("p-1", "佐鳴湖カワセミ観察地");
   sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'draft')").run("p-priv", "非公開カワセミ場所");
   sqlite.prepare("INSERT INTO observation_event_sessions (session_id, title, started_at) VALUES (?, ?, ?)").run("ev-1", "初夏カワセミ観察会", "2026-06-01T09:00:00Z");
-  sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-1", "カワセミ", "2026-06-02T08:30:00Z");
-  sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'private')").run("obs-priv", "カワセミ（非公開）", "2026-06-02T08:40:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-1", "カワセミ", "2026-06-02T08:30:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, 'private')").run("obs-priv", "カワセミ（非公開）", "2026-06-02T08:40:00Z");
   return sqliteObsDb(sqlite);
 }
 
@@ -85,7 +85,7 @@ test("H3-H6 search results page renders type tabs, wrapped metadata, and results
   assert.match(html, /class="zt-shell"/);
   assert.match(html, /data-search-view="h3-h6"/);
   assert.match(html, /zt-search-meta/);
-  assert.match(html, /佐鳴湖カワセミ観察地/);
-  assert.match(html, /初夏カワセミ観察会/);
+  assert.match(html, /佐鳴湖<mark>カワセミ<\/mark>観察地/);
+  assert.match(html, /初夏<mark>カワセミ<\/mark>観察会/);
   assert.match(html, /カワセミ/);
 });
