@@ -109,14 +109,14 @@ export async function handleSaveRecordLinks(
       : null;
 
   const obs = await obsDb
-    .prepare("SELECT user_id FROM observations WHERE observation_id = ?")
+    .prepare("SELECT owner_user_id FROM observations WHERE observation_id = ?")
     .bind(observationId)
-    .first<{ user_id: string }>();
+    .first<{ owner_user_id: string }>();
 
   if (!obs) {
     return jsonResponse({ ok: false, error: "observation_not_found" }, 404);
   }
-  if (obs.user_id !== userId) {
+  if (obs.owner_user_id !== userId) {
     return jsonResponse({ ok: false, error: "forbidden" }, 403);
   }
 
