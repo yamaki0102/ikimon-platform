@@ -183,9 +183,10 @@ test("public Records keeps its existing readers and cannot expose another user's
       assert.equal(response.status, 200);
       assert.match(body, /data-records-mode="public"/u);
       assert.doesNotMatch(body, /Private owner record|Other private record|Hidden owner record/u);
-      assert.equal(value.observationCalls().length, 2);
+      assert.equal(value.observationCalls().length, 3);
       assert.equal(value.mediaCalls().length, 0);
-      assert.ok(value.observationCalls().every(call => /public_map_snapshot_records_v1|readmodel_public_observations/u.test(call.sql)));
+      assert.ok(value.observationCalls().every(call => /public_map_snapshot_records_v1|readmodel_public_observations|FROM places p/u.test(call.sql)));
+      assert.equal(value.observationCalls().filter(call => /FROM places p/u.test(call.sql)).length, 1);
     }
   } finally { value.close(); }
 });
