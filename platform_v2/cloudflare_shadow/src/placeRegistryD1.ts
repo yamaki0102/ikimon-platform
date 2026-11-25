@@ -190,3 +190,33 @@ export async function listD1PublicPlaceChildren(input: {
     .all<PlaceRegistryRow>();
   return rankPublicPlaceResults(rows.results, "", limit);
 }
+
+const D1_PUBLIC_PLACE_NAME_SQL = `
+  SELECT p.place_id, p.canonical_name
+  FROM places p
+  WHERE p.place_id = ?
+    AND p.public_profile_status = 'published'
+    AND p.valid_to IS NULL
+    AND p.superseded_by_place_id IS NULL
+    AND EXISTS (
+      SELECT 1
+      FROM place_policies pp
+      WHERE pp.place_id = p.place_id
+        AND pp.place_visibility = 'public'
+        AND pp.valid_to IS NULL
+    )
+  LIMIT 1
+`;
+
+export async function getD1PublicPlaceName(input: {
+  db: PlaceRegistryD1Database;
+  placeId: string;
+}): Promise<{ placeId: string; name: string } | null> {
+  const rows = await input.db
+    .prepare(D1_PUBLIC_PLACE_NAME_SQL)
+    .bind(input.placeId)
+    .all<{ place_id: string; canonical_name: string }>();
+  const row = rows.results[0];
+  if (!row || !row.canonical_name) return null;
+  return { placeId: row.place_id, name: row.canonical_name };
+}

@@ -33401,6 +33401,92 @@ test("buildObservationDetail shares queryPublicMapCardMeta taxon resolution with
   assert.match(detailHtml, /<h1[^>]*>カタバミ属<\/h1>/);
 });
 
+test("observation event capacity returns remaining slots and rejects 3rd applicant with 409", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  for (const migration of ["0019_observation_event_core.sql", "0020_observation_event_rally.sql", "0039_field_manager_runtime.sql", "0071_observation_event_guest_media.sql", "0074_observation_event_discoveries.sql", "0075_observation_event_discovery_gemini_notice.sql"]) {
+    obs.sqlite.exec(await readFile(new URL(`../migrations/observations/${migration}`, import.meta.url), "utf8"));
+  }
+  Object.assign(env, { OBS_DB: obs });
+  const origin = "https://ikimon.life";
+  const send = async (path: string, method = "GET", cookie = "", body?: unknown) => {
+    const response = await worker.fetch(new Request(origin + path, { method, headers: { cookie, origin, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }), env);
+    return { response, data: await response.clone().json().catch(() => null) as any };
+  };
+  const issueUser = async (userId: string, displayName: string) => {
+    const res = await send("/api/v1/auth/session/issue", "POST", "", { userId, displayName, ttlHours: 1 });
+    return res.response.headers.get("set-cookie") ?? "";
+  };
+  const ownerCookie = await issueUser("cap-organizer", "主催者本名");
+  const user1Cookie = await issueUser("cap-user-1", "参加者1本名");
+  const user2Cookie = await issueUser("cap-user-2", "参加者2本名");
+  const user3Cookie = await issueUser("cap-user-3", "参加者3本名");
+  Object.assign(env, { ENVIRONMENT: "production" });
+
+  const created = await send("/api/v1/observation-events", "POST", ownerCookie, {
+    title: "春の観察会",
+    event_code: "CAP2SLOT",
+    plan: "public",
+    field_id: RYUYO_FIELD_ID,
+    started_at: new Date(Date.now() + 3_600_000).toISOString(),
+    ended_at: new Date(Date.now() + 7_200_000).toISOString(),
+    location_lat: 34.65,
+    location_lng: 137.82
+  });
+  assert.equal(created.response.status, 201, JSON.stringify(created.data));
+  const sessionId = created.data.sessionId as string;
+  obs.sqlite.prepare("UPDATE observation_event_sessions SET field_id = ?, config_json = ? WHERE session_id = ?").run(
+    RYUYO_FIELD_ID,
+    JSON.stringify({
+      guest_media_enabled: true,
+      discovery_journal: { version: "event-discovery-v1", enabled: true, max_photos: 3, gallery: "unlisted" },
+      discovery_campaign: { version: "ryuyo-campaign-v1", listed: false, applications_open: true },
+      public_page: { capacity: 2 },
+      event_template: { contract_version: "event-template-v1", key: "ryuyo" }
+    }),
+    sessionId
+  );
+  const api = `/api/v1/observation-events/${sessionId}`;
+
+  // Unauthenticated without guest cookie -> 428 on POST
+  assert.equal((await send(api + "/application", "POST", "", { display_name: "無認証" })).response.status, 428);
+  // Organizer cannot apply -> 403
+  assert.equal((await send(api + "/application", "POST", ownerCookie, { display_name: "主催者" })).response.status, 403);
+
+  const initialStatus = await send(api + "/application");
+  assert.equal(initialStatus.response.status, 200);
+  assert.equal(initialStatus.data.capacity, 2);
+  assert.equal(initialStatus.data.remaining, 2);
+
+  const apply1 = await send(api + "/application", "POST", user1Cookie, { display_name: "公開ニックネーム1" });
+  assert.equal(apply1.response.status, 201, JSON.stringify(apply1.data));
+  assert.equal(apply1.data.capacity, 2);
+  assert.equal(apply1.data.remaining, 1);
+
+  const statusAfter1 = await send(api + "/application", "GET", user3Cookie);
+  assert.equal(statusAfter1.response.status, 200);
+  assert.equal(statusAfter1.data.capacity, 2);
+  assert.equal(statusAfter1.data.remaining, 1);
+  assert.doesNotMatch(JSON.stringify(statusAfter1.data), /公開ニックネーム1|参加者1本名|cap-user-1/u);
+
+  const apply2 = await send(api + "/application", "POST", user2Cookie, { display_name: "公開ニックネーム2" });
+  assert.equal(apply2.response.status, 201, JSON.stringify(apply2.data));
+  assert.equal(apply2.data.capacity, 2);
+  assert.equal(apply2.data.remaining, 0);
+
+  const statusAfter2 = await send(api + "/application", "GET", user3Cookie);
+  assert.equal(statusAfter2.response.status, 200);
+  assert.equal(statusAfter2.data.capacity, 2);
+  assert.equal(statusAfter2.data.remaining, 0);
+  assert.doesNotMatch(JSON.stringify(statusAfter2.data), /公開ニックネーム|参加者|cap-user-/u);
+
+  const apply3 = await send(api + "/application", "POST", user3Cookie, { display_name: "公開ニックネーム3" });
+  assert.equal(apply3.response.status, 409, JSON.stringify(apply3.data));
+  assert.equal(apply3.data.error, "event_capacity_full");
+  assert.equal(apply3.data.capacity, 2);
+  assert.equal(apply3.data.remaining, 0);
+});
 
 test("event console shows participant/photo counts and persists config_json.nextEventNote with 401/403 guards", async () => {
   const { env: baseEnv, core, obs } = createEnv();
@@ -33635,6 +33721,106 @@ test("takeaway page links to public place records only when explicitly configure
   const noneRes = await worker.fetch(new Request("https://zukan.earth/events/evt_takeaway_none/takeaway/3"), env);
   assert.equal(noneRes.status, 200);
   assert.doesNotMatch(await noneRes.text(), /この場所の記録を見る/);
+});
+
+test("GET /api/v1/places/:id returns display name only for exact public place ID, 404 for private/unknown, 400 for non-ID/coords", async (t) => {
+  const { env } = createEnv();
+  const obs = new DiscoveryRouteSqliteD1();
+  t.after(() => obs.sqlite.close());
+  obs.sqlite.exec(await readFile(new URL("../migrations/observations/0047_place_memory_runtime.sql", import.meta.url), "utf8"));
+  obs.sqlite.exec(await readFile(new URL("../migrations/observations/0068_universal_place_atlas.sql", import.meta.url), "utf8"));
+  const placeDb = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (query.includes("FROM places p")) {
+            let values: unknown[] = [];
+            const stmt = {
+              bind(...input: unknown[]) { values = input; return stmt; },
+              async first() { return obs.sqlite.prepare(query).get(...values as never[]) ?? null; },
+              async all() { return { results: obs.sqlite.prepare(query).all(...values as never[]) }; },
+              async run() { return { meta: { changes: Number(obs.sqlite.prepare(query).run(...values as never[]).changes) } }; }
+            };
+            return stmt;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  Object.assign(env, { OBS_DB: placeDb });
+
+  obs.sqlite.prepare(
+    `INSERT INTO places (
+      place_id, canonical_name, canonical_name_normalized, place_kind,
+      locality_label, verification_status, official_status, public_profile_status,
+      metadata_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    "plc_public_tokiwa",
+    "常磐公園",
+    "常磐公園",
+    "park",
+    "静岡県静岡市",
+    "verified",
+    "official",
+    "published",
+    JSON.stringify({ stewardUserId: "user-steward-secret" }),
+    "2026-11-25T00:00:00Z",
+    "2026-11-25T00:00:00Z"
+  );
+  obs.sqlite.prepare(
+    `INSERT INTO place_policies (
+      place_policy_id, place_id, place_visibility, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?)`
+  ).run("pol_public_tokiwa", "plc_public_tokiwa", "public", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+
+  obs.sqlite.prepare(
+    `INSERT INTO places (
+      place_id, canonical_name, canonical_name_normalized, place_kind,
+      locality_label, verification_status, official_status, public_profile_status,
+      metadata_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    "plc_private_spot",
+    "非公開の調査地",
+    "非公開の調査地",
+    "reserve",
+    "非公開住所",
+    "verified",
+    "unofficial",
+    "published",
+    JSON.stringify({ stewardUserId: "user-private-owner" }),
+    "2026-11-25T00:00:00Z",
+    "2026-11-25T00:00:00Z"
+  );
+  obs.sqlite.prepare(
+    `INSERT INTO place_policies (
+      place_policy_id, place_id, place_visibility, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?)`
+  ).run("pol_private_spot", "plc_private_spot", "private", "2026-11-25T00:00:00Z", "2026-11-25T00:00:00Z");
+
+  const okRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_public_tokiwa"), env);
+  assert.equal(okRes.status, 200);
+  const okBody = await okRes.json() as Record<string, unknown>;
+  assert.deepEqual(okBody, { placeId: "plc_public_tokiwa", name: "常磐公園" });
+  assert.doesNotMatch(JSON.stringify(okBody), /静岡|user-steward-secret|boundary|lat|lng|bbox/u);
+
+  const privateRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_private_spot"), env);
+  assert.equal(privateRes.status, 404);
+
+  const unknownRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/plc_unknown_999"), env);
+  assert.equal(unknownRes.status, 404);
+
+  const nameInsteadOfId = await worker.fetch(new Request("https://zukan.earth/api/v1/places/" + encodeURIComponent("常磐公園")), env);
+  assert.equal(nameInsteadOfId.status, 400);
+
+  const coordsRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/" + encodeURIComponent("35.6812,139.7671")), env);
+  assert.equal(coordsRes.status, 400);
+
+  const numericRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/123456"), env);
+  assert.equal(numericRes.status, 400);
 });
 
 test("safeRedirectPath rejects double-slash, encoded-slash, backslash, and dot-normalized external redirects", () => {
