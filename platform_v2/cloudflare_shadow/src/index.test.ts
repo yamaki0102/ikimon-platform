@@ -9054,7 +9054,7 @@ test("v1 public map read routes expose current shell contracts without exact coo
   const unidentifiedResponse = await worker.fetch(new Request("https://shadow.test/api/v1/map/observations?cell_id=cell%3A34.7%2C137.8&limit=10"), env);
   const unidentifiedPayload = await unidentifiedResponse.json() as any;
   const unidentified = unidentifiedPayload.items.find((item: any) => item.visitId === "visit-unidentified-contract");
-  assert.equal(unidentified.displayName, "名前待ち");
+  assert.equal(unidentified.displayName, "自然の記録");
   assert.equal(unidentified.isAwaitingId, true);
 
   const originalFetch = globalThis.fetch;
@@ -9882,7 +9882,7 @@ test("public map keeps persisted unknown labels unconfirmed without exposing coo
     assert.equal(response.status, 200);
     const payload = await response.json() as any;
     assert.equal(payload.items.length, 1);
-    assert.equal(payload.items[0].displayName, label === "カワセミ" ? label : "名前待ち");
+    assert.equal(payload.items[0].displayName, label === "カワセミ" ? label : "自然の記録");
     assert.equal(payload.items[0].isAwaitingId, label !== "カワセミ");
     assert.equal(payload.items[0].isAiCandidate, false, "no AI evidence is invented");
     assert.equal("latitude" in payload.items[0], false);
@@ -10613,7 +10613,7 @@ test("public observation detail route exposes a safe read page and JSON without 
   assert.equal(humanCandidateResponse.status, 200);
   assert.deepEqual(humanCandidatePayload.observation, {
     ...candidatePayload.observation,
-    displayName: "名前待ち",
+    displayName: "自然の記録",
     aiCandidateLabel: null,
     aiCandidateRank: null,
     aiCandidateInsights: [],
@@ -25714,7 +25714,7 @@ test("production records materialized html includes recent Cloudflare D1 records
   assert.match(homeBody, /record-live-materialized/);
   assert.match(homeBody, /record-clean-audio-materialized/);
   assert.match(homeBody, /record-awaiting-photo-materialized/);
-  assert.match(homeBody, /<strong>名前待ちの写真<\/strong>/);
+  assert.match(homeBody, /<strong>写真の記録<\/strong>/);
   assert.match(homeBody, /<img class="prototype-record-feed-media"[^>]+alt=""/);
   assert.doesNotMatch(homeBody, /srcset="\/derived-transform\//);
   assert.doesNotMatch(homeBody, /sizes="\(max-width: 640px\) 100vw, 680px"/);
