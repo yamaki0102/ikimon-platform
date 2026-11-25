@@ -76,3 +76,9 @@ test("H7 shows 未同定 instead of the raw English 'unidentified' label", async
   assert.match(html, /未同定/);
   assert.doesNotMatch(html, />unidentified</i);
 });
+
+test("search rows without a photo show a pin mark instead of an empty tile", async () => {
+  const { renderSearchRow } = await import("./zukanSearchUi");
+  assert.match(renderSearchRow({ href: "/ja/places/p1", title: "常磐公園" }), /data-zs-nothumb/);
+  assert.doesNotMatch(renderSearchRow({ href: "/ja/places/p1", title: "常磐公園", thumbUrl: "/thumb/400/a1" }), /data-zs-nothumb/);
+});
