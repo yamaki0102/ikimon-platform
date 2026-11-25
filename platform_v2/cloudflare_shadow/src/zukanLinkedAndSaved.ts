@@ -40,10 +40,10 @@ async function queryLinkedAndSaved(userId: string, db: Env["OBS_DB"]) {
       .catch(() => [] as LinkedRow[]),
     db
       .prepare(
-        `SELECT save_id, item_type, item_id, title, created_at
+        `SELECT object_id AS save_id, object_kind AS item_type, object_id AS item_id, display_title AS title, saved_at AS created_at
            FROM user_saved_items
-          WHERE user_id = ?
-          ORDER BY created_at DESC
+          WHERE user_id = ? AND state = 'saved'
+          ORDER BY saved_at DESC
           LIMIT 50`
       )
       .bind(userId)

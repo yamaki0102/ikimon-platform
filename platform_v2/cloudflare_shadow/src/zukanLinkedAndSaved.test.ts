@@ -27,12 +27,18 @@ function setupDb(t: test.TestContext) {
   t.after(() => sqlite.close());
   sqlite.exec(`
     CREATE TABLE user_saved_items (
-      save_id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
-      item_type TEXT NOT NULL,
-      item_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      object_kind TEXT NOT NULL,
+      object_id TEXT NOT NULL,
+      canonical_path TEXT NOT NULL,
+      display_title TEXT NOT NULL,
+      state TEXT NOT NULL,
+      revision INTEGER NOT NULL,
+      last_command_id TEXT NOT NULL,
+      last_command_digest TEXT NOT NULL,
+      saved_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, object_kind, object_id)
     );
     CREATE TABLE observation_links (
       link_id TEXT PRIMARY KEY,
@@ -45,7 +51,7 @@ function setupDb(t: test.TestContext) {
   `);
   sqlite.prepare("INSERT INTO observation_links (link_id, user_id, target_type, target_id, target_title, created_at) VALUES (?, ?, ?, ?, ?, ?)").run("l-1", "user-1", "place_zukan", "p-1", "佐鳴湖図鑑", "2026-06-01T10:00:00Z");
   sqlite.prepare("INSERT INTO observation_links (link_id, user_id, target_type, target_id, target_title, created_at) VALUES (?, ?, ?, ?, ?, ?)").run("l-other", "user-2", "place_zukan", "p-2", "他人の連携", "2026-06-01T10:00:00Z");
-  sqlite.prepare("INSERT INTO user_saved_items (save_id, user_id, item_type, item_id, title, created_at) VALUES (?, ?, ?, ?, ?, ?)").run("s-1", "user-1", "place", "p-1", "保存した佐鳴湖", "2026-06-02T10:00:00Z");
+  sqlite.prepare("INSERT INTO user_saved_items (user_id, object_kind, object_id, canonical_path, display_title, state, revision, last_command_id, last_command_digest, saved_at, updated_at) VALUES (?, ?, ?, ?, ?, 'saved', 1, 'c', 'd', ?, ?)").run("user-1", "place", "p-1", "/places/p-1", "保存した佐鳴湖", "2026-06-02T10:00:00Z", "2026-06-02T10:00:00Z");
   return sqliteObsDb(sqlite);
 }
 
@@ -63,7 +69,7 @@ test("GET /api/v1/profile/linked-and-saved enforces 401 and scopes to user_id", 
   };
   assert.equal(body.ok, true);
   assert.deepEqual(body.linked.map((l) => l.linkId), ["l-1"]);
-  assert.deepEqual(body.saved.map((s) => s.saveId), ["s-1"]);
+  assert.deepEqual(body.saved.map((s) => s.saveId), ["p-1"]);
 });
 
 test("I4-I5 linked and saved page renders tabs and items in zukanShell", async (t) => {
