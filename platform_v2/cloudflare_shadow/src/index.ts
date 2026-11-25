@@ -7,6 +7,7 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
@@ -37,10 +38,15 @@ import {
 } from "./guestObservationPost";
 import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
+  handleConfirmEventParticipation,
+  handleEventConfirmOrJoinedRoute,
+} from "./zukanEventConfirmAndJoined";
+import {
   handleEventDetailsRoute,
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
+import { handleMapExploreRoute, handleMapPlacesBoundsApi } from "./zukanMapView";
 import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
   handleGetEventGuestPhoto,
@@ -53,6 +59,10 @@ import {
   handleEventDayAlbumTakeRoute,
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
+import {
+  handleSearchResultsApi,
+  handleSearchResultsRoute,
+} from "./zukanSearchResults";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -284,9 +294,11 @@ import {
 } from "./zukanRecordLinkAndDone";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { renderZukanStateDocument, type ZukanStateKind } from "../../src/ui/zukanStateScreens";
+import { handleSharedAlbumView, handleZukanOrgLinkRoute } from "./zukanOrgLinkAndAlbum";
 import {
   isPublicObservationAiSubjectEligible,
   publicObservationAiCandidateInsights,
@@ -3729,6 +3741,11 @@ export const worker = {
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
       }
 
+      if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
+        const linkFlowResponse = await handleZukanLinkFlowRoute(request, env, url, nativePathname);
+        if (linkFlowResponse) return linkFlowResponse;
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
         return handleOtayoriPageRequest(request, url, env);
       }
@@ -3918,6 +3935,31 @@ export const worker = {
         );
       }
 
+      const eventConfirmApiMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/confirm$/);
+      if (request.method === "POST" && eventConfirmApiMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleConfirmEventParticipation(decodeURIComponent(eventConfirmApiMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventConfirmJoinedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(confirm|joined)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventConfirmJoinedMatch?.[2] && eventConfirmJoinedMatch?.[3]) {
+        const viewLang = (eventConfirmJoinedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/results") {
+        return handleSearchResultsApi(url, env.OBS_DB);
+      }
+
+      const searchResultsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/results$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchResultsMatch) {
+        const viewLang = (searchResultsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchResultsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
         return handleNearbyEventsApi(url, env.OBS_DB);
       }
@@ -3934,6 +3976,17 @@ export const worker = {
         const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/places") {
+        return handleMapPlacesBoundsApi(url, env.OBS_DB);
+      }
+
+      const mapExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/explore$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapExploreMatch) {
+        const viewLang = (mapExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapExploreRoute(url, viewLang, session, env.OBS_DB);
       }
 
       const eventGalleryShareMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(gallery|share)$/);
@@ -4580,16 +4633,28 @@ export const worker = {
         }
       }
 
+      if (nativePathname === "/library/link/cancel" || nativePathname === "/library/link/share") {
+        const shareUnlinkResponse = await handleZukanShareAndUnlinkRoute(request, env, url, nativePathname);
+        if (shareUnlinkResponse) return shareUnlinkResponse;
+      }
+
       const observationShareLinkMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/share-links$/);
       if (request.method === "POST" && observationShareLinkMatch?.[1]) {
         const session = await readCompatibleSession(request, env);
         return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
       }
 
+      if (nativePathname === "/library/link/org-request" || nativePathname.startsWith("/library/link/request") || nativePathname.startsWith("/library/link/album")) {
+        const orgLinkResponse = await handleZukanOrgLinkRoute(request, env, url, nativePathname);
+        if (orgLinkResponse) return orgLinkResponse;
+      }
+
       const sharePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/share\/([^/]+)$/);
       if (request.method === "GET" && sharePageMatch?.[2]) {
         const shareLang = (sharePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env);
+        const albumResponse = await handleSharedAlbumView(decodeURIComponent(sharePageMatch[2]), shareLang, env, Boolean(session && !session.banned)).catch(() => null);
+        if (albumResponse) return albumResponse;
         const shareResponse = await handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
         return shareResponse.status === 404 && shareLang === "ja"
           ? html(renderZukanStateDocument("no-access", { prefix: "/ja" }), 404, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" })
