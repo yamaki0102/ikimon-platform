@@ -19,10 +19,15 @@ async function loadGuestDestinationTitle(
   id: string
 ): Promise<string | null> {
   if (kind === "place") {
-    const row = await db.prepare(
-      "SELECT name FROM places WHERE place_id = ? AND visibility = 'public' LIMIT 1"
-    ).bind(id).first<{ name: string }>();
-    return row?.name ?? null;
+    try {
+      const row = await db.prepare(
+        "SELECT canonical_name FROM places WHERE place_id = ? AND public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 1"
+      ).bind(id).first<{ canonical_name: string }>();
+      return row?.canonical_name ?? null;
+    } catch (error) {
+      console.error("guest entry place lookup failed", error);
+      return null;
+    }
   }
   const row = await db.prepare(
     "SELECT title FROM observation_event_sessions WHERE session_id = ? LIMIT 1"

@@ -46,6 +46,7 @@ import {
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
+import { handleMapExploreRoute, handleMapPlacesBoundsApi } from "./zukanMapView";
 import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
   handleGetEventGuestPhoto,
@@ -55,9 +56,35 @@ import {
 } from "./guestEventShare";
 import { handleEventPreAndPcRoute } from "./zukanEventPreAndPc";
 import {
+  handleProfilePublicSettingsRoute,
+  handlePublicUserProfileRoute,
+  handleUpdateProfileVisibility,
+} from "./zukanProfilePublicAndSettings";
+import {
   handleEventDayAlbumTakeRoute,
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
+import {
+  handleAccountSettingsDetailRoute,
+  handleSaveAccountSettingsDetail,
+  type SettingsDetailSection,
+} from "./zukanAccountSettingsDetail";
+import {
+  handleMyRecordsApi,
+  handleMyRecordsRoute,
+} from "./zukanMyRecordsList";
+import {
+  handleMapFilteredPinsApi,
+  handleMapFiltersRoute,
+} from "./zukanMapFiltersAndPins";
+import {
+  handleLinkedAndSavedApi,
+  handleLinkedAndSavedRoute,
+} from "./zukanLinkedAndSaved";
+import {
+  handleSearchResultsApi,
+  handleSearchResultsRoute,
+} from "./zukanSearchResults";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -293,6 +320,8 @@ import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import { handleZukanNoticesAndConsentRoute, loadLibraryNoticeHtml } from "./zukanNoticesAndConsent";
+import { renderZukanStateDocument, type ZukanStateKind } from "../../src/ui/zukanStateScreens";
+import { handleSharedAlbumView, handleZukanOrgLinkRoute } from "./zukanOrgLinkAndAlbum";
 import {
   isPublicObservationAiSubjectEligible,
   publicObservationAiCandidateInsights,
@@ -3930,6 +3959,25 @@ export const worker = {
         );
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/visibility") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleUpdateProfileVisibility(request, session, env.OBS_DB);
+      }
+
+      const profilePublicSettingsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/public-settings$/);
+      if ((request.method === "GET" || request.method === "HEAD") && profilePublicSettingsMatch) {
+        const viewLang = (profilePublicSettingsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleProfilePublicSettingsRoute(viewLang, session, env.OBS_DB);
+      }
+
+      const publicUserProfileMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/u\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && publicUserProfileMatch?.[2]) {
+        const viewLang = (publicUserProfileMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handlePublicUserProfileRoute(decodeURIComponent(publicUserProfileMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
       const eventConfirmApiMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/confirm$/);
       if (request.method === "POST" && eventConfirmApiMatch?.[1]) {
         const session = await readCompatibleSession(request, env).catch(() => null);
@@ -3942,6 +3990,65 @@ export const worker = {
         const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/my-records") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMyRecordsApi(url, session, env.OBS_DB);
+      }
+
+      const myRecordsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/records$/);
+      if ((request.method === "GET" || request.method === "HEAD") && myRecordsMatch) {
+        const viewLang = (myRecordsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMyRecordsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/filtered-pins") {
+        return handleMapFilteredPinsApi(url, env.OBS_DB);
+      }
+
+      const mapFiltersMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/filters$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapFiltersMatch) {
+        const viewLang = (mapFiltersMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapFiltersRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/results") {
+        return handleSearchResultsApi(url, env.OBS_DB);
+      }
+
+      const searchResultsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/results$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchResultsMatch) {
+        const viewLang = (searchResultsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchResultsRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/settings-detail") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveAccountSettingsDetail(request, session, env.OBS_DB);
+      }
+
+      const accountSettingsDetailMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/settings\/(edit|notifications|account)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && accountSettingsDetailMatch?.[2]) {
+        const viewLang = (accountSettingsDetailMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const section = accountSettingsDetailMatch[2] as SettingsDetailSection;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleAccountSettingsDetailRoute(section, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleLinkedAndSavedApi(session, env.OBS_DB);
+      }
+
+      const linkedSavedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/linked-saved$/);
+      if ((request.method === "GET" || request.method === "HEAD") && linkedSavedMatch) {
+        const viewLang = (linkedSavedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
@@ -3960,6 +4067,17 @@ export const worker = {
         const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/places") {
+        return handleMapPlacesBoundsApi(url, env.OBS_DB);
+      }
+
+      const mapExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/explore$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapExploreMatch) {
+        const viewLang = (mapExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapExploreRoute(url, viewLang, session, env.OBS_DB);
       }
 
       const eventGalleryShareMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(gallery|share)$/);
@@ -4617,11 +4735,27 @@ export const worker = {
         return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
       }
 
+      if (nativePathname === "/library/link/org-request" || nativePathname.startsWith("/library/link/request") || nativePathname.startsWith("/library/link/album")) {
+        const orgLinkResponse = await handleZukanOrgLinkRoute(request, env, url, nativePathname);
+        if (orgLinkResponse) return orgLinkResponse;
+      }
+
       const sharePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/share\/([^/]+)$/);
       if (request.method === "GET" && sharePageMatch?.[2]) {
         const shareLang = (sharePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env);
-        return handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
+        const albumResponse = await handleSharedAlbumView(decodeURIComponent(sharePageMatch[2]), shareLang, env, Boolean(session && !session.banned)).catch(() => null);
+        if (albumResponse) return albumResponse;
+        const shareResponse = await handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
+        return shareResponse.status === 404 && shareLang === "ja"
+          ? html(renderZukanStateDocument("no-access", { prefix: "/ja" }), 404, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" })
+          : shareResponse;
+      }
+
+      const zukanStateMatch = nativePathname.match(/^\/state\/(loading|error|offline|no-access)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && zukanStateMatch?.[1]) {
+        const stateLang = publicLangFromPath(url.pathname) ?? "ja";
+        return html(renderZukanStateDocument(zukanStateMatch[1] as ZukanStateKind, { prefix: `/${stateLang}`, retryHref: url.searchParams.get("from") ?? undefined }), 200, { "cache-control": "no-store" });
       }
 
       if (nativePathname === "/notices" || nativePathname === "/welcome/consent" || nativePathname === "/welcome/consent/later") {
@@ -4737,13 +4871,20 @@ export const worker = {
       if (error instanceof DiscoveryError) {
         return json({ error: error.message }, error.status, { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow, noarchive" });
       }
+      const stateScreen = zukanHtmlNavigationFailureScreen(request, error instanceof HttpError ? error.status : 500);
+      if (stateScreen) return stateScreen;
       if (error instanceof HttpError) {
         return json({ error: error.message }, error.status);
       }
       console.error(error);
       return json({ error: "internal_error" }, 500);
     }
-    })();
+    })().catch((error: unknown): Response => {
+      const failureScreen = zukanHtmlNavigationFailureScreen(request, 500);
+      if (!failureScreen) throw error;
+      console.error(error);
+      return failureScreen;
+    });
     const policyResponse = withAiContentPolicy(response, request, env);
     return journeyReadOnly ? withJourneyPrivacy(policyResponse) : policyResponse;
   },
@@ -4778,6 +4919,19 @@ export const worker = {
     if (reassessmentIds.length > 0) await submitGeminiObservationReassessmentGroups(reassessmentIds, env);
   }
 };
+
+function zukanHtmlNavigationFailureScreen(request: Request, status: number): Response | null {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  if (status !== 500 && status !== 403) return null;
+  if (!(request.headers.get("accept") ?? "").includes("text/html")) return null;
+  const failUrl = new URL(request.url);
+  if (failUrl.pathname.startsWith("/api/") || (publicLangFromPath(failUrl.pathname) ?? "ja") !== "ja") return null;
+  return html(
+    renderZukanStateDocument(status === 403 ? "no-access" : "error", { prefix: "/ja", retryHref: `${failUrl.pathname}${failUrl.search}` }),
+    status,
+    { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow" }
+  );
+}
 
 export function canonicalPublicHostRedirect(request: Request, url: URL, env: Env): Response | null {
   const isCanonicalWww = url.hostname === "www.zukan.earth";
