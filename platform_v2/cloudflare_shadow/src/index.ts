@@ -30,6 +30,7 @@ import {
   handleListGuestObservations,
   handleUploadGuestObservationPhoto,
 } from "./guestObservationPost";
+import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
   handleGetEventGuestPhoto,
   handleListEventGuestObservations,
@@ -3851,6 +3852,18 @@ export const worker = {
             sessionUserId: session && !session.banned ? session.userId : null,
             isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
           }
+        );
+      }
+
+      const guestEntryMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/guest\/(place|event)\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && guestEntryMatch?.[2] && guestEntryMatch?.[3]) {
+        const viewLang = (guestEntryMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        return handleGuestEntryPageRoute(
+          guestEntryMatch[2],
+          decodeURIComponent(guestEntryMatch[3]),
+          viewLang,
+          request,
+          env
         );
       }
 
