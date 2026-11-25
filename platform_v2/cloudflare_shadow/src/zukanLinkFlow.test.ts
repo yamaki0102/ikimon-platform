@@ -150,3 +150,23 @@ test("ライブラリの未公開の束から J1 へ入れる", async () => {
   assert.match(libHtml, new RegExp(`/ja/library/link\\?group=${encodeURIComponent(GROUP).replace(/%/g, "%")}`));
   assert.match(libHtml, /まとめて確認・公開/);
 });
+
+test("名前なしでつないだ後、公開の面（未ログイン）にフィールドネームが出ない", async () => {
+  const { env, cookie } = setup();
+  await worker.fetch(new Request(`${base}/ja/library/link/confirm`, {
+    method: "POST",
+    headers: { cookie, origin: base, "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ group: GROUP, target: "place", visibility: "anonymous" }),
+  }), env);
+  const paths = [
+    "/ja/", "/ja/records", "/ja/map", "/ja/places/higashikawa-riverside", "/ja/observations/o1", "/ja/observations/o2",
+    "/ja/community/events/HIGASHI", "/ja/community/events/HIGASHI/album",
+    "/api/v1/observations/o1", "/api/v1/zukan/places", "/api/v1/places", "/api/v1/map/places", "/api/v1/areas/observations?place_id=higashikawa-riverside",
+  ];
+  for (const path of paths) {
+    const res = await worker.fetch(new Request(`${base}${path}`), env).catch(() => null);
+    if (!res) continue;
+    const body = await res.text();
+    assert.doesNotMatch(body, /はまっこ/, `${path} が名前を出している`);
+  }
+});
