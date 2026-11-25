@@ -22756,11 +22756,11 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-hero h1{margin:0 0 6px;font-size:30px;line-height:1.12;letter-spacing:0}
     .cf-record-hero p{margin:0;color:var(--muted);font-size:16px}
     .cf-record-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:0 0 12px}
-    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900;cursor:pointer}
+    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:none;font-weight:900;cursor:pointer}
     .cf-record-pick.is-primary{border-color:var(--teal);background:var(--mint)}
     .cf-record-pick input{position:absolute;inline-size:1px;block-size:1px;opacity:.01}
     .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:14px;font-weight:800}
-    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
+    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:none}
     .cf-record-form[hidden],.cf-record-submit[hidden]{display:none!important}
     .cf-record-field{display:block;margin:0 0 12px;font-weight:900}
     .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:14px}
@@ -22769,7 +22769,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
     .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
-    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:var(--zukan-radius-content);background:var(--teal);color:#fff;font-weight:900;font-size:16px}
+    .cf-record-submit button{width:100%;min-height:52px;border:0;border-radius:16px;background:var(--teal);color:#fff;font-weight:900;font-size:16px}
     .cf-record-photo-review{display:grid;gap:10px;margin:0 0 14px}
     .cf-record-photo-review[hidden]{display:none}
     .cf-record-photo-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;font-weight:900}
