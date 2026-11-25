@@ -48,3 +48,9 @@ test("K1/K2/K4 の文言と主な行き先", () => {
   assert.match(k4, /href="\/ja\/">トップへ戻る</);
   assert.match(k4, /探す/);
 });
+
+test("K3: 状態画面は大きなマークを出さず白地に固定", () => {
+  const k3 = renderZukanStateDocument("offline", { prefix: "/ja" });
+  assert.doesNotMatch(k3, /class="mark"/);
+  assert.match(k3, /html body\[data-zukan-design\]\{display:block;min-height:0;padding:0;background:#fff\}/);
+});

@@ -7,7 +7,8 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { findYearAgoSamePlaceObservations } from "./zukanLibraryComparisonAndSelect";
-import { resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { renderZukanInviteNotFoundPage, renderZukanWelcomeAndInvitePage, resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { handleLibraryDetailRoute } from "./zukanLibraryDetail";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage } from "./zukanLibraryAndProfile";
@@ -216,6 +217,7 @@ import {
 } from "./cloudflareObservationAi";
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
+import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects, mergedFromVideoReadings, readVideos, videoReadingInputs, type VideoAssetSource, type VideoReadResult } from "./recordVideoReading";
 import { writeRecordMediaOrder } from "./recordReading";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
@@ -414,6 +416,8 @@ import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, a
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
 import { handleRecordCountBandRoute, readPlaceSeasonCountFacts, type BandDeps } from "./recordCountBand";
 import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
+import { handleGbifConsentRoute } from "./gbifConsent";
+import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
@@ -3779,6 +3783,11 @@ export const worker = {
         if (bandResponse) return bandResponse;
       }
 
+      if ((request.method === "GET" || request.method === "POST") && /^\/api\/v1\/records\/[^/]+\/gbif-consent$/.test(nativePathname)) {
+        const consentResponse = await handleGbifConsentRoute({ db: gbifDbFromD1(env.OBS_DB) }, async () => readCompatibleSession(request, env), request, nativePathname);
+        if (consentResponse) return consentResponse;
+      }
+
       const publicDetailApiMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
       if (request.method === "GET" && publicDetailApiMatch?.[1]) {
         return getPublicObservationDetailJson(decodeURIComponent(publicDetailApiMatch[1]), env);
@@ -3810,6 +3819,38 @@ export const worker = {
         const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
         const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/library/group" || nativePathname === "/library/year-ago")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        const detail = await handleLibraryDetailRoute(env, session, lang, nativePathname, url.searchParams);
+        if (detail) return detail;
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/welcome") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
+        const step = Number(url.searchParams.get("step") ?? "1");
+        return html(renderZukanWelcomeAndInvitePage({ mode: "onboarding", lang, step: Number.isFinite(step) ? step : 1, authenticated: Boolean(session && !session.banned) }), 200, { "cache-control": "private, no-store" });
+      }
+
+      const inviteMatch = nativePathname.match(/^\/invite\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && inviteMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
+        const resolved = await resolveInviteTarget(env.OBS_DB, decodeURIComponent(inviteMatch[1]));
+        if (!resolved.ok) {
+          return html(renderZukanInviteNotFoundPage(lang), 404, { "cache-control": "no-store" });
+        }
+        return html(renderZukanWelcomeAndInvitePage({
+          mode: resolved.kind === "event" ? "event_invite" : "place_invite",
+          lang,
+          targetTitle: resolved.title,
+          targetSubtitle: resolved.kind === "event" ? undefined : resolved.subtitle,
+          targetHref: lang === "en" ? resolved.targetHref.replace(/^\/ja\//, "/en/") : resolved.targetHref,
+          authenticated: Boolean(session && !session.banned),
+        }), 200, { "cache-control": "private, no-store" });
       }
 
       if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
@@ -22789,11 +22830,11 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-hero h1{margin:0 0 6px;font-size:30px;line-height:1.12;letter-spacing:0}
     .cf-record-hero p{margin:0;color:var(--muted);font-size:16px}
     .cf-record-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:0 0 12px}
-    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900;cursor:pointer}
+    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:none;font-weight:900;cursor:pointer}
     .cf-record-pick.is-primary{border-color:var(--teal);background:var(--mint)}
     .cf-record-pick input{position:absolute;inline-size:1px;block-size:1px;opacity:.01}
     .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:14px;font-weight:800}
-    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
+    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:none}
     .cf-record-form[hidden],.cf-record-submit[hidden]{display:none!important}
     .cf-record-field{display:block;margin:0 0 12px;font-weight:900}
     .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:14px}
@@ -22802,7 +22843,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
     .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
-    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:var(--zukan-radius-content);background:var(--teal);color:#fff;font-weight:900;font-size:16px}
+    .cf-record-submit button{width:100%;min-height:52px;border:0;border-radius:16px;background:var(--teal);color:#fff;font-weight:900;font-size:16px}
     .cf-record-photo-review{display:grid;gap:10px;margin:0 0 14px}
     .cf-record-photo-review[hidden]{display:none}
     .cf-record-photo-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;font-weight:900}
@@ -22817,15 +22858,17 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-zoom::backdrop{background:rgba(0,0,0,.78)}
     .cf-record-zoom img{display:block;max-width:100%;max-height:78vh;margin:auto}
     .cf-record-zoom button{min-height:44px;margin-top:8px;border-radius:4px;font:inherit;font-size:16px}
-    .cf-record-confirm{width:min(92vw,560px);max-width:none;padding:20px;border:0;border-radius:8px;color:var(--ink)}
-    .cf-record-confirm h2{margin:0 0 12px;font-size:20px}
-    .cf-record-confirm p{margin:8px 0;font-size:16px;overflow-wrap:anywhere}
-    .cf-record-confirm-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    .cf-record-confirm-actions button{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink);font:inherit;font-size:16px}
-    .cf-record-confirm-actions button[type=submit]{background:var(--teal);border-color:var(--teal);color:white}
-    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-saved-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-    .cf-record-saved-links a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--teal);border-radius:4px;background:white;color:var(--teal);text-decoration:none;font-weight:800}
+    .cf-record-confirm{width:min(92vw,560px);max-width:none;padding:24px 20px;border:0;border-radius:20px;color:var(--ink)}
+    .cf-record-confirm h2{margin:0 0 8px;font-size:18px;text-align:center}
+    .cf-record-confirm p{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;margin:0;padding:12px 0;border-bottom:1px solid var(--line);font-size:16px;overflow-wrap:anywhere}
+    .cf-record-confirm p strong{color:var(--muted);font-weight:700}
+    .cf-record-confirm p.is-note{display:block;border-bottom:0;color:var(--muted);font-size:15px}
+    .cf-record-confirm-actions{display:flex;flex-direction:column-reverse;gap:8px;margin-top:16px}
+    .cf-record-confirm-actions button{min-height:52px;padding:8px 14px;border:0;border-radius:16px;background:transparent;color:var(--teal);font:inherit;font-size:16px;font-weight:700}
+    .cf-record-confirm-actions button[type=submit]{background:var(--teal);color:white;font-size:17px}
+    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900;text-align:center;font-size:17px}
+    .cf-record-saved-links{display:grid;gap:12px;margin-top:12px}
+    .cf-record-saved-links a{display:flex;align-items:center;justify-content:center;min-height:52px;padding:8px 14px;border:1.5px solid var(--teal);border-radius:16px;background:white;color:var(--teal);text-decoration:none;font-weight:700;font-size:16px}
     .cf-record-saved-links a.is-primary{background:var(--teal);color:white}
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
@@ -22891,7 +22934,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     <p><strong>${escapeHtml(mediaCopy.reviewCount)}:</strong> <span id="record-confirm-count"></span></p>
     <p><strong>${escapeHtml(mediaCopy.reviewNote)}:</strong> <span id="record-confirm-note"></span></p>
     <p><strong>${escapeHtml(mediaCopy.reviewLocation)}:</strong> <span id="record-confirm-location"></span></p>
-    <p>${escapeHtml(mediaCopy.reviewAudience)}</p>
+    <p class="is-note">${escapeHtml(mediaCopy.reviewAudience)}</p>
     <div class="cf-record-confirm-actions">
       <button type="button" id="record-confirm-back">${escapeHtml(mediaCopy.reviewBack)}</button>
       <button type="submit" form="record-form" id="record-confirm-save">${escapeHtml(mediaCopy.savePrivate)}</button>
@@ -31286,6 +31329,9 @@ type PreparedGeminiObservation = {
   images: GeminiObservationImage[];
   mediaDedup: ObservationMediaDedupPlan<ObservationMediaDedupInput>;
   unselectedUniqueAssetIds: string[];
+  videos: VideoAssetSource[];
+  videoOnly: boolean;
+  videoRead?: VideoReadResult;
 };
 
 function publicDerivativeMetadata(value: string | null | undefined): Record<string, unknown> {
@@ -31555,7 +31601,7 @@ async function assertPublicQualityBacklogEligibility(observationId: string, env:
   if (safety.blocked) throw new Error("public_quality_backlog_public_safety_blocked");
 }
 
-async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env): Promise<PreparedGeminiObservation> {
+async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env, options: { allowVideoOnly?: boolean } = {}): Promise<PreparedGeminiObservation> {
   const isPublicQualityBacklog = reassessmentPayload(request.source_payload_json).qualityBacklogVersion
     === GEMINI_QUALITY_BACKLOG_VERSION;
   if (isPublicQualityBacklog) {
@@ -31565,7 +31611,20 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     "SELECT owner_user_id, observed_at, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
   ).bind(request.observation_id).first<ObservationAiRecordRow>();
   if (!record) throw new Error("ai_record_missing");
-  const selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
+  const videos: VideoAssetSource[] = isPublicQualityBacklog ? [] : (await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, mime, bytes, duration_ms FROM asset_ledger
+      WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'video/%'
+      ORDER BY created_at, asset_id LIMIT 4`
+  ).bind(request.observation_id).all<VideoAssetSource>().catch(() => ({ results: [] as VideoAssetSource[] }))).results;
+  let videoOnly = false;
+  let selection: Awaited<ReturnType<typeof loadObservationAiAssetSelection>>;
+  try {
+    selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
+  } catch (error) {
+    if (!(options.allowVideoOnly && videos.length > 0 && error instanceof Error && error.message === "ai_photo_missing")) throw error;
+    videoOnly = true;
+    selection = { sourceAssets: [], assets: [], plan: buildObservationMediaDedupPlan([]), unselectedUniqueAssetIds: [] };
+  }
   const images: GeminiObservationImage[] = [];
   for (const asset of selection.assets) {
     images.push(await observationAiImageInput(asset, env, isPublicQualityBacklog));
@@ -31579,7 +31638,31 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     images,
     mediaDedup: selection.plan,
     unselectedUniqueAssetIds: selection.unselectedUniqueAssetIds,
+    videos,
+    videoOnly,
   };
+}
+
+async function preparedVideoRead(prepared: PreparedGeminiObservation, env: Env): Promise<VideoReadResult> {
+  if (prepared.videoRead) return prepared.videoRead;
+  const apiKey = env.GEMINI_API_KEY;
+  prepared.videoRead = prepared.videos.length === 0 || !apiKey
+    ? { readings: [], coverage: [] }
+    : await readVideos(prepared.request.observation_id, prepared.videos, {
+      fetchBytes: async (objectKey) => {
+        const object = await env.ASSET_BUCKET.get(objectKey);
+        return object?.body ? new Response(object.body).arrayBuffer() : null;
+      },
+      toBase64: imageBytesToBase64,
+      generate: async (request) => (await generateGeminiContent(apiKey, VIDEO_READ_MODEL, request)).text,
+    });
+  return prepared.videoRead;
+}
+
+async function finalizeVideoOnlyReassessment(prepared: PreparedGeminiObservation, env: Env): Promise<void> {
+  const video = await preparedVideoRead(prepared, env);
+  if (video.readings.length === 0) throw new Error("ai_video_unreadable");
+  await finalizeGeminiObservationReassessment(prepared, mergedFromVideoReadings(video.readings), env, { mode: "direct_generate_content", source: "google_gemini_video_scene_reading" });
 }
 
 async function loadPendingGeminiRequests(observationIds: string[], env: Env): Promise<ObservationReassessmentRequestRow[]> {
@@ -31665,7 +31748,7 @@ async function failPendingDirectGeminiReassessment(request: ObservationReassessm
 async function submitDirectGeminiObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
   let prepared: PreparedGeminiObservation;
   try {
-    prepared = await loadPreparedGeminiObservation(request, env);
+    prepared = await loadPreparedGeminiObservation(request, env, { allowVideoOnly: true });
   } catch (error) {
     await failPendingDirectGeminiReassessment(request, error, env);
     return;
@@ -31700,6 +31783,10 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (prepared.videoOnly) {
+      await finalizeVideoOnlyReassessment(prepared, env);
+      return;
+    }
     if (reassessmentPayload(request.source_payload_json).qualityBacklogVersion === GEMINI_QUALITY_BACKLOG_VERSION) {
       await assertPublicQualityBacklogEligibility(request.observation_id, env);
     }
@@ -31810,7 +31897,7 @@ function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): Car
 async function submitCardObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
   let prepared: PreparedGeminiObservation;
   try {
-    prepared = await loadPreparedGeminiObservation(request, env);
+    prepared = await loadPreparedGeminiObservation(request, env, { allowVideoOnly: true });
   } catch (error) {
     await failPendingDirectGeminiReassessment(request, error, env);
     return;
@@ -31839,6 +31926,10 @@ async function submitCardObservationReassessment(request: ObservationReassessmen
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (prepared.videoOnly) {
+      await finalizeVideoOnlyReassessment(prepared, env);
+      return;
+    }
     const result = await runObservationCardPipeline({ observedAt: prepared.record.observed_at, images: prepared.images }, observationCardDeps(prepared, env));
     await finalizeGeminiObservationReassessment(prepared, result.merged, env, { mode: "card_v1", source: "observation_card_v1_reassessment", card: { stats: result.stats } });
   } catch (error) {
@@ -32372,7 +32463,9 @@ async function finalizeGeminiObservationReassessment(
   }
   const request = prepared.request;
   const observationId = request.observation_id;
-  const candidate = merged.candidate;
+  const video = await preparedVideoRead(prepared, env).catch(() => ({ readings: [], coverage: [] } as VideoReadResult));
+  const videoInputs = videoReadingInputs(video.readings, prepared.assets.map((asset) => asset.asset_id), observationAiSubjects(merged.candidate).map((subject) => subject.candidate));
+  const candidate = prepared.videoOnly ? merged.candidate : candidateWithVideoSubjects(merged.candidate, videoInputs.subjects);
   const subjects = observationAiSubjects(candidate);
   const occurrenceId = `occ:${observationId}:0`;
   const aiRunId = newId("gemini_batch_run");
@@ -32437,6 +32530,7 @@ async function finalizeGeminiObservationReassessment(
     specialistEscalation: merged.specialistEscalation,
     specialistApplied,
     environment: merged.environment,
+    videoReading: prepared.videos.length > 0 ? { promptVersion: VIDEO_READ_PROMPT_VERSION, model: VIDEO_READ_MODEL, coverage: video.coverage, videoOnly: prepared.videoOnly } : null,
     relations: merged.relations,
     summary: merged.summary,
     subjectCount: subjects.length,
@@ -32447,12 +32541,18 @@ async function finalizeGeminiObservationReassessment(
     ? await buildObservationAiDualWritePlan({
       recordId: observationId,
       ownerUserId: prepared.record.owner_user_id,
-      mediaIds: prepared.assets.map((asset) => asset.asset_id),
+      mediaIds: [...prepared.assets.map((asset) => asset.asset_id), ...videoInputs.mediaIds],
+      mediaMeta: [...prepared.assets.map(() => ({ durationMs: null })), ...videoInputs.mediaMeta],
       legacyOccurrenceId: occurrenceId,
       requestId: request.request_id,
       aiRunId,
       candidate,
-      ...recordReadingInputs(merged, prepared.assets.length, Boolean(provider.card)),
+      ...(prepared.videoOnly
+        ? { features: videoInputs.features, place: videoInputs.place }
+        : (() => {
+          const photo = recordReadingInputs(merged, prepared.assets.length, Boolean(provider.card));
+          return { features: [...photo.features, ...videoInputs.features], place: [...photo.place, ...videoInputs.place] };
+        })()),
     })
     : { observationIds: [], mutations: [] };
   const commitToken = crypto.randomUUID();

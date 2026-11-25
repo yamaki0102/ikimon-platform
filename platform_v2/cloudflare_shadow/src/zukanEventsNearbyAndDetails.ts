@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, finiteNumberOrNull, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { EVENT_ICON_SHARE, ZUKAN_EVENT_CSS, eventTiming, loadEventCore, renderEventFacts, renderEventSubHead } from "./zukanEventUi";
 
 type EventRow = {
   session_id: string;
@@ -28,8 +29,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 async function queryNearbyEvents(url: URL, db: Env["OBS_DB"]) {
-  const lat = finiteNumberOrNull(url.searchParams.get("lat"));
-  const lng = finiteNumberOrNull(url.searchParams.get("lng"));
+  const lat = url.searchParams.has("lat") ? finiteNumberOrNull(url.searchParams.get("lat")) : null;
+  const lng = url.searchParams.has("lng") ? finiteNumberOrNull(url.searchParams.get("lng")) : null;
   const rows = (await db.prepare(
     `SELECT session_id, title, location_lat, location_lng, started_at, ended_at
        FROM observation_event_sessions
@@ -70,22 +71,26 @@ export async function handleNearbyEventsPageRoute(
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
 
+  const chev = '<svg class="ze-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   const listHtml = events.length > 0
-    ? `<div class="zt-hub-grid">${events
-        .map(
-          (ev) => `<a class="zt-hub-dest" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(ev.sessionId)}/details`)}">
-            <strong>${escapeHtml(ev.title)}</strong>
-            <span>${escapeHtml(ev.startedAt)}${ev.distanceKm !== null ? ` · ${ev.distanceKm} km` : ""}</span>
-          </a>`
-        )
-        .join("")}</div>`
-    : `<p>${isEn ? "No nearby events found." : "近くで開催予定のイベントはまだありません。"}</p>`;
+    ? `<ul class="ze-list">${events
+        .map((ev) => {
+          const timing = eventTiming({ startedAt: ev.startedAt, endedAt: ev.endedAt }, lang);
+          const meta = [timing.phase === "today" ? (isEn ? "Today" : "本日") : "", timing.timeLabel, ev.distanceKm !== null ? `${ev.distanceKm} km` : ""].filter(Boolean).join(" ・ ");
+          return `<li><a class="ze-row" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(ev.sessionId)}/preview`)}">
+            <span class="ze-date" aria-hidden="true"><small>${escapeHtml(timing.shortMonth)}</small><b>${escapeHtml(timing.shortDay)}</b></span>
+            <span class="ze-row-body"><strong>${escapeHtml(ev.title)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>${chev}
+          </a></li>`;
+        })
+        .join("")}</ul>`
+    : `<p class="ze-empty">${isEn ? "No events are open for joining right now. Browse everyone's records in the meantime." : "いま参加できるイベントはまだありません。それまで、みんなの記録を見てみましょう。"}</p>
+       <a class="ze-btn" href="${escapeHtml(`${prefix}/library`)}">${isEn ? "See everyone's records" : "みんなの記録を見る"}</a>`;
 
-  const bodyHtml = `<section class="zt-hub-card" data-event-view="f5">
-    <h1>${isEn ? "Nearby events" : "近くのイベント"}</h1>
-    <p>${isEn ? "Find observation events near your current area." : "現在地の近くや最近の観察会を探せます。"}</p>
+  const bodyHtml = `<style>${ZUKAN_EVENT_CSS}</style><div class="ze" data-event-view="f5" style="max-width:720px">
+    <h1 style="margin:0;font-size:1.5rem">${isEn ? "Nearby events" : "近くのイベント"}</h1>
+    <p class="ze-note">${isEn ? "Find observation events near your current area." : "現在地の近くや最近の観察会を探せます。"}</p>
     ${listHtml}
-  </section>`;
+  </div>`;
 
   const html = renderZukanCommonShell({
     lang,
@@ -112,9 +117,7 @@ export async function handleEventDetailsRoute(
   session: SessionLike,
   db: Env["OBS_DB"]
 ): Promise<Response> {
-  const row = await db.prepare(
-    "SELECT session_id, title, location_lat, location_lng, started_at, ended_at FROM observation_event_sessions WHERE session_id = ? LIMIT 1"
-  ).bind(eventId).first<EventRow>();
+  const row = await loadEventCore(db, eventId);
   if (!row) {
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
@@ -122,16 +125,23 @@ export async function handleEventDetailsRoute(
   const isEn = lang === "en";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
+  const encodedEvent = encodeURIComponent(eventId);
+  const timing = eventTiming(row, lang);
+  const facts: Array<[string, string]> = [[isEn ? "When" : "日時", timing.whenLabel]];
+  if (row.placeLabel) facts.push([isEn ? "Place" : "場所", row.placeLabel]);
+  if (row.organizerLabel) facts.push([isEn ? "Host" : "主催", row.organizerLabel]);
+  if (row.participants !== null && row.participants > 0) facts.push([isEn ? "Joining" : "参加予定", isEn ? `${row.participants}` : `${row.participants}人`]);
 
-  const bodyHtml = `<section class="zt-hub-card" data-event-view="f6">
-    <h1>${escapeHtml(row.title)}</h1>
-    <p>${isEn ? "Starts" : "開始"}: <time>${escapeHtml(row.started_at)}</time>${row.ended_at ? ` — <time>${escapeHtml(row.ended_at)}</time>` : ""}</p>
-    <p>${isEn ? "Only your field name is shared with the organizer." : "主催者に共有されるのはフィールドネームのみです。"}</p>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;">
-      <a class="zt-btn-capture" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(eventId)}/confirm`)}">${isEn ? "Join event" : "参加を確認する"}</a>
-      <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/events/nearby`)}">${isEn ? "Back to nearby events" : "近くのイベント一覧へ"}</a>
-    </div>
-  </section>`;
+  const bodyHtml = `<style>${ZUKAN_EVENT_CSS}</style><div class="ze" data-event-view="f6" style="max-width:720px">
+    ${renderEventSubHead(isEn ? "Details" : "詳細情報", `${prefix}/events/${encodedEvent}/preview`, isEn ? "Back to the event" : "イベントに戻る")}
+    <h1 style="margin:0;font-size:1.5rem;line-height:1.4">${escapeHtml(row.title)}</h1>
+    ${renderEventFacts(facts)}
+    ${row.summary ? `<p class="ze-text">${escapeHtml(row.summary)}</p>` : ""}
+    <p class="ze-note">${isEn ? "Only your field name is shared with the organizer." : "主催者に共有されるのはフィールドネームのみです。"}</p>
+    <a class="ze-btn" href="${escapeHtml(`${prefix}/events/${encodedEvent}/confirm`)}">${isEn ? "Join event" : "参加を確認する"}</a>
+    <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/events/nearby`)}">${isEn ? "Back to nearby events" : "近くのイベント一覧へ"}</a>
+    <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/events/${encodedEvent}/share`)}">${EVENT_ICON_SHARE}${isEn ? "Share" : "共有する"}</a>
+  </div>`;
 
   const html = renderZukanCommonShell({
     lang,

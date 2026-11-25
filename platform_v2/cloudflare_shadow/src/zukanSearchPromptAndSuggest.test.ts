@@ -65,5 +65,5 @@ test("H1-H2 search explore page renders mic input, recent species, and suggestio
   assert.match(html, /data-search-view="h1-h2"/);
   assert.match(html, /data-search-mic-btn="1"/);
   assert.match(html, /id="zukan-search-suggestions"/);
-  assert.match(html, /佐鳴湖公園/);
+  assert.match(html, /<mark>佐鳴<\/mark>湖公園/);
 });

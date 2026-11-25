@@ -20881,7 +20881,7 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "ja", title: "近くのイベント", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
     { prefix: "en", title: "Join", empty: "No public events", failed: "Couldn’t load programs.", retry: "Reload" },
     { prefix: "es", title: "Participar", empty: "No hay eventos públicos", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
     { prefix: "pt-br", title: "Participar", empty: "Não há eventos públicos", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
@@ -20894,9 +20894,12 @@ test("public participation list distinguishes empty and failed loads in the requ
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(html, new RegExp(`<html lang="${item.prefix}"`));
-    assert.ok(html.includes(`<title>${item.title} | ZUKAN</title>`));
+    assert.ok(html.includes(`<title>${item.title} — ZUKAN</title>`));
     assert.ok(main.includes(item.empty));
+    assert.match(html, /class="zt-bottom-nav"/);
+    assert.doesNotMatch(html, /data-zukan-app-experience|site-core-nav/);
     if (item.prefix === "ja") {
+      assert.match(main, /<h1>近くのイベント<\/h1>/);
       assert.match(main, /イベントを作る/);
       assert.doesNotMatch(main, /観察会を作る|地域のイベントとは|参加の流れ/);
     }
@@ -21274,7 +21277,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventListPage.status, 200);
     assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(eventListPageText, /D1観察会/);
-    assert.match(eventListPageText, /<title>参加 \| ZUKAN<\/title>/);
+    assert.match(eventListPageText, /<title>近くのイベント — ZUKAN<\/title>/);
     assert.doesNotMatch(eventListPageText, /<title>[^<]*ikimon\.life/u);
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
@@ -32462,6 +32465,32 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   assert.match(ownerHtml, /class="zt-avatar"[^>]*>T</);
   assert.match(ownerHtml, /祭り・川・去年の秋で探す/);
   assert.match(ownerHtml, /class="zk-mosaic|data-library-empty="1"/);
+
+  const welcome = await worker.fetch(new Request("https://zukan.earth/ja/welcome?step=2"), prodEnv);
+  assert.equal(welcome.status, 200);
+  const welcomeHtml = await welcome.text();
+  assert.match(welcomeHtml, /data-zukan-welcome-invite="onboarding"/);
+  assert.match(welcomeHtml, /最初は、/);
+  assert.match(welcomeHtml, /href="\/ja\/welcome\?step=3"/);
+  const missingInvite = await worker.fetch(new Request("https://zukan.earth/ja/invite/no-such-code"), prodEnv);
+  assert.equal(missingInvite.status, 404);
+  assert.match(await missingInvite.text(), /この招待は見つかりませんでした/);
+
+  const yearAgoGuest = await worker.fetch(new Request("https://zukan.earth/ja/library/year-ago", { redirect: "manual" }), prodEnv);
+  assert.equal(yearAgoGuest.status, 302);
+  assert.match(yearAgoGuest.headers.get("location") ?? "", /^\/ja\/login\?redirect=/);
+  const yearAgoOwner = await worker.fetch(new Request("https://zukan.earth/ja/library/year-ago", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  assert.equal(yearAgoOwner.status, 200);
+  assert.match(await yearAgoOwner.text(), /data-library-year-ago-list="1"/);
+  const ownerLibrary = await worker.fetch(new Request("https://zukan.earth/ja/library", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  const groupKey = /data-group-key="([^"]+)"/.exec(await ownerLibrary.text())?.[1];
+  if (groupKey) {
+    const groupRes = await worker.fetch(new Request(`https://zukan.earth/ja/library/group?group=${encodeURIComponent(groupKey.replace(/&amp;/g, "&"))}`, { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+    assert.equal(groupRes.status, 200);
+    const groupHtml = await groupRes.text();
+    assert.match(groupHtml, /data-library-group-detail=/);
+    assert.match(groupHtml, /写真 \d+枚/);
+  }
 });
 
 test("guide public page, booking request -> NOCOSIL event, and support seats enforce 401/403", async () => {
