@@ -25,6 +25,11 @@ import {
   setDestinationQrStopped,
 } from "./guestPosting";
 import {
+  handleCreateGuestObservation,
+  handleListGuestObservations,
+  handleUploadGuestObservationPhoto,
+} from "./guestObservationPost";
+import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
   shouldNotifyOtayoriStatus,
@@ -3762,6 +3767,20 @@ export const worker = {
         const stopped = body.stopped !== false;
         await setDestinationQrStopped(env.OBS_DB, dest, stopped);
         return json({ ok: true, destination: `${dest.kind}:${dest.id}`, qrStopped: stopped }, 200, { "cache-control": "no-store" });
+      }
+
+      if (url.pathname === "/api/v1/guest/observations") {
+        if (request.method === "POST") {
+          return handleCreateGuestObservation(request, env);
+        }
+        if (request.method === "GET") {
+          return handleListGuestObservations(request, env);
+        }
+      }
+
+      const guestObsPhotoMatch = url.pathname.match(/^\/api\/v1\/guest\/observations\/([^/]+)\/photos$/);
+      if (request.method === "POST" && guestObsPhotoMatch?.[1]) {
+        return handleUploadGuestObservationPhoto(decodeURIComponent(guestObsPhotoMatch[1]), request, env);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
