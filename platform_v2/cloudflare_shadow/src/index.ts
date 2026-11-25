@@ -42,12 +42,18 @@ import {
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
 import { handleMapExploreRoute, handleMapPlacesBoundsApi } from "./zukanMapView";
+import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
   handleGetEventGuestPhoto,
   handleListEventGuestObservations,
   handleOrganizerRemoveGuestObservation,
   handleSetGuestObservationShareScope,
 } from "./guestEventShare";
+import { handleEventPreAndPcRoute } from "./zukanEventPreAndPc";
+import {
+  handleEventDayAlbumTakeRoute,
+  handleSaveEventToPlace,
+} from "./zukanEventDayAlbumTake";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -3879,6 +3885,27 @@ export const worker = {
         );
       }
 
+      const eventPreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/preview$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventPreMatch?.[2]) {
+        const viewLang = (eventPreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventPreAndPcRoute(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const eventSaveToPlaceMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/save-to-place$/);
+      if (request.method === "POST" && eventSaveToPlaceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveEventToPlace(decodeURIComponent(eventSaveToPlaceMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventDayAlbumTakeMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(day|album|take)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDayAlbumTakeMatch?.[2] && eventDayAlbumTakeMatch?.[3]) {
+        const viewLang = (eventDayAlbumTakeMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
       const guestEntryMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/guest\/(place|event)\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && guestEntryMatch?.[2] && guestEntryMatch?.[3]) {
         const viewLang = (guestEntryMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
@@ -3918,6 +3945,14 @@ export const worker = {
         const viewLang = (mapExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleMapExploreRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      const eventGalleryShareMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(gallery|share)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventGalleryShareMatch?.[2] && eventGalleryShareMatch?.[3]) {
+        const viewLang = (eventGalleryShareMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventGalleryShareMatch[3] as "gallery" | "share";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventAlbumOrShareRoute(decodeURIComponent(eventGalleryShareMatch[2]), view, url.origin, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
