@@ -63,6 +63,7 @@ import {
 } from "./guideBookingDesk";
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
+  ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL,
   loadZukanTopPageData,
   renderZukanTopPage,
   type ZukanTopLang
@@ -3422,13 +3423,15 @@ export const worker = {
         if (!session?.userId || session.banned) {
           return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
         }
-        const body = await readJson<{ groupKey?: unknown; placeName?: unknown; observationIds?: unknown[] }>(request);
+        const body = await readJson<{ groupKey?: unknown; placeId?: unknown; placeName?: unknown; observationIds?: unknown[] }>(request);
         const groupKey = typeof body.groupKey === "string" ? body.groupKey.trim().slice(0, 160) : "";
+        const rawPlaceId = typeof body.placeId === "string" ? body.placeId.trim() : "";
+        const placeId = /^[A-Za-z][A-Za-z0-9_-]{2,159}$/u.test(rawPlaceId) ? rawPlaceId : null;
         const placeName = typeof body.placeName === "string" ? body.placeName.trim().slice(0, 120) : "場所";
         const observationIds = Array.isArray(body.observationIds)
           ? body.observationIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0).slice(0, 50)
           : [];
-        if (!groupKey || observationIds.length === 0) {
+        if (observationIds.length === 0) {
           return json({ ok: false, error: "group_and_observations_required" }, 400, { "cache-control": "no-store" });
         }
         for (const obsId of observationIds) {
@@ -3437,23 +3440,38 @@ export const worker = {
             return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
           }
         }
-        await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
-        const existing = await env.CORE_DB.prepare(
-          "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
-        ).bind(groupKey).first<{ user_id: string }>();
-        if (existing && existing.user_id !== session.userId) {
-          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const now = Date.now();
+        await env.CORE_DB.prepare(ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL).run();
+        for (const obsId of observationIds) {
+          await env.CORE_DB.prepare(
+            `INSERT INTO zukan_observation_publications (user_id, observation_id, place_id, legacy_group_key, published, updated_at)
+             VALUES (?1, ?2, ?3, ?4, 1, ?5)
+             ON CONFLICT(user_id, observation_id) DO UPDATE SET
+               place_id = COALESCE(excluded.place_id, zukan_observation_publications.place_id),
+               legacy_group_key = COALESCE(excluded.legacy_group_key, zukan_observation_publications.legacy_group_key),
+               published = 1,
+               updated_at = excluded.updated_at`
+          ).bind(session.userId, obsId, placeId, groupKey || null, now).run();
         }
-        await env.CORE_DB.prepare(
-          `INSERT INTO zukan_book_publications (group_key, user_id, place_name, observation_ids_json, published, updated_at)
-           VALUES (?1, ?2, ?3, ?4, 1, ?5)
-           ON CONFLICT(group_key) DO UPDATE SET
-             place_name = excluded.place_name,
-             observation_ids_json = excluded.observation_ids_json,
-             published = 1,
-             updated_at = excluded.updated_at`
-        ).bind(groupKey, session.userId, placeName, JSON.stringify(observationIds), Date.now()).run();
-        return json({ ok: true, published: true, groupKey }, 200, { "cache-control": "no-store" });
+        if (groupKey) {
+          await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
+          const existing = await env.CORE_DB.prepare(
+            "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
+          ).bind(groupKey).first<{ user_id: string }>();
+          if (existing && existing.user_id !== session.userId) {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
+          await env.CORE_DB.prepare(
+            `INSERT INTO zukan_book_publications (group_key, user_id, place_name, observation_ids_json, published, updated_at)
+             VALUES (?1, ?2, ?3, ?4, 1, ?5)
+             ON CONFLICT(group_key) DO UPDATE SET
+               place_name = excluded.place_name,
+               observation_ids_json = excluded.observation_ids_json,
+               published = 1,
+               updated_at = excluded.updated_at`
+          ).bind(groupKey, session.userId, placeName, JSON.stringify(observationIds), now).run();
+        }
+        return json({ ok: true, published: true, groupKey, placeId, observationIds }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/unpublish") {
@@ -3463,22 +3481,43 @@ export const worker = {
         if (!session?.userId || session.banned) {
           return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
         }
-        const body = await readJson<{ groupKey?: unknown }>(request);
+        const body = await readJson<{ groupKey?: unknown; observationIds?: unknown[] }>(request);
         const groupKey = typeof body.groupKey === "string" ? body.groupKey.trim().slice(0, 160) : "";
-        if (!groupKey) {
+        const observationIds = Array.isArray(body.observationIds)
+          ? body.observationIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0).slice(0, 50)
+          : [];
+        if (!groupKey && observationIds.length === 0) {
           return json({ ok: false, error: "group_key_required" }, 400, { "cache-control": "no-store" });
         }
-        await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
-        const existing = await env.CORE_DB.prepare(
-          "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
-        ).bind(groupKey).first<{ user_id: string }>();
-        if (existing && existing.user_id !== session.userId) {
-          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        for (const obsId of observationIds) {
+          const ownerId = await resolveCompatibleObservationOwnerUserId(obsId, env);
+          if (!ownerId || ownerId !== session.userId) {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
         }
-        await env.CORE_DB.prepare(
-          "UPDATE zukan_book_publications SET published = 0, updated_at = ?2 WHERE group_key = ?1 AND user_id = ?3"
-        ).bind(groupKey, Date.now(), session.userId).run();
-        return json({ ok: true, published: false, groupKey }, 200, { "cache-control": "no-store" });
+        const now = Date.now();
+        await env.CORE_DB.prepare(ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL).run();
+        for (const obsId of observationIds) {
+          await env.CORE_DB.prepare(
+            "UPDATE zukan_observation_publications SET published = 0, updated_at = ?3 WHERE user_id = ?1 AND observation_id = ?2"
+          ).bind(session.userId, obsId, now).run();
+        }
+        if (groupKey) {
+          await env.CORE_DB.prepare(
+            "UPDATE zukan_observation_publications SET published = 0, updated_at = ?3 WHERE user_id = ?1 AND legacy_group_key = ?2"
+          ).bind(session.userId, groupKey, now).run();
+          await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
+          const existing = await env.CORE_DB.prepare(
+            "SELECT user_id FROM zukan_book_publications WHERE group_key = ?1 LIMIT 1"
+          ).bind(groupKey).first<{ user_id: string }>();
+          if (existing && existing.user_id !== session.userId) {
+            return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+          }
+          await env.CORE_DB.prepare(
+            "UPDATE zukan_book_publications SET published = 0, updated_at = ?2 WHERE group_key = ?1 AND user_id = ?3"
+          ).bind(groupKey, now, session.userId).run();
+        }
+        return json({ ok: true, published: false, groupKey, observationIds }, 200, { "cache-control": "no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {

@@ -32178,7 +32178,7 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     get(target, prop, receiver) {
       if (prop === "prepare") {
         return (query: string) => {
-          if (!/\bzukan_book_publications\b/u.test(query)) {
+          if (!/\b(?:zukan_book_publications|zukan_observation_publications)\b/u.test(query)) {
             return target.prepare(query);
           }
           let values: D1Value[] = [];
