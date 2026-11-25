@@ -30252,6 +30252,14 @@ test("event guest photos and videos stay private through receipt, rights review,
   assert.equal(ownGallery.status, 200);
   assert.equal((ownGalleryHtml.match(/data-private-gallery-item/g) ?? []).length, 2);
   assert.match(ownGalleryHtml, /権利確認待ち・非公開/u);
+  assert.match(ownGalleryHtml, /data-event-view="f9"/u);
+  assert.match(ownGalleryHtml, /class="zt-bottom-nav"/u);
+  assert.match(ownGalleryHtml, /写真 2枚/u);
+  assert.match(ownGalleryHtml, /アルバムを共有/u);
+  assert.equal(ownGallery.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
+  const strangerGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`), env);
+  assert.equal(strangerGallery.status, 403);
+  assert.doesNotMatch(await strangerGallery.text(), /data-private-gallery-item|data-event-view="f9"/u);
   assert.match(ownGalleryHtml, /<video[^>]+src="\/api\/v1\/observation-events/u);
   assert.match(ownGalleryHtml, /<img[^>]+src="\/api\/v1\/observation-events/u);
   assert.match(ownGalleryHtml, /公開ページやみんなの振り返りには表示されません/u);
