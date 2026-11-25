@@ -3175,6 +3175,11 @@ export const worker = {
         return getOriginalUiStaticAsset(request, url, env);
       }
 
+      const assetThumbMatch = url.pathname.match(/^\/thumb\/(\d{2,4})\/([A-Za-z0-9._-]{3,160})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && assetThumbMatch?.[1] && assetThumbMatch[2]) {
+        return getAssetLedgerThumbRedirect(request, Number(assetThumbMatch[1]), assetThumbMatch[2], env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiThumbPath(url.pathname)) {
         return getOriginalUiThumb(request, url, env);
       }
@@ -25116,6 +25121,25 @@ function publicDerivedImageSrcset(
     })
     .filter((value): value is string => Boolean(value));
   return candidates.join(", ");
+}
+
+async function getAssetLedgerThumbRedirect(request: Request, size: number, assetId: string, env: Env): Promise<Response> {
+  const miss = () => new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+  const width = size <= 400 ? 360 : size <= 720 ? 680 : 1020;
+  const row = await env.OBS_DB.prepare(
+    "SELECT public_derivative_key FROM asset_ledger WHERE asset_id = ? AND public_derivative_key IS NOT NULL LIMIT 1"
+  ).bind(assetId).first<{ public_derivative_key: string | null }>().catch(() => null);
+  const key = normalizeOptionalText(row?.public_derivative_key);
+  if (!key || !isSafePublicDerivedImageKey(key)) return miss();
+  const access = await publicDerivedMediaAccess(request, key, env).catch(() => "denied" as const);
+  if (access === "denied") return miss();
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: `/derived-transform/w${width}/${key.replace(/^\/+/, "")}`,
+      "cache-control": access === "public" ? "public, max-age=300" : "private, no-store"
+    }
+  });
 }
 
 async function getPublicDerivedImageTransform(request: Request, url: URL, env: Env): Promise<Response> {

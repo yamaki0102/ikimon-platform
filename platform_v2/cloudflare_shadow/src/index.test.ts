@@ -5387,6 +5387,11 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT public_derivative_key FROM asset_ledger WHERE asset_id = ?")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset?.public_derivative_key ? ({ public_derivative_key: asset.public_derivative_key } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
@@ -34432,4 +34437,40 @@ test("v0 observation endpoints enforce 401 unauthenticated and 403 cross-user ow
     body: JSON.stringify({ draftId: draft.draftId })
   }), env);
   assert.equal(otherFinalize.status, 403);
+});
+
+test("asset thumb route redirects only ready public (or own) ledger derivatives and hides everything else", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", IMAGES: undefined };
+  const meta = JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false });
+  const put = (name: string, visibility: string, assetChanges: Record<string, unknown> = {}) => {
+    const observationId = `thumb-obs-${name}`;
+    const assetId = `thumb-asset-${name}`;
+    obs.observations.set(observationId, {
+      observation_id: observationId, draft_id: `d-${name}`, owner_user_id: `owner-${name}`, observed_at: "2026-10-11T00:00:00.000Z",
+      partition_month: "2026-10", taxon_label: null, note: null, exact_lat: null, exact_lng: null, location_accuracy_m: null,
+      public_cell: "34.71,137.81", visibility, emergency_hidden: 0, processing_state: "complete"
+    } as never);
+    obs.assets.set(assetId, {
+      asset_id: assetId, draft_id: `d-${name}`, observation_id: observationId, owner_user_id: `owner-${name}`, object_key: `original/${assetId}/p.jpg`,
+      partition_month: "2026-10", sha256: `${assetId}-sha`, mime: "image/jpeg", bytes: 1, processing_state: "uploaded",
+      public_derivative_key: `derived/import/20261011/observation_photo/${assetId}/display.webp`, public_derivative_sha256: "x",
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z", public_derivative_metadata_json: meta, exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z", ...assetChanges
+    } as never);
+    return assetId;
+  };
+  const pub = put("pub", "public");
+  const priv = put("priv", "private");
+  const unready = put("unready", "public", { public_ready_at: null });
+  const ok = await worker.fetch(new Request(`https://zukan.earth/thumb/400/${pub}`, { redirect: "manual" }), productionEnv);
+  assert.equal(ok.status, 302);
+  assert.equal(ok.headers.get("location"), `/derived-transform/w360/derived/import/20261011/observation_photo/${pub}/display.webp`);
+  const big = await worker.fetch(new Request(`https://zukan.earth/thumb/600/${pub}`, { redirect: "manual" }), productionEnv);
+  assert.match(big.headers.get("location") ?? "", /^\/derived-transform\/w680\//);
+  for (const id of [priv, unready, "no-such-asset"]) {
+    const res = await worker.fetch(new Request(`https://zukan.earth/thumb/400/${id}`, { redirect: "manual" }), productionEnv);
+    assert.equal(res.status, 404, id);
+    assert.equal(res.headers.get("location"), null, id);
+  }
 });
