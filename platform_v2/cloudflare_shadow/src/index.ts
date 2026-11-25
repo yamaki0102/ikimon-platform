@@ -293,6 +293,7 @@ import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./
 import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
+import { handleSharedAlbumView, handleZukanOrgLinkRoute } from "./zukanOrgLinkAndAlbum";
 import {
   isPublicObservationAiSubjectEligible,
   publicObservationAiCandidateInsights,
@@ -4627,10 +4628,17 @@ export const worker = {
         return handleCreateObservationShareLink(decodeURIComponent(observationShareLinkMatch[1]), session, env);
       }
 
+      if (nativePathname === "/library/link/org-request" || nativePathname.startsWith("/library/link/request") || nativePathname === "/library/link/album") {
+        const orgLinkResponse = await handleZukanOrgLinkRoute(request, env, url, nativePathname);
+        if (orgLinkResponse) return orgLinkResponse;
+      }
+
       const sharePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/share\/([^/]+)$/);
       if (request.method === "GET" && sharePageMatch?.[2]) {
         const shareLang = (sharePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env);
+        const albumResponse = await handleSharedAlbumView(decodeURIComponent(sharePageMatch[2]), shareLang, env, Boolean(session && !session.banned));
+        if (albumResponse) return albumResponse;
         return handleResolveShareLinkPage(decodeURIComponent(sharePageMatch[2]), shareLang, session, env);
       }
 
