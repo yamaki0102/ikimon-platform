@@ -33,7 +33,7 @@ test("mobile 375px audit: ZUKAN UI renderers prevent purple :visited links and 3
 
   const waitlistHtml = renderZukanWaitlistPage("ja");
   assert.match(waitlistHtml, /\.zukan-app-nav\.is-bottom\{box-sizing:border-box;/);
-  assert.match(waitlistHtml, /\.zukan-app-nav a,\.zukan-app-nav a:visited/);
+  assert.match(waitlistHtml, /\.zukan-app-nav a:visited/);
 
   const topHtml = renderZukanTopPage(
     {
