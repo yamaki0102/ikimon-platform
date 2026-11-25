@@ -60,6 +60,10 @@ import {
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
 import {
+  handleSearchResultsApi,
+  handleSearchResultsRoute,
+} from "./zukanSearchResults";
+import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
   shouldNotifyOtayoriStatus,
@@ -3942,6 +3946,17 @@ export const worker = {
         const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/results") {
+        return handleSearchResultsApi(url, env.OBS_DB);
+      }
+
+      const searchResultsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/results$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchResultsMatch) {
+        const viewLang = (searchResultsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchResultsRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
