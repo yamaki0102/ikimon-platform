@@ -7,7 +7,6 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { resolveInviteTarget } from "./zukanInviteAndWelcome";
-import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
 import {
@@ -283,6 +282,7 @@ import {
 } from "./zukanRecordLinkAndDone";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
 import {
@@ -3727,11 +3727,6 @@ export const worker = {
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery }), 200, { "cache-control": "private, no-store" });
       }
 
-      if (nativePathname === "/library/link/cancel" || nativePathname === "/library/link/share") {
-        const shareUnlinkResponse = await handleZukanShareAndUnlinkRoute(request, env, url, nativePathname);
-        if (shareUnlinkResponse) return shareUnlinkResponse;
-      }
-
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
         return handleOtayoriPageRequest(request, url, env);
       }
@@ -4566,6 +4561,11 @@ export const worker = {
         if (request.method === "GET") {
           return handleGetObservationComments(obsId, session, env);
         }
+      }
+
+      if (nativePathname === "/library/link/cancel" || nativePathname === "/library/link/share") {
+        const shareUnlinkResponse = await handleZukanShareAndUnlinkRoute(request, env, url, nativePathname);
+        if (shareUnlinkResponse) return shareUnlinkResponse;
       }
 
       const observationShareLinkMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/share-links$/);
