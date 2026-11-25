@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   deriveObservationProcessingStatus,
+  isObservationProcessingPending,
   isObsoleteInteractiveGeminiResult,
   renderObservationProcessingStatusPanel,
   type ObservationProcessingFacts,
@@ -165,6 +166,19 @@ test("retryable AI failure offers an owner-initiated reassessment without treati
   assert.match(html, /AIで再確認を受け付けました/);
   assert.doesNotMatch(html, /<a[^>]+reassess/);
   assert.doesNotMatch(html, /script-src[^>]*unsafe-inline/);
+});
+
+test("processing status is pending only while something is actually unfinished", () => {
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "candidate_ready" }), false);
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "completed" }), false);
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "unavailable" }), false);
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "not_requested" }), false);
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "queued" }), true);
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "processing" }), true);
+  assert.equal(isObservationProcessingPending({ mediaState: "ready", aiState: "failed_retryable" }), true);
+  assert.equal(isObservationProcessingPending({ mediaState: "processing", aiState: "completed" }), true);
+  assert.equal(isObservationProcessingPending({ mediaState: "retry_required", aiState: "completed" }), true);
+  assert.equal(isObservationProcessingPending({ mediaState: "none", aiState: "completed" }), true);
 });
 
 test("only an obsolete completed interactive Gemini result is exposed for explicit rearm", () => {
