@@ -27,31 +27,44 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
   const minLng = parseOptionalCoordParam(url, "minLng");
   const maxLng = parseOptionalCoordParam(url, "maxLng");
 
-  const rows =
-    minLat !== null && maxLat !== null && minLng !== null && maxLng !== null
-      ? (
-          await db
-            .prepare(
-              `SELECT place_id, name, lat, lng
-                 FROM places
-                WHERE visibility = 'public'
-                  AND lat BETWEEN ? AND ?
-                  AND lng BETWEEN ? AND ?
+  const base = `SELECT p.place_id AS place_id,
+            p.canonical_name AS name,
+            (b.bbox_south + b.bbox_north) / 2.0 AS lat,
+            (b.bbox_west + b.bbox_east) / 2.0 AS lng
+       FROM places p
+       JOIN place_boundaries b
+         ON b.boundary_id = (
+              SELECT b2.boundary_id
+                FROM place_boundaries b2
+               WHERE b2.place_id = p.place_id
+                 AND b2.valid_to IS NULL
+                 AND b2.superseded_by_boundary_id IS NULL
+                 AND b2.bbox_south IS NOT NULL AND b2.bbox_north IS NOT NULL
+                 AND b2.bbox_west IS NOT NULL AND b2.bbox_east IS NOT NULL
+               ORDER BY b2.is_primary DESC, b2.boundary_version DESC
+               LIMIT 1)
+      WHERE p.public_profile_status = 'published'
+        AND p.superseded_by_place_id IS NULL`;
+  let rows: PlacePinRow[] = [];
+  try {
+    rows =
+      minLat !== null && maxLat !== null && minLng !== null && maxLng !== null
+        ? (
+            await db
+              .prepare(
+                `${base}
+                  AND (b.bbox_south + b.bbox_north) / 2.0 BETWEEN ? AND ?
+                  AND (b.bbox_west + b.bbox_east) / 2.0 BETWEEN ? AND ?
                 LIMIT 100`
-            )
-            .bind(minLat, maxLat, minLng, maxLng)
-            .all<PlacePinRow>()
-        ).results
-      : (
-          await db
-            .prepare(
-              `SELECT place_id, name, lat, lng
-                 FROM places
-                WHERE visibility = 'public'
-                LIMIT 100`
-            )
-            .all<PlacePinRow>()
-        ).results;
+              )
+              .bind(minLat, maxLat, minLng, maxLng)
+              .all<PlacePinRow>()
+          ).results ?? []
+        : (await db.prepare(`${base} LIMIT 100`).all<PlacePinRow>()).results ?? [];
+  } catch (error) {
+    console.error("map places query failed", error);
+    rows = [];
+  }
 
   return rows.map((row) => ({
     placeId: row.place_id,

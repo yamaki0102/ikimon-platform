@@ -37,8 +37,9 @@ async function setupDb(t: test.TestContext) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS places (
       place_id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      visibility TEXT NOT NULL DEFAULT 'public'
+      canonical_name TEXT NOT NULL,
+      public_profile_status TEXT NOT NULL DEFAULT 'draft',
+      superseded_by_place_id TEXT
     );
     CREATE TABLE IF NOT EXISTS observation_event_sessions (
       session_id TEXT PRIMARY KEY,
@@ -47,8 +48,8 @@ async function setupDb(t: test.TestContext) {
       started_at TEXT NOT NULL
     );
   `);
-  sqlite.prepare("INSERT INTO places (place_id, name, visibility) VALUES (?, ?, 'public')").run("place-sanaru", "佐鳴湖公園");
-  sqlite.prepare("INSERT INTO places (place_id, name, visibility) VALUES (?, ?, 'private')").run("place-secret", "非公開の場所");
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'published')").run("place-sanaru", "佐鳴湖公園");
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'draft')").run("place-secret", "非公開の場所");
   sqlite.prepare("INSERT INTO observation_event_sessions (session_id, title, organizer_user_id, started_at) VALUES (?, ?, ?, ?)").run(
     "evt-1",
     "冬の野鳥観察会",
@@ -128,3 +129,4 @@ test("guest entry page renders single place/event without issuing pass on GET, w
   const stoppedHtml = await stoppedRes.text();
   assert.match(stoppedHtml, /data-guest-qr-stopped="1"/);
 });
+
