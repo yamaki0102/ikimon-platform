@@ -212,6 +212,11 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  buildObservationDetailEvidence,
+  handleGetObservationEvidence,
+  renderObservationDetailEvidenceHtml,
+} from "./zukanObservationDetailEvidence";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
 import { projectOwnerPublicationReturn } from "../../src/services/publicationSyndication";
@@ -4249,6 +4254,12 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const observationEvidenceMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/evidence$/);
+      if (request.method === "GET" && observationEvidenceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleGetObservationEvidence(decodeURIComponent(observationEvidenceMatch[1]), session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
@@ -25627,7 +25638,18 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId)
       ]);
-      const nocosilUsageHtml = renderNocosilOutcomeUsageHtml(recordUsages);
+      const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
+        buildObservationDetailEvidence({
+          observationId: detail.visitId,
+          isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
+          observedAt: detail.observedAt || null,
+          placeId: detail.placeName || null,
+          locationPrecision: detail.publicLocation?.label ? "public_label" : "grid",
+          hasScrubbedAsset: media.length > 0,
+        }),
+        recordLang
+      );
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
