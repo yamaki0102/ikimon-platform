@@ -1,6 +1,7 @@
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
+import { getZukanSyncStatusLabel } from "./syncStatusLabels";
 export type CloudflareRecordRecoverySource =
   | ""
   | "location_denied"
@@ -76,10 +77,10 @@ const COPY = {
     selected: "メディアを選択しました。場所を確認して保存してください。",
     missingMedia: "写真または動画を選択してください。",
     invalidCoordinates: "保存には場所が必要です。現在地を使うか、座標を入力してください。",
-    saving: "保存中です...",
-    saved: "記録を保存しました。端末内の下書きも削除しました。",
-    retried: "メディアを同じ記録へ戻しました。端末内の下書きも削除しました。",
-    failed: "まだ保存できていません。下書きは端末に残しているので、通信状態を確認してもう一度保存してください。",
+    saving: `${getZukanSyncStatusLabel("saving", "ja")}です...`,
+    saved: `記録を保存しました（${getZukanSyncStatusLabel("delivered", "ja")}）。端末内の下書きも削除しました。`,
+    retried: `メディアを同じ記録へ戻しました（${getZukanSyncStatusLabel("delivered", "ja")}）。端末内の下書きも削除しました。`,
+    failed: `まだ保存できていません（${getZukanSyncStatusLabel("failed", "ja")}）。下書きは端末に残っているので（${getZukanSyncStatusLabel("queued", "ja")}）、通信状態を確認してもう一度保存してください。`,
     discarded: "下書きを破棄しました。",
   },
   en: {

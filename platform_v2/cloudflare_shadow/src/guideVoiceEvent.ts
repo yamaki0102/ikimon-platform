@@ -5,6 +5,7 @@ import {
   renderAppExperienceQuickCamera
 } from "../../src/ui/appExperience";
 import type { Env } from "./core/env";
+import { getZukanSyncStatusLabel } from "./syncStatusLabels";
 
 export type ParsedGuideVoiceUtterance = {
   badgeNumber: number | null;
@@ -425,13 +426,13 @@ export function renderGuideVoiceConsolePage(input: {
           });
           if (res.ok) {
             writeQueue([]);
-            if (statusEl) statusEl.textContent = "同期しました（" + queue.length + "件）。";
+            if (statusEl) statusEl.textContent = ${JSON.stringify(getZukanSyncStatusLabel("delivered", "ja") + "（")} + queue.length + "件）。";
             res.json().then(function (data) { renderEntries(data && data.entries); }).catch(function () {});
           } else if (res.status === 403 && statusEl) {
-            statusEl.textContent = "行事コードが違うため同期できません。";
+            statusEl.textContent = ${JSON.stringify(getZukanSyncStatusLabel("failed", "ja") + "：行事コードが違うため同期できません。")};
           }
         } catch {
-          if (statusEl) statusEl.textContent = "圏外のため端末に保存しました（オンライン時に同期します）。";
+          if (statusEl) statusEl.textContent = ${JSON.stringify(getZukanSyncStatusLabel("queued", "ja") + "：圏外のため端末に保存しました（オンライン時に同期します）。")};
         }
       }
 
@@ -449,7 +450,7 @@ export function renderGuideVoiceConsolePage(input: {
         });
         writeQueue(queue);
         input.value = "";
-        if (statusEl) statusEl.textContent = "端末に記録しました。同期を試行中...";
+        if (statusEl) statusEl.textContent = ${JSON.stringify(getZukanSyncStatusLabel("saving", "ja") + "：端末に記録しました。同期を試行中...")};
         void flushQueue();
       });
 
