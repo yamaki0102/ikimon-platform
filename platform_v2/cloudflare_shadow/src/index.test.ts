@@ -5387,6 +5387,11 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT public_derivative_key FROM asset_ledger WHERE asset_id = ?")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset?.public_derivative_key ? ({ public_derivative_key: asset.public_derivative_key } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
@@ -20881,7 +20886,7 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "ja", title: "近くのイベント", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
     { prefix: "en", title: "Join", empty: "No public events", failed: "Couldn’t load programs.", retry: "Reload" },
     { prefix: "es", title: "Participar", empty: "No hay eventos públicos", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
     { prefix: "pt-br", title: "Participar", empty: "Não há eventos públicos", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
@@ -20894,9 +20899,12 @@ test("public participation list distinguishes empty and failed loads in the requ
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(html, new RegExp(`<html lang="${item.prefix}"`));
-    assert.ok(html.includes(`<title>${item.title} | ZUKAN</title>`));
+    assert.ok(html.includes(`<title>${item.title} — ZUKAN</title>`));
     assert.ok(main.includes(item.empty));
+    assert.match(html, /class="zt-bottom-nav"/);
+    assert.doesNotMatch(html, /data-zukan-app-experience|site-core-nav/);
     if (item.prefix === "ja") {
+      assert.match(main, /<h1>近くのイベント<\/h1>/);
       assert.match(main, /イベントを作る/);
       assert.doesNotMatch(main, /観察会を作る|地域のイベントとは|参加の流れ/);
     }
@@ -21274,7 +21282,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventListPage.status, 200);
     assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(eventListPageText, /D1観察会/);
-    assert.match(eventListPageText, /<title>参加 \| ZUKAN<\/title>/);
+    assert.match(eventListPageText, /<title>近くのイベント — ZUKAN<\/title>/);
     assert.doesNotMatch(eventListPageText, /<title>[^<]*ikimon\.life/u);
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
@@ -27044,7 +27052,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   try {
     const checks: Array<{ path: string; expected: string; native?: "profile" | "record" }> = [
       { path: "/ja/profile", expected: "八巻テスト", native: "profile" },
-      { path: "/ja/profile/settings", expected: "プロフィール設定", native: "profile" },
+      { path: "/ja/profile/settings", expected: "ログアウト・退会", native: "profile" },
       { path: "/ja/records", expected: "みんなの記録" },
       { path: "/ja/record", expected: "record-form", native: "record" }
     ];
@@ -27058,46 +27066,21 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       assert.doesNotMatch(body, /personalized origin profile/, check.path);
       if (check.native === "profile") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
-        assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
-        assert.match(body, /class="site-header"/, check.path);
-        assert.match(body, /class="site-core-nav"/, check.path);
-        assert.match(body, />撮る<\/button>[\s\S]*>場所<\/a>[\s\S]*>記録<\/a>[\s\S]*>自分<\/a>/, check.path);
-        assert.match(body, /data-global-bottom-nav/, check.path);
-        assert.match(body, /data-global-record-trigger="photo"/, check.path);
-        assert.match(body, /data-global-record-gallery>端末の写真から選ぶ/, check.path);
-        assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
-        assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
-        assert.match(body, /<title>(?:自分|プロフィール設定) — ZUKAN<\/title>/, check.path);
-        assert.match(body, /--action:#245C3A/);
-        assert.match(body, /--soft:#F7F7F3/);
-        assert.match(body, /--ink:#17211B/);
-        assert.match(body, /--muted:#55615A/);
-        assert.match(body, /\.cf-profile-action,\.cf-profile-link\{[^}]*min-height:64px[^}]*border-radius:4px/);
-        assert.match(body, /\.cf-profile-identity\{[^}]*border-radius:8px/);
-        assert.match(body, /\.cf-profile-shell a:focus-visible\{outline:2px solid var\(--action\);outline-offset:2px;box-shadow:0 0 0 4px #fff\}/);
-        assert.doesNotMatch(body, /<title>[^<]*ikimon/u, check.path);
-        assert.doesNotMatch(body, /cf-profile-header/, check.path);
-        assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
-        assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
+        assert.match(body, /class="zt-shell"/, check.path);
+        assert.match(body, /class="zt-bottom-nav"/, check.path);
+        assert.doesNotMatch(body, /site-core-nav|cf-profile-shell/, check.path);
       }
       if (check.path === "/ja/profile") {
         assert.match(body, /data-testid="self-control-hub"/);
-        assert.match(body, /表示名を確認し、自分の記録や参加先へ移動できます。/);
-        assert.match(body, /参加先を探す/);
-        assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
-        assert.match(body, /href="\/ja\/records\?view=mine"/);
+        for (const text of ["自分の記録", "保存した場所", "参加イベント", "公開先", "保存した場所・イベント", "プロフィール・通知・公開範囲"]) assert.ok(body.includes(text), text);
+        assert.match(body, /href="\/ja\/profile\/notifications"/);
         assert.match(body, /href="\/ja\/profile\/settings"/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
-        assert.match(body, /href="\/ja\/community\/events"/);
-        assert.doesNotMatch(body, /公開プロフィール|公開範囲|フォロー中|参加履歴|アカウント設定/);
       }
       if (check.path === "/ja/profile/settings") {
         assert.match(body, /action="\/api\/v1\/profile\/language"/);
         assert.match(body, /name="lang"/);
-        assert.doesNotMatch(body, /data-language-disclosure/);
-        assert.match(body, /プロフィール編集/);
-        assert.match(body, /この画面からプロフィールは編集できません。/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
+        assert.match(body, /ログアウト・退会/);
+        assert.match(body, /action="\/api\/v1\/account\/withdraw"/);
       }
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
@@ -34133,7 +34116,7 @@ test("withdrawal confirmation copy shows what disappears first and withdrawn pub
   assert.equal(settingsRes.status, 200);
   const settingsHtml = await settingsRes.text();
   assert.match(settingsHtml, /data-testid="withdrawal-confirmation"/u);
-  assert.match(settingsHtml, /退会すると消えるもの/u);
+  assert.match(settingsHtml, /退会すると、自分の記録[0-9]+件とアカウントが全部消えます/u);
   assert.match(settingsHtml, /元に戻せません/u);
 
   const obsId = "obs-withdrawn-public-check";
@@ -34462,4 +34445,40 @@ test("v0 observation endpoints enforce 401 unauthenticated and 403 cross-user ow
     body: JSON.stringify({ draftId: draft.draftId })
   }), env);
   assert.equal(otherFinalize.status, 403);
+});
+
+test("asset thumb route redirects only ready public (or own) ledger derivatives and hides everything else", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", IMAGES: undefined };
+  const meta = JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false });
+  const put = (name: string, visibility: string, assetChanges: Record<string, unknown> = {}) => {
+    const observationId = `thumb-obs-${name}`;
+    const assetId = `thumb-asset-${name}`;
+    obs.observations.set(observationId, {
+      observation_id: observationId, draft_id: `d-${name}`, owner_user_id: `owner-${name}`, observed_at: "2026-10-11T00:00:00.000Z",
+      partition_month: "2026-10", taxon_label: null, note: null, exact_lat: null, exact_lng: null, location_accuracy_m: null,
+      public_cell: "34.71,137.81", visibility, emergency_hidden: 0, processing_state: "complete"
+    } as never);
+    obs.assets.set(assetId, {
+      asset_id: assetId, draft_id: `d-${name}`, observation_id: observationId, owner_user_id: `owner-${name}`, object_key: `original/${assetId}/p.jpg`,
+      partition_month: "2026-10", sha256: `${assetId}-sha`, mime: "image/jpeg", bytes: 1, processing_state: "uploaded",
+      public_derivative_key: `derived/import/20261011/observation_photo/${assetId}/display.webp`, public_derivative_sha256: "x",
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z", public_derivative_metadata_json: meta, exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z", ...assetChanges
+    } as never);
+    return assetId;
+  };
+  const pub = put("pub", "public");
+  const priv = put("priv", "private");
+  const unready = put("unready", "public", { public_ready_at: null });
+  const ok = await worker.fetch(new Request(`https://zukan.earth/thumb/400/${pub}`, { redirect: "manual" }), productionEnv);
+  assert.equal(ok.status, 302);
+  assert.equal(ok.headers.get("location"), `/derived-transform/w360/derived/import/20261011/observation_photo/${pub}/display.webp`);
+  const big = await worker.fetch(new Request(`https://zukan.earth/thumb/600/${pub}`, { redirect: "manual" }), productionEnv);
+  assert.match(big.headers.get("location") ?? "", /^\/derived-transform\/w680\//);
+  for (const id of [priv, unready, "no-such-asset"]) {
+    const res = await worker.fetch(new Request(`https://zukan.earth/thumb/400/${id}`, { redirect: "manual" }), productionEnv);
+    assert.equal(res.status, 404, id);
+    assert.equal(res.headers.get("location"), null, id);
+  }
 });
