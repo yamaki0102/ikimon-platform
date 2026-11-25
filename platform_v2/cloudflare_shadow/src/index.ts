@@ -96,6 +96,7 @@ import {
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   createFixedPointStationRecord,
   listFixedPointsAndRecordsForPlace,
@@ -4261,6 +4262,14 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
+      if (request.method === "GET" && placeSubViewMatch?.[2] && placeSubViewMatch?.[3]) {
+        const viewLang = (placeSubViewMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeSubViewMatch[3] as "records" | "photos";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceRecordsOrPhotosRoute(decodeURIComponent(placeSubViewMatch[2]), tab, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/internal/drain-outbox") {
