@@ -78,6 +78,10 @@ import {
   handleMapFiltersRoute,
 } from "./zukanMapFiltersAndPins";
 import {
+  handleLinkedAndSavedApi,
+  handleLinkedAndSavedRoute,
+} from "./zukanLinkedAndSaved";
+import {
   handleSearchResultsApi,
   handleSearchResultsRoute,
 } from "./zukanSearchResults";
@@ -4031,6 +4035,18 @@ export const worker = {
         const section = accountSettingsDetailMatch[2] as SettingsDetailSection;
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleAccountSettingsDetailRoute(section, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleLinkedAndSavedApi(session, env.OBS_DB);
+      }
+
+      const linkedSavedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/linked-saved$/);
+      if ((request.method === "GET" || request.method === "HEAD") && linkedSavedMatch) {
+        const viewLang = (linkedSavedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
