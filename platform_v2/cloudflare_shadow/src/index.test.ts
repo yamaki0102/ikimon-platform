@@ -15,7 +15,7 @@ import {
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
 import { safeRedirectPath } from "./core/shared";
-import { renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
+import { exchangeOAuthCode, renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 type D1Value = string | number | null;
@@ -33840,4 +33840,48 @@ test("safeRedirectPath rejects double-slash, encoded-slash, backslash, and dot-n
   }
   assert.equal(safeRedirectPath("/record?tab=places#top"), "/record?tab=places#top");
   assert.equal(safeRedirectPath("/ja/places/plc_1"), "/ja/places/plc_1");
+});
+
+test("OAuth rejects unknown providers before sending credentials externally and preserves google/twitter", async (t) => {
+  const { env } = createEnv();
+  Object.assign(env, {
+    GOOGLE_CLIENT_ID: "google-id",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    TWITTER_CLIENT_ID: "twitter-id",
+    TWITTER_CLIENT_SECRET: "twitter-secret"
+  });
+
+  const fetchCalls: string[] = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    fetchCalls.push(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url);
+    throw new Error("unexpected_external_fetch");
+  }) as typeof fetch;
+  t.after(() => { globalThis.fetch = origFetch; });
+
+  for (const path of [
+    "/auth/oauth/github/start",
+    "/auth/oauth/github/callback?code=c1&state=s1",
+    "/oauth_callback.php?provider=github&code=c1&state=s1",
+    "/app_oauth_start.php?provider=github&return_uri=ikimonfieldscan%3A%2F%2Fauth%2Fcallback"
+  ]) {
+    const res = await worker.fetch(new Request(`https://ikimon.life${path}`), env);
+    assert.equal(res.status, 303, `expected 303 for ${path}`);
+    assert.match(res.headers.get("location") ?? "", /error=oauth/u);
+  }
+
+  await assert.rejects(
+    () => exchangeOAuthCode("github" as unknown as "google", "code-1", "https://ikimon.life/auth/oauth/github/callback", undefined, env),
+    /unsupported_oauth_provider/
+  );
+  assert.equal(fetchCalls.length, 0);
+
+  const googleStart = await worker.fetch(new Request("https://ikimon.life/auth/oauth/google/start"), env);
+  assert.equal(googleStart.status, 303);
+  assert.match(googleStart.headers.get("location") ?? "", /^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
+
+  const twitterStart = await worker.fetch(new Request("https://ikimon.life/auth/oauth/twitter/start"), env);
+  assert.equal(twitterStart.status, 303);
+  assert.match(twitterStart.headers.get("location") ?? "", /^https:\/\/twitter\.com\/i\/oauth2\/authorize\?/);
+  assert.equal(fetchCalls.length, 0);
 });

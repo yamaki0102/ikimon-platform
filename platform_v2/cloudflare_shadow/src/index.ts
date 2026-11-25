@@ -27104,6 +27104,9 @@ async function buildOAuthStart(provider: OAuthProvider, request: Request, env: E
   cookie: string;
   authorizationUrl: string;
 }> {
+  if (provider !== "google" && provider !== "twitter") {
+    throw new Error("unsupported_oauth_provider");
+  }
   const config = getOAuthConfig(env, provider);
   if (!config) throw new Error("oauth_provider_not_configured");
   const state = randomToken().slice(0, 40);
@@ -27144,7 +27147,10 @@ async function buildOAuthStart(provider: OAuthProvider, request: Request, env: E
   };
 }
 
-async function exchangeOAuthCode(provider: OAuthProvider, code: string, redirectUri: string, codeVerifier: string | undefined, env: Env): Promise<OAuthProfile> {
+export async function exchangeOAuthCode(provider: OAuthProvider, code: string, redirectUri: string, codeVerifier: string | undefined, env: Env): Promise<OAuthProfile> {
+  if (provider !== "google" && provider !== "twitter") {
+    throw new Error("unsupported_oauth_provider");
+  }
   const config = getOAuthConfig(env, provider);
   if (!config) throw new Error("oauth_provider_not_configured");
   if (provider === "google") {
