@@ -65,6 +65,10 @@ import {
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
 import {
+  handleMyRecordsApi,
+  handleMyRecordsRoute,
+} from "./zukanMyRecordsList";
+import {
   handleMapFilteredPinsApi,
   handleMapFiltersRoute,
 } from "./zukanMapFiltersAndPins";
@@ -3975,6 +3979,18 @@ export const worker = {
         const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/my-records") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMyRecordsApi(url, session, env.OBS_DB);
+      }
+
+      const myRecordsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/records$/);
+      if ((request.method === "GET" || request.method === "HEAD") && myRecordsMatch) {
+        const viewLang = (myRecordsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMyRecordsRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/filtered-pins") {
