@@ -1,4 +1,5 @@
 import type { Env } from "./core/env";
+import { renderOtayoriFloatingButton } from "./otayori";
 
 function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
   const cleanKey = key.replace(/^\/+/, "");
@@ -870,11 +871,12 @@ export function renderZukanTopPage(
     :root{color-scheme:light;--bg:#ffffff;--surface:#f6f7f6;--ink:#17251b;--muted:#485a4e;--green:#245c3a;--capture:#b94f18;--line:#dce3dd}
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5}
+    a,a:visited{color:var(--green)}
     .zt-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
     .zt-shell{min-height:100vh;padding-bottom:76px}
     .zt-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--line)}
-    .zt-logo{font-weight:800;font-size:18px;letter-spacing:.04em;color:var(--green);text-decoration:none;min-height:44px;display:inline-flex;align-items:center}
-    .zt-login-btn,.zt-avatar{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;color:var(--green);font-weight:700;text-decoration:none;border-radius:999px}
+    .zt-logo,.zt-logo:visited{font-weight:800;font-size:18px;letter-spacing:.04em;color:var(--green);text-decoration:none;min-height:44px;display:inline-flex;align-items:center}
+    .zt-login-btn,.zt-login-btn:visited,.zt-avatar,.zt-avatar:visited{min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;color:var(--green);font-weight:700;text-decoration:none;border-radius:999px}
     .zt-avatar{background:var(--surface);border:1px solid var(--line)}
     .zt-search{flex:1;max-width:460px}
     .zt-search input{width:100%;min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font:inherit;font-size:14px}
@@ -885,8 +887,8 @@ export function renderZukanTopPage(
     .zt-hero-card img{width:100%;height:100%;object-fit:cover;display:block}
     .zt-hero-label{position:absolute;left:8px;bottom:8px;padding:4px 10px;border-radius:6px;background:rgba(23,37,27,.78);color:#fff;font-size:14px;font-weight:600}
     .zt-cta-row{display:flex;flex-wrap:wrap;gap:10px}
-    .zt-btn-primary{min-height:44px;padding:10px 18px;border-radius:8px;background:var(--green);color:#fff;font-weight:700;text-decoration:none;border:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
-    .zt-btn-outline{min-height:44px;padding:10px 18px;border-radius:8px;background:#fff;color:var(--green);border:1px solid var(--green);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+    .zt-btn-primary,.zt-btn-primary:visited{min-height:44px;padding:10px 18px;border-radius:8px;background:var(--green);color:#fff;font-weight:700;text-decoration:none;border:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
+    .zt-btn-outline,.zt-btn-outline:visited{min-height:44px;padding:10px 18px;border-radius:8px;background:#fff;color:var(--green);border:1px solid var(--green);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
     .zt-btn-outline-sm{min-height:44px;padding:6px 14px;border-radius:8px;background:#fff;color:var(--green);border:1px solid var(--green);font-weight:700;cursor:pointer;font-size:14px}
     .zt-chip-published{min-height:44px;padding:6px 14px;border-radius:999px;background:#e5f2ea;color:var(--green);border:1px solid #b6d8c2;font-weight:700;cursor:pointer;font-size:14px}
     .zt-btn-capture{min-height:44px;padding:10px 22px;border-radius:999px;background:var(--capture);color:#fff;border:0;font-weight:700;cursor:pointer;font-size:15px}
@@ -954,6 +956,7 @@ export function renderZukanTopPage(
     <a class="zt-nav-item" href="${prefix}/profile">${isEn ? "Me" : "自分"}</a>
   </nav>
   ${publishScript}
+  ${renderOtayoriFloatingButton({ lang: options.lang, pathname: `${prefix}/` })}
 </body>
 </html>`;
 }

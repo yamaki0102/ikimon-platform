@@ -13,6 +13,12 @@ import {
   resolveUnifiedTaxonName,
 } from "./taxonNameResolver";
 import {
+  normalizeOtayoriStatus,
+  renderOtayoriPage,
+  shouldNotifyOtayoriStatus,
+  type OtayoriLetterRow,
+} from "./otayori";
+import {
   handleNocosilOutcomeUsageApi,
   listNocosilOutcomeUsagesForPlace,
   listNocosilOutcomeUsagesForRecord,
@@ -3640,6 +3646,21 @@ export const worker = {
       const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
       if (request.method === "POST" && observationActionMatch?.[1]) {
         return handleObservationFirstRecordAction(decodeURIComponent(observationActionMatch[1]), request, env);
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/otayori") {
+        return handleOtayoriPageRequest(request, url, env);
+      }
+      if (request.method === "POST" && url.pathname === "/api/v1/otayori") {
+        return handleCreateOtayoriRequest(request, env);
+      }
+      const otayoriGetMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)$/);
+      if (request.method === "GET" && otayoriGetMatch?.[1]) {
+        return handleGetOtayoriRequest(request, env, decodeURIComponent(otayoriGetMatch[1]));
+      }
+      const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
+      if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
+        return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
@@ -9312,6 +9333,7 @@ async function handleAccountWriteApi(request: Request, url: URL, env: Env): Prom
   if (request.method === "POST" && url.pathname === "/api/v1/contact/submit") return submitContactNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/users/upsert") return upsertUserNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/profile/me") return updateOwnProfileNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/account/withdraw") return handleAccountWithdrawRequest(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/register") return registerWithPasswordNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/issue") return issueRememberTokenNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/revoke") return revokeRememberTokenNative(request, env);
@@ -9323,6 +9345,7 @@ function isAccountWritePath(request: Request, url: URL): boolean {
   return url.pathname === "/api/v1/contact/submit"
     || url.pathname === "/api/v1/users/upsert"
     || url.pathname === "/api/v1/profile/me"
+    || url.pathname === "/api/v1/account/withdraw"
     || url.pathname === "/api/v1/auth/register"
     || url.pathname === "/api/v1/auth/remember-tokens/issue"
     || url.pathname === "/api/v1/auth/remember-tokens/revoke";
@@ -22843,11 +22866,14 @@ function renderCloudflareProfileHtml(
               <li>${escapeHtml(lang === "ja" ? "公開中の記録・写真は一覧と公開ページから非表示になります。" : "Public records and photos will be removed from listings and public pages.")}</li>
               <li>${escapeHtml(lang === "ja" ? "すでに外部へ保存・引用された情報は回収できません。" : "Information already saved or quoted externally cannot be recalled.")}</li>
             </ul>
-            <label class="cf-profile-withdraw-check">
-              <input type="checkbox" data-withdrawal-ack>
-              <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
-            </label>
-            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会をご希望の場合は、上記の消える内容をご確認のうえお問い合わせ窓口（support@ikimon.life）までご連絡ください。" : "To complete withdrawal after reviewing what will be removed, please contact support@ikimon.life.")}</p>
+            <form class="cf-profile-withdraw-form" method="post" action="/api/v1/account/withdraw">
+              <label class="cf-profile-withdraw-check">
+                <input type="checkbox" name="acknowledged" value="yes" required data-withdrawal-ack>
+                <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
+              </label>
+              <button type="submit" class="cf-profile-withdraw-submit" data-withdrawal-submit>${escapeHtml(lang === "ja" ? "退会してアカウントを削除する" : "Withdraw and delete account")}</button>
+            </form>
+            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会を実行すると即時にログアウトし、上記の公開表示とアカウント情報が削除・非表示になります。" : "Submitting will sign you out immediately and remove your public listings and account data.")}</p>
           </div>
         </details>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
@@ -37351,4 +37377,197 @@ function buildSessionCookie(rawToken: string, expiresAt: string, env: Env, ttlSe
 function buildClearedSessionCookie(env: Env): string {
   const secure = secureCookieAttribute(env);
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+async function handleAccountWithdrawRequest(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  const contentType = request.headers.get("content-type") ?? "";
+  let acknowledged = false;
+  if (contentType.includes("application/json")) {
+    const body = await readJson<{ acknowledged?: unknown }>(request);
+    acknowledged = body.acknowledged === true || body.acknowledged === "yes";
+  } else {
+    const form = await request.formData().catch(() => null);
+    acknowledged = form?.get("acknowledged") === "yes" || form?.get("acknowledged") === "true";
+  }
+  if (!acknowledged) {
+    return json({ ok: false, error: "confirmation_required" }, 400, { "cache-control": "no-store" });
+  }
+
+  let hiddenObservationCount = 0;
+  try {
+    const ownRows = await env.OBS_DB.prepare(
+      "SELECT observation_id FROM observations WHERE owner_user_id = ? LIMIT 500"
+    ).bind(session.userId).all<{ observation_id: string }>();
+    for (const row of ownRows.results ?? []) {
+      if (!row.observation_id) continue;
+      await applyEmergencyHide(row.observation_id, env).catch(() => {});
+      await env.OBS_DB.prepare(
+        "UPDATE observation_data_rights SET withdrawal_status = 'withdrawn' WHERE visit_id = ?"
+      ).bind(row.observation_id).run().catch(() => {});
+      hiddenObservationCount += 1;
+    }
+  } catch {
+    // Ignore when observation tables are absent in minimal test fixtures
+  }
+
+  await env.CORE_DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(session.userId).run().catch(() => {});
+  await env.CORE_DB.prepare("DELETE FROM user_language_preferences WHERE user_id = ?").bind(session.userId).run().catch(() => {});
+  await env.CORE_DB.prepare("DELETE FROM users WHERE user_id = ?").bind(session.userId).run().catch(() => {});
+
+  const clearedCookie = buildClearedSessionCookie(env);
+  if (!contentType.includes("application/json")) {
+    return new Response(null, {
+      status: 303,
+      headers: {
+        location: "/ja/?withdrawn=1",
+        "set-cookie": clearedCookie,
+        "cache-control": "no-store",
+      },
+    });
+  }
+  return json(
+    { ok: true, withdrawn: true, hiddenObservationCount },
+    200,
+    { "set-cookie": clearedCookie, "cache-control": "no-store" }
+  );
+}
+
+async function ensureOtayoriTable(db: D1Database): Promise<void> {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS zukan_otayori_letters (
+      letter_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      body TEXT NOT NULL,
+      page_path TEXT NOT NULL,
+      status TEXT NOT NULL,
+      reply_text TEXT,
+      replied_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`
+  ).run();
+}
+
+async function handleOtayoriPageRequest(request: Request, url: URL, env: Env): Promise<Response> {
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  const lang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+  let letters: OtayoriLetterRow[] = [];
+  if (session && !session.banned) {
+    try {
+      await ensureOtayoriTable(env.CORE_DB);
+      const res = await env.CORE_DB.prepare(
+        `SELECT letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
+           FROM zukan_otayori_letters
+          WHERE user_id = ?
+          ORDER BY created_at DESC
+          LIMIT 50`
+      ).bind(session.userId).all<OtayoriLetterRow>();
+      letters = res.results ?? [];
+    } catch {
+      letters = [];
+    }
+  }
+  return html(
+    renderOtayoriPage({
+      lang,
+      authenticated: Boolean(session && !session.banned),
+      letters,
+      fromPath: url.searchParams.get("from") ?? "/",
+    }),
+    200,
+    { "cache-control": "private, no-store" }
+  );
+}
+
+async function handleCreateOtayoriRequest(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  const contentType = request.headers.get("content-type") ?? "";
+  let rawBody = "";
+  let rawPath = "/";
+  if (contentType.includes("application/json")) {
+    const parsed = await readJson<{ body?: unknown; pagePath?: unknown }>(request);
+    rawBody = typeof parsed.body === "string" ? parsed.body.trim() : "";
+    rawPath = typeof parsed.pagePath === "string" && parsed.pagePath.startsWith("/") ? parsed.pagePath.slice(0, 200) : "/";
+  } else {
+    const form = await request.formData().catch(() => null);
+    rawBody = typeof form?.get("body") === "string" ? String(form.get("body")).trim() : "";
+    const p = typeof form?.get("pagePath") === "string" ? String(form.get("pagePath")) : "/";
+    rawPath = p.startsWith("/") ? p.slice(0, 200) : "/";
+  }
+  if (!rawBody || rawBody.length > 1000) {
+    return json({ ok: false, error: "invalid_body" }, 400, { "cache-control": "no-store" });
+  }
+  await ensureOtayoriTable(env.CORE_DB);
+  const letterId = `otayori_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const senderName = session.displayName || session.userId;
+  await env.CORE_DB.prepare(
+    `INSERT INTO zukan_otayori_letters (
+      letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, 'received', NULL, NULL, ?, ?)`
+  ).bind(letterId, session.userId, senderName, rawBody, rawPath, now, now).run();
+  return json({ ok: true, letterId, status: "received", notifyUser: false }, 201, { "cache-control": "no-store" });
+}
+
+async function handleGetOtayoriRequest(request: Request, env: Env, letterId: string): Promise<Response> {
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  await ensureOtayoriTable(env.CORE_DB);
+  const row = await env.CORE_DB.prepare(
+    `SELECT letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
+       FROM zukan_otayori_letters
+      WHERE letter_id = ?
+      LIMIT 1`
+  ).bind(letterId).first<OtayoriLetterRow>();
+  if (!row) return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  if (row.user_id !== session.userId && !isSpecialistAuthorityAdminRole(session)) {
+    return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
+  return json({ ok: true, letter: row }, 200, { "cache-control": "no-store" });
+}
+
+async function handleUpdateOtayoriStatusRequest(request: Request, env: Env, letterId: string): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  if (!isSpecialistAuthorityAdminRole(session)) {
+    return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+  }
+  const body = await readJson<{ status?: unknown; replyText?: unknown }>(request);
+  const nextStatus = normalizeOtayoriStatus(body.status ?? (typeof body.replyText === "string" ? "replied" : ""));
+  if (!nextStatus) {
+    return json({ ok: false, error: "invalid_status" }, 400, { "cache-control": "no-store" });
+  }
+  await ensureOtayoriTable(env.CORE_DB);
+  const existing = await env.CORE_DB.prepare(
+    "SELECT letter_id, user_id, reply_text, replied_at FROM zukan_otayori_letters WHERE letter_id = ? LIMIT 1"
+  ).bind(letterId).first<{ letter_id: string; user_id: string; reply_text: string | null; replied_at: string | null }>();
+  if (!existing) {
+    return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
+  }
+  const now = new Date().toISOString();
+  const replyText = typeof body.replyText === "string" ? body.replyText.trim().slice(0, 2000) : existing.reply_text;
+  const notifyUser = shouldNotifyOtayoriStatus(nextStatus);
+  const repliedAt = notifyUser ? now : existing.replied_at;
+  await env.CORE_DB.prepare(
+    "UPDATE zukan_otayori_letters SET status = ?, reply_text = ?, replied_at = ?, updated_at = ? WHERE letter_id = ?"
+  ).bind(nextStatus, replyText, repliedAt, now, letterId).run();
+  return json({ ok: true, letterId, status: nextStatus, notifyUser }, 200, { "cache-control": "no-store" });
 }

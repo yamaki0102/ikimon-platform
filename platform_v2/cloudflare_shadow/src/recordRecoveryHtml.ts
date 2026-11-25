@@ -81,6 +81,8 @@ const COPY = {
     saved: `記録を保存しました（${getZukanSyncStatusLabel("delivered", "ja")}）。端末内の下書きも削除しました。`,
     retried: `メディアを同じ記録へ戻しました（${getZukanSyncStatusLabel("delivered", "ja")}）。端末内の下書きも削除しました。`,
     failed: `まだ保存できていません（${getZukanSyncStatusLabel("failed", "ja")}）。下書きは端末に残っているので（${getZukanSyncStatusLabel("queued", "ja")}）、通信状態を確認してもう一度保存してください。`,
+    offlineSaved: `圏外のためこの端末に保存しました（${getZukanSyncStatusLabel("queued", "ja")}）。電波が戻ったら同じ1件として送れます。`,
+    onlineReady: "電波が戻りました。「保存する」を押すと同じ1件として送信できます。",
     discarded: "下書きを破棄しました。",
   },
   en: {
@@ -730,8 +732,15 @@ export function renderCloudflareRecordRecoverySignedHtml(
     reveal("photo", copy.selected + " (" + recoveredFiles.length + ")");
     void eventMetric("event_photo_selected");
     try {
+      if (!pendingRetryTarget && !recoverySubmissionId) {
+        recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      }
+      if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
       await persistDraftProgress({
         ...(switchingFromVideo ? { preparedPhotoUploads: [], photoPreparationVersion: "webp2560-v1" } : {}),
+        recoverySubmissionId,
+        recoveryObservedAt,
+        clientSubmissionId: recoverySubmissionId ? recoverySubmissionId + "-cloudflare-record-recovery" : "",
         completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
         pendingMediaRetryVideoUid: "",
         pendingMediaRetryVideoUploadUrl: "",
@@ -753,7 +762,14 @@ export function renderCloudflareRecordRecoverySignedHtml(
     pendingVideoIdempotencyKey = newVideoUploadKey();
     reveal("video", copy.selected);
     try {
+      if (!pendingRetryTarget && !recoverySubmissionId) {
+        recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
+      }
+      if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
       await persistDraftProgress({
+        recoverySubmissionId,
+        recoveryObservedAt,
+        clientSubmissionId: recoverySubmissionId ? recoverySubmissionId + "-cloudflare-record-recovery" : "",
         preparedPhotoUploads: [],
         photoPreparationVersion: "webp2560-v1",
         completedPhotoIndexes: [],
@@ -841,6 +857,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
       await persistDraftProgress({
         recoverySubmissionId,
         recoveryObservedAt,
+        clientSubmissionId: recoverySubmissionId + "-cloudflare-record-recovery",
+        pendingOfflineUpload: navigator.onLine === false,
         pendingMediaRetryVisitId: pendingRetryTarget,
         completedPhotoIndexes: Array.from(completedPhotoIndexes).sort((a, b) => a - b),
         pendingMediaRetryVideoUid: pendingVideoUid,
@@ -848,6 +866,11 @@ export function renderCloudflareRecordRecoverySignedHtml(
         pendingMediaRetryVideoBodyUploaded: pendingVideoBodyUploaded,
         pendingMediaRetryVideoIdempotencyKey: pendingVideoIdempotencyKey,
       });
+      if (navigator.onLine === false) {
+        setStatus(copy.offlineSaved || "圏外のためこの端末に保存しました。電波が戻ったら同じ1件として送れます。", false);
+        if (saveButton) saveButton.disabled = false;
+        return;
+      }
       const observationId = recoverySubmissionId || ("record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8));
         let visitId = visitIdFromTarget(pendingRetryTarget);
         if (!isRetry) {
@@ -969,6 +992,8 @@ export function renderCloudflareRecordRecoverySignedHtml(
       await deleteDraft();
         recoveredFiles = [];
         pendingRetryTarget = "";
+        recoverySubmissionId = "";
+        recoveryObservedAt = "";
         setPanelState("saved", isRetry ? copy.retry : copy.ready, isRetry ? copy.retried : copy.saved);
         setStatus(isRetry ? copy.retried : copy.saved, false);
         if (isRetry) void eventMetric("event_retry_succeeded", { retry_kind: "upload" });
@@ -979,6 +1004,12 @@ export function renderCloudflareRecordRecoverySignedHtml(
         }
         if (saveButton) saveButton.disabled = false;
         setStatus(copy.failed, true);
+      }
+    });
+
+    window.addEventListener("online", () => {
+      if (recoveredFiles.length > 0 && recoverySubmissionId) {
+        setStatus(copy.onlineReady || "電波が戻りました。「保存する」を押すと同じ1件として送信できます。", false);
       }
     });
 

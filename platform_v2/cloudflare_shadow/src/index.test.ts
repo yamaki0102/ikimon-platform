@@ -34072,3 +34072,162 @@ test("withdrawal confirmation copy shows what disappears first and withdrawn pub
   assert.match(publicHtml, /公開が取り消されました/u);
   assert.doesNotMatch(publicHtml, /この観察はまだ取得できません|秘密のメモ|退会テスト/u);
 });
+
+test("otayori endpoints enforce 401/403 auth, server-side fields, 7 statuses, and reply-only notifications", async (t) => {
+  const { env, core } = createEnv();
+  const { DatabaseSync } = await import("node:sqlite");
+  const sqlite = new DatabaseSync(":memory:");
+  t.after(() => sqlite.close());
+  const coreProxy = new Proxy(core, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bzukan_otayori_letters\b/u.test(query)) {
+            let values: unknown[] = [];
+            const stmt = {
+              bind(...input: unknown[]) { values = input; return stmt; },
+              async run() {
+                if (query.trim().startsWith("CREATE TABLE")) {
+                  sqlite.exec(query);
+                  return { meta: { changes: 0 } };
+                }
+                return { meta: { changes: Number(sqlite.prepare(query).run(...values as never[]).changes) } };
+              },
+              async first<T>() { return (sqlite.prepare(query).get(...values as never[]) as T | undefined) ?? null; },
+              async all<T>() { return { results: sqlite.prepare(query).all(...values as never[]) as T[] }; },
+            };
+            return stmt;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  Object.assign(env, { CORE_DB: coreProxy });
+
+  const issue = async (userId: string, displayName: string, roleName?: string) => {
+    const res = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+      body: JSON.stringify({ userId, displayName, roleName, ttlHours: 1 })
+    }), env);
+    return res.headers.get("set-cookie") ?? "";
+  };
+  const userCookie = await issue("otayori-u1", "送信者1");
+  const otherCookie = await issue("otayori-u2", "他人");
+  const adminCookie = await issue("otayori-admin", "運営管理者", "admin");
+
+  // 401 without login
+  const unauthCreate = await worker.fetch(new Request("https://ikimon.life/api/v1/otayori", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ body: "テスト" })
+  }), env);
+  assert.equal(unauthCreate.status, 401);
+
+  // 201 create: ignores client-supplied letterId/status/senderName
+  const createRes = await worker.fetch(new Request("https://ikimon.life/api/v1/otayori", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: userCookie },
+    body: JSON.stringify({ letterId: "spoofed", status: "replied", senderName: "spoofed", body: "地図が見やすくなりました" })
+  }), env);
+  assert.equal(createRes.status, 201);
+  const created = await createRes.json() as { letterId: string; status: string; notifyUser: boolean };
+  assert.notEqual(created.letterId, "spoofed");
+  assert.equal(created.status, "received");
+  assert.equal(created.notifyUser, false);
+
+  // 403 for another user reading the letter
+  const otherGet = await worker.fetch(new Request(`https://ikimon.life/api/v1/otayori/${created.letterId}`, {
+    headers: { cookie: otherCookie }
+  }), env);
+  assert.equal(otherGet.status, 403);
+
+  // 403 for non-admin updating status
+  const nonAdminPatch = await worker.fetch(new Request(`https://ikimon.life/api/v1/otayori/${created.letterId}/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: userCookie },
+    body: JSON.stringify({ status: "replied", replyText: "勝手に返信" })
+  }), env);
+  assert.equal(nonAdminPatch.status, 403);
+
+  // Admin sets triaging -> notifyUser: false
+  const triageRes = await worker.fetch(new Request(`https://ikimon.life/api/v1/otayori/${created.letterId}/status`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: adminCookie },
+    body: JSON.stringify({ status: "triaging" })
+  }), env);
+  assert.equal(triageRes.status, 200);
+  assert.equal((await triageRes.json() as { notifyUser: boolean }).notifyUser, false);
+
+  // Admin replies -> notifyUser: true
+  const replyRes = await worker.fetch(new Request(`https://ikimon.life/api/v1/otayori/${created.letterId}/reply`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: adminCookie },
+    body: JSON.stringify({ status: "replied", replyText: "ありがとうございます！" })
+  }), env);
+  assert.equal(replyRes.status, 200);
+  assert.equal((await replyRes.json() as { notifyUser: boolean }).notifyUser, true);
+
+  // User page shows letter & reply
+  const pageRes = await worker.fetch(new Request("https://ikimon.life/ja/otayori", {
+    headers: { cookie: userCookie }
+  }), env);
+  assert.equal(pageRes.status, 200);
+  const pageHtml = await pageRes.text();
+  assert.match(pageHtml, /地図が見やすくなりました/u);
+  assert.match(pageHtml, /ありがとうございます！/u);
+  assert.match(pageHtml, /お返事あり/u);
+});
+
+test("account withdrawal I12 shows what disappears first, requires confirmation, and connects to observation hide/session deletion", async () => {
+  const { env } = createEnv();
+  await env.ASSET_BUCKET.put("original-ui/html/ja/profile/settings.html", "<!doctype html><html><head><title>settings</title></head><body><main>materialized</main></body></html>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const issueRes = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ userId: "withdraw-i12-user", displayName: "退会太郎", ttlHours: 1 })
+  }), env);
+  const cookie = issueRes.headers.get("set-cookie") ?? "";
+
+  // Settings page renders form wired to /api/v1/account/withdraw
+  const settingsRes = await worker.fetch(new Request("https://ikimon.life/ja/profile/settings", {
+    headers: { cookie }
+  }), env);
+  assert.equal(settingsRes.status, 200);
+  const settingsHtml = await settingsRes.text();
+  assert.match(settingsHtml, /action="\/api\/v1\/account\/withdraw"/u);
+  assert.match(settingsHtml, /data-withdrawal-ack/u);
+  assert.match(settingsHtml, /data-withdrawal-submit/u);
+
+  // 401 without login
+  const unauthRes = await worker.fetch(new Request("https://ikimon.life/api/v1/account/withdraw", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ acknowledged: true })
+  }), env);
+  assert.equal(unauthRes.status, 401);
+
+  // 400 without acknowledgement
+  const unackedRes = await worker.fetch(new Request("https://ikimon.life/api/v1/account/withdraw", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie },
+    body: JSON.stringify({ acknowledged: false })
+  }), env);
+  assert.equal(unackedRes.status, 400);
+
+  // 200 with acknowledgement (ignores any spoofed userId in body)
+  const withdrawRes = await worker.fetch(new Request("https://ikimon.life/api/v1/account/withdraw", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie },
+    body: JSON.stringify({ acknowledged: true, userId: "other-user-id" })
+  }), env);
+  assert.equal(withdrawRes.status, 200);
+  const payload = await withdrawRes.json() as { ok: boolean; withdrawn: boolean };
+  assert.equal(payload.ok, true);
+  assert.equal(payload.withdrawn, true);
+  assert.match(withdrawRes.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970/u);
+});
