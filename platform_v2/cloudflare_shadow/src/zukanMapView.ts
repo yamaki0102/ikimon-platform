@@ -7,7 +7,26 @@ type PlacePinRow = {
   name: string;
   lat: number | null;
   lng: number | null;
+  record_count?: number | null;
+  photo_asset_id?: string | null;
 };
+
+const PUBLIC_MEMBERSHIP_FILTER = `m.place_id = p.place_id
+                 AND m.membership_state = 'confirmed'
+                 AND m.public_precision = 'place'
+                 AND m.removed_at IS NULL
+                 AND o.visibility = 'public'
+                 AND COALESCE(o.emergency_hidden, 0) = 0`;
+
+const PLACE_CARD_COLUMNS = `,
+            (SELECT COUNT(*) FROM record_place_memberships m
+               JOIN observations o ON o.observation_id = m.record_id
+              WHERE ${PUBLIC_MEMBERSHIP_FILTER}) AS record_count,
+            (SELECT a.asset_id FROM record_place_memberships m
+               JOIN observations o ON o.observation_id = m.record_id
+               JOIN asset_ledger a ON a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed'
+              WHERE ${PUBLIC_MEMBERSHIP_FILTER}
+              ORDER BY o.observed_at DESC LIMIT 1) AS photo_asset_id`;
 
 type SessionLike = {
   userId: string;
@@ -27,10 +46,10 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
   const minLng = parseOptionalCoordParam(url, "minLng");
   const maxLng = parseOptionalCoordParam(url, "maxLng");
 
-  const base = `SELECT p.place_id AS place_id,
+  const buildBase = (cardColumns: string) => `SELECT p.place_id AS place_id,
             p.canonical_name AS name,
             (b.bbox_south + b.bbox_north) / 2.0 AS lat,
-            (b.bbox_west + b.bbox_east) / 2.0 AS lng
+            (b.bbox_west + b.bbox_east) / 2.0 AS lng${cardColumns}
        FROM places p
        JOIN place_boundaries b
          ON b.boundary_id = (
@@ -45,9 +64,7 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
                LIMIT 1)
       WHERE p.public_profile_status = 'published'
         AND p.superseded_by_place_id IS NULL`;
-  let rows: PlacePinRow[] = [];
-  try {
-    rows =
+  const run = async (base: string): Promise<PlacePinRow[]> =>
       minLat !== null && maxLat !== null && minLng !== null && maxLng !== null
         ? (
             await db
@@ -61,9 +78,17 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
               .all<PlacePinRow>()
           ).results ?? []
         : (await db.prepare(`${base} LIMIT 100`).all<PlacePinRow>()).results ?? [];
-  } catch (error) {
-    console.error("map places query failed", error);
-    rows = [];
+  let rows: PlacePinRow[] = [];
+  try {
+    rows = await run(buildBase(PLACE_CARD_COLUMNS));
+  } catch (cardError) {
+    console.error("map places card query failed; falling back to bare places", cardError);
+    try {
+      rows = await run(buildBase(""));
+    } catch (error) {
+      console.error("map places query failed", error);
+      rows = [];
+    }
   }
 
   return rows.map((row) => ({
@@ -71,6 +96,8 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
     name: row.name,
     lat: row.lat,
     lng: row.lng,
+    recordCount: Number(row.record_count ?? 0) || 0,
+    photoAssetId: row.photo_asset_id ?? null,
   }));
 }
 
