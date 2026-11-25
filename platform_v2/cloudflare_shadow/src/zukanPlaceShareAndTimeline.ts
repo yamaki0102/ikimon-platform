@@ -48,12 +48,18 @@ export async function loadPlaceFixedPointFrames(
          o.observation_id,
          a.asset_id,
          o.observed_at
-       FROM observations o
+       FROM record_place_memberships m
+       JOIN observations o
+         ON o.observation_id = m.record_id
        JOIN asset_ledger a
          ON a.observation_id = o.observation_id
         AND a.exif_scrub_state = 'scrubbed'
-       WHERE o.place_id = ?
+WHERE m.place_id = ?
+         AND m.membership_state = 'confirmed'
+         AND m.public_precision = 'place'
+         AND m.removed_at IS NULL
          AND o.visibility = 'public'
+         AND COALESCE(o.emergency_hidden, 0) = 0
        ORDER BY o.observed_at ASC
        LIMIT 60`
     )

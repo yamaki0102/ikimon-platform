@@ -19,7 +19,7 @@ test("loadPlacePublicRecordsAndPhotos queries only public observations for the p
                 results: [
                   {
                     observation_id: "obs_pub_1",
-                    vernacular_name: "アゲハ",
+                    taxon_label: "アゲハ",
                     observed_at: "2026-11-20T09:00:00Z",
                     asset_id: "asset_1",
                   },
