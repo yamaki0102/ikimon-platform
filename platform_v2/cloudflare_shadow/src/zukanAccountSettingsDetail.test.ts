@@ -85,5 +85,11 @@ test("I8-I9-I11 settings pages render edit, notifications, and account views in 
     assert.match(html, /class="zt-shell"/);
     assert.match(html, /data-profile-view="i8-i9-i11"/);
     assert.match(html, new RegExp(`data-settings-section="${section}"`));
+    if (section === "account") {
+      assert.match(html, /そのほか/);
+      assert.ok(html.includes('href="/ja/terms"'));
+      assert.ok(html.includes('href="/ja/privacy"'));
+      assert.match(html, /退会する/);
+    }
   }
 });

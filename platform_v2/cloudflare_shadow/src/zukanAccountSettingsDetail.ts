@@ -199,6 +199,12 @@ export async function handleAccountSettingsDetailRoute(
       ${linkRow(`/${lang}/profile/public-settings`, "公開範囲の設定", "プロフィールを公開するかどうか")}
       ${linkRow(`/${lang}/profile/linked-saved`, "つないだ先・保存したもの", "保存した場所やイベント")}
       ${linkRow(`/${lang}/profile/settings`, "表示言語・退会", "言語の切り替えと退会の確認")}
+    </ul>
+    <h2 class="zt-sp-title" style="font-size:1.125rem;margin:20px 0 0">そのほか</h2>
+    <ul class="zt-sp-list">
+      ${linkRow(`/${lang}/terms`, "利用規約", "ご利用にあたってのお約束")}
+      ${linkRow(`/${lang}/privacy`, "プライバシーポリシー", "写真や位置の扱い")}
+      ${linkRow(`/${lang}/profile/settings`, "退会する", "記録とアカウントを消します")}
     </ul>`;
   }
 
