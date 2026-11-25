@@ -115,6 +115,11 @@ import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
+  handleCreatePlaceProposal,
+  handlePlaceNearbyApi,
+  handlePlaceProposeOrNearbyRoute,
+} from "./zukanPlaceProposalsAndNearby";
+import {
   createFixedPointStationRecord,
   listFixedPointsAndRecordsForPlace,
   loadFixedPointStationById,
@@ -4378,6 +4383,25 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const placeProposalApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/proposals$/);
+      if (request.method === "POST" && placeProposalApiMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleCreatePlaceProposal(decodeURIComponent(placeProposalApiMatch[1]), request, session, env);
+      }
+
+      const placeNearbyApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/nearby$/);
+      if (request.method === "GET" && placeNearbyApiMatch?.[1]) {
+        return handlePlaceNearbyApi(decodeURIComponent(placeNearbyApiMatch[1]), env.OBS_DB);
+      }
+
+      const placeProposeNearbyMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(propose|nearby)$/);
+      if (request.method === "GET" && placeProposeNearbyMatch?.[2] && placeProposeNearbyMatch?.[3]) {
+        const viewLang = (placeProposeNearbyMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const tab = placeProposeNearbyMatch[3] as "propose" | "nearby";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceProposeOrNearbyRoute(decodeURIComponent(placeProposeNearbyMatch[2]), tab, viewLang, session, env.OBS_DB);
       }
 
       const observationCommentMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/comments$/);
