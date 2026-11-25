@@ -30,6 +30,12 @@ import {
   handleUploadGuestObservationPhoto,
 } from "./guestObservationPost";
 import {
+  handleGetEventGuestPhoto,
+  handleListEventGuestObservations,
+  handleOrganizerRemoveGuestObservation,
+  handleSetGuestObservationShareScope,
+} from "./guestEventShare";
+import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
   shouldNotifyOtayoriStatus,
@@ -3794,6 +3800,51 @@ export const worker = {
       const guestObsPhotoMatch = url.pathname.match(/^\/api\/v1\/guest\/observations\/([^/]+)\/photos$/);
       if (request.method === "POST" && guestObsPhotoMatch?.[1]) {
         return handleUploadGuestObservationPhoto(decodeURIComponent(guestObsPhotoMatch[1]), request, env);
+      }
+
+      const guestShareScopeMatch = url.pathname.match(/^\/api\/v1\/guest\/observations\/([^/]+)\/share-scope$/);
+      if (request.method === "POST" && guestShareScopeMatch?.[1]) {
+        return handleSetGuestObservationShareScope(decodeURIComponent(guestShareScopeMatch[1]), request, env);
+      }
+
+      const eventGuestObsListMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/guest-observations$/);
+      if (request.method === "GET" && eventGuestObsListMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleListEventGuestObservations(decodeURIComponent(eventGuestObsListMatch[1]), request, env, {
+          sessionUserId: session && !session.banned ? session.userId : null,
+          isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
+        });
+      }
+
+      const eventGuestPhotoMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/guest-observations\/([^/]+)\/photos\/([^/]+)$/);
+      if (request.method === "GET" && eventGuestPhotoMatch?.[1] && eventGuestPhotoMatch?.[2] && eventGuestPhotoMatch?.[3]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleGetEventGuestPhoto(
+          decodeURIComponent(eventGuestPhotoMatch[1]),
+          decodeURIComponent(eventGuestPhotoMatch[2]),
+          decodeURIComponent(eventGuestPhotoMatch[3]),
+          request,
+          env,
+          {
+            sessionUserId: session && !session.banned ? session.userId : null,
+            isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
+          }
+        );
+      }
+
+      const eventGuestRemoveMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/guest-observations\/([^/]+)\/remove$/);
+      if (request.method === "POST" && eventGuestRemoveMatch?.[1] && eventGuestRemoveMatch?.[2]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleOrganizerRemoveGuestObservation(
+          decodeURIComponent(eventGuestRemoveMatch[1]),
+          decodeURIComponent(eventGuestRemoveMatch[2]),
+          request,
+          env,
+          {
+            sessionUserId: session && !session.banned ? session.userId : null,
+            isAdmin: Boolean(session && !session.banned && isSpecialistAuthorityAdminRole(session)),
+          }
+        );
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
