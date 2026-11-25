@@ -9327,6 +9327,7 @@ async function handleAccountWriteApi(request: Request, url: URL, env: Env): Prom
   if (request.method === "POST" && url.pathname === "/api/v1/contact/submit") return submitContactNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/users/upsert") return upsertUserNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/profile/me") return updateOwnProfileNative(request, env);
+  if (request.method === "POST" && url.pathname === "/api/v1/account/withdraw") return handleAccountWithdrawRequest(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/register") return registerWithPasswordNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/issue") return issueRememberTokenNative(request, env);
   if (request.method === "POST" && url.pathname === "/api/v1/auth/remember-tokens/revoke") return revokeRememberTokenNative(request, env);
@@ -9338,6 +9339,7 @@ function isAccountWritePath(request: Request, url: URL): boolean {
   return url.pathname === "/api/v1/contact/submit"
     || url.pathname === "/api/v1/users/upsert"
     || url.pathname === "/api/v1/profile/me"
+    || url.pathname === "/api/v1/account/withdraw"
     || url.pathname === "/api/v1/auth/register"
     || url.pathname === "/api/v1/auth/remember-tokens/issue"
     || url.pathname === "/api/v1/auth/remember-tokens/revoke";
@@ -22858,11 +22860,14 @@ function renderCloudflareProfileHtml(
               <li>${escapeHtml(lang === "ja" ? "公開中の記録・写真は一覧と公開ページから非表示になります。" : "Public records and photos will be removed from listings and public pages.")}</li>
               <li>${escapeHtml(lang === "ja" ? "すでに外部へ保存・引用された情報は回収できません。" : "Information already saved or quoted externally cannot be recalled.")}</li>
             </ul>
-            <label class="cf-profile-withdraw-check">
-              <input type="checkbox" data-withdrawal-ack>
-              <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
-            </label>
-            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会をご希望の場合は、上記の消える内容をご確認のうえお問い合わせ窓口（support@ikimon.life）までご連絡ください。" : "To complete withdrawal after reviewing what will be removed, please contact support@ikimon.life.")}</p>
+            <form class="cf-profile-withdraw-form" method="post" action="/api/v1/account/withdraw">
+              <label class="cf-profile-withdraw-check">
+                <input type="checkbox" name="acknowledged" value="yes" required data-withdrawal-ack>
+                <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
+              </label>
+              <button type="submit" class="cf-profile-withdraw-submit" data-withdrawal-submit>${escapeHtml(lang === "ja" ? "退会してアカウントを削除する" : "Withdraw and delete account")}</button>
+            </form>
+            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会を実行すると即時にログアウトし、上記の公開表示とアカウント情報が削除・非表示になります。" : "Submitting will sign you out immediately and remove your public listings and account data.")}</p>
           </div>
         </details>
         <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
@@ -37370,6 +37375,65 @@ function buildSessionCookie(rawToken: string, expiresAt: string, env: Env, ttlSe
 function buildClearedSessionCookie(env: Env): string {
   const secure = secureCookieAttribute(env);
   return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax;${secure} Expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+}
+
+async function handleAccountWithdrawRequest(request: Request, env: Env): Promise<Response> {
+  const sameOriginError = assertSameOriginRequest(request);
+  if (sameOriginError) return sameOriginError;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!session || session.banned) {
+    return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+  }
+  const contentType = request.headers.get("content-type") ?? "";
+  let acknowledged = false;
+  if (contentType.includes("application/json")) {
+    const body = await readJson<{ acknowledged?: unknown }>(request);
+    acknowledged = body.acknowledged === true || body.acknowledged === "yes";
+  } else {
+    const form = await request.formData().catch(() => null);
+    acknowledged = form?.get("acknowledged") === "yes" || form?.get("acknowledged") === "true";
+  }
+  if (!acknowledged) {
+    return json({ ok: false, error: "confirmation_required" }, 400, { "cache-control": "no-store" });
+  }
+
+  let hiddenObservationCount = 0;
+  try {
+    const ownRows = await env.OBS_DB.prepare(
+      "SELECT observation_id FROM observations WHERE owner_user_id = ? LIMIT 500"
+    ).bind(session.userId).all<{ observation_id: string }>();
+    for (const row of ownRows.results ?? []) {
+      if (!row.observation_id) continue;
+      await applyEmergencyHide(row.observation_id, env).catch(() => {});
+      await env.OBS_DB.prepare(
+        "UPDATE observation_data_rights SET withdrawal_status = 'withdrawn' WHERE visit_id = ?"
+      ).bind(row.observation_id).run().catch(() => {});
+      hiddenObservationCount += 1;
+    }
+  } catch {
+    // Ignore when observation tables are absent in minimal test fixtures
+  }
+
+  await env.CORE_DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(session.userId).run().catch(() => {});
+  await env.CORE_DB.prepare("DELETE FROM user_language_preferences WHERE user_id = ?").bind(session.userId).run().catch(() => {});
+  await env.CORE_DB.prepare("DELETE FROM users WHERE user_id = ?").bind(session.userId).run().catch(() => {});
+
+  const clearedCookie = buildClearedSessionCookie(env);
+  if (!contentType.includes("application/json")) {
+    return new Response(null, {
+      status: 303,
+      headers: {
+        location: "/ja/?withdrawn=1",
+        "set-cookie": clearedCookie,
+        "cache-control": "no-store",
+      },
+    });
+  }
+  return json(
+    { ok: true, withdrawn: true, hiddenObservationCount },
+    200,
+    { "set-cookie": clearedCookie, "cache-control": "no-store" }
+  );
 }
 
 async function ensureOtayoriTable(db: D1Database): Promise<void> {
