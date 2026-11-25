@@ -34180,3 +34180,54 @@ test("otayori endpoints enforce 401/403 auth, server-side fields, 7 statuses, an
   assert.match(pageHtml, /ありがとうございます！/u);
   assert.match(pageHtml, /お返事あり/u);
 });
+
+test("account withdrawal I12 shows what disappears first, requires confirmation, and connects to observation hide/session deletion", async () => {
+  const { env } = createEnv();
+  await env.ASSET_BUCKET.put("original-ui/html/ja/profile/settings.html", "<!doctype html><html><head><title>settings</title></head><body><main>materialized</main></body></html>", {
+    httpMetadata: { contentType: "text/html; charset=utf-8" }
+  });
+  const issueRes = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ userId: "withdraw-i12-user", displayName: "退会太郎", ttlHours: 1 })
+  }), env);
+  const cookie = issueRes.headers.get("set-cookie") ?? "";
+
+  // Settings page renders form wired to /api/v1/account/withdraw
+  const settingsRes = await worker.fetch(new Request("https://ikimon.life/ja/profile/settings", {
+    headers: { cookie }
+  }), env);
+  assert.equal(settingsRes.status, 200);
+  const settingsHtml = await settingsRes.text();
+  assert.match(settingsHtml, /action="\/api\/v1\/account\/withdraw"/u);
+  assert.match(settingsHtml, /data-withdrawal-ack/u);
+  assert.match(settingsHtml, /data-withdrawal-submit/u);
+
+  // 401 without login
+  const unauthRes = await worker.fetch(new Request("https://ikimon.life/api/v1/account/withdraw", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ acknowledged: true })
+  }), env);
+  assert.equal(unauthRes.status, 401);
+
+  // 400 without acknowledgement
+  const unackedRes = await worker.fetch(new Request("https://ikimon.life/api/v1/account/withdraw", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie },
+    body: JSON.stringify({ acknowledged: false })
+  }), env);
+  assert.equal(unackedRes.status, 400);
+
+  // 200 with acknowledgement (ignores any spoofed userId in body)
+  const withdrawRes = await worker.fetch(new Request("https://ikimon.life/api/v1/account/withdraw", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie },
+    body: JSON.stringify({ acknowledged: true, userId: "other-user-id" })
+  }), env);
+  assert.equal(withdrawRes.status, 200);
+  const payload = await withdrawRes.json() as { ok: boolean; withdrawn: boolean };
+  assert.equal(payload.ok, true);
+  assert.equal(payload.withdrawn, true);
+  assert.match(withdrawRes.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970/u);
+});
