@@ -26531,15 +26531,17 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     const degrees = Number(form.get("degrees") ?? 90);
     if (![90, 180, 270].includes(degrees)) return json({ ok: false, error: "media_rotation_input_invalid" }, 400, { "cache-control": "no-store" });
     const mediaAsset = await env.OBS_DB.prepare(
-      `SELECT asset_id, object_key, sha256, mime, display_rotation, public_derivative_metadata_json
-         FROM asset_ledger
-        WHERE asset_id = ? AND observation_id = ? AND owner_user_id = ? AND mime LIKE 'image/%' LIMIT 1`
+      `SELECT a.asset_id, a.object_key, a.sha256, a.mime, r.rotation AS display_rotation, a.public_derivative_metadata_json
+         FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id
+        WHERE a.asset_id = ? AND a.observation_id = ? AND a.owner_user_id = ? AND a.mime LIKE 'image/%' LIMIT 1`
     ).bind(String(form.get("media_id") ?? ""), recordId, session.userId)
       .first<UploadedAssetRow & { display_rotation: number | null; public_derivative_metadata_json: string | null }>();
     if (!mediaAsset) return json({ ok: false, error: "media_rotation_target_invalid" }, 400, { "cache-control": "no-store" });
     const previousRotation = normalizeDisplayRotation(mediaAsset.display_rotation);
-    await env.OBS_DB.prepare("UPDATE asset_ledger SET display_rotation = ? WHERE asset_id = ?")
-      .bind(addDisplayRotation(previousRotation, degrees), mediaAsset.asset_id).run();
+    const saveRotation = (rotation: number) => env.OBS_DB.prepare(
+      "INSERT INTO asset_display_rotation (asset_id, rotation, updated_at) VALUES (?, ?, ?) ON CONFLICT(asset_id) DO UPDATE SET rotation = excluded.rotation, updated_at = excluded.updated_at"
+    ).bind(mediaAsset.asset_id, rotation, new Date().toISOString()).run();
+    await saveRotation(addDisplayRotation(previousRotation, degrees));
     let priorFacePrivacy: string | null = null;
     try {
       const parsed: unknown = JSON.parse(mediaAsset.public_derivative_metadata_json ?? "");
@@ -26547,7 +26549,7 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     } catch { /* metadata absent */ }
     const rebuilt = await createRealPublicImageDerivative(mediaAsset, env, { preserveExistingOnFailure: true, priorFacePrivacy }).catch(() => false);
     if (!rebuilt) {
-      await env.OBS_DB.prepare("UPDATE asset_ledger SET display_rotation = ? WHERE asset_id = ?").bind(previousRotation, mediaAsset.asset_id).run();
+      await saveRotation(previousRotation);
       return json({ ok: false, error: "media_rotation_failed" }, 502, { "cache-control": "no-store" });
     }
     await refreshPublicReadmodel(recordId, env);
@@ -35066,7 +35068,7 @@ async function createRealPublicImageDerivative(
   const originalView = new Uint8Array(originalBytes);
   const exifOrientation = readJpegExifOrientation(originalView);
   const rawSize = readJpegDimensions(originalView) ?? { width: Number(originalInfo.width ?? 0), height: Number(originalInfo.height ?? 0) };
-  const rotationRow = await env.OBS_DB.prepare("SELECT display_rotation FROM asset_ledger WHERE asset_id = ?")
+  const rotationRow = await env.OBS_DB.prepare("SELECT a.asset_id, r.rotation AS display_rotation FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id WHERE a.asset_id = ?")
     .bind(asset.asset_id).first<{ display_rotation: number | null }>().catch(() => null);
   const displayRotation = normalizeDisplayRotation(rotationRow?.display_rotation);
   const orientationPlan = planDerivativeOrientation({

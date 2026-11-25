@@ -1,1 +1,0 @@
-ALTER TABLE asset_ledger ADD COLUMN display_rotation INTEGER NOT NULL DEFAULT 0;

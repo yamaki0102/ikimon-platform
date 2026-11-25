@@ -60,4 +60,4 @@ if (regenerate.length > 0) {
   console.log("-- NOT EXECUTED. Re-derive through the scheduled public derivative upgrade (the new derivative code corrects the orientation):");
   console.log(`UPDATE asset_ledger SET public_derivative_metadata_json = json_remove(public_derivative_metadata_json, '$.inspectionVersion') WHERE asset_id IN (${regenerate.map((id) => `'${id}'`).join(", ")});`);
 }
-console.log("-- no_exif_orientation rows cannot be inferred: the stored pixels themselves may be sideways. The owner fixes those with the per-photo rotate button in record settings (stored in asset_ledger.display_rotation).");
+console.log("-- no_exif_orientation rows cannot be inferred: the stored pixels themselves may be sideways. The owner fixes those with the per-photo rotate button in record settings (stored in asset_display_rotation).");

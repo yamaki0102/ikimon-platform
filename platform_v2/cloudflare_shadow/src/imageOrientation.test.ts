@@ -80,3 +80,13 @@ test("backfill classification flags only derivatives that ignored an axis-swappi
   assert.equal(classifyOrientationBackfill({ ...base, exifOrientation: 1, derivativeWidth: 1600, derivativeHeight: 1200 }), "no_exif_orientation");
   assert.equal(classifyOrientationBackfill({ rawWidth: 3000, rawHeight: 3000, exifOrientation: 6, derivativeWidth: 1200, derivativeHeight: 1200 }), "ok");
 });
+
+test("rotation migration only creates a new table and the app never alters asset_ledger for it", async () => {
+  const { readFileSync } = await import("node:fs");
+  const sql = readFileSync(new URL("../migrations/observations/0087_asset_display_rotation.sql", import.meta.url), "utf8");
+  assert.match(sql, /^CREATE TABLE IF NOT EXISTS asset_display_rotation \(asset_id TEXT PRIMARY KEY, rotation INTEGER NOT NULL DEFAULT 0 CHECK \(rotation IN \(0,90,180,270\)\), updated_at TEXT NOT NULL\);\s*$/);
+  assert.doesNotMatch(sql, /ALTER|ON CONFLICT/i);
+  const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.match(source, /ON CONFLICT\(asset_id\) DO UPDATE SET rotation = excluded\.rotation/);
+  assert.doesNotMatch(source, /asset_ledger SET display_rotation/);
+});
