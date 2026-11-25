@@ -28,14 +28,26 @@ function setupDb(t: test.TestContext) {
   sqlite.exec(`
     CREATE TABLE places (
       place_id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      lat REAL,
-      lng REAL,
-      visibility TEXT NOT NULL DEFAULT 'public'
+      canonical_name TEXT NOT NULL,
+      public_profile_status TEXT NOT NULL DEFAULT 'draft',
+      superseded_by_place_id TEXT
+    );
+    CREATE TABLE place_boundaries (
+      boundary_id TEXT PRIMARY KEY,
+      place_id TEXT NOT NULL,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      boundary_version INTEGER NOT NULL DEFAULT 1,
+      valid_to TEXT,
+      superseded_by_boundary_id TEXT,
+      bbox_west REAL, bbox_south REAL, bbox_east REAL, bbox_north REAL
     );
   `);
-  sqlite.prepare("INSERT INTO places (place_id, name, lat, lng, visibility) VALUES (?, ?, ?, ?, 'public')").run("p-pub", "佐鳴湖公園", 34.71, 137.72);
-  sqlite.prepare("INSERT INTO places (place_id, name, lat, lng, visibility) VALUES (?, ?, ?, ?, 'private')").run("p-priv", "非公開場所", 34.71, 137.72);
+  const ins = sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, ?)");
+  const bnd = sqlite.prepare("INSERT INTO place_boundaries (boundary_id, place_id, is_primary, bbox_west, bbox_south, bbox_east, bbox_north) VALUES (?, ?, 1, ?, ?, ?, ?)");
+  ins.run("p-pub", "佐鳴湖公園", "published");
+  bnd.run("b1", "p-pub", 137.71, 34.70, 137.73, 34.72);
+  ins.run("p-priv", "非公開場所", "draft");
+  bnd.run("b2", "p-priv", 137.71, 34.70, 137.73, 34.72);
   return sqliteObsDb(sqlite);
 }
 
@@ -68,4 +80,17 @@ test("G4-G6 map filters page renders filter bar, G5 location-denied state, G6 ph
   assert.match(html, /zt-map-photo-pin/);
   assert.match(html, /zt-map-feedback-btn/);
   assert.match(html, /佐鳴湖公園/);
+});
+
+test("pins API and filters page degrade to empty when the query fails", async () => {
+  const broken = {
+    prepare() {
+      throw new Error("no such column");
+    },
+  } as unknown as Env["OBS_DB"];
+  const api = await handleMapFilteredPinsApi(new URL("https://ikimon.life/api/v1/map/filtered-pins"), broken);
+  assert.equal(api.status, 200);
+  assert.deepEqual(((await api.json()) as { pins: unknown[] }).pins, []);
+  const page = await handleMapFiltersRoute(new URL("https://ikimon.life/ja/map/filters"), "ja", null, broken);
+  assert.equal(page.status, 200);
 });
