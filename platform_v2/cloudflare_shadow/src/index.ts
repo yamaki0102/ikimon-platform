@@ -100,6 +100,7 @@ import {
   renderCloudflareRecordRecoverySignedHtml,
   resolveCloudflareRecordRecoveryState
 } from "./recordRecoveryHtml";
+import { getZukanSyncStatusLabel } from "./syncStatusLabels";
 import { isObsoleteInteractiveGeminiResult, loadOwnerObservationProcessingStatusFromD1 } from "./ownerObservationProcessingStatus";
 import { inspectPublicDerivativeMetadata } from "./publicDerivativeMetadata";
 import { containsDiscoveryPersonalInformation } from "./eventDiscoveryPrivacy";
@@ -21915,12 +21916,12 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       privateBoundary: "保存した記録は非公開です。公開する場合は、保存後に公開範囲を別途選びます。",
       preparing: "写真を送信用に整えています...",
       uploading: "写真を送信しています...",
-      saving: "保存中です...",
-      saved: "記録を保存しました",
+      saving: `${getZukanSyncStatusLabel("saving", "ja")}です...`,
+      saved: `記録を保存しました（${getZukanSyncStatusLabel("delivered", "ja")}）`,
       photoSaved: "枚の写真を同じ記録に保存しました。",
       videoSaved: "動画は保存済みです。",
       missingMedia: "写真または動画を選択してください。",
-      failed: "写真はまだ保存されていません。選択したまま、もう一度保存してください。"
+      failed: `写真はまだ保存されていません（${getZukanSyncStatusLabel("failed", "ja")}）。選択したまま、もう一度保存してください。`
     }
     : {
       camera: "Take photo",
@@ -35042,7 +35043,7 @@ form.addEventListener('submit', async (event) => {
   jsonEl.textContent = '';
   const observationId = document.getElementById('observation-id').value.trim();
   const userId = document.getElementById('user-id').value.trim();
-  setStatus('保存中...', 'status');
+  setStatus('${getZukanSyncStatusLabel("saving", "ja")}...', 'status');
   try {
     const observationResponse = await fetch('/api/v1/observations/upsert', {
       method: 'POST',
