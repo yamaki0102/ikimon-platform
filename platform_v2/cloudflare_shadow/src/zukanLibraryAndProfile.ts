@@ -17,6 +17,7 @@ export function renderZukanCommonShell(options: {
   searchQuery?: string;
   bodyHtml: string;
   pathname?: string;
+  extraCss?: string;
 }): string {
   const chrome = renderZukanChrome(options);
   return `<!doctype html>
@@ -25,7 +26,7 @@ export function renderZukanCommonShell(options: {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${escapeHtml(options.title)} — ZUKAN</title>
-  <style>${ZUKAN_SHELL_CSS}${ZUKAN_LIBRARY_CSS}</style>
+  <style>${ZUKAN_SHELL_CSS}${ZUKAN_LIBRARY_CSS}${options.extraCss ?? ""}</style>
 </head>
 <body>
   <div class="zt-shell">
@@ -59,7 +60,7 @@ export function renderZukanLibraryPage(
   const groupsHtml = data.libraryGroups.length > 0
     ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "library" })
     : renderLibraryEmpty({ prefix, isEn });
-  const pairHtml = data.oneYearPair && data.oneYearPair.photos.length > 0 ? renderYearPairCard(data.oneYearPair, isEn) : "";
+  const pairHtml = data.oneYearPair && data.oneYearPair.photos.length > 0 ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
   const bodyHtml = `<h1 class="zt-sr-only">${isEn ? "Library" : "ライブラリ"}</h1>
     ${options.noticeHtml ?? ""}
     ${pairHtml}

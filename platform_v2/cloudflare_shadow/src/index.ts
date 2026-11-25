@@ -7,7 +7,8 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import { findYearAgoSamePlaceObservations } from "./zukanLibraryComparisonAndSelect";
-import { resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { renderZukanInviteNotFoundPage, renderZukanWelcomeAndInvitePage, resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { handleLibraryDetailRoute } from "./zukanLibraryDetail";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
@@ -3809,6 +3810,38 @@ export const worker = {
         const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
         const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/library/group" || nativePathname === "/library/year-ago")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        const detail = await handleLibraryDetailRoute(env, session, lang, nativePathname, url.searchParams);
+        if (detail) return detail;
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/welcome") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
+        const step = Number(url.searchParams.get("step") ?? "1");
+        return html(renderZukanWelcomeAndInvitePage({ mode: "onboarding", lang, step: Number.isFinite(step) ? step : 1, authenticated: Boolean(session && !session.banned) }), 200, { "cache-control": "private, no-store" });
+      }
+
+      const inviteMatch = nativePathname.match(/^\/invite\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && inviteMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
+        const resolved = await resolveInviteTarget(env.OBS_DB, decodeURIComponent(inviteMatch[1]));
+        if (!resolved.ok) {
+          return html(renderZukanInviteNotFoundPage(lang), 404, { "cache-control": "no-store" });
+        }
+        return html(renderZukanWelcomeAndInvitePage({
+          mode: resolved.kind === "event" ? "event_invite" : "place_invite",
+          lang,
+          targetTitle: resolved.title,
+          targetSubtitle: resolved.kind === "event" ? undefined : resolved.subtitle,
+          targetHref: lang === "en" ? resolved.targetHref.replace(/^\/ja\//, "/en/") : resolved.targetHref,
+          authenticated: Boolean(session && !session.banned),
+        }), 200, { "cache-control": "private, no-store" });
       }
 
       if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
