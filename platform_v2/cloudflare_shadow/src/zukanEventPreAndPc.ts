@@ -1,14 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
-
-type EventSessionRow = {
-  session_id: string;
-  title: string;
-  organizer_user_id: string;
-  place_id: string | null;
-  started_at: string;
-};
+import { ZUKAN_EVENT_CSS, eventTiming, loadEventCore, phaseChip, renderEventFacts, renderEventHero, EVENT_ICON_SHARE } from "./zukanEventUi";
 
 type SessionLike = {
   userId: string;
@@ -22,9 +15,7 @@ export async function handleEventPreAndPcRoute(
   session: SessionLike,
   db: Env["OBS_DB"]
 ): Promise<Response> {
-  const event = await db.prepare(
-    "SELECT session_id, title, organizer_user_id, place_id, started_at FROM observation_event_sessions WHERE session_id = ? LIMIT 1"
-  ).bind(eventId).first<EventSessionRow>();
+  const event = await loadEventCore(db, eventId);
   if (!event) {
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
@@ -32,28 +23,46 @@ export async function handleEventPreAndPcRoute(
   const isEn = lang === "en";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
-  const placeHref = event.place_id
-    ? `${prefix}/places/${encodeURIComponent(event.place_id)}`
-    : `${prefix}/map`;
+  const encodedEvent = encodeURIComponent(eventId);
+  const timing = eventTiming(event, lang);
+  const placeHref = event.placeId ? `${prefix}/places/${encodeURIComponent(event.placeId)}` : null;
+  const peopleLabel = event.participants !== null && event.participants > 0 ? (isEn ? `${event.participants} joining` : `参加予定 ${event.participants}人`) : "";
+  const facts: Array<[string, string]> = [[isEn ? "When" : "日時", timing.whenLabel]];
+  if (event.placeLabel) facts.push([isEn ? "Place" : "場所", event.placeLabel]);
+  if (event.organizerLabel) facts.push([isEn ? "Host" : "主催", event.organizerLabel]);
+  facts.push([isEn ? "Bring" : "持ち物", event.bring ?? (isEn ? "Comfortable shoes, water, a charged phone" : "動きやすい靴・飲み物・充電したスマートフォン")]);
+  const primary =
+    timing.phase === "today"
+      ? { href: `${prefix}/events/${encodedEvent}/day`, label: isEn ? "Open today's page" : "当日のページを開く", note: isEn ? "Add photos to today's album." : "当日のアルバムに写真を加えられます。" }
+      : timing.phase === "past"
+        ? { href: `${prefix}/events/${encodedEvent}/album`, label: isEn ? "See the album" : "アルバムを見る", note: isEn ? "Photos from the day gather in this event's album." : "当日の写真は、このイベントのアルバムに集まります。" }
+        : { href: `${prefix}/events/${encodedEvent}/confirm`, label: isEn ? "Join" : "参加する", note: isEn ? "Once you join, you can add photos to the day's album." : "参加すると、当日のアルバムに写真を加えられます。" };
 
-  const bodyHtml = `<style>
-    .zf-pre-grid{display:grid;gap:16px}
-    @media(min-width:960px){.zf-pre-grid{grid-template-columns:1.5fr 1fr;align-items:start}}
-  </style>
-  <div class="zf-pre-grid" data-event-view="f1-f2">
-    <section class="zt-hub-card">
-      <p style="margin:0;color:var(--muted);font-size:14px;">${isEn ? "Upcoming observation event" : "開催前の観察会"}</p>
-      <h1 style="margin:0;">${escapeHtml(event.title)}</h1>
-      <p>${isEn ? "Starts" : "開始日時"}: <time>${escapeHtml(event.started_at)}</time></p>
-      <p>${isEn ? "Bring comfortable shoes, water, and a charged phone." : "持ち物：動きやすい靴・飲み物・充電したスマートフォン。"}</p>
-      <div><a class="zt-btn-outline" href="${escapeHtml(placeHref)}">${isEn ? "View venue place" : "開催場所を見る"}</a></div>
-    </section>
-    <aside class="zt-hub-card">
-      <h2>${isEn ? "Join this event" : "参加の準備"}</h2>
-      <p>${isEn ? "Only your field name is shared with the organizer." : "主催者に伝わるのはフィールドネームまでです。"}</p>
-      <a class="zt-btn-capture" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(eventId)}/confirm`)}">${isEn ? "Confirm participation" : "参加を確認する"}</a>
-      <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(eventId)}/details`)}">${isEn ? "Event details" : "詳しい案内を見る"}</a>
-    </aside>
+  const bodyHtml = `<style>${ZUKAN_EVENT_CSS}</style>
+  <div class="ze" data-event-view="f1-f2">
+    <div class="ze-main">
+      ${renderEventHero({
+        title: event.title,
+        chip: phaseChip(timing.phase, timing.dateLabel, isEn),
+        sub: peopleLabel,
+        backHref: `${prefix}/events/nearby`,
+        backLabel: isEn ? "Back to events" : "イベント一覧へ",
+        shareHref: `${prefix}/events/${encodedEvent}/share`,
+        shareLabel: isEn ? "Share" : "共有する",
+      })}
+      <section>
+        ${renderEventFacts(facts)}
+        <p class="ze-text" style="margin-top:16px">${escapeHtml(event.summary ?? "")}${event.summary ? " " : ""}${isEn ? "Photos from the day gather in this event's album." : "当日の写真は、このイベントのアルバムに集まります。"}</p>
+        ${placeHref ? `<p style="margin:12px 0 0"><a href="${escapeHtml(placeHref)}">${isEn ? "View venue place" : "開催場所を見る"}</a></p>` : ""}
+      </section>
+      <aside class="ze-cta">
+        <h2>${isEn ? "Join this event" : "参加の申し込み"}</h2>
+        <a class="ze-btn" href="${escapeHtml(primary.href)}">${escapeHtml(primary.label)}</a>
+        <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/events/${encodedEvent}/share`)}">${EVENT_ICON_SHARE}${isEn ? "Share" : "共有する"}</a>
+        <p class="ze-box">${escapeHtml(primary.note)} ${isEn ? "Only your field name is shared with the organizer." : "主催者に伝わるのはフィールドネームまでです。"}</p>
+        <a href="${escapeHtml(`${prefix}/events/${encodedEvent}/details`)}">${isEn ? "Event details" : "詳しい案内を見る"}</a>
+      </aside>
+    </div>
   </div>`;
 
   const html = renderZukanCommonShell({
