@@ -66,6 +66,10 @@ import {
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
 import {
+  handleSearchExploreRoute,
+  handleSearchSuggestApi,
+} from "./zukanSearchPromptAndSuggest";
+import {
   handleSearchSeasonsApi,
   handleSearchSeasonsRoute,
 } from "./zukanSearchEmptyAndSeasons";
@@ -3990,6 +3994,17 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
+        return handleSearchSuggestApi(url, env.OBS_DB);
+      }
+
+      const searchExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/explore$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchExploreMatch) {
+        const viewLang = (searchExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchExploreRoute(url, viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/profile/visibility") {
