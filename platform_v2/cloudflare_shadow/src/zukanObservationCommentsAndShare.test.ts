@@ -178,3 +178,49 @@ test("Share link creation (owner-only 401/403) and D8 guest resolution work for 
   assert.match(html, /公開のアゲハ/);
   assert.match(html, /href="\/ja\/login"/);
 });
+
+test("handleResolveShareLinkPage redacts note containing phone/personal info and clamps to first line 24 chars", async () => {
+  const r2Store = new Map<string, string>();
+  const fakeEnv = {
+    OBS_DB: {
+      prepare() {
+        return {
+          bind() {
+            return {
+              async first() {
+                return {
+                  observation_id: "obs_pii",
+                  user_id: "owner_1",
+                  visibility: "public",
+                  note: "連絡先 090-1234-5678 までお願いします",
+                  observed_at: "2026-11-25T10:00:00Z",
+                };
+              },
+            };
+          },
+        };
+      },
+    },
+    ASSET_BUCKET: {
+      async get(key: string) {
+        const val = r2Store.get(key);
+        return val ? { body: new Response(val).body } : null;
+      },
+      async put(key: string, val: string) {
+        r2Store.set(key, val);
+      },
+    },
+  };
+
+  const okShare = await handleCreateObservationShareLink(
+    "obs_pii",
+    { userId: "owner_1", banned: false },
+    fakeEnv as any
+  );
+  const shareBody = (await okShare.json()) as { ok: boolean; token: string };
+  const guestPage = await handleResolveShareLinkPage(shareBody.token, "ja", null, fakeEnv as any);
+  assert.equal(guestPage.status, 200);
+  const html = await guestPage.text();
+  assert.doesNotMatch(html, /090-1234-5678/);
+  assert.match(html, /生きものの観察記録/);
+});

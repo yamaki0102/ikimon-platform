@@ -61,20 +61,14 @@ export function shouldShowOtayoriButton(context: {
   return true;
 }
 
-export function renderOtayoriFloatingButton(options: {
+export function renderOtayoriFloatingButton(_options: {
   lang?: string;
   pathname?: string;
   isCamera?: boolean;
   isFullscreenMap?: boolean;
 } = {}): string {
-  if (!shouldShowOtayoriButton(options)) return "";
-  const lang = options.lang === "en" ? "en" : "ja";
-  const prefix = lang === "en" ? "/en" : "/ja";
-  const label = lang === "en" ? "Send a note" : "ひとこと送る";
-  const href = options.pathname
-    ? `${prefix}/otayori?from=${encodeURIComponent(options.pathname)}`
-    : `${prefix}/otayori`;
-  return `<style>.zukan-otayori-fab,.zukan-otayori-fab:visited{position:fixed;right:16px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:70;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:999px;background:#245c3a;color:#fff;font-size:14px;font-weight:800;text-decoration:none;box-shadow:0 8px 20px rgba(15,23,42,.18)}</style><a class="zukan-otayori-fab" data-zukan-otayori-fab="1" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  // Floating FAB removed by owner decision (11/25): placed in PC sidebar and mobile profile/menu instead.
+  return "";
 }
 
 export function renderOtayoriPage(options: {
@@ -98,23 +92,23 @@ export function renderOtayoriPage(options: {
           </li>`;
         })
         .join("")}</ul>`
-    : `<p class="otayori-empty">${lang === "en" ? "No notes sent yet." : "まだ送ったひとことはありません。"}</p>`;
+    : `<p class="otayori-empty">${lang === "en" ? "No feedback sent yet." : "まだ送ったご要望はありません。"}</p>`;
 
   const formHtml = options.authenticated
     ? `<form class="otayori-form" method="post" action="/api/v1/otayori" data-otayori-form>
-        <label for="otayori-body">${lang === "en" ? "Message" : "ひとこと内容"}</label>
-        <textarea id="otayori-body" name="body" rows="4" maxlength="1000" required placeholder="${lang === "en" ? "Share a quick note or question..." : "気づいたことや困ったことをひとことどうぞ"}"></textarea>
+        <label for="otayori-body">${lang === "en" ? "Feedback details" : "ご要望の内容"}</label>
+        <textarea id="otayori-body" name="body" rows="4" maxlength="1000" required placeholder="${lang === "en" ? "Share your feedback or improvement request..." : "気づいたことや改善のご要望をどうぞ"}"></textarea>
         <input type="hidden" name="pagePath" value="${escapeHtml(options.fromPath ?? "/")}">
-        <button type="submit">${lang === "en" ? "Send" : "ひとこと送る"}</button>
+        <button type="submit">${lang === "en" ? "Send feedback" : "改善のご要望を送る"}</button>
       </form>`
-    : `<p class="otayori-login">${lang === "en" ? "Please sign in to send a note and receive replies." : "ひとことを送ってお返事を受け取るにはログインが必要です。"} <a href="/ja/login?redirect=%2Fja%2Fotayori">${lang === "en" ? "Sign in" : "ログインする"}</a></p>`;
+    : `<p class="otayori-login">${lang === "en" ? "Please sign in to send feedback and receive replies." : "改善のご要望を送ってお返事を受け取るにはログインが必要です。"} <a href="/ja/login?redirect=%2Fja%2Fotayori">${lang === "en" ? "Sign in" : "ログインする"}</a></p>`;
 
   return `<!doctype html>
 <html lang="${escapeHtml(lang)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${lang === "en" ? "Notes" : "おたより受付"} | ZUKAN</title>
+  <title>${lang === "en" ? "Feedback" : "改善のご要望"} | ZUKAN</title>
   <style>
     *{box-sizing:border-box}
     body{margin:0;background:#f7f7f3;color:#17211b;font-family:"Noto Sans JP",system-ui,sans-serif;line-height:1.6}
@@ -135,12 +129,12 @@ export function renderOtayoriPage(options: {
 <body>
   <main data-zukan-otayori-page="1">
     <section class="otayori-card">
-      <h1>${lang === "en" ? "ZUKAN Notes" : "おたより受付（ZUKAN往復）"}</h1>
+      <h1>${lang === "en" ? "Feedback" : "改善のご要望"}</h1>
       <p class="otayori-note">${lang === "en" ? "Notifications are sent only when there is a reply." : "確認中・対応中などの途中経過では通知せず、お返事があるときだけ通知します。"}</p>
       ${formHtml}
     </section>
     <section class="otayori-card">
-      <h2>${lang === "en" ? "Your notes" : "これまでのおたより"}</h2>
+      <h2>${lang === "en" ? "Your feedback" : "これまでの改善のご要望"}</h2>
       ${lettersHtml}
     </section>
   </main>
