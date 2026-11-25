@@ -369,13 +369,6 @@ body[data-zukan-app-experience] .of-meta{font-size:14px}
  body[data-zukan-app-experience] .home-recent-grid{grid-template-columns:1fr;gap:12px}
  body[data-zukan-app-experience] .home-recent-card{grid-template-columns:104px minmax(0,1fr);gap:14px;align-items:center}
  body[data-zukan-app-experience] .home-recent-card .home-card-media{aspect-ratio:1}
- body[data-zukan-app-experience] .of-layout{display:grid;grid-template-columns:1fr}
- body[data-zukan-app-experience] .of-panel{display:contents}
- body[data-zukan-app-experience] .of-record-info{grid-row:1;padding:8px 16px 16px}
- body[data-zukan-app-experience] .of-media-column{position:static;grid-row:2;padding:0 16px 16px}
- body[data-zukan-app-experience] .of-panel> :not(.of-record-info){margin:0 16px 16px}
- body[data-zukan-app-experience] .of-record-info h1{font-size:26px}
- body[data-zukan-app-experience] .of-observation-details[open],body[data-zukan-app-experience] .of-manage[open]{position:static;inset:auto;overflow:visible;padding:16px;border-radius:8px}
  body[data-zukan-app-experience] .of-header{padding:8px 16px}
 }
 @media(prefers-reduced-motion:reduce){body[data-zukan-app-experience] *{scroll-behavior:auto!important}}

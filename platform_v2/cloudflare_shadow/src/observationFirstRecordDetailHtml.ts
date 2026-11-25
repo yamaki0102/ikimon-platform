@@ -108,6 +108,7 @@ export type ObservationFirstRecordPresentation = {
   notice?: string | null;
   viewerAuthenticated?: boolean;
   publicationReturn?: OwnerPublicationReturn | null;
+  countBand?: { text: string; href: string | null } | null;
 };
 
 const escapeHtml = (value: unknown): string => String(value ?? "")
@@ -156,7 +157,7 @@ const safeMedia = (items: ObservationFirstMediaPresentation[]): ObservationFirst
   });
 };
 
-function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: string, copy: ObservationFirstRecordDetailCopy): string {
+function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: string, copy: ObservationFirstRecordDetailCopy, overlay = ""): string {
   if (items.length === 0) return "";
   const slides = items.map((item, index) => {
     const label = `${title} — ${mediaLabel(item.mediaKind, copy)} ${index + 1}`;
@@ -171,7 +172,7 @@ function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: st
   const navigation = items.length > 1
     ? `<nav class="of-media-nav" aria-label="${escapeHtml(copy.mediaNavigation)}">${items.map((item, index) => `<a href="#record-media-${index + 1}" aria-label="${escapeHtml(`${mediaLabel(item.mediaKind, copy)} ${index + 1}`)}">${index + 1}</a>`).join("")}</nav>`
     : "";
-  return `<section class="of-media-stage" aria-label="${escapeHtml(copy.media)}"><div class="of-media-gallery" tabindex="0">${slides}</div>${navigation}</section>`;
+  return `<section class="of-media-stage" aria-label="${escapeHtml(copy.media)}"><div class="of-media-frame"><div class="of-media-gallery" tabindex="0">${slides}</div>${overlay}</div>${navigation}</section>`;
 }
 
 function renderPhotoLightbox(hasPhotos: boolean, copy: ObservationFirstRecordDetailCopy): string {
@@ -499,18 +500,22 @@ function renderObservationDetail(
   return `<article class="of-observation-detail">${heading}${accepted}${ai}${proposalList}${form}</article>`;
 }
 
+type FoundRow = { name: string; label: string; tone: "confirmed" | "proposed" | "ai" };
+type ObservationSummary = { rows: FoundRow[]; reading: string };
+
 function renderObservationSummary(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
   action: string,
   copy: ObservationFirstRecordDetailCopy,
-): string {
+): ObservationSummary {
+  const empty: ObservationSummary = { rows: [], reading: "" };
   if (isSignboardRecord(detail, presentation)) {
-    return "";
+    return empty;
   }
   const active = detail.observations.filter((card) => card.state === "active"
     && (card.assertionStatus === "human_asserted" || card.acceptedIdentification || card.communityIdentifications.length > 0 || !isHumanOnlyAiCard(card, presentation.aiPersonPrimaryNames)));
-  if (active.length === 0) return "";
+  if (active.length === 0) return empty;
   const hasCardInsights = Boolean(presentation.aiCandidateInsights?.length);
   const resolved = active.map((card) => ({
     card,
@@ -521,12 +526,26 @@ function renderObservationSummary(
   const meaningful = resolved.filter((item) => item.accepted || item.ai || item.communityProposal);
   const summaryItems = meaningful.length > 0 ? meaningful.slice(0, 3) : [];
   const seenNames = new Set<string>();
-  const list = summaryItems.flatMap((item) => {
-    if (seenNames.has(item.text)) return [];
-    seenNames.add(item.text);
-    const status = item.accepted ? copy.roleRecorderConfirmed : item.ai ? copy.aiCandidate : item.communityProposal ? copy.roleOtherPerson : "";
-    return [`<li${item.ai ? ' data-ai-candidate="true"' : ""}><strong>${escapeHtml(item.text)}</strong>${status ? `<small>${escapeHtml(status)}</small>` : ""}</li>`];
-  }).join("");
+  const rows = summaryItems.flatMap((item): FoundRow[] => {
+    const acceptedName = publicSubjectName(item.card.acceptedIdentification?.proposedName);
+    const proposalName = item.card.communityIdentifications
+      .filter((proposal) => !proposal.accepted)
+      .map((proposal) => publicSubjectName(proposal.proposedName))
+      .find((name): name is string => name !== null) ?? null;
+    const aiName = displayAiSuggestions(item.card, presentation.aiPersonPrimaryNames)
+      .map((suggestion) => publicSubjectName(suggestion.proposedName) ?? publicSubjectName(suggestion.proposedScientificName))
+      .find((name): name is string => name !== null) ?? null;
+    const row: FoundRow | null = acceptedName
+      ? { name: acceptedName, label: copy.statusConfirmed, tone: "confirmed" }
+      : proposalName
+        ? { name: proposalName, label: copy.statusProposed, tone: "proposed" }
+        : aiName
+          ? { name: aiName, label: copy.statusAiRead, tone: "ai" }
+          : null;
+    if (!row || seenNames.has(row.name)) return [];
+    seenNames.add(row.name);
+    return [row];
+  });
   const nextPhotoItem = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
   const comparison = renderAiCandidateComparison(active[0]!, presentation, copy, nextPhotoItem);
   const comparisonEvidence = new Set(
@@ -540,17 +559,11 @@ function renderObservationSummary(
       omitLoginLink: true,
     }))
     .filter(Boolean);
-  const detailsBlock = detailCards.length > 0
-    ? `<details class="of-observation-details"><summary>${escapeHtml(detailCards.length > 1 ? copy.openAll : copy.openDetails)}</summary><div>${detailCards.join("")}</div></details>`
-    : "";
-  const loginToPropose = !detail.owner && !presentation.viewerAuthenticated && active.some((card) => detail.proposalPolicy.identification)
-    ? renderIdentificationForm(active[0]!, 0, detail, presentation, action, copy)
-    : "";
+  const detailsBlock = detailCards.length > 0 ? `<div class="of-observation-details">${detailCards.join("")}</div>` : "";
   const summaryIsAi = Boolean(presentation.aiCandidateInsights?.length)
     || active.some((card) => !publicSubjectName(card.acceptedIdentification?.proposedName) && displayAiSuggestions(card, presentation.aiPersonPrimaryNames).length > 0);
   const aiNote = summaryIsAi ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p>` : "";
-  if (!list && !learning && !comparison && !detailsBlock && !loginToPropose) return "";
-  return `<section class="of-summary" aria-labelledby="of-summary-title"><h2 id="of-summary-title">${escapeHtml(copy.found)}</h2>${list ? `<ul class="of-summary-list">${list}</ul>` : ""}${learning}${comparison}${aiNote}${detailsBlock}${loginToPropose}</section>`;
+  return { rows, reading: `${learning}${comparison}${aiNote}${detailsBlock}` };
 }
 
 const sceneElementKeys = new Set(["water", "low_grass", "trees_shrubs", "bare_ground", "built_surface", "soil", "plant", "rock", "artificial", "urban", "coast", "wetland"]);
@@ -570,23 +583,44 @@ function derivedSceneElements(environment: Record<string, string> | null | undef
   return [...new Set(found)].slice(0, 8);
 }
 
-function renderSceneUnderstanding(presentation: ObservationFirstRecordPresentation, copy: ObservationFirstRecordDetailCopy, signboard = false): string {
+type SceneFound = { rows: FoundRow[]; stateMessage: string | null; state: ObservationFirstDetectionState | null };
+
+function sceneFoundRows(presentation: ObservationFirstRecordPresentation, copy: ObservationFirstRecordDetailCopy, signboard = false): SceneFound {
+  const lang = presentation.lang ?? "ja";
+  const aiRow = (name: string): FoundRow => ({ name, label: copy.statusAiRead, tone: "ai" });
   if (signboard) {
-    const lang = presentation.lang ?? "ja";
     const signLabel = lang === "ja" ? "案内板" : lang === "es" ? "Cartel informativo" : lang === "pt-br" ? "Placa informativa" : "Signboard";
-    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(signLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p></section>`;
+    return { rows: [aiRow(signLabel)], stateMessage: null, state: null };
   }
-  const nonBiotaLabel = nonBiotaKindLabel(presentation.recordClass, presentation.lang ?? "ja");
-  if (nonBiotaLabel) {
-    return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2><p>${escapeHtml(copy.subjectTypes.unknown_subject)}：${escapeHtml(nonBiotaLabel)}</p><p class="of-ai-note">${escapeHtml(copy.aiGeneratedExplanationNote)}</p></section>`;
-  }
+  const nonBiotaLabel = nonBiotaKindLabel(presentation.recordClass, lang);
+  if (nonBiotaLabel) return { rows: [aiRow(nonBiotaLabel)], stateMessage: null, state: null };
   const rawElements = presentation.sceneElements ?? derivedSceneElements(presentation.environment);
   const elements = [...new Set(rawElements)].filter((item) => sceneElementKeys.has(item) && copy.sceneElements[item]).slice(0, 8);
-  const state = presentation.detectionState;
-  if (!state && elements.length === 0) return "";
-  if (state === "detected" && elements.length === 0) return "";
-  const stateMessage = state === "not_detected" ? copy.notDetected : state === "not_assessable" ? copy.notAssessable : "";
-  return `<section class="of-scene" aria-labelledby="of-scene-title"><h2 id="of-scene-title">${escapeHtml(copy.sceneFound)}</h2>${elements.length ? `<ul>${elements.map((item) => `<li>${escapeHtml(copy.sceneElements[item])}</li>`).join("")}</ul>` : ""}${stateMessage ? `<p class="of-detection-state" data-detection-state="${escapeHtml(state ?? "")}">${escapeHtml(stateMessage)}</p>` : ""}</section>`;
+  const state = presentation.detectionState ?? null;
+  const stateMessage = state === "not_detected" ? copy.notDetected : state === "not_assessable" ? copy.notAssessable : null;
+  return { rows: elements.map((item) => aiRow(copy.sceneRowLabels[item] ?? copy.sceneElements[item]!)), stateMessage, state };
+}
+
+function renderFoundSection(
+  summary: ObservationSummary,
+  scene: SceneFound,
+  copy: ObservationFirstRecordDetailCopy,
+  headingLink: string,
+): string {
+  const seen = new Set<string>();
+  const rows = [...summary.rows, ...scene.rows].filter((row) => {
+    if (seen.has(row.name)) return false;
+    seen.add(row.name);
+    return true;
+  }).slice(0, 6);
+  const list = rows.length > 0
+    ? `<ul class="of-found-list">${rows.map((row) => `<li${row.tone === "ai" ? ' data-ai-candidate="true"' : ""}><span class="of-found-name">${escapeHtml(row.name)}</span><span class="of-found-status is-${row.tone}">${escapeHtml(row.label)}</span></li>`).join("")}</ul>`
+    : "";
+  if (rows.length === 0 && !scene.stateMessage) return "";
+  const empty = scene.stateMessage
+    ? `<p class="of-found-empty" data-detection-state="${escapeHtml(scene.state ?? "")}">${escapeHtml(scene.stateMessage)}</p>`
+    : "";
+  return `<section class="of-found" aria-labelledby="of-summary-title"><div class="of-found-head"><h2 id="of-summary-title">${escapeHtml(copy.foundTitle)}</h2>${headingLink}</div>${list}${empty}</section>`;
 }
 
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
@@ -596,17 +630,26 @@ function renderComparison(comparison: ObservationFirstComparisonPresentation | n
 
 function renderEnvironment(environment: Record<string, string> | null | undefined, copy: ObservationFirstRecordDetailCopy): string {
   if (!environment) return "";
+  const chipLabel = (value: string | undefined): string | null => value && value !== "unknown" ? copy.environmentChipValues[value] ?? copy.environmentValues[value] ?? null : null;
   const placeType = environment.place_type;
-  const rows = (["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).flatMap((field) => {
-    const value = environment[field];
-    const label = value && value !== "unknown" ? copy.environmentValues[value] : null;
-    return label ? [`<li><span>${escapeHtml(copy.environmentFields[field])}</span><strong>${escapeHtml(label)}</strong></li>`] : [];
-  });
-  const headline = placeType && placeType !== "unknown" ? copy.environmentHeadlines[placeType] : null;
-  if (!headline && rows.length === 0) return "";
+  const labels = [
+    placeType && placeType !== "unknown" ? copy.environmentHeadlines[placeType] ?? null : null,
+    ...(["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).map((field) => chipLabel(environment[field])),
+  ].filter((label): label is string => Boolean(label));
+  const chips = [...new Set(labels)];
+  if (chips.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${headline ? `<p class="of-environment-headline">${escapeHtml(headline)}</p>` : ""}${rows.length ? `<ul>${rows.join("")}</ul>` : ""}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2><ul class="of-chips">${chips.map((label) => `<li>${escapeHtml(label)}</li>`).join("")}</ul>${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
+}
+
+function renderCountBand(band: { text: string; href: string | null } | null | undefined): string {
+  if (!band?.text.trim()) return "";
+  const icon = `<svg class="of-band-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21v-8"/><path d="M12 13c0-3.5-2.5-6-6-6 0 3.5 2.5 6 6 6Z"/><path d="M12 13c0-3 2-5.5 6-5.5 0 3.5-2.5 5.5-6 5.5Z"/></svg>`;
+  const body = `${icon}<span class="of-band-text">${escapeHtml(band.text)}</span>`;
+  return band.href
+    ? `<a class="of-band" data-count-band href="${escapeHtml(band.href)}">${body}<svg class="of-band-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>`
+    : `<div class="of-band" data-count-band>${body}</div>`;
 }
 
 function selectOptions(values: Record<string, string>, selected?: string): string {
@@ -654,7 +697,7 @@ function renderOwnerManagement(
   const policy = detail.visibility !== "private"
     ? `<section><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "set_proposal_policy")}${hidden("accepts_identification_proposals", detail.proposalPolicy.identification ? "0" : "1")}${hidden("operation_id", `${presentation.actionNonce}-policy-${detail.proposalPolicy.identification ? "off" : "on"}`)}<button class="is-secondary" type="submit">${escapeHtml(detail.proposalPolicy.identification ? copy.pauseProposals : copy.receiveProposals)}</button></form></section>`
     : "";
-  return `<details class="of-manage" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body" id="of-manage-body">${visibilitySettings}${add}${cards}${mediaAssignment}${policy}${renderObservationOwnerDeletePanel({basePath:"",visitId:detail.recordId,isOwner:detail.owner,lang:presentation.lang === "pt-br" ? "pt-BR" : presentation.lang ?? "ja"})}</div></details>`;
+  return `<details class="of-manage is-linked" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body" id="of-manage-body">${visibilitySettings}${add}${cards}${mediaAssignment}${policy}${renderObservationOwnerDeletePanel({basePath:"",visitId:detail.recordId,isOwner:detail.owner,lang:presentation.lang === "pt-br" ? "pt-BR" : presentation.lang ?? "ja"})}</div></details>`;
 }
 
 function renderCaptureInfo(
@@ -780,6 +823,116 @@ function renderRelated(items: ObservationFirstRelatedPresentation[] | undefined,
   return `<section class="of-related" aria-labelledby="of-related-title"><h2 id="of-related-title">${escapeHtml(copy.related)}</h2><div>${cards}</div></section>`;
 }
 
+const RECORD_PAGE_STYLES = `
+  .of-page{font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211B}
+  .of-media-frame{position:relative;min-width:0}
+  .of-fab,.of-chip{position:absolute;z-index:3}
+  .of-page a.of-fab,.of-page a.of-fab:visited{top:16px;display:flex;align-items:center;justify-content:center;width:37px;height:37px;min-height:0;border-radius:50%;background:rgba(255,255,255,.95);color:#17211B;box-shadow:0 1px 5px rgba(9,18,12,.28);text-decoration:none}
+  .of-fab::before{content:"";position:absolute;inset:-4px}
+  .of-fab svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .of-fab-back{left:16px}.of-fab-share{right:16px}
+  .of-chip{display:inline-flex;align-items:center;gap:5px;min-height:0;padding:6px 11px;border-radius:999px;font-size:12.5px;font-weight:700;line-height:1.3}
+  .of-chip svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .of-chip-blur,.of-chip-counter{background:rgba(8,18,12,.72);color:#fff}
+  .of-chip-blur{left:16px;bottom:16px}
+  .of-page a.of-chip-visibility,.of-page a.of-chip-visibility:visited{right:16px;bottom:16px;min-height:0;background:rgba(255,255,255,.94);color:#17211B;text-decoration:none}
+  .of-chip-counter{right:16px;bottom:16px}
+  .of-chip-visibility+.of-chip-counter{bottom:56px}
+  body[data-zukan-app-experience] .of-record-info .of-meta{display:block;margin:7px 0 0;color:#55615A;font-size:13.5px;font-weight:600;line-height:1.5}
+  body[data-zukan-app-experience] .of-record-info .of-meta p{display:block;margin:0;font-size:13.5px;line-height:1.5}
+  body[data-zukan-app-experience] .of-record-info .of-meta p+p{margin-top:3px}
+  body[data-zukan-app-experience] .of-record-info h1{margin:0;font-size:23px;font-weight:800;letter-spacing:-.01em;line-height:1.35}
+  .of-title-row{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 10px}
+  .of-title-row h1{flex:1 1 0;min-width:0}
+  .of-title-edit{flex:none}
+  .of-title-edit[open]{flex:0 0 100%;order:3}
+  .of-title-edit summary{width:36px;height:36px;min-height:36px;padding:0;justify-content:center;border:1.5px solid #DDE2DC;border-radius:50%;color:#143F2E}
+  .of-title-edit summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .of-title-edit-text{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .of-record-info .of-actions{margin:14px 0 0}
+  body[data-zukan-app-experience] .of-panel .of-photo-note{margin:18px 0 0;padding:0;border:0;background:none}
+  .of-photo-note h2{margin:0 0 4px;font-size:13px;color:#55615A}
+  .of-found{margin:26px 0 0}
+  .of-found-head{display:flex;align-items:center;gap:12px}
+  .of-found-head h2{flex:1;margin:0;font-size:17.5px;font-weight:800;letter-spacing:-.01em;line-height:1.3}
+  .of-page a.of-found-link,.of-page a.of-found-link:visited{flex:none;display:inline-flex;align-items:center;min-height:0;padding:12px 0;margin:-12px 0;font-size:13px;font-weight:700;color:#0055AD;text-decoration:none}
+  .of-found-list{margin:6px 0 0;padding:0;list-style:none}
+  .of-found-list li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #EDF0EA}
+  .of-found-list li:last-child{border-bottom:0}
+  .of-found-name{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.5}
+  .of-found-status{flex:none;font-size:12.5px;font-weight:600;color:#68746C}
+  .of-found-status.is-confirmed{color:#146C43;font-weight:700}
+  .of-found-status.is-proposed{color:#8A4B00;font-weight:700}
+  .of-found-empty{margin:8px 0 0;font-size:14px;color:#55615A}
+  body[data-zukan-app-experience] .of-panel .of-note[data-ai-feedback]{margin:26px 0 0;padding:17px 18px;border:0;border-radius:18px;background:#F7F7F3;background-image:none}
+  .of-note[data-ai-feedback] .of-ai-note-text{margin:0;font-size:15px;line-height:1.85}
+  .of-note[data-ai-feedback] .of-ai-note{margin:11px 0 0;font-size:12px;line-height:1.45;color:#68746C}
+  .of-page .of-band{display:flex;align-items:flex-start;gap:10px;min-height:0;margin:22px 0 0;padding:14px 16px;border-radius:14px;background:#EFF4EC;color:#17211B;font-size:14px;font-weight:600;line-height:1.65;text-decoration:none}
+  .of-page a.of-band:visited{color:#17211B}
+  .of-band-icon,.of-band-chevron{flex:none;stroke:#146C43;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .of-band-icon{width:22px;height:22px;margin-top:2px}
+  .of-band-chevron{width:20px;height:20px;margin-top:3px;stroke:#55615A}
+  .of-band-text{flex:1;min-width:0}
+  .of-panel .of-environment{margin:34px 0 0;padding:0;border:0;background:none}
+  .of-environment h2{margin:0 0 14px;font-size:17.5px;font-weight:800;letter-spacing:-.01em}
+  .of-environment .of-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+  .of-environment .of-chips li{display:inline-flex;padding:7px 12px;border:1.5px solid #DDE2DC;border-radius:999px;background:#fff;font-size:13.5px;font-weight:600;color:#17211B}
+  .of-environment .of-ai-note{margin:10px 0 0}
+  .of-panel .of-related{margin:34px 0 0;padding:0;border:0;background:none}
+  .of-panel .of-related h2{margin:0 0 14px;font-size:17.5px;font-weight:800;letter-spacing:-.01em}
+  .of-panel .of-related>div{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+  .of-panel .of-related-card{display:block;flex:0 0 150px;min-height:0;overflow:visible;border:0;border-radius:0;background:none;scroll-snap-align:start}
+  .of-panel .of-related-card img{display:block;width:150px;height:105px;border-radius:14px;object-fit:cover}
+  .of-panel .of-related-card span{display:block;padding:0}
+  .of-panel .of-related-card strong{display:block;margin-top:7px;font-size:12px;font-weight:600;line-height:1.4;color:#55615A}
+  .of-panel .of-related-card small{display:block;margin-top:2px;font-size:13px;font-weight:700;color:#17211B}
+  .of-panel .of-related-card.has-no-photo{padding:12px;border:1.5px solid #DDE2DC;border-radius:14px}
+  .of-bottom-actions{margin:26px 0 0}
+  .of-page a.of-cta,.of-page a.of-cta:visited,.of-page a.of-login-proposal,.of-page a.of-login-proposal:visited{display:flex;align-items:center;justify-content:center;min-height:52px;padding:15px;border-radius:14px;background:#143F2E;color:#fff;font-size:15.5px;font-weight:700;text-align:center;text-decoration:none}
+  .of-settings-link{margin:14px 0 0;text-align:center}
+  .of-page .of-settings-link a,.of-page .of-settings-link a:visited{display:inline-flex;align-items:center;font-size:14px;font-weight:700;color:#0055AD;text-decoration:none}
+  .of-cta-note{margin:10px 0 0;font-size:12.5px;line-height:1.5;color:#68746C;text-align:center}
+  .of-panel .of-reading,.of-panel .of-manage{margin:18px 0 0;padding:0;border:0;border-radius:0;background:none}
+  .of-panel .of-reading[open],.of-panel .of-manage[open]{padding:16px;border:1px solid #DDE2DC;border-radius:14px;background:#fff}
+  .of-reading>summary{display:flex;align-items:center;cursor:pointer;font-size:14px;font-weight:700;color:#0055AD}
+  .of-reading.is-linked:not([open])>summary,.of-manage.is-linked:not([open])>summary{display:none}
+  .of-reading-body>:first-child{margin-top:0}
+  #of-reading,#manage{scroll-margin-top:88px}
+  .of-ai-footer-note{margin:24px 0 0;font-size:12px;line-height:1.5;color:#68746C}
+  .of-lang-foot{display:none}
+  @media(min-width:900px){.of-page a.of-fab{display:none}body[data-zukan-app-experience] .of-record-info h1{font-size:28px}}
+  @media(max-width:899px){
+    body.of-has-hero .of-header,body.of-has-hero .zukan-app-header{display:none}
+    body[data-zukan-app-experience] .of-layout{display:block}
+    body[data-zukan-app-experience] .of-media-column{position:relative;top:auto;padding:0}
+    body[data-zukan-app-experience] .of-media-stage{min-height:0;border-radius:0}
+    body[data-zukan-app-experience] .of-media-slide{min-height:0;height:clamp(320px,52vw,460px)}
+    body[data-zukan-app-experience] .of-media-slide a{min-height:0;height:100%}
+    body[data-zukan-app-experience] .of-media-slide :is(img,video){width:100%;height:100%;max-height:none;object-fit:cover}
+    body[data-zukan-app-experience] .of-panel{display:block;width:100%;max-width:680px;min-height:0;margin:0 auto;padding:0 20px 24px;border:0;background:transparent}
+    body[data-zukan-app-experience] main.of-page .of-panel>*{margin-left:0;margin-right:0}
+    body[data-zukan-app-experience] .of-record-info{padding:20px 0 0}
+    body[data-zukan-app-experience]:not(.of-has-hero) .of-record-info{padding-top:20px}
+    body[data-zukan-app-experience] .of-panel .of-reading[open],body[data-zukan-app-experience] .of-panel .of-manage[open]{position:static;inset:auto;z-index:auto;overflow:visible;margin:18px 0 0;padding:16px;border-radius:14px;background:#fff}
+    body[data-zukan-app-experience] .of-manage[open]>summary{position:static;padding:0;border-bottom:0}
+    .of-lang-foot{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 0}
+    .of-lang-foot a{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;font-size:13px;font-weight:700;text-decoration:none}
+  }
+`;
+
+function renderRecordPageScript(): string {
+  return `<script data-of-page-script>
+(function(){
+  function reveal(id){var el=document.getElementById(id);if(!el)return false;for(var n=el;n;n=n.parentElement){if(n.tagName==='DETAILS')n.open=true;}el.scrollIntoView({block:'start',behavior:'smooth'});return true;}
+  document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-of-open]'):null;if(!a)return;if(reveal(a.getAttribute('data-of-open')))e.preventDefault();});
+  document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-of-share]'):null;if(!a||!navigator.share)return;e.preventDefault();navigator.share({title:a.getAttribute('data-share-title')||'',url:a.getAttribute('data-share-url')||location.href}).catch(function(){});});
+  var g=document.querySelector('.of-media-gallery'),c=document.querySelector('[data-of-counter]');
+  if(g&&c){var t=c.getAttribute('data-template')||'';g.addEventListener('scroll',function(){var i=Math.round(g.scrollLeft/Math.max(1,g.clientWidth))+1;c.textContent=t.replace('{n}',String(i));},{passive:true});}
+  if(location.hash.length>1){var h=document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var n=h;n;n=n.parentElement){if(n.tagName==='DETAILS')n.open=true;}}
+})();
+</script>`;
+}
+
 export function renderObservationFirstRecordDetailHtml(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
@@ -808,35 +961,63 @@ export function renderObservationFirstRecordDetailHtml(
   const languageLinks = (["ja", "en", "es", "pt-br"] as const).map((item) => `<a href="${escapeHtml(recordsDiscoveryDetailHref(detail.recordId, item, presentation.recordsDiscoveryContext ?? null))}" lang="${escapeHtml(item)}"${item === lang ? ' aria-current="page"' : ""}>${escapeHtml(item === "ja" ? "JP" : item === "pt-br" ? "PT" : item.toUpperCase())}</a>`).join("");
   const menu = `<details class="of-menu"><summary aria-label="${escapeHtml(copy.menu)}"><span aria-hidden="true">•••</span></summary><nav aria-label="${escapeHtml(copy.menu)}"><a href="${prefix}/">${escapeHtml(copy.home)}</a><a href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}">${escapeHtml(copy.records)}</a>${detail.owner && lang === "ja" ? `<a href="${prefix}/library/link/share?observation=${encodeURIComponent(detail.recordId)}" data-owner-share-link>共有リンクを作る</a>` : ""}<div aria-label="${escapeHtml(copy.language)}">${languageLinks}</div></nav></details>`;
   const hasPhotos = media.some((item) => item.mediaKind === "photo");
-  const mediaStage = renderRecordMedia(media, title, copy);
+  const mailto = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(shareUrl)}`;
+  const publicLocation = presentation.publicLocationLabel ?? detail.privacy.publicLocationLabel;
+  const locationProtection = presentation.locationProtectionLabel?.trim()
+    || (detail.visibility === "public" ? copy.locationBlurred : copy.exactLocationPrivate);
+  const shareIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4"/><path d="m8 8 4-4 4 4"/><path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg>`;
+  const lockIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>`;
+  const heroOverlay = media.length > 0
+    ? `<a class="of-fab of-fab-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></a><a class="of-fab of-fab-share" href="${escapeHtml(mailto)}" data-of-share data-share-url="${escapeHtml(shareUrl)}" data-share-title="${escapeHtml(title)}" aria-label="${escapeHtml(copy.share)}">${shareIcon}</a><span class="of-chip of-chip-blur" data-location-blur>${lockIcon}${escapeHtml(locationProtection)}</span>${detail.owner ? `<a class="of-chip of-chip-visibility" data-owner-visibility href="#of-manage-body" data-of-open="manage">${escapeHtml(copy.visibility[detail.visibility])}</a>` : ""}${media.length > 1 ? `<span class="of-chip of-chip-counter" data-of-counter data-template="${escapeHtml(copy.photoCounter.replace("{total}", String(media.length)))}">${escapeHtml(copy.photoCounter.replace("{n}", "1").replace("{total}", String(media.length)))}</span>` : ""}`
+    : "";
+
+  const mediaStage = renderRecordMedia(media, title, copy, heroOverlay);
   const photoLightbox = renderPhotoLightbox(hasPhotos, copy);
   const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
   const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy);
   const aiFeedback = renderAiFeedback(detail, presentation, copy);
-  const scene = renderSceneUnderstanding(presentation, copy, signboard);
+  const scene = sceneFoundRows({ ...presentation, lang }, copy, signboard);
   const environment = renderEnvironment(presentation.environment, copy);
   const resetTitleForm = customTitle
     ? `<form method="post" action="${escapeHtml(action)}">${hidden("action", "reset_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title-reset`)}<button type="submit" class="is-secondary">${escapeHtml(copy.resetTitle)}</button></form>`
     : "";
   const titleEditForm = detail.owner
-    ? `<details class="of-title-edit"><summary>${escapeHtml(copy.editTitle)}</summary><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required aria-label="${escapeHtml(copy.editTitle)}"><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</details>`
+    ? `<details class="of-title-edit"><summary aria-label="${escapeHtml(copy.editTitle)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg><span class="of-title-edit-text">${escapeHtml(copy.editTitle)}</span></summary><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required aria-label="${escapeHtml(copy.editTitle)}"><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</details>`
     : "";
   const titleBlock = `<div class="of-title-row"><h1>${escapeHtml(title)}</h1>${titleEditForm}</div>`;
   const comparison = renderComparison(presentation.comparison, lang, copy);
-  const note = presentation.note?.trim() ? `<section class="of-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
+  const note = presentation.note?.trim() ? `<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
   const publicationReturn = renderOwnerPublicationReturn(detail, { ...presentation, lang }, copy);
   const management = renderOwnerManagement(detail, { ...presentation, lang }, media, action, copy);
   const capture = renderCaptureInfo(detail, presentation, media, copy);
   const related = renderRelated(presentation.related, lang, copy);
-  const mailto = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(shareUrl)}`;
-  const publicLocation = presentation.publicLocationLabel ?? detail.privacy.publicLocationLabel;
-  const redundantBlurLabel = !presentation.locationProtectionLabel?.trim()
-    && detail.visibility === "public"
-    && /ぼか|blur|approx/i.test(publicLocation);
-  const locationProtection = redundantBlurLabel
-    ? ""
-    : presentation.locationProtectionLabel?.trim() || (detail.visibility === "public" ? copy.approximateLocation : copy.exactLocationPrivate);
   const observedLabel = presentation.observedLabel.trim() || (lang === "ja" ? "日時不明" : lang === "es" ? "Fecha desconocida" : lang === "pt-br" ? "Data desconhecida" : "Date unknown");
+  const readingHasNames = summary.reading !== "";
+  const readingTarget = readingHasNames ? "of-reading" : detail.owner && management ? "manage" : null;
+  const canEditNames = !signboard && readingTarget !== null
+    && (detail.owner || (Boolean(presentation.viewerAuthenticated) && detail.proposalPolicy.identification && readingHasNames));
+  const openLink = (className: string, label: string): string => readingTarget
+    ? `<a class="${className}" href="#${readingTarget === "manage" ? "of-manage-body" : "of-reading-body"}" data-of-open="${readingTarget}">${escapeHtml(label)}</a>`
+    : "";
+  const foundLink = canEditNames ? openLink("of-found-link", detail.owner ? copy.fixName : copy.proposeName) : "";
+  const found = renderFoundSection(summary, scene, copy, foundLink);
+  const loginHref = `${langPrefix(lang)}/login?redirect=${encodeURIComponent(recordsDiscoveryDetailHref(detail.recordId, lang, presentation.recordsDiscoveryContext ?? null))}`;
+  const actionsBlock = detail.owner
+    ? (canEditNames || management
+        ? `<div class="of-bottom-actions">${canEditNames ? openLink("of-cta", copy.editReading) : ""}${management ? `<p class="of-settings-link"><a href="#of-manage-body" data-of-open="manage">${escapeHtml(copy.recordSettings)}</a></p>` : ""}</div>`
+        : "")
+    : presentation.viewerAuthenticated
+      ? (canEditNames ? `<div class="of-bottom-actions">${openLink("of-cta", copy.suggestReading)}</div>` : "")
+      : `<div class="of-bottom-actions"><a class="of-login-proposal" href="${escapeHtml(loginHref)}">${escapeHtml(copy.loginCta)}</a><p class="of-cta-note">${escapeHtml(copy.loginCtaNote)}</p></div>`;
+  const readingInner = `${summary.reading}${comparison}${capture}${publicationReturn}${presentation.nocosilUsageHtml ?? ""}`;
+  const reading = readingInner
+    ? `<details class="of-reading${canEditNames ? " is-linked" : ""}" id="of-reading"><summary>${escapeHtml(copy.readingDetails)}</summary><div class="of-reading-body" id="of-reading-body">${readingInner}</div></details>`
+    : "";
+  const shareLink = media.length === 0
+    ? `<a class="of-action" href="${escapeHtml(mailto)}" data-of-share data-share-url="${escapeHtml(shareUrl)}" data-share-title="${escapeHtml(title)}">${escapeHtml(copy.share)}</a>`
+    : "";
+  const savedBlock = shareLink || presentation.savedControlHtml ? `<div class="of-actions">${shareLink}${presentation.savedControlHtml ?? ""}</div>` : "";
+  const languageFooter = `<nav class="of-lang-foot" aria-label="${escapeHtml(copy.language)}">${languageLinks}</nav>`;
   return `<!doctype html><html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} | ${escapeHtml(copy.documentSuffix)}</title>
   <style>
     :root{color-scheme:light;--ink:#16231c;--muted:#607067;--line:#dce7e0;--paper:#fff;--wash:#f4f8f5;--green:#0a7b57;--soft:#edf7f2;--focus:#f59e0b}*{box-sizing:border-box}html{overflow-x:hidden;scroll-behavior:smooth}body{margin:0;background:var(--wash);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;line-height:1.65;overflow-wrap:anywhere}a,a:visited{color:#0b6f61}button,input,select,textarea{font:inherit;max-width:100%;min-width:0}a,button,input,select,textarea,summary{min-height:44px}:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.of-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;min-height:58px;padding:6px max(12px,calc((100vw - 1320px)/2));background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.of-back,.of-back:visited{display:inline-flex;align-items:center;gap:7px;padding:0 10px;color:var(--ink);font-weight:800;text-decoration:none}.of-menu{position:relative}.of-menu>summary{display:grid;place-items:center;width:48px;cursor:pointer;list-style:none;border-radius:999px;font-weight:900}.of-menu>summary::-webkit-details-marker{display:none}.of-menu nav{position:absolute;right:0;top:50px;display:grid;width:min(270px,calc(100vw - 24px));padding:10px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 20px 50px rgba(15,35,25,.18)}.of-menu:not([open]) nav{display:none}.of-menu nav>a{display:flex;align-items:center;padding:8px 10px;border-radius:10px;font-weight:800;text-decoration:none}.of-menu nav div{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-top:8px;border-top:1px solid var(--line)}.of-menu nav div a{display:grid;place-items:center;border-radius:9px;text-decoration:none}.of-menu [aria-current="page"]{background:var(--soft);font-weight:900}.of-page{width:min(1320px,100%);margin:0 auto 56px}.of-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);align-items:start}.of-layout.has-no-media{grid-template-columns:minmax(0,700px);justify-content:center}.of-layout.has-no-media .of-media-column{display:none}.of-media-column{position:sticky;top:58px;min-width:0}.of-media-stage{position:relative;display:grid;align-items:center;min-height:calc(100vh - 58px);background:#101713;color:#fff}.of-media-gallery{display:flex;width:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin;overscroll-behavior-x:contain}.of-media-slide{display:grid;place-items:center;flex:0 0 100%;min-width:0;min-height:min(74vw,calc(100vh - 96px));margin:0;scroll-snap-align:start}.of-media-slide a{display:grid;place-items:center;width:100%;min-height:inherit}.of-media-slide img{display:block;width:auto;max-width:100%;height:auto;max-height:calc(100vh - 96px);object-fit:contain}.of-media-slide video{display:block;width:100%;height:auto;max-height:calc(100vh - 96px);object-fit:contain}.of-media-slide.is-audio{align-content:center;gap:22px;padding:32px}.of-media-slide audio{width:min(520px,100%)}.of-audio-mark{font-size:72px;line-height:1;color:#9be7c9}.of-media-nav{display:flex;justify-content:center;gap:8px;padding:10px 12px;background:#101713}.of-media-nav a{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;text-decoration:none}.of-media-nav a:hover,.of-media-nav a:focus-visible{background:rgba(255,255,255,.3)}.of-panel{min-width:0;padding:28px 24px 48px;background:#fff;min-height:calc(100vh - 58px);border-left:1px solid var(--line)}.of-layout.has-no-media .of-panel{border-left:0}.of-record-info h1{margin:0;font-size:clamp(27px,3vw,38px);line-height:1.22;letter-spacing:-.02em}.of-meta{display:grid;gap:5px;margin:14px 0 18px;color:var(--muted)}.of-meta p{display:flex;align-items:flex-start;gap:8px;margin:0}.of-meta p span:first-child{font-weight:800;color:var(--ink)}.of-meta .of-location-protection{color:#365848;font-weight:750}.of-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}.of-action{display:inline-flex;align-items:center;justify-content:center;padding:9px 15px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font-weight:850;text-decoration:none}.of-action.is-primary{border-color:var(--green);background:var(--green);color:#fff}.of-status{margin:0 0 14px;padding:10px 12px;border-radius:12px;background:var(--soft)}.of-summary,.of-scene,.of-environment,.of-comparison,.of-note,.of-manage,.of-capture,.of-publication-return{margin-top:14px;padding:17px;border:1px solid var(--line);border-radius:17px;background:#fff}.of-summary{background:linear-gradient(150deg,#effaf5,#fff 55%)}.of-summary h2,.of-scene h2,.of-environment h2,.of-comparison h2,.of-note h2,.of-publication-return h2{margin:0 0 9px;font-size:19px;line-height:1.35}.of-summary-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.of-summary-list li{position:relative;display:grid;padding-left:18px;font-size:17px}.of-summary-list li:before{content:"";position:absolute;left:1px;top:.72em;width:7px;height:7px;border-radius:50%;background:var(--green)}.of-summary-list li strong{font-weight:850}.of-summary-list li small{color:var(--muted);font-size:13px}.of-learning{display:grid;gap:10px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}.of-learning>h3{margin:0;font-size:17px}.of-learning h4{margin:0 0 5px;font-size:15px}.of-learning ul{margin:0;padding-left:20px;color:#33473c}.of-scene{background:#f5f8fb}.of-scene ul{display:flex;flex-wrap:wrap;gap:7px;margin:0;padding:0;list-style:none}.of-scene li{padding:5px 10px;border:1px solid #cbd8df;border-radius:999px;background:#fff;font-weight:750}.of-detection-state{margin:11px 0 0;color:#33473c}.of-comparison p{margin:0 0 6px}.of-comparison a{display:inline-flex;align-items:center;font-weight:800}.of-publication-return{background:#f7faf0}.of-publication-return dl{display:grid;gap:8px;margin:0}.of-publication-return dl div{display:grid;grid-template-columns:minmax(100px,.8fr) minmax(0,1.2fr);gap:10px}.of-publication-return dt{color:var(--muted)}.of-publication-return dd{margin:0;font-weight:800}.of-publication-return h3{margin:13px 0 5px;font-size:16px}.of-publication-return ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}.of-publication-return li{display:grid;gap:1px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#fff}.of-publication-return li span{font-weight:800}.of-publication-return li small,.of-publication-exclusion{color:var(--muted);font-size:14px}.of-publication-exclusion{margin:12px 0 0}.of-observation-details,.of-propose{margin-top:12px}.of-observation-details>summary,.of-propose>summary,.of-manage>summary,.of-capture>summary{display:flex;align-items:center;cursor:pointer;color:var(--green);font-weight:900;list-style-position:inside}.of-observation-detail{margin-top:12px;padding:14px;border-radius:13px;background:var(--wash)}.of-observation-detail h3{margin:0 0 8px;font-size:17px}.of-record-name{display:grid;margin-bottom:9px}.of-record-name span,.of-ai-detail span{color:var(--muted);font-size:13px}.of-ai-detail h4,.of-proposals h4{margin:10px 0 5px;font-size:14px}.of-ai-detail ul,.of-proposals ul{display:grid;gap:6px;margin:0;padding:0;list-style:none}.of-ai-detail li{display:grid}.of-proposals li{display:flex;align-items:center;justify-content:space-between;gap:8px}.of-proposals form{margin:0}.of-proposals button{padding:7px 11px}.of-propose form,.of-manage form{display:grid;gap:8px;margin-top:9px}.of-propose label,.of-manage label{display:grid;gap:4px;font-weight:800}.of-propose input,.of-propose textarea,.of-manage input,.of-manage select{width:100%;padding:9px 10px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-propose button,.of-manage button{border:0;border-radius:11px;background:var(--green);color:#fff;font-weight:900;padding:10px 13px}.of-manage button.is-secondary{border:1px solid var(--line);background:#fff;color:var(--ink)}.of-login-proposal{display:inline-flex;align-items:center;margin-top:10px;font-weight:850}.of-environment{background:#f7faf0}.of-environment-headline{margin:0 0 8px;font-weight:850}.of-environment ul{display:grid;gap:5px;margin:0;padding:0;list-style:none}.of-environment li{display:grid;grid-template-columns:minmax(112px,.75fr) minmax(0,1.25fr);gap:10px}.of-environment li span{color:var(--muted)}.of-environment small{display:block;margin-top:9px;color:var(--muted)}.of-note p{margin:0;white-space:pre-wrap}.of-manage>summary,.of-capture>summary{color:var(--ink)}.of-manage-lead{margin:3px 0 0;color:var(--muted);font-size:14px}.of-manage-body{display:grid;gap:14px;padding-top:11px}.of-manage-body>section{padding-top:12px;border-top:1px solid var(--line)}.of-manage-body>section:first-child{padding-top:0;border-top:0}.of-manage h3{margin:0;font-size:16px}.of-manage p{margin:5px 0;color:var(--muted);font-size:14px}.of-capture dl{display:grid;gap:8px;margin:11px 0 0}.of-capture dl div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px}.of-capture dt{color:var(--muted)}.of-capture dd{margin:0;font-weight:750}.of-related{padding:24px}.of-related h2{margin:0 0 12px;font-size:21px}.of-related>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.of-related-card{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;min-height:76px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);text-decoration:none}.of-related-card.has-no-photo{grid-template-columns:minmax(0,1fr)}.of-related-card img{width:76px;height:76px;object-fit:cover}.of-related-card span{display:grid;padding:8px 10px}.of-related-card small{color:var(--muted)}@media(max-width:899px){.of-layout{display:flex;flex-direction:column}.of-media-column{position:static;width:100%}.of-media-stage{min-height:0}.of-media-slide{min-height:min(82vh,133vw)}.of-media-slide img,.of-media-slide video{max-height:min(82vh,133vw)}.of-panel{width:100%;min-height:0;padding:22px 16px 38px;border-left:0}.of-related{padding:18px 16px}.of-related>div{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x proximity;padding-bottom:8px}.of-related-card{flex:0 0 min(76vw,300px);scroll-snap-align:start}.of-record-info h1{font-size:29px}.of-observation-details[open],.of-manage[open]{position:fixed;inset:58px 0 0;z-index:60;margin:0;padding:16px;overflow-y:auto;border-radius:0;background:#fff}.of-observation-details[open]>summary,.of-manage[open]>summary{position:sticky;top:0;z-index:2;padding:8px 0;background:#fff;border-bottom:1px solid var(--line)}}@media(max-width:390px){.of-header{padding-inline:6px}.of-panel{padding:19px 12px 34px}.of-summary,.of-scene,.of-environment,.of-comparison,.of-note,.of-manage,.of-capture,.of-publication-return{padding:14px;border-radius:14px}.of-related{padding-inline:12px}.of-environment li{grid-template-columns:1fr;gap:0}.of-capture dl div,.of-publication-return dl div{grid-template-columns:92px minmax(0,1fr)}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.of-media-gallery,.of-related>div{scroll-behavior:auto}}
@@ -858,5 +1039,6 @@ export function renderObservationFirstRecordDetailHtml(
   :focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .of-ai-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:#55635b;text-align:left}.of-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.of-title-edit{display:inline-block}.of-title-edit summary{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:750;color:var(--green);cursor:pointer;list-style:none}.of-title-edit summary::-webkit-details-marker{display:none}.of-title-edit form{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.of-title-edit input{flex:1 1 220px;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-title-edit button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800;cursor:pointer}
-  </style></head><body data-zukan-app-experience="v1">${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta"><p><span>◷</span>${escapeHtml(observedLabel)}</p><p><span>⌖</span>${escapeHtml(publicLocation)}</p>${locationProtection ? `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>` : ""}<p class="of-meta-visibility">${escapeHtml(copy.visibility[detail.visibility])}</p></div><div class="of-actions">${detail.owner ? `<a class="of-action is-primary" href="#of-manage-body">${escapeHtml(copy.edit)}</a>` : ""}<a class="of-action" href="${escapeHtml(mailto)}">${escapeHtml(copy.share)}</a>${presentation.savedControlHtml ?? ""}</div>${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${summary}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${scene}${environment}${comparison}${publicationReturn}${presentation.nocosilUsageHtml ?? ""}${management}${capture}</aside></div>${related}<p class="of-ai-footer-note" style="margin:24px 0 0;font-size:13px;color:#657168">${escapeHtml(copy.aiPageFooterNote)}</p></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}</body></html>`;
+  ${RECORD_PAGE_STYLES}
+  </style></head><body data-zukan-app-experience="v1"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta"><p class="of-meta-date">${escapeHtml(observedLabel)}</p><p class="of-meta-place">${escapeHtml(publicLocation)}</p>${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript()}</body></html>`;
 }

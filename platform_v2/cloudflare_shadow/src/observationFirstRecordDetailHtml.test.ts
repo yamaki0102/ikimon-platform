@@ -146,8 +146,8 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /<title>庭の観察 \| ZUKAN<\/title>/);
   assert.ok(rendered.indexOf("of-media-stage") < rendered.indexOf("of-record-info"));
   assert.equal((rendered.match(/<img[^>]+https:\/\/media\.example\/safe\.jpg/g) ?? []).length, 1);
-  assert.match(rendered, /この記録で見つかったもの|AIが見つけたもの/);
-  assert.match(rendered, /<details class="of-manage"/);
+  assert.match(rendered, /id="of-summary-title">見つかったもの</);
+  assert.match(rendered, /<details class="of-manage is-linked"/);
   assert.match(rendered, /<summary[^>]*>記録に情報を追加<\/summary>/);
   assert.match(rendered, /name="action" value="set_visibility"/);
   assert.match(rendered, /name="visibility"[\s\S]*<option value="public" selected>公開<\/option>/);
@@ -158,7 +158,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /この場所のようす/);
   assert.match(rendered, /草地と市街地の境界/);
   assert.doesNotMatch(rendered, /草地と市街地の境界のようです|写真から読み取った候補です/);
-  assert.match(rendered, /つながる記録/);
+  assert.match(rendered, /<h2 id="of-related-title">近くの記録<\/h2>/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
   assert.doesNotMatch(rendered, /AIからの短いメモ|主対象と環境の要素が確認できました/);
@@ -215,7 +215,9 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
   });
   assert.doesNotMatch(rendered, /記録に情報を追加|写真を対象へ割り当てる|別の対象として分ける|別の対象とまとめる/);
   assert.doesNotMatch(rendered, /name="action" value="identify"/);
-  assert.match(rendered, /ログインして名前を提案する/);
+  assert.match(rendered, /class="of-login-proposal" href="[^"]+">ログインする<\/a>/);
+  assert.match(rendered, /ログインすると、名前の提案や、自分の記録ができます/);
+  assert.doesNotMatch(rendered, /class="of-found-link"/);
   assert.match(rendered, /a,button,input,select,textarea,summary\{min-height:44px/);
   assert.doesNotMatch(rendered, /35\.123456|138\.123456|[?&]lat=/);
   assert.doesNotMatch(rendered, /data-media-dedup-notice|similar photos|似た写真/);
@@ -288,10 +290,10 @@ test("owner identification remains available when external proposals are off", (
 
 test("all supported languages render localized viewer copy", () => {
   const expectations = {
-    ja: "この記録で見つかったもの",
-    en: "Found in this record",
-    es: "Encontrado en este registro",
-    "pt-br": "Encontrado neste registro",
+    ja: "見つかったもの",
+    en: "Found here",
+    es: "Lo encontrado",
+    "pt-br": "O que foi encontrado",
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
@@ -373,10 +375,10 @@ test("legacy unidentified sentinel is never exposed and uses a localized natural
 
 test("scene and non-detection copy is localized in every supported language", () => {
   const expectations = {
-    ja: ["この写真から見つかったもの", "この写真では、場所や周囲のようすが記録されています"],
-    en: ["Found in this photo", "This photo records the place and its surroundings"],
-    es: ["Encontrado en esta foto", "Esta foto registra el lugar y su entorno"],
-    "pt-br": ["Encontrado nesta foto", "Esta foto registra o local e o seu entorno"],
+    ja: ["見つかったもの", "この写真では、場所や周囲のようすが記録されています"],
+    en: ["Found here", "This photo records the place and its surroundings"],
+    es: ["Lo encontrado", "Esta foto registra el lugar y su entorno"],
+    "pt-br": ["O que foi encontrado", "Esta foto registra o local e o seu entorno"],
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
@@ -430,10 +432,11 @@ test("multiple observations expose at most three summary rows and keep every det
     actionNonce: "nonce-many",
     viewerAuthenticated: true,
   });
-  const summary = rendered.match(/<ul class="of-summary-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
+  const summary = rendered.match(/<ul class="of-found-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.equal((summary.match(/<li/g) ?? []).length, 3);
   assert.equal((rendered.match(/<article class="of-observation-detail">/g) ?? []).length, 5);
-  assert.match(rendered, /<summary>すべて見る<\/summary>/);
+  assert.match(rendered, /<details class="of-reading[^"]*" id="of-reading"><summary>名前と場所のようすの詳細<\/summary>/);
+  assert.doesNotMatch(rendered, /<details class="of-reading[^>]* open/);
   assert.equal((rendered.match(/<video controls/g) ?? []).length, 1);
 });
 
@@ -462,9 +465,9 @@ test("a completed scene analysis without a biological candidate remains a useful
     viewerAuthenticated: false,
   });
 
-  assert.match(rendered, /この写真から見つかったもの/);
+  assert.match(rendered, /id="of-summary-title">見つかったもの</);
   assert.match(rendered, /水面/);
-  assert.match(rendered, /低い草地/);
+  assert.match(rendered, /草むら/);
   assert.match(rendered, /舗装・構造物/);
   assert.match(rendered, /この写真では、場所や周囲のようすが記録されています/);
   assert.match(rendered, /この場所のようす/);
@@ -493,7 +496,7 @@ test("scene chips ignore non-derived environment fields and unknown internal cod
     viewerAuthenticated: false,
   });
 
-  assert.match(rendered, /低い草地/);
+  assert.match(rendered, /草むら/);
   assert.doesNotMatch(rendered, /水面/);
   assert.doesNotMatch(rendered, /future_internal_code/);
 });
@@ -572,7 +575,7 @@ test("detected records label learning and location protection without exposing i
     viewerAuthenticated: false,
   });
 
-  assert.match(rendered, /この記録で見つかったもの/);
+  assert.match(rendered, /id="of-summary-title">見つかったもの</);
   assert.match(rendered, /わかること/);
   assert.match(rendered, /おおよその場所を表示/);
   assert.doesNotMatch(rendered, /provisional|human_asserted|accepted identification|provenance|occurrence/i);
@@ -884,7 +887,7 @@ test("mixed AI detail retains bird evidence and mapped guidance while excluding 
   for (const text of ["人間かもしれません", "Homo sapiens", "人物の顔を近くから撮る", "頭部および胴体の鮮明な拡大画像"]) {
     assert.equal(rendered.includes(text), false, text);
   }
-  assert.match(rendered, /スズメかもしれません/);
+  assert.match(rendered, /<span class="of-found-name">スズメ<\/span><span class="of-found-status is-ai">AIの読み取り<\/span>/);
   assert.match(rendered, /頬の黒い斑点が見えます/);
   assert.match(rendered, /翼とくちばしを横から撮る/);
   assert.doesNotMatch(rendered, /次に撮るとよい写真/);
@@ -1111,9 +1114,8 @@ test("card mode renders each heading and candidate once without advice prose, co
       viewerAuthenticated: false,
     },
   );
-  assert.equal((rendered.match(/ナミアゲハかもしれません/g) ?? []).length, 1);
-  assert.equal((rendered.match(/ログインして名前を提案する/g) ?? []).length, 1);
-  assert.equal((rendered.match(/<small>候補<\/small>/g) ?? []).length, 1);
+  assert.equal((rendered.match(/<span class="of-found-name">ナミアゲハ<\/span>/g) ?? []).length, 1);
+  assert.equal((rendered.match(/>ログインする<\/a>/g) ?? []).length, 1);
   assert.doesNotMatch(rendered, /写っているもの/);
   assert.doesNotMatch(rendered, /写真から見える特徴と、まだ確認できない点を並べています/);
   assert.doesNotMatch(rendered, /名前はこれから/);
@@ -1165,7 +1167,7 @@ test("card mode suppresses saved advice prose, trims next_photo to a noun, omits
   assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.doesNotMatch(rendered, /が分かる角度からの撮影/);
   assert.doesNotMatch(rendered, /写真から読み取った候補です/);
-  assert.match(rendered, />林の中<\/p>/);
+  assert.match(rendered, /<li>林の中<\/li>/);
   assert.doesNotMatch(rendered, /林の中のようです/);
   assert.equal((rendered.match(/実物の生体詳細/g) ?? []).length, 1);
 });
@@ -1272,10 +1274,10 @@ test("signboard record with saved illustration-deer candidate suppresses organis
   assert.doesNotMatch(rendered, /<h1>自然の記録<\/h1>/);
   assert.doesNotMatch(rendered, /シカかもしれません|案内板のイラストのシカ/);
   assert.doesNotMatch(rendered, /次に撮るとよい写真：実物の生体/);
-  assert.equal((rendered.match(/この写真から見つかったもの/g) ?? []).length, 1);
-  assert.match(rendered, /写っているもの：案内板/);
+  assert.equal((rendered.match(/id="of-summary-title">見つかったもの</g) ?? []).length, 1);
+  assert.match(rendered, /<span class="of-found-name">案内板<\/span><span class="of-found-status is-ai">AIの読み取り<\/span>/);
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
-  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/この説明はAIが作成しました/g) ?? []).length, 1);
+  assert.equal((bodyHtml.match(/AIの読み取り/g) ?? []).length, 1);
 
   const signCardNoQuote = {
     ...signCard,
@@ -1534,4 +1536,88 @@ test("AI note renders as one headless paragraph with the AI disclosure, slot 3 o
   assert.doesNotMatch(empty, /<section class="of-note" data-ai-feedback/);
   const english = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, lang: "en", aiNote });
   assert.doesNotMatch(english, /data-ai-note-slot/);
+});
+
+const mockPresentation = {
+  lang: "ja" as const,
+  title: "アオサギの記録",
+  observedLabel: "2026年9月18日（金）15:20",
+  note: null,
+  publicLocationLabel: "浜松市中央区 ・ およそ半径1km以内",
+  media: [{ mediaId: "m1", mediaKind: "photo" as const, url: "https://media.example/heron.jpg" }],
+  environment: { place_type: "water_edge", contact_surface: "artificial", surrounding_cover: "low_grass", environment_condition: "sunny", human_change: "mowing", place_type_source: "derived", environment_record_status: "auto_draft" },
+  sceneElements: ["water", "low_grass"],
+  related: [{ recordId: "near-1", title: "近くの記録", observedLabel: "2026年9月18日", photoUrl: "https://media.example/near.jpg" }],
+  aiNote: [
+    { slot: 1 as const, text: "水面と足もとまで写っているので、アオサギが待っている場所の深さが分かります。" },
+    { slot: 2 as const, text: "アオサギは浅い水辺でじっと待って魚をとります。" },
+  ],
+  countBand: { text: "この記録で、みなと川の土手の秋の記録が12件になりました", href: "/api/v1/records/visit-ui-contract/place-season" },
+  actionNonce: "nonce-mock",
+};
+const mainOf = (html: string): string => html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
+const renderMain = (...args: Parameters<typeof renderObservationFirstRecordDetailHtml>): string => mainOf(renderObservationFirstRecordDetailHtml(...args));
+const orderMarks = ['class="of-media-stage"', 'class="of-record-info"', 'id="of-summary-title"', "data-ai-feedback", "data-count-band", 'id="of-environment-title"', 'id="of-related-title"', 'class="of-bottom-actions"'];
+
+test("record page follows the mock order and the owner variant shows fix-name, settings and the visibility chip", () => {
+  const html = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true });
+  const at = orderMarks.map((mark) => html.indexOf(mark));
+  assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
+  assert.deepEqual([...at].sort((a, b) => a - b), at);
+  assert.match(html, /<a class="of-found-link" href="#of-reading-body" data-of-open="of-reading">名前を直す<\/a>/);
+  assert.match(html, /<a class="of-cta" href="#of-reading-body" data-of-open="of-reading">名前と場所のようすを直す<\/a>/);
+  assert.match(html, /<p class="of-settings-link"><a href="#of-manage-body" data-of-open="manage">この記録の設定<\/a><\/p>/);
+  assert.match(html, /data-owner-visibility href="#of-manage-body" data-of-open="manage">公開<\/a>/);
+  assert.match(html, /data-location-blur><svg[^>]*>.*?<\/svg>位置はぼかしています<\/span>/);
+  assert.match(html, /題名とこの文章はAIが作成しました/);
+  assert.match(html, /<span class="of-found-name">水面<\/span><span class="of-found-status is-ai">AIの読み取り<\/span>/);
+  assert.match(html, /<li>水辺<\/li><li>人工の面<\/li><li>低い草<\/li><li>日が当たっている<\/li><li>草刈りの跡<\/li>/);
+  assert.match(html, /この場所のようすはAIが読み取りました/);
+  assert.match(html, /<a class="of-band" data-count-band href="\/api\/v1\/records\/visit-ui-contract\/place-season">/);
+  assert.doesNotMatch(html, /class="of-login-proposal"|名前や場所のようすを提案する/);
+  assert.equal((html.match(/id="of-summary-title"/g) ?? []).length, 1);
+});
+
+test("record page for someone else's record keeps one suggest link and bottom button, no owner chip or settings", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, viewerAuthenticated: true });
+  const at = orderMarks.map((mark) => html.indexOf(mark));
+  assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
+  assert.deepEqual([...at].sort((a, b) => a - b), at);
+  assert.match(html, /<a class="of-found-link" href="#of-reading-body" data-of-open="of-reading">名前を提案する<\/a>/);
+  assert.equal((html.match(/class="of-found-link"/g) ?? []).length, 1);
+  assert.match(html, /<a class="of-cta" href="#of-reading-body" data-of-open="of-reading">名前や場所のようすを提案する<\/a>/);
+  assert.doesNotMatch(html, /data-owner-visibility|of-settings-link|名前を直す|名前と場所のようすを直す|この記録の設定|id="manage"|set_visibility/);
+  assert.doesNotMatch(html, /class="of-login-proposal"/);
+  assert.match(html, /題名とこの文章はAIが作成しました/);
+  assert.match(html, /位置はぼかしています/);
+});
+
+test("record page for a logged-out viewer shows only the login button and sentence", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, viewerAuthenticated: false });
+  assert.match(html, /<a class="of-login-proposal" href="[^"]*\/ja\/login\?redirect=[^"]+">ログインする<\/a><p class="of-cta-note">ログインすると、名前の提案や、自分の記録ができます<\/p>/);
+  assert.doesNotMatch(html, /class="of-found-link"|class="of-cta"|data-owner-visibility|of-settings-link|名前を直す|名前を提案する<\/a>|名前や場所のようすを提案する|name="action" value="identify"/);
+  assert.match(html, /題名とこの文章はAIが作成しました/);
+  assert.match(html, /data-count-band/);
+});
+
+test("record page omits the band without data and never renders the owner chip for hidden-band records", () => {
+  const html = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, countBand: null });
+  assert.doesNotMatch(html, /data-count-band|of-band/);
+  const ownerOnly = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, countBand: { text: "あなたの記録では、初めての水辺です", href: null } });
+  assert.match(ownerOnly, /<div class="of-band" data-count-band>/);
+  assert.doesNotMatch(ownerOnly, /<a class="of-band"/);
+});
+
+test("multi-photo record keeps per-photo switching with a counter chip", () => {
+  const html = renderMain({ ...detail, owner: false }, {
+    ...mockPresentation,
+    viewerAuthenticated: false,
+    media: [
+      { mediaId: "m1", mediaKind: "photo", url: "https://media.example/1.jpg" },
+      { mediaId: "m2", mediaKind: "photo", url: "https://media.example/2.jpg" },
+    ],
+  });
+  assert.match(html, /data-of-counter data-template="写真 \{n\} \/ 2">写真 1 \/ 2<\/span>/);
+  assert.match(html, /<nav class="of-media-nav"/);
+  assert.equal((html.match(/class="of-media-slide"/g) ?? []).length, 2);
 });
