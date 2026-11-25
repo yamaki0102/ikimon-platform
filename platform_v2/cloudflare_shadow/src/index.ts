@@ -4166,14 +4166,14 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleLinkedAndSavedApi(session, env.OBS_DB);
+        return handleLinkedAndSavedApi(session, env.OBS_DB, env.CORE_DB as never);
       }
 
       const linkedSavedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/linked-saved$/);
       if ((request.method === "GET" || request.method === "HEAD") && linkedSavedMatch) {
         const viewLang = (linkedSavedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB);
+        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB, env.CORE_DB as never);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
