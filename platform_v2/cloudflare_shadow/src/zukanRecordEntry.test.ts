@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { renderCloudflareRecordHtml } from "./index";
+import { globalRecordEntryAsset } from "../../src/ui/siteShell";
 
 test("zukanRecordEntry renders C1 fullscreen camera stage and C2 photo picker with required IDs", () => {
   const html = renderRecordEntryStageHtml({
@@ -48,4 +49,23 @@ test("renderCloudflareRecordHtml integrates C1-C2 entry without floating feedbac
   assert.match(html, /id="record-form"[^>]*hidden/);
   assert.doesNotMatch(html, /<(?:a|button)[^>]*data-otayori-fab/);
   assert.doesNotMatch(html, /ひとこと送る/);
+});
+
+test("record page restores the macro camera: button, sheet, start control and handler script", () => {
+  for (const [path, label] of [["/ja/record", "接写カメラ"], ["/record", "接写カメラ"], ["/en/record", "Macro camera"]] as const) {
+    const html = renderCloudflareRecordHtml(
+      { userId: "user_macro", displayName: "テスター", banned: false } as any,
+      new URL(`https://ikimon.life${path}`),
+      "test-nonce"
+    );
+    assert.match(html, new RegExp(`<button[^>]*data-global-record-macro-open[^>]*>${label}</button>`), path);
+    assert.match(html, /data-global-record-camera-sheet/, path);
+    assert.match(html, /data-global-record-camera-start/, path);
+    assert.match(html, /\.global-record-camera-sheet \{/, path);
+    assert.match(html, /<script src="\/assets\/ui\/global-record-entry\.[a-f0-9]{12}\.js" defer><\/script>/, path);
+    assert.match(html, /id="global-record-config"/, path);
+  }
+  const asset = globalRecordEntryAsset();
+  assert.match(asset.content.toString("utf8"), /data-global-record-macro-open/);
+  assert.match(asset.content.toString("utf8"), /focus_unsupported/);
 });

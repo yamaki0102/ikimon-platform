@@ -421,7 +421,7 @@ import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
-import { renderSiteDocument } from "../../src/ui/siteShell";
+import { renderSiteDocument, renderRecordMacroCameraAssets, recordMacroCameraLabel } from "../../src/ui/siteShell";
 import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, claimObservationEventGuestParticipant, findObservationEventParticipant, generateNativeObservationEventQuests, getObservationEventSessionById, mapObservationEventSession, observationEventGuestCredentialDigest, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventServerFunnelMetric, type ObservationEventSessionD1Row } from "./programs/runtime";
@@ -22899,8 +22899,10 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       videoLabel: mediaCopy.video,
       videoHint: mediaCopy.videoHint,
       prompt: mediaCopy.prompt,
-      privateBoundary: mediaCopy.privateBoundary
+      privateBoundary: mediaCopy.privateBoundary,
+      macroLabel: recordMacroCameraLabel(lang === "pt-br" ? "pt-BR" : lang)
     })}
+    ${renderRecordMacroCameraAssets("", lang === "pt-br" ? "pt-BR" : lang)}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
       <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><div class="zt-field-input-row"><textarea name="note" rows="3"></textarea>${renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })}</div><p id="record-voice-status" class="zt-voice-status" aria-live="polite"></p></label>
