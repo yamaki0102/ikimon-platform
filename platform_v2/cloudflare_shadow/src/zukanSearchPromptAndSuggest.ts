@@ -50,19 +50,19 @@ async function queryPublicSuggestions(q: string, db: Env["OBS_DB"]): Promise<Sug
     trimmed
       ? await db
           .prepare(
-            `SELECT place_id, name
+            `SELECT place_id, canonical_name AS name
                FROM places
-              WHERE visibility = 'public'
-                AND name LIKE ?
+              WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL
+                AND canonical_name LIKE ?
               LIMIT 6`
           )
           .bind(like)
           .all<{ place_id: string; name: string }>()
       : await db
           .prepare(
-            `SELECT place_id, name
+            `SELECT place_id, canonical_name AS name
                FROM places
-              WHERE visibility = 'public'
+              WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL
               LIMIT 6`
           )
           .all<{ place_id: string; name: string }>()

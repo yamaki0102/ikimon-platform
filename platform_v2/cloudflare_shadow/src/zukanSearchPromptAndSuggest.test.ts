@@ -38,8 +38,8 @@ function setupDb(t: test.TestContext) {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  sqlite.prepare("INSERT INTO places (place_id, name, visibility) VALUES (?, ?, 'public')").run("p-1", "佐鳴湖公園");
-  sqlite.prepare("INSERT INTO places (place_id, name, visibility) VALUES (?, ?, 'private')").run("p-priv", "佐鳴湖の秘密");
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'published')").run("p-1", "佐鳴湖公園");
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES (?, ?, 'draft')").run("p-priv", "佐鳴湖の秘密");
   sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, visibility) VALUES (?, ?, 'public')").run("o-1", "カワセミ");
   sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, visibility) VALUES (?, ?, 'private')").run("o-priv", "カワセミ秘密");
   return sqliteObsDb(sqlite);
