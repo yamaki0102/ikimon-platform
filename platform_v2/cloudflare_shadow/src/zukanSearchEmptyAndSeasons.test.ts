@@ -28,14 +28,14 @@ function setupDb(t: test.TestContext) {
   sqlite.exec(`
     CREATE TABLE observations (
       observation_id TEXT PRIMARY KEY,
-      taxon_display_name TEXT NOT NULL,
+      taxon_label TEXT NOT NULL,
       observed_at TEXT NOT NULL,
       visibility TEXT NOT NULL DEFAULT 'public'
     );
   `);
-  sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-spring", "ヤマザクラ", "2026-04-05T10:00:00Z");
-  sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-winter", "ツグミ", "2026-01-15T10:00:00Z");
-  sqlite.prepare("INSERT INTO observations (observation_id, taxon_display_name, observed_at, visibility) VALUES (?, ?, ?, 'private')").run("obs-priv", "非公開の春", "2026-04-10T10:00:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-spring", "ヤマザクラ", "2026-04-05T10:00:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, 'public')").run("obs-winter", "ツグミ", "2026-01-15T10:00:00Z");
+  sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, visibility) VALUES (?, ?, ?, 'private')").run("obs-priv", "非公開の春", "2026-04-10T10:00:00Z");
   return sqliteObsDb(sqlite);
 }
 

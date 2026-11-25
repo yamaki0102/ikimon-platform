@@ -35,7 +35,7 @@ function monthMatchesSeason(observedAt: string, season: SeasonKey): boolean {
 async function querySeasonalRecords(season: SeasonKey, query: string, db: Env["OBS_DB"]) {
   const rows = await db
     .prepare(
-      `SELECT observation_id, taxon_display_name, observed_at
+      `SELECT observation_id, COALESCE(taxon_label, '') AS taxon_display_name, observed_at
          FROM observations
         WHERE visibility = 'public'
         ORDER BY observed_at DESC
