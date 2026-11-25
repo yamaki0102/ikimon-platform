@@ -297,6 +297,11 @@ import {
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
 import {
+  buildObservationDetailEvidence,
+  handleGetObservationEvidence,
+  renderObservationDetailEvidenceHtml,
+} from "./zukanObservationDetailEvidence";
+import {
   ZUKAN_RECORD_PLACE_TIME_SCRIPT,
   ZUKAN_RECORD_PLACE_TIME_STYLES,
   handleCreateRecordPlace,
@@ -4729,6 +4734,12 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const observationEvidenceMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/evidence$/);
+      if (request.method === "GET" && observationEvidenceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleGetObservationEvidence(decodeURIComponent(observationEvidenceMatch[1]), session, env.OBS_DB);
       }
 
       const placeProposalApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/proposals$/);
@@ -26248,6 +26259,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         listHumanExpertCommentsForRecord(env, detail.visitId),
         loadObservationComments(detail.visitId, env),
       ]);
+      const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
+        buildObservationDetailEvidence({
+          observationId: detail.visitId,
+          isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
+          observedAt: detail.observedAt || null,
+          placeId: detail.placeName || null,
+          locationPrecision: detail.publicLocation?.label ? "public_label" : "grid",
+          hasScrubbedAsset: media.length > 0,
+        }),
+        recordLang
+      );
       const commentsHtml = renderObservationCommentsHtml({
         observationId: detail.visitId,
         lang: recordLang,
@@ -26255,7 +26277,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         authenticated: Boolean(session && !session.banned),
         comments: observationComments,
       });
-      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${commentsHtml}`;
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}${commentsHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
