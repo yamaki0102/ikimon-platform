@@ -37,6 +37,11 @@ import {
 } from "./guestObservationPost";
 import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
+  handleEventDetailsRoute,
+  handleNearbyEventsApi,
+  handleNearbyEventsPageRoute,
+} from "./zukanEventsNearbyAndDetails";
+import {
   handleGetEventGuestPhoto,
   handleListEventGuestObservations,
   handleOrganizerRemoveGuestObservation,
@@ -3883,6 +3888,24 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
+        return handleNearbyEventsApi(url, env.OBS_DB);
+      }
+
+      const eventsNearbyPageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/nearby$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventsNearbyPageMatch) {
+        const viewLang = (eventsNearbyPageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleNearbyEventsPageRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      const eventDetailsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/details$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDetailsMatch?.[2]) {
+        const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
