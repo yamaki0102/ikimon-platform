@@ -105,6 +105,17 @@ async function recentInviteKinds(db: NoteDb, ownerUserId: string, recordId: stri
   return rows.map((row) => row.invite_kind);
 }
 
+export const AI_NOTE_RECENT_TEXT_WINDOW = 3;
+
+async function recentSlotOneTexts(db: NoteDb, ownerUserId: string, recordId: string): Promise<string[]> {
+  const rows = (await db.prepare(
+    `SELECT text_ja FROM record_ai_notes
+      WHERE owner_user_id = ? AND slot = 1 AND status = 'ready' AND record_id <> ?
+      ORDER BY created_at DESC LIMIT ${AI_NOTE_RECENT_TEXT_WINDOW}`,
+  ).bind(ownerUserId, recordId).all<{ text_ja: string }>()).results;
+  return rows.map((row) => row.text_ja);
+}
+
 export type GenerateAiNoteInput = {
   db: NoteDb;
   recordId: string;
@@ -141,11 +152,12 @@ export async function generateAndStoreAiNote(input: GenerateAiNoteInput): Promis
   let called = false;
   if (!input.protectedRecord && reading.analyzed && evidence.some((item) => item.capture)) {
     const avoid = await recentInviteKinds(db, ownerUserId, recordId);
+    const recentTexts = await recentSlotOneTexts(db, ownerUserId, recordId);
     const inviteKind = chooseInviteKind(eligibleInviteKinds(reading), recordId, avoid);
     called = true;
     let feedback = "";
     for (let attempt = 0; attempt < AI_NOTE_MAX_ATTEMPTS; attempt += 1) {
-      const { prompt, aliases } = buildAiNotePrompt({ evidence, inviteKind });
+      const { prompt, aliases } = buildAiNotePrompt({ evidence, inviteKind, recordId, recentTexts });
       const raw = await input.generate({
         contents: [{ role: "user", parts: [{ text: feedback ? `${prompt}\n${feedback}` : prompt }] }],
         generationConfig: {
