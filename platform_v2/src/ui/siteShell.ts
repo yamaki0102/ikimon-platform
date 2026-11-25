@@ -4625,6 +4625,7 @@ ${configPrelude}
           return false;
         }
       },
+      location: (forceFresh) => requestCaptureLocation(Boolean(forceFresh)),
     };
     emitCapture('ikimon-capture-engine-ready');
   }

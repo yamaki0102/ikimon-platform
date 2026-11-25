@@ -1579,7 +1579,7 @@ test("capture-screen engine mode is inert unless the capture stage exists and ex
   const engine = globalRecordEntryAsset().content.toString("utf8");
   assert.ok(engine.includes("const embeddedCapture = Boolean(document.querySelector('[data-zukan-capture-stage]'));"));
   assert.ok(engine.includes("window.ikimonCaptureEngine = {"));
-  assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*window\.ikimonCaptureEngine = \{\s*begin: embeddedBegin,\s*setCloseup: embeddedApplyCloseup,\s*shutter:[\s\S]*stop:[\s\S]*state: embeddedState,\s*caps: embeddedCaps,\s*clearError: hideCameraError,\s*torch:/);
+  assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*window\.ikimonCaptureEngine = \{\s*begin: embeddedBegin,\s*setCloseup: embeddedApplyCloseup,\s*shutter:[\s\S]*stop:[\s\S]*state: embeddedState,\s*caps: embeddedCaps,\s*clearError: hideCameraError,\s*torch:[\s\S]*location: \(forceFresh\) => requestCaptureLocation\(Boolean\(forceFresh\)\)/);
   assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*emitCapture\('ikimon-capture-photo'/);
 });
 

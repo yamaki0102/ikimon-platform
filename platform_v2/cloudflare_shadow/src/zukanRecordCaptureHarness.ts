@@ -52,6 +52,15 @@ const FAKE_CAMERA = `(() => {
   };
 })();`;
 
+const FAKE_GEO = `(() => {
+  window.__geo = { calls: [] };
+  navigator.geolocation.getCurrentPosition = (ok, fail, options) => {
+    window.__geo.calls.push(options ? JSON.parse(JSON.stringify(options)) : null);
+    if (window.__geoMode === "granted") setTimeout(() => ok({ coords: { latitude: 34.7108, longitude: 137.7261, accuracy: 25 } }), 30);
+    else if (window.__geoMode === "denied") setTimeout(() => fail({ code: 1, message: "denied" }), 30);
+  };
+})();`;
+
 export type ApiLog = { upsert: Record<string, unknown>[]; uploads: Array<{ path: string; body: Record<string, unknown> }>; other: string[] };
 
 let browser: Browser | null = null;
@@ -75,6 +84,7 @@ export async function openRecord(options: {
   path?: string;
   reducedMotion?: "reduce" | "no-preference";
   saveFails?: boolean;
+  geo?: "granted" | "denied" | "hang";
 } = {}): Promise<{ page: Page; context: BrowserContext; api: ApiLog; close: () => Promise<void> }> {
   const width = options.width ?? 390;
   const context = await browser!.newContext({
@@ -87,6 +97,8 @@ export async function openRecord(options: {
   const api: ApiLog = { upsert: [], uploads: [], other: [] };
   await context.addInitScript("window.__name = (fn) => fn;");
   await context.addInitScript(FAKE_CAMERA);
+  await context.addInitScript(`window.__geoMode = ${JSON.stringify(options.geo ?? "denied")};`);
+  await context.addInitScript(FAKE_GEO);
   await context.addInitScript(`window.__camCaps = ${JSON.stringify(options.caps ?? FULL_CAPS)}; window.__camDeny = ${JSON.stringify(options.deny ?? null)};`);
   const asset = globalRecordEntryAsset();
   await context.route("https://zukan.test/**", async (route) => {
@@ -122,8 +134,8 @@ export async function openRecord(options: {
   return { page, context, api, close: () => context.close() };
 }
 
-export async function waitPhase(page: Page, phase: string): Promise<void> {
-  await page.waitForFunction((p) => document.querySelector("[data-zukan-capture-stage]")?.getAttribute("data-phase") === p, phase, { timeout: 8000 });
+export async function waitPhase(page: Page, phase: string, timeout = 8000): Promise<void> {
+  await page.waitForFunction((p) => document.querySelector("[data-zukan-capture-stage]")?.getAttribute("data-phase") === p, phase, { timeout });
 }
 
 export async function shot(page: Page, name: string): Promise<void> {
@@ -146,3 +158,5 @@ export async function shoot(page: Page, times: number): Promise<void> {
 export const camLog = (page: Page) => page.evaluate(() => (window as unknown as { __cam: { getUserMedia: unknown[]; applyConstraints: unknown[]; stops: number } }).__cam);
 
 export const TINY_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+export const geoLog = (page: Page) => page.evaluate(() => (window as unknown as { __geo: { calls: unknown[] } }).__geo.calls);

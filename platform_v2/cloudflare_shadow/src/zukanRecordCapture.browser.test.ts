@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { browserTest, camLog, openRecord, shoot, shot, TINY_PNG, waitPhase, waitVideo } from "./zukanRecordCaptureHarness";
+import { browserTest, camLog, geoLog, openRecord, shoot, shot, TINY_PNG, waitPhase, waitVideo } from "./zukanRecordCaptureHarness";
 
 const STANDARD_CONSTRAINTS = { video: { facingMode: { ideal: "environment" }, width: { ideal: 2560 }, height: { ideal: 1920 } }, audio: false };
 
@@ -398,5 +398,109 @@ browserTest("video mode records on its own stream and keeps photos and video apa
     assert.equal(await page.evaluate(() => document.querySelector("[data-zt-save]")?.textContent), "記録する（動画）");
   } finally {
     await close();
+  }
+});
+
+browserTest("location granted: the shutter never asks for it, and saving attaches the coordinates with the old record flow's options", async () => {
+  const { page, api, close } = await openRecord({ geo: "granted" });
+  try {
+    await waitPhase(page, "live");
+    await shoot(page, 2);
+    assert.deepEqual(await geoLog(page), []);
+    await page.click("[data-zt-save]");
+    await waitPhase(page, "saved");
+    assert.deepEqual(await geoLog(page), [{ enableHighAccuracy: false, timeout: 8000, maximumAge: 0 }]);
+    assert.equal(api.upsert.length, 1);
+    assert.equal(api.upsert[0]!.latitude, 34.7108);
+    assert.equal(api.upsert[0]!.longitude, 137.7261);
+    assert.equal(api.upsert[0]!.visibility, "private");
+    assert.equal(api.uploads.length, 2);
+  } finally {
+    await close();
+  }
+});
+
+browserTest("location denied: the record is saved private and shown as 場所未設定", async () => {
+  const { page, api, close } = await openRecord({ geo: "denied" });
+  try {
+    await waitPhase(page, "live");
+    await shoot(page, 1);
+    await page.click("[data-zt-save]");
+    await waitPhase(page, "saved");
+    assert.equal(api.upsert.length, 1);
+    assert.equal(api.upsert[0]!.latitude, null);
+    assert.equal(api.upsert[0]!.longitude, null);
+    assert.equal(api.upsert[0]!.visibility, "private");
+    assert.match(String(await page.textContent("[data-zt-saved-card-meta]")), /場所は未設定/);
+  } finally {
+    await close();
+  }
+});
+
+browserTest("location that never answers does not block the shutter and still saves without a place", async () => {
+  const { page, api, close } = await openRecord({ geo: "hang" });
+  try {
+    await waitPhase(page, "live");
+    const started = Date.now();
+    await shoot(page, 3);
+    assert.ok(Date.now() - started < 6000);
+    assert.deepEqual(await geoLog(page), []);
+    await page.click("[data-zt-save]");
+    await waitPhase(page, "saved", 15000);
+    assert.equal(api.upsert[0]!.latitude, null);
+    assert.equal(api.upsert[0]!.longitude, null);
+    assert.equal(api.uploads.length, 3);
+  } finally {
+    await close();
+  }
+});
+
+browserTest("observedAt keeps seconds: shutter time for camera shots, EXIF DateTimeOriginal for library photos", async () => {
+  const shutter = await openRecord();
+  try {
+    await waitPhase(shutter.page, "live");
+    const before = Date.now();
+    await shoot(shutter.page, 1);
+    await shutter.page.click("[data-zt-save]");
+    await waitPhase(shutter.page, "saved");
+    const observed = Date.parse(String(shutter.api.upsert[0]!.observedAt));
+    assert.ok(observed >= before - 1000 && observed <= Date.now(), `${observed} vs ${before}`);
+    assert.match(String(shutter.api.upsert[0]!.observedAt), /\.000Z$/);
+  } finally {
+    await shutter.close();
+  }
+  const library = await openRecord();
+  try {
+    await waitPhase(library.page, "live");
+    const jpeg = Buffer.from(await library.page.evaluate(async () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 48;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#3a7";
+      ctx.fillRect(0, 0, 64, 48);
+      const blob: Blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg"));
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let text = "";
+      for (const byte of bytes) text += String.fromCharCode(byte);
+      return btoa(text);
+    }), "base64");
+    const stamp = Buffer.from("2025:03:04 11:22:33\0", "latin1");
+    const tiff = Buffer.concat([
+      Buffer.from([0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00]),
+      Buffer.from([0x01, 0x00, 0x69, 0x87, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 0x1a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+      Buffer.from([0x01, 0x00, 0x03, 0x90, 0x02, 0x00, 0x14, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+      stamp,
+    ]);
+    const payload = Buffer.concat([Buffer.from("Exif\0\0", "latin1"), tiff]);
+    const segment = Buffer.concat([Buffer.from([0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 0xff]), payload]);
+    const withExif = Buffer.concat([jpeg.subarray(0, 2), segment, jpeg.subarray(2)]);
+    await library.page.setInputFiles("#record-media-photo", { name: "library.jpg", mimeType: "image/jpeg", buffer: withExif });
+    await library.page.waitForFunction(() => document.querySelector("[data-zt-count]")?.textContent === "1");
+    await library.page.click("[data-zt-save]");
+    await waitPhase(library.page, "saved");
+    assert.equal(library.api.upsert[0]!.observedAt, new Date(2025, 2, 4, 11, 22, 33).toISOString());
+  } finally {
+    await library.close();
   }
 });

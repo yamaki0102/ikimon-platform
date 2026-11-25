@@ -965,7 +965,68 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
     function ztLocalInput(ms) {
       const d = new Date(ms);
       const p = (n) => String(n).padStart(2, "0");
-      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+    }
+    const ztExif = [];
+    async function ztExifTime(file) {
+      try {
+        if (!file || !/jpe?g/i.test((file.type || "") + " " + (file.name || ""))) return 0;
+        const view = new DataView(await file.slice(0, 262144).arrayBuffer());
+        if (view.getUint16(0) !== 0xffd8) return 0;
+        let pos = 2;
+        while (pos + 4 < view.byteLength) {
+          const marker = view.getUint16(pos);
+          const size = view.getUint16(pos + 2);
+          if (marker === 0xffe1 && view.getUint32(pos + 4) === 0x45786966) {
+            const base = pos + 10;
+            const little = view.getUint16(base) === 0x4949;
+            const u16 = (offset) => view.getUint16(base + offset, little);
+            const u32 = (offset) => view.getUint32(base + offset, little);
+            const readIfd = (offset) => {
+              const out = {};
+              const count = u16(offset);
+              for (let index = 0; index < count; index += 1) {
+                const entry = offset + 2 + index * 12;
+                out[u16(entry)] = { count: u32(entry + 4), at: entry + 8 };
+              }
+              return out;
+            };
+            const root = readIfd(u32(4));
+            const exif = root[0x8769] ? readIfd(u32(root[0x8769].at)) : null;
+            const tag = exif && (exif[0x9003] || exif[0x9004]);
+            if (!tag || tag.count < 19) return 0;
+            const from = base + u32(tag.at);
+            let text = "";
+            for (let index = 0; index < 19; index += 1) text += String.fromCharCode(view.getUint8(from + index));
+            const m = text.match(/^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)$/);
+            if (!m) return 0;
+            const ms = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6])).getTime();
+            return Number.isFinite(ms) && ms > Date.UTC(1990, 0, 1) && ms <= Date.now() ? ms : 0;
+          }
+          if ((marker & 0xff00) !== 0xff00 || size < 2) return 0;
+          pos += 2 + size;
+        }
+      } catch (_) {}
+      return 0;
+    }
+    function ztReadTimes(list) {
+      for (const file of Array.from(list || [])) ztExif.push(ztExifTime(file).then((ms) => { if (ms) ztTimes.set(file, ms); }));
+    }
+    async function ztResolveSaveInputs() {
+      const engine = ztEngine();
+      const waiting = Promise.all(ztExif.splice(0));
+      const place = engine && typeof engine.location === "function"
+        ? Promise.race([engine.location(true), new Promise((resolve) => setTimeout(() => resolve(null), 9000))]).catch(() => null)
+        : Promise.resolve(null);
+      const resolved = await Promise.all([waiting, place]);
+      const found = resolved[1];
+      if (form && form.elements) {
+        if (found && Number.isFinite(Number(found.latitude)) && Number.isFinite(Number(found.longitude))) {
+          if (form.elements.latitude) form.elements.latitude.value = String(found.latitude);
+          if (form.elements.longitude) form.elements.longitude.value = String(found.longitude);
+        }
+        if (form.elements.observedAtLocal) form.elements.observedAtLocal.value = ztLocalInput(ztEarliest());
+      }
     }
     function ztEarliest() {
       const times = [];
@@ -975,7 +1036,7 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       }
       return times.length ? Math.min.apply(null, times) : Date.now();
     }
-    function ztSave() {
+    async function ztSave() {
       if (ztPhase === "saving" || submitting || serverSaved) return;
       const files = selectedFiles();
       if (!files.length) return;
@@ -987,6 +1048,9 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
       ztLockInputs(true);
       for (const button of ztQA("[data-zt-save],[data-zt-review-save]")) { button.disabled = true; button.textContent = ztCopy.saving; }
       ztHint("");
+      await ztResolveSaveInputs();
+      if (ztPhase !== "saving" || !ztSavedInfo) return;
+      ztSavedInfo.observedAt = ztEarliest();
       form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
     }
     function stageStatus(message, error) {
@@ -1129,6 +1193,7 @@ export const ZUKAN_RECORD_CAPTURE_SCRIPT = String.raw`
         if (!input) continue;
         input.addEventListener("click", () => { if (id !== "record-media-photo" && id !== "record-media-video") ztStopCameraForPicker(); });
         input.addEventListener("cancel", () => setTimeout(ztResume, 0));
+        if (id !== "record-media-video" && id !== "record-media-video-camera") input.addEventListener("change", () => ztReadTimes(input.files), true);
       }
       const panelCamera = document.getElementById("record-media-camera-panel");
       if (panelCamera) panelCamera.addEventListener("change", () => {
