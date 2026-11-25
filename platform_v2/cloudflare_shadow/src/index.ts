@@ -41,11 +41,20 @@ import {
   handleEventConfirmOrJoinedRoute,
 } from "./zukanEventConfirmAndJoined";
 import {
+  handleEventDetailsRoute,
+  handleNearbyEventsApi,
+  handleNearbyEventsPageRoute,
+} from "./zukanEventsNearbyAndDetails";
+import {
   handleGetEventGuestPhoto,
   handleListEventGuestObservations,
   handleOrganizerRemoveGuestObservation,
   handleSetGuestObservationShareScope,
 } from "./guestEventShare";
+import {
+  handleEventDayAlbumTakeRoute,
+  handleSaveEventToPlace,
+} from "./zukanEventDayAlbumTake";
 import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
@@ -3877,6 +3886,20 @@ export const worker = {
         );
       }
 
+      const eventSaveToPlaceMatch = url.pathname.match(/^\/api\/v1\/events\/([^/]+)\/save-to-place$/);
+      if (request.method === "POST" && eventSaveToPlaceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSaveEventToPlace(decodeURIComponent(eventSaveToPlaceMatch[1]), request, session, env.OBS_DB);
+      }
+
+      const eventDayAlbumTakeMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(day|album|take)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDayAlbumTakeMatch?.[2] && eventDayAlbumTakeMatch?.[3]) {
+        const viewLang = (eventDayAlbumTakeMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
       const guestEntryMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/guest\/(place|event)\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && guestEntryMatch?.[2] && guestEntryMatch?.[3]) {
         const viewLang = (guestEntryMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
@@ -3901,6 +3924,24 @@ export const worker = {
         const view = eventConfirmJoinedMatch[3] as "confirm" | "joined";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventConfirmOrJoinedRoute(decodeURIComponent(eventConfirmJoinedMatch[2]), view, viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
+        return handleNearbyEventsApi(url, env.OBS_DB);
+      }
+
+      const eventsNearbyPageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/nearby$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventsNearbyPageMatch) {
+        const viewLang = (eventsNearbyPageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleNearbyEventsPageRoute(url, viewLang, session, env.OBS_DB);
+      }
+
+      const eventDetailsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/details$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventDetailsMatch?.[2]) {
+        const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
