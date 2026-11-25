@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { renderOtayoriFloatingButton } from "./otayori";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
+import { dayBoundsFromGroupKey, decodePageCursor, encodePageCursor, likePatternFromQuery } from "./ownerRecordPaging";
 import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderYearPairCard } from "./zukanLibraryBlocks";
 
 function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
@@ -218,6 +219,7 @@ export type ZukanTopPageData = {
   recentPublicRecords: TopPublicRecordThumb[];
   placesStrip: TopPlaceCard[];
   libraryGroups: TopLibraryGroup[];
+  libraryNextCursor?: string | null;
   oneYearPair: TopOneYearPair | null;
 };
 
@@ -518,36 +520,79 @@ export async function loadEventSectionWithFallback(
   };
 }
 
+export const USER_LIBRARY_PAGE_SIZE = 60;
+
+export type UserLibraryPageOptions = { limit?: number; before?: string | null; day?: string | null };
+
+type UserLibraryRow = {
+  observation_id: string;
+  observed_at: string;
+  taxon_label: string | null;
+  public_area_label: string | null;
+  derivative_key: string | null;
+};
+
+function buildUserLibraryQuery(userId: string, like: string | null, limit: number, options: UserLibraryPageOptions, withPlaceSearch: boolean): { sql: string; params: Array<string | number> } {
+  const params: Array<string | number> = [];
+  const p = (value: string | number): string => {
+    params.push(value);
+    return `?${params.length}`;
+  };
+  const where = [`o.owner_user_id = ${p(userId)}`];
+  if (like) {
+    const l = p(like);
+    const parts = [
+      `o.taxon_label LIKE ${l} ESCAPE '\\'`,
+      `o.public_area_label LIKE ${l} ESCAPE '\\'`,
+      `o.note LIKE ${l} ESCAPE '\\'`,
+      `o.observed_at LIKE ${l} ESCAPE '\\'`
+    ];
+    if (withPlaceSearch) {
+      parts.push(
+        `EXISTS (SELECT 1 FROM civic_observation_contexts c JOIN places pl ON pl.place_id = c.field_id WHERE c.visit_id = o.observation_id AND pl.public_profile_status = 'published' AND pl.canonical_name LIKE ${l} ESCAPE '\\')`,
+        `EXISTS (SELECT 1 FROM readmodel_public_observations r WHERE r.observation_id = o.observation_id AND r.public_area_label LIKE ${l} ESCAPE '\\')`
+      );
+    }
+    where.push(`(${parts.join(" OR ")})`);
+  }
+  const cursor = decodePageCursor(options.before);
+  if (cursor) {
+    const at = p(cursor.observedAt);
+    where.push(`(o.observed_at < ${at} OR (o.observed_at = ${at} AND o.observation_id < ${p(cursor.id)}))`);
+  }
+  const bounds = options.day ? dayBoundsFromGroupKey(options.day) : null;
+  if (bounds) where.push(`o.observed_at >= ${p(bounds.from)} AND o.observed_at < ${p(bounds.to)}`);
+  const sql = `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
+              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
+       FROM observations o
+       WHERE ${where.join(" AND ")}
+       ORDER BY o.observed_at DESC, o.observation_id DESC
+       LIMIT ${p(limit + 1)}`;
+  return { sql, params };
+}
+
 export async function loadUserLibraryData(
   env: Env,
   userId: string,
-  searchQuery = ""
-): Promise<{ groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[] }> {
+  searchQuery = "",
+  options: UserLibraryPageOptions = {}
+): Promise<{ groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[]; nextCursor: string | null }> {
   try {
-    const rows = await env.OBS_DB.prepare(
-      `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
-              ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
-       FROM observations o
-       WHERE o.owner_user_id = ?1
-       ORDER BY o.observed_at DESC
-       LIMIT 60`
-    ).bind(userId).all<{
-      observation_id: string;
-      observed_at: string;
-      taxon_label: string | null;
-      public_area_label: string | null;
-      derivative_key: string | null;
-    }>();
-
-    const q = searchQuery.trim().toLowerCase();
-    const filtered = (rows.results ?? []).filter((r) => {
-      if (!q) return true;
-      return (
-        (r.taxon_label ?? "").toLowerCase().includes(q) ||
-        (r.public_area_label ?? "").toLowerCase().includes(q) ||
-        r.observed_at.toLowerCase().includes(q)
-      );
-    });
+    const limit = options.limit ?? (options.day ? 500 : USER_LIBRARY_PAGE_SIZE);
+    const like = likePatternFromQuery(searchQuery);
+    let found: { results?: UserLibraryRow[] };
+    try {
+      const q = buildUserLibraryQuery(userId, like, limit, options, true);
+      found = await env.OBS_DB.prepare(q.sql).bind(...q.params).all<UserLibraryRow>();
+    } catch (error) {
+      if (!like || !(error instanceof Error) || !/no such (table|column)/i.test(error.message)) throw error;
+      const q = buildUserLibraryQuery(userId, like, limit, options, false);
+      found = await env.OBS_DB.prepare(q.sql).bind(...q.params).all<UserLibraryRow>();
+    }
+    const fetched = found.results ?? [];
+    const filtered = fetched.slice(0, limit);
+    const lastRow = filtered[filtered.length - 1];
+    const nextCursor = fetched.length > limit && lastRow ? encodePageCursor(lastRow.observed_at, lastRow.observation_id) : null;
 
     await env.CORE_DB.prepare(ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL).run();
     await env.CORE_DB.prepare(ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL).run();
@@ -669,23 +714,30 @@ export async function loadUserLibraryData(
       }
     }
 
-    return { groups: [...groupMap.values()], oneYearPair, yearPairs };
+    return { groups: [...groupMap.values()], oneYearPair, yearPairs, nextCursor };
   } catch {
-    return { groups: [], oneYearPair: null, yearPairs: [] };
+    return { groups: [], oneYearPair: null, yearPairs: [], nextCursor: null };
   }
+}
+
+export async function loadUserLibraryGroup(env: Env, userId: string, groupKey: string): Promise<TopLibraryGroup | null> {
+  if (!dayBoundsFromGroupKey(groupKey)) return null;
+  const data = await loadUserLibraryData(env, userId, "", { day: groupKey });
+  return data.groups.find((g) => g.groupKey === groupKey) ?? null;
 }
 
 export async function loadZukanTopPageData(
   env: Env,
   userId: string | null,
   searchQuery = "",
-  lang: ZukanTopLang = "ja"
+  lang: ZukanTopLang = "ja",
+  libraryOptions: UserLibraryPageOptions = {}
 ): Promise<ZukanTopPageData> {
   const [heroPhotos, placesStrip, recentPublicRecords, library] = await Promise.all([
     loadOwnerHeroPhotos(env, 5, lang),
     loadPublicPlacesStrip(env, 6, lang),
     loadRecentPublicRecords(env, 6, lang),
-    userId ? loadUserLibraryData(env, userId, searchQuery) : Promise.resolve({ groups: [], oneYearPair: null, yearPairs: [] as TopOneYearPair[] })
+    userId ? loadUserLibraryData(env, userId, searchQuery, libraryOptions) : Promise.resolve({ groups: [], oneYearPair: null, yearPairs: [] as TopOneYearPair[], nextCursor: null as string | null })
   ]);
 
   const eventSection = await loadEventSectionWithFallback(env, heroPhotos, recentPublicRecords, new Date().toISOString(), lang);

@@ -5,7 +5,7 @@ import { handleCreateObservationShareLink } from "./zukanObservationCommentsAndS
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
   ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL,
-  loadUserLibraryData,
+  loadUserLibraryGroup,
   type TopLibraryGroup,
 } from "./zukanTopPage";
 
@@ -166,8 +166,7 @@ export async function handleZukanShareAndUnlinkRoute(
 
   if (nativePathname === "/library/link/cancel") {
     const groupKey = param("group").slice(0, 160);
-    const library = groupKey ? await loadUserLibraryData(env, session.userId) : null;
-    const group = library?.groups.find((g) => g.groupKey === groupKey) ?? null;
+    const group = groupKey ? await loadUserLibraryGroup(env, session.userId, groupKey) : null;
     if (!group || !group.published) return redirect(`${prefix}/library`);
     if (!isPost) return html(renderUnlinkConfirmPage({ lang, group }), 200, headers);
     const now = Date.now();

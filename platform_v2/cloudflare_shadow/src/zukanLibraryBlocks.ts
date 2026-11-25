@@ -20,6 +20,9 @@ export const ZUKAN_LIBRARY_CSS = `
     .zk-pill{position:absolute;top:12px;left:12px;z-index:2;padding:5px 12px;border-radius:999px;background:rgba(23,33,27,.72);color:#fff;font-size:14px;font-weight:700;line-height:1.3}
     .zk-pill.is-now{left:auto;right:12px;background:#fff;color:var(--ink)}
     .zk-groups{display:grid;gap:32px}
+    .zk-more-wrap{display:flex;justify-content:center;margin:28px 0 8px}
+    .zk-more-btn,.zk-more-btn:visited{min-height:48px;padding:10px 28px;border-radius:999px;background:#fff;color:var(--green);border:2px solid var(--green);font-size:16px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .zk-more-btn[aria-busy=true]{opacity:.6}
     @media(min-width:960px){.zk-groups{grid-template-columns:repeat(2,minmax(0,1fr));gap:36px 28px;align-items:start}.zk-pair{aspect-ratio:2.7/1}.zk-mosaic{aspect-ratio:1.45/1}.zk-pair-copy strong{font-size:22px}}
     .zk-group{display:grid;gap:12px}
     .zk-group-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
@@ -179,4 +182,8 @@ export function renderLibraryGroups(
   options: { prefix: string; isEn: boolean; mode: LibraryGroupMode },
 ): string {
   return `<div class="zk-groups">${groups.map((g) => renderLibraryGroup(g, options)).join("")}</div>`;
+}
+
+export function renderLibraryMore(options: { href: string; isEn: boolean }): string {
+  return `<div class="zk-more-wrap" data-library-more="1"><a class="zk-more-btn" data-load-more="1" href="${esc(options.href)}">${options.isEn ? "Show more" : "もっと見る"}</a></div>`;
 }

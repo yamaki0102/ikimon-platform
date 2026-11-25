@@ -125,8 +125,9 @@ test("nonempty owner results retain media reads and private ownership even when 
       const response = await value.fetch("nonempty", `/ja/records?view=mine${query}`);
       const body = await response.text();
       assert.equal(response.status, 200);
-      assert.equal(value.observationCalls().length, 3);
-      assert.equal(value.mediaCalls().length, 2);
+      // The search runs in SQL, so a query without matches reads no media at all.
+      assert.equal(value.observationCalls().length, query ? 1 : 3);
+      assert.equal(value.mediaCalls().length, query ? 0 : 2);
       // Media kinds are read only for this owner's own rows, not the whole asset tables.
       assert.ok(value.mediaCalls().every(call => /json_each\(\?\)/u.test(call.sql)));
       assert.doesNotMatch(body, /Other private record|Hidden owner record/u);

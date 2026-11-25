@@ -7582,14 +7582,16 @@ class FakeStatement {
     }
     if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,")) {
       const ownerUserId = string(this.values[0]);
-      const limit = number(this.values[1]);
+      const limit = number(this.values[this.values.length - 1]) - 1;
+      const likeNeedle = normalized.includes(" LIKE ?2") ? string(this.values[1]).slice(1, -1).toLowerCase() : "";
       const rows = [...this.db.observations.values()]
         .filter((observation) =>
           observation.owner_user_id === ownerUserId &&
-          observation.emergency_hidden === 0
+          observation.emergency_hidden === 0 &&
+          (!likeNeedle || [observation.taxon_label, observation.note, observation.observed_at].some((value) => String(value ?? "").toLowerCase().includes(likeNeedle)))
         )
-        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
-        .slice(0, limit)
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at) || b.observation_id.localeCompare(a.observation_id))
+        .slice(0, limit + 1)
         .map((observation) => {
           const asset = [...this.db.assets.values()]
             .filter((candidate) =>

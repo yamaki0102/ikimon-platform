@@ -12,6 +12,7 @@ import { handleLibraryDetailRoute } from "./zukanLibraryDetail";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage } from "./zukanLibraryAndProfile";
+import { decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
 import { loadProfileHubData, renderNotificationDetail, renderNotificationsList, renderProfileHub, renderProfileSettingsHub, type AlertItem } from "./zukanProfileHub";
 import {
   isWeakTaxonLabel,
@@ -3824,9 +3825,10 @@ export const worker = {
         const session = await readCompatibleSession(request, env).catch(() => null);
         const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
         const searchQuery = url.searchParams.get("q") ?? "";
-        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
-        const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
-        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
+        const before = decodePageCursor(url.searchParams.get("before")) ? url.searchParams.get("before") : null;
+        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja", { before });
+        const noticeHtml = before ? "" : await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml, continuation: Boolean(before) }), 200, { "cache-control": "private, no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/library/group" || nativePathname === "/library/year-ago")) {
@@ -23717,7 +23719,8 @@ const RECORDS_PRODUCT_LIMIT = 120;
 const recordsSearchScopeCopy = {
   ja: {
     titleMine: "自分の記録", titlePublic: "みんなの記録", searchLabel: "記録を検索", searchSubmit: "探す",
-    mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    mine: "これまでの写真やメモを新しい順に見られます。名前や場所、日付で探せます。",
+    more: "もっと見る", loadingMore: "読み込み中…",
     public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
     noMatch: (query: string) => `直近の記録に「${query}」に合うものは見つかりませんでした。`,
     empty: "まだ記録はありません。",
@@ -23729,7 +23732,8 @@ const recordsSearchScopeCopy = {
   },
   en: {
     titleMine: "Your records", titlePublic: "Community records", searchLabel: "Search records", searchSubmit: "Search",
-    mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
+    mine: "All your photos and notes, newest first. Search by name, place or date.",
+    more: "Show more", loadingMore: "Loading...",
     public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
     noMatch: (query: string) => `No recent records matched “${query}”.`,
     empty: "No records yet.",
@@ -23741,7 +23745,8 @@ const recordsSearchScopeCopy = {
   },
   es: {
     titleMine: "Tus registros", titlePublic: "Registros de la comunidad", searchLabel: "Buscar registros", searchSubmit: "Buscar",
-    mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    mine: "Todas tus fotos y notas, de la más reciente a la más antigua. Busca por nombre, lugar o fecha.",
+    more: "Ver más", loadingMore: "Cargando...",
     public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
     noMatch: (query: string) => `No se encontraron registros recientes que coincidan con «${query}».`,
     empty: "Todavía no hay registros.",
@@ -23753,7 +23758,8 @@ const recordsSearchScopeCopy = {
   },
   "pt-br": {
     titleMine: "Seus registros", titlePublic: "Registros da comunidade", searchLabel: "Buscar registros", searchSubmit: "Buscar",
-    mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    mine: "Todas as suas fotos e notas, da mais recente à mais antiga. Busque por nome, lugar ou data.",
+    more: "Ver mais", loadingMore: "Carregando...",
     public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
     noMatch: (query: string) => `Nenhum registro recente corresponde a “${query}”.`,
     empty: "Ainda não há registros.",
@@ -23815,7 +23821,8 @@ export function renderRecordsProductSection(
   session: SessionSnapshot | null,
   unavailable = false,
   savedStates: Map<string, SavedItem> | null = null,
-  publicPlaces: Array<{ placeId: string; name: string }> = []
+  publicPlaces: Array<{ placeId: string; name: string }> = [],
+  moreHref: string | null = null
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -23836,14 +23843,22 @@ export function renderRecordsProductSection(
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>` : ""}
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-native-more{display:flex;justify-content:center;margin:24px 0 8px}.cf-records-native-more a,.cf-records-native-more a:is(:link,:visited){min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:2px solid #245c3a;border-radius:999px;background:#fff;color:#245c3a;font-weight:850;text-decoration:none}.cf-records-native-more a[aria-busy=true]{opacity:.6}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
     ${session && savedStates !== null ? `<p class="cf-records-saved-link"><a href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a></p>` : ""}
     ${cards}
+    ${moreHref && !unavailable && items.length > 0 ? `<div class="cf-records-native-more" data-records-more><a class="cf-records-native-more-link" data-load-more="1" href="${escapeHtml(moreHref)}">${escapeHtml(scopeCopy.more)}</a></div>${loadMoreScript({ list: ".cf-records-native-grid", more: "[data-records-more]", loading: scopeCopy.loadingMore, rebindSaved: Boolean(session && savedStates !== null) })}` : ""}
     ${session && savedStates !== null ? renderSavedItemsScript(lang) : ""}
   </section>`;
+}
+
+function recordsMoreHref(prefix: string, query: string, cursor: string): string {
+  const params = new URLSearchParams({ view: "mine" });
+  if (query) params.set("q", query);
+  params.set("before", cursor);
+  return `${prefix}/records?${params.toString()}`;
 }
 
 async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
@@ -23864,10 +23879,18 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   }
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(recordsSearchQuery(url.searchParams.get("q")));
+  const beforeParam = url.searchParams.get("before");
+  const mineBefore = decodePageCursor(beforeParam) ? beforeParam : null;
+  const minePage = requestedMode === "mine"
+    ? await ownerHomeRecordPage(session!.userId, env, RECORDS_PRODUCT_LIMIT, { query: recordsSearchQuery(url.searchParams.get("q")), before: mineBefore }).catch(() => null)
+    : null;
   const sourceItems = requestedMode === "saved" ? [] : requestedMode === "mine"
-    ? await ownerHomeRecordCards(session!.userId, env, RECORDS_PRODUCT_LIMIT).catch(() => null)
+    ? (minePage?.items ?? null)
     : await recentPublicRecordCards(env, RECORDS_PRODUCT_LIMIT).catch(() => null);
-  const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
+  const items = requestedMode === "mine" ? (sourceItems ?? []) : (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
+  const moreHref = minePage?.nextCursor
+    ? recordsMoreHref(prefix, recordsSearchQuery(url.searchParams.get("q")), minePage.nextCursor)
+    : null;
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
@@ -23876,7 +23899,7 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     ? renderSavedPage(await listSavedItems(env.CORE_DB, session!.userId, { limit: 30, ...(url.searchParams.has("cursor") ? { cursor: url.searchParams.get("cursor")! } : {}) }).catch(() => null), lang)
     : renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null,
       session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null,
-      publicPlaces);
+      publicPlaces, moreHref);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -24717,9 +24740,51 @@ function appendPublicRecordCards(
   }
 }
 
+type OwnerHomeRecordPageOptions = { query?: string | null; before?: string | null };
+
+function ownerRecordsPageFilter(ownerUserId: string, limit: number, options: OwnerHomeRecordPageOptions, level: "full" | "basic"): { where: string; params: Array<string | number>; limitParam: string } {
+  const params: Array<string | number> = [];
+  const p = (value: string | number): string => {
+    params.push(value);
+    return `?${params.length}`;
+  };
+  const where = [`o.owner_user_id = ${p(ownerUserId)}`, "o.emergency_hidden = 0"];
+  const like = likePatternFromQuery(options.query);
+  if (like) {
+    const l = p(like);
+    const parts = [
+      `o.taxon_label LIKE ${l} ESCAPE '\\'`,
+      `o.note LIKE ${l} ESCAPE '\\'`,
+      `o.observed_at LIKE ${l} ESCAPE '\\'`,
+      `o.public_area_label LIKE ${l} ESCAPE '\\'`
+    ];
+    if (level === "full") {
+      parts.push(
+        `art.candidate_vernacular_name LIKE ${l} ESCAPE '\\'`,
+        `art.candidate_scientific_name LIKE ${l} ESCAPE '\\'`,
+        `art.ai_recommended_taxon_name LIKE ${l} ESCAPE '\\'`,
+        `EXISTS (SELECT 1 FROM civic_observation_contexts c JOIN places pl ON pl.place_id = c.field_id WHERE c.visit_id = o.observation_id AND pl.public_profile_status = 'published' AND pl.canonical_name LIKE ${l} ESCAPE '\\')`,
+        `EXISTS (SELECT 1 FROM readmodel_public_observations r WHERE r.observation_id = o.observation_id AND r.public_area_label LIKE ${l} ESCAPE '\\')`
+      );
+    }
+    where.push(`(${parts.join(" OR ")})`);
+  }
+  const cursor = decodePageCursor(options.before);
+  if (cursor) {
+    const at = p(cursor.observedAt);
+    where.push(`(o.observed_at < ${at} OR (o.observed_at = ${at} AND o.observation_id < ${p(cursor.id)}))`);
+  }
+  return { where: where.join(" AND "), params, limitParam: p(limit + 1) };
+}
+
 async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<OwnerHomeRecordItem[]> {
+  return (await ownerHomeRecordPage(ownerUserId, env, limit)).items;
+}
+
+export async function ownerHomeRecordPage(ownerUserId: string, env: Env, limit = 120, options: OwnerHomeRecordPageOptions = {}): Promise<{ items: OwnerHomeRecordItem[]; nextCursor: string | null }> {
   let rows;
   try {
+    const f = ownerRecordsPageFilter(ownerUserId, limit, options, "full");
     rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
             art.ai_assessment_status,
@@ -24745,13 +24810,13 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
             ) AS public_derivative_key
        FROM observations o
        LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
-      WHERE o.owner_user_id = ?
-        AND o.emergency_hidden = 0
-      ORDER BY o.observed_at DESC
-      LIMIT ?`
-  ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+      WHERE ${f.where}
+      ORDER BY o.observed_at DESC, o.observation_id DESC
+      LIMIT ${f.limitParam}`
+  ).bind(...f.params).all<OwnerHomeRecordRow>();
   } catch (error) {
     if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+    const f = ownerRecordsPageFilter(ownerUserId, limit, options, "basic");
     rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
               (
@@ -24764,16 +24829,19 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
                  ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC LIMIT 1
               ) AS public_derivative_key
          FROM observations o
-        WHERE o.owner_user_id = ? AND o.emergency_hidden = 0
-        ORDER BY o.observed_at DESC LIMIT ?`
-    ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+        WHERE ${f.where}
+        ORDER BY o.observed_at DESC, o.observation_id DESC LIMIT ${f.limitParam}`
+    ).bind(...f.params).all<OwnerHomeRecordRow>();
   }
-  if (Array.isArray(rows?.results) && rows.results.length === 0) return [];
+  if (Array.isArray(rows?.results) && rows.results.length === 0) return { items: [], nextCursor: null };
   // Media kinds only for this owner's rows. A malformed result skips the lookup and still
   // fails below, so it stays "unavailable" instead of becoming an empty success.
-  const ownerIds = Array.isArray(rows?.results) ? [...new Set(rows.results.map((row) => row.observation_id))] : [];
+  const pageRows = Array.isArray(rows?.results) ? rows.results.slice(0, limit) : rows.results;
+  const lastPageRow = Array.isArray(pageRows) ? pageRows[pageRows.length - 1] : undefined;
+  const nextCursor = Array.isArray(rows?.results) && rows.results.length > limit && lastPageRow ? encodePageCursor(lastPageRow.observed_at, lastPageRow.observation_id) : null;
+  const ownerIds = Array.isArray(pageRows) ? [...new Set(pageRows.map((row) => row.observation_id))] : [];
   const mediaKinds = await queryPublicMapMediaKinds(env, ownerIds).catch(() => new Map<string, HomeRecordMediaKind>());
-  return rows.results.map((row) => ({
+  const items = pageRows.map((row) => ({
     ...publicMapObservationItem({
       observation_id: row.observation_id,
       public_cell: "",
@@ -24785,6 +24853,7 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
     ownerVisibility: row.visibility ?? "private"
   }));
+  return { items, nextCursor };
 }
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
