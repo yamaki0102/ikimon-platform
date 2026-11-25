@@ -143,7 +143,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   });
 
   assert.match(rendered, /data-observation-first-record-detail="1"/);
-  assert.match(rendered, /<title>庭の観察 \| ZUKAN<\/title>/);
+  assert.match(rendered, /<title>庭の観察の記録 \| ZUKAN<\/title>/);
   assert.ok(rendered.indexOf("of-media-stage") < rendered.indexOf("of-record-info"));
   assert.equal((rendered.match(/<img[^>]+https:\/\/media\.example\/safe\.jpg/g) ?? []).length, 1);
   assert.match(rendered, /id="of-summary-title">見つかったもの</);
@@ -819,7 +819,8 @@ test("person primary context suppresses novel AI names and learning while preser
       aiCandidateInsights: [{ name: "男性", scientificName: null, supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] }],
       aiFeedback: "地域の行事が記録されています。", aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
     });
-    assert.match(rendered, /<h1>自然の記録<\/h1>/);
+    assert.match(rendered, /<h1>10月3日の記録<\/h1>/);
+    assert.doesNotMatch(rendered, /自然の記録/);
     assert.match(rendered, /男性のいる地域の行事を記録しました/);
     assert.match(rendered, /\/derived\/public-scene\.webp/);
     assert.doesNotMatch(rendered, /地域の行事が記録されています/);
@@ -856,7 +857,7 @@ test("person primary context retains coexisting bird and plant suggestions and a
     lang: "ja", title: "男性", observedLabel: "2026年10月3日", note: "利用者が残した人物の記録。", media: [], actionNonce: "accepted-novel-person",
     aiPersonPrimaryNames: ["男性"], aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
   });
-  assert.match(acceptedHtml, /<h1>男性<\/h1>/);
+  assert.match(acceptedHtml, /<h1>男性の記録<\/h1>/);
   assert.match(acceptedHtml, /<strong>男性<\/strong>/);
   assert.match(acceptedHtml, /利用者が残した人物の記録/);
   assert.doesNotMatch(acceptedHtml, /人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
@@ -1697,4 +1698,59 @@ test("own record order: photo, title, date, thumbnails, found, note, band, place
   const at = marks.map((mark) => html.indexOf(mark));
   assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
   assert.deepEqual([...at].sort((a, b) => a - b), at);
+});
+
+test("record title: named organism, then scene words, then the date, never 自然の記録", () => {
+  const bare = { ...detail, owner: false, observations: [] as ObservationFirstRecordDetail["observations"] };
+  const base = { lang: "ja" as const, note: null, media: [], actionNonce: "nonce-title-rule", observedLabel: "2026年7月28日（火）09:00" };
+  const named = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "ツツジ属" });
+  assert.match(named, /<h1>ツツジ属の記録<\/h1>/);
+  const already = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "アオサギの記録" });
+  assert.match(already, /<h1>アオサギの記録<\/h1>/);
+  const scene = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true, sceneElements: ["water", "low_grass"] });
+  assert.match(scene, /<h1>水面と草むらの記録<\/h1>/);
+  assert.match(scene, /<title>水面と草むらの記録 \| ZUKAN<\/title>/);
+  const long = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true, sceneElements: ["built_surface", "trees_shrubs"] });
+  assert.match(long, /<h1>舗装・構造物の記録<\/h1>/);
+  const dated = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true });
+  assert.match(dated, /<h1>7月28日の記録<\/h1>/);
+  for (const html of [named, already, scene, long, dated]) {
+    assert.doesNotMatch(html, /<h1>自然の記録<\/h1>/);
+    assert.ok((html.match(/<h1>([^<]*)<\/h1>/)?.[1] ?? "").length <= 12);
+  }
+  const undated = renderObservationFirstRecordDetailHtml(bare, { ...base, observedLabel: "", title: "自然の記録", titleIsFallback: true });
+  assert.match(undated, /<h1>新しい記録<\/h1>/);
+  const english = renderObservationFirstRecordDetailHtml(bare, { ...base, lang: "en", observedLabel: "7/28/2026, 09:00", title: "Nature record", titleIsFallback: true });
+  assert.match(english, /<h1>Record of 7\/28<\/h1>/);
+});
+
+test("owner gets a per-photo rotate control in settings; guests do not", () => {
+  const photos = [
+    { mediaId: "asset-a", mediaKind: "photo" as const, url: "https://media.example/a.jpg" },
+    { mediaId: "asset-b", mediaKind: "photo" as const, url: "https://media.example/b.jpg" },
+  ];
+  const owner = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { lang: "ja", title: "庭", observedLabel: "2026年7月28日", note: null, media: photos, actionNonce: "nonce-rotate" });
+  const forms = owner.match(/<form class="of-rotate-row"[\s\S]*?<\/form>/g) ?? [];
+  assert.equal(forms.length, 2);
+  assert.match(forms[0]!, /name="action" value="rotate_media"/);
+  assert.match(forms[0]!, /name="media_id" value="asset-a"/);
+  assert.ok(forms[0]!.includes('name="degrees" value="270">左に回す</button>') && forms[0]!.includes('name="degrees" value="90">右に回す</button>'));
+  assert.match(forms[1]!, /name="media_id" value="asset-b"/);
+  const guest = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, { lang: "ja", title: "庭", observedLabel: "2026年7月28日", note: null, media: photos, actionNonce: "nonce-rotate" });
+  assert.doesNotMatch(guest, /value="rotate_media"|<form class="of-rotate-row"/);
+});
+
+test("record with only a stored name still lists it under 見つかったもの with its status; AI sentence stays omitted without slots", () => {
+  const bare = { ...detail, owner: false, observations: [] as ObservationFirstRecordDetail["observations"] };
+  const base = { lang: "ja" as const, note: null, media: [], actionNonce: "nonce-found", observedLabel: "2026年7月28日（火）09:00", title: "カタバミ属" };
+  const confirmed = renderObservationFirstRecordDetailHtml(bare, base);
+  assert.match(confirmed, /<h1>カタバミ属の記録<\/h1>/);
+  assert.match(confirmed, /<section class="of-found"[\s\S]*?<span class="of-found-name">カタバミ属<\/span><span class="of-found-status is-confirmed">確認済み/);
+  assert.doesNotMatch(confirmed, /data-ai-note/);
+  const proposed = renderObservationFirstRecordDetailHtml(bare, { ...base, titleStatus: "proposed" });
+  assert.match(proposed, /of-found-status is-proposed">提案あり/);
+  const fallback = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true });
+  assert.doesNotMatch(fallback, /<span class="of-found-name">/);
+  assert.match(confirmed, /data-record-owner="0"/);
+  assert.match(renderObservationFirstRecordDetailHtml({ ...bare, owner: true }, base), /data-record-owner="1"/);
 });
