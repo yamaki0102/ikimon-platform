@@ -224,6 +224,12 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  ZUKAN_RECORD_LINK_DONE_STYLES,
+  handleSaveRecordLinks,
+  renderRecordDoneCardHtml,
+  renderRecordLinkSelectorHtml,
+} from "./zukanRecordLinkAndDone";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
@@ -4325,6 +4331,14 @@ export const worker = {
       const audioUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/audio\/upload$/);
       if (request.method === "POST" && audioUploadMatch?.[1]) {
         return uploadStagingCompatibleAudio(decodeURIComponent(audioUploadMatch[1]), request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/record/links") {
+        const session = await readCompatibleSession(request, env);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "unauthorized" }, 401);
+        }
+        return handleSaveRecordLinks(request, session.userId, env.OBS_DB, env.CORE_DB);
       }
 
       const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
@@ -22204,6 +22218,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
+    ${ZUKAN_RECORD_LINK_DONE_STYLES}
     ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
@@ -22243,9 +22258,10 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         </select>
         <small id="record-public-location-preview" data-public-location-preview>${lang === "ja" ? "ほかの人にはこう見える: 正確な位置は非公開・24時間後にマス目または日付のみで表示" : "Public view: exact coordinates hidden; shown as grid/date after 24h"}</small>
       </div>
+      ${renderRecordLinkSelectorHtml({ lang, hasEventContext: Boolean(eventSessionId || eventCode) })}
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
-      <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
+      ${renderRecordDoneCardHtml({ lang, prefix })}
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
