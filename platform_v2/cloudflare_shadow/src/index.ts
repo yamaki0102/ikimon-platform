@@ -208,7 +208,8 @@ import {
   OBSERVATION_VISION_MODEL,
   observationAiSubjects,
 } from "./cloudflareObservationAi";
-import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
+import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
+import { recordReadingInputs } from "./recordReadingInputs";
 import {
   buildObservationAiQualityBacklogPayload,
   GEMINI_QUALITY_BACKLOG_MAX_ACTIVE,
@@ -32466,6 +32467,7 @@ async function finalizeGeminiObservationReassessment(
       requestId: request.request_id,
       aiRunId,
       candidate,
+      ...recordReadingInputs(merged, prepared.assets.length, Boolean(provider.card)),
     })
     : { observationIds: [], mutations: [] };
   const commitToken = crypto.randomUUID();
@@ -32588,31 +32590,6 @@ async function finalizeGeminiObservationReassessment(
     }
   }
   await env.OBS_DB.batch(statements);
-}
-
-function guardObservationAiMutation<T extends string | number | null>(
-  sql: string,
-  values: T[],
-  guard: string,
-  requestId: string,
-  completedPayload: string,
-): { sql: string; values: T[] } {
-  const guardValues = [requestId, completedPayload] as T[];
-  const insert = /^(\s*INSERT(?:\s+OR\s+IGNORE)?\s+INTO[\s\S]*?\))\s+VALUES\s*\(([\s\S]*)\)(\s+ON\s+CONFLICT[\s\S]*)?$/iu.exec(sql);
-  if (insert) {
-    const suffix = insert[3] ?? "";
-    return {
-      sql: `${insert[1]} SELECT ${insert[2]} WHERE ${guard}${suffix}`,
-      values: [...values, ...guardValues],
-    };
-  }
-  if (/^\s*UPDATE\s/iu.test(sql) && /\sWHERE\s/iu.test(sql)) {
-    return {
-      sql: `${sql} AND ${guard}`,
-      values: [...values, ...guardValues],
-    };
-  }
-  throw new Error("unsupported_observation_ai_dual_write_mutation");
 }
 
 async function refreshPublicReadmodel(observationId: string, env: Env): Promise<void> {

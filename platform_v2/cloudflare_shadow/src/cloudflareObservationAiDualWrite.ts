@@ -5,6 +5,17 @@ import {
   observationAiSubjects,
   type ObservationAiCandidate,
 } from "./cloudflareObservationAi";
+import {
+  buildFeaturePlaceMutations,
+  buildOrganismReadingMutations,
+  deterministicUuid,
+  resolveMediaIndex,
+  sha256Hex,
+  validTimeRange,
+  type ReadingFeatureInput,
+  type ReadingMediaMeta,
+  type ReadingPlaceInput,
+} from "./recordReading";
 
 export type ObservationAiSqlMutation = {
   sql: string;
@@ -19,22 +30,9 @@ export type ObservationAiDualWriteInput = {
   requestId: string;
   aiRunId: string;
   candidate: ObservationAiCandidate;
-};
-
-const textBytes = (value: string): ArrayBuffer => new TextEncoder().encode(value).buffer as ArrayBuffer;
-
-const sha256Hex = async (value: string): Promise<string> => {
-  const digest = await crypto.subtle.digest("SHA-256", textBytes(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-};
-
-const deterministicUuid = async (value: string): Promise<string> => {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", textBytes(value)));
-  const bytes = digest.slice(0, 16);
-  bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x80;
-  bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
-  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  mediaMeta?: ReadingMediaMeta[];
+  features?: ReadingFeatureInput[];
+  place?: ReadingPlaceInput[];
 };
 
 export async function buildObservationAiDualWritePlan(input: ObservationAiDualWriteInput): Promise<{
@@ -44,8 +42,15 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
   const mutations: ObservationAiSqlMutation[] = [];
   const observationIds: string[] = [];
   for (const subject of observationAiSubjects(input.candidate)) {
-    const mediaId = input.mediaIds[subject.candidate.assetIndex ?? 0] ?? input.mediaIds[0];
-    if (!mediaId) continue;
+    if (input.mediaIds.length === 0) continue;
+    const requestedIndices: Array<number | undefined> = subject.candidate.assetIndices
+      ?? (subject.candidate.assetIndex === undefined ? [undefined] : [subject.candidate.assetIndex]);
+    const attachedMediaIds = [...new Set(
+      (requestedIndices.length > 0 ? requestedIndices : [undefined])
+        .map((index) => resolveMediaIndex(index, input.mediaIds))
+        .filter((value): value is string => value !== null),
+    )];
+    const primaryMediaId = resolveMediaIndex(subject.candidate.assetIndex ?? requestedIndices[0], input.mediaIds);
     const sourceKey = [
       "google_gemini_batch",
       input.recordId,
@@ -56,7 +61,6 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
     const inputFingerprint = await sha256Hex(JSON.stringify({ sourceKey, mediaIds: input.mediaIds, modelName, promptVersion: OBSERVATION_AI_PROMPT_VERSION }));
     const observationId = await deterministicUuid(`record-observation:${sourceKey}`);
     const mappingId = await deterministicUuid(`record-observation-source-map:${sourceKey}`);
-    const mediaLinkId = await deterministicUuid(`record-observation-media:${sourceKey}`);
     const suggestionId = await deterministicUuid(`observation-ai-suggestion:${sourceKey}`);
     const lifecycleEventId = await deterministicUuid(`observation-lifecycle-created:${sourceKey}`);
     const ledgerId = await deterministicUuid(`record-observation-consistency:${sourceKey}`);
@@ -65,13 +69,56 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
       legacyOccurrenceId: input.legacyOccurrenceId,
       requestId: input.requestId,
       aiRunId: input.aiRunId,
-      assetId: mediaId,
+      assetId: attachedMediaIds[0] ?? null,
+      assetIds: attachedMediaIds,
       subjectKey: subject.subjectKey,
       primary: subject.primary,
       model: modelName,
       promptVersion: OBSERVATION_AI_PROMPT_VERSION,
       ruleVersion: OBSERVATION_AI_RULE_VERSION,
       inputFingerprint,
+    });
+    const mediaMutations: ObservationAiSqlMutation[] = [];
+    const mediaLinkIds: string[] = [];
+    const mediaSourceKeys: string[] = [];
+    for (const attachedId of attachedMediaIds) {
+      const linkSourceKey = `${sourceKey}:media:${attachedId}`;
+      const linkId = await deterministicUuid(`record-observation-media:${sourceKey}:${attachedId}`);
+      const locator = attachedId === primaryMediaId ? subject.candidate.subjectLocator : {};
+      const range = attachedId === primaryMediaId
+        ? validTimeRange(locator.timeRange, input.mediaMeta?.[input.mediaIds.indexOf(attachedId)]?.durationMs)
+        : null;
+      mediaLinkIds.push(linkId);
+      mediaSourceKeys.push(linkSourceKey);
+      mediaMutations.push({
+        sql: `INSERT INTO record_observation_media (
+          link_id, observation_id, media_source_runtime, media_id, role,
+          locator_kind, locator_json, origin, active, source_key,
+          provenance_json, created_at, updated_at
+        ) VALUES (?, ?, 'cloudflare_d1', ?, 'primary_evidence',
+          ?, ?, 'ai', 1, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(observation_id, source_key) DO UPDATE SET
+          locator_kind = excluded.locator_kind,
+          locator_json = excluded.locator_json,
+          provenance_json = excluded.provenance_json,
+          active = 1,
+          updated_at = CURRENT_TIMESTAMP`,
+        values: [
+          linkId,
+          observationId,
+          attachedId,
+          range ? "time_range" : locator.rect ? "rect" : "full",
+          JSON.stringify(range ?? locator),
+          linkSourceKey,
+          provenance,
+        ],
+      });
+    }
+    mediaMutations.push({
+      sql: `UPDATE record_observation_media SET active = 0, updated_at = CURRENT_TIMESTAMP
+        WHERE observation_id = ? AND origin = 'ai' AND active = 1
+          AND source_key NOT IN (${mediaSourceKeys.length > 0 ? mediaSourceKeys.map(() => "?").join(", ") : "''"})`,
+      values: [observationId, ...mediaSourceKeys],
     });
     const context = JSON.stringify({
       primary: subject.primary,
@@ -121,29 +168,7 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
           provenance_json = excluded.provenance_json`,
         values: [mappingId, sourceKey, OBSERVATION_AI_RULE_VERSION, observationId, subject.candidate.confidence, inputFingerprint, provenance],
       },
-      {
-        sql: `INSERT INTO record_observation_media (
-          link_id, observation_id, media_source_runtime, media_id, role,
-          locator_kind, locator_json, origin, active, source_key,
-          provenance_json, created_at, updated_at
-        ) VALUES (?, ?, 'cloudflare_d1', ?, 'primary_evidence',
-          ?, ?, 'ai', 1, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(observation_id, source_key) DO UPDATE SET
-          locator_kind = excluded.locator_kind,
-          locator_json = excluded.locator_json,
-          provenance_json = excluded.provenance_json,
-          active = 1,
-          updated_at = CURRENT_TIMESTAMP`,
-        values: [
-          mediaLinkId,
-          observationId,
-          mediaId,
-          subject.candidate.subjectLocator.rect ? "rect" : "full",
-          JSON.stringify(subject.candidate.subjectLocator),
-          `${sourceKey}:media`,
-          provenance,
-        ],
-      },
+      ...mediaMutations,
       {
         sql: `INSERT INTO observation_ai_suggestions (
           suggestion_id, observation_id, ai_run_id, candidate_key, source_key,
@@ -226,11 +251,18 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
           input.recordId,
           observationId,
           JSON.stringify({ occurrenceId: input.legacyOccurrenceId, aiRunId: input.aiRunId }),
-          JSON.stringify({ observationId, suggestionId, mediaLinkId }),
+          JSON.stringify({ observationId, suggestionId, mediaLinkIds }),
           inputFingerprint,
           targetChecksum,
         ],
       },
+      ...await buildOrganismReadingMutations(input.recordId, input.requestId, {
+        observationId,
+        suggestionId,
+        displayOrder: observationIds.length - 1,
+        assetIds: attachedMediaIds,
+        aiRunId: input.aiRunId,
+      }),
     );
   }
   const placeholders = observationIds.map(() => "?").join(", ");
@@ -269,5 +301,44 @@ export async function buildObservationAiDualWritePlan(input: ObservationAiDualWr
       },
     );
   }
+  if (input.place !== undefined || input.features !== undefined) {
+    mutations.push(...await buildFeaturePlaceMutations({
+      recordId: input.recordId,
+      requestId: input.requestId,
+      aiRunId: input.aiRunId,
+      mediaIds: input.mediaIds,
+      mediaMeta: input.mediaMeta,
+      model: input.candidate.sourceModel ?? OBSERVATION_VISION_MODEL,
+      promptVersion: OBSERVATION_AI_PROMPT_VERSION,
+      organismCount: observationIds.length,
+      features: input.features,
+      place: input.place,
+    }));
+  }
   return { observationIds, mutations };
+}
+
+export function guardObservationAiMutation<T extends string | number | null>(
+  sql: string,
+  values: T[],
+  guard: string,
+  requestId: string,
+  completedPayload: string,
+): { sql: string; values: T[] } {
+  const guardValues = [requestId, completedPayload] as T[];
+  const insert = /^(\s*INSERT(?:\s+OR\s+IGNORE)?\s+INTO[\s\S]*?\))\s+VALUES\s*\(([\s\S]*)\)(\s+ON\s+CONFLICT[\s\S]*)?$/iu.exec(sql);
+  if (insert) {
+    const suffix = insert[3] ?? "";
+    return {
+      sql: `${insert[1]} SELECT ${insert[2]} WHERE ${guard}${suffix}`,
+      values: [...values, ...guardValues],
+    };
+  }
+  if (/^\s*UPDATE\s/iu.test(sql) && /\sWHERE\s/iu.test(sql)) {
+    return {
+      sql: `${sql} AND ${guard}`,
+      values: [...values, ...guardValues],
+    };
+  }
+  throw new Error("unsupported_observation_ai_dual_write_mutation");
 }

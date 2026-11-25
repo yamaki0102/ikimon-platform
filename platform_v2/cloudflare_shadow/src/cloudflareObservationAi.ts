@@ -4,6 +4,7 @@ export const OBSERVATION_AI_RULE_VERSION = "record-observation-gemini-batch/v2";
 
 export type ObservationAiSubjectLocator = {
   rect?: { x: number; y: number; width: number; height: number };
+  timeRange?: { startMs: number; endMs: number };
 };
 
 export type ObservationAiSubjectCandidate = {
@@ -15,6 +16,7 @@ export type ObservationAiSubjectCandidate = {
   visualEvidence: string[];
   needsMoreEvidence: string[];
   assetIndex?: number;
+  assetIndices?: number[];
   sourceModel?: string;
   subjectLocator: ObservationAiSubjectLocator;
 };
@@ -81,7 +83,9 @@ const cleanSubjectCandidate = (value: unknown): ObservationAiSubjectCandidate | 
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
     visualEvidence: cleanList(parsed.visualEvidence ?? parsed.visual_evidence),
     needsMoreEvidence: cleanList(parsed.needsMoreEvidence ?? parsed.needs_more_evidence),
-    assetIndex: Number.isInteger(Number(parsed.assetIndex ?? parsed.asset_index)) ? Math.max(0, Number(parsed.assetIndex ?? parsed.asset_index)) : 0,
+    assetIndex: (parsed.assetIndex ?? parsed.asset_index) !== undefined && Number.isInteger(Number(parsed.assetIndex ?? parsed.asset_index))
+      ? Number(parsed.assetIndex ?? parsed.asset_index)
+      : undefined,
     sourceModel: cleanText(parsed.sourceModel ?? parsed.source_model, 120) ?? undefined,
     subjectLocator: cleanSubjectLocator(parsed.subjectLocator ?? parsed.subject_locator),
   };
@@ -158,6 +162,7 @@ export function parseObservationAiCandidate(answer: unknown): ObservationAiCandi
     visualEvidence: primary?.visualEvidence ?? [],
     needsMoreEvidence: primary?.needsMoreEvidence ?? [],
     subjectLocator: primary?.subjectLocator ?? {},
+    assetIndex: primary?.assetIndex,
     nonBiological: parsed.nonBiological === true && !vernacularName && !scientificName,
     coexistingSubjects,
   };

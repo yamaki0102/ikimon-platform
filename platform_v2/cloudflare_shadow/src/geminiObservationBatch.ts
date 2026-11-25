@@ -2,6 +2,7 @@ import {
   type ObservationAiCandidate,
   type ObservationAiSubjectCandidate,
 } from "./cloudflareObservationAi";
+import { featureKindFromLabel, type FeatureKind } from "./recordReading";
 
 export const GEMINI_PRIMARY_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_ANALYSIS_MODEL = "gemini-3.1-flash-lite";
@@ -167,6 +168,7 @@ export type GeminiMergedObservation = {
   informationState: GeminiInformationState;
   detectionState: "detected" | "not_detected" | "not_assessable";
   environment: GeminiEnvironmentEvidence;
+  featureKinds?: FeatureKind[];
   relations: string[];
   qualityFlags: string[];
   needsReview: boolean;
@@ -729,12 +731,18 @@ const rankForCensus = (group: GeminiCensusGroup): ObservationAiSubjectCandidate[
   return group.kind === "plant" ? "lifeform" : group.kind === "animal" ? "class" : "unknown";
 };
 
-const locatorFor = (subjectId: string, regions: GeminiRegion[], imageCount: number) => {
-  const region = regions.find((item) => item.subject_id === subjectId && item.asset_index >= 0 && item.asset_index < imageCount);
-  if (!region) return { assetIndex: 0, subjectLocator: {} };
+const locatorFor = (subjectId: string, regions: GeminiRegion[], imageCount: number): {
+  assetIndex: number | undefined;
+  assetIndices: number[];
+  subjectLocator: ObservationAiSubjectCandidate["subjectLocator"];
+} => {
+  const matching = regions.filter((item) => item.subject_id === subjectId && Number.isInteger(item.asset_index) && item.asset_index >= 0 && item.asset_index < imageCount);
+  const region = matching[0];
+  const assetIndices = [...new Set(matching.map((item) => item.asset_index))];
+  if (!region) return { assetIndex: undefined, assetIndices, subjectLocator: {} };
   const x = clipped(region.x); const y = clipped(region.y); const width = clipped(region.width); const height = clipped(region.height);
-  if (width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) return { assetIndex: region.asset_index, subjectLocator: {} };
-  return { assetIndex: region.asset_index, subjectLocator: { rect: { x, y, width, height } } };
+  if (width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) return { assetIndex: region.asset_index, assetIndices, subjectLocator: {} };
+  return { assetIndex: region.asset_index, assetIndices, subjectLocator: { rect: { x, y, width, height } } };
 };
 
 const normalizeName = (value: string | null): string => (value ?? "").normalize("NFKC").toLocaleLowerCase("ja-JP").replace(/[\s・_\-]/gu, "");
@@ -824,7 +832,7 @@ const primaryFusedCandidate = (
     contradictions: [],
     sourceLanes: ["primary"],
     sourceModels: [sourceModel],
-    sourceAssetIndices: [located.assetIndex],
+    sourceAssetIndices: located.assetIndices,
     subjectLocator: located.subjectLocator,
   });
 };
@@ -850,7 +858,7 @@ const censusFusedCandidate = (
     contradictions: uniqueText(group.contradictions ?? []),
     sourceLanes: ["census"],
     sourceModels: [sourceModel],
-    sourceAssetIndices: [located.assetIndex],
+    sourceAssetIndices: located.assetIndices,
     subjectLocator: located.subjectLocator,
   });
 };
@@ -902,10 +910,20 @@ const subjectFromFusedCandidate = (candidate: GeminiFusedCandidate): Observation
   confidence: candidate.confidence,
   visualEvidence: candidate.supportingFeatures.slice(0, 4),
   needsMoreEvidence: candidate.missingFeatures.slice(0, 4),
-  assetIndex: candidate.sourceAssetIndices[0] ?? 0,
+  assetIndex: candidate.sourceAssetIndices[0],
+  assetIndices: [...candidate.sourceAssetIndices],
   sourceModel: candidate.sourceModels[0],
   subjectLocator: candidate.subjectLocator,
 });
+
+const featureKindsFromPrimary = (primary: GeminiPrimaryEvidence): FeatureKind[] => {
+  if (primary.record_class === "person" || primary.record_class === "document") return [];
+  const kinds = primary.non_biological_labels
+    .filter((label): label is string => typeof label === "string")
+    .map((label) => featureKindFromLabel(label, true))
+    .filter((kind): kind is FeatureKind => kind !== null);
+  return [...new Set(kinds)];
+};
 
 export function mergeGeminiObservationEvidence(
   primary: GeminiPrimaryEvidence,
@@ -945,7 +963,7 @@ export function mergeGeminiObservationEvidence(
     candidate: {
       candidateKey: main?.candidateKey ?? null, vernacularName: main?.vernacularName ?? null, scientificName: main?.scientificName ?? null,
       rank: main?.rank ?? "unknown", confidence: main?.confidence ?? 0, visualEvidence: main?.visualEvidence ?? [], needsMoreEvidence: main?.needsMoreEvidence ?? [],
-      assetIndex: main?.assetIndex ?? 0, subjectLocator: main?.subjectLocator ?? {}, sourceModel: main?.sourceModel ?? GEMINI_PRIMARY_MODEL,
+      assetIndex: main?.assetIndex, assetIndices: main?.assetIndices, subjectLocator: main?.subjectLocator ?? {}, sourceModel: main?.sourceModel ?? GEMINI_PRIMARY_MODEL,
       nonBiological: !main && coexisting.length === 0, coexistingSubjects: coexisting.slice(0, 7),
     },
     topCandidates,
@@ -955,6 +973,7 @@ export function mergeGeminiObservationEvidence(
     informationState: primary.information_state,
     detectionState,
     environment,
+    featureKinds: featureKindsFromPrimary(primary),
     relations: census.relations.slice(0, 6),
     qualityFlags: primary.quality_flags.slice(0, 8),
     needsReview: Boolean(primary.needs_review || census.needs_review),
@@ -1027,7 +1046,8 @@ export function applyGeminiSpecialistEvidence(
   merged: GeminiMergedObservation,
   specialist: GeminiSpecialistEvidence,
 ): GeminiMergedObservation {
-  const sourceAssetIndex = merged.candidate.assetIndex ?? 0;
+  const sourceAssetIndices = merged.candidate.assetIndices
+    ?? (merged.candidate.assetIndex === undefined ? [] : [merged.candidate.assetIndex]);
   const specialistCandidates = specialist.candidates.slice(0, 5).map((candidate, index) => withFusionScore({
     candidateKey: `specialist:${index}:${normalizeName(short(candidate.name, 80)) || "candidate"}`,
     name: short(candidate.name, 120),
@@ -1039,7 +1059,7 @@ export function applyGeminiSpecialistEvidence(
     contradictions: uniqueText(candidate.contradictions ?? []),
     sourceLanes: ["specialist"],
     sourceModels: [GEMINI_SPECIALIST_MODEL],
-    sourceAssetIndices: [sourceAssetIndex],
+    sourceAssetIndices: [...sourceAssetIndices],
     subjectLocator: merged.candidate.subjectLocator,
   }));
   const topCandidates = mergeFusedCandidates([...specialistCandidates, ...merged.topCandidates]).slice(0, 5);

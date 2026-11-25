@@ -42,7 +42,7 @@ test("subjects drop people and non-living things, merge duplicates and coarsen f
   assert.deepEqual(out[0]!.asset_indexes, [0, 1]);
   assert.deepEqual([out[1]!.rank, out[1]!.scientific_name, out[1]!.confidence_band], ["genus", "Corvus", "low"]);
   assert.equal(out[2]!.confidence_band, "medium");
-  assert.deepEqual([out[3]!.asset_indexes, out[3]!.confidence_band], [[0], "low"]);
+  assert.deepEqual([out[3]!.asset_indexes, out[3]!.confidence_band], [[], "low"]);
   assert.deepEqual(normalizeCardSubjects([{ name: "植物" }], 1).map((x) => x.name), ["植物"]);
 });
 
