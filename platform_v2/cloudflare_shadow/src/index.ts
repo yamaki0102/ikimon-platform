@@ -15,6 +15,16 @@ import {
   resolveUnifiedTaxonName,
 } from "./taxonNameResolver";
 import {
+  buildClearedGuestPassCookieHeader,
+  buildGuestPassCookieHeader,
+  findActiveGuestPass,
+  isGuestPostingEnabled,
+  issueGuestPass,
+  normalizeGuestDestination,
+  revokeGuestPass,
+  setDestinationQrStopped,
+} from "./guestPosting";
+import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
   shouldNotifyOtayoriStatus,
@@ -219,6 +229,12 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  ZUKAN_RECORD_LINK_DONE_STYLES,
+  handleSaveRecordLinks,
+  renderRecordDoneCardHtml,
+  renderRecordLinkSelectorHtml,
+} from "./zukanRecordLinkAndDone";
 import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
@@ -3680,6 +3696,69 @@ export const worker = {
         return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
       }
 
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/issue") {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const body = await readJson<{ destinationKind?: unknown; destinationId?: unknown }>(request);
+        const destination = normalizeGuestDestination(body.destinationKind, body.destinationId);
+        if (body.destinationKind !== undefined && !destination) {
+          return json({ ok: false, error: "invalid_destination" }, 400, { "cache-control": "no-store" });
+        }
+        const issued = await issueGuestPass(env.OBS_DB, { destination });
+        const secure = url.protocol === "https:";
+        return json(
+          { ok: true, passId: issued.passId, expiresAt: issued.expiresAt },
+          201,
+          { "set-cookie": buildGuestPassCookieHeader(issued.rawToken, secure), "cache-control": "no-store" }
+        );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/discard") {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const pass = await findActiveGuestPass(env.OBS_DB, request);
+        if (!pass) {
+          return json({ ok: false, error: "guest_pass_required" }, 401, { "cache-control": "no-store" });
+        }
+        await revokeGuestPass(env.OBS_DB, pass.pass_id, "user_discarded", "guest");
+        const secure = url.protocol === "https:";
+        return json(
+          { ok: true, revoked: true },
+          200,
+          { "set-cookie": buildClearedGuestPassCookieHeader(secure), "cache-control": "no-store" }
+        );
+      }
+
+      const guestQrStopMatch = url.pathname.match(/^\/api\/v1\/admin\/guest-destinations\/([^/]+)\/([^/]+)\/qr-stop$/);
+      if (request.method === "POST" && guestQrStopMatch?.[1] && guestQrStopMatch?.[2]) {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        if (!isSpecialistAuthorityAdminRole(session)) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const dest = normalizeGuestDestination(decodeURIComponent(guestQrStopMatch[1]), decodeURIComponent(guestQrStopMatch[2]));
+        if (!dest) {
+          return json({ ok: false, error: "invalid_destination" }, 400, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ stopped?: unknown }>(request);
+        const stopped = body.stopped !== false;
+        await setDestinationQrStopped(env.OBS_DB, dest, stopped);
+        return json({ ok: true, destination: `${dest.kind}:${dest.id}`, qrStopped: stopped }, 200, { "cache-control": "no-store" });
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {
         return recordUiKpiEventShim(request);
       }
@@ -4257,6 +4336,14 @@ export const worker = {
       const audioUploadMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/audio\/upload$/);
       if (request.method === "POST" && audioUploadMatch?.[1]) {
         return uploadStagingCompatibleAudio(decodeURIComponent(audioUploadMatch[1]), request, env);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/record/links") {
+        const session = await readCompatibleSession(request, env);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "unauthorized" }, 401);
+        }
+        return handleSaveRecordLinks(request, session.userId, env.OBS_DB, env.CORE_DB);
       }
 
       const hideObservationMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/hide$/);
@@ -22155,6 +22242,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
     ${APP_EXPERIENCE_STYLES}
+    ${ZUKAN_RECORD_LINK_DONE_STYLES}
     ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
@@ -22194,9 +22282,10 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         </select>
         <small id="record-public-location-preview" data-public-location-preview>${lang === "ja" ? "ほかの人にはこう見える: 正確な位置は非公開・24時間後にマス目または日付のみで表示" : "Public view: exact coordinates hidden; shown as grid/date after 24h"}</small>
       </div>
+      ${renderRecordLinkSelectorHtml({ lang, hasEventContext: Boolean(eventSessionId || eventCode) })}
       <div id="record-submit-panel" class="cf-record-submit" hidden><button type="button" id="record-review-open">${escapeHtml(mediaCopy.save)}</button></div>
       <div id="record-status" class="cf-record-status" role="status" aria-live="polite"></div>
-      <div id="record-saved-links" class="cf-record-saved-links" data-record-saved-links hidden></div>
+      ${renderRecordDoneCardHtml({ lang, prefix })}
     </form>
   </main>
   ${renderAppExperienceNavigation(lang, 2, "bottom", true)}
