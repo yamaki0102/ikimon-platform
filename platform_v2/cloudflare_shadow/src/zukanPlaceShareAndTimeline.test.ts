@@ -71,4 +71,13 @@ test("GET /api/v1/places/:id/fixed-point-timeline returns 404 for private/missin
   assert.match(html, /data-place-share-timeline="e12-e13-e1b"/);
   assert.match(html, /id="place-timeline-slider"/);
   assert.match(html, /placeId=place_sanaru/);
+  assert.match(html, /2025年〜2026年/);
+  assert.match(html, /data-testid="timeline-count">同じ場所で撮られた公開の記録 2件/);
+  assert.match(html, /年ごとの記録/);
+  assert.match(html, /2026年5月/);
+  assert.match(html, /id="place-timeline-hero" src="\/thumb\/600\/asset_2"/);
+  assert.match(html, /navigator\.clipboard\.writeText/);
+  assert.match(html, /id="place-share-status"[^>]*aria-live="polite"/);
+  assert.match(html, /この場所の URLをコピー|この場所のURLをコピー/);
+  assert.match(html, /slider\.addEventListener\("input"/);
 });
