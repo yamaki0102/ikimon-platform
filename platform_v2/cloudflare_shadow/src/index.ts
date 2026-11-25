@@ -49,6 +49,11 @@ import {
 } from "./guestEventShare";
 import { handleEventPreAndPcRoute } from "./zukanEventPreAndPc";
 import {
+  handleProfilePublicSettingsRoute,
+  handlePublicUserProfileRoute,
+  handleUpdateProfileVisibility,
+} from "./zukanProfilePublicAndSettings";
+import {
   handleEventDayAlbumTakeRoute,
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
@@ -3914,6 +3919,25 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/visibility") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleUpdateProfileVisibility(request, session, env.OBS_DB);
+      }
+
+      const profilePublicSettingsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/public-settings$/);
+      if ((request.method === "GET" || request.method === "HEAD") && profilePublicSettingsMatch) {
+        const viewLang = (profilePublicSettingsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleProfilePublicSettingsRoute(viewLang, session, env.OBS_DB);
+      }
+
+      const publicUserProfileMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/u\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && publicUserProfileMatch?.[2]) {
+        const viewLang = (publicUserProfileMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handlePublicUserProfileRoute(decodeURIComponent(publicUserProfileMatch[2]), viewLang, session, env.OBS_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
