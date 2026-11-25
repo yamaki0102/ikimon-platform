@@ -75,7 +75,8 @@ export async function resolveInviteTarget(
 
   try {
     const placeRow = await obsDb.prepare(
-      `SELECT place_id, canonical_name, admin_area_label
+      `SELECT place_id, canonical_name,
+              COALESCE(NULLIF(COALESCE(prefecture, '') || COALESCE(municipality, ''), ''), locality_label) AS admin_area_label
          FROM places
         WHERE place_id = ?
           AND public_profile_status = 'published'

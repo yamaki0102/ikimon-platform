@@ -42,11 +42,12 @@ async function querySearchResults(query: string, type: SearchResultType, db: Env
     type === "all" || type === "places"
       ? db
           .prepare(
-            `SELECT place_id, name
+            `SELECT place_id, canonical_name AS name
                FROM places
-              WHERE visibility = 'public'
-                AND (? = '' OR name LIKE ?)
-              ORDER BY name ASC
+              WHERE public_profile_status = 'published'
+                AND superseded_by_place_id IS NULL
+                AND (? = '' OR canonical_name LIKE ?)
+              ORDER BY canonical_name ASC
               LIMIT 30`
           )
           .bind(trimmed, like)
