@@ -10,6 +10,7 @@ const candidate = parseObservationAiCandidate(JSON.stringify({
   vernacularName: "モンシロチョウ",
   scientificName: "Pieris rapae",
   rank: "species",
+  assetIndex: 0,
   confidence: 0.91,
   visualEvidence: ["白い翅"],
   needsMoreEvidence: [],
@@ -17,6 +18,7 @@ const candidate = parseObservationAiCandidate(JSON.stringify({
   subjectLocator: { rect: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 } },
   coexistingSubjects: [{
     candidateKey: "flower-left",
+    assetIndex: 1,
     vernacularName: "アブラナ科",
     scientificName: "Brassicaceae",
     rank: "family",
@@ -50,6 +52,7 @@ test("AI dual-write is idempotent and cannot create an accepted identification o
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0067_record_observation_foundation.sql"), "utf8"));
+  db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0081_record_reading_items.sql"), "utf8"));
   const plan = await buildObservationAiDualWritePlan(input);
   const apply = () => {
     for (const mutation of plan.mutations) db.prepare(mutation.sql).run(...mutation.values);
@@ -85,6 +88,7 @@ test("a no-biota reassessment excludes only stale provisional AI observations", 
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys = ON;");
   db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0067_record_observation_foundation.sql"), "utf8"));
+  db.exec(readFileSync(path.join(process.cwd(), "migrations", "observations", "0081_record_reading_items.sql"), "utf8"));
   db.prepare(`INSERT INTO record_observations (
     observation_id, record_runtime, record_id, owner_user_id, source_key, origin,
     assertion_status, verification_status, lifecycle_status, data_use_scope,

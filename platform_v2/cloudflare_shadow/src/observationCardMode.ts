@@ -184,8 +184,8 @@ export function normalizeCardSubjects(raw: unknown, imageCount: number): Json[] 
   for (const sub of objects(raw)) {
     const name = str(sub.name, 120);
     if (!name || EXCLUDED_NAME.test(name) || /homo sapiens/i.test(str(sub.scientific_name))) continue;
-    const indexes = (Array.isArray(sub.asset_indexes) ? sub.asset_indexes : [0]).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < imageCount);
-    const item: Json = { ...sub, name, scientific_name: str(sub.scientific_name, 180), asset_indexes: indexes.length ? indexes : [0] };
+    const indexes = (Array.isArray(sub.asset_indexes) ? sub.asset_indexes : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < imageCount);
+    const item: Json = { ...sub, name, scientific_name: str(sub.scientific_name, 180), asset_indexes: indexes.length ? indexes : imageCount === 1 ? [0] : [] };
     const dup = merged.find((x) => x.name === name || (genusOf(item) && genusOf(x) === genusOf(item)));
     if (dup) dup.asset_indexes = [...new Set([...(dup.asset_indexes as number[]), ...(item.asset_indexes as number[])])];
     else merged.push(item);
@@ -340,7 +340,8 @@ const toCandidate = (sub: Json, index: number): ObservationAiSubjectCandidate =>
   confidence: typeof sub.measured_confidence === "number" ? Math.round(sub.measured_confidence * 100) / 100 : BAND_CONFIDENCE[String(sub.confidence_band)] ?? 0.3,
   visualEvidence: list(sub.features_seen, 2, 120),
   needsMoreEvidence: list(sub.missing_evidence, 2, 120),
-  assetIndex: Number((sub.asset_indexes as number[] | undefined)?.[0] ?? 0),
+  assetIndex: (sub.asset_indexes as number[] | undefined)?.[0],
+  assetIndices: [...((sub.asset_indexes as number[] | undefined) ?? [])],
   sourceModel: sub.found_by === "tile" ? CARD_TILE_MODEL : CARD_ID_MODEL,
   subjectLocator: {},
 });
@@ -348,7 +349,7 @@ const toCandidate = (sub: Json, index: number): ObservationAiSubjectCandidate =>
 const toFused = (c: ObservationAiSubjectCandidate, sub: Json): GeminiFusedCandidate => ({
   candidateKey: c.candidateKey, name: c.vernacularName, scientificName: c.scientificName, rank: c.rank, confidence: c.confidence,
   supportingFeatures: list(sub.features_seen, 3), missingFeatures: list(sub.missing_evidence, 3), contradictions: [],
-  sourceLanes: ["primary"], sourceModels: [c.sourceModel ?? CARD_ID_MODEL], sourceAssetIndices: (sub.asset_indexes as number[] | undefined) ?? [0],
+  sourceLanes: ["primary"], sourceModels: [c.sourceModel ?? CARD_ID_MODEL], sourceAssetIndices: (sub.asset_indexes as number[] | undefined) ?? [],
   subjectLocator: {}, fusionScore: c.confidence,
 });
 
@@ -389,7 +390,7 @@ export function buildCardMergedObservation(id: Json, subjects: Json[], cards: Ar
     candidate: {
       candidateKey: main?.candidateKey ?? null, vernacularName: main?.vernacularName ?? null, scientificName: main?.scientificName ?? null,
       rank: main?.rank ?? "unknown", confidence: main?.confidence ?? 0, visualEvidence: main?.visualEvidence ?? [], needsMoreEvidence: main?.needsMoreEvidence ?? [],
-      assetIndex: main?.assetIndex ?? 0, subjectLocator: {}, sourceModel: main?.sourceModel ?? CARD_ID_MODEL,
+      assetIndex: main?.assetIndex, assetIndices: main?.assetIndices, subjectLocator: {}, sourceModel: main?.sourceModel ?? CARD_ID_MODEL,
       nonBiological: candidates.length === 0, coexistingSubjects: candidates.slice(1, 8),
     },
     topCandidates,
