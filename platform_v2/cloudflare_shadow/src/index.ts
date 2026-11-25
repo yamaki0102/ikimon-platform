@@ -46,6 +46,7 @@ import {
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
+import { handleMapExploreRoute, handleMapPlacesBoundsApi } from "./zukanMapView";
 import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
   handleGetEventGuestPhoto,
@@ -3958,6 +3959,17 @@ export const worker = {
         const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/map/places") {
+        return handleMapPlacesBoundsApi(url, env.OBS_DB);
+      }
+
+      const mapExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/explore$/);
+      if ((request.method === "GET" || request.method === "HEAD") && mapExploreMatch) {
+        const viewLang = (mapExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleMapExploreRoute(url, viewLang, session, env.OBS_DB);
       }
 
       const eventGalleryShareMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/([^/]+)\/(gallery|share)$/);
