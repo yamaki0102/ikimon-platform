@@ -7,6 +7,16 @@ import {
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
 import {
+  buildClearedGuestPassCookieHeader,
+  buildGuestPassCookieHeader,
+  findActiveGuestPass,
+  isGuestPostingEnabled,
+  issueGuestPass,
+  normalizeGuestDestination,
+  revokeGuestPass,
+  setDestinationQrStopped,
+} from "./guestPosting";
+import {
   normalizeOtayoriStatus,
   renderOtayoriPage,
   shouldNotifyOtayoriStatus,
@@ -3655,6 +3665,69 @@ export const worker = {
       const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
       if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
         return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/issue") {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const body = await readJson<{ destinationKind?: unknown; destinationId?: unknown }>(request);
+        const destination = normalizeGuestDestination(body.destinationKind, body.destinationId);
+        if (body.destinationKind !== undefined && !destination) {
+          return json({ ok: false, error: "invalid_destination" }, 400, { "cache-control": "no-store" });
+        }
+        const issued = await issueGuestPass(env.OBS_DB, { destination });
+        const secure = url.protocol === "https:";
+        return json(
+          { ok: true, passId: issued.passId, expiresAt: issued.expiresAt },
+          201,
+          { "set-cookie": buildGuestPassCookieHeader(issued.rawToken, secure), "cache-control": "no-store" }
+        );
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/guest/pass/discard") {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const pass = await findActiveGuestPass(env.OBS_DB, request);
+        if (!pass) {
+          return json({ ok: false, error: "guest_pass_required" }, 401, { "cache-control": "no-store" });
+        }
+        await revokeGuestPass(env.OBS_DB, pass.pass_id, "user_discarded", "guest");
+        const secure = url.protocol === "https:";
+        return json(
+          { ok: true, revoked: true },
+          200,
+          { "set-cookie": buildClearedGuestPassCookieHeader(secure), "cache-control": "no-store" }
+        );
+      }
+
+      const guestQrStopMatch = url.pathname.match(/^\/api\/v1\/admin\/guest-destinations\/([^/]+)\/([^/]+)\/qr-stop$/);
+      if (request.method === "POST" && guestQrStopMatch?.[1] && guestQrStopMatch?.[2]) {
+        if (!isGuestPostingEnabled(env)) {
+          return json({ ok: false, error: "guest_posting_disabled" }, 404, { "cache-control": "no-store" });
+        }
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        if (!isSpecialistAuthorityAdminRole(session)) {
+          return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        }
+        const dest = normalizeGuestDestination(decodeURIComponent(guestQrStopMatch[1]), decodeURIComponent(guestQrStopMatch[2]));
+        if (!dest) {
+          return json({ ok: false, error: "invalid_destination" }, 400, { "cache-control": "no-store" });
+        }
+        const body = await readJson<{ stopped?: unknown }>(request);
+        const stopped = body.stopped !== false;
+        await setDestinationQrStopped(env.OBS_DB, dest, stopped);
+        return json({ ok: true, destination: `${dest.kind}:${dest.id}`, qrStopped: stopped }, 200, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/ui-kpi/events") {

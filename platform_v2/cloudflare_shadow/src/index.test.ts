@@ -34231,3 +34231,93 @@ test("account withdrawal I12 shows what disappears first, requires confirmation,
   assert.equal(payload.withdrawn, true);
   assert.match(withdrawRes.headers.get("set-cookie") ?? "", /Expires=Thu, 01 Jan 1970/u);
 });
+
+test("guest pass issue, discard, and admin qr-stop endpoints respect feature flag and auth", async (t) => {
+  const { env, obs } = createEnv();
+  const { DatabaseSync } = await import("node:sqlite");
+  const sqlite = new DatabaseSync(":memory:");
+  t.after(() => sqlite.close());
+  sqlite.exec(await readFile(new URL("../migrations/observations/0078_guest_posting_core.sql", import.meta.url), "utf8"));
+  const obsProxy = new Proxy(obs, {
+    get(target, prop, receiver) {
+      if (prop === "prepare") {
+        return (query: string) => {
+          if (/\bguest_(?:passes|pass_destinations|destination_quotas|slot_reservations|handoff_codes|pass_audit_events)\b/u.test(query)) {
+            let values: unknown[] = [];
+            const stmt = {
+              bind(...input: unknown[]) { values = input; return stmt; },
+              async run() { return { meta: { changes: Number(sqlite.prepare(query).run(...values as never[]).changes) } }; },
+              async first<T>() { return (sqlite.prepare(query).get(...values as never[]) as T | undefined) ?? null; },
+              async all<T>() { return { results: sqlite.prepare(query).all(...values as never[]) as T[] }; },
+            };
+            return stmt;
+          }
+          return target.prepare(query);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    }
+  });
+  Object.assign(env, { OBS_DB: obsProxy });
+
+  // Feature flag OFF -> 404
+  const offRes = await worker.fetch(new Request("https://ikimon.life/api/v1/guest/pass/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ destinationKind: "place", destinationId: "place-1" })
+  }), env);
+  assert.equal(offRes.status, 404);
+
+  // Feature flag ON
+  Object.assign(env, { GUEST_POSTING_ENABLED: "true" });
+  const issueRes = await worker.fetch(new Request("https://ikimon.life/api/v1/guest/pass/issue", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ destinationKind: "place", destinationId: "place-1" })
+  }), env);
+  assert.equal(issueRes.status, 201);
+  const guestCookie = issueRes.headers.get("set-cookie") ?? "";
+  assert.match(guestCookie, /zukan_guest_pass=.*HttpOnly/);
+
+  // Admin qr-stop: 401 unauth, 403 non-admin, 200 admin
+  const unauthStop = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guest-destinations/place/place-1/qr-stop", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+    body: JSON.stringify({ stopped: true })
+  }), env);
+  assert.equal(unauthStop.status, 401);
+
+  const issueUser = async (userId: string, roleName?: string) => {
+    const r = await worker.fetch(new Request("https://ikimon.life/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://ikimon.life" },
+      body: JSON.stringify({ userId, displayName: userId, roleName, ttlHours: 1 })
+    }), env);
+    return r.headers.get("set-cookie") ?? "";
+  };
+  const memberCookie = await issueUser("gp-member");
+  const adminCookie = await issueUser("gp-admin", "admin");
+
+  const memberStop = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guest-destinations/place/place-1/qr-stop", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: memberCookie },
+    body: JSON.stringify({ stopped: true })
+  }), env);
+  assert.equal(memberStop.status, 403);
+
+  const adminStop = await worker.fetch(new Request("https://ikimon.life/api/v1/admin/guest-destinations/place/place-1/qr-stop", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: adminCookie },
+    body: JSON.stringify({ stopped: true })
+  }), env);
+  assert.equal(adminStop.status, 200);
+
+  // Discard pass -> 200 + cleared cookie
+  const discardRes = await worker.fetch(new Request("https://ikimon.life/api/v1/guest/pass/discard", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://ikimon.life", cookie: guestCookie },
+    body: "{}"
+  }), env);
+  assert.equal(discardRes.status, 200);
+  assert.match(discardRes.headers.get("set-cookie") ?? "", /Max-Age=0/);
+});
