@@ -156,7 +156,7 @@ export async function handlePostObservationCorrection(
   }
 
   const obs = await env.OBS_DB
-    .prepare("SELECT observation_id, user_id, visibility, note, observed_at FROM observations WHERE observation_id = ?")
+    .prepare("SELECT observation_id, owner_user_id AS user_id, visibility, note, observed_at FROM observations WHERE observation_id = ?")
     .bind(observationId)
     .first<{
       observation_id: string;
@@ -182,12 +182,12 @@ export async function handlePostObservationCorrection(
 
   if (field === "note") {
     await env.OBS_DB
-      .prepare("UPDATE observations SET note = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ? AND user_id = ?")
+      .prepare("UPDATE observations SET note = ? WHERE observation_id = ? AND owner_user_id = ?")
       .bind(nextValue, observationId, session.userId)
       .run();
   } else if (field === "observed_at") {
     await env.OBS_DB
-      .prepare("UPDATE observations SET observed_at = ?, updated_at = CURRENT_TIMESTAMP WHERE observation_id = ? AND user_id = ?")
+      .prepare("UPDATE observations SET observed_at = ? WHERE observation_id = ? AND owner_user_id = ?")
       .bind(nextValue, observationId, session.userId)
       .run();
   }
@@ -220,7 +220,7 @@ export async function handleGetObservationCorrections(
   env: EnvLike
 ): Promise<Response> {
   const obs = await env.OBS_DB
-    .prepare("SELECT observation_id, user_id, visibility FROM observations WHERE observation_id = ?")
+    .prepare("SELECT observation_id, owner_user_id AS user_id, visibility FROM observations WHERE observation_id = ?")
     .bind(observationId)
     .first<{ observation_id: string; user_id: string; visibility: string }>();
 
