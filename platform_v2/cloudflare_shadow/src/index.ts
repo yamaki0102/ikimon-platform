@@ -106,6 +106,7 @@ import {
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
+import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
@@ -4350,6 +4351,18 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const placeTimelineApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/fixed-point-timeline$/);
+      if (request.method === "GET" && placeTimelineApiMatch?.[1]) {
+        return handlePlaceFixedPointTimelineApi(decodeURIComponent(placeTimelineApiMatch[1]), env.OBS_DB);
+      }
+
+      const placeTimelinePageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/timeline$/);
+      if (request.method === "GET" && placeTimelinePageMatch?.[2]) {
+        const viewLang = (placeTimelinePageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env);
+        return handlePlaceTimelinePageRoute(decodeURIComponent(placeTimelinePageMatch[2]), viewLang, session, env.OBS_DB);
       }
 
       const placeSeasonsApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/seasons$/);
