@@ -14,6 +14,7 @@ import {
 } from "../../src/services/originalUiMaterializationRoutes";
 import { renderSiteDocument } from "../../src/ui/siteShell";
 import { RYUYO_FIELD_ID } from "./areaEncyclopediaNative";
+import { safeRedirectPath } from "./core/shared";
 import { exchangeOAuthCode, renderRecordsProductSection, withPublicPlacesInSitemap, worker } from "./index";
 import publicPresentationEntry from "./publicPresentationEntry";
 
@@ -33820,6 +33821,25 @@ test("GET /api/v1/places/:id returns display name only for exact public place ID
 
   const numericRes = await worker.fetch(new Request("https://zukan.earth/api/v1/places/123456"), env);
   assert.equal(numericRes.status, 400);
+});
+
+test("safeRedirectPath rejects double-slash, encoded-slash, backslash, and dot-normalized external redirects", () => {
+  for (const dangerous of [
+    "/\\evil.example",
+    "//evil.example",
+    "/%2F%2Fevil.example",
+    "/%2Fevil.example",
+    "/.//evil.example",
+    "/..//evil.example",
+    "/./\\/evil",
+    "https://evil.example/record",
+    "javascript:alert(1)"
+  ]) {
+    assert.equal(safeRedirectPath(dangerous), "/record", `expected fallback for ${dangerous}`);
+    assert.equal(safeRedirectPath(dangerous, "/community/events/new"), "/community/events/new");
+  }
+  assert.equal(safeRedirectPath("/record?tab=places#top"), "/record?tab=places#top");
+  assert.equal(safeRedirectPath("/ja/places/plc_1"), "/ja/places/plc_1");
 });
 
 test("OAuth rejects unknown providers before sending credentials externally and preserves google/twitter", async (t) => {

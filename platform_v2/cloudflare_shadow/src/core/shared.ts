@@ -201,12 +201,17 @@ export function publicAreaApproxPolygon(lat: number, lng: number, radiusM: numbe
 
 export function safeRedirectPath(value: unknown, fallback = "/record"): string {
   const raw = typeof value === "string" ? value.trim() : "";
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\") || raw.includes("\u0000")) {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\") || /[\u0000-\u001f\u007f]/u.test(raw)) {
     return fallback;
   }
   try {
     const parsed = new URL(raw, "https://ikimon.local");
     if (parsed.origin !== "https://ikimon.local") return fallback;
+    if (!parsed.pathname.startsWith("/") || parsed.pathname.startsWith("//")) return fallback;
+    const decodedPathname = decodeURIComponent(parsed.pathname);
+    if (!decodedPathname.startsWith("/") || decodedPathname.startsWith("//") || decodedPathname.includes("\\")) {
+      return fallback;
+    }
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return fallback;
