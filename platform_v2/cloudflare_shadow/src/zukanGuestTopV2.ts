@@ -32,14 +32,14 @@ export function renderGuestTopV2Main(options: { prefix: string; places: GuestTop
       <section class="zg2-band zg2-hero" aria-labelledby="zg2-h1">
         <div class="zg2-hero-copy">
           <h1 id="zg2-h1"><span>撮ると、</span><span>まちの今が</span><span>図鑑になる。</span></h1>
-          <p class="zg2-lead">ズカンは、撮った写真が場所と日付でたまって、その場所の図鑑になっていくサービスです。</p>
+          <p class="zg2-lead">ZUKANは、撮った写真が場所と日付でたまって、その場所の図鑑になっていくサービスです。</p>
           <div class="zg2-cta">
             <a class="zk-btn-primary" href="${prefix}/register">順番待ちに登録する</a>
             <a class="zk-btn-secondary" href="${prefix}/login">ログイン</a>
           </div>
-          <p class="zg2-note">ズカンは作っている途中のサービスで、いまは招待された方から少しずつ案内しています。</p>
+          <p class="zg2-note">ZUKANは作っている途中のサービスで、いまは招待された方から少しずつ案内しています。</p>
         </div>
-        ${screenFrame("record", 750, 700, "ズカンの記録の画面。イネ科植物の記録、2026年5月25日、写真3枚", true)}
+        ${screenFrame("record", 750, 700, "ZUKANの記録の画面。広葉樹の葉の記録、2026年5月25日、写真3枚", true)}
       </section>
 
       <section class="zg2-sec" aria-labelledby="zg2-now">
@@ -67,17 +67,17 @@ export function renderGuestTopV2Main(options: { prefix: string; places: GuestTop
         <h2 id="zg2-future">NOCOSILとつなぐと</h2>
         <p class="zg2-sub">仕事の道具「NOCOSIL」とつなぐ使い方を開発しています。点線の枠は、できたらこう見えるという作り画面です（名前・数字は架空）。</p>
         <div class="zg2-ex-list">
-          ${example(true, "記録が、活動の成果として使われたことが分かる", "NOCOSILでまとめた活動の成果にズカンの記録が使われたら、場所や記録のページに表示できるように開発を進めています。", devFrame("場所のページ", `<h4>みなと川の土手</h4><p class="zg2-meta">この場所の記録 42件</p><div class="zg2-bandline">この場所の記録 12件が、「みなと川をきれいにする会」の活動報告に使われました</div>${row("使われた記録", "秋の記録 12件")}${row("まとめた場所", "活動報告")}`))}
-          ${example(false, "お店や団体のページを、場所とつないで公開する", "NOCOSILで作ったお店や団体のページを、ズカンの場所のページに載せられるように開発を進めています。", devFrame("場所のページ", `<h4>みなと川の土手</h4><p class="zg2-meta">この場所の記録 42件</p><div class="zg2-bandline">この場所のお店：ベーカリー そらいろ</div>${row("営業時間", "9:00〜18:00")}${row("パンの予約", "お店のページを見る")}`, "pond"))}
-          ${example(false, "イベントや観察会を公開して、参加を受ける", "NOCOSILで企画したイベントや観察会を、ズカンで公開して参加を受けられるように開発を進めています。", devFrame("イベント", `<h4>冬の水辺観察会</h4><p class="zg2-meta">12月14日（月）9:00〜11:00・みなと川の土手</p><div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">参加する</span><span class="zg2-chip">あと6名</span></div><div class="zg2-bandline">申し込みと当日の段取りを見る</div>`, "heron"))}
-          ${example(false, "学校や団体からの案内の依頼を受ける", "学校や団体からの「自然案内をお願いしたい」という依頼をズカンで受けられるように開発を進めています。", devFrame("案内の依頼", `<h4>自然案内の依頼が届いています</h4><p class="zg2-meta">みなと小学校・3年生の校外学習</p>${row("日にち", "1月20日（水）午前")}${row("場所", "みなと川の土手")}<div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">受ける</span><span class="zg2-chip">段取りを見る</span></div>`))}
+          ${example(true, "記録が、活動の成果として使われたことが分かる", "NOCOSILでまとめた活動の成果にZUKANの記録が使われたら、場所や記録のページに表示できるように開発を進めています。", devFrame("場所のページ", `<h4>みなと川の土手</h4><p class="zg2-meta">この場所の記録 42件</p><div class="zg2-bandline">この場所の記録 12件が、「みなと川をきれいにする会」の活動報告に使われました</div>${row("使われた記録", "秋の記録 12件")}${row("まとめた場所", "活動報告")}`))}
+          ${example(false, "お店や団体のページを、場所とつないで公開する", "NOCOSILで作ったお店や団体のページを、ZUKANの場所のページに載せられるように開発を進めています。", devFrame("場所のページ", `<h4>みなと川の土手</h4><p class="zg2-meta">この場所の記録 42件</p><div class="zg2-bandline">この場所のお店：ベーカリー そらいろ</div>${row("営業時間", "9:00〜18:00")}${row("パンの予約", "お店のページを見る")}`, "pond"))}
+          ${example(false, "イベントや観察会を公開して、参加を受ける", "NOCOSILで企画したイベントや観察会を、ZUKANで公開して参加を受けられるように開発を進めています。", devFrame("イベント", `<h4>冬の水辺観察会</h4><p class="zg2-meta">12月14日（月）9:00〜11:00・みなと川の土手</p><div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">参加する</span><span class="zg2-chip">あと6名</span></div><div class="zg2-bandline">申し込みと当日の段取りを見る</div>`, "heron"))}
+          ${example(false, "学校や団体からの案内の依頼を受ける", "学校や団体からの「自然案内をお願いしたい」という依頼をZUKANで受けられるように開発を進めています。", devFrame("案内の依頼", `<h4>自然案内の依頼が届いています</h4><p class="zg2-meta">みなと小学校・3年生の校外学習</p>${row("日にち", "1月20日（水）午前")}${row("場所", "みなと川の土手")}<div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">受ける</span><span class="zg2-chip">段取りを見る</span></div>`))}
         </div>
       </section>
 
       <section class="zg2-sec" aria-labelledby="zg2-join">
         <span class="zg2-tag">いっしょに作る</span>
         <h2 id="zg2-join">いっしょに作りませんか</h2>
-        <p class="zg2-sub">ズカンは、使う人といっしょに作っています。</p>
+        <p class="zg2-sub">ZUKANは、使う人といっしょに作っています。</p>
         <div class="zg2-join-grid">
           <div class="zg2-card">
             <h3>使ってみたい方へ</h3>
