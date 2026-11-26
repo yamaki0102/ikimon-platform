@@ -4,6 +4,7 @@ import { OWNER_AREA_LABEL_NO_LOCATION, loadOwnerAreaLabels } from "./ownerAreaLa
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
 import { dayBoundsFromGroupKey, decodePageCursor, encodePageCursor, likePatternFromQuery } from "./ownerRecordPaging";
 import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderYearPairCard } from "./zukanLibraryBlocks";
+import { GUEST_TOP_V2_CSS, renderGuestTopV2Main } from "./zukanGuestTopV2";
 
 function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
   const cleanKey = key.replace(/^\/+/, "");
@@ -800,6 +801,7 @@ export function renderZukanTopPage(
     displayName?: string | null;
     searchQuery?: string;
     cspNonce?: string;
+    guestTopV2?: boolean;
   }
 ): string {
   const isEn = options.lang === "en";
@@ -871,6 +873,9 @@ export function renderZukanTopPage(
       <a href="${prefix}/welcome">${isEn ? "New here? A quick tour" : "はじめての方へ（使い方）"}</a>
     </nav>
   `;
+
+  const guestTopV2 = options.guestTopV2 === true && !options.authenticated && options.lang === "ja";
+  const guestTopV2Main = guestTopV2 ? renderGuestTopV2Main({ prefix, places: data.placesStrip }) : "";
 
   const oneYearHtml = data.oneYearPair ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
 
@@ -975,7 +980,7 @@ export function renderZukanTopPage(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ZUKAN</title>
-  <style${nonceAttr}>${ZUKAN_SHELL_CSS}${ZUKAN_LIBRARY_CSS}${TOP_PAGE_CSS}</style>
+  <style${nonceAttr}>${ZUKAN_SHELL_CSS}${ZUKAN_LIBRARY_CSS}${TOP_PAGE_CSS}${guestTopV2 ? GUEST_TOP_V2_CSS : ""}</style>
 </head>
 <body>
   <div class="zt-shell${options.authenticated ? "" : " zt-landing"}">
@@ -984,7 +989,7 @@ export function renderZukanTopPage(
       ${chrome.topbarHtml}
       <main class="zt-main">
         ${options.authenticated ? chrome.searchHtml : ""}
-        ${options.authenticated ? loggedInMain : loggedOutMain}
+        ${options.authenticated ? loggedInMain : guestTopV2 ? guestTopV2Main : loggedOutMain}
         ${options.authenticated ? chrome.feedbackFootHtml : ""}
       </main>
     </div>

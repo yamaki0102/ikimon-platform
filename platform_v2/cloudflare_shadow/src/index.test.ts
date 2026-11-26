@@ -34574,3 +34574,86 @@ test("asset thumb route redirects only ready public (or own) ledger derivatives 
     assert.equal(res.headers.get("location"), null, id);
   }
 });
+
+test("guest top v2 switch: only rolled-in viewers see v2, everyone else keeps the current top page", async () => {
+  const { env, core } = createEnv();
+  const session = (token: string, userId: string) => {
+    const hash = createHash("sha256").update(token).digest("hex");
+    core.authSessions.set(hash, { token_hash: hash, user_id: userId, display_name: userId, role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null });
+    return { cookie: `ikimon_v2_session=${token}` };
+  };
+  const journey = session("gt2-journey", "user_journey_synthetic");
+  const other = session("gt2-other", "user_other_1");
+  const day = (offset: number) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  const rollouts = (entry: unknown) => JSON.stringify({ GUEST_TOP_V2_PROTOTYPE_ENABLED: entry });
+  const allow = rollouts({ state: "allowlist", allowlist: ["user_journey_synthetic"], expiresOn: day(7), removeBy: day(14) });
+  const get = async (rolloutJson: string | undefined, path: string, headers: Record<string, string> = {}) => {
+    const response = await worker.fetch(new Request(`https://zukan.earth${path}`, { headers }), { ...env, ENVIRONMENT: "production", ZUKAN_FEATURE_ROLLOUTS: rolloutJson });
+    return { response, html: await response.text() };
+  };
+  const isV2 = (r: { response: Response; html: string }) => r.html.includes('data-zk-guest-top="v2"') && r.response.headers.get("x-zukan-guest-top") === "v2";
+  const isCurrent = (r: { response: Response; html: string }) => r.html.includes('data-zk-hero="designed"') && !r.html.includes("data-zk-guest-top") && r.response.headers.get("x-zukan-guest-top") === null;
+
+  assert.equal(isCurrent(await get(allow, "/ja/")), true, "logged-out stays current under allowlist");
+  assert.equal(isCurrent(await get(allow, "/ja/?as=guest")), true, "logged-out ?as=guest is not a switch");
+  assert.equal(isCurrent(await get(undefined, "/ja/")), true);
+  assert.equal(isCurrent(await get(undefined, "/ja/?as=guest", journey)), false, "flag off, logged-in: authenticated library");
+  assert.equal(isV2(await get(undefined, "/ja/?as=guest", journey)), false);
+
+  const owner = await get(allow, "/ja/", journey);
+  assert.equal(isV2(owner), false, "allowlisted logged-in without ?as=guest keeps the library");
+  assert.equal(owner.html.includes("data-zk-hero"), false);
+
+  const guestView = await get(allow, "/ja/?as=guest", journey);
+  assert.equal(guestView.response.status, 200);
+  assert.equal(isV2(guestView), true);
+  assert.equal(guestView.response.headers.get("cache-control"), "private, no-store");
+  assert.match(guestView.response.headers.get("content-security-policy") ?? "", /nonce-/);
+  const nonce = /nonce-([A-Za-z0-9+/=_-]+)/.exec(guestView.response.headers.get("content-security-policy") ?? "")?.[1];
+  assert.ok(nonce && guestView.html.includes(`<style nonce="${nonce}">`));
+  assert.match(guestView.html, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
+  assert.doesNotMatch(guestView.html, /ノコシル/);
+
+  const otherView = await get(allow, "/ja/?as=guest", other);
+  assert.equal(isV2(otherView), false, "logged-in but not allowlisted: ?as=guest is ignored");
+  assert.equal(otherView.html.includes("data-zk-guest-top"), false);
+
+  const expired = rollouts({ state: "allowlist", allowlist: ["user_journey_synthetic"], expiresOn: day(-1), removeBy: day(6) });
+  assert.equal(isV2(await get(expired, "/ja/?as=guest", journey)), false);
+  assert.equal(isV2(await get("{broken", "/ja/?as=guest", journey)), false);
+
+  const all = rollouts({ state: "all" });
+  assert.equal(isV2(await get(all, "/ja/")), true, "state all reaches logged-out viewers");
+  assert.equal(isV2(await get(all, "/", {})), true);
+  assert.equal(isV2(await get(all, "/ja/", journey)), false, "logged-in viewers keep the library under state all");
+
+  for (const lang of ["en", "es", "pt-br"]) {
+    assert.equal(isCurrent(await get(all, `/${lang}/`)), true, lang);
+    assert.equal(isV2(await get(allow, `/${lang}/?as=guest`, journey)), false, lang);
+  }
+  const off = rollouts({ state: "off" });
+  assert.equal(isCurrent(await get(off, "/ja/")), true);
+  assert.equal(isV2(await get(off, "/ja/?as=guest", journey)), false);
+});
+
+test("guest top v2 static assets are served from materialized R2 and registered for materialization", async () => {
+  const { env } = createEnv();
+  const names = ["record", "place", "map", "pond", "heron"].map(name => `zukan-guest-v2-${name}.webp`);
+  const script = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
+  for (const name of names) {
+    assert.ok(script.includes(`"/assets/img/landing/${name}"`), `${name} registered in staticAssetPaths`);
+    assert.ok(existsSync(new URL(`../../assets/img/landing/${name}`, import.meta.url)), `${name} exists on disk`);
+    await env.ASSET_BUCKET.put(`original-ui/static/assets/img/landing/${name}`, `bytes-${name}`, { httpMetadata: { contentType: "image/webp" } });
+  }
+  for (const environment of ["production", "shadow"]) {
+    for (const name of names) {
+      const response = await worker.fetch(new Request(`https://zukan.earth/assets/img/landing/${name}`), { ...env, ENVIRONMENT: environment });
+      assert.equal(response.status, 200, `${environment} ${name}`);
+      assert.equal(await response.text(), `bytes-${name}`);
+      assert.equal(response.headers.get("content-type"), "image/webp");
+      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+    }
+  }
+  const missing = await worker.fetch(new Request("https://zukan.earth/assets/img/landing/zukan-guest-v2-none.webp"), { ...env, ENVIRONMENT: "production" });
+  assert.equal(missing.status, 404);
+});

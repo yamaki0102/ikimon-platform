@@ -166,6 +166,8 @@ import {
   renderZukanTopPage,
   type ZukanTopLang
 } from "./zukanTopPage";
+import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
+import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -22602,9 +22604,13 @@ async function getNativeZukanTopHtmlIfAvailable(
   const nativePathname = stripPublicLangPrefix(url.pathname);
   if (nativePathname !== "/" && nativePathname !== "/index.html") return null;
   const session = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
-  const authenticated = Boolean(session && !session.banned);
+  const sessionActive = Boolean(session && !session.banned);
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const asGuest = lang === "ja" && sessionActive && viewAsGuest(request, env, GUEST_TOP_V2_FLAG, session);
+  const authenticated = sessionActive && !asGuest;
+  const guestViewer = viewerFromSession(session);
+  const guestTopV2 = lang === "ja" && !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
   const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
@@ -22613,15 +22619,17 @@ async function getNativeZukanTopHtmlIfAvailable(
     authenticated,
     displayName: session?.displayName ?? null,
     searchQuery,
-    cspNonce
+    cspNonce,
+    ...(guestTopV2 ? { guestTopV2: true } : {})
   });
   return new Response(request.method === "HEAD" ? null : body, {
     status: 200,
     headers: {
       ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
       "content-type": "text/html; charset=utf-8",
-      "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
-      "x-ikimon-cloudflare-native": "zukan-top-v2"
+      "cache-control": authenticated || guestTopV2 ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "zukan-top-v2",
+      ...(guestTopV2 ? { "x-zukan-guest-top": "v2" } : {})
     }
   });
 }
