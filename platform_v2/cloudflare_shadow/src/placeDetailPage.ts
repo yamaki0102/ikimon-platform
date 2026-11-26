@@ -5,6 +5,7 @@ import { escapeHtml } from "../../src/ui/siteShell";
 import type { SavedItem } from "./savedItems";
 import { PLACE_V3_STYLES, renderPlaceV3, type PlaceV3Event, type PlaceV3Nearby, type PlaceV3Steward } from "./placeDetailV3";
 import { QUIET_HOME_STYLES, renderSavedControl, renderSavedItemsScript, type QuietHomeLang } from "./quietHome";
+import { sizedImageUrl, sizedImgAttrs } from "./derivedImageUrl";
 
 export type GlobalPlaceDetailLang = QuietHomeLang;
 
@@ -208,11 +209,11 @@ export function renderGlobalPlaceDetailPage(input: {
       ? `<section class="gpd-empty" aria-labelledby="gpd-empty-title"><h2 id="gpd-empty-title">${escapeHtml(copy.pendingTitle)}</h2><p>${escapeHtml(copy.pendingBody)}</p></section>`
       : `<section class="gpd-empty" aria-labelledby="gpd-empty-title"><h2 id="gpd-empty-title">${escapeHtml(copy.emptyTitle)}</h2><p>${escapeHtml(copy.emptyBody)}</p></section>`;
   const tiles = mediaRecords.slice(0, 3).map((record, index) =>
-    `<a class="gpd-tile gpd-tile-${index + 1}" href="${escapeHtml(recordHrefOf(record))}"><img src="${escapeHtml(record.mediaUrl ?? "")}" alt="${escapeHtml(record.displayName ?? "")}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"></a>`).join("");
+    `<a class="gpd-tile gpd-tile-${index + 1}" href="${escapeHtml(recordHrefOf(record))}"><img ${sizedImgAttrs(record.mediaUrl, 680, [360, 680, 1020], "(max-width: 899px) 50vw, 400px", escapeHtml)} alt="${escapeHtml(record.displayName ?? "")}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"></a>`).join("");
   const rows = records.slice(0, 2).map((record) => {
     const meta = [displayDate(record.observedAt, lang), record.identificationStatus === "confirmed" ? copy.confirmed : ""].filter(Boolean).join(" ・ ");
     const thumb = record.mediaUrl && record.mediaKind !== "audio"
-      ? `<span class="gpd-row-thumb"><img src="${escapeHtml(record.mediaUrl)}" alt="" loading="lazy" decoding="async"></span>`
+      ? `<span class="gpd-row-thumb"><img src="${escapeHtml(sizedImageUrl(record.mediaUrl, 320))}" alt="" loading="lazy" decoding="async"></span>`
       : `<span class="gpd-row-thumb" aria-hidden="true"></span>`;
     return `<a class="gpd-row" href="${escapeHtml(recordHrefOf(record))}">${thumb}<span class="gpd-row-body"><strong>${escapeHtml(record.displayName || copy.unnamed)}</strong><small>${escapeHtml(meta)}</small></span><svg class="gpd-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>`;
   }).join("");
@@ -223,7 +224,7 @@ export function renderGlobalPlaceDetailPage(input: {
   const shareIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7"/></svg>';
   const metaParts = [locality].filter(Boolean);
   const showLocalInMeta = Boolean(local && local !== selected);
-  const hero = `<section class="gpd-hero${coverUrl ? " has-photo" : ""}" aria-labelledby="gpd-title">${coverUrl ? `<img class="gpd-hero-img" src="${escapeHtml(coverUrl)}" alt="" fetchpriority="high" decoding="async">` : ""}<a class="gpd-hero-btn gpd-back" href="${escapeHtml(prefix + "/map?tab=places")}" aria-label="${escapeHtml(copy.back)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></a><button type="button" class="gpd-hero-btn gpd-hero-share" data-gpd-share data-share-title="${escapeHtml(selected || local)}" data-share-copied="${escapeHtml(copy.copied)}" aria-label="${escapeHtml(copy.share)}">${shareIcon}</button><div class="gpd-hero-copy"><h1 id="gpd-title">${escapeHtml(selected || local)}</h1>${metaParts.length || showLocalInMeta ? `<p>${metaParts.map((part) => escapeHtml(part)).join(" ・ ")}${showLocalInMeta ? `${metaParts.length ? " ・ " : ""}<span lang="und">${escapeHtml(local)}</span>` : ""}</p>` : ""}</div></section>`;
+  const hero = `<section class="gpd-hero${coverUrl ? " has-photo" : ""}" aria-labelledby="gpd-title">${coverUrl ? `<img class="gpd-hero-img" ${sizedImgAttrs(coverUrl, 1020, [680, 1020, 1360], "100vw", escapeHtml)} alt="" fetchpriority="high" decoding="async">` : ""}<a class="gpd-hero-btn gpd-back" href="${escapeHtml(prefix + "/map?tab=places")}" aria-label="${escapeHtml(copy.back)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></a><button type="button" class="gpd-hero-btn gpd-hero-share" data-gpd-share data-share-title="${escapeHtml(selected || local)}" data-share-copied="${escapeHtml(copy.copied)}" aria-label="${escapeHtml(copy.share)}">${shareIcon}</button><div class="gpd-hero-copy"><h1 id="gpd-title">${escapeHtml(selected || local)}</h1>${metaParts.length || showLocalInMeta ? `<p>${metaParts.map((part) => escapeHtml(part)).join(" ・ ")}${showLocalInMeta ? `${metaParts.length ? " ・ " : ""}<span lang="und">${escapeHtml(local)}</span>` : ""}</p>` : ""}</div></section>`;
   const side = `<aside class="gpd-side" aria-label="${escapeHtml(copy.aboutHeading)}"><h2>${escapeHtml(copy.aboutHeading)}</h2><dl>${locality ? `<div><dt>${escapeHtml(copy.localAddress)}</dt><dd>${escapeHtml(locality)}</dd></div>` : ""}<div><dt>${escapeHtml(copy.sourceCount)}</dt><dd>${sourceCount}</dd></div>${hasRecords ? `<div><dt>${escapeHtml(copy.statRecords)}</dt><dd>${shownCount}${startYear ? ` (${escapeHtml(startYear)}${escapeHtml(copy.fromYear)})` : ""}</dd></div>` : ""}</dl><a class="gpd-primary" href="${escapeHtml(recordHref)}">${cameraIcon}<span>${escapeHtml(copy.record)}</span></a><button type="button" class="gpd-secondary" data-gpd-share data-share-title="${escapeHtml(selected || local)}" data-share-copied="${escapeHtml(copy.copied)}">${shareIcon}<span>${escapeHtml(copy.share)}</span></button></aside>`;
   const linkIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>';
   const mailIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';

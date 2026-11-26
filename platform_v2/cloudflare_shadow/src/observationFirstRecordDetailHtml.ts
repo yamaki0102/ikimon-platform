@@ -12,6 +12,7 @@ import {
   type ObservationFirstRecordDetailCopy,
   type ObservationRecordLang,
 } from "./observationFirstRecordDetailI18n";
+import { sizedImageUrl, sizedImgAttrs } from "./derivedImageUrl";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../../src/services/trustedPublicOrigin";
 import type {
   OwnerPublicationExclusionCode,
@@ -171,7 +172,7 @@ function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: st
   const slides = items.map((item, index) => {
     const label = `${title} — ${mediaLabel(item.mediaKind, copy)} ${index + 1}`;
     if (item.mediaKind === "photo") {
-      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-of-photo-trigger data-of-photo-src="${escapeHtml(item.url)}" data-of-photo-alt="${escapeHtml(label)}" aria-label="${escapeHtml(copy.enlargePhoto)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
+      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-of-photo-trigger data-of-photo-src="${escapeHtml(item.url)}" data-of-photo-alt="${escapeHtml(label)}" aria-label="${escapeHtml(copy.enlargePhoto)}"><img ${sizedImgAttrs(item.url, 680, [680, 1020, 1360], "(max-width: 899px) 100vw, 60vw", escapeHtml)} alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
     }
     if (item.mediaKind === "video") {
       return `<figure class="of-media-slide" id="record-media-${index + 1}"><video controls preload="metadata" aria-label="${escapeHtml(label)}" src="${escapeHtml(item.url)}"><a href="${escapeHtml(item.url)}">${escapeHtml(copy.openVideo)}</a></video></figure>`;
@@ -185,7 +186,7 @@ function renderMediaSwitcher(items: ObservationFirstMediaPresentation[], copy: O
   if (items.length < 2) return "";
   return `<nav class="of-media-switch" aria-label="${escapeHtml(copy.mediaNavigation)}">${items.map((item, index) => {
     const inner = item.mediaKind === "photo" && item.url
-      ? `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" decoding="async">`
+      ? `<img src="${escapeHtml(sizedImageUrl(item.url, 320))}" alt="" loading="lazy" decoding="async">`
       : `<span>${escapeHtml(mediaLabel(item.mediaKind, copy))}</span>`;
     return `<a class="of-thumb" href="#record-media-${index + 1}" data-of-thumb="${index}" aria-label="${escapeHtml(`${mediaLabel(item.mediaKind, copy)} ${index + 1}`)}"${index === 0 ? ' aria-current="true"' : ""}>${inner}</a>`;
   }).join("")}</nav>`;
@@ -1025,7 +1026,7 @@ function renderRelated(items: ObservationFirstRelatedPresentation[] | undefined,
       : forbiddenEmptyCopy.test(item.title) || SIGNBOARD_CANDIDATE_PATTERN.test(item.title)
         ? copy.relatedRecord
         : item.title;
-    return `<a class="of-related-card${safePhoto ? "" : " has-no-photo"}" href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(item.recordId)}`)}">${safePhoto ? `<img src="${escapeHtml(safePhoto)}" alt="" loading="lazy" decoding="async">` : ""}<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(item.observedLabel)}</small></span></a>`;
+    return `<a class="of-related-card${safePhoto ? "" : " has-no-photo"}" href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(item.recordId)}`)}">${safePhoto ? `<img src="${escapeHtml(sizedImageUrl(safePhoto, 320))}" alt="" loading="lazy" decoding="async">` : ""}<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(item.observedLabel)}</small></span></a>`;
   }).join("");
   return `<section class="of-related" aria-labelledby="of-related-title"><h2 id="of-related-title">${escapeHtml(copy.related)}</h2><div>${cards}</div></section>`;
 }

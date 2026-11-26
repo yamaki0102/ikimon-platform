@@ -1,5 +1,6 @@
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { escapeHtml } from "../../src/ui/siteShell";
+import { sizedImgAttrs } from "./derivedImageUrl";
 
 export type PlaceV3Record = {
   id: string;
@@ -208,7 +209,7 @@ export function renderPlaceV3(input: PlaceV3Input): string {
   const buttons = `<a class="gpd-hero-btn gpd-back" href="${e(input.backHref)}" aria-label="${e(input.backLabel)}">${BACK}</a><button type="button" class="gpd-hero-btn gpd-hero-share" data-gpd-share data-share-title="${e(input.shareTitle)}" data-share-copied="${e(input.copiedLabel)}" aria-label="${e(input.shareLabel)}">${SHARE}</button>`;
 
   const band = photos.length
-    ? `<div class="pv3-bandbox"><div class="pv3-band pv3-band-n${photos.length}" data-pv3-band="${photos.length}"><div class="pv3-bm"><img src="${e(photos[0] ?? "")}" alt="" fetchpriority="high" decoding="async"></div>${photos.slice(1).map((u) => `<div class="pv3-bs"><img src="${e(u)}" alt="" loading="lazy" decoding="async"></div>`).join("")}</div>${buttons}</div>`
+    ? `<div class="pv3-bandbox"><div class="pv3-band pv3-band-n${photos.length}" data-pv3-band="${photos.length}"><div class="pv3-bm"><img ${sizedImgAttrs(photos[0], 680, [680, 1020, 1360], "(max-width: 899px) 100vw, 1120px", e)} alt="" fetchpriority="high" decoding="async"></div>${photos.slice(1).map((u) => `<div class="pv3-bs"><img ${sizedImgAttrs(u, 680, [360, 680], "(max-width: 899px) 50vw, 360px", e)} alt="" loading="lazy" decoding="async"></div>`).join("")}</div>${buttons}</div>`
     : `<div class="pv3-top"><b>${e(c.top)}</b>${buttons}</div>`;
 
   const metaParts: string[] = [];
@@ -235,12 +236,12 @@ export function renderPlaceV3(input: PlaceV3Input): string {
     });
     if (pick) {
       if (pick.mediaUrl) used.add(pick.mediaUrl);
-      season = `<section class="pv3-sec-season" data-pv3-season><div class="pv3-h"><h2>${e(c.season)}</h2></div><a class="pv3-season" href="${e(pick.href)}">${pick.mediaUrl ? `<img src="${e(pick.mediaUrl)}" alt="" loading="lazy" decoding="async">` : ""}<div class="sb"><div class="st">${e(c.seasonTitle(nowJst.month))}</div><p class="sx">${e(pick.name)}</p></div></a></section>`;
+      season = `<section class="pv3-sec-season" data-pv3-season><div class="pv3-h"><h2>${e(c.season)}</h2></div><a class="pv3-season" href="${e(pick.href)}">${pick.mediaUrl ? `<img ${sizedImgAttrs(pick.mediaUrl, 680, [360, 680, 1020], "(max-width: 899px) 100vw, 560px", e)} alt="" loading="lazy" decoding="async">` : ""}<div class="sb"><div class="st">${e(c.seasonTitle(nowJst.month))}</div><p class="sx">${e(pick.name)}</p></div></a></section>`;
     }
   }
 
   const cards = cardRecs.map((r) => ({ ...r, mediaUrl: r.mediaUrl && !used.has(r.mediaUrl) ? r.mediaUrl : null })).map((r) =>
-    `<a class="pv3-card" href="${e(r.href)}">${r.mediaUrl ? `<div class="rp"><img src="${e(r.mediaUrl)}" alt="${e(named(r.name))}" loading="lazy" decoding="async"></div>` : ""}<div class="rb"><div class="rt">${e(named(r.name) || c.unnamed)}</div><div class="rm">${e([r.dateLabel, r.confirmed ? c.confirmed : ""].filter(Boolean).join(" ・ "))}</div></div></a>`).join("");
+    `<a class="pv3-card" href="${e(r.href)}">${r.mediaUrl ? `<div class="rp"><img ${sizedImgAttrs(r.mediaUrl, 680, [360, 680], "(max-width: 899px) 50vw, 360px", e)} alt="${e(named(r.name))}" loading="lazy" decoding="async"></div>` : ""}<div class="rb"><div class="rt">${e(named(r.name) || c.unnamed)}</div><div class="rm">${e([r.dateLabel, r.confirmed ? c.confirmed : ""].filter(Boolean).join(" ・ "))}</div></div></a>`).join("");
   const recent = cards
     ? `<section class="pv3-sec-recent" data-pv3-recent><div class="pv3-h"><h2>${e(c.recent)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div><div class="pv3-cards">${cards}</div></section>`
     : "";
