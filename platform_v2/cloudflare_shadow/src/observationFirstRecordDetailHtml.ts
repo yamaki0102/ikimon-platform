@@ -512,7 +512,49 @@ function renderObservationDetail(
   return `<article class="of-observation-detail">${heading}${accepted}${ai}${proposalList}${form}</article>`;
 }
 
-type FoundRow = { name: string; label: string; tone: "confirmed" | "proposed" | "ai" };
+type RowWhy = { evidence: string[]; reason: string[] };
+type FoundRow = { name: string; label: string; tone: "confirmed" | "proposed" | "ai"; observationId?: string; why?: RowWhy };
+type WhyContext = { sectionObservationIds: ReadonlySet<string>; fallbackShown: boolean };
+
+const SPECIES_OR_BELOW_RANKS = new Set(["species", "subspecies", "variety", "form", "forma", "cultivar", "hybrid"]);
+const rankAboveSpecies = (rank: string | null | undefined): boolean => {
+  const normalized = rank?.trim().toLowerCase();
+  return Boolean(normalized) && !SPECIES_OR_BELOW_RANKS.has(normalized!);
+};
+
+function whyForCard(
+  card: ObservationFirstCard,
+  rank: string | null | undefined,
+  lang: ObservationRecordLang,
+  personPrimaryNames: readonly string[] | undefined,
+  nextPhotoItem: string | null,
+): RowWhy | null {
+  const clean = (values: string[]): string[] => aiProseListForLang(values, lang).filter((text) => !SIGNBOARD_CANDIDATE_PATTERN.test(text));
+  for (const item of displayAiSuggestions(card, personPrimaryNames)) {
+    const evidence = clean(item.visualEvidence).slice(0, 2);
+    const reason = rankAboveSpecies(rank)
+      ? clean(item.shootingAdvice).filter((text) => {
+          if (!nextPhotoItem) return true;
+          const concise = conciseNextPhotoItem(text);
+          return concise !== nextPhotoItem && !text.includes(nextPhotoItem) && !nextPhotoItem.includes(concise) && !/実物の生体詳細/.test(text);
+        }).slice(0, 1)
+      : [];
+    if (evidence.length > 0 || reason.length > 0) return { evidence, reason };
+  }
+  return null;
+}
+
+function renderWhyBody(why: RowWhy, copy: ObservationFirstRecordDetailCopy): string {
+  const block = (label: string, items: string[]): string => items.length > 0
+    ? `<p class="of-why-label">${escapeHtml(label)}</p><ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+    : "";
+  return `<div class="of-why-body">${block(copy.whyDistinguishing, why.evidence)}${block(copy.whyStoppedAtRank, why.reason)}</div>`;
+}
+
+function renderFoundRowLi(attrs: string, inner: string, why: RowWhy | null | undefined, copy: ObservationFirstRecordDetailCopy): string {
+  if (!why || (why.evidence.length === 0 && why.reason.length === 0)) return `<li${attrs}>${inner}</li>`;
+  return `<li${attrs} class="of-has-why"><details class="of-why"><summary>${inner}<span class="of-why-chevron" aria-hidden="true"></span></summary>${renderWhyBody(why, copy)}</details></li>`;
+}
 type ObservationSummary = { rows: FoundRow[]; reading: string };
 
 function renderObservationSummary(
@@ -520,6 +562,7 @@ function renderObservationSummary(
   presentation: ObservationFirstRecordPresentation,
   action: string,
   copy: ObservationFirstRecordDetailCopy,
+  whyContext: WhyContext | null = null,
 ): ObservationSummary {
   const empty: ObservationSummary = { rows: [], reading: "" };
   if (isSignboardRecord(detail, presentation)) {
@@ -547,23 +590,37 @@ function renderObservationSummary(
     const aiName = displayAiSuggestions(item.card, presentation.aiPersonPrimaryNames)
       .map((suggestion) => publicSubjectName(suggestion.proposedName) ?? publicSubjectName(suggestion.proposedScientificName))
       .find((name): name is string => name !== null) ?? null;
+    const acceptedRank = item.card.acceptedIdentification?.proposedRank ?? null;
+    const proposalRank = item.card.communityIdentifications.find((proposal) => !proposal.accepted && publicSubjectName(proposal.proposedName) === proposalName)?.proposedRank ?? null;
+    const aiRank = displayAiSuggestions(item.card, presentation.aiPersonPrimaryNames).find((suggestion) => (publicSubjectName(suggestion.proposedName) ?? publicSubjectName(suggestion.proposedScientificName)) === aiName)?.proposedRank ?? null;
     const row: FoundRow | null = acceptedName
-      ? { name: acceptedName, label: copy.statusConfirmed, tone: "confirmed" }
+      ? { name: acceptedName, label: copy.statusConfirmed, tone: "confirmed", observationId: item.card.observationId }
       : proposalName
-        ? { name: proposalName, label: copy.statusProposed, tone: "proposed" }
+        ? { name: proposalName, label: copy.statusProposed, tone: "proposed", observationId: item.card.observationId }
         : aiName
-          ? { name: aiName, label: copy.statusAiRead, tone: "ai" }
+          ? { name: aiName, label: copy.statusAiRead, tone: "ai", observationId: item.card.observationId }
           : null;
     if (!row || seenNames.has(row.name)) return [];
     seenNames.add(row.name);
+    if (whyContext) {
+      const why = whyForCard(item.card, acceptedName ? acceptedRank : proposalName ? proposalRank : aiRank, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null);
+      if (why) row.why = why;
+    }
     return [row];
   });
   const nextPhotoItem = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
+  const rowEvidence = new Set<string>();
+  if (whyContext) {
+    const learningCard = active[0]!;
+    const shown = whyContext.sectionObservationIds.has(learningCard.observationId)
+      || (whyContext.fallbackShown && rows.some((row) => row.observationId === learningCard.observationId && row.why));
+    if (shown) for (const text of whyForCard(learningCard, null, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, nextPhotoItem)?.evidence ?? []) rowEvidence.add(text);
+  }
   const comparison = renderAiCandidateComparison(active[0]!, presentation, copy, nextPhotoItem);
   const comparisonEvidence = new Set(
     (presentation.aiCandidateInsights ?? []).flatMap((candidate) => aiProseListForLang(candidate.supportingFeatures, presentation.lang ?? "ja")),
   );
-  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, comparison ? comparisonEvidence : new Set(), nextPhotoItem);
+  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, new Set([...(comparison ? comparisonEvidence : []), ...rowEvidence]), nextPhotoItem);
   const detailCards = (meaningful.length > 0 ? meaningful.map((item) => item.card) : active.slice(0, 1))
     .map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy, {
       omitHeading: meaningful.length > 0 || seenNames.size > 0,
@@ -626,7 +683,7 @@ function renderFoundSection(
     return true;
   }).slice(0, 6);
   const list = rows.length > 0
-    ? `<ul class="of-found-list">${rows.map((row) => `<li${row.tone === "ai" ? ' data-ai-candidate="true"' : ""}><span class="of-found-name">${escapeHtml(row.name)}</span><span class="of-found-status is-${row.tone}">${escapeHtml(row.label)}</span></li>`).join("")}</ul>`
+    ? `<ul class="of-found-list">${rows.map((row) => renderFoundRowLi(row.tone === "ai" ? ' data-ai-candidate="true"' : "", `<span class="of-found-name">${escapeHtml(row.name)}</span><span class="of-found-status is-${row.tone}">${escapeHtml(row.label)}</span>`, row.why, copy)).join("")}</ul>`
     : "";
   if (rows.length === 0 && !scene.stateMessage) return "";
   const empty = scene.stateMessage
@@ -640,8 +697,8 @@ const readingStateLabel = (state: ReadingState, copy: ObservationFirstRecordDeta
 const clock = (ms: number): string => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 const panelAttrs = (index: number): string => `data-of-media-panel="${index}"${index === 0 ? "" : " hidden"}`;
 
-function renderPanelFoundList(items: readonly RecordPageFoundItem[], copy: ObservationFirstRecordDetailCopy): string {
-  return `<ul class="of-found-list">${items.slice(0, 8).map((item) => `<li data-found-kind="${item.kind}"${item.state === "ai_read" ? ' data-ai-candidate="true"' : ""}><span class="of-found-name">${escapeHtml(item.label)}</span>${item.timeRange ? `<span class="of-found-time">${escapeHtml(`${clock(item.timeRange.startMs)}–${clock(item.timeRange.endMs)}`)}</span>` : ""}<span class="of-found-status is-${readingTone(item.state)}">${escapeHtml(readingStateLabel(item.state, copy))}</span></li>`).join("")}</ul>`;
+function renderPanelFoundList(items: readonly RecordPageFoundItem[], copy: ObservationFirstRecordDetailCopy, whyOf: (item: RecordPageFoundItem) => RowWhy | null): string {
+  return `<ul class="of-found-list">${items.slice(0, 8).map((item) => renderFoundRowLi(` data-found-kind="${item.kind}"${item.state === "ai_read" ? ' data-ai-candidate="true"' : ""}`, `<span class="of-found-name">${escapeHtml(item.label)}</span>${item.timeRange ? `<span class="of-found-time">${escapeHtml(`${clock(item.timeRange.startMs)}–${clock(item.timeRange.endMs)}`)}</span>` : ""}<span class="of-found-status is-${readingTone(item.state)}">${escapeHtml(readingStateLabel(item.state, copy))}</span>`, item.kind === "organism" ? whyOf(item) : null, copy)).join("")}</ul>`;
 }
 
 function renderPerMediaFound(
@@ -649,6 +706,7 @@ function renderPerMediaFound(
   fallback: string,
   copy: ObservationFirstRecordDetailCopy,
   headingLink: string,
+  whyOf: (item: RecordPageFoundItem) => RowWhy | null,
 ): string {
   return sections.map((section, index) => {
     if (!section.fromReading || section.found.length === 0) {
@@ -656,7 +714,7 @@ function renderPerMediaFound(
     }
     const heading = section.kind === "video" ? copy.sceneFoundVideo : section.kind === "photo" ? copy.sceneFound : copy.foundTitle;
     const id = `of-summary-title${index === 0 ? "" : `-${index}`}`;
-    return `<section class="of-found" aria-labelledby="${id}" ${panelAttrs(index)}><div class="of-found-head"><h2 id="${id}">${escapeHtml(heading)}</h2>${headingLink}</div>${renderPanelFoundList(section.found, copy)}</section>`;
+    return `<section class="of-found" aria-labelledby="${id}" ${panelAttrs(index)}><div class="of-found-head"><h2 id="${id}">${escapeHtml(heading)}</h2>${headingLink}</div>${renderPanelFoundList(section.found, copy, whyOf)}</section>`;
   }).join("");
 }
 
@@ -681,7 +739,7 @@ function renderPerMediaPlace(
   }).join("");
 }
 
-const PER_MEDIA_STYLES = `.of-place-fields{display:grid;gap:8px;margin:10px 0 0}.of-place-fields>div{display:grid;grid-template-columns:minmax(0,9em) 1fr;gap:4px 12px;align-items:baseline}.of-place-fields dt{margin:0;font-size:13px;color:var(--muted)}.of-place-fields dd{margin:0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}.of-found-time{font-size:12px;color:var(--muted)}`;
+const PER_MEDIA_STYLES = `.of-place-fields{display:grid;gap:8px;margin:10px 0 0}.of-place-fields>div{display:grid;grid-template-columns:minmax(0,9em) 1fr;gap:4px 12px;align-items:baseline}.of-place-fields dt{margin:0;font-size:13px;color:var(--muted)}.of-place-fields dd{margin:0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}.of-found-time{font-size:12px;color:var(--muted)}.of-found-list li.of-has-why{display:block;padding:0}.of-why>summary{display:flex;align-items:center;gap:12px;min-height:44px;box-sizing:border-box;padding:11px 0;list-style:none;cursor:pointer}.of-why>summary::-webkit-details-marker{display:none}.of-why-chevron{flex:none;width:7px;height:7px;margin:0 2px 2px 0;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .15s}.of-why[open] .of-why-chevron{transform:rotate(-135deg);margin:2px 2px 0 0}.of-why-body{padding:0 0 11px;font-size:12.5px;line-height:1.6;color:var(--muted)}.of-why-label{margin:0 0 2px;font-weight:700}.of-why-body ul{margin:0 0 6px;padding:0 0 0 1.2em;list-style:disc}.of-why-body li{display:list-item;padding:0;border:0}`;
 
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
   if (!comparison?.summary.trim() || !comparison.comparedObservedLabel.trim() || !/^[A-Za-z0-9:_-]{1,180}$/u.test(comparison.comparedRecordId)) return "";
@@ -1049,7 +1107,22 @@ export function renderObservationFirstRecordDetailHtml(
   const signboard = isSignboardRecord(detail, presentation);
   const customTitle = presentation.customTitle?.trim() || null;
   const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
-  const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy);
+  const recordPageSections = presentation.recordPage && media.length > 0
+    ? buildRecordPageSections({ reading: presentation.recordPage.reading, media, protectedRecord: presentation.recordPage.protectedRecord }).media
+    : null;
+  const whyContext: WhyContext | null = recordPageSections
+    ? {
+        sectionObservationIds: new Set(recordPageSections.flatMap((section) => section.found).flatMap((item) => item.kind === "organism" && item.observationId ? [item.observationId] : [])),
+        fallbackShown: recordPageSections.some((section) => !section.fromReading || section.found.length === 0),
+      }
+    : null;
+  const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy, whyContext);
+  const whyNextPhoto = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
+  const whyOf = (item: RecordPageFoundItem): RowWhy | null => {
+    if (!item.observationId) return null;
+    const card = detail.observations.find((candidate) => candidate.state === "active" && candidate.observationId === item.observationId);
+    return card ? whyForCard(card, item.rank, lang, presentation.aiPersonPrimaryNames, whyNextPhoto) : null;
+  };
   const scene = sceneFoundRows({ ...presentation, lang }, copy, signboard);
   const title = customTitle
     ? customTitle
@@ -1084,9 +1157,6 @@ export function renderObservationFirstRecordDetailHtml(
   const mediaStage = renderRecordMedia(media, title, copy, heroOverlay);
   const photoLightbox = renderPhotoLightbox(hasPhotos, copy);
   const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
-  const recordPageSections = presentation.recordPage && media.length > 0
-    ? buildRecordPageSections({ reading: presentation.recordPage.reading, media, protectedRecord: presentation.recordPage.protectedRecord }).media
-    : null;
   const aiFeedback = renderAiFeedback(detail, presentation, copy, Boolean(recordPageSections?.some((section) => section.found.some((item) => item.kind === "feature"))));
   const environment = recordPageSections ? renderPerMediaPlace(recordPageSections, presentation.environment, copy) : renderEnvironment(presentation.environment, copy);
   const resetTitleForm = customTitle
@@ -1120,7 +1190,7 @@ export function renderObservationFirstRecordDetailHtml(
         : { name: identifiedName, label: copy.statusConfirmed, tone: "confirmed" }]
     : [];
   const recordFound = renderFoundSection(identifiedRows.length > 0 ? { ...summary, rows: identifiedRows } : summary, scene, copy, foundLink);
-  const found = recordPageSections ? renderPerMediaFound(recordPageSections, recordFound, copy, foundLink) : recordFound;
+  const found = recordPageSections ? renderPerMediaFound(recordPageSections, recordFound, copy, foundLink, whyOf) : recordFound;
   const loginHref = `${langPrefix(lang)}/login?redirect=${encodeURIComponent(recordsDiscoveryDetailHref(detail.recordId, lang, presentation.recordsDiscoveryContext ?? null))}`;
   const actionsBlock = detail.owner
     ? (canEditNames || management

@@ -2,7 +2,7 @@ import { PLACE_SLOTS, type PlaceSlot, type ReadingFoundItem, type ReadingPlaceFi
 
 export type RecordPageMediaRef = { mediaId: string; mediaKind: "photo" | "video" | "audio" };
 export type RecordPageTimeRange = { startMs: number; endMs: number };
-export type RecordPageFoundItem = { kind: "organism" | "feature"; label: string; state: ReadingState; timeRange?: RecordPageTimeRange };
+export type RecordPageFoundItem = { kind: "organism" | "feature"; label: string; state: ReadingState; timeRange?: RecordPageTimeRange; observationId?: string; rank?: string };
 export type RecordPagePlaceField = { slot: PlaceSlot; code: string; label: string; state: ReadingState };
 export type RecordPageMediaSection = {
   assetId: string;
@@ -36,6 +36,10 @@ function foundItems(items: readonly ReadingFoundItem[], protectedRecord: boolean
     if (seen.has(key)) continue;
     seen.add(key);
     const entry: RecordPageFoundItem = { kind: item.kind, label, state: item.state };
+    if (item.kind === "organism" && item.observationId) {
+      entry.observationId = item.observationId;
+      if (item.name?.rank) entry.rank = item.name.rank;
+    }
     if (item.locator.kind === "time_range" && !(protectedRecord && item.kind === "organism")) {
       entry.timeRange = { startMs: item.locator.startMs ?? 0, endMs: item.locator.endMs ?? 0 };
     }
@@ -71,6 +75,6 @@ export function buildRecordPageSections(input: RecordPageInput): RecordPageSecti
   return { media };
 }
 
-export function recordPageSectionsJson(sections: RecordPageSections): { media: Array<{ assetId: string; kind: string; found: RecordPageFoundItem[]; place: RecordPagePlaceField[] | null; placeState: "read" | "pending" }> } {
-  return { media: sections.media.map(({ assetId, kind, found, place, placeState }) => ({ assetId, kind, found, place, placeState })) };
+export function recordPageSectionsJson(sections: RecordPageSections): { media: Array<{ assetId: string; kind: string; found: Array<Omit<RecordPageFoundItem, "observationId" | "rank">>; place: RecordPagePlaceField[] | null; placeState: "read" | "pending" }> } {
+  return { media: sections.media.map(({ assetId, kind, found, place, placeState }) => ({ assetId, kind, found: found.map(({ observationId: _o, rank: _r, ...rest }) => rest), place, placeState })) };
 }
