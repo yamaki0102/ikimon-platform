@@ -1845,10 +1845,82 @@ test("record page per-media: hidden asset readings are never rendered and unread
 
 test("record page per-media: a record with no reading renders the current content inside panels", () => {
   const media = photoMedia("a1");
-  const base = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media });
-  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: { reading: null, protectedRecord: false } });
+  const plain: ObservationFirstRecordDetail = { ...perMediaOwnerless, observations: perMediaOwnerless.observations.map((card) => ({ ...card, aiSuggestions: card.aiSuggestions.map((item) => ({ ...item, visualEvidence: [] })) })) };
+  const base = renderObservationFirstRecordDetailHtml(plain, { ...perMediaBase, media });
+  const html = renderObservationFirstRecordDetailHtml(plain, { ...perMediaBase, media, recordPage: { reading: null, protectedRecord: false } });
   assert.match(html, /<ul class="of-chips">/u);
   assert.doesNotMatch(html, /<dl class="of-place-fields">/u);
   const strip = (value: string) => value.replace(/ data-of-media-panel="0"/gu, "").replace(/<style>[\s\S]*?<\/style>/u, "").replace(/<script data-of-page-script>[\s\S]*?<\/script>/u, "");
   assert.equal(strip(html), strip(base));
+});
+
+const whyDetail = (suggestion: Partial<ObservationFirstRecordDetail["observations"][number]["aiSuggestions"][number]>): ObservationFirstRecordDetail => ({
+  ...perMediaOwnerless,
+  observations: perMediaOwnerless.observations.map((card) => card.observationId === "obs-owner" ? { ...card, aiSuggestions: [{ ...card.aiSuggestions[0]!, ...suggestion }] } : card),
+});
+const whyOrganism = (rank: string | null, over: Record<string, unknown> = {}) => ({ ...readingFeature("x", "x"), kind: "organism" as const, code: null, labelJa: null, observationId: "obs-owner", name: { vernacular: "アゲハ類", scientific: null, rank }, ...over });
+const whyReading = (rank: string | null) => readingOf([readingMedia("a1", { found: [whyOrganism(rank), readingFeature("fence", "柵")] })]);
+const whyHtml = (d: ObservationFirstRecordDetail, rank: string | null, extra: Record<string, unknown> = {}) =>
+  renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1"), recordPage: { reading: whyReading(rank), protectedRecord: false }, ...extra });
+
+test("record page rationale: switch off stays byte-identical and renders no details", () => {
+  const media = photoMedia("a1");
+  const off = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media });
+  assert.doesNotMatch(off, /of-why/u);
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: null }), off);
+});
+
+test("record page rationale: row with evidence renders details with at most two points and feature rows stay plain", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります", "翅の模様が縞状です", "三つ目の根拠です"], shootingAdvice: [] });
+  const html = whyHtml(d, "species");
+  const row = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why"><details class="of-why"><summary>[\s\S]*?<\/details><\/li>/u);
+  assert.ok(row);
+  assert.match(row[0], /<span class="of-found-name">アゲハ類<\/span>[\s\S]*<span class="of-why-chevron" aria-hidden="true"><\/span><\/summary>/u);
+  assert.match(row[0], /見分けた点/u);
+  assert.equal([...row[0].matchAll(/<ul><li>/gu)].length, 1);
+  assert.equal([...row[0].matchAll(/<li>/gu)].length, 2);
+  assert.doesNotMatch(row[0], /三つ目の根拠/u);
+  assert.doesNotMatch(row[0], /ここまでにした理由/u);
+  assert.match(html, /<li data-found-kind="feature" data-ai-candidate="true"><span class="of-found-name">柵<\/span>/u);
+});
+
+test("record page rationale: genus rank shows the reason, species rank hides it", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: ["翅の表側も写すと比べやすくなります"] });
+  const genus = whyHtml(d, "genus");
+  assert.match(genus, /ここまでにした理由[\s\S]*翅の表側も写すと比べやすくなります/u);
+  const species = whyHtml(d, "species");
+  assert.doesNotMatch(species.match(/<details class="of-why">[\s\S]*?<\/details>/u)![0], /ここまでにした理由|翅の表側/u);
+  const next = whyHtml(d, "genus", { aiNextPhoto: "翅の表側も写すと比べやすくなります" });
+  assert.doesNotMatch(next.match(/<details class="of-why">[\s\S]*?<\/details>/u)![0], /ここまでにした理由/u);
+});
+
+test("record page rationale: no evidence renders a plain row", () => {
+  const d = whyDetail({ visualEvidence: [], shootingAdvice: [] });
+  const html = whyHtml(d, "genus");
+  assert.doesNotMatch(html, /<details class="of-why">/u);
+  assert.match(html, /<li data-found-kind="organism" data-ai-candidate="true"><span class="of-found-name">アゲハ類<\/span>/u);
+});
+
+test("record page rationale: row evidence is not repeated in the learning section", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: ["翅の表側も写すと比べやすくなります"] });
+  const html = whyHtml(d, "species");
+  assert.equal(html.split("尾のような突起があります").length - 1, 1);
+  assert.match(html, /翅の表側も写すと比べやすくなります/u);
+  const off = renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1") });
+  assert.equal(off.split("尾のような突起があります").length - 1, 1);
+});
+
+test("record page rationale: signboard-like evidence is never shown in the row", () => {
+  const d = whyDetail({ visualEvidence: ["案内板の文字が読めます", "尾のような突起があります"], shootingAdvice: [] });
+  const html = whyHtml(d, "species");
+  const body = html.match(/<details class="of-why">[\s\S]*?<\/details>/u)![0];
+  assert.doesNotMatch(body, /案内板/u);
+  assert.match(body, /尾のような突起/u);
+});
+
+test("record page rationale: record-level fallback rows get the same rationale", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: [] });
+  const html = renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1"), recordPage: { reading: null, protectedRecord: false } });
+  assert.match(html, /<li class="of-has-why"><details class="of-why"><summary><span class="of-found-name">ナミアゲハ<\/span>/u);
+  assert.equal(html.split("尾のような突起があります").length - 1, 1);
 });
