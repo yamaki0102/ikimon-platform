@@ -30572,6 +30572,7 @@ async function runScheduledObservationEventQuests(env: Env): Promise<void> {
         WHERE (ended_at IS NULL OR julianday(ended_at) > julianday('now'))
           AND COALESCE(json_extract(config_json, '$.program_receiver_private'), 0) = 0
           AND julianday(started_at) <= julianday('now')
+          AND (ended_at IS NOT NULL OR julianday(started_at) > julianday('now', '-1 day'))
         ORDER BY started_at DESC
         LIMIT 50`
     ).all<ObservationEventSessionD1Row>();
