@@ -164,3 +164,22 @@ test("cursor helpers reject malformed input and escape LIKE wildcards", () => {
   assert.equal(likePatternFromQuery("   "), null);
   assert.equal(likePatternFromQuery("a%b_c"), "%a\\%b\\_c%");
 });
+
+test("records (mine): weak labels take the legacy import name and never render 'unidentified'", async (t) => {
+  const { env, obs } = fixture(t);
+  obs.exec(`
+    CREATE TABLE production_import_occurrences (occurrence_id TEXT PRIMARY KEY, visit_id TEXT, scientific_name TEXT, vernacular_name TEXT, taxon_rank TEXT, confidence_score REAL, quality_grade TEXT, created_at TEXT, updated_at TEXT);
+    INSERT INTO observations (observation_id, owner_user_id, observed_at, taxon_label) VALUES ('leg-1', 'owner-1', '2026-12-01T00:00:00Z', 'unidentified'), ('leg-2', 'owner-1', '2026-12-02T00:00:00Z', 'unidentified');
+    INSERT INTO production_import_occurrences VALUES ('occ:leg-1:0','leg-1',NULL,NULL,NULL,NULL,NULL,'2020-01-01',NULL), ('occ:leg-1:1','leg-1','Parus minor','シジュウカラ','species',0.5,NULL,'2020-01-02',NULL);
+  `);
+  const page = await ownerHomeRecordPage(OWNER, env, 5);
+  const named = page.items.find((i) => i.visitId === "leg-1")!;
+  const nameless = page.items.find((i) => i.visitId === "leg-2")!;
+  assert.equal(named.displayName, "シジュウカラ");
+  assert.equal(named.isAwaitingId, false);
+  assert.ok(nameless.displayName);
+  assert.notEqual(nameless.displayName.toLowerCase(), "unidentified");
+  const html = renderRecordsProductSection(page.items, new URL("https://zukan.earth/ja/records?view=mine"), "mine", null, false, null, [], null);
+  assert.doesNotMatch(html, /unidentified/i);
+  assert.match(html, /シジュウカラ/);
+});

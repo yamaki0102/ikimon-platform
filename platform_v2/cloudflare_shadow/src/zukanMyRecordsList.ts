@@ -1,6 +1,8 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { resolveWeakLabels } from "./legacyImportNames";
+import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader, renderSubpageRow } from "./zukanSubpageUi";
 
 type SessionLike = {
@@ -27,45 +29,81 @@ function normalizeVisibilityFilter(raw: string | null): VisibilityFilter {
   return "all";
 }
 
-async function queryMyRecords(userId: string, filter: VisibilityFilter, db: Env["OBS_DB"]) {
+const PAGE_SIZE = 100;
+
+function parseBefore(raw: string | null): { at: string; id: string } | null {
+  if (!raw) return null;
+  const i = raw.indexOf("|");
+  if (i <= 0 || i === raw.length - 1) return null;
+  return { at: raw.slice(0, i), id: raw.slice(i + 1) };
+}
+
+async function queryMyRecords(userId: string, filter: VisibilityFilter, before: string | null, db: Env["OBS_DB"]) {
+  const cursor = parseBefore(before);
+  const where = ["o.owner_user_id = ?"];
+  const binds: string[] = [userId];
+  if (filter === "public") where.push("o.visibility = 'public'");
+  if (filter === "private") where.push("o.visibility <> 'public'");
+  if (cursor) {
+    where.push("(o.observed_at < ? OR (o.observed_at = ? AND o.observation_id < ?))");
+    binds.push(cursor.at, cursor.at, cursor.id);
+  }
   const rows = await db
     .prepare(
       `SELECT o.observation_id AS observation_id, o.taxon_label AS taxon_label, o.observed_at AS observed_at, o.visibility AS visibility,
               o.public_area_label AS public_area_label,
               (SELECT a.asset_id FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed' LIMIT 1) AS asset_id
          FROM observations o
-        WHERE o.owner_user_id = ?
-        ORDER BY o.observed_at DESC
-        LIMIT 100`
+        WHERE ${where.join(" AND ")}
+        ORDER BY o.observed_at DESC, o.observation_id DESC
+        LIMIT ${PAGE_SIZE + 1}`
     )
-    .bind(userId)
+    .bind(...binds)
     .all<MyRecordRow>()
     .then((r) => r.results)
     .catch(() =>
       db
         .prepare(
-          `SELECT observation_id, taxon_label, observed_at, visibility
-             FROM observations
-            WHERE owner_user_id = ?
-            ORDER BY observed_at DESC
-            LIMIT 100`
+          `SELECT o.observation_id AS observation_id, o.taxon_label AS taxon_label, o.observed_at AS observed_at, o.visibility AS visibility
+             FROM observations o
+            WHERE ${where.join(" AND ")}
+            ORDER BY o.observed_at DESC, o.observation_id DESC
+            LIMIT ${PAGE_SIZE + 1}`
         )
-        .bind(userId)
+        .bind(...binds)
         .all<MyRecordRow>()
         .then((r) => r.results)
         .catch(() => [] as MyRecordRow[])
     );
 
-  return rows
-    .filter((r) => filter === "all" || r.visibility === filter)
-    .map((r) => ({
-      observationId: r.observation_id,
-      taxonDisplayName: (r.taxon_label ?? "").trim(),
-      observedAt: r.observed_at,
-      visibility: r.visibility === "public" ? "public" : "private",
-      areaLabel: r.public_area_label ?? null,
-      assetId: r.asset_id ?? null,
-    }));
+  const page = rows.slice(0, PAGE_SIZE);
+  const last = page[page.length - 1];
+  const nextCursor = rows.length > PAGE_SIZE && last ? `${last.observed_at}|${last.observation_id}` : null;
+  const importNames = await resolveWeakLabels(
+    db,
+    page.map((r) => ({ id: r.observation_id, label: r.taxon_label }))
+  );
+  const records = page.map((r) => ({
+    observationId: r.observation_id,
+    taxonDisplayName: isWeakTaxonLabel(r.taxon_label) ? importNames.get(r.observation_id) ?? "" : (r.taxon_label ?? "").trim(),
+    observedAt: r.observed_at,
+    visibility: r.visibility === "public" ? "public" : "private",
+    areaLabel: r.public_area_label ?? null,
+    assetId: r.asset_id ?? null,
+  }));
+  return { records, nextCursor };
+}
+
+async function queryMyRecordCounts(userId: string, db: Env["OBS_DB"]): Promise<{ total: number; publicCount: number } | null> {
+  return db
+    .prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN visibility = 'public' THEN 1 ELSE 0 END) AS public_count FROM observations WHERE owner_user_id = ?")
+    .bind(userId)
+    .all<{ total: number | null; public_count: number | null }>()
+    .then((r) => {
+      const row = r.results?.[0];
+      return row ? { total: Number(row.total ?? 0) || 0, publicCount: Number(row.public_count ?? 0) || 0 } : null;
+    })
+    .catch(() => null);
 }
 
 export async function handleMyRecordsApi(
@@ -77,8 +115,8 @@ export async function handleMyRecordsApi(
     return json({ ok: false, error: "unauthorized" }, 401);
   }
   const filter = normalizeVisibilityFilter(url.searchParams.get("visibility"));
-  const records = await queryMyRecords(session.userId, filter, db);
-  return json({ ok: true, visibility: filter, records });
+  const { records, nextCursor } = await queryMyRecords(session.userId, filter, url.searchParams.get("before"), db);
+  return json({ ok: true, visibility: filter, records, nextCursor });
 }
 
 export async function handleMyRecordsRoute(
@@ -106,15 +144,18 @@ export async function handleMyRecordsRoute(
   }
 
   const filter = normalizeVisibilityFilter(url.searchParams.get("visibility"));
-  const allRecords = await queryMyRecords(session.userId, "all", db);
-  const shown = filter === "all" ? allRecords : allRecords.filter((r) => r.visibility === filter);
-  const publicCount = allRecords.filter((r) => r.visibility === "public").length;
+  const [{ records: shown, nextCursor }, counts] = await Promise.all([
+    queryMyRecords(session.userId, filter, url.searchParams.get("before"), db),
+    queryMyRecordCounts(session.userId, db),
+  ]);
+  const totalCount = counts?.total ?? shown.length;
+  const publicCount = counts?.publicCount ?? shown.filter((r) => r.visibility === "public").length;
 
   const filterLinks = (
     [
-      { key: "all", label: `すべて (${allRecords.length})` },
+      { key: "all", label: `すべて (${totalCount})` },
       { key: "public", label: `公開中 (${publicCount})` },
-      { key: "private", label: `自分だけ (${allRecords.length - publicCount})` },
+      { key: "private", label: `自分だけ (${totalCount - publicCount})` },
     ] as const
   )
     .map((f) => {
@@ -147,9 +188,10 @@ export async function handleMyRecordsRoute(
   </style>
   <section class="zt-sp" data-profile-view="i2-i3">
     ${renderSubpageHeader({ title: "自分の記録", backHref: `/${lang}/profile`, backLabel: "自分に戻る" })}
-    <p class="zt-sp-lead">${allRecords.length}件あります（公開 ${publicCount}件）。どこに出ているかも一緒に見えます。</p>
+    <p class="zt-sp-lead">${totalCount}件あります（公開 ${publicCount}件）。どこに出ているかも一緒に見えます。</p>
     <nav class="zt-my-tabs" aria-label="公開範囲">${filterLinks}</nav>
-    ${rowsHtml ? `<ul class="zt-sp-list">${rowsHtml}</ul>` : `<p class="zt-sp-empty">${allRecords.length === 0 ? "まだ記録がありません。最初の1件を残してみましょう。" : "この条件に合う記録はありません。"}</p>`}
+    ${rowsHtml ? `<ul class="zt-sp-list">${rowsHtml}</ul>` : `<p class="zt-sp-empty">${totalCount === 0 ? "まだ記録がありません。最初の1件を残してみましょう。" : "この条件に合う記録はありません。"}</p>`}
+    ${nextCursor ? `<a class="zt-sp-secondary" data-my-records-older="1" rel="next" href="/${lang}/profile/records?visibility=${filter}&amp;before=${encodeURIComponent(nextCursor)}">もっと古い記録</a>` : ""}
     <a class="zt-sp-primary" href="/${lang}/record">新しく記録する</a>
   </section>`;
 

@@ -1,5 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml } from "./core/http";
+import { resolveWeakLabels } from "./legacyImportNames";
+import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader, renderSubpageRow } from "./zukanSubpageUi";
 
@@ -56,6 +58,7 @@ export async function loadProfileHubData(
       .then((r) => r.results)
       .catch(() => [] as Array<{ id: string; title: string | null; observed_at: string; visibility: string; area: string | null; asset_id: string | null }>),
   ]);
+  const importNames = await resolveWeakLabels(env.OBS_DB, recs.map((r) => ({ id: r.id, label: r.title })));
   return {
     displayName: session.displayName || uid,
     bio: (bioRow?.bio || coreBio?.profile_bio || "").trim(),
@@ -65,7 +68,7 @@ export async function loadProfileHubData(
     unreadCount: num(unread),
     records: recs.map((r) => ({
       id: r.id,
-      title: (r.title ?? "").trim() || "名前なしの記録",
+      title: (isWeakTaxonLabel(r.title) ? importNames.get(r.id) ?? "" : (r.title ?? "").trim()) || "名前なしの記録",
       observedAt: r.observed_at,
       visibility: r.visibility === "public" ? "public" : "private",
       area: r.area ?? null,

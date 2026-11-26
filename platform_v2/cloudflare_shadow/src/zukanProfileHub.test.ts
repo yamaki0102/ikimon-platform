@@ -69,3 +69,28 @@ test("settings hub (I12) keeps logout, language and the acknowledged withdrawal 
   assert.match(html, /data-withdrawal-ack/);
   assert.match(html, /action="\/api\/v1\/profile\/language"/);
 });
+
+test("profile hub recent records use legacy import names instead of raw 'unidentified'", async (t) => {
+  const obs = new DatabaseSync(":memory:");
+  const core = new DatabaseSync(":memory:");
+  t.after(() => { obs.close(); core.close(); });
+  obs.exec(`
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, visibility TEXT, public_area_label TEXT);
+    CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT, exif_scrub_state TEXT);
+    CREATE TABLE observation_event_participants (participant_id TEXT, session_id TEXT, user_id TEXT);
+    CREATE TABLE user_account_settings (user_id TEXT, bio TEXT);
+    CREATE TABLE production_import_occurrences (occurrence_id TEXT PRIMARY KEY, visit_id TEXT, scientific_name TEXT, vernacular_name TEXT, taxon_rank TEXT, confidence_score REAL, quality_grade TEXT, created_at TEXT, updated_at TEXT);
+    INSERT INTO observations VALUES ('o1','u1','2026-11-15T01:00:00Z','unidentified','public',NULL),('o2','u1','2026-11-14T01:00:00Z','unidentified','public',NULL);
+    INSERT INTO production_import_occurrences VALUES ('occ:o1:0','o1',NULL,NULL,NULL,NULL,NULL,'2020-01-01',NULL),('occ:o1:1','o1','Parus minor','シジュウカラ','species',0.5,NULL,'2020-01-02',NULL);
+  `);
+  core.exec(`
+    CREATE TABLE user_saved_items (user_id TEXT, object_id TEXT, object_kind TEXT, state TEXT);
+    CREATE TABLE alert_deliveries (delivery_id TEXT, user_id TEXT, acknowledged_at TEXT);
+    CREATE TABLE user_profiles (user_id TEXT, profile_bio TEXT);
+  `);
+  const data = await loadProfileHubData({ OBS_DB: sqliteDb(obs), CORE_DB: sqliteDb(core) }, { userId: "u1", displayName: "はまっこ" });
+  const html = renderProfileHub("ja", data);
+  assert.doesNotMatch(html, /unidentified/i);
+  assert.match(html, /シジュウカラ/);
+  assert.match(html, /名前なしの記録/);
+});
