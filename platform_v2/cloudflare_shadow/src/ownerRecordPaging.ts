@@ -28,10 +28,7 @@ export function dayBoundsFromGroupKey(groupKey: string): { from: string; to: str
 export function loadMoreScript(config: { list: string; more: string; loading: string; rebindSaved?: boolean }): string {
   const cfg = JSON.stringify(config).replace(/</g, "\\u003c");
   return `<script data-load-more-script>(()=>{const cfg=${cfg};
-document.addEventListener("click",async(e)=>{
-const a=e.target&&e.target.closest?e.target.closest(cfg.more+" a[data-load-more]"):null;
-if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
-e.preventDefault();
+const load=async(a,auto)=>{
 if(a.getAttribute("aria-busy")==="true")return;
 a.setAttribute("aria-busy","true");const label=a.textContent;a.textContent=cfg.loading;
 try{
@@ -50,9 +47,19 @@ const scripts=Array.from(doc.querySelectorAll("script")).filter((s)=>!s.hasAttri
 const src=scripts.pop(),own=document.querySelector("script[data-load-more-script]");
 if(src){const s=document.createElement("script");if(own&&own.nonce)s.nonce=own.nonce;s.textContent=src.textContent;document.body.appendChild(s);s.remove();}
 }
-const focusTarget=added[0]&&added[0].querySelector?added[0].querySelector("a"):null;
-if(focusTarget)focusTarget.focus();
-}catch(err){a.textContent=label;a.removeAttribute("aria-busy");window.location.href=a.href;}
+if(!auto){const focusTarget=added[0]&&added[0].querySelector?added[0].querySelector("a"):null;
+if(focusTarget)focusTarget.focus();}
+observe();
+}catch(err){a.textContent=label;a.removeAttribute("aria-busy");if(auto){stop();}else{window.location.href=a.href;}}
+};
+document.addEventListener("click",(e)=>{
+const a=e.target&&e.target.closest?e.target.closest(cfg.more+" a[data-load-more]"):null;
+if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+e.preventDefault();load(a,false);
 });
+let io=null;const stop=()=>{if(io){io.disconnect();io=null;}};
+const observe=()=>{if(!("IntersectionObserver" in window))return;stop();const m=document.querySelector(cfg.more);if(!m)return;
+io=new IntersectionObserver((es)=>{if(!es.some((x)=>x.isIntersecting))return;const a=m.querySelector("a[data-load-more]");if(a)load(a,true);},{rootMargin:"800px 0px"});io.observe(m);};
+observe();
 })();</script>`;
 }
