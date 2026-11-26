@@ -81,6 +81,37 @@ export const BIOSECURITY_PROFILES: readonly BiosecurityProfile[] = [{
   },
   guideUrl: "https://www.env.go.jp/nature/intro/2outline/list.html",
   sourceCheckedAt: "2026-11-27",
+}, {
+  id: "gairai", version: "1.0.0", title: "気になる外来種の見守り",
+  guideHeading: "外来種かもしれない生きものを見つけたら",
+  summary: "外来種かもしれない生きものを、写真1枚から残せます。種類が分からなくても大丈夫です。",
+  featureFlag: "BIOSECURITY_GENERIC_ENABLED",
+  signals: [
+    { value: "plant", label: "草や木" },
+    { value: "insect", label: "虫" },
+    { value: "water_animal", label: "魚や水の生きもの" },
+    { value: "other_animal", label: "そのほかの動物" },
+    { value: "unknown", label: "分からない" },
+  ],
+  safety: [
+    "生きたまま持ち帰ったり、別の場所へ動かしたりしないでください。特定外来生物は、運ぶことが法律で禁止されています。",
+    "かまれたり刺されたりする生きものもいます。素手で触らず、安全な場所から撮りましょう。",
+    "水辺や草むらでは足元に気をつけてください。",
+    "記録の保存は、種類の確定や自治体への正式な通報とは異なります。",
+  ],
+  copy: {
+    notePlaceholder: "見た目や数、いた場所など、わかることだけ",
+    stepLead: "外来種かもしれない生きものを、写真で残せます。今ある写真でも大丈夫です。",
+    photoGuide: [
+      { heading: "生きものを見つけたら", body: "全体と、色や形など気になるところ。近づきすぎず撮りましょう。" },
+      { heading: "増えている場所を見つけたら", body: "広がりの全体と、まわりのようす。水辺や道ばたなど、どこにいたかが分かると役立ちます。" },
+    ],
+    notConfirmedNote: "写真を残しても、種類や外来種かどうかは確定しません。対応方法は公式の案内を確認してください。",
+    shareLabel: "ZUKAN 外来種の記録（種類は未確認）",
+    envDisclosureTail: "候補は間違うこともあり、種類は確定しません。",
+  },
+  guideUrl: "https://www.env.go.jp/nature/intro/2outline/list.html",
+  sourceCheckedAt: "2026-11-27",
 }];
 
 export function biosecurityProfile(id: unknown, flagOn: (flag: string) => boolean = () => false): BiosecurityProfile | null {
