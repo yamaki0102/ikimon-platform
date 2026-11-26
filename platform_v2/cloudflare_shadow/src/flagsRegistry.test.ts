@@ -21,20 +21,30 @@ const definition = (flag: string, staging: boolean, production: boolean, extra =
 const read = (root: string, path: string) => readFile(join(root, path), "utf8");
 const readAll = (root: string) => Promise.all(outputs.map(path => read(root, path)));
 
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, repositoryState = false) {
   const root = await mkdtemp(join(tmpdir(), "zukan-flags-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const path of [...outputs, "src/flags/index.generated.ts"]) {
     await mkdir(join(root, path, ".."), { recursive: true });
     await cp(resolve(path), join(root, path));
   }
+  if (repositoryState) {
+    await cp(resolve("src/flags"), join(root, "src/flags"), { recursive: true });
+    return root;
+  }
+  const config = await read(root, "wrangler.jsonc");
+  await writeFile(join(root, "wrangler.jsonc"), config.replace(/("ZUKAN_FEATURE_ROLLOUTS": )".*"/u, (_match, head) => `${head}"{}"`));
+  await rm(join(root, "src/flags/index.generated.ts"));
+  await mkdir(join(root, "src/flags"), { recursive: true });
+  await writeFile(join(root, "src/flags/index.generated.ts"), "");
+  assert.equal(gen(root).status, 0);
   return root;
 }
 
 test("generated flag outputs in the repository are current and idempotent", async t => {
   const current = gen(process.cwd(), "--check");
   assert.equal(current.status, 0, current.stdout + current.stderr);
-  const root = await fixture(t);
+  const root = await fixture(t, true);
   const before = await readAll(root);
   assert.equal(gen(root).status, 0);
   assert.equal(gen(root).status, 0);
@@ -45,7 +55,9 @@ test("an empty registry generates no flag variables and keeps the config intact"
   const root = await fixture(t);
   const config = parse(await read(root, "wrangler.jsonc"));
   assert.equal(config.env.production.vars.ZUKAN_FEATURE_ROLLOUTS, "{}");
-  assert.equal(JSON.stringify(parse(await read(process.cwd(), "wrangler.jsonc"))), JSON.stringify(config));
+  const repository = parse(await read(process.cwd(), "wrangler.jsonc"));
+  repository.env.production.vars.ZUKAN_FEATURE_ROLLOUTS = "{}";
+  assert.equal(JSON.stringify(repository), JSON.stringify(config));
   assert.match(await read(root, "src/flags/index.generated.ts"), /PROTOTYPE_FLAGS = \[\n\] as const/u);
 });
 
@@ -165,4 +177,18 @@ test("rollout.mjs refuses a config without exactly one rollout variable", async 
   assert.match(rollout(root, "list", "--config", config).stderr, /exactly once/u);
   await writeFile(config, original.replace("\"ZUKAN_FEATURE_ROLLOUTS\": \"{}\",", "\"ZUKAN_FEATURE_ROLLOUTS\": \"[]\","));
   assert.match(rollout(root, "list", "--config", config).stderr, /must be an object/u);
+});
+
+test("guest top v2 flag is registered off for every environment and rolled out to the measurement viewer only", async () => {
+  const entry = await import("./flags/GUEST_TOP_V2_PROTOTYPE_ENABLED");
+  assert.equal(entry.flag, "GUEST_TOP_V2_PROTOTYPE_ENABLED");
+  assert.equal(entry.staging, false);
+  assert.equal(entry.production, false);
+  const config = parse(await read(process.cwd(), "wrangler.jsonc"));
+  for (const vars of [config.vars, config.env.shadow.vars, config.env.staging.vars, config.env.production.vars]) assert.equal(vars.GUEST_TOP_V2_PROTOTYPE_ENABLED, undefined);
+  const rollouts = JSON.parse(config.env.production.vars.ZUKAN_FEATURE_ROLLOUTS);
+  assert.equal(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.state, "allowlist");
+  assert.deepEqual(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.allowlist, ["user_journey_synthetic"]);
+  assert.match(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.expiresOn, /^\d{4}-\d{2}-\d{2}$/u);
+  assert.ok(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.removeBy >= rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.expiresOn);
 });

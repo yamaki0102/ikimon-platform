@@ -1,0 +1,1 @@
+{"who":"claude-sonnet","when":"2026-11-26T03:36:41.397Z","flag":"GUEST_TOP_V2_PROTOTYPE_ENABLED","from":{"state":"off","allowlist":[]},"to":{"state":"allowlist","allowlist":["user_journey_synthetic"],"expiresOn":"2026-12-10","removeBy":"2026-12-17"}}
