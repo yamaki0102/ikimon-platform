@@ -2717,7 +2717,9 @@ export const worker = {
       const accessSessionResponse = await issueStagingAccessSessionIfNeeded(request, url, env, ctx);
       if (accessSessionResponse) return accessSessionResponse;
 
-      const biosecurityResponse = await handleBiosecurityRequest(request, env);
+      const biosecuritySession = /^\/(?:(?:ja|en|es|pt-br)\/)?(?:biosecurity|api\/v1\/biosecurity)(?:\/|$)/.test(url.pathname) ? await readCompatibleSession(request, env).catch(() => null) : null;
+      const biosecurityViewer = viewerFromSession(biosecuritySession);
+      const biosecurityResponse = await handleBiosecurityRequest(request, env, flag => prototypeEnabledForViewer(env, flag, biosecurityViewer.principalId, biosecurityViewer.role));
       if (biosecurityResponse) return biosecurityResponse;
 
       if (request.method === "GET" && (

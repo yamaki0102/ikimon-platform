@@ -2,14 +2,15 @@ import { APP_EXPERIENCE_STYLES, ZUKAN_DESIGN_FOUNDATION_STYLES, renderAppExperie
 import { FRONTEND_FOUNDATION_CSS } from "./frontendFoundation.js";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
 import { BIOSECURITY_PHOTO_METADATA_SCRIPT } from "../services/biosecurityPhotoMetadata.js";
-import { BIOSECURITY_PROFILES, type BiosecurityProfile } from "../services/biosecurityProfiles.js";
+import { BIOSECURITY_PROFILES, biosecurityCopy, type BiosecurityProfile } from "../services/biosecurityProfiles.js";
 import { ENVIRONMENT_RECORD_FIELDS } from "../services/environmentRecord.js";
 
 /** Dependency-free renderer for the active Worker. Private content is loaded by protected APIs. */
 export type { BiosecurityProfile };
 export type BiosecurityView = "guide" | "capture" | "receipt" | "municipalities" | "inbox";
-export type BiosecurityPageParams = { profile?: BiosecurityProfile; recordId?: string; nonce?: string };
+export type BiosecurityPageParams = { profile?: BiosecurityProfile; recordId?: string; nonce?: string; profiles?: readonly BiosecurityProfile[] };
 const DEFAULT_PROFILE = BIOSECURITY_PROFILES[0]!;
+const configProfile = (profile: BiosecurityProfile) => { const copy = biosecurityCopy(profile); return { id: profile.id, signals: profile.signals, shareLabel: copy.shareLabel, envDisclosureTail: copy.envDisclosureTail }; };
 const ENVIRONMENT_UI_LABELS: Record<string, string> = {place_type:"まわりの場所", contact_surface:"どこについている？", surrounding_cover:"まわりのようす", environment_condition:"明るさ・しめり気", human_change:"人が手を入れたあと"};
 const ENVIRONMENT_UI_OPTIONS: Record<string, string> = {"place_type.grassland_urban_edge":"草地と町のさかい", "place_type.urban":"町なか", "place_type.woodland":"林の中", "contact_surface.soil_gravel_litter":"土・小石・枯れ草", "contact_surface.plant":"植物の上", "contact_surface.artificial":"道路や建物など", "surrounding_cover.trees_shrubs":"木や低い木", "surrounding_cover.bare_ground":"草のない地面", "surrounding_cover.built_surface":"道路や建物", "environment_condition.open_dry":"開けていて、乾いている", "environment_condition.sunny":"日が当たっている", "environment_condition.wet":"しめっている", "human_change.trampling_mowing":"踏まれたあと・草刈りのあと", "human_change.trampling":"踏まれたあと", "human_change.planting":"植えられた木や草", "human_change.construction":"工事のあと", "human_change.none_visible":"目立つあとがない"};
 const ENVIRONMENT_UI_FIELDS = ENVIRONMENT_RECORD_FIELDS.map((field) => ({field:field.field, label:ENVIRONMENT_UI_LABELS[field.field] || field.label, options:field.options.map((option) => ({value:option.value, label:ENVIRONMENT_UI_OPTIONS[field.field + "." + option.value] || option.label}))}));
@@ -87,15 +88,15 @@ function capture(profile: BiosecurityProfile): string {
     <div id="bio-place-editor" class="bio-context-editor" hidden>${municipalityPicker(false)}<div class="bio-field"><label for="bio-spot">場所の目印（任意）</label><input id="bio-spot" name="spot_label" maxlength="160" placeholder="例：公園の入口にあるサクラ"><small>自分の名前や家の住所は書かず、目印だけでも大丈夫です。</small></div><p id="bio-location-value" class="bio-note" style="margin-top:16px" hidden></p><div class="bio-actions"><button class="bio-action secondary" type="button" id="bio-location">今いる場所を使う</button><button class="bio-text-button" type="button" id="bio-location-clear" hidden>位置情報を外す</button></div><p id="bio-location-state" class="bio-note" aria-live="polite">現在地は、ボタンを押したときだけ調べます。</p></div>
     <p id="bio-metadata-help" class="bio-note bio-context-notice">日時や場所がわからなくても、このまま残せます。</p>
   </section>
-  <div class="bio-field"><label for="bio-signal">何が気になりましたか（任意）</label><select id="bio-signal" name="signal">${profile.signals.map((signal) => `<option value="${escape(signal.value)}"${signal.value === "unknown" ? " selected" : ""}>${escape(signal.label)}</option>`).join("")}</select></div><div class="bio-field"><label for="bio-note">気づいたこと（任意）</label><textarea id="bio-note" name="note" maxlength="1000" placeholder="虫や木のようすなど、わかることだけ"></textarea></div></div></details>
+  <div class="bio-field"><label for="bio-signal">何が気になりましたか（任意）</label><select id="bio-signal" name="signal">${profile.signals.map((signal) => `<option value="${escape(signal.value)}"${signal.value === "unknown" ? " selected" : ""}>${escape(signal.label)}</option>`).join("")}</select></div><div class="bio-field"><label for="bio-note">気づいたこと（任意）</label><textarea id="bio-note" name="note" maxlength="1000" placeholder="${escape(biosecurityCopy(profile).notePlaceholder)}"></textarea></div></div></details>
   <p class="bio-note bio-save-note">あとから足したり直したりできます。同じ端末で90日間見返せます。写真と記録は90日で閲覧終了し、その後順次削除します。端末のデータを消すと戻れません。必要な写真は手元にも保存してください。</p>
   </div>${profile.safety.slice(0, 2).map((line) => `<p class="bio-note bio-save-note">${escape(line)}</p>`).join("")}</fieldset></form>`;
 }
 function guide(profile: BiosecurityProfile): string {
   const source = officialUrl(profile.guideUrl);
   return `<div class="bio-hero"><div class="bio-intro"><p class="bio-eyebrow">${escape(profile.title)}</p><h1>${escape(profile.guideHeading || profile.title)}</h1><p class="bio-lead">${escape(profile.summary)}</p><div class="bio-actions"><a class="bio-action" href="/ja/biosecurity/${encodeURIComponent(profile.id)}/capture">写真を残す</a><a href="#bio-guide">撮り方を見る</a></div><p class="bio-note" style="margin-top:16px">無料・ログイン不要。ネットには公開されません。</p></div><img class="bio-hero-art" src="/assets/biosecurity/photo-watch.webp" width="1200" height="800" alt=""></div>
-  <ol class="bio-steps"><li><span>1. 写真を選ぶ</span><h2>名前がわからなくても</h2><p>気になる虫や木を、写真で残せます。今ある写真でも大丈夫です。</p></li><li><span>2. 自分の記録に</span><h2>まずは自分だけで見る</h2><p>写真の日時や場所も一緒に残せます。わからないところは、そのままで。</p></li><li><span>3. 必要なときに</span><h2>市役所などに知らせる</h2><p>送り先と、送ってよい情報を選びます。保存しただけでは送られません。</p></li></ol>
-  <section id="bio-guide" class="bio-section"><h2>どんな写真を撮ろう？</h2><div class="bio-pair"><div><h3>気になる虫を見つけたら</h3><p>虫の全体と、気になるところ。近づきすぎず、安全な場所から撮りましょう。</p></div><div><h3>木くずや木の変化を見つけたら</h3><p>気になるところと、木の全体。無理に触ったり、木の中を調べたりしなくて大丈夫です。</p></div></div><p class="bio-note">写真を残しても、虫の名前や被害の有無は確定しません。対応方法は公式の案内を確認してください。</p>
+  <ol class="bio-steps"><li><span>1. 写真を選ぶ</span><h2>名前がわからなくても</h2><p>${escape(biosecurityCopy(profile).stepLead)}今ある写真でも大丈夫です。</p></li><li><span>2. 自分の記録に</span><h2>まずは自分だけで見る</h2><p>写真の日時や場所も一緒に残せます。わからないところは、そのままで。</p></li><li><span>3. 必要なときに</span><h2>市役所などに知らせる</h2><p>送り先と、送ってよい情報を選びます。保存しただけでは送られません。</p></li></ol>
+  <section id="bio-guide" class="bio-section"><h2>どんな写真を撮ろう？</h2><div class="bio-pair">${biosecurityCopy(profile).photoGuide.map((item) => `<div><h3>${escape(item.heading)}</h3><p>${escape(item.body)}</p></div>`).join("")}</div><p class="bio-note">${escape(biosecurityCopy(profile).notConfirmedNote)}</p>
   ${source ? `<p><a href="${escape(source)}" target="_blank" rel="noopener noreferrer">公式の見分け方・対応方法を見る（別のタブ）</a>${profile.sourceCheckedAt ? `<span class="bio-note"> ／案内の確認：${escape(profile.sourceCheckedAt)}</span>` : ""}</p>` : ""}
   <div class="bio-support"><h3>安全な場所から、今ある写真で</h3>${profile.safety.map((line) => `<p>${escape(line)}</p>`).join("")}<p class="bio-note">対応を急ぐ場合は地域の公式窓口へ直接連絡してください。ZUKANの共有は、自治体での正式受付とは異なります。</p></div></section>
   <section class="bio-section"><h2>残した写真を見返す</h2><p>同じ端末で90日間見返せます。90日で閲覧終了し、その後順次削除します。端末のデータを消すと戻れません。</p><a class="bio-action secondary" href="/ja/biosecurity/records">自分の記録を見る</a></section>
@@ -156,7 +157,8 @@ export const BIOSECURITY_SCRIPT = String.raw`
     const locations = photos.map((photo) => photo.metadata && photo.metadata.location).filter(Boolean).map((item) => Number(item.lat).toFixed(5) + ',' + Number(item.lng).toFixed(5));
     return {time, originalTime:overrides.time && !overrides.time.localDateTime ? null : original, location, conflicts:{time:new Set(times).size > 1, location:new Set(locations).size > 1}};
   };
-  const signalLabel = (value) => !value || value === 'unknown' ? '写真の記録' : (config.profile.signals.find((item) => item.value === value) || {}).label || '写真の記録';
+  const copyOf = (record) => (config.profiles || []).find((item) => item.id === (record && record.profileId)) || config.profile;
+  const signalLabel = (value) => !value || value === 'unknown' ? '写真の記録' : ((config.profiles || [config.profile]).flatMap((item) => item.signals).find((item) => item.value === value) || {}).label || '写真の記録';
   const message = (text, error = false) => { const node = $('#bio-status'); if (!node) return; node.textContent = text; node.hidden = !text; node.setAttribute('role', error ? 'alert' : 'status'); node.dataset.zukanUiState = error ? 'error' : 'info'; if (error && node.scrollIntoView) node.scrollIntoView({block:'nearest'}); };
   const errorText = (error) => {
     const code = String(error.code || '');
@@ -226,7 +228,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
   };
   const environmentDetails = (environment) => { const entries = environmentEntries(environment); return entries.length ? '<dl class="bio-detail-list bio-environment-values">' + entries.map((item) => '<dt>' + esc(item.label) + '</dt><dd>' + esc(item.value) + '<small class="bio-note">' + esc(item.source) + '</small></dd>').join('') + '</dl>' : ''; };
   const detailText = (record) => [
-    'ZUKAN 外来種の記録（虫の名前や被害は未確認）', hasTime(record) && '見つけた日時：' + observedTimeText(record) + (timeSourceText(record.observedTime) ? ' ／' + timeSourceText(record.observedTime) : ''),
+    copyOf(record).shareLabel, hasTime(record) && '見つけた日時：' + observedTimeText(record) + (timeSourceText(record.observedTime) ? ' ／' + timeSourceText(record.observedTime) : ''),
     record.municipalityName && '市区町村：' + record.municipalityName, record.spotLabel && '場所の目印：' + record.spotLabel,
     record.signal && record.signal !== 'unknown' && '気になったこと：' + signalLabel(record.signal), record.note && 'メモ：' + record.note,
     record.exactLocation && '記録した位置：' + record.exactLocation.lat + ', ' + record.exactLocation.lng,
@@ -507,7 +509,7 @@ export const BIOSECURITY_SCRIPT = String.raw`
     const state = environment.status || 'not_requested';
     const text = {not_requested:'写真に写った草や木、地面のようすも残せます。', processing:'写真を調べています。写真と記録は保存できています。', ready:(entries.length || Boolean(environment.multiTaxa?.candidates?.length)) ? entries.some((entry) => entry.source === '写真からの候補') || Boolean(environment.multiTaxa?.candidates?.length) ? '写真から出した候補は、間違っていることもあります。違っていたら直してください。' : 'わかるところを残しました。内容はいつでも直せます。' : '写真からは、まわりのようすがわかりませんでした。わかることがあれば書き足せます。', unavailable:'今は写真から調べられません。写真と記録は保存されています。', budget_reached:'今日は写真から調べられる回数の上限に達しました。写真と記録は保存されています。', off:'写真から調べる機能は、今はお休みです。わかることを自分で残せます。'}[state] || '写真と記録は保存されています。';
     return '<section class="bio-section bio-environment" id="bio-environment"><h2>写真からわかったこと</h2><p role="status">' + esc(text) + '</p>' + environmentDetails(environment) + taxaDetails(environment) +
-      (state === 'not_requested' || state === 'ready' && environment.model === null ? '<p class="bio-note" id="bio-environment-disclosure">ボタンを押すと、保存した写真をCloudflareの画像処理に送ります。日時・場所・メモは送りません。写真に見える、まわりのようすを調べます。候補は間違うこともあり、虫の名前や被害は確定しません。</p><button type="button" class="bio-action secondary" id="bio-environment-hints" aria-describedby="bio-environment-disclosure">写真からまわりのようすを調べる</button>' : '') +
+      (state === 'not_requested' || state === 'ready' && environment.model === null ? '<p class="bio-note" id="bio-environment-disclosure">ボタンを押すと、保存した写真をCloudflareの画像処理に送ります。日時・場所・メモは送りません。写真に見える、まわりのようすを調べます。候補は間違うこともあり、' + esc(copyOf(record).envDisclosureTail) + '</p><button type="button" class="bio-action secondary" id="bio-environment-hints" aria-describedby="bio-environment-disclosure">写真からまわりのようすを調べる</button>' : '') +
       (state === 'processing' || state === 'unavailable' ? '<button type="button" class="bio-action secondary" id="bio-environment-refresh">結果を確認する</button>' : '') +
       '<details><summary>' + (entries.length ? '違うところを直す' : 'わかることを自分で入れる') + '</summary><div><p class="bio-note">わかるところだけで大丈夫です。「わからない・使わない」を選ぶと、その候補を外せます。</p><form id="bio-environment-form" class="bio-form"><fieldset data-controls>' + environmentFields.map((field) => '<div class="bio-field"><label for="bio-environment-' + esc(field.field) + '">' + esc(field.label) + '</label><select id="bio-environment-' + esc(field.field) + '" name="' + esc(field.field) + '">' + field.options.map((option) => '<option value="' + esc(option.value) + '"' + (option.value === (values[field.field] || 'unknown') ? ' selected' : '') + '>' + esc(option.value === 'unknown' ? 'わからない・使わない' : option.label) + '</option>').join('') + '</select></div>').join('') + '<button class="bio-action secondary" type="submit">直した内容を残す</button></fieldset></form></div></details>' +
       ((record.shares || []).some((share) => share.status !== 'withdrawn' && (share.fields || []).includes('environment')) ? '<p class="bio-note">まわりのようすを直すと、その内容を含む共有は取り消されます。確認してから、もう一度知らせられます。</p>' : '') + '</section>';
@@ -681,5 +683,5 @@ export function renderBiosecurityPage(view: BiosecurityView, params: Biosecurity
   <main id="bio-main" class="bio-main" data-view="${view}">${renderBiosecurityBody(view, {...params, profile})}<noscript><div class="bio-support"><p>写真の保存、記録の閲覧、自治体への共有にはJavaScriptが必要です。ブラウザの設定をご確認ください。</p><a href="${escape(officialUrl(profile.guideUrl) || "/ja/biosecurity")}">公式の案内を確認する</a></div></noscript></main>
   <footer class="bio-footer"><span>運営：IKIMON</span><a href="/ja/privacy">プライバシー</a><a href="/ja/terms">利用規約</a><a href="/ja/biosecurity/municipalities">自治体の担当者の方へ</a></footer>
   ${renderAppExperienceNavigation("ja", -1, "bottom", false)}${renderAppExperienceQuickCamera("ja", { nonce: params.nonce })}
-  ${view === "guide" ? "" : `<script id="bio-config" type="application/json"${nonce}>${scriptJson({view,recordId:params.recordId || null,profile:{id:profile.id,signals:profile.signals},environmentFields:ENVIRONMENT_UI_FIELDS})}</script><script${nonce}>${BIOSECURITY_SCRIPT}</script>`}</body></html>`;
+  ${view === "guide" ? "" : `<script id="bio-config" type="application/json"${nonce}>${scriptJson({view,recordId:params.recordId || null,profile:configProfile(profile),profiles:(params.profiles ?? [profile]).map(configProfile),environmentFields:ENVIRONMENT_UI_FIELDS})}</script><script${nonce}>${BIOSECURITY_SCRIPT}</script>`}</body></html>`;
 }
