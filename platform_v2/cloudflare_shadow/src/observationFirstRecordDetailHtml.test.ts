@@ -1394,7 +1394,7 @@ test("record detail shows owner title edit form and role-based provenance withou
     actionNonce: "nonce-roles",
   });
   assert.match(ownerHtml, /data-title-edit/);
-  assert.doesNotMatch(ownerHtml, /class="of-title-edit"/);
+  assert.match(ownerHtml, /<p class="of-title-edit"><a href="#of-manage-body" data-of-open="manage">題名を編集<\/a><\/p>/);
   assert.match(ownerHtml, /name="action" value="set_title"/);
   assert.match(ownerHtml, /記録した人が確認/);
   assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
@@ -1640,7 +1640,8 @@ test("own multi-photo record has no bookmark, pencil, status card or duplicate b
   const main = mainOf(html);
   assert.doesNotMatch(main, /data-zukan-save|of-fab-save|of-saved-control/);
   assert.doesNotMatch(html, /savedFixture/);
-  assert.doesNotMatch(main, /of-title-edit|この記録の状態|obs-processing-status|AIの候補を見る|data-observation-processing-status/);
+  assert.match(main, /class="of-title-edit"/);
+  assert.doesNotMatch(main, /この記録の状態|obs-processing-status|AIの候補を見る|data-observation-processing-status/);
   assert.doesNotMatch(main.split('<details class="of-reading')[0]!, /位置をぼかしています/);
   assert.doesNotMatch(main, /of-meta-place/);
   assert.match(main, /<p class="of-meta-date">2026年9月18日（金）15:20 ・ 写真 3枚<\/p>/);
