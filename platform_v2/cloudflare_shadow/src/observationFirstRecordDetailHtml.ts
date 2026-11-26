@@ -553,7 +553,9 @@ function renderWhyBody(why: RowWhy, copy: ObservationFirstRecordDetailCopy): str
 
 function renderFoundRowLi(attrs: string, inner: string, why: RowWhy | null | undefined, copy: ObservationFirstRecordDetailCopy): string {
   if (!why || (why.evidence.length === 0 && why.reason.length === 0)) return `<li${attrs}>${inner}</li>`;
-  return `<li${attrs} class="of-has-why"><details class="of-why"><summary>${inner}<span class="of-why-chevron" aria-hidden="true"></span></summary>${renderWhyBody(why, copy)}</details></li>`;
+  const peekLabel = why.evidence.length > 0 ? copy.whyDistinguishing : copy.whyStoppedAtRank;
+  const peekText = (why.evidence.length > 0 ? why.evidence : why.reason).join(" ");
+  return `<li${attrs} class="of-has-why"><div class="of-why-row">${inner}</div><details class="of-why"><summary><span class="of-why-peek">${escapeHtml(peekLabel)}：${escapeHtml(peekText)}</span><span class="of-why-more">${escapeHtml(copy.whyMore)}</span><span class="of-why-less">${escapeHtml(copy.whyLess)}</span></summary>${renderWhyBody(why, copy)}</details></li>`;
 }
 type ObservationSummary = { rows: FoundRow[]; reading: string };
 
@@ -720,7 +722,7 @@ function renderPerMediaFound(
 
 function renderPlaceFieldRows(fields: readonly RecordPagePlaceField[], copy: ObservationFirstRecordDetailCopy): string {
   const labelOf = (slot: RecordPagePlaceField["slot"]): string => slot === "place_type" ? copy.placeTypeField : copy.environmentFields[slot];
-  return `<dl class="of-place-fields">${fields.map((field) => `<div data-place-slot="${field.slot}"><dt>${escapeHtml(labelOf(field.slot))}</dt><dd>${escapeHtml(field.label)}<span class="of-found-status is-${readingTone(field.state)}">${escapeHtml(readingStateLabel(field.state, copy))}</span></dd></div>`).join("")}</dl>`;
+  return `<dl class="of-place-fields">${fields.map((field) => `<div data-place-slot="${field.slot}"><dt>${escapeHtml(labelOf(field.slot))}</dt><dd><span class="of-place-value">${escapeHtml(field.label)}</span><span class="of-found-status is-${readingTone(field.state)}">${escapeHtml(readingStateLabel(field.state, copy))}</span></dd></div>`).join("")}</dl>`;
 }
 
 function renderPerMediaPlace(
@@ -739,7 +741,7 @@ function renderPerMediaPlace(
   }).join("");
 }
 
-const PER_MEDIA_STYLES = `.of-place-fields{display:grid;gap:8px;margin:10px 0 0}.of-place-fields>div{display:grid;grid-template-columns:minmax(0,9em) 1fr;gap:4px 12px;align-items:baseline}.of-place-fields dt{margin:0;font-size:13px;color:var(--muted)}.of-place-fields dd{margin:0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}.of-found-time{font-size:12px;color:var(--muted)}.of-found-list li.of-has-why{display:block;padding:0}.of-why>summary{display:flex;align-items:center;gap:12px;min-height:44px;box-sizing:border-box;padding:11px 0;list-style:none;cursor:pointer}.of-why>summary::-webkit-details-marker{display:none}.of-why-chevron{flex:none;width:7px;height:7px;margin:0 2px 2px 0;border:solid var(--muted);border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .15s}.of-why[open] .of-why-chevron{transform:rotate(-135deg);margin:2px 2px 0 0}.of-why-body{padding:0 0 11px;font-size:12.5px;line-height:1.6;color:var(--muted)}.of-why-label{margin:0 0 2px;font-weight:700}.of-why-body ul{margin:0 0 6px;padding:0 0 0 1.2em;list-style:disc}.of-why-body li{display:list-item;padding:0;border:0}`;
+const PER_MEDIA_STYLES = `.of-place-fields{display:grid;gap:8px;margin:10px 0 0}.of-place-fields>div{display:grid;grid-template-columns:minmax(0,9em) 1fr;gap:4px 12px;align-items:baseline}.of-place-fields dt{margin:0;font-size:13px;color:var(--muted)}.of-place-fields dd{margin:0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}.of-found-time{font-size:12px;color:var(--muted)}.of-found-list li.of-has-why{display:block;padding:0}.of-found-status.is-ai{font-size:0;line-height:0}.of-found-status.is-ai::after{content:"AI";display:inline-block;font-size:11px;line-height:1;font-weight:800;letter-spacing:.06em;color:#4F5B53;background:#EEF1EC;border-radius:6px;padding:4px 7px}.of-place-fields>div{grid-template-columns:7.5em minmax(0,1fr);align-items:center}.of-place-fields dd{flex-wrap:nowrap;justify-content:space-between;gap:10px}.of-place-value{flex:1;min-width:0}.of-why-row{display:flex;align-items:center;gap:12px;padding:11px 0 4px}.of-why>summary{display:block;min-height:44px;box-sizing:border-box;padding:0 0 10px;list-style:none;cursor:pointer;font-size:12.5px;line-height:1.6;color:var(--muted)}.of-why>summary::-webkit-details-marker{display:none}.of-why-peek{display:block;max-height:2.4em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 50%,transparent);mask-image:linear-gradient(to bottom,#000 50%,transparent)}.of-why-more,.of-why-less{display:inline-block;margin-top:2px;font-weight:700;color:#0b5cad}.of-why-less{display:none}.of-why[open]>summary .of-why-peek,.of-why[open]>summary .of-why-more{display:none}.of-why[open]>summary .of-why-less{display:inline-block}.of-why[open]>summary{padding-bottom:4px}.of-why-body{padding:0 0 11px;font-size:12.5px;line-height:1.6;color:var(--muted)}.of-why-label{margin:0 0 2px;font-weight:700}.of-why-body ul{margin:0 0 6px;padding:0 0 0 1.2em;list-style:disc}.of-why-body li{display:list-item;padding:0;border:0}`;
 
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
   if (!comparison?.summary.trim() || !comparison.comparedObservedLabel.trim() || !/^[A-Za-z0-9:_-]{1,180}$/u.test(comparison.comparedRecordId)) return "";

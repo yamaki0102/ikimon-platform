@@ -1790,8 +1790,8 @@ test("record page per-media: two photos render panels in place and the script to
   const firstPanel = html.indexOf('data-of-media-panel="0"');
   assert.ok(firstPanel > html.indexOf("of-media-stage") && firstPanel < html.indexOf("<section class=\"of-note\" data-ai-feedback") && html.lastIndexOf('data-of-media-panel="0"') > html.indexOf("<section class=\"of-note\" data-ai-feedback"));
   assert.match(html, /<span class="of-found-name">建物<\/span>/u);
-  assert.match(html, /<dt>場所の種類<\/dt><dd>まちなか/u);
-  assert.match(html, /<dt>周囲<\/dt><dd>低い草/u);
+  assert.match(html, /<dt>場所の種類<\/dt><dd><span class="of-place-value">まちなか<\/span>/u);
+  assert.match(html, /<dt>周囲<\/dt><dd><span class="of-place-value">低い草<\/span>/u);
   assert.match(html, /pn\[q\]\.hidden=Number\(pn\[q\]\.getAttribute\('data-of-media-panel'\)\)!==i/u);
 });
 
@@ -1808,7 +1808,7 @@ test("record page per-media: feature-only video shows both features, place, and 
   assert.match(html, /この動画から見つかったもの/u);
   assert.equal([...html.matchAll(/<li data-found-kind="feature"/gu)].length, 2);
   assert.match(html, /0:00–0:05/u);
-  assert.match(html, /<dt>場所の種類<\/dt><dd>水辺/u);
+  assert.match(html, /<dt>場所の種類<\/dt><dd><span class="of-place-value">水辺<\/span>/u);
   assert.match(html, /data-ai-note/u);
   assert.doesNotMatch(html, /建物・人工物/u);
   assert.doesNotMatch(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...presentation, recordPage: null }), /data-ai-note/u);
@@ -1873,12 +1873,13 @@ test("record page rationale: switch off stays byte-identical and renders no deta
 test("record page rationale: row with evidence renders details with at most two points and feature rows stay plain", () => {
   const d = whyDetail({ visualEvidence: ["尾のような突起があります", "翅の模様が縞状です", "三つ目の根拠です"], shootingAdvice: [] });
   const html = whyHtml(d, "species");
-  const row = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why"><details class="of-why"><summary>[\s\S]*?<\/details><\/li>/u);
+  const row = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why"><div class="of-why-row">[\s\S]*?<\/details><\/li>/u);
   assert.ok(row);
-  assert.match(row[0], /<span class="of-found-name">アゲハ類<\/span>[\s\S]*<span class="of-why-chevron" aria-hidden="true"><\/span><\/summary>/u);
+  assert.match(row[0], /<div class="of-why-row">[\s\S]*<span class="of-found-name">アゲハ類<\/span>[\s\S]*<\/div><details class="of-why"><summary><span class="of-why-peek">見分けた点：尾のような突起があります 翅の模様が縞状です<\/span><span class="of-why-more">続きを見る<\/span><span class="of-why-less">閉じる<\/span><\/summary>/u);
   assert.match(row[0], /見分けた点/u);
   assert.equal([...row[0].matchAll(/<ul><li>/gu)].length, 1);
   assert.equal([...row[0].matchAll(/<li>/gu)].length, 2);
+  assert.match(row[0], /\.of-why-peek|of-why-peek/u);
   assert.doesNotMatch(row[0], /三つ目の根拠/u);
   assert.doesNotMatch(row[0], /ここまでにした理由/u);
   assert.match(html, /<li data-found-kind="feature" data-ai-candidate="true"><span class="of-found-name">柵<\/span>/u);
@@ -1904,7 +1905,9 @@ test("record page rationale: no evidence renders a plain row", () => {
 test("record page rationale: row evidence is not repeated in the learning section", () => {
   const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: ["翅の表側も写すと比べやすくなります"] });
   const html = whyHtml(d, "species");
-  assert.equal(html.split("尾のような突起があります").length - 1, 1);
+  const rowHtml = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why">[\s\S]*?<\/details><\/li>/u)![0];
+  assert.equal(rowHtml.split("尾のような突起があります").length - 1, 2);
+  assert.equal(html.split("尾のような突起があります").length - 1, 2);
   assert.match(html, /翅の表側も写すと比べやすくなります/u);
   const off = renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1") });
   assert.equal(off.split("尾のような突起があります").length - 1, 1);
@@ -1921,6 +1924,6 @@ test("record page rationale: signboard-like evidence is never shown in the row",
 test("record page rationale: record-level fallback rows get the same rationale", () => {
   const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: [] });
   const html = renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1"), recordPage: { reading: null, protectedRecord: false } });
-  assert.match(html, /<li class="of-has-why"><details class="of-why"><summary><span class="of-found-name">ナミアゲハ<\/span>/u);
-  assert.equal(html.split("尾のような突起があります").length - 1, 1);
+  assert.match(html, /<li class="of-has-why"><div class="of-why-row"><span class="of-found-name">ナミアゲハ<\/span>/u);
+  assert.equal(html.split("尾のような突起があります").length - 1, 2);
 });
