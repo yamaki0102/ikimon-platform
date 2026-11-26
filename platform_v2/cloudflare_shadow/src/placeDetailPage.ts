@@ -3,6 +3,7 @@ import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNa
 import { MAP_PLACE_ATLAS_PROFILE_RUNTIME, MAP_PLACE_ATLAS_PROFILE_STYLES, renderMapPlaceAtlasProfile } from "../../src/ui/mapPlaceAtlasProfile";
 import { escapeHtml } from "../../src/ui/siteShell";
 import type { SavedItem } from "./savedItems";
+import { PLACE_V3_STYLES, renderPlaceV3, type PlaceV3Event, type PlaceV3Nearby, type PlaceV3Steward } from "./placeDetailV3";
 import { QUIET_HOME_STYLES, renderSavedControl, renderSavedItemsScript, type QuietHomeLang } from "./quietHome";
 
 export type GlobalPlaceDetailLang = QuietHomeLang;
@@ -84,6 +85,12 @@ const DETAIL_COPY = {
   },
 } as const;
 
+function stripV3DuplicateAtlas(html: string): string {
+  return html
+    .replace(/<header class="me-place-atlas-hero">[\s\S]*?<\/header>/u, "")
+    .replace(/<section class="[^"]*\bme-place-atlas-(?:summary|recent|empty)\b[^"]*"[^>]*>[\s\S]*?<\/section>/gu, "");
+}
+
 function clean(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -133,6 +140,9 @@ export function renderGlobalPlaceDetailPage(input: {
   nocosilUsageHtml?: string;
   paperArchiveTimelineHtml?: string;
   fixedPointTimelineHtml?: string;
+  v3?: boolean;
+  v3Extras?: { stewardIntro?: string | null; events?: PlaceV3Event[]; steward?: PlaceV3Steward | null; nearby?: PlaceV3Nearby[] };
+  now?: Date;
 }): string {
   const profile = input.profile as PlaceProfileWithGlobalNames;
   const lang = input.lang;
@@ -168,11 +178,12 @@ export function renderGlobalPlaceDetailPage(input: {
           localityLabel: null,
         },
       };
-  const mapProfile = renderMapPlaceAtlasProfile(displayProfile, {
+  const mapProfileRaw = renderMapPlaceAtlasProfile(input.v3 === true ? { ...displayProfile, place: { ...displayProfile.place, description: clean(input.v3Extras?.stewardIntro) || null } } : displayProfile, {
     lang: siteLang,
     recordHref: prefix + "/record",
     recordsHref: prefix + "/records?view=public",
   });
+  const mapProfile = input.v3 === true ? stripV3DuplicateAtlas(mapProfileRaw) : mapProfileRaw;
   const atlasScript = `<script>${MAP_PLACE_ATLAS_PROFILE_RUNTIME}\nMapPlaceAtlasProfile.bind(document.getElementById("global-place-detail"));</script>`;
 
   const areaObsHtml = `<section class="gpd-observations" data-area-observations-panel data-place-id="${escapeHtml(canonicalPlaceId)}" aria-labelledby="gpd-obs-title"><h2 id="gpd-obs-title">${escapeHtml(copy.obsHeading)}</h2><div class="gpd-obs-filters" role="group" aria-label="${escapeHtml(copy.obsHeading)}"><button type="button" class="gpd-obs-tab" data-media-kind="all" aria-pressed="true">${escapeHtml(copy.obsAll)}</button><button type="button" class="gpd-obs-tab" data-media-kind="photo" aria-pressed="false">${escapeHtml(copy.obsPhoto)}</button><button type="button" class="gpd-obs-tab" data-media-kind="audio" aria-pressed="false">${escapeHtml(copy.obsAudio)}</button><button type="button" class="gpd-obs-tab" data-media-kind="video" aria-pressed="false">${escapeHtml(copy.obsVideo)}</button><button type="button" class="gpd-obs-tab" data-media-kind="record" aria-pressed="false">${escapeHtml(copy.obsRecord)}</button></div><div class="gpd-obs-period"><label><span>${escapeHtml(copy.obsFrom)}</span><input type="date" data-area-obs-from></label><label><span>${escapeHtml(copy.obsTo)}</span><input type="date" data-area-obs-to></label><button type="button" class="gpd-secondary" data-area-obs-apply>${escapeHtml(copy.obsApply)}</button></div><p class="gpd-obs-meta" data-area-obs-status aria-live="polite">${escapeHtml(copy.obsLoading)}</p><div class="gpd-obs-grid" data-area-obs-list></div></section>`;
@@ -217,8 +228,54 @@ export function renderGlobalPlaceDetailPage(input: {
   const linkIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>';
   const mailIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
   const sheetMeta = [locality, hasRecords ? `${copy.statRecords} ${shownCount}` : ""].filter(Boolean).join(" ・ ");
-  const shareSheet = `<dialog class="gpd-sheet" id="gpd-share-sheet" aria-labelledby="gpd-share-title"><div class="gpd-sheet-grip" aria-hidden="true"></div><div class="gpd-sheet-place">${coverUrl ? `<img src="${escapeHtml(coverUrl)}" alt="" decoding="async">` : `<span class="gpd-sheet-noimg" aria-hidden="true"></span>`}<div><strong>${escapeHtml(selected || local)}</strong>${sheetMeta ? `<small>${escapeHtml(sheetMeta)}</small>` : ""}</div></div><h2 id="gpd-share-title">${escapeHtml(copy.share)}</h2><button type="button" class="gpd-sheet-row" data-share-copy data-share-copied="${escapeHtml(copy.copied)}">${linkIcon}<span>${escapeHtml(copy.shareCopy)}</span></button><a class="gpd-sheet-row" data-share-mail data-share-title="${escapeHtml(selected || local)}" href="mailto:">${mailIcon}<span>${escapeHtml(copy.shareMail)}</span></a><button type="button" class="gpd-sheet-row" data-share-native data-share-title="${escapeHtml(selected || local)}" hidden>${shareIcon}<span>${escapeHtml(copy.shareOther)}</span></button><p class="gpd-sheet-note">${escapeHtml(copy.shareNote)}</p><button type="button" class="gpd-secondary" data-share-close>${escapeHtml(copy.close)}</button></dialog>`;
+  const shareCoverUrl = input.v3 === true ? (hasRecords ? clean(mediaRecords[0]?.mediaUrl) : "") : coverUrl;
+  const shareSheet = `<dialog class="gpd-sheet" id="gpd-share-sheet" aria-labelledby="gpd-share-title"><div class="gpd-sheet-grip" aria-hidden="true"></div><div class="gpd-sheet-place">${shareCoverUrl ? `<img src="${escapeHtml(shareCoverUrl)}" alt="" decoding="async">` : `<span class="gpd-sheet-noimg" aria-hidden="true"></span>`}<div><strong>${escapeHtml(selected || local)}</strong>${sheetMeta ? `<small>${escapeHtml(sheetMeta)}</small>` : ""}</div></div><h2 id="gpd-share-title">${escapeHtml(copy.share)}</h2><button type="button" class="gpd-sheet-row" data-share-copy data-share-copied="${escapeHtml(copy.copied)}">${linkIcon}<span>${escapeHtml(copy.shareCopy)}</span></button><a class="gpd-sheet-row" data-share-mail data-share-title="${escapeHtml(selected || local)}" href="mailto:">${mailIcon}<span>${escapeHtml(copy.shareMail)}</span></a><button type="button" class="gpd-sheet-row" data-share-native data-share-title="${escapeHtml(selected || local)}" hidden>${shareIcon}<span>${escapeHtml(copy.shareOther)}</span></button><p class="gpd-sheet-note">${escapeHtml(copy.shareNote)}</p><button type="button" class="gpd-secondary" data-share-close>${escapeHtml(copy.close)}</button></dialog>`;
   const shareScript = `<script>(()=>{const sheet=document.getElementById('gpd-share-sheet');if(!sheet)return;const url=()=>location.href.split('#')[0];const title=sheet.querySelector('[data-share-mail]')?.getAttribute('data-share-title')||document.title;document.querySelectorAll('[data-gpd-share]').forEach((button)=>button.addEventListener('click',()=>{const mail=sheet.querySelector('[data-share-mail]');if(mail)mail.setAttribute('href','mailto:?subject='+encodeURIComponent(title)+'&body='+encodeURIComponent(title+'\\n'+url()));const nativeButton=sheet.querySelector('[data-share-native]');if(nativeButton&&navigator.share)nativeButton.hidden=false;if(typeof sheet.showModal==='function')sheet.showModal();else sheet.setAttribute('open','');}));sheet.querySelector('[data-share-copy]')?.addEventListener('click',async(event)=>{const button=event.currentTarget;try{await navigator.clipboard.writeText(url());const label=button.querySelector('span');if(label)label.textContent=button.getAttribute('data-share-copied')||'';}catch{}});sheet.querySelector('[data-share-native]')?.addEventListener('click',async()=>{try{await navigator.share({title,url:url()});}catch{}});const close=()=>{if(sheet.close)sheet.close();else sheet.removeAttribute('open');};sheet.querySelector('[data-share-close]')?.addEventListener('click',close);sheet.addEventListener('click',(event)=>{if(event.target===sheet)close();});})();</script>`;
+
+  const v3On = input.v3 === true;
+  const v3Records = records.slice(0, 3).map((record) => ({
+    id: record.recordId,
+    href: recordHrefOf(record),
+    name: clean(record.displayName),
+    mediaUrl: record.mediaUrl && record.mediaKind !== "audio" ? record.mediaUrl : null,
+    observedAt: record.observedAt,
+    dateLabel: displayDate(record.observedAt, lang),
+    confirmed: record.identificationStatus === "confirmed",
+  }));
+  const v3Main = v3On ? renderPlaceV3({
+    lang,
+    prefix,
+    canonicalPlaceId,
+    name: selected || local,
+    localName: showLocalInMeta ? local : null,
+    locality,
+    hasRecords,
+    suppressed: profile.publication?.status === "suppressed",
+    shownCount,
+    startYear,
+    latestLabel: latestRecord,
+    records: v3Records,
+    photoUrls: mediaRecords.map((record) => clean(record.mediaUrl)).filter((url, index, all) => url && all.indexOf(url) === index),
+    recordHref,
+    allRecordsHref,
+    backHref: prefix + "/map?tab=places",
+    backLabel: copy.back,
+    shareLabel: copy.share,
+    copiedLabel: copy.copied,
+    shareTitle: selected || local,
+    saveHtml: input.viewerAuthenticated && input.savedStateAvailable === false ? "" : save,
+    moreLabel: copy.moreAbout,
+    moreHref: "#gpd-details",
+    mapHref: canExposePlaceLocation ? prefix + "/map?tab=places" : "",
+    externalMapHref: externalMap,
+    externalMapLabel: copy.openMap,
+    stewardIntro: clean(input.v3Extras?.stewardIntro) || null,
+    events: input.v3Extras?.events ?? [],
+    steward: input.v3Extras?.steward ?? null,
+    nearby: input.v3Extras?.nearby ?? [],
+    now: input.now ?? new Date(),
+  }) : "";
+  const v3Css = v3On ? PLACE_V3_STYLES : "";
 
   return `<!doctype html><html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(selected || local)} | ZUKAN</title><style>
 ${APP_EXPERIENCE_STYLES}
@@ -240,5 +297,5 @@ ${MAP_PLACE_ATLAS_PROFILE_STYLES}
 .gpd-sheet{position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:640px;max-height:92vh;overflow:auto;padding:12px 20px 24px;border:0;border-radius:28px 28px 0 0;background:#fff;color:var(--gpd-text)}.gpd-sheet::backdrop{background:rgba(8,18,12,.5)}.gpd-sheet-grip{width:44px;height:5px;margin:0 auto 16px;border-radius:3px;background:#dde2dc}.gpd-sheet-place{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--gpd-line)}.gpd-sheet-place img,.gpd-sheet-noimg{flex:none;width:64px;height:64px;border-radius:14px;object-fit:cover;background:var(--gpd-brand)}.gpd-sheet-place strong{display:block;font-size:1.0625rem;overflow-wrap:anywhere}.gpd-sheet-place small{display:block;color:var(--gpd-sub);overflow-wrap:anywhere}.gpd-sheet h2{margin:14px 0 4px;font-size:1.25rem}.gpd-sheet-row,.gpd-sheet-row:visited{display:flex;align-items:center;gap:16px;width:100%;min-height:56px;padding:8px 4px;border:0;border-bottom:1px solid var(--gpd-line);background:none;color:var(--gpd-text);font:inherit;font-weight:700;text-align:left;text-decoration:none;cursor:pointer}.gpd-sheet-row[hidden]{display:none}.gpd-sheet-row svg{color:var(--gpd-brand)}.gpd-sheet-note{margin:16px 0;padding:14px 16px;border-radius:16px;background:#f7f7f3;color:var(--gpd-sub)}.gpd-sheet .gpd-secondary{width:100%}
 @media(min-width:768px){.gpd-sheet{inset:50% auto auto 50%;transform:translate(-50%,-50%);border-radius:28px}}
 @media(prefers-reduced-motion:reduce){.gpd *{scroll-behavior:auto!important;transition-duration:.01ms!important}}
-</style></head><body data-zukan-app-experience="place-detail">${renderAppExperienceHeader(siteLang, 3, Boolean(input.viewerAuthenticated), "global-place-detail")}<main id="global-place-detail" tabindex="-1" class="gpd" data-global-place-detail="${escapeHtml(canonicalPlaceId)}">${hero}<div class="gpd-body"><div class="gpd-col"><div class="gpd-cta"><a class="gpd-primary" href="${escapeHtml(recordHref)}">${cameraIcon}<span>${escapeHtml(copy.record)}</span></a>${save}</div>${stats}${recordsSection}<a class="gpd-more" href="#gpd-details">${escapeHtml(copy.moreAbout)}</a></div>${side}</div><div class="gpd-details" id="gpd-details"><section class="gpd-utility" aria-label="${escapeHtml(copy.moreAbout)}"><div class="gpd-actions">${externalMap ? `<a class="gpd-primary" href="${escapeHtml(externalMap)}" target="_blank" rel="noopener noreferrer">${escapeHtml(copy.openMap)}</a>` : ""}</div><section class="gpd-show" aria-labelledby="gpd-show-title"><h2 id="gpd-show-title">${escapeHtml(copy.showLocally)}</h2><div class="gpd-show-row"><p><strong>${escapeHtml(copy.localName)}:</strong> <span data-copy-value="${escapeHtml(local)}">${escapeHtml(local)}</span></p><button type="button" class="gpd-copy" data-copy-target="${escapeHtml(local)}">${escapeHtml(copy.copy)}</button></div>${locality ? `<div class="gpd-show-row"><p><strong>${escapeHtml(copy.localAddress)}:</strong> <span data-copy-value="${escapeHtml(locality)}">${escapeHtml(locality)}</span></p><button type="button" class="gpd-copy" data-copy-target="${escapeHtml(locality)}">${escapeHtml(copy.copy)}</button></div>` : ""}</section><section class="gpd-status" aria-labelledby="gpd-status-title"><h2 id="gpd-status-title">${escapeHtml(copy.sources)}</h2><p>${escapeHtml(copy.sourceCount)}: ${sourceCount}</p><p>${escapeHtml(copy.checked)}: ${escapeHtml(latest ?? copy.unknown)}</p>${generated ? `<small>${escapeHtml(copy.generated)}: ${escapeHtml(generated)}</small>` : ""}<small>${escapeHtml(copy.disclaimer)}</small><p class="zs-status" data-zukan-saved-status aria-live="polite"></p></section></section><section class="gpd-atlas" aria-label="${escapeHtml(copy.details)}">${mapProfile}</section>${areaObsHtml}${input.nocosilUsageHtml ?? ""}${input.fixedPointTimelineHtml ?? ""}${input.paperArchiveTimelineHtml ?? ""}</div></main>${renderAppExperienceNavigation(siteLang, 3, "bottom", Boolean(input.viewerAuthenticated))}${renderAppExperienceQuickCamera(siteLang)}${shareSheet}${atlasScript}${areaObsScript}${shareScript}${input.viewerAuthenticated ? renderSavedItemsScript(lang) : ""}<script>(()=>{const copied=${JSON.stringify(copy.copied).replace(/</g,"\\u003c")};document.querySelectorAll('[data-copy-target]').forEach(button=>button.addEventListener('click',async()=>{const value=button.getAttribute('data-copy-target')||'';try{await navigator.clipboard.writeText(value);button.textContent=copied;}catch{const range=document.createRange();const node=button.parentElement?.querySelector('[data-copy-value]');if(node){range.selectNodeContents(node);const selection=getSelection();selection?.removeAllRanges();selection?.addRange(range);}}}));})();</script></body></html>`;
+${v3Css}</style></head><body data-zukan-app-experience="place-detail">${renderAppExperienceHeader(siteLang, 3, Boolean(input.viewerAuthenticated), "global-place-detail")}<main id="global-place-detail" tabindex="-1" class="gpd" data-global-place-detail="${escapeHtml(canonicalPlaceId)}">${v3Main}${v3On ? "" : `${hero}<div class="gpd-body"><div class="gpd-col"><div class="gpd-cta"><a class="gpd-primary" href="${escapeHtml(recordHref)}">${cameraIcon}<span>${escapeHtml(copy.record)}</span></a>${save}</div>${stats}${recordsSection}<a class="gpd-more" href="#gpd-details">${escapeHtml(copy.moreAbout)}</a></div>${side}</div>`}${v3On ? `<details class="pv3-details" id="gpd-details"><summary>${escapeHtml(copy.moreAbout)}</summary><div class="gpd-details">` : `<div class="gpd-details" id="gpd-details">`}<section class="gpd-utility" aria-label="${escapeHtml(copy.moreAbout)}"><div class="gpd-actions">${externalMap && !v3On ? `<a class="gpd-primary" href="${escapeHtml(externalMap)}" target="_blank" rel="noopener noreferrer">${escapeHtml(copy.openMap)}</a>` : ""}</div><section class="gpd-show" aria-labelledby="gpd-show-title"><h2 id="gpd-show-title">${escapeHtml(copy.showLocally)}</h2><div class="gpd-show-row"><p><strong>${escapeHtml(copy.localName)}:</strong> <span data-copy-value="${escapeHtml(local)}">${escapeHtml(local)}</span></p><button type="button" class="gpd-copy" data-copy-target="${escapeHtml(local)}">${escapeHtml(copy.copy)}</button></div>${locality ? `<div class="gpd-show-row"><p><strong>${escapeHtml(copy.localAddress)}:</strong> <span data-copy-value="${escapeHtml(locality)}">${escapeHtml(locality)}</span></p><button type="button" class="gpd-copy" data-copy-target="${escapeHtml(locality)}">${escapeHtml(copy.copy)}</button></div>` : ""}</section><section class="gpd-status" aria-labelledby="gpd-status-title"><h2 id="gpd-status-title">${escapeHtml(copy.sources)}</h2><p>${escapeHtml(copy.sourceCount)}: ${sourceCount}</p><p>${escapeHtml(copy.checked)}: ${escapeHtml(latest ?? copy.unknown)}</p>${generated ? `<small>${escapeHtml(copy.generated)}: ${escapeHtml(generated)}</small>` : ""}<small>${escapeHtml(copy.disclaimer)}</small><p class="zs-status" data-zukan-saved-status aria-live="polite"></p></section></section><section class="gpd-atlas" aria-label="${escapeHtml(copy.details)}">${mapProfile}</section>${areaObsHtml}${input.nocosilUsageHtml ?? ""}${input.fixedPointTimelineHtml ?? ""}${input.paperArchiveTimelineHtml ?? ""}</div>${v3On ? "</details>" : ""}</main>${renderAppExperienceNavigation(siteLang, 3, "bottom", Boolean(input.viewerAuthenticated))}${renderAppExperienceQuickCamera(siteLang)}${shareSheet}${atlasScript}${areaObsScript}${shareScript}${input.viewerAuthenticated ? renderSavedItemsScript(lang) : ""}<script>(()=>{const copied=${JSON.stringify(copy.copied).replace(/</g,"\\u003c")};document.querySelectorAll('[data-copy-target]').forEach(button=>button.addEventListener('click',async()=>{const value=button.getAttribute('data-copy-target')||'';try{await navigator.clipboard.writeText(value);button.textContent=copied;}catch{const range=document.createRange();const node=button.parentElement?.querySelector('[data-copy-value]');if(node){range.selectNodeContents(node);const selection=getSelection();selection?.removeAllRanges();selection?.addRange(range);}}}));})();</script></body></html>`;
 }
