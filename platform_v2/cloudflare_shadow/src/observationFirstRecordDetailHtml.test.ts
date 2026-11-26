@@ -1928,3 +1928,85 @@ test("record page rationale: record-level fallback rows get the same rationale",
   assert.match(html, /<li class="of-has-why"><div class="of-why-row"><span class="of-found-name">ナミアゲハ<\/span>/u);
   assert.equal(html.split("尾のような突起があります").length - 1, 2);
 });
+
+const inlineEditOwner = {
+  ...detail,
+  owner: true,
+  observations: [
+    {
+      ...detail.observations[0]!,
+      acceptedIdentification: { claimId: "acc-ie", actorType: "owner" as const, actorId: "u1", proposalActorType: "owner" as const, proposedName: "キアゲハ", proposedScientificName: null, proposedRank: "species", humanDecision: true as const },
+    },
+  ],
+};
+const inlineEditBase = {
+  lang: "ja" as const,
+  title: "キアゲハ",
+  customTitle: `里山の"チョウ"<b>x</b>`,
+  observedLabel: "2026年11月23日",
+  publicLocationLabel: "静岡県浜松市",
+  note: "",
+  media: [],
+  actionNonce: "nonce-inline-edit",
+};
+
+test("inline edit off leaves owner and guest html unchanged", () => {
+  const ownerDefault = renderObservationFirstRecordDetailHtml(inlineEditOwner, inlineEditBase);
+  const ownerOff = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, inlineEdit: false });
+  assert.equal(ownerOff, ownerDefault);
+  assert.doesNotMatch(ownerOff, /data-of-ie|of-ie-tap|of-ie-form/);
+  assert.match(ownerOff, /<p class="of-title-edit"><a href="#of-manage-body" data-of-open="manage">題名を編集<\/a><\/p>/);
+  assert.match(ownerOff, /<label><span class="of-title-edit-text">題名を編集<\/span><input name="title"/);
+  const guest = { ...inlineEditOwner, owner: false };
+  const guestDefault = renderObservationFirstRecordDetailHtml(guest, inlineEditBase);
+  const guestOn = renderObservationFirstRecordDetailHtml(guest, { ...inlineEditBase, inlineEdit: true });
+  assert.equal(guestOn, guestDefault);
+  assert.doesNotMatch(guestOn, /data-of-ie|of-ie-tap|of-ie-pen/);
+});
+
+test("inline edit on turns title, names and visibility into uniform tap-to-edit items for the owner", () => {
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, inlineEdit: true });
+  assert.doesNotMatch(html, /<p class="of-title-edit">/);
+  const title = html.match(/<div class="of-ie of-ie-title" data-of-ie="title" id="ie-title">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(title, /^<div class="of-ie of-ie-title" data-of-ie="title" id="ie-title"><h1><button type="button" class="of-ie-tap" data-of-ie-open aria-label="題名を編集" aria-expanded="false"><span class="of-ie-text">里山の&quot;チョウ&quot;&lt;b&gt;x&lt;\/b&gt;<\/span><svg class="of-ie-pen"/);
+  assert.match(title, /<form class="of-ie-form" method="post" action="\/api\/v1\/records\/visit-ui-contract\/observation-actions" hidden>/);
+  assert.match(title, /name="action" value="set_title"/);
+  assert.match(title, /name="operation_id" value="nonce-inline-edit-ie-title"/);
+  assert.match(title, /<input name="title" value="里山の&quot;チョウ&quot;&lt;b&gt;x&lt;\/b&gt;" maxlength="120" required/);
+  assert.doesNotMatch(title, /<b>x<\/b>/);
+  const name = html.match(/<div class="of-ie of-ie-row" data-of-ie="name">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(name, /aria-label="キアゲハを編集"/);
+  assert.match(name, /name="action" value="identify"/);
+  assert.match(name, /name="observation_id" value="obs-owner"/);
+  assert.match(name, /name="proposed_name" value="キアゲハ"/);
+  assert.match(html, /<li data-of-ie-row>|<li[^>]* data-of-ie-row/);
+  const visibility = html.match(/<div class="of-ie of-ie-meta" data-of-ie="visibility" id="ie-visibility">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(visibility, /aria-label="公開範囲を編集"/);
+  assert.match(visibility, /name="action" value="set_visibility"/);
+  assert.match(visibility, /<option value="public" selected>/);
+  for (const part of [title, name, visibility]) {
+    for (const marker of ['class="of-ie-tap"', 'data-of-ie-open', 'class="of-ie-pen"', 'class="of-ie-form"', 'class="of-ie-save"', 'data-of-ie-cancel', "保存", "やめる"]) {
+      assert.ok(part.includes(marker), `${marker} missing`);
+    }
+  }
+  assert.match(html, /data-of-page-script[\s\S]*function ieSet\(/);
+  assert.match(html, /\.of-ie-pen\{[^}]*stroke:#8a8f8a/);
+  assert.match(html, /<form method="post" action="[^"]*"><input type="hidden" name="action" value="set_title">/);
+});
+
+test("inline edit stays off for non-japanese pages", () => {
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, lang: "en", inlineEdit: true });
+  assert.doesNotMatch(html, /data-of-ie|of-ie-tap/);
+});
+
+test("inline edit on: per-media organism rows get the same tap-to-edit pattern, features stay plain", () => {
+  const reading = readingOf([
+    readingMedia("a1", { found: [readingFeature("building", "建物"), { itemId: "o-1", kind: "organism" as const, state: "confirmed" as const, code: null, labelJa: null, observationId: "obs-owner", name: { vernacular: "キアゲハ", scientific: null, rank: "species" }, locator: { kind: "full" as const } }] }),
+  ]);
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, customTitle: null, media: photoMedia("a1"), recordPage: { reading, protectedRecord: false }, inlineEdit: true });
+  const rows = [...html.matchAll(/<div class="of-ie of-ie-row" data-of-ie="name">/gu)];
+  assert.ok(rows.length >= 1);
+  assert.match(html, /aria-label="キアゲハを編集"/u);
+  assert.match(html, /<span class="of-found-name">建物<\/span>/u);
+  assert.doesNotMatch(html, /aria-label="建物を編集"/u);
+});
