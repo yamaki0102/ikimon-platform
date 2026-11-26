@@ -70,8 +70,7 @@ test("adding flag files updates every projection deterministically and idempoten
   delete config.env.staging.vars.aa_new_flag_v1;
   delete config.env.production.vars.zz_new_flag_v1;
   assert.deepEqual(config, prior);
-  const outside = (text: string) => text.replace(/(^[ \t]*\/\/ BEGIN GENERATED FLAGS\r?\n)[\s\S]*?(^[ \t]*\/\/ END GENERATED FLAGS)/gmu, "$1$2");
-  assert.equal(outside(first[1]!), outside(before[1]!));
+  assert.doesNotThrow(() => JSON.parse(first[1]!));
   assert.equal(gen(root).status, 0);
   assert.deepEqual(await readAll(root), first);
   assert.equal(gen(root, "--check").status, 0);
@@ -85,7 +84,7 @@ test("adding flag files updates every projection deterministically and idempoten
   }
 });
 
-test("invalid definitions and missing markers fail without partial writes", async t => {
+test("invalid definitions fail without partial writes", async t => {
   const root = await fixture(t);
   const before = await readAll(root);
   const file = join(root, "src/flags/invalid_flag_v1.ts");
@@ -96,9 +95,6 @@ test("invalid definitions and missing markers fail without partial writes", asyn
   await writeFile(file, definition("invalid_flag_v1", false, false).replace("staging = false", "staging = \"no\""));
   assert.match(gen(root).stderr, /invalid staging/u);
   await rm(file);
-  await writeFile(join(root, "wrangler.jsonc"), before[1]!.replace("// END GENERATED FLAGS", "// MISSING MARKER"));
-  assert.match(gen(root).stderr, /expected one generated block/u);
-  await writeFile(join(root, "wrangler.jsonc"), before[1]!);
   const doc = join(root, "docs/PROTOTYPE_FLAGS.md");
   await writeFile(doc, "no markers\n");
   assert.match(gen(root).stderr, /expected one generated block/u);
@@ -106,12 +102,19 @@ test("invalid definitions and missing markers fail without partial writes", asyn
   assert.deepEqual(await readAll(root), before);
 });
 
-test("a flag variable placed outside the generated block is rejected", async t => {
+test("a flag variable placed elsewhere in vars is moved to the top", async t => {
   const root = await fixture(t);
   await writeFile(join(root, "src/flags/dup_flag_v1.ts"), definition("dup_flag_v1", false, true));
-  const config = (await read(root, "wrangler.jsonc")).replace("\"ZUKAN_FEATURE_ROLLOUTS\": \"{}\",", "\"ZUKAN_FEATURE_ROLLOUTS\": \"{}\",\n        \"dup_flag_v1\": \"true\",");
+  const config = (await read(root, "wrangler.jsonc")).replace("\"ZUKAN_FEATURE_ROLLOUTS\": \"{}\",", "\"ZUKAN_FEATURE_ROLLOUTS\": \"{}\",\n        \"dup_flag_v1\": \"false\",");
   await writeFile(join(root, "wrangler.jsonc"), config);
-  assert.match(gen(root).stderr, /dup_flag_v1 outside generated block/u);
+  assert.equal(gen(root).status, 0);
+  const text = await read(root, "wrangler.jsonc");
+  assert.equal(text.split("dup_flag_v1").length, 2);
+  assert.equal(parse(text).env.production.vars.dup_flag_v1, "true");
+});
+
+test("committed wrangler.jsonc is plain JSON", async () => {
+  JSON.parse(await readFile(resolve("wrangler.jsonc"), "utf8"));
 });
 
 test("rollout.mjs allow/promote/rollback keep expiry fields and write an audit trail", async t => {

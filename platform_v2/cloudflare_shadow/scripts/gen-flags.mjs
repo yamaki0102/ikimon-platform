@@ -41,25 +41,24 @@ export async function generateFlags({ root = process.cwd(), check = false } = {}
         if (!ts.isPropertyAssignment(property) || !ts.isStringLiteral(property.name)) continue;
         const keys = [...parents, property.name.text];
         if (property.name.text === 'vars' && (keys.length === 1 || (keys.length === 3 && keys[0] === 'env'))) {
-          const start = property.initializer.getStart(ast), end = property.initializer.end;
-          const body = source.slice(start, end);
-          const matches = [...body.matchAll(/^([ \t]*)\/\/ BEGIN GENERATED FLAGS\r?\n[\s\S]*?^\1\/\/ END GENERATED FLAGS/gmu)];
-          if (matches.length !== 1) throw new Error(`${path}:${keys.join('.')}: expected one generated block`);
-          const match = matches[0], indent = match[1], newline = source.includes('\r\n') ? '\r\n' : '\n';
-          const outside = body.slice(0, match.index) + body.slice(match.index + match[0].length);
-          const outsideVars = parseJsonc(outside);
-          for (const flag of names) if (Object.hasOwn(outsideVars, flag)) throw new Error(`${path}:${keys.join('.')}: ${flag} outside generated block`);
+          const object = property.initializer;
+          if (!ts.isObjectLiteralExpression(object)) throw new Error(`${path}:${keys.join('.')}: vars must be an object`);
+          const newline = source.includes('\r\n') ? '\r\n' : '\n';
           const scope = `${file}:${keys.join('.')}`;
           const environment = keys[1] === 'production' ? 'production' : 'staging';
-          const rows = definitions.filter(entry => entry.scopes.includes(scope) && entry[environment]).map(entry => `${indent}${JSON.stringify(entry.flag)}: "true",`);
-          if (!Object.keys(outsideVars).length && rows.length) rows[rows.length - 1] = rows.at(-1).slice(0, -1);
-          const replacement = [`${indent}// BEGIN GENERATED FLAGS`, ...rows, `${indent}// END GENERATED FLAGS`].join(newline);
-          changes.push({ start: start + match.index, end: start + match.index + match[0].length, replacement });
+          const wanted = definitions.filter(entry => entry.scopes.includes(scope) && entry[environment]);
+          const kept = object.properties.filter(item => !(item.name && (ts.isStringLiteral(item.name) || ts.isIdentifier(item.name)) && names.has(item.name.text)));
+          if (!wanted.length && kept.length === object.properties.length) continue;
+          const first = object.properties[0];
+          const indent = first ? source.slice(source.lastIndexOf('\n', first.getStart(ast)) + 1, first.getStart(ast)).match(/^[ \t]*/u)[0] : '';
+          const closeIndent = source.slice(source.lastIndexOf('\n', object.end - 1) + 1, object.end - 1).match(/^[ \t]*/u)[0];
+          const rows = [...wanted.map(entry => `${indent}${JSON.stringify(entry.flag)}: "true"`), ...kept.map(item => `${indent}${source.slice(item.getStart(ast), item.end)}`)];
+          const replacement = rows.length ? `{${newline}${rows.join(`,${newline}`)}${newline}${closeIndent}}` : '{}';
+          changes.push({ start: object.getStart(ast), end: object.end, replacement });
         } else visit(property.initializer, keys);
       }
     };
     visit(ast.statements[0].expression);
-    if (!changes.length) throw new Error(`${path}: missing vars`);
     let result = source;
     for (const change of changes.sort((a, b) => b.start - a.start)) result = result.slice(0, change.start) + change.replacement + result.slice(change.end);
     parseJsonc(result);
