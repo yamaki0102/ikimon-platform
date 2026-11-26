@@ -171,6 +171,8 @@ import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
 const OBSERVATION_CORRECTION_FLAG = "OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
 const RECORD_PAGE_PER_MEDIA_FLAG = "RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
 const recordPagePerMediaOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, v.principalId, v.role); };
+const PLACE_PAGE_V3_FLAG = "PLACE_PAGE_V3_PROTOTYPE_ENABLED";
+const placePageV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_PAGE_V3_FLAG, v.principalId, v.role); };
 const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
 const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_INLINE_EDIT_FLAG, v.principalId, v.role); };
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
@@ -2589,7 +2591,8 @@ async function getGlobalPlaceDetailPage(
     viewerAuthenticated: authenticated,
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
-    paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages)
+    paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
+    ...(authenticated && placePageV3On(env, session) ? { v3: true } : {})
   });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
