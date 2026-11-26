@@ -21,6 +21,7 @@ import {
   publicTaxonDisplayName,
   resolveUnifiedTaxonName,
 } from "./taxonNameResolver";
+import { legacyImportDisplayName, loadLegacyImportNames, resolveWeakLabels, type LegacyImportName } from "./legacyImportNames";
 import {
   buildClearedGuestPassCookieHeader,
   buildGuestPassCookieHeader,
@@ -24873,12 +24874,13 @@ export async function ownerHomeRecordPage(ownerUserId: string, env: Env, limit =
   const nextCursor = Array.isArray(rows?.results) && rows.results.length > limit && lastPageRow ? encodePageCursor(lastPageRow.observed_at, lastPageRow.observation_id) : null;
   const ownerIds = Array.isArray(pageRows) ? [...new Set(pageRows.map((row) => row.observation_id))] : [];
   const mediaKinds = await queryPublicMapMediaKinds(env, ownerIds).catch(() => new Map<string, HomeRecordMediaKind>());
+  const legacyNames = await resolveWeakLabels(env.OBS_DB, Array.isArray(pageRows) ? pageRows.map((row) => ({ id: row.observation_id, label: row.taxon_label })) : []);
   const items = pageRows.map((row) => ({
     ...publicMapObservationItem({
       observation_id: row.observation_id,
       public_cell: "",
       observed_at: row.observed_at,
-      taxon_label: row.taxon_label ?? row.note,
+      taxon_label: legacyNames.get(row.observation_id) ?? row.taxon_label ?? row.note,
       asset_count: row.public_derivative_key ? 1 : 0
     }, row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null, mediaKinds.get(row.observation_id) ?? (row.public_derivative_key ? "photo" : "record")),
     aiAssessmentStatus: row.ai_assessment_status ?? row.ai_request_status ?? null,
@@ -27033,18 +27035,8 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     }
   }
   if (!effectiveTaxonLabel) {
-    const importRow = await env.OBS_DB.prepare(
-      `SELECT vernacular_name, scientific_name
-         FROM production_import_occurrences
-        WHERE visit_id = ?
-        ORDER BY created_at ASC
-        LIMIT 1`
-    ).bind(visitId).first<{ vernacular_name: string | null; scientific_name: string | null }>().catch(() => null);
-    const candidate = !isWeakTaxonLabel(importRow?.vernacular_name ?? null)
-      ? importRow!.vernacular_name!.trim()
-      : !isWeakTaxonLabel(importRow?.scientific_name ?? null)
-      ? importRow!.scientific_name!.trim()
-      : null;
+    const importRow = (await loadLegacyImportNames(env.OBS_DB, [visitId]).catch(() => new Map<string, LegacyImportName>())).get(visitId);
+    const candidate = legacyImportDisplayName(importRow);
     if (candidate) {
       effectiveTaxonLabel = candidate;
     }
