@@ -1,3 +1,4 @@
+import type { PlaceAtlasProfile } from "../../src/services/placeAtlasContract";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { sizedImgAttrs } from "./derivedImageUrl";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
@@ -11,17 +12,8 @@ export type FieldCardRecord = {
   observationId: string;
   name: string;
   observedAt: string | null;
-  assetId: string;
+  mediaUrl: string;
   group: FieldCardGroup;
-};
-
-type ObsDbLike = {
-  prepare(sql: string): {
-    bind(...values: unknown[]): {
-      first<T = Record<string, unknown>>(): Promise<T | null>;
-      all<T = Record<string, unknown>>(): Promise<{ results?: T[] }>;
-    };
-  };
 };
 
 const esc = (value: string): string =>
@@ -70,8 +62,8 @@ const isNamed = (name: string): boolean => name.length > 0 && !isWeakTaxonLabel(
 export function pickFieldCardRecords(rows: FieldCardRecord[], limit = 3): FieldCardRecord[] {
   const seen = new Set<string>();
   const distinct = rows.filter((r) => {
-    if (!r.assetId || seen.has(r.assetId)) return false;
-    seen.add(r.assetId);
+    if (!r.mediaUrl || seen.has(r.mediaUrl)) return false;
+    seen.add(r.mediaUrl);
     return true;
   });
   const time = (r: FieldCardRecord): number => (r.observedAt ? Date.parse(r.observedAt) || 0 : 0);
@@ -82,32 +74,17 @@ export function pickFieldCardRecords(rows: FieldCardRecord[], limit = 3): FieldC
     .map((x) => x.r);
 }
 
-export async function loadFieldCardRecords(db: ObsDbLike, placeId: string): Promise<FieldCardRecord[]> {
-  const rows = await db
-    .prepare(
-      `SELECT o.observation_id, o.taxon_label, o.observed_at, a.asset_id
-       FROM record_place_memberships m
-       JOIN observations o ON o.observation_id = m.record_id
-       JOIN asset_ledger a ON a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed'
-       WHERE m.place_id = ?
-         AND m.membership_state = 'confirmed'
-         AND m.public_precision = 'place'
-         AND m.removed_at IS NULL
-         AND o.visibility = 'public'
-         AND COALESCE(o.emergency_hidden, 0) = 0
-       ORDER BY o.observed_at DESC
-       LIMIT 80`
-    )
-    .bind(placeId)
-    .all<{ observation_id: string; taxon_label: string | null; observed_at: string | null; asset_id: string | null }>();
-  return (rows.results ?? [])
-    .filter((r) => r.asset_id)
+const GROUPS: Record<string, FieldCardGroup> = { insect: "insect", plant: "plant", bird: "bird" };
+
+export function fieldCardRecordsFromProfile(profile: PlaceAtlasProfile): FieldCardRecord[] {
+  return (profile.recentRecords ?? [])
+    .filter((r) => r && r.recordId && r.mediaUrl && r.mediaKind !== "audio")
     .map((r) => ({
-      observationId: r.observation_id,
-      name: (r.taxon_label ?? "").trim(),
-      observedAt: r.observed_at,
-      assetId: r.asset_id!,
-      group: "generic" as FieldCardGroup,
+      observationId: r.recordId,
+      name: (r.displayName ?? "").trim(),
+      observedAt: r.observedAt,
+      mediaUrl: r.mediaUrl as string,
+      group: GROUPS[(r.taxonGroup ?? "").trim().toLowerCase()] ?? "generic",
     }));
 }
 
@@ -122,8 +99,7 @@ export function renderFieldCardPage(options: {
   const placeHref = `/ja/places/${encodedPlace}`;
   const cards = options.records.map((r) => {
     const named = isNamed(r.name);
-    const thumb = `/thumb/400/${encodeURIComponent(r.assetId)}`;
-    return `<article class="fc-card" data-fc-card><img class="fc-photo" ${sizedImgAttrs(thumb, 680, [360, 680, 1020], "(max-width: 720px) 100vw, 680px", esc)} alt="${named ? esc(r.name) : ""}" loading="lazy" decoding="async"><h2 class="fc-name">${esc(named ? r.name : "名前はこれから")}</h2><p class="fc-month">${esc(monthLabelJst(r.observedAt))}</p><p class="fc-q"><b>こどもに</b>${esc(QUESTION[r.group])}</p><p class="fc-a"><b>おとなから</b>${esc(PROMPT[r.group])}</p></article>`;
+    return `<article class="fc-card" data-fc-card><img class="fc-photo" ${sizedImgAttrs(r.mediaUrl, 680, [360, 680, 1020], "(max-width: 720px) 100vw, 680px", esc)} alt="${named ? esc(r.name) : ""}" loading="lazy" decoding="async"><h2 class="fc-name">${esc(named ? r.name : "名前はこれから")}</h2><p class="fc-month">${esc(monthLabelJst(r.observedAt))}</p><p class="fc-q"><b>こどもに</b>${esc(QUESTION[r.group])}</p><p class="fc-a"><b>おとなから</b>${esc(PROMPT[r.group])}</p></article>`;
   });
   const body = cards.length > 0
     ? `<div class="fc-cards">${cards.join("")}</div>`
@@ -149,20 +125,16 @@ ${body}
   });
 }
 
-export async function handlePlaceFieldCardRoute(
-  placeId: string,
-  session: { userId: string; displayName?: string | null; banned?: boolean } | null,
-  db: ObsDbLike
-): Promise<Response> {
-  const place = await db
-    .prepare("SELECT place_id, canonical_name, public_profile_status FROM places WHERE place_id = ?")
-    .bind(placeId)
-    .first<{ place_id: string; canonical_name: string; public_profile_status: string }>();
-  if (!place || place.public_profile_status === "private") return new Response("Not found", { status: 404 });
-  const records = pickFieldCardRecords(await loadFieldCardRecords(db, place.place_id));
+export function fieldCardResponse(
+  profile: PlaceAtlasProfile,
+  session: { userId: string; displayName?: string | null; banned?: boolean } | null
+): Response {
+  const names = (profile.place as { multilingualNames?: Record<string, string> }).multilingualNames ?? {};
+  const placeName = (names.ja ?? "").trim() || (profile.place.name ?? "").trim();
+  const records = pickFieldCardRecords(fieldCardRecordsFromProfile(profile));
   const authenticated = Boolean(session && !session.banned);
   return new Response(
-    renderFieldCardPage({ placeId: place.place_id, placeName: place.canonical_name, records, authenticated, displayName: session?.displayName ?? null }),
+    renderFieldCardPage({ placeId: (profile.place as { canonicalPlaceId?: string | null }).canonicalPlaceId ?? "", placeName, records, authenticated, displayName: session?.displayName ?? null }),
     {
       status: 200,
       headers: {

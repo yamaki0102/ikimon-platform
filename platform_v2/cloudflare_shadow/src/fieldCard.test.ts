@@ -1,83 +1,79 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import worker from "./index";
-import { pickFieldCardRecords, renderFieldCardPage, type FieldCardRecord } from "./fieldCard";
+import type { PlaceAtlasProfile, PlaceAtlasProfileRecord } from "../../src/services/placeAtlasContract";
+import { fieldCardRecordsFromProfile, fieldCardResponse, pickFieldCardRecords, renderFieldCardPage, type FieldCardRecord } from "./fieldCard";
 
-const ROWS = [
-  { observation_id: "o1", taxon_label: "ナミアゲハ", observed_at: "2026-06-10T03:00:00Z", asset_id: "a1" },
-  { observation_id: "o2", taxon_label: "不明", observed_at: "2026-07-20T03:00:00Z", asset_id: "a2" },
-  { observation_id: "o3", taxon_label: "ヤマボウシ", observed_at: "2026-05-02T03:00:00Z", asset_id: "a3" },
-  { observation_id: "o4", taxon_label: "ツバメ", observed_at: "2026-04-02T03:00:00Z", asset_id: "a4" },
-  { observation_id: "o5", taxon_label: "ナミアゲハ", observed_at: "2026-03-02T03:00:00Z", asset_id: "a1" },
-];
-
-const makeDb = (rows: unknown[]) => ({
-  prepare(sql: string) {
-    return {
-      bind() {
-        return {
-          async first() {
-            return { place_id: "place_sanaru", canonical_name: "佐鳴湖公園", public_profile_status: "published" };
-          },
-          async all() {
-            assert.ok(/public_precision = 'place'/.test(sql) && /visibility = 'public'/.test(sql));
-            return { results: rows };
-          },
-        };
-      },
-    };
-  },
+const rec = (id: string, name: string | null, at: string, mediaUrl: string | null, extra: Partial<PlaceAtlasProfileRecord> = {}): PlaceAtlasProfileRecord => ({
+  recordId: id, observedAt: at, displayName: name, href: null, mediaUrl, mediaKind: "photo", taxonGroup: null, themes: [], identificationStatus: "confirmed", ...extra,
 });
 
-const get = (flagOn: boolean, rows: unknown[], path = "/ja/places/place_sanaru/card") =>
-  worker.fetch(new Request(`https://shadow.test${path}`), { OBS_DB: makeDb(rows), ...(flagOn ? { FIELD_CARD_ENABLED: "true" } : {}) } as any);
+const RECORDS = [
+  rec("o1", "ナミアゲハ", "2026-06-10T03:00:00Z", "/derived/a/1.jpg", { taxonGroup: "insect" }),
+  rec("o2", "不明", "2026-07-20T03:00:00Z", "/derived/a/2.jpg"),
+  rec("o3", "ヤマボウシ", "2026-05-02T03:00:00Z", "/derived/a/3.jpg", { taxonGroup: "plant" }),
+  rec("o4", "ツバメ", "2026-04-02T03:00:00Z", "/derived/a/4.jpg", { taxonGroup: "bird" }),
+  rec("o5", "ナミアゲハ", "2026-03-02T03:00:00Z", "/derived/a/1.jpg"),
+  rec("o6", "ホトトギス", "2026-08-02T03:00:00Z", "/derived/a/6.m4a", { mediaKind: "audio" }),
+  rec("o7", "メジロ", "2026-08-03T03:00:00Z", null),
+];
+
+const profile = (recentRecords: PlaceAtlasProfileRecord[]): PlaceAtlasProfile => ({
+  version: 1,
+  placeRef: { kind: "osm_area", entityKey: "osm:way:125727939", osmType: "way", osmId: 125727939 },
+  place: { name: "常磐公園", type: "park", localityLabel: "静岡県 静岡市", description: null, representativeMedia: [], canonicalPlaceId: "plc_e3293ec4bb9288a0", aliases: [], multilingualNames: { ja: "常磐公園" }, verificationStatus: "source_verified", officialStatus: "official" },
+  summary: { recordCount: recentRecords.length, contributorCount: null, firstRecordedAt: null, latestRecordedAt: null },
+  facets: [], highlights: [], recentRecords, guide: null, memories: [], facilities: [],
+  policy: { placeVisibility: "public", recordingPolicy: "check_rules", publicLocationMode: "place", contributionCtaMode: "check_rules", ruleSource: "official", ruleUrl: null, reason: "recording_rules_unverified" },
+  dataGaps: [], publication: { status: "partial", suppressedSections: [], locationMode: "osm_area" },
+  provenance: { generatedAt: "2026-10-03T00:00:00Z", profileVersion: "place_atlas_profile/v1", sources: ["place_registry"], sourceReferences: [] },
+} as unknown as PlaceAtlasProfile);
+
+const render = async (records: PlaceAtlasProfileRecord[]) => fieldCardResponse(profile(records), null).text();
 
 test("flag off: card route behaves like an unknown sub-route (404)", async () => {
-  const res = await get(false, ROWS);
+  const res = await worker.fetch(new Request("https://shadow.test/ja/places/plc_e3293ec4bb9288a0/card"), { OBS_DB: {} } as any);
   assert.equal(res.status, 404);
   assert.ok(!(await res.text()).includes("出発前カード"));
 });
 
-test("flag on: 3 distinct-photo cards, weak name shows placeholder, names come from input, no coordinates, safety block", async () => {
-  const res = await get(true, ROWS);
+test("non-ja card route is 404 even when flag is on", async () => {
+  const res = await worker.fetch(new Request("https://shadow.test/en/places/plc_e3293ec4bb9288a0/card"), { OBS_DB: {}, FIELD_CARD_ENABLED: "true" } as any);
+  assert.equal(res.status, 404);
+});
+
+test("cards come from profile.recentRecords: photo only, distinct, named first, groups, no coordinates, safety block", async () => {
+  const res = fieldCardResponse(profile(RECORDS), null);
   assert.equal(res.status, 200);
   const html = await res.text();
   assert.equal((html.match(/data-fc-card/g) ?? []).length, 3);
   assert.match(html, /<h1>出発前カード<\/h1>/);
-  assert.ok(html.includes("佐鳴湖公園で見つかった生きもの"));
+  assert.ok(html.includes("常磐公園で見つかった生きもの"));
   const names = [...html.matchAll(/<h2 class="fc-name">([^<]*)<\/h2>/g)].map((m) => m[1]);
-  const inputNames = ROWS.map((r) => r.taxon_label);
-  for (const n of names) assert.ok(n === "名前はこれから" || inputNames.includes(n ?? ""), n);
   assert.deepEqual(names, ["ナミアゲハ", "ヤマボウシ", "ツバメ"]);
+  assert.ok(!html.includes("ホトトギス") && !html.includes("メジロ"));
+  for (const t of ["足は何本見える？もようはある？", "葉っぱはどんな形？ふちはギザギザ？", "くちばしは長い？短い？どんな色？", "6月の記録"]) assert.ok(html.includes(t), t);
   assert.ok(!/exact_lat|exact_lng|latitude|longitude|coordinate|lat=|lng=/i.test(html));
-  assert.ok(html.includes("6月の記録"));
-  for (const t of ["やくそく", "生きものは見るだけ。持ち帰らない", "さわる前に、おとなに聞く", "水辺や道路では、おとなと一緒に", "ZUKANの公開記録から作りました", "どんな色やもようが見える？", "気づいたところを指さしてもらおう", "こどもに", "おとなから", "data-fc-print"]) {
-    assert.ok(html.includes(t), t);
-  }
-  assert.ok(html.includes('href="/ja/places/place_sanaru"'));
+  for (const t of ["やくそく", "生きものは見るだけ。持ち帰らない", "さわる前に、おとなに聞く", "水辺や道路では、おとなと一緒に", "ZUKANの公開記録から作りました", "data-fc-print"]) assert.ok(html.includes(t), t);
+  assert.ok(html.includes('href="/ja/places/plc_e3293ec4bb9288a0"'));
 });
 
-test("weak-only records show 名前はこれから and fewer than 3 shows what exists", async () => {
-  const html = await (await get(true, [ROWS[1]])).text();
+test("weak-only record shows 名前はこれから and fewer than 3 shows what exists", async () => {
+  const html = await render([RECORDS[1]!]);
   assert.equal((html.match(/data-fc-card/g) ?? []).length, 1);
-  assert.ok(html.includes("名前はこれから"));
+  assert.ok(html.includes("名前はこれから") && html.includes("どんな色やもようが見える？") && html.includes("気づいたところを指さしてもらおう"));
 });
 
-test("0 records: empty state with record link", async () => {
-  const html = await (await get(true, [])).text();
+test("0 photo records: empty state with record link", async () => {
+  const html = await render([RECORDS[5]!, RECORDS[6]!]);
   assert.ok(html.includes("この場所の写真の記録がまだありません"));
-  assert.ok(html.includes('href="/ja/record?placeId=place_sanaru"'));
+  assert.ok(html.includes('href="/ja/record?placeId=plc_e3293ec4bb9288a0"'));
   assert.equal((html.match(/data-fc-card/g) ?? []).length, 0);
 });
 
-test("non-ja card route is 404 even when flag is on", async () => {
-  assert.equal((await get(true, ROWS, "/en/places/place_sanaru/card")).status, 404);
-});
-
 test("taxon group selects fixed question and prompt copy", () => {
-  const rec = (group: FieldCardRecord["group"], i: number): FieldCardRecord => ({ observationId: `o${i}`, name: "ナミアゲハ", observedAt: "2026-06-10T03:00:00Z", assetId: `a${i}`, group });
-  const html = renderFieldCardPage({ placeId: "p", placeName: "場所", authenticated: false, records: pickFieldCardRecords([rec("insect", 1), rec("plant", 2), rec("bird", 3)]) });
-  for (const t of ["足は何本見える？もようはある？", "見つけたら、足やもようを指さしてもらおう", "葉っぱはどんな形？ふちはギザギザ？", "同じ形の葉っぱを探してもらおう", "くちばしは長い？短い？どんな色？", "鳴き声が聞こえたら、まねしてもらおう"]) {
-    assert.ok(html.includes(t), t);
-  }
+  const r = (group: FieldCardRecord["group"], i: number): FieldCardRecord => ({ observationId: "o" + i, name: "ナミアゲハ", observedAt: "2026-06-10T03:00:00Z", mediaUrl: "/derived/a/" + i + ".jpg", group });
+  const html = renderFieldCardPage({ placeId: "p", placeName: "場所", authenticated: false, records: pickFieldCardRecords([r("insect", 1), r("plant", 2), r("bird", 3)]) });
+  for (const t of ["見つけたら、足やもようを指さしてもらおう", "同じ形の葉っぱを探してもらおう", "鳴き声が聞こえたら、まねしてもらおう"]) assert.ok(html.includes(t), t);
+  assert.equal(fieldCardRecordsFromProfile(profile(RECORDS)).length, 5);
 });
