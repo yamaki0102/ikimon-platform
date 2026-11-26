@@ -116,7 +116,7 @@ export const GUEST_TOP_V2_CSS = `
     .zg2 .zg2-hero h1{font-size:30px;line-height:1.4;font-weight:800;letter-spacing:.01em}.zg2 .zg2-hero h1 span{display:inline-block}
     .zg2-lead{font-size:16px;line-height:1.7}
     .zg2-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
-    .zg2-cta>a{flex:1;min-width:140px;padding:0 20px}
+    .zg2-cta>a{flex:1 1 auto;min-width:120px;padding:0 14px;white-space:nowrap}
     .zg2-note{font-size:14px;color:var(--muted)}
     .zg2-screen{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 28px rgba(20,63,46,.1)}
     .zg2-bar{display:flex;align-items:center;gap:6px;padding:7px 12px;border-bottom:1px solid var(--line);background:#fff}
