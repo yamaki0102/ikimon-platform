@@ -1,3 +1,4 @@
+import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { escapeHtml } from "../../src/ui/siteShell";
 
 export type PlaceV3Record = {
@@ -195,7 +196,13 @@ function monthJst(value: string | null): { year: number; month: number } | null 
 export function renderPlaceV3(input: PlaceV3Input): string {
   const c = input.lang === "ja" ? COPY.ja : COPY.en;
   const e = escapeHtml;
-  const photos = input.hasRecords ? input.photoUrls.filter(Boolean).slice(0, 3) : [];
+  const cardRecs = input.records.slice(0, 3);
+  const cardPhotos = new Set(cardRecs.map((r) => r.mediaUrl).filter((u): u is string => Boolean(u)));
+  const allPhotos = input.hasRecords ? input.photoUrls.filter(Boolean) : [];
+  const spare = allPhotos.filter((u) => !cardPhotos.has(u)).slice(0, 3);
+  const photos = spare.length ? spare : allPhotos.slice(0, 3);
+  const used = new Set<string>(photos);
+  const named = (n: string | null | undefined): string => (n && !isWeakTaxonLabel(n) ? n : "");
   const nowJst = monthJst(input.now.toISOString());
 
   const buttons = `<a class="gpd-hero-btn gpd-back" href="${e(input.backHref)}" aria-label="${e(input.backLabel)}">${BACK}</a><button type="button" class="gpd-hero-btn gpd-hero-share" data-gpd-share data-share-title="${e(input.shareTitle)}" data-share-copied="${e(input.copiedLabel)}" aria-label="${e(input.shareLabel)}">${SHARE}</button>`;
@@ -222,17 +229,18 @@ export function renderPlaceV3(input: PlaceV3Input): string {
   if (input.hasRecords && nowJst) {
     const pick = input.records.find((r) => {
       const m = monthJst(r.observedAt);
-      if (!m || !r.name) return false;
+      if (!m || !named(r.name) || !r.mediaUrl || used.has(r.mediaUrl) || cardPhotos.has(r.mediaUrl)) return false;
       const ageMonths = (nowJst.year - m.year) * 12 + (nowJst.month - m.month);
       return ageMonths === 0;
     });
     if (pick) {
+      if (pick.mediaUrl) used.add(pick.mediaUrl);
       season = `<section class="pv3-sec-season" data-pv3-season><div class="pv3-h"><h2>${e(c.season)}</h2></div><a class="pv3-season" href="${e(pick.href)}">${pick.mediaUrl ? `<img src="${e(pick.mediaUrl)}" alt="" loading="lazy" decoding="async">` : ""}<div class="sb"><div class="st">${e(c.seasonTitle(nowJst.month))}</div><p class="sx">${e(pick.name)}</p></div></a></section>`;
     }
   }
 
-  const cards = input.records.slice(0, 3).map((r) =>
-    `<a class="pv3-card" href="${e(r.href)}">${r.mediaUrl ? `<div class="rp"><img src="${e(r.mediaUrl)}" alt="${e(r.name)}" loading="lazy" decoding="async"></div>` : ""}<div class="rb"><div class="rt">${e(r.name || c.unnamed)}</div><div class="rm">${e([r.dateLabel, r.confirmed ? c.confirmed : ""].filter(Boolean).join(" ・ "))}</div></div></a>`).join("");
+  const cards = cardRecs.map((r) => ({ ...r, mediaUrl: r.mediaUrl && !used.has(r.mediaUrl) ? r.mediaUrl : null })).map((r) =>
+    `<a class="pv3-card" href="${e(r.href)}">${r.mediaUrl ? `<div class="rp"><img src="${e(r.mediaUrl)}" alt="${e(named(r.name))}" loading="lazy" decoding="async"></div>` : ""}<div class="rb"><div class="rt">${e(named(r.name) || c.unnamed)}</div><div class="rm">${e([r.dateLabel, r.confirmed ? c.confirmed : ""].filter(Boolean).join(" ・ "))}</div></div></a>`).join("");
   const recent = cards
     ? `<section class="pv3-sec-recent" data-pv3-recent><div class="pv3-h"><h2>${e(c.recent)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div><div class="pv3-cards">${cards}</div></section>`
     : "";

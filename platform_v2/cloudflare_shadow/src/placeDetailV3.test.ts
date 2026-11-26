@@ -90,7 +90,7 @@ test("v3 with records: band 1+2, name on white ground, strip, no boxed stats", (
   assert.doesNotMatch(html.slice(html.indexOf("data-place-page-v3"), html.indexOf("id=\"gpd-details\"")), /記録した人/);
   assert.doesNotMatch(html, /OSM由来の説明文です/);
   assert.doesNotMatch(html, /data-pv3-intro/);
-  assert.match(html, /data-pv3-season[\s\S]*11月の記録[\s\S]*クスノキの剪定/);
+  assert.doesNotMatch(html, /data-pv3-season/);
 });
 
 test("v3 band adapts to 1 and 2 photos", () => {
@@ -167,4 +167,14 @@ test("v3 drops duplicated legacy cards, collapses details, hides unknown save st
   const legacy = render(profile());
   assert.match(legacy, /保存状態を確認できません/);
   assert.match(legacy.slice(legacy.indexOf("<main"), legacy.indexOf("</main>")), /me-place-atlas-hero/);
+});
+
+test("v3 never repeats a band photo in recent cards and hides weak labels", () => {
+  const recs = [1, 2, 3, 4, 5, 6].map((n) => record(n, `2026-10-0${n}T01:00:00Z`, n % 2 ? "unidentified" : `記録${n}`));
+  const html = render(profile({ recentRecords: recs, place: { name: "常盤公園", type: "park", localityLabel: "静岡市葵区", description: "", representativeMedia: [], canonicalPlaceId: "plc_dup" } }), { v3: true });
+  const page = html.slice(html.indexOf("data-place-page-v3"), html.indexOf("gpd-share-title"));
+  const srcs = [...page.matchAll(/<img src="(https:\/\/img\.example\/\d+\.jpg)"/g)].map((m) => m[1]);
+  assert.ok(srcs.length > 0);
+  assert.equal(new Set(srcs).size, srcs.length);
+  assert.doesNotMatch(html, />unidentified</);
 });
