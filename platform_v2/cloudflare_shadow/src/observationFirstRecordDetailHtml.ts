@@ -4,6 +4,8 @@ import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNa
 import type { ObservationFirstCard, ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import { isPublicObservationAiSubjectEligible } from "./publicObservationAiPresentation";
 import { finalizeVisibleAiNoteSlots } from "./recordAiNote";
+import { buildRecordPageSections, type RecordPageFoundItem, type RecordPageMediaSection, type RecordPagePlaceField } from "./recordPageSections";
+import type { ReadingState, RecordReading } from "./recordReading";
 import {
   observationFirstRecordDetailCopy,
   type ObservationFirstRecordDetailCopy,
@@ -110,6 +112,7 @@ export type ObservationFirstRecordPresentation = {
   viewerAuthenticated?: boolean;
   publicationReturn?: OwnerPublicationReturn | null;
   countBand?: { text: string; href: string | null } | null;
+  recordPage?: { reading: RecordReading | null; protectedRecord: boolean } | null;
 };
 
 const escapeHtml = (value: unknown): string => String(value ?? "")
@@ -424,9 +427,10 @@ function renderAiFeedback(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
   copy: ObservationFirstRecordDetailCopy,
+  allowObjectClass = false,
 ): string {
   if (isSignboardRecord(detail, presentation)) return "";
-  if (presentation.recordClass && NON_BIOTA_RECORD_CLASSES.has(presentation.recordClass)) return "";
+  if (presentation.recordClass && NON_BIOTA_RECORD_CLASSES.has(presentation.recordClass) && !(allowObjectClass && presentation.recordClass === "object")) return "";
   const lang = presentation.lang ?? "ja";
   const subjects = detail.observations.filter((card) => card.state === "active").flatMap((card) => [
     ...card.aiSuggestions,
@@ -630,6 +634,54 @@ function renderFoundSection(
     : "";
   return `<section class="of-found" aria-labelledby="of-summary-title"><div class="of-found-head"><h2 id="of-summary-title">${escapeHtml(copy.foundTitle)}</h2>${headingLink}</div>${list}${empty}</section>`;
 }
+
+const readingTone = (state: ReadingState): FoundRow["tone"] => state === "confirmed" ? "confirmed" : state === "proposed" ? "proposed" : "ai";
+const readingStateLabel = (state: ReadingState, copy: ObservationFirstRecordDetailCopy): string => state === "confirmed" ? copy.statusConfirmed : state === "proposed" ? copy.statusProposed : copy.statusAiRead;
+const clock = (ms: number): string => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+const panelAttrs = (index: number): string => `data-of-media-panel="${index}"${index === 0 ? "" : " hidden"}`;
+
+function renderPanelFoundList(items: readonly RecordPageFoundItem[], copy: ObservationFirstRecordDetailCopy): string {
+  return `<ul class="of-found-list">${items.slice(0, 8).map((item) => `<li data-found-kind="${item.kind}"${item.state === "ai_read" ? ' data-ai-candidate="true"' : ""}><span class="of-found-name">${escapeHtml(item.label)}</span>${item.timeRange ? `<span class="of-found-time">${escapeHtml(`${clock(item.timeRange.startMs)}–${clock(item.timeRange.endMs)}`)}</span>` : ""}<span class="of-found-status is-${readingTone(item.state)}">${escapeHtml(readingStateLabel(item.state, copy))}</span></li>`).join("")}</ul>`;
+}
+
+function renderPerMediaFound(
+  sections: readonly RecordPageMediaSection[],
+  fallback: string,
+  copy: ObservationFirstRecordDetailCopy,
+  headingLink: string,
+): string {
+  return sections.map((section, index) => {
+    if (!section.fromReading || section.found.length === 0) {
+      return fallback ? fallback.replace('<section class="of-found" aria-labelledby="of-summary-title">', `<section class="of-found" aria-labelledby="of-summary-title${index === 0 ? "" : `-${index}`}" ${panelAttrs(index)}>`).replace('id="of-summary-title"', `id="of-summary-title${index === 0 ? "" : `-${index}`}"`) : "";
+    }
+    const heading = section.kind === "video" ? copy.sceneFoundVideo : section.kind === "photo" ? copy.sceneFound : copy.foundTitle;
+    const id = `of-summary-title${index === 0 ? "" : `-${index}`}`;
+    return `<section class="of-found" aria-labelledby="${id}" ${panelAttrs(index)}><div class="of-found-head"><h2 id="${id}">${escapeHtml(heading)}</h2>${headingLink}</div>${renderPanelFoundList(section.found, copy)}</section>`;
+  }).join("");
+}
+
+function renderPlaceFieldRows(fields: readonly RecordPagePlaceField[], copy: ObservationFirstRecordDetailCopy): string {
+  const labelOf = (slot: RecordPagePlaceField["slot"]): string => slot === "place_type" ? copy.placeTypeField : copy.environmentFields[slot];
+  return `<dl class="of-place-fields">${fields.map((field) => `<div data-place-slot="${field.slot}"><dt>${escapeHtml(labelOf(field.slot))}</dt><dd>${escapeHtml(field.label)}<span class="of-found-status is-${readingTone(field.state)}">${escapeHtml(readingStateLabel(field.state, copy))}</span></dd></div>`).join("")}</dl>`;
+}
+
+function renderPerMediaPlace(
+  sections: readonly RecordPageMediaSection[],
+  environment: Record<string, string> | null | undefined,
+  copy: ObservationFirstRecordDetailCopy,
+): string {
+  const fallback = renderEnvironment(environment, copy);
+  return sections.map((section, index) => {
+    const id = `of-environment-title${index === 0 ? "" : `-${index}`}`;
+    if (!section.place) {
+      return fallback ? fallback.replace('<section class="of-environment" aria-labelledby="of-environment-title">', `<section class="of-environment" aria-labelledby="${id}" ${panelAttrs(index)}>`).replace('id="of-environment-title"', `id="${id}"`) : "";
+    }
+    const inferred = section.place.some((field) => field.state === "ai_read");
+    return `<section class="of-environment" aria-labelledby="${id}" ${panelAttrs(index)}><h2 id="${id}">${escapeHtml(copy.placeSummary)}</h2>${renderPlaceFieldRows(section.place, copy)}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
+  }).join("");
+}
+
+const PER_MEDIA_STYLES = `.of-place-fields{display:grid;gap:8px;margin:10px 0 0}.of-place-fields>div{display:grid;grid-template-columns:minmax(0,9em) 1fr;gap:4px 12px;align-items:baseline}.of-place-fields dt{margin:0;font-size:13px;color:var(--muted)}.of-place-fields dd{margin:0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}.of-found-time{font-size:12px;color:var(--muted)}`;
 
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
   if (!comparison?.summary.trim() || !comparison.comparedObservedLabel.trim() || !/^[A-Za-z0-9:_-]{1,180}$/u.test(comparison.comparedRecordId)) return "";
@@ -969,7 +1021,7 @@ const RECORD_PAGE_STYLES = `
   }
 `;
 
-function renderRecordPageScript(): string {
+function renderRecordPageScript(panels = false): string {
   return `<script data-of-page-script>
 (function(){
   function reveal(id){var el=document.getElementById(id);if(!el)return false;for(var n=el;n;n=n.parentElement){if(n.tagName==='DETAILS')n.open=true;}el.scrollIntoView({block:'start',behavior:'smooth'});return true;}
@@ -977,7 +1029,7 @@ function renderRecordPageScript(): string {
   document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-of-share]'):null;if(!a||!navigator.share)return;e.preventDefault();navigator.share({title:a.getAttribute('data-share-title')||'',url:a.getAttribute('data-share-url')||location.href}).catch(function(){});});
   var g=document.querySelector('.of-media-gallery'),c=document.querySelector('[data-of-counter]'),th=document.querySelectorAll('[data-of-thumb]');
   if(g&&th.length){
-    var mark=function(i){for(var k=0;k<th.length;k++){if(k===i)th[k].setAttribute('aria-current','true');else th[k].removeAttribute('aria-current');}};
+    var mark=function(i){for(var k=0;k<th.length;k++){if(k===i)th[k].setAttribute('aria-current','true');else th[k].removeAttribute('aria-current');}${panels ? "var pn=document.querySelectorAll('[data-of-media-panel]');for(var q=0;q<pn.length;q++){pn[q].hidden=Number(pn[q].getAttribute('data-of-media-panel'))!==i;}" : ""}};
     g.addEventListener('scroll',function(){mark(Math.round(g.scrollLeft/Math.max(1,g.clientWidth)));},{passive:true});
     for(var j=0;j<th.length;j++){(function(a,i){a.addEventListener('click',function(e){e.preventDefault();g.scrollTo({left:i*g.clientWidth,behavior:'smooth'});});})(th[j],j);}
   }
@@ -1032,8 +1084,11 @@ export function renderObservationFirstRecordDetailHtml(
   const mediaStage = renderRecordMedia(media, title, copy, heroOverlay);
   const photoLightbox = renderPhotoLightbox(hasPhotos, copy);
   const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
-  const aiFeedback = renderAiFeedback(detail, presentation, copy);
-  const environment = renderEnvironment(presentation.environment, copy);
+  const recordPageSections = presentation.recordPage && media.length > 0
+    ? buildRecordPageSections({ reading: presentation.recordPage.reading, media, protectedRecord: presentation.recordPage.protectedRecord }).media
+    : null;
+  const aiFeedback = renderAiFeedback(detail, presentation, copy, Boolean(recordPageSections?.some((section) => section.found.some((item) => item.kind === "feature"))));
+  const environment = recordPageSections ? renderPerMediaPlace(recordPageSections, presentation.environment, copy) : renderEnvironment(presentation.environment, copy);
   const resetTitleForm = customTitle
     ? `<form method="post" action="${escapeHtml(action)}">${hidden("action", "reset_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title-reset`)}<button type="submit" class="is-secondary">${escapeHtml(copy.resetTitle)}</button></form>`
     : "";
@@ -1064,7 +1119,8 @@ export function renderObservationFirstRecordDetailHtml(
         ? { name: identifiedName, label: copy.statusProposed, tone: "proposed" }
         : { name: identifiedName, label: copy.statusConfirmed, tone: "confirmed" }]
     : [];
-  const found = renderFoundSection(identifiedRows.length > 0 ? { ...summary, rows: identifiedRows } : summary, scene, copy, foundLink);
+  const recordFound = renderFoundSection(identifiedRows.length > 0 ? { ...summary, rows: identifiedRows } : summary, scene, copy, foundLink);
+  const found = recordPageSections ? renderPerMediaFound(recordPageSections, recordFound, copy, foundLink) : recordFound;
   const loginHref = `${langPrefix(lang)}/login?redirect=${encodeURIComponent(recordsDiscoveryDetailHref(detail.recordId, lang, presentation.recordsDiscoveryContext ?? null))}`;
   const actionsBlock = detail.owner
     ? (canEditNames || management
@@ -1109,6 +1165,6 @@ export function renderObservationFirstRecordDetailHtml(
   :focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .of-ai-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:#55635b;text-align:left}.of-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.of-title-edit{display:inline-block}.of-title-edit summary{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:750;color:var(--green);cursor:pointer;list-style:none}.of-title-edit summary::-webkit-details-marker{display:none}.of-title-edit form{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.of-title-edit input{flex:1 1 220px;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-title-edit button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800;cursor:pointer}
-  ${RECORD_PAGE_STYLES}
-  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta"><p class="of-meta-date">${escapeHtml(observedLabel + photoCountText)}</p>${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript()}</body></html>`;
+  ${RECORD_PAGE_STYLES}${recordPageSections ? PER_MEDIA_STYLES : ""}
+  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta"><p class="of-meta-date">${escapeHtml(observedLabel + photoCountText)}</p>${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript(Boolean(recordPageSections))}</body></html>`;
 }
