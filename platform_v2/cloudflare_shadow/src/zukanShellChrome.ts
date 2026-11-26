@@ -70,7 +70,8 @@ export const ZUKAN_SHELL_CSS = `
     .zt-nav-capture .zt-nav-cap svg{width:24px;height:24px}
     .zt-sidebar{display:none}
     @media(min-width:960px){
-      .zt-shell{display:grid;grid-template-columns:236px minmax(0,1fr);padding-bottom:0}
+      .zt-shell{padding-bottom:0}
+      .zt-shell:has(>.zt-sidebar){display:grid;grid-template-columns:236px minmax(0,1fr)}
       .zt-sidebar{display:flex;flex-direction:column;gap:6px;padding:20px 16px;border-right:1px solid var(--line);background:#fff;position:sticky;top:0;height:100vh}
       .zt-side-logo{display:inline-flex;align-items:center;min-height:44px;margin:0 0 14px 8px}
       .zt-side-logo img{display:block;height:24px;width:auto}

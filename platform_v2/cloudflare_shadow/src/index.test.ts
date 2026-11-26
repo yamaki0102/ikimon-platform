@@ -32549,6 +32549,8 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.match(prodHtml, /<img src="\/assets\/brand\/zukan-lockup\.svg"/, topUrl);
     assert.match(prodHtml, /data-zk-hero="designed"/, topUrl);
     assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
+    assert.match(prodHtml, /\.zt-shell:has\(>\.zt-sidebar\)\{display:grid/, topUrl);
+    assert.doesNotMatch(prodHtml, /\.zt-shell\{[^}]*display:grid/, topUrl);
     assert.match(prodHtml, />近くのイベントを見る</, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
   }
