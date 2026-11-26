@@ -1035,6 +1035,7 @@ const RECORD_PAGE_STYLES = `
   .of-bottom-actions{margin:26px 0 0}
   .of-page a.of-cta,.of-page a.of-cta:visited,.of-page a.of-login-proposal,.of-page a.of-login-proposal:visited{display:flex;align-items:center;justify-content:center;min-height:52px;padding:15px;border-radius:14px;background:#143F2E;color:#fff;font-size:15.5px;font-weight:700;text-align:center;text-decoration:none}
   .of-settings-link{margin:14px 0 0;text-align:center}
+  .of-title-edit{margin:-4px 0 8px}.of-page .of-title-edit a,.of-page .of-title-edit a:visited{display:inline-flex;align-items:center;min-height:44px;font-size:14px;font-weight:700;color:#0055AD;text-decoration:none}
   .of-page .of-settings-link a,.of-page .of-settings-link a:visited{display:inline-flex;align-items:center;font-size:14px;font-weight:700;color:#0055AD;text-decoration:none}
   .of-cta-note{margin:10px 0 0;font-size:12.5px;line-height:1.5;color:#68746C;text-align:center}
   .of-panel .of-reading,.of-panel .of-manage{margin:18px 0 0;padding:0;border:0;border-radius:0;background:none}
@@ -1167,7 +1168,7 @@ export function renderObservationFirstRecordDetailHtml(
   const titleSection = detail.owner
     ? `<section data-title-edit><h3>${escapeHtml(copy.editTitle)}</h3><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<label>${escapeHtml(copy.editTitle)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required></label><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</section>`
     : "";
-  const titleBlock = `<h1>${escapeHtml(title)}</h1>`;
+  const titleBlock = `<h1>${escapeHtml(title)}</h1>${titleSection ? `<p class="of-title-edit"><a href="#of-manage-body" data-of-open="manage">${escapeHtml(copy.editTitle)}</a></p>` : ""}`;
   const comparison = renderComparison(presentation.comparison, lang, copy);
   const note = presentation.note?.trim() ? `<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
   const publicationReturn = renderOwnerPublicationReturn(detail, { ...presentation, lang }, copy);
