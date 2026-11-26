@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { parseJsonc } from "./read-jsonc.mjs";
 
 const shadowRoot = process.cwd();
 const repoRoot = path.resolve(shadowRoot, "..", "..");
@@ -416,7 +417,7 @@ function extractD1Bindings(wranglerText) {
 
 function parseWranglerConfig(wranglerText) {
   try {
-    return JSON.parse(wranglerText);
+    return parseJsonc(wranglerText);
   } catch {
     return {};
   }

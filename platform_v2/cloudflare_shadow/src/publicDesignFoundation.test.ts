@@ -53,7 +53,7 @@ test("materialized shells keep one foundation copy at the final cascade position
 });
 
 test("customized page styles are retained beside the canonical foundation", () => {
-  const custom = ZUKAN_DESIGN_FOUNDATION_STYLES.replace("#245c3a", "#123456");
+  const custom = ZUKAN_DESIGN_FOUNDATION_STYLES.replace("#143f2e", "#123456");
   const source = publicDocument.replace("</head>", `<style>${custom}</style></head>`);
   assert.ok(applyPublicDesignFoundation(source).includes(custom));
 });

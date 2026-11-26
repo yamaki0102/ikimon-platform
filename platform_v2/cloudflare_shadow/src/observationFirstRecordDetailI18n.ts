@@ -39,6 +39,27 @@ export type ObservationFirstRecordDetailCopy = {
   roleOtherPeopleCount: string;
   aiNextPhotoTitle: string;
   aiPageFooterNote: string;
+  locationBlurred: string;
+  foundTitle: string;
+  statusConfirmed: string;
+  statusProposed: string;
+  statusAiRead: string;
+  fixName: string;
+  editReading: string;
+  suggestReading: string;
+  recordSettings: string;
+  loginCta: string;
+  loginCtaNote: string;
+  photoCounter: string;
+  photoCountSuffix: string;
+  photoOrientation: string;
+  rotatePhotoRight: string;
+  rotatePhotoLeft: string;
+  recordOfDate: string;
+  recordUntitled: string;
+  readingDetails: string;
+  environmentChipValues: Record<string, string>;
+  sceneRowLabels: Record<string, string>;
   learning: string;
   aiCandidate: string;
   communityProposalAvailable: string;
@@ -150,6 +171,8 @@ const ja: ObservationFirstRecordDetailCopy = {
   documentSuffix: "ZUKAN", back: "戻る", menu: "メニュー", records: "記録を見る", home: "ホーム", language: "言語",
   media: "写真・動画・音", enlargePhoto: "写真を大きく見る", zoomActual: "原寸で拡大", zoomFit: "全体表示", closeZoom: "閉じる", openVideo: "動画を開く", openAudio: "音声を開く", mediaNavigation: "メディアを切り替える",
   natureRecord: "自然の記録", publicLocation: "安全な場所", visibility: { public: "公開", limited: "限定公開", private: "非公開" }, aiFeedbackTitle: "AIのコメント", aboutRecord: "この記録について", aiGeneratedNote: "この文章はAIが作成しました", aiGeneratedTitleAndNote: "題名とこの文章はAIが作成しました", aiGeneratedExplanationNote: "この説明はAIが作成しました", aiGeneratedEnvironmentNote: "この場所のようすはAIが読み取りました", editTitle: "題名を編集", saveTitle: "保存", cancelTitle: "取り消す", resetTitle: "自動の題名に戻す", roleRecorderConfirmed: "記録した人が確認", roleOtherPerson: "ほかの人", roleOtherPeopleCount: "ほかの人 {count}人", aiNextPhotoTitle: "次に撮るとよい写真", aiPageFooterNote: "確認の印がない名前と場所のようすは、AIが推定したものです。",
+  locationBlurred: "位置はぼかしています", foundTitle: "見つかったもの", statusConfirmed: "確認済み", statusProposed: "提案あり", statusAiRead: "AIの読み取り", fixName: "名前を直す", editReading: "名前と場所のようすを直す", suggestReading: "名前や場所のようすを提案する", recordSettings: "この記録の設定", loginCta: "ログインする", loginCtaNote: "ログインすると、名前の提案や、自分の記録ができます", photoCounter: "写真 {n} / {total}", photoCountSuffix: "写真 {total}枚", photoOrientation: "写真の向き", rotatePhotoRight: "右に回す", rotatePhotoLeft: "左に回す", recordOfDate: "{m}月{d}日の記録", recordUntitled: "新しい記録", readingDetails: "名前と場所のようすの詳細",
+  environmentChipValues: { artificial: "人工の面", low_grass: "低い草", trees_shrubs: "木の茂み", soil: "土の面", sunny: "日が当たっている", mowing: "草刈りの跡" }, sceneRowLabels: { low_grass: "草むら", urban: "建物" },
   edit: "編集", share: "共有", updatedNotice: "変更を記録しました。", found: "この記録で見つかったもの", aiFound: "候補", aiSectionLabel: "AIの見立て", learning: "わかること", aiCandidate: "候補", communityProposalAvailable: "名前の提案があります", awaitingSubjectName: "名前はこれから", candidateTemplate: "{name}かもしれません",
   openDetails: "詳しく見る", openAll: "すべて見る", recordName: "この記録の名前", photoCandidate: "写真からの候補",
   distinguishingPoints: "見分けるポイント", shootingAdvice: "もう少し詳しく調べるには", compareCandidates: "似ている候補との比較", compareCandidatesLead: "写真から見える特徴と、まだ確認できない点を並べています。", candidateEvidence: "手がかり", candidateUncertainty: "未確認", likelyHigh: "可能性 高", likelyMid: "可能性 中", likelyLow: "可能性 低", similarPhotosHidden: "似た写真{count}枚は1枚にまとめて表示しています。元の写真は削除されていません。", proposals: "名前の提案", proposeName: "名前を提案する",
@@ -172,13 +195,14 @@ const ja: ObservationFirstRecordDetailCopy = {
   separateSubject: "別の対象として分ける", separateName: "分ける対象の呼び名", separate: "分ける", notVisible: "この対象は写っていない", restore: "この対象を戻す",
   combineWith: "まとめる対象", combine: "別の対象とまとめる", assignMedia: "写真を対象へ割り当てる", assignMediaLead: "写真・動画・音と対象の関係を整理できます。", assign: "割り当てる",
   receiveProposals: "名前の提案を受け付ける", pauseProposals: "名前の提案を停止する", visibilitySettings: "公開範囲", visibilityLead: "公開すると、位置をぼかした記録がみんなの記録に加わります。", saveVisibility: "公開範囲を保存", captureInfo: "撮影情報", capturedAt: "撮影日時", place: "場所", scope: "公開範囲", mediaCount: "メディア",
-  photo: "写真", video: "動画", audio: "音声", related: "つながる記録", relatedRecord: "近くの自然の記録", protectedLocation: "位置情報は公開範囲に合わせて保護されています",
+  photo: "写真", video: "動画", audio: "音声", related: "近くの記録", relatedRecord: "近くの自然の記録", protectedLocation: "位置情報は公開範囲に合わせて保護されています",
   publicationReturnTitle: "公開の戻り値", publicationReview: "人によるReview", publicationReviewNotReviewed: "まだReviewされていません", publicationReviewApproved: "Review済み・承認", publicationReviewChangesRequested: "修正依頼", publicationReviewHeld: "保留", publicationReviewRejected: "却下", publicationReviewWithdrawn: "撤回",
   publicationEligibility: "公開状態", publicationNotReady: "まだ公開準備中", publicationEligible: "公開の権利条件を確認済み（公開先の掲載は未確認）", publicationPublished: "公開確認済み", publicationExcluded: "公開対象外", publicationDestinations: "公開先", publicationDestinationMiyakoda: "浜松・都田", publicationConfigured: "公開先は設定済み（この記録の掲載は未確認）", publicationReadBack: "公開確認済み", publicationProductionReadonly: "production Feed（読み取り専用）", publicationPolicyVersion: "ポリシー版", publicationExclusion: "除外理由", publicationExclusionRecordNotPublic: "記録が公開範囲ではありません", publicationExclusionReviewNotApproved: "人によるReviewの承認がありません", publicationExclusionDestinationNotConfigured: "公開先が設定されていません", publicationExclusionConsentRequired: "この公開先への同意がありません", publicationExclusionMinorUnknown: "未成年者区分を確認できません", publicationExclusionGuardianUnknown: "保護者権限を確認できません", publicationExclusionGuardianWithdrawn: "保護者同意が撤回されています", publicationExclusionWithdrawn: "記録または公開同意が撤回されています", publicationExclusionDefault: "必要な公開条件を満たしていません"
 };
 
 const en: ObservationFirstRecordDetailCopy = {
   ...ja,
+  locationBlurred: "Location is blurred", foundTitle: "Found here", statusConfirmed: "Confirmed", statusProposed: "Suggested", statusAiRead: "Read by AI", fixName: "Edit name", editReading: "Edit name and place details", suggestReading: "Suggest a name or place details", recordSettings: "Record settings", loginCta: "Log in", loginCtaNote: "Log in to suggest names or add your own records", photoCounter: "Photo {n} / {total}", photoCountSuffix: "{total} photos", photoOrientation: "Photo orientation", rotatePhotoRight: "Rotate right", rotatePhotoLeft: "Rotate left", recordOfDate: "Record of {m}/{d}", recordUntitled: "New record", readingDetails: "Name and place details", environmentChipValues: {}, sceneRowLabels: {},
   documentSuffix: "ZUKAN", back: "Back", menu: "Menu", records: "Records", home: "Home", language: "Language",
   media: "Photos, video and sound", enlargePhoto: "View full-size photo", zoomActual: "Actual size", zoomFit: "Fit to screen", closeZoom: "Close", openVideo: "Open video", openAudio: "Open audio", mediaNavigation: "Choose media",
   natureRecord: "Nature record", publicLocation: "Safe location", visibility: { public: "Public", limited: "Limited", private: "Private" }, aiFeedbackTitle: "AI comment", aboutRecord: "About this record", aiGeneratedNote: "Generated by AI", aiGeneratedTitleAndNote: "Title and note generated by AI", aiGeneratedExplanationNote: "Explanation generated by AI", aiGeneratedEnvironmentNote: "Place conditions read by AI", editTitle: "Edit title", saveTitle: "Save", cancelTitle: "Cancel", resetTitle: "Reset to auto title", roleRecorderConfirmed: "Confirmed by recorder", roleOtherPerson: "Another person", roleOtherPeopleCount: "{count} other people", aiNextPhotoTitle: "A photo that could help next", aiPageFooterNote: "Unconfirmed names and place conditions are estimated by AI.", edit: "Detailed edit", share: "Share", updatedNotice: "Changes saved.",
@@ -199,7 +223,7 @@ const en: ObservationFirstRecordDetailCopy = {
   subjectTypes: { unknown_subject: "Something visible", organism: "Organism", group: "Group", trace: "Trace", sound: "Sound", pet: "Pet" }, contexts: { unknown: "Not set", wild: "Wild", pet: "Pet", captive: "Captive", cultivated: "Cultivated" },
   separateSubject: "Separate as another subject", separateName: "Name for the new subject", separate: "Separate", notVisible: "This subject is not visible", restore: "Restore this subject", combineWith: "Combine with", combine: "Combine subjects",
   assignMedia: "Assign media to subjects", assignMediaLead: "Organize how photos, video and sound support each subject.", assign: "Assign", receiveProposals: "Allow name suggestions", pauseProposals: "Pause name suggestions", visibilitySettings: "Visibility", visibilityLead: "Public records appear with an approximate location in community records.", saveVisibility: "Save visibility",
-  captureInfo: "Capture information", capturedAt: "Captured", place: "Place", scope: "Visibility", mediaCount: "Media", photo: "Photo", video: "Video", audio: "Audio", related: "Connected records", relatedRecord: "Nearby nature record", protectedLocation: "Location is protected according to the sharing scope",
+  captureInfo: "Capture information", capturedAt: "Captured", place: "Place", scope: "Visibility", mediaCount: "Media", photo: "Photo", video: "Video", audio: "Audio", related: "Nearby records", relatedRecord: "Nearby nature record", protectedLocation: "Location is protected according to the sharing scope",
   publicationReturnTitle: "Publication return", publicationReview: "Human Review", publicationReviewNotReviewed: "Not reviewed yet", publicationReviewApproved: "Approved by Review", publicationReviewChangesRequested: "Changes requested", publicationReviewHeld: "On hold", publicationReviewRejected: "Rejected", publicationReviewWithdrawn: "Withdrawn", publicationEligibility: "Publication state", publicationNotReady: "Not ready for publication", publicationEligible: "Rights allow sharing (feed inclusion unverified)", publicationPublished: "Publication confirmed", publicationExcluded: "Excluded from publication", publicationDestinations: "Destinations", publicationDestinationMiyakoda: "Miyakoda, Hamamatsu", publicationConfigured: "Feed configured (this record's inclusion unverified)", publicationReadBack: "Publication confirmed", publicationProductionReadonly: "Production feed (read-only)", publicationPolicyVersion: "Policy version", publicationExclusion: "Exclusion reason", publicationExclusionRecordNotPublic: "The record is not public", publicationExclusionReviewNotApproved: "Human Review has not approved it", publicationExclusionDestinationNotConfigured: "No destination is configured", publicationExclusionConsentRequired: "Consent does not cover this destination", publicationExclusionMinorUnknown: "Minor status is unresolved", publicationExclusionGuardianUnknown: "Guardian authority is unresolved", publicationExclusionGuardianWithdrawn: "Guardian consent was withdrawn", publicationExclusionWithdrawn: "The record or publication consent was withdrawn", publicationExclusionDefault: "Required publication conditions are not met"
 };
 
@@ -227,6 +251,7 @@ const es: ObservationFirstRecordDetailCopy = {
   subjectTypes: { unknown_subject: "Algo visible", organism: "Ser vivo", group: "Grupo", trace: "Rastro", sound: "Sonido", pet: "Mascota" }, contexts: { unknown: "Sin definir", wild: "Silvestre", pet: "Mascota", captive: "En cautividad", cultivated: "Cultivado" },
   separateSubject: "Separar como otro sujeto", separateName: "Nombre del nuevo sujeto", separate: "Separar", notVisible: "Este sujeto no aparece", restore: "Restaurar este sujeto", combineWith: "Combinar con", combine: "Combinar sujetos",
   assignMedia: "Asignar contenido a los sujetos", assignMediaLead: "Organiza la relación de las fotos, vídeos y sonidos con cada sujeto.", assign: "Asignar", receiveProposals: "Permitir propuestas de nombre", pauseProposals: "Pausar propuestas de nombre", visibilitySettings: "Visibilidad", visibilityLead: "Los registros públicos aparecen con una ubicación aproximada.", saveVisibility: "Guardar visibilidad",
+  locationBlurred: "La ubicación está difuminada", foundTitle: "Lo encontrado", statusConfirmed: "Confirmado", statusProposed: "Con propuesta", statusAiRead: "Lectura de la IA", fixName: "Corregir el nombre", editReading: "Corregir nombre y entorno", suggestReading: "Proponer nombre o entorno", recordSettings: "Ajustes del registro", loginCta: "Iniciar sesión", loginCtaNote: "Inicia sesión para proponer nombres o crear tus propios registros", photoCounter: "Foto {n} / {total}", photoCountSuffix: "{total} fotos", photoOrientation: "Orientación de la foto", rotatePhotoRight: "Girar a la derecha", rotatePhotoLeft: "Girar a la izquierda", recordOfDate: "Registro del {d}/{m}", recordUntitled: "Registro nuevo", readingDetails: "Detalles del nombre y del entorno",
   captureInfo: "Información de captura", capturedAt: "Fecha y hora", place: "Lugar", scope: "Visibilidad", mediaCount: "Contenido", photo: "Foto", video: "Vídeo", audio: "Audio", related: "Registros relacionados", relatedRecord: "Registro natural cercano", protectedLocation: "La ubicación está protegida según el alcance de publicación"
 };
 
@@ -254,6 +279,7 @@ const ptBr: ObservationFirstRecordDetailCopy = {
   subjectTypes: { unknown_subject: "Algo visível", organism: "Ser vivo", group: "Grupo", trace: "Vestígio", sound: "Som", pet: "Animal de estimação" }, contexts: { unknown: "Não definido", wild: "Silvestre", pet: "Animal de estimação", captive: "Em cativeiro", cultivated: "Cultivado" },
   separateSubject: "Separar como outro sujeito", separateName: "Nome do novo sujeito", separate: "Separar", notVisible: "Este sujeito não aparece", restore: "Restaurar este sujeito", combineWith: "Combinar com", combine: "Combinar sujeitos",
   assignMedia: "Atribuir mídia aos sujeitos", assignMediaLead: "Organize como fotos, vídeos e sons apoiam cada sujeito.", assign: "Atribuir", receiveProposals: "Permitir sugestões de nome", pauseProposals: "Pausar sugestões de nome", visibilitySettings: "Visibilidade", visibilityLead: "Registros públicos aparecem com localização aproximada.", saveVisibility: "Salvar visibilidade",
+  locationBlurred: "A localização está desfocada", foundTitle: "O que foi encontrado", statusConfirmed: "Confirmado", statusProposed: "Com sugestão", statusAiRead: "Leitura da IA", fixName: "Corrigir o nome", editReading: "Corrigir nome e ambiente", suggestReading: "Sugerir nome ou ambiente", recordSettings: "Configurações do registro", loginCta: "Entrar", loginCtaNote: "Entre para sugerir nomes ou criar seus próprios registros", photoCounter: "Foto {n} / {total}", photoCountSuffix: "{total} fotos", photoOrientation: "Orientação da foto", rotatePhotoRight: "Girar para a direita", rotatePhotoLeft: "Girar para a esquerda", recordOfDate: "Registro de {d}/{m}", recordUntitled: "Novo registro", readingDetails: "Detalhes do nome e do ambiente",
   captureInfo: "Informações da captura", capturedAt: "Data e hora", place: "Local", scope: "Visibilidade", mediaCount: "Mídia", photo: "Foto", video: "Vídeo", audio: "Áudio", related: "Registros relacionados", relatedRecord: "Registro natural próximo", protectedLocation: "A localização está protegida de acordo com o nível de compartilhamento"
 };
 

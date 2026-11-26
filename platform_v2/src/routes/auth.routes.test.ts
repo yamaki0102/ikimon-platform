@@ -113,3 +113,17 @@ test("login copy contains only user-facing ZUKAN language in every locale", asyn
     await app.close();
   }
 });
+
+test("direct ja login shows the plain mock heading, an explicit record redirect keeps the record framing", async () => {
+  const app = buildApp();
+  try {
+    const plain = await app.inject({ method: "GET", url: "/ja/login" });
+    assert.equal(plain.statusCode, 200);
+    assert.match(plain.body, /<h1>ログイン<\/h1>/);
+    assert.doesNotMatch(plain.body, /<h1>記録を続ける<\/h1>/);
+    const rec = await app.inject({ method: "GET", url: "/ja/login?redirect=/record" });
+    assert.match(rec.body, /<h1>記録を続ける<\/h1>/);
+  } finally {
+    await app.close();
+  }
+});

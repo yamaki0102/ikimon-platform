@@ -6,10 +6,15 @@ import {
   stripMediaLocationMetadata
 } from "./locationPrivacy";
 import { handleNocosilRevisionReceiverApi } from "./nocosilRevisionReceiver";
-import { resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { findYearAgoSamePlaceObservations } from "./zukanLibraryComparisonAndSelect";
+import { renderZukanInviteNotFoundPage, renderZukanWelcomeAndInvitePage, resolveInviteTarget } from "./zukanInviteAndWelcome";
+import { handleLibraryDetailRoute } from "./zukanLibraryDetail";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
-import { renderZukanLibraryPage, renderZukanProfileHubPage } from "./zukanLibraryAndProfile";
+import { renderZukanLibraryPage } from "./zukanLibraryAndProfile";
+import { decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
+import { ownerAreaLabelFromInput, saveOwnerAreaLabel } from "./ownerAreaLabel";
+import { loadProfileHubData, renderNotificationDetail, renderNotificationsList, renderProfileHub, renderProfileSettingsHub, type AlertItem } from "./zukanProfileHub";
 import {
   isWeakTaxonLabel,
   NEUTRAL_TAXON_FALLBACK_JA,
@@ -64,6 +69,10 @@ import {
   handleEventDayAlbumTakeRoute,
   handleSaveEventToPlace,
 } from "./zukanEventDayAlbumTake";
+import {
+  handleSearchExploreRoute,
+  handleSearchSuggestApi,
+} from "./zukanSearchPromptAndSuggest";
 import {
   handleSearchSeasonsApi,
   handleSearchSeasonsRoute,
@@ -157,10 +166,15 @@ import {
   renderZukanTopPage,
   type ZukanTopLang
 } from "./zukanTopPage";
+import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
+const OBSERVATION_CORRECTION_FLAG = "OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
+const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
+import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import { addDisplayRotation, exifCorrectionRotation, normalizeDisplayRotation, planDerivativeOrientation, readJpegDimensions, readJpegExifOrientation, type DisplayRotation } from "./imageOrientation";
 import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
   LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
@@ -208,7 +222,11 @@ import {
   OBSERVATION_VISION_MODEL,
   observationAiSubjects,
 } from "./cloudflareObservationAi";
-import { buildObservationAiDualWritePlan } from "./cloudflareObservationAiDualWrite";
+import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
+import { recordReadingInputs } from "./recordReadingInputs";
+import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects, mergedFromVideoReadings, readVideos, videoReadingInputs, type VideoAssetSource, type VideoReadResult } from "./recordVideoReading";
+import { writeRecordMediaOrder } from "./recordReading";
+import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
   buildObservationAiQualityBacklogPayload,
   GEMINI_QUALITY_BACKLOG_MAX_ACTIVE,
@@ -288,6 +306,7 @@ import {
   buildOwnerObservationUpsertPlan,
   buildRecordProposalPolicyPlan,
   buildRecordVisibilityPlan,
+  observationIdForRecord,
   type ObservationDualWritePlan,
 } from "./cloudflareObservationDualWrite";
 import {
@@ -303,6 +322,11 @@ import {
   renderObservationEditAndCorrectionHtml,
 } from "./zukanObservationEditAndCorrection";
 import {
+  buildObservationDetailEvidence,
+  handleGetObservationEvidence,
+  renderObservationDetailEvidenceHtml,
+} from "./zukanObservationDetailEvidence";
+import {
   ZUKAN_RECORD_PLACE_TIME_SCRIPT,
   ZUKAN_RECORD_PLACE_TIME_STYLES,
   handleCreateRecordPlace,
@@ -313,9 +337,7 @@ import {
   ZUKAN_RECORD_INPUT_SCRIPT,
   ZUKAN_RECORD_INPUT_STYLES,
   handleRecordVoiceTranscribe,
-  renderRecordModeBarHtml,
   renderRecordVoiceButtonHtml,
-  resolveRecordInputMode,
 } from "./zukanRecordInput";
 import {
   handleCreateObservationShareLink,
@@ -331,7 +353,7 @@ import {
   renderRecordDoneCardHtml,
   renderRecordLinkSelectorHtml,
 } from "./zukanRecordLinkAndDone";
-import { ZUKAN_RECORD_ENTRY_STYLES, renderRecordEntryStageHtml } from "./zukanRecordEntry";
+import { ZUKAN_RECORD_CAPTURE_SCRIPT, ZUKAN_RECORD_ENTRY_STYLES, recordCaptureCopy, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
 import { PUBLICATION_FEED_DEFINITIONS } from "../../src/services/publicationFeedDefinitions";
@@ -347,6 +369,7 @@ import {
   publicObservationAiRecordClass,
 } from "./publicObservationAiPresentation";
 import {
+  isObservationProcessingPending,
   renderObservationProcessingStatusPanel,
   type ObservationProcessingStatus,
 } from "../../src/services/observationProcessingStatus";
@@ -403,10 +426,14 @@ import { createD1PublicParticipationSource } from "./genrePortalD1";
 import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, ExecutionContext, ImagesInfo, ImagesOutput, MediaJob, R2Bucket, R2ObjectBody, ScheduledController } from "./core/env";
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
+import { computeRecordCountBand, handleRecordCountBandRoute, readPlaceSeasonCountFacts, renderPlaceSeasonListHtml, type BandDeps } from "./recordCountBand";
+import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
+import { handleGbifConsentRoute } from "./gbifConsent";
+import { gbifDbFromD1 } from "./gbifDb";
 import { handleObservationEventApi, handlePublicProgramReceiverApi } from "./programs/api";
 import { handleObservationEventPages, handleSyntheticRenriBrowserQa } from "./programs/pages";
 import { cacheVerifiedOriginalUiObject, getCachedOriginalUiManifest, getCachedOriginalUiObject, indexOriginalUiManifest, storeOriginalUiManifest } from "./originalUiVersionCache";
-import { renderSiteDocument } from "../../src/ui/siteShell";
+import { renderSiteDocument, renderRecordCaptureEngineAssets, recordCaptureCameraCopy } from "../../src/ui/siteShell";
 import type { SiteLang } from "../../src/i18n";
 import { autoMatchObservationToActiveRalliesNative, getObservationEventSessionByEventCode } from "./programs/rally";
 import { appendObservationEventLive, buildClearedObservationEventGuestCookie, claimObservationEventGuestParticipant, findObservationEventParticipant, generateNativeObservationEventQuests, getObservationEventSessionById, mapObservationEventSession, observationEventGuestCredentialDigest, readObservationEventGuestCredential, recordObservationEventMeshVisit, recordObservationEventServerFunnelMetric, type ObservationEventSessionD1Row } from "./programs/runtime";
@@ -467,8 +494,8 @@ interface LegacyObservationUpsertInput {
   clientSubmissionId?: string | null;
   userId: string;
   observedAt: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   locationAccuracyM?: number | null;
   note?: string | null;
   siteId?: string | null;
@@ -778,6 +805,7 @@ interface LegacyPhotoUploadInput {
   base64Data?: string | null;
   mediaRole?: string | null;
   facePrivacy?: string | null;
+  position?: number | null;
 }
 
 interface LegacyPhotoAssetRow {
@@ -3159,6 +3187,11 @@ export const worker = {
         return getOriginalUiStaticAsset(request, url, env);
       }
 
+      const assetThumbMatch = url.pathname.match(/^\/thumb\/(\d{2,4})\/([A-Za-z0-9._-]{3,160})$/);
+      if ((request.method === "GET" || request.method === "HEAD") && assetThumbMatch?.[1] && assetThumbMatch[2]) {
+        return getAssetLedgerThumbRedirect(request, Number(assetThumbMatch[1]), assetThumbMatch[2], env);
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiThumbPath(url.pathname)) {
         return getOriginalUiThumb(request, url, env);
       }
@@ -3749,6 +3782,32 @@ export const worker = {
         return getShadowVideoThumbnail(decodeURIComponent(shadowVideoThumbnailMatch[1]), env);
       }
 
+      if (/^\/api\/v1\/(?:records\/[^/]+\/reading-(?:proposals|history)|admin\/reading-proposals\/[^/]+)$/.test(nativePathname)) {
+        const proposalResponse = await handleRecordProposalRoute({
+          ...recordProposalDeps(env),
+          fieldNames: async (userIds) => {
+            const rows = (await env.CORE_DB.prepare(`SELECT user_id, display_name FROM auth_users WHERE user_id IN (${userIds.map(() => "?").join(", ")})`).bind(...userIds).all<{ user_id: string; display_name: string }>()).results;
+            return new Map(rows.map((row) => [row.user_id, row.display_name]));
+          },
+          readSession: async () => readCompatibleSession(request, env),
+          isAdmin: (session) => isSpecialistAuthorityAdminRole(session as SessionSnapshot),
+        }, request, nativePathname);
+        if (proposalResponse) return proposalResponse;
+      }
+
+      if (request.method === "GET" && /^\/api\/v1\/records\/[^/]+\/(?:count-band|place-season)$/.test(nativePathname)) {
+        const wantsHtml = (request.headers.get("accept") ?? "").includes("text/html");
+        const bandResponse = await handleRecordCountBandRoute(recordCountBandDeps(env), async () => readCompatibleSession(request, env), nativePathname, wantsHtml
+          ? (list) => html(renderPlaceSeasonListHtml(list), 200, { ...browserSecurityHeaders(createHtmlCspNonce(), env.ENVIRONMENT === "production"), "cache-control": "private, no-store" })
+          : undefined);
+        if (bandResponse) return bandResponse;
+      }
+
+      if ((request.method === "GET" || request.method === "POST") && /^\/api\/v1\/records\/[^/]+\/gbif-consent$/.test(nativePathname)) {
+        const consentResponse = await handleGbifConsentRoute({ db: gbifDbFromD1(env.OBS_DB) }, async () => readCompatibleSession(request, env), request, nativePathname);
+        if (consentResponse) return consentResponse;
+      }
+
       const publicDetailApiMatch = nativePathname.match(/^\/api\/v1\/observations\/([^/]+)\/public-detail$/);
       if (request.method === "GET" && publicDetailApiMatch?.[1]) {
         return getPublicObservationDetailJson(decodeURIComponent(publicDetailApiMatch[1]), env);
@@ -3777,9 +3836,42 @@ export const worker = {
         const session = await readCompatibleSession(request, env).catch(() => null);
         const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
         const searchQuery = url.searchParams.get("q") ?? "";
-        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
-        const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
-        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
+        const before = decodePageCursor(url.searchParams.get("before")) ? url.searchParams.get("before") : null;
+        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja", { before });
+        const noticeHtml = before ? "" : await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml, continuation: Boolean(before) }), 200, { "cache-control": "private, no-store" });
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/library/group" || nativePathname === "/library/year-ago")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        const detail = await handleLibraryDetailRoute(env, session, lang, nativePathname, url.searchParams);
+        if (detail) return detail;
+      }
+
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/welcome") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
+        const step = Number(url.searchParams.get("step") ?? "1");
+        return html(renderZukanWelcomeAndInvitePage({ mode: "onboarding", lang, step: Number.isFinite(step) ? step : 1, authenticated: Boolean(session && !session.banned) }), 200, { "cache-control": "private, no-store" });
+      }
+
+      const inviteMatch = nativePathname.match(/^\/invite\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && inviteMatch?.[1]) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
+        const resolved = await resolveInviteTarget(env.OBS_DB, decodeURIComponent(inviteMatch[1]));
+        if (!resolved.ok) {
+          return html(renderZukanInviteNotFoundPage(lang), 404, { "cache-control": "no-store" });
+        }
+        return html(renderZukanWelcomeAndInvitePage({
+          mode: resolved.kind === "event" ? "event_invite" : "place_invite",
+          lang,
+          targetTitle: resolved.title,
+          targetSubtitle: resolved.kind === "event" ? undefined : resolved.subtitle,
+          targetHref: lang === "en" ? resolved.targetHref.replace(/^\/ja\//, "/en/") : resolved.targetHref,
+          authenticated: Boolean(session && !session.banned),
+        }), 200, { "cache-control": "private, no-store" });
       }
 
       if (nativePathname === "/library/link" || nativePathname === "/library/link/confirm" || nativePathname === "/library/link/done") {
@@ -3800,6 +3892,22 @@ export const worker = {
       const otayoriStatusMatch = url.pathname.match(/^\/api\/v1\/otayori\/([^/]+)\/(?:status|reply)$/);
       if ((request.method === "PATCH" || request.method === "POST") && otayoriStatusMatch?.[1]) {
         return handleUpdateOtayoriStatusRequest(request, env, decodeURIComponent(otayoriStatusMatch[1]));
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/library/year-ago") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        }
+        const placeId = url.searchParams.get("placeId") ?? "";
+        if (!placeId.trim()) {
+          return json({ ok: false, error: "place_id_required" }, 400, { "cache-control": "no-store" });
+        }
+        const items = await findYearAgoSamePlaceObservations(env.OBS_DB, {
+          userId: session.userId,
+          placeId,
+        });
+        return json({ ok: true, placeId, items }, 200, { "cache-control": "private, no-store" });
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/invites/resolve") {
@@ -3976,6 +4084,17 @@ export const worker = {
         );
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
+        return handleSearchSuggestApi(url, env.OBS_DB);
+      }
+
+      const searchExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/explore$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchExploreMatch) {
+        const viewLang = (searchExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleSearchExploreRoute(url, viewLang, session, env.OBS_DB);
+      }
+
       if (request.method === "POST" && url.pathname === "/api/v1/profile/visibility") {
         const session = await readCompatibleSession(request, env).catch(() => null);
         return handleUpdateProfileVisibility(request, session, env.OBS_DB);
@@ -4025,6 +4144,38 @@ export const worker = {
         return handleMyRecordsApi(url, session, env.OBS_DB);
       }
 
+      const notificationsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/notifications(?:\/([^/]+))?$/);
+      if ((request.method === "GET" || request.method === "HEAD") && notificationsMatch) {
+        const viewLang = (notificationsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session || session.banned) {
+          return new Response(null, { status: 302, headers: { location: `/${viewLang}/login?redirect=${encodeURIComponent(url.pathname)}`, "cache-control": "no-store" } });
+        }
+        const alertsRes = await getPersonalAlerts(session, env).catch(() => null);
+        const alertsJson = (alertsRes ? await alertsRes.json().catch(() => null) : null) as { alerts?: AlertItem[] } | null;
+        const alerts = alertsJson?.alerts ?? [];
+        const noStore = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
+        const who = session.displayName || session.userId;
+        if (!notificationsMatch[2]) {
+          return new Response(request.method === "HEAD" ? null : renderNotificationsList(viewLang, who, alerts), { status: 200, headers: noStore });
+        }
+        const found = alerts.find((a) => a.deliveryId === decodeURIComponent(notificationsMatch[2]!));
+        if (!found) {
+          return new Response(request.method === "HEAD" ? null : renderNotificationsList(viewLang, who, alerts), { status: 404, headers: noStore });
+        }
+        const rec = found.occurrenceId
+          ? await env.OBS_DB.prepare(
+              `SELECT o.observation_id AS id, o.taxon_label AS title, o.observed_at AS observedAt, o.public_area_label AS area,
+                      (SELECT a.asset_id FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed' LIMIT 1) AS assetId
+                 FROM observations o WHERE o.observation_id = ? AND o.owner_user_id = ?`
+            ).bind(found.occurrenceId, session.userId).first<{ id: string; title: string | null; observedAt: string; area: string | null; assetId: string | null }>().catch(() => null)
+          : null;
+        return new Response(
+          request.method === "HEAD" ? null : renderNotificationDetail(viewLang, who, found, rec ? { ...rec, title: (rec.title ?? "").trim() || "名前なしの記録" } : null),
+          { status: 200, headers: noStore }
+        );
+      }
+
       const myRecordsMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/records$/);
       if ((request.method === "GET" || request.method === "HEAD") && myRecordsMatch) {
         const viewLang = (myRecordsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
@@ -4069,14 +4220,14 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleLinkedAndSavedApi(session, env.OBS_DB);
+        return handleLinkedAndSavedApi(session, env.OBS_DB, env.CORE_DB as never);
       }
 
       const linkedSavedMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/linked-saved$/);
       if ((request.method === "GET" || request.method === "HEAD") && linkedSavedMatch) {
         const viewLang = (linkedSavedMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB);
+        return handleLinkedAndSavedRoute(url, viewLang, session, env.OBS_DB, env.CORE_DB as never);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
@@ -4741,12 +4892,19 @@ export const worker = {
       if (observationCorrectionMatch?.[1]) {
         const obsId = decodeURIComponent(observationCorrectionMatch[1]);
         const session = await readCompatibleSession(request, env);
+        if (!observationCorrectionOn(env, session)) return new Response("Not Found", { status: 404 });
         if (request.method === "POST") {
           return handlePostObservationCorrection(obsId, request, session, env);
         }
         if (request.method === "GET") {
           return handleGetObservationCorrections(obsId, session, env);
         }
+      }
+
+      const observationEvidenceMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/evidence$/);
+      if (request.method === "GET" && observationEvidenceMatch?.[1]) {
+        const session = await readCompatibleSession(request, env);
+        return handleGetObservationEvidence(decodeURIComponent(observationEvidenceMatch[1]), session, env.OBS_DB);
       }
 
       const placeProposalApiMatch = url.pathname.match(/^\/api\/v1\/places\/([^/]+)\/proposals$/);
@@ -6656,6 +6814,22 @@ async function submitCompatibleObservationIdentification(occurrenceId: string, r
   const ownerPlan = recordRow
     ? await existingOwnerObservationDualWritePlan(recordId, recordRow.owner_user_id, env)
     : null;
+  if (observationDualWriteEnabled(env) && recordRow) {
+    if (ownerPlan) await env.OBS_DB.batch(observationDualWriteStatements(env, ownerPlan));
+    const gate = await submitReadingProposal({ db: env.OBS_DB as unknown as ProposalDb }, {
+      recordId,
+      actor: session,
+      body: {
+        requestId: `legacy-${(await sha256Hex(textToArrayBuffer(`${sourceKey}:${proposedName}`))).slice(0, 48)}`,
+        op: "propose",
+        observationId: await observationIdForRecord(recordId),
+        name: proposedName.slice(0, 160),
+      },
+    });
+    if (gate.status === 429 || (gate.status === 403 && gate.body.error === "proposer_suspended")) {
+      return json(gate.body, gate.status, { "cache-control": "no-store", ...(gate.headers ?? {}) });
+    }
+  }
   const identificationPlan = observationDualWriteEnabled(env) && recordRow
     ? await buildIdentificationClaimDualWritePlan({
       recordId,
@@ -22451,9 +22625,13 @@ async function getNativeZukanTopHtmlIfAvailable(
   const nativePathname = stripPublicLangPrefix(url.pathname);
   if (nativePathname !== "/" && nativePathname !== "/index.html") return null;
   const session = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
-  const authenticated = Boolean(session && !session.banned);
+  const sessionActive = Boolean(session && !session.banned);
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const asGuest = lang === "ja" && sessionActive && viewAsGuest(request, env, GUEST_TOP_V2_FLAG, session);
+  const authenticated = sessionActive && !asGuest;
+  const guestViewer = viewerFromSession(session);
+  const guestTopV2 = lang === "ja" && !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
   const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
@@ -22462,15 +22640,17 @@ async function getNativeZukanTopHtmlIfAvailable(
     authenticated,
     displayName: session?.displayName ?? null,
     searchQuery,
-    cspNonce
+    cspNonce,
+    ...(guestTopV2 ? { guestTopV2: true } : {})
   });
   return new Response(request.method === "HEAD" ? null : body, {
     status: 200,
     headers: {
       ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
       "content-type": "text/html; charset=utf-8",
-      "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
-      "x-ikimon-cloudflare-native": "zukan-top-v2"
+      "cache-control": authenticated || guestTopV2 ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "zukan-top-v2",
+      ...(guestTopV2 ? { "x-zukan-guest-top": "v2" } : {})
     }
   });
 }
@@ -22663,6 +22843,8 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       failed: "The photo is not saved yet. Keep it selected and try saving again."
     };
   const startMode = url.searchParams.get("start") === "video" ? "video" : "photo";
+  const captureEngineLang = lang === "pt-br" ? "pt-BR" : lang;
+  const captureCopy = recordCaptureCopy(lang);
   const eventCode = safeObservationEventContextParam(url, ["event", "eventCode"], 32);
   const eventSessionId = safeObservationEventContextParam(url, ["eventSessionId"], 128);
   const eventTeamId = safeObservationEventContextParam(url, ["teamId"], 128);
@@ -22690,11 +22872,11 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-hero h1{margin:0 0 6px;font-size:30px;line-height:1.12;letter-spacing:0}
     .cf-record-hero p{margin:0;color:var(--muted);font-size:16px}
     .cf-record-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:0 0 12px}
-    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(16,37,26,.06);font-weight:900;cursor:pointer}
+    .cf-record-pick{display:block;min-height:86px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:none;font-weight:900;cursor:pointer}
     .cf-record-pick.is-primary{border-color:var(--teal);background:var(--mint)}
     .cf-record-pick input{position:absolute;inline-size:1px;block-size:1px;opacity:.01}
     .cf-record-pick span{display:block;margin-top:4px;color:var(--muted);font-size:14px;font-weight:800}
-    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 14px 34px rgba(16,37,26,.08)}
+    .cf-record-form{padding:14px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:none}
     .cf-record-form[hidden],.cf-record-submit[hidden]{display:none!important}
     .cf-record-field{display:block;margin:0 0 12px;font-weight:900}
     .cf-record-field span{display:block;margin:0 0 6px;color:var(--muted);font-size:14px}
@@ -22703,7 +22885,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-coordinates{margin:0 0 12px;border:1px solid var(--line);border-radius:12px;background:var(--mint);overflow:hidden}
     .cf-record-coordinates summary{min-height:44px;display:flex;align-items:center;cursor:pointer;padding:0 12px;font-weight:900}
     .cf-record-coordinate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px 12px}
-    .cf-record-submit button{width:100%;min-height:48px;border:0;border-radius:var(--zukan-radius-content);background:var(--teal);color:#fff;font-weight:900;font-size:16px}
+    .cf-record-submit button{width:100%;min-height:52px;border:0;border-radius:16px;background:var(--teal);color:#fff;font-weight:900;font-size:16px}
     .cf-record-photo-review{display:grid;gap:10px;margin:0 0 14px}
     .cf-record-photo-review[hidden]{display:none}
     .cf-record-photo-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;font-weight:900}
@@ -22718,15 +22900,17 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     .cf-record-zoom::backdrop{background:rgba(0,0,0,.78)}
     .cf-record-zoom img{display:block;max-width:100%;max-height:78vh;margin:auto}
     .cf-record-zoom button{min-height:44px;margin-top:8px;border-radius:4px;font:inherit;font-size:16px}
-    .cf-record-confirm{width:min(92vw,560px);max-width:none;padding:20px;border:0;border-radius:8px;color:var(--ink)}
-    .cf-record-confirm h2{margin:0 0 12px;font-size:20px}
-    .cf-record-confirm p{margin:8px 0;font-size:16px;overflow-wrap:anywhere}
-    .cf-record-confirm-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-    .cf-record-confirm-actions button{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:4px;background:white;color:var(--ink);font:inherit;font-size:16px}
-    .cf-record-confirm-actions button[type=submit]{background:var(--teal);border-color:var(--teal);color:white}
-    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900}
-    .cf-record-saved-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-    .cf-record-saved-links a{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--teal);border-radius:4px;background:white;color:var(--teal);text-decoration:none;font-weight:800}
+    .cf-record-confirm{width:min(92vw,560px);max-width:none;padding:24px 20px;border:0;border-radius:20px;color:var(--ink)}
+    .cf-record-confirm h2{margin:0 0 8px;font-size:18px;text-align:center}
+    .cf-record-confirm p{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;margin:0;padding:12px 0;border-bottom:1px solid var(--line);font-size:16px;overflow-wrap:anywhere}
+    .cf-record-confirm p strong{color:var(--muted);font-weight:700}
+    .cf-record-confirm p.is-note{display:block;border-bottom:0;color:var(--muted);font-size:15px}
+    .cf-record-confirm-actions{display:flex;flex-direction:column-reverse;gap:8px;margin-top:16px}
+    .cf-record-confirm-actions button{min-height:52px;padding:8px 14px;border:0;border-radius:16px;background:transparent;color:var(--teal);font:inherit;font-size:16px;font-weight:700}
+    .cf-record-confirm-actions button[type=submit]{background:var(--teal);color:white;font-size:17px}
+    .cf-record-status{min-height:28px;margin-top:10px;color:var(--teal);font-weight:900;text-align:center;font-size:17px}
+    .cf-record-saved-links{display:grid;gap:12px;margin-top:12px}
+    .cf-record-saved-links a{display:flex;align-items:center;justify-content:center;min-height:52px;padding:8px 14px;border:1.5px solid var(--teal);border-radius:16px;background:white;color:var(--teal);text-decoration:none;font-weight:700;font-size:16px}
     .cf-record-saved-links a.is-primary{background:var(--teal);color:white}
     .cf-record-brand:focus-visible,.cf-record-pick:has(input:focus-visible),.cf-record-field :is(input,textarea):focus-visible,.cf-record-coordinates summary:focus-visible,.cf-record-submit button:focus-visible,.cf-record-photo button:focus-visible,.cf-record-add:focus-visible,.cf-record-zoom button:focus-visible,.cf-record-confirm-actions button:focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
     @media (max-width:520px){.cf-record-shell{width:calc(100% - 16px);margin-top:14px}.cf-record-hero h1{font-size:26px}.cf-record-coordinate-grid{grid-template-columns:1fr}.cf-record-header{padding:11px 12px}.cf-record-profile{max-width:46%}}
@@ -22737,26 +22921,20 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     ${ZUKAN_RECORD_ENTRY_STYLES}
   </style>
 </head>
-<body data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
+<body class="zt-capturing" data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
   ${renderAppExperienceHeader(lang, 2, true)}
   <main id="main-content" tabindex="-1" class="cf-record-shell">
-    ${renderRecordModeBarHtml({ lang, prefix, activeMode: resolveRecordInputMode(url) })}
     ${renderRecordEntryStageHtml({
       lang,
       prefix,
-      title,
-      cameraLabel: mediaCopy.camera,
-      cameraHint: mediaCopy.cameraHint,
-      photoLabel: mediaCopy.photo,
-      photoHint: mediaCopy.photoHint,
-      videoLabel: mediaCopy.video,
-      videoHint: mediaCopy.videoHint,
-      prompt: mediaCopy.prompt,
-      privateBoundary: mediaCopy.privateBoundary
+      copy: captureCopy,
+      engineCopy: recordCaptureCameraCopy(captureEngineLang),
+      startMode,
+      voiceButtonHtml: renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })
     })}
+    ${renderRecordCaptureEngineAssets("", captureEngineLang)}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
-      <label class="cf-record-field"><span>${escapeHtml(mediaCopy.note)}</span><div class="zt-field-input-row"><textarea name="note" rows="3"></textarea>${renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })}</div><p id="record-voice-status" class="zt-voice-status" aria-live="polite"></p></label>
       ${renderRecordPlaceAndTimeHtml({
         lang,
         initialPlaceId: safeObservationEventContextParam(url, ["placeId"], 128),
@@ -22792,7 +22970,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     <p><strong>${escapeHtml(mediaCopy.reviewCount)}:</strong> <span id="record-confirm-count"></span></p>
     <p><strong>${escapeHtml(mediaCopy.reviewNote)}:</strong> <span id="record-confirm-note"></span></p>
     <p><strong>${escapeHtml(mediaCopy.reviewLocation)}:</strong> <span id="record-confirm-location"></span></p>
-    <p>${escapeHtml(mediaCopy.reviewAudience)}</p>
+    <p class="is-note">${escapeHtml(mediaCopy.reviewAudience)}</p>
     <div class="cf-record-confirm-actions">
       <button type="button" id="record-confirm-back">${escapeHtml(mediaCopy.reviewBack)}</button>
       <button type="submit" form="record-form" id="record-confirm-save">${escapeHtml(mediaCopy.savePrivate)}</button>
@@ -22830,6 +23008,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     };
     let mediaKind = document.body.dataset.recordStart === "video" ? "video" : "photo";
     function showSavedRecordLinks(visitId, resolvedPlaceId) {
+      if (typeof stageSaved === "function") stageSaved(visitId, resolvedPlaceId);
       if (!savedLinks) return;
       savedLinks.textContent = "";
       const isEn = recordPrefix === "/en";
@@ -22855,16 +23034,36 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       savedLinks.hidden = false;
     }
     function setStatus(message, error) {
+      if (typeof stageStatus === "function") stageStatus(message, error);
       if (!status) return;
       status.textContent = message;
       status.style.color = error ? "#b42318" : "";
     }
     let selectedPhotos = [];
     let photoPreviewUrls = [];
+    let capturedVideoFile = null;
     function selectedFiles() {
       const input = mediaKind === "video" ? videoInput : photoInput;
       if (mediaKind === "photo") return selectedPhotos;
+      if (capturedVideoFile) return [capturedVideoFile];
       return input && input.files && input.files[0] ? [input.files[0]] : [];
+    }
+    function removePhotoAt(index) {
+      selectedPhotos.splice(index, 1);
+      preparedPhotoUploads.splice(index, 1);
+      renderPhotoReview();
+      if (selectedPhotos.length === 0) {
+        clearTimeout(draftTimer);
+        draftTimer = null;
+        draftRevision += 1;
+        draftWrites = draftWrites.then(async () => {
+          await deleteRecordDraft();
+          volatileDraft = false;
+          setStatus(copy.emptySelection, false);
+        }).catch(() => setStatus(copy.draftFailed, true));
+        return;
+      }
+      queueDraftSave();
     }
     function renderPhotoReview() {
       const review = document.getElementById("record-photo-review");
@@ -22882,23 +23081,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         const zoom = document.createElement("button"); zoom.type = "button"; zoom.className = "cf-record-photo-zoom"; zoom.textContent = copy.zoomPhoto;
         zoom.addEventListener("click", () => { const dialog = document.getElementById("record-photo-zoom"); const preview = dialog.querySelector("img"); preview.src = image.src; preview.alt = file.name || copy.photo; dialog.showModal(); });
         const remove = document.createElement("button"); remove.type = "button"; remove.className = "cf-record-photo-remove"; remove.textContent = "×"; remove.setAttribute("aria-label", copy.removePhoto + ": " + (file.name || (index + 1)));
-        remove.addEventListener("click", () => {
-          selectedPhotos.splice(index, 1);
-          preparedPhotoUploads.splice(index, 1);
-          renderPhotoReview();
-          if (selectedPhotos.length === 0) {
-            clearTimeout(draftTimer);
-            draftTimer = null;
-            draftRevision += 1;
-            draftWrites = draftWrites.then(async () => {
-              await deleteRecordDraft();
-              volatileDraft = false;
-              setStatus(copy.emptySelection, false);
-            }).catch(() => setStatus(copy.draftFailed, true));
-            return;
-          }
-          queueDraftSave();
-        });
+        remove.addEventListener("click", () => removePhotoAt(index));
         item.append(image, zoom, remove); grid.append(item);
       });
     }
@@ -23068,13 +23251,12 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
         queueDraftSave();
       }, () => setStatus(copy.positionRequired, true), { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
     });
+    const ztCopyData = ${JSON.stringify(captureCopy)};
+    ${ZUKAN_RECORD_CAPTURE_SCRIPT}
     function reveal(kind) {
       mediaKind = kind;
-      if (form) form.hidden = false;
-      if (submitPanel) submitPanel.hidden = false;
-      setStatus(copy.statusReady, false);
+      stageSync();
       queueDraftSave();
-      renderPhotoReview();
     }
     function eventMetric(eventName, values = {}) {
       if (!eventContext.eventSessionId) return Promise.resolve();
@@ -23102,6 +23284,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       return "unknown";
     }
     function addPhotoFiles(input) {
+      if (submitting || submitRequested || serverSaved) return;
       const incoming = input && input.files ? Array.from(input.files).filter(file => file instanceof File && file.size > 0) : [];
       pendingVideoUid = "";
       pendingVideoUploadUrl = "";
@@ -23171,14 +23354,16 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       const formData = new FormData(form);
       const latitudeText = String(formData.get("latitude") || "").trim();
       const longitudeText = String(formData.get("longitude") || "").trim();
-      const latitude = Number(latitudeText);
-      const longitude = Number(longitudeText);
+      const locationUnset = !latitudeText && !longitudeText;
+      const latitude = locationUnset ? null : Number(latitudeText);
+      const longitude = locationUnset ? null : Number(longitudeText);
       const userId = form.dataset.userId || "";
-      if (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      if (!locationUnset && (!latitudeText || !longitudeText || !Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180)) {
         setStatus(copy.positionRequired, true);
         return;
       }
-      try { if (!await claimDraft(true)) return; } catch { setStatus(copy.draftFailed, true); return; }
+      const explicitObservedAtMs = new Date(String(formData.get("observedAtLocal") || "")).getTime();
+      try { if (!await claimDraft(true)) { setStatus(copy.draftFailed, true); return; } } catch { setStatus(copy.draftFailed, true); return; }
       submitting = true;
       confirmDialog.close();
       document.querySelectorAll(".cf-record-picker input, #record-form input, #record-form textarea, #record-use-location").forEach(el => el.disabled = true);
@@ -23187,7 +23372,9 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       document.getElementById("record-confirm-save").disabled = true;
       if (!recoverySubmissionId) {
         recoverySubmissionId = "record-" + Date.now() + "-" + Math.random().toString(16).slice(2, 8);
-        recoveryObservedAt = new Date().toISOString();
+        recoveryObservedAt = Number.isFinite(explicitObservedAtMs) && explicitObservedAtMs <= Date.now() && explicitObservedAtMs >= Date.UTC(1900, 0, 1)
+          ? new Date(explicitObservedAtMs).toISOString()
+          : new Date().toISOString();
       }
       if (mediaKind === "video" && !pendingVideoIdempotencyKey) pendingVideoIdempotencyKey = newVideoUploadKey();
       if (!recoveryObservedAt) recoveryObservedAt = new Date().toISOString();
@@ -23245,6 +23432,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
             await postJson("/api/v1/observations/" + encodeURIComponent(visitId) + "/photos/upload", {
               ...upload,
               mediaRole: index === 0 ? "primary" : "context",
+            position: index,
               facePrivacy: photoFacePrivacyStatus(upload)
             });
             preparedPhotoUploads[index] = null;
@@ -23255,7 +23443,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-          showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
+          showSavedRecordLinks(visitId, (observation && observation.placeId) || initialPlaceId);
           setStatus(copy.saved + " " + files.length + copy.photoSaved, false);
           return;
         }
@@ -23309,7 +23497,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           serverSaved = true;
           submitting = false;
           volatileDraft = false;
-        showSavedRecordLinks(visitId, (payload && payload.observation && payload.observation.placeId) || initialPlaceId);
+        showSavedRecordLinks(visitId, (observation && observation.placeId) || initialPlaceId);
         setStatus(copy.saved + " " + copy.videoSaved, false);
       } catch (error) {
         submitting = false;
@@ -23413,261 +23601,24 @@ async function getSessionAwareProfileHtml(request: Request, url: URL, env: Env):
     lang: publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja",
     settings
   };
-  const originalResponse = await getOriginalUiHtml(request, url, env, session);
-  const headers = new Headers(originalResponse.headers);
-  headers.set("content-type", "text/html; charset=utf-8");
-  headers.set("cache-control", "no-store");
-  headers.set("vary", "cookie, authorization");
-  headers.set("x-ikimon-cloudflare-native", "profile-session");
-
-  if (request.method === "HEAD") {
-    return new Response(null, { status: originalResponse.status, headers });
-  }
-
-  const originalHtml = await originalResponse.text();
-  const cloudflareHtml = renderCloudflareProfileHtml(session, options);
-  const body = injectCloudflareProfileIntoOriginalShell(originalHtml, cloudflareHtml);
-  return new Response(body, { status: originalResponse.status, headers });
-}
-
-function injectCloudflareProfileIntoOriginalShell(originalHtml: string, cloudflareHtml: string): string {
-  const originalMain = originalHtml.match(/<main\b[\s\S]*?<\/main>/i)?.[0] ?? "";
-  const cloudflareMain = cloudflareHtml.match(/<main\b[\s\S]*?<\/main>/i)?.[0] ?? "";
-  const cloudflareStyle = cloudflareHtml.match(/<style>[\s\S]*?<\/style>/i)?.[0] ?? "";
-  const cloudflareTitle = cloudflareHtml.match(/<title>[\s\S]*?<\/title>/i)?.[0] ?? "";
-  if (!originalMain || !cloudflareMain || !cloudflareStyle || !/<\/head>/i.test(originalHtml)) {
-    return cloudflareHtml;
-  }
-
-  return originalHtml
-    .replace(/<title>[\s\S]*?<\/title>/i, cloudflareTitle)
-    .replace(/<\/head>/i, `${cloudflareStyle}\n</head>`)
-    .replace(/<body(?![^>]*\bdata-cloudflare-profile=)([^>]*)>/i, '<body$1 data-cloudflare-profile="signed-in">')
-    .replace(/<main\b[\s\S]*?<\/main>/i, cloudflareMain);
-}
-
-function renderCloudflareProfileHtml(
-  session: SessionSnapshot,
-  options: { lang: string; settings: boolean }
-): string {
-  const lang = options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja";
-  if (!options.settings) {
-    return renderZukanProfileHubPage({ lang, displayName: session.displayName || session.userId });
-  }
-  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
-  const copy = lang === "ja"
-    ? {
-      title: options.settings ? "プロフィール設定" : "自分",
-      eyebrow: "アカウント",
-      lead: "表示名を確認し、自分の記録や参加先へ移動できます。",
-      identity: "ZUKAN上の表示名",
-      participation: "参加先を探す",
-      participationLead: "イベントや活動の一覧を見る",
-      records: "自分の記録",
-      recordsLead: "保存した記録を時系列で見る",
-      settings: "プロフィール編集",
-      settingsLead: "この画面からプロフィールは編集できません。",
-      back: "自分へ",
-      displayName: "表示名"
-    }
-    : {
-      title: options.settings ? "Profile Settings" : "My Page",
-      eyebrow: "My Page",
-      lead: "Check your display name and open your records or participation destinations.",
-      identity: "Name shown on ZUKAN",
-      participation: "Find activities",
-      participationLead: "Browse events and activities",
-      records: "My records",
-      recordsLead: "Review your saved records",
-      settings: "Profile editing",
-      settingsLead: "Profile editing is not available on this screen.",
-      back: "Back to profile",
-      displayName: "Display name"
+  {
+    const hubLang = (options.lang === "en" || options.lang === "es" || options.lang === "pt-br" ? options.lang : "ja") as "ja" | "en" | "es" | "pt-br";
+    const hubHeaders = {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      vary: "cookie, authorization",
+      "x-ikimon-cloudflare-native": "profile-session"
     };
-  const title = escapeHtml(copy.title);
-  const displayName = escapeHtml(session.displayName || session.userId);
-  const settingsBody = options.settings
-    ? `<section class="cf-profile-settings" data-testid="profile-settings">
-        <div>
-          <span>${escapeHtml(copy.eyebrow)}</span>
-          <h2>${escapeHtml(copy.settings)}</h2>
-          <p>${escapeHtml(copy.settingsLead)}</p>
-        </div>
-        <dl><div><dt>${escapeHtml(copy.displayName)}</dt><dd>${displayName}</dd></div></dl>
-        <form class="cf-profile-lang-form" action="/api/v1/profile/language" method="post">
-          <label for="cf-profile-lang">${escapeHtml(lang === "ja" ? "表示言語" : lang === "es" ? "Idioma" : lang === "pt-br" ? "Idioma" : "Display language")}</label>
-          <div class="cf-profile-lang-row">
-            <select id="cf-profile-lang" name="lang">
-              <option value="ja"${lang === "ja" ? " selected" : ""}>日本語</option>
-              <option value="en"${lang === "en" ? " selected" : ""}>English</option>
-              <option value="es"${lang === "es" ? " selected" : ""}>Español</option>
-              <option value="pt-br"${lang === "pt-br" ? " selected" : ""}>Português</option>
-            </select>
-            <button type="submit">${escapeHtml(lang === "ja" ? "保存" : lang === "es" ? "Guardar" : lang === "pt-br" ? "Salvar" : "Save")}</button>
-          </div>
-        </form>
-        <details class="cf-profile-withdrawal" data-testid="withdrawal-confirmation">
-          <summary>${escapeHtml(lang === "ja" ? "退会・アカウント削除の確認" : "Account withdrawal")}</summary>
-          <div class="cf-profile-withdrawal-body">
-            <h3>${escapeHtml(lang === "ja" ? "退会すると消えるもの" : "What disappears when you withdraw")}</h3>
-            <ul>
-              <li>${escapeHtml(lang === "ja" ? "アカウント情報（表示名・ログイン情報・言語設定）は削除されます。" : "Your account details (display name, sign-in credentials, and language settings) will be deleted.")}</li>
-              <li>${escapeHtml(lang === "ja" ? "非公開の記録・下書き・個人メモは削除され、元に戻せません。" : "Private records, drafts, and personal notes will be permanently deleted and cannot be restored.")}</li>
-              <li>${escapeHtml(lang === "ja" ? "公開中の記録・写真は一覧と公開ページから非表示になります。" : "Public records and photos will be removed from listings and public pages.")}</li>
-              <li>${escapeHtml(lang === "ja" ? "すでに外部へ保存・引用された情報は回収できません。" : "Information already saved or quoted externally cannot be recalled.")}</li>
-            </ul>
-            <form class="cf-profile-withdraw-form" method="post" action="/api/v1/account/withdraw">
-              <label class="cf-profile-withdraw-check">
-                <input type="checkbox" name="acknowledged" value="yes" required data-withdrawal-ack>
-                <span>${escapeHtml(lang === "ja" ? "消える内容を確認しました" : "I have reviewed what will be deleted")}</span>
-              </label>
-              <button type="submit" class="cf-profile-withdraw-submit" data-withdrawal-submit>${escapeHtml(lang === "ja" ? "退会してアカウントを削除する" : "Withdraw and delete account")}</button>
-            </form>
-            <p class="cf-profile-withdraw-note">${escapeHtml(lang === "ja" ? "退会を実行すると即時にログアウトし、上記の公開表示とアカウント情報が削除・非表示になります。" : "Submitting will sign you out immediately and remove your public listings and account data.")}</p>
-          </div>
-        </details>
-        <a class="cf-profile-link" href="${escapeHtml(`${prefix}/profile`)}">${escapeHtml(copy.back)}</a>
-      </section>`
-    : `<section class="cf-profile-dashboard" data-testid="self-control-hub">
-        <div class="cf-profile-hero">
-          <div class="cf-profile-hero-copy">
-            <span>${escapeHtml(copy.eyebrow)}</span>
-            <h1 data-testid="profile-heading">${displayName}</h1>
-            <p>${escapeHtml(copy.lead)}</p>
-          </div>
-          <p class="cf-profile-identity"><strong>${escapeHtml(copy.identity)}</strong><span>${displayName}</span></p>
-        </div>
-        <nav class="cf-profile-destinations" aria-label="${escapeHtml(copy.title)}">
-          ${renderCloudflareProfileAction(`${prefix}/records?view=mine`, copy.records, copy.recordsLead)}
-          ${renderCloudflareProfileAction(`${prefix}/community/events`, copy.participation, copy.participationLead)}
-          ${renderCloudflareProfileAction(`${prefix}/profile/settings`, copy.settings, copy.settingsLead)}
-        </nav>
-      </section>`;
-
-  return `<!doctype html>
-<html lang="${escapeHtml(lang)}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title} — ZUKAN</title>
-  <style>
-    :root{color-scheme:light;--ink:#17211B;--muted:#55615A;--line:#c8d0ca;--surface:#fff;--soft:#F7F7F3;--action:#245C3A}
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--soft);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}
-    .site-header{position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(15,23,42,.08);background:rgba(255,255,255,.92);backdrop-filter:blur(14px)}
-    .site-header-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 18px}
-    .site-brand-cluster{display:flex;align-items:center;gap:8px;min-width:0}
-    .desktop-side-nav-toggle{display:none}
-    .brand{display:inline-flex;align-items:center;min-width:0;color:var(--ink);text-decoration:none;font-weight:900}
-    .brand-logo-lockup{display:inline-flex;align-items:center;gap:7px;min-width:0}
-    .brand-mark{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 7px 16px rgba(15,23,42,.1)}
-    .brand-mark img{width:100%;height:100%;object-fit:cover;display:block}
-    .brand-wordmark{display:inline-flex;align-items:center;height:16px;aspect-ratio:711/222}
-    .brand-wordmark-img{display:block;width:auto;height:100%;object-fit:contain}
-    .site-nav{display:flex;align-items:center;gap:6px}
-    .site-nav-link{min-height:38px;display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;color:#42574c;text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap}
-    .site-nav-link:hover{background:#e8f1ed}
-    .site-search{min-width:200px;max-width:300px;height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 11px;border-radius:999px;background:#fff;border:1px solid #d6e3dc}
-    .site-search-input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:13px}
-    .site-search-icon{font-size:13px;opacity:.72}
-    .site-header-actions{display:flex;align-items:center;gap:8px}
-    .site-header-actions-mobile{display:none}
-    .site-record-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:999px;background:#0b6b54;color:#fff;text-decoration:none;font-size:13px;font-weight:900;box-shadow:0 8px 18px rgba(11,107,84,.14)}
-    .lang-switch-label,.site-account-icons{display:inline-flex;align-items:center;border:1px solid #d6e3dc;background:#fff;color:#315241}
-    .lang-switch-label{gap:5px;min-height:34px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900}
-    .site-account-icons{gap:4px;padding:3px;border-radius:999px}
-    .site-account-icon{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;color:#315241;text-decoration:none}
-    .desktop-side-nav-icon{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-    .zukan-app-lang{position:relative}
-    .zukan-app-lang summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:44px;min-height:44px;padding:0 10px;border:1px solid #d6e3dc;border-radius:999px;background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
-    .zukan-app-lang summary::-webkit-details-marker{display:none}
-    .zukan-app-lang summary svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-    .zukan-app-lang .lang-switch-options{display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:95;min-width:176px;padding:6px;border:1px solid #d6e3dc;border-radius:12px;background:#fff;box-shadow:0 14px 32px rgba(15,23,42,.16)}
-    .zukan-app-lang[open] .lang-switch-options{display:grid;gap:4px}
-    .zukan-app-lang .lang-switch-link{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-size:14px;font-weight:650}
-    .zukan-app-lang .lang-switch-link:hover,.zukan-app-lang .lang-switch-link:focus-visible{background:#edf3ee}
-    .zukan-app-lang .lang-switch-link.is-active{background:#edf3ee;color:var(--teal)}
-    .zukan-app-lang .lang-switch-code{font-size:12px;font-weight:800;opacity:.75;min-width:22px}
-    .site-mobile-menu{position:relative;display:none}
-    .site-mobile-menu-toggle{list-style:none;width:42px;min-height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:999px;border:1px solid #d6e3dc;background:#fff;color:var(--ink);cursor:pointer}
-    .site-mobile-menu-toggle::-webkit-details-marker{display:none}
-    .site-mobile-menu-icon,.site-mobile-menu-icon::before,.site-mobile-menu-icon::after{display:block;width:14px;height:2px;border-radius:999px;background:currentColor}
-    .site-mobile-menu-icon{position:relative}
-    .site-mobile-menu-icon::before,.site-mobile-menu-icon::after{content:"";position:absolute;left:0}
-    .site-mobile-menu-icon::before{top:-5px}
-    .site-mobile-menu-icon::after{top:5px}
-    .site-mobile-menu-panel{position:absolute;right:0;top:calc(100% + 9px);z-index:30;width:min(340px,calc(100vw - 28px));display:grid;gap:10px;padding:12px;border-radius:16px;border:1px solid #d6e3dc;background:#fff;box-shadow:0 20px 42px rgba(15,23,42,.16)}
-    .cf-profile-shell{width:min(1200px,calc(100% - 40px));margin:32px auto 40px}
-    .cf-profile-dashboard{display:grid;gap:24px}
-    .cf-profile-hero{display:grid;gap:16px;align-items:start}
-    .cf-profile-hero-copy{min-width:0;padding:0}
-    .cf-profile-hero-copy span,.cf-profile-settings span{display:block;color:var(--muted);font-size:14px;line-height:1.4;font-weight:600}
-    .cf-profile-hero-copy h1{margin:8px 0;font-size:32px;line-height:1.25;letter-spacing:0;overflow-wrap:anywhere}
-    .cf-profile-hero-copy p{margin:0;max-width:680px;color:var(--muted);font-size:16px;line-height:1.6}
-    .cf-profile-identity{display:grid;gap:4px;margin:0;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
-    .cf-profile-identity strong{font-size:14px;font-weight:600;color:var(--muted)}
-    .cf-profile-identity span{font-size:16px;overflow-wrap:anywhere}
-    .cf-profile-destinations{display:grid;gap:12px}
-    .cf-profile-action,.cf-profile-link{min-width:0;min-height:64px;display:grid;align-content:center;gap:4px;padding:12px 16px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink);text-decoration:none}
-    .cf-profile-action strong{font-size:17px;line-height:1.25;font-weight:950;overflow-wrap:anywhere}
-    .cf-profile-action strong{font-size:16px;line-height:1.4;font-weight:650;overflow-wrap:anywhere}
-    .cf-profile-action span{color:var(--muted);font-size:14px;line-height:1.4}
-    .cf-profile-latest,.cf-profile-settings,.cf-profile-flow{padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
-    .cf-profile-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}
-    .cf-profile-section-head h2,.cf-profile-settings h2{margin:3px 0 0;font-size:22px;line-height:1.25;letter-spacing:0}
-    .cf-profile-record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-    .cf-profile-record{min-width:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:center;padding:10px;border:1px solid rgba(15,23,42,.08);border-radius:14px;background:var(--soft);color:var(--ink);text-decoration:none}
-    .cf-profile-record-media{width:96px;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(135deg,var(--mint),var(--sky));display:grid;place-items:center;overflow:hidden;color:var(--teal);font-size:13px;font-weight:950}
-    .cf-profile-record-media img{width:100%;height:100%;object-fit:cover;display:block}
-    .cf-profile-record strong{display:block;font-size:15px;line-height:1.3;font-weight:950;overflow-wrap:anywhere}
-    .cf-profile-record span{display:block;margin-top:4px;color:var(--muted);font-size:13px;line-height:1.35;font-weight:750}
-    .cf-profile-empty{grid-column:1/-1;display:grid;gap:8px;padding:16px;border-radius:14px;background:var(--soft);border:1px dashed var(--line)}
-    .cf-profile-empty strong{font-size:17px}
-    .cf-profile-empty p{margin:0;color:var(--muted);font-weight:700}
-    .cf-profile-empty a,.cf-profile-link{width:fit-content;min-height:44px;padding:10px 14px;font-weight:950}
-    .cf-profile-flow{display:grid;gap:12px}
-    .cf-profile-flow ol{counter-reset:profile-flow;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
-    .cf-profile-flow li{counter-increment:profile-flow;min-width:0}
-    .cf-profile-flow a{min-height:52px;display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:13px;background:var(--soft);color:var(--ink);text-decoration:none;font-weight:900}
-    .cf-profile-flow a::before{content:counter(profile-flow);width:26px;height:26px;display:grid;place-items:center;flex:0 0 auto;border-radius:999px;background:#10251a;color:#fff;font-size:12px;font-weight:950}
-    .cf-profile-settings{display:grid;gap:16px}
-    .cf-profile-settings p{margin:6px 0 0;color:var(--muted);font-weight:700}
-    .cf-profile-settings dl{display:grid;grid-template-columns:1fr;gap:10px;margin:0}
-    .cf-profile-settings dl div{min-width:0;padding:13px;border-radius:8px;background:var(--soft)}
-    .cf-profile-settings dt{color:var(--muted);font-size:14px;font-weight:600}
-    .cf-profile-settings dd{margin:4px 0 0;font-size:16px;overflow-wrap:anywhere}
-    .cf-profile-settings p[role="status"]{margin:0;color:var(--muted);font-size:16px}
-    .cf-profile-lang-form{display:grid;gap:8px}
-    .cf-profile-lang-form label{font-size:14px;font-weight:700;color:var(--ink)}
-    .cf-profile-lang-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-    .cf-profile-lang-row select{min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit}
-    .cf-profile-lang-row button{min-height:44px;padding:8px 18px;border:0;border-radius:8px;background:var(--action);color:#fff;font:inherit;font-weight:750;cursor:pointer}
-    .cf-profile-shell a:focus-visible{outline:2px solid var(--action);outline-offset:2px;box-shadow:0 0 0 4px #fff}
-    @media (max-width:900px){.site-nav-desktop,.site-search-desktop,.site-header-actions-desktop{display:none}.site-header-actions-mobile{display:flex}.site-mobile-menu{display:block}.site-header-inner{padding:9px 14px}.brand-wordmark{height:15px}.site-record-link{min-height:44px;padding:10px 12px}}
-    @media (max-width:720px){.cf-profile-shell{width:calc(100% - 40px);margin:24px auto calc(116px + env(safe-area-inset-bottom))}.cf-profile-hero-copy h1{font-size:28px}}
-  </style>
-</head>
-<body data-cloudflare-profile="signed-in">
-  ${renderCloudflareProfileHeader(prefix)}
-  <main id="main-content" class="cf-profile-shell" tabindex="-1">
-    ${settingsBody}
-  </main>
-</body>
-</html>`;
-}
-
-function renderCloudflareProfileAction(href: string, title: string, body: string, primary = false): string {
-  return `<a class="cf-profile-action${primary ? " is-primary" : ""}" href="${escapeHtml(href)}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></a>`;
-}
-
-function renderCloudflareProfileHeader(prefix: string): string {
-  const safePrefix = escapeHtml(prefix);
-  const lang = prefix.replace(/^\//, "") || "ja";
-  return renderVpsImageHeader("/ja/records", lang, `${prefix}/profile`, "")
-    .replace('href="/ja/login?redirect=%2Fprofile"', `href="${safePrefix}/profile"`)
-    .replace('href="/ja/login?redirect=%2Fprofile%2Fsettings"', `href="${safePrefix}/profile/settings"`)
-    .replaceAll('href="/ja/', `href="${safePrefix}/`)
-    .replaceAll('action="/ja/', `action="${safePrefix}/`);
+    const hubData = await loadProfileHubData(env, session);
+    let hubHtml: string;
+    if (settings) {
+      const authUser = await getAuthUserByUserId(env, session.userId).catch(() => null);
+      hubHtml = renderProfileSettingsHub(hubLang, { displayName: hubData.displayName, email: authUser?.email ?? null, recordCount: hubData.recordCount, flash: url.searchParams.get("saved") });
+    } else {
+      hubHtml = renderProfileHub(hubLang, hubData);
+    }
+    return new Response(request.method === "HEAD" ? null : hubHtml, { status: 200, headers: hubHeaders });
+  }
 }
 
 function renderCloudflareProfileRecordCard(
@@ -23797,7 +23748,8 @@ const RECORDS_PRODUCT_LIMIT = 120;
 const recordsSearchScopeCopy = {
   ja: {
     titleMine: "自分の記録", titlePublic: "みんなの記録", searchLabel: "記録を検索", searchSubmit: "探す",
-    mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    mine: "これまでの写真やメモを新しい順に見られます。名前や場所、日付で探せます。",
+    more: "もっと見る", loadingMore: "読み込み中…",
     public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
     noMatch: (query: string) => `直近の記録に「${query}」に合うものは見つかりませんでした。`,
     empty: "まだ記録はありません。",
@@ -23809,7 +23761,8 @@ const recordsSearchScopeCopy = {
   },
   en: {
     titleMine: "Your records", titlePublic: "Community records", searchLabel: "Search records", searchSubmit: "Search",
-    mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
+    mine: "All your photos and notes, newest first. Search by name, place or date.",
+    more: "Show more", loadingMore: "Loading...",
     public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
     noMatch: (query: string) => `No recent records matched “${query}”.`,
     empty: "No records yet.",
@@ -23821,7 +23774,8 @@ const recordsSearchScopeCopy = {
   },
   es: {
     titleMine: "Tus registros", titlePublic: "Registros de la comunidad", searchLabel: "Buscar registros", searchSubmit: "Buscar",
-    mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    mine: "Todas tus fotos y notas, de la más reciente a la más antigua. Busca por nombre, lugar o fecha.",
+    more: "Ver más", loadingMore: "Cargando...",
     public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
     noMatch: (query: string) => `No se encontraron registros recientes que coincidan con «${query}».`,
     empty: "Todavía no hay registros.",
@@ -23833,7 +23787,8 @@ const recordsSearchScopeCopy = {
   },
   "pt-br": {
     titleMine: "Seus registros", titlePublic: "Registros da comunidade", searchLabel: "Buscar registros", searchSubmit: "Buscar",
-    mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    mine: "Todas as suas fotos e notas, da mais recente à mais antiga. Busque por nome, lugar ou data.",
+    more: "Ver mais", loadingMore: "Carregando...",
     public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
     noMatch: (query: string) => `Nenhum registro recente corresponde a “${query}”.`,
     empty: "Ainda não há registros.",
@@ -23895,7 +23850,8 @@ export function renderRecordsProductSection(
   session: SessionSnapshot | null,
   unavailable = false,
   savedStates: Map<string, SavedItem> | null = null,
-  publicPlaces: Array<{ placeId: string; name: string }> = []
+  publicPlaces: Array<{ placeId: string; name: string }> = [],
+  moreHref: string | null = null
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -23916,14 +23872,22 @@ export function renderRecordsProductSection(
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>` : ""}
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-native-more{display:flex;justify-content:center;margin:24px 0 8px}.cf-records-native-more a,.cf-records-native-more a:is(:link,:visited){min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:2px solid #245c3a;border-radius:999px;background:#fff;color:#245c3a;font-weight:850;text-decoration:none}.cf-records-native-more a[aria-busy=true]{opacity:.6}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
     ${session && savedStates !== null ? `<p class="cf-records-saved-link"><a href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a></p>` : ""}
     ${cards}
+    ${moreHref && !unavailable && items.length > 0 ? `<div class="cf-records-native-more" data-records-more><a class="cf-records-native-more-link" data-load-more="1" href="${escapeHtml(moreHref)}">${escapeHtml(scopeCopy.more)}</a></div>${loadMoreScript({ list: ".cf-records-native-grid", more: "[data-records-more]", loading: scopeCopy.loadingMore, rebindSaved: Boolean(session && savedStates !== null) })}` : ""}
     ${session && savedStates !== null ? renderSavedItemsScript(lang) : ""}
   </section>`;
+}
+
+function recordsMoreHref(prefix: string, query: string, cursor: string): string {
+  const params = new URLSearchParams({ view: "mine" });
+  if (query) params.set("q", query);
+  params.set("before", cursor);
+  return `${prefix}/records?${params.toString()}`;
 }
 
 async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
@@ -23944,10 +23908,18 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   }
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(recordsSearchQuery(url.searchParams.get("q")));
+  const beforeParam = url.searchParams.get("before");
+  const mineBefore = decodePageCursor(beforeParam) ? beforeParam : null;
+  const minePage = requestedMode === "mine"
+    ? await ownerHomeRecordPage(session!.userId, env, RECORDS_PRODUCT_LIMIT, { query: recordsSearchQuery(url.searchParams.get("q")), before: mineBefore }).catch(() => null)
+    : null;
   const sourceItems = requestedMode === "saved" ? [] : requestedMode === "mine"
-    ? await ownerHomeRecordCards(session!.userId, env, RECORDS_PRODUCT_LIMIT).catch(() => null)
+    ? (minePage?.items ?? null)
     : await recentPublicRecordCards(env, RECORDS_PRODUCT_LIMIT).catch(() => null);
-  const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
+  const items = requestedMode === "mine" ? (sourceItems ?? []) : (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
+  const moreHref = minePage?.nextCursor
+    ? recordsMoreHref(prefix, recordsSearchQuery(url.searchParams.get("q")), minePage.nextCursor)
+    : null;
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
@@ -23956,7 +23928,7 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     ? renderSavedPage(await listSavedItems(env.CORE_DB, session!.userId, { limit: 30, ...(url.searchParams.has("cursor") ? { cursor: url.searchParams.get("cursor")! } : {}) }).catch(() => null), lang)
     : renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null,
       session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null,
-      publicPlaces);
+      publicPlaces, moreHref);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -24797,9 +24769,51 @@ function appendPublicRecordCards(
   }
 }
 
+type OwnerHomeRecordPageOptions = { query?: string | null; before?: string | null };
+
+function ownerRecordsPageFilter(ownerUserId: string, limit: number, options: OwnerHomeRecordPageOptions, level: "full" | "basic"): { where: string; params: Array<string | number>; limitParam: string } {
+  const params: Array<string | number> = [];
+  const p = (value: string | number): string => {
+    params.push(value);
+    return `?${params.length}`;
+  };
+  const where = [`o.owner_user_id = ${p(ownerUserId)}`, "o.emergency_hidden = 0"];
+  const like = likePatternFromQuery(options.query);
+  if (like) {
+    const l = p(like);
+    const parts = [
+      `o.taxon_label LIKE ${l} ESCAPE '\\'`,
+      `o.note LIKE ${l} ESCAPE '\\'`,
+      `o.observed_at LIKE ${l} ESCAPE '\\'`,
+      `o.public_area_label LIKE ${l} ESCAPE '\\'`
+    ];
+    if (level === "full") {
+      parts.push(
+        `art.candidate_vernacular_name LIKE ${l} ESCAPE '\\'`,
+        `art.candidate_scientific_name LIKE ${l} ESCAPE '\\'`,
+        `art.ai_recommended_taxon_name LIKE ${l} ESCAPE '\\'`,
+        `EXISTS (SELECT 1 FROM civic_observation_contexts c JOIN places pl ON pl.place_id = c.field_id WHERE c.visit_id = o.observation_id AND pl.public_profile_status = 'published' AND pl.canonical_name LIKE ${l} ESCAPE '\\')`,
+        `EXISTS (SELECT 1 FROM readmodel_public_observations r WHERE r.observation_id = o.observation_id AND r.public_area_label LIKE ${l} ESCAPE '\\')`
+      );
+    }
+    where.push(`(${parts.join(" OR ")})`);
+  }
+  const cursor = decodePageCursor(options.before);
+  if (cursor) {
+    const at = p(cursor.observedAt);
+    where.push(`(o.observed_at < ${at} OR (o.observed_at = ${at} AND o.observation_id < ${p(cursor.id)}))`);
+  }
+  return { where: where.join(" AND "), params, limitParam: p(limit + 1) };
+}
+
 async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<OwnerHomeRecordItem[]> {
+  return (await ownerHomeRecordPage(ownerUserId, env, limit)).items;
+}
+
+export async function ownerHomeRecordPage(ownerUserId: string, env: Env, limit = 120, options: OwnerHomeRecordPageOptions = {}): Promise<{ items: OwnerHomeRecordItem[]; nextCursor: string | null }> {
   let rows;
   try {
+    const f = ownerRecordsPageFilter(ownerUserId, limit, options, "full");
     rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
             art.ai_assessment_status,
@@ -24825,13 +24839,13 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
             ) AS public_derivative_key
        FROM observations o
        LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
-      WHERE o.owner_user_id = ?
-        AND o.emergency_hidden = 0
-      ORDER BY o.observed_at DESC
-      LIMIT ?`
-  ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+      WHERE ${f.where}
+      ORDER BY o.observed_at DESC, o.observation_id DESC
+      LIMIT ${f.limitParam}`
+  ).bind(...f.params).all<OwnerHomeRecordRow>();
   } catch (error) {
     if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+    const f = ownerRecordsPageFilter(ownerUserId, limit, options, "basic");
     rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
               (
@@ -24844,16 +24858,19 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
                  ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC LIMIT 1
               ) AS public_derivative_key
          FROM observations o
-        WHERE o.owner_user_id = ? AND o.emergency_hidden = 0
-        ORDER BY o.observed_at DESC LIMIT ?`
-    ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+        WHERE ${f.where}
+        ORDER BY o.observed_at DESC, o.observation_id DESC LIMIT ${f.limitParam}`
+    ).bind(...f.params).all<OwnerHomeRecordRow>();
   }
-  if (Array.isArray(rows?.results) && rows.results.length === 0) return [];
+  if (Array.isArray(rows?.results) && rows.results.length === 0) return { items: [], nextCursor: null };
   // Media kinds only for this owner's rows. A malformed result skips the lookup and still
   // fails below, so it stays "unavailable" instead of becoming an empty success.
-  const ownerIds = Array.isArray(rows?.results) ? [...new Set(rows.results.map((row) => row.observation_id))] : [];
+  const pageRows = Array.isArray(rows?.results) ? rows.results.slice(0, limit) : rows.results;
+  const lastPageRow = Array.isArray(pageRows) ? pageRows[pageRows.length - 1] : undefined;
+  const nextCursor = Array.isArray(rows?.results) && rows.results.length > limit && lastPageRow ? encodePageCursor(lastPageRow.observed_at, lastPageRow.observation_id) : null;
+  const ownerIds = Array.isArray(pageRows) ? [...new Set(pageRows.map((row) => row.observation_id))] : [];
   const mediaKinds = await queryPublicMapMediaKinds(env, ownerIds).catch(() => new Map<string, HomeRecordMediaKind>());
-  return rows.results.map((row) => ({
+  const items = pageRows.map((row) => ({
     ...publicMapObservationItem({
       observation_id: row.observation_id,
       public_cell: "",
@@ -24865,6 +24882,7 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
     ownerVisibility: row.visibility ?? "private"
   }));
+  return { items, nextCursor };
 }
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
@@ -25210,6 +25228,25 @@ function publicDerivedImageSrcset(
     })
     .filter((value): value is string => Boolean(value));
   return candidates.join(", ");
+}
+
+async function getAssetLedgerThumbRedirect(request: Request, size: number, assetId: string, env: Env): Promise<Response> {
+  const miss = () => new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
+  const width = size <= 400 ? 360 : size <= 720 ? 680 : 1020;
+  const row = await env.OBS_DB.prepare(
+    "SELECT public_derivative_key FROM asset_ledger WHERE asset_id = ? AND public_derivative_key IS NOT NULL LIMIT 1"
+  ).bind(assetId).first<{ public_derivative_key: string | null }>().catch(() => null);
+  const key = normalizeOptionalText(row?.public_derivative_key);
+  if (!key || !isSafePublicDerivedImageKey(key)) return miss();
+  const access = await publicDerivedMediaAccess(request, key, env).catch(() => "denied" as const);
+  if (access === "denied") return miss();
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: `/derived-transform/w${width}/${key.replace(/^\/+/, "")}`,
+      "cache-control": access === "public" ? "public, max-age=300" : "private, no-store"
+    }
+  });
 }
 
 async function getPublicDerivedImageTransform(request: Request, url: URL, env: Env): Promise<Response> {
@@ -25650,7 +25687,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     displayName: resolved.displayName,
     isAiCandidate: false,
     isAwaitingId: resolved.isAwaitingId,
-    localityLabel: "位置をぼかしています",
+    localityLabel: row.public_cell === "unknown" ? "場所未設定" : "位置をぼかしています",
     publicAreaLabel: normalizeSafePublicAreaLabelCandidate(row.public_area_label),
     publicNote: formatPublicCardNoteLine(row.public_note),
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
@@ -26225,7 +26262,16 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
       const recordLang: ObservationRecordLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
       const locale = recordLang === "ja" ? "ja-JP" : recordLang === "pt-br" ? "pt-BR" : recordLang;
       const copy = observationFirstRecordDetailCopy(recordLang);
+      const jaDateText = (value: string, withTime: boolean): string => {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value;
+        const parts = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(date);
+        const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+        const day = `${part("year")}年${part("month")}月${part("day")}日`;
+        return withTime ? `${day}（${part("weekday")}）${part("hour")}:${part("minute")}` : day;
+      };
       const formatRecordDate = (value: string): string => {
+        if (recordLang === "ja") return jaDateText(value, true);
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale, {
           timeZone: "Asia/Tokyo",
@@ -26256,7 +26302,8 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordClass: recordClassOut.value,
         signboardTitle: null,
       };
-      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory, observationComments] = await Promise.all([
+      const bandViewerId = session && !session.banned ? session.userId : null;
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory, observationComments, countBand] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
@@ -26264,10 +26311,20 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId),
-        loadObservationCorrectionHistory(detail.visitId, env),
-        loadObservationComments(detail.visitId, env),
+        observationCorrectionOn(env, session) ? loadObservationCorrectionHistory(detail.visitId, env) : Promise.resolve([]),
+        Promise.resolve([] as Awaited<ReturnType<typeof loadObservationComments>>),
+        recordLang === "ja"
+          ? Promise.race([
+              (async () => {
+                if ((await publicSafetyGateForObservation(detail.visitId, env)).blocked) return null;
+                const band = await computeRecordCountBand(recordCountBandDeps(env), detail.visitId, { userId: bandViewerId });
+                return band ? { text: band.text, href: band.href } : null;
+              })().catch(() => null),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+            ])
+          : Promise.resolve(null),
       ]);
-      const editAndCorrectionHtml = renderObservationEditAndCorrectionHtml({
+      const editAndCorrectionHtml = !observationCorrectionOn(env, session) ? "" : renderObservationEditAndCorrectionHtml({
         observationId: detail.visitId,
         lang: recordLang,
         isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
@@ -26275,6 +26332,17 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         currentTaxon: detail.displayName,
         history: correctionHistory,
       });
+      const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
+        buildObservationDetailEvidence({
+          observationId: detail.visitId,
+          isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
+          observedAt: detail.observedAt || null,
+          placeId: detail.placeName || null,
+          locationPrecision: detail.publicLocation?.label ? "public_label" : "grid",
+          hasScrubbedAsset: media.length > 0,
+        }),
+        recordLang
+      );
       const commentsHtml = renderObservationCommentsHtml({
         observationId: detail.visitId,
         lang: recordLang,
@@ -26282,7 +26350,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         authenticated: Boolean(session && !session.banned),
         comments: observationComments,
       });
-      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${editAndCorrectionHtml}${commentsHtml}`;
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}${editAndCorrectionHtml}${commentsHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
@@ -26293,6 +26361,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
+        titleStatus: detail.displayNameStatus,
         recordClass: recordClassOut.value,
         observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
         note: detail.note,
@@ -26310,18 +26379,20 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
           title: item.isAwaitingId
             ? (item.publicAreaLabel || (recordLang === "ja" ? "近くの記録" : "Nearby record"))
             : item.displayName,
-          observedLabel: formatRecordDate(item.observedAt),
+          observedLabel: recordLang === "ja" ? jaDateText(item.observedAt, false) : formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),
+        countBand,
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
         actionNonce: crypto.randomUUID(),
-        processingMessage: recordLang === "ja" ? ownerStatus?.message ?? null : null,
-        processingStatusPanel: ownerStatus ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
+        processingMessage: recordLang === "ja" && ownerStatus && isObservationProcessingPending(ownerStatus) ? ownerStatus.message : null,
+        processingStatusPanel: ownerStatus && isObservationProcessingPending(ownerStatus) ? renderObservationProcessingStatusPanel(ownerStatus, cspNonce) : null,
         aiFeedback: detail.feedback,
         customTitle,
         signboardTitle,
         aiNextPhoto: detail.nextPhoto,
+        aiNote: recordLang === "ja" ? await loadRecordAiNoteForPage(env, detail.visitId, observationFirst.detail.owner, ctx) : [],
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
         savedControlHtml: savedContinuity.controlHtml,
@@ -26343,6 +26414,46 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "no-store",
   });
+}
+
+function recordCountBandDeps(env: Env): BandDeps {
+  return {
+    query: async (sql, values) => (await env.OBS_DB.prepare(sql).bind(...(values as Array<string | number | null>)).all<Record<string, unknown>>()).results,
+    publicRows: () => queryPublicMapRows(env),
+    nowMs: Date.now(),
+    safeAreaLabel: normalizeSafePublicAreaLabelCandidate,
+  };
+}
+
+async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: string): Promise<void> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) return;
+  const gate = await publicSafetyGateForObservation(recordId, env);
+  await generateAndStoreAiNote({
+    db: env.OBS_DB,
+    recordId,
+    ownerUserId,
+    model: GEMINI_SUMMARY_MODEL,
+    protectedRecord: gate.blocked,
+    counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
+    generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
+  });
+}
+
+async function loadRecordAiNoteForPage(env: Env, recordId: string, isOwner: boolean, ctx?: ExecutionContext) {
+  try {
+    const result = await loadVisibleAiNote(env.OBS_DB, recordId, {
+      isOwner,
+      protectedRecord: async () => (await publicSafetyGateForObservation(recordId, env)).blocked,
+      counts: () => readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
+    });
+    if (result.claimedStale.length > 0 && result.ownerUserId) {
+      ctx?.waitUntil(refreshRecordAiNote(env, recordId, result.ownerUserId).catch(() => undefined));
+    }
+    return result.slots;
+  } catch {
+    return [];
+  }
 }
 
 async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: string | null, env: Env) {
@@ -26458,6 +26569,21 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
     : { state: "forbidden" as const, detail: null };
 }
 
+function recordProposalDeps(env: Env): ProposalDeps {
+  return {
+    db: env.OBS_DB as unknown as ProposalDb,
+    organismClaim: async (input) => (await buildIdentificationClaimDualWritePlan({
+      recordId: input.recordId,
+      targetObservationId: input.observationId,
+      legacyIdentificationId: `record-ui:${input.requestId}`,
+      actorUserId: input.actorUserId,
+      actorKind: input.owner ? "owner" : "community_member",
+      proposedName: input.name,
+      sourcePayload: { source: "observation_first_record_ui" },
+    })).mutations,
+  };
+}
+
 async function handleObservationFirstRecordAction(recordId: string, request: Request, env: Env): Promise<Response> {
   if (!observationReadCutoverEnabled(env) || !observationDualWriteEnabled(env)) {
     return json({ ok: false, error: "observation_first_write_disabled" }, 503, { "cache-control": "no-store" });
@@ -26506,6 +26632,35 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
   if (action === "reset_title") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     await env.ASSET_BUCKET?.delete(`record-title/${recordId}.json`);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
+  if (action === "rotate_media") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const degrees = Number(form.get("degrees") ?? 90);
+    if (![90, 180, 270].includes(degrees)) return json({ ok: false, error: "media_rotation_input_invalid" }, 400, { "cache-control": "no-store" });
+    const mediaAsset = await env.OBS_DB.prepare(
+      `SELECT a.asset_id, a.object_key, a.sha256, a.mime, r.rotation AS display_rotation, a.public_derivative_metadata_json
+         FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id
+        WHERE a.asset_id = ? AND a.observation_id = ? AND a.owner_user_id = ? AND a.mime LIKE 'image/%' LIMIT 1`
+    ).bind(String(form.get("media_id") ?? ""), recordId, session.userId)
+      .first<UploadedAssetRow & { display_rotation: number | null; public_derivative_metadata_json: string | null }>();
+    if (!mediaAsset) return json({ ok: false, error: "media_rotation_target_invalid" }, 400, { "cache-control": "no-store" });
+    const previousRotation = normalizeDisplayRotation(mediaAsset.display_rotation);
+    const saveRotation = (rotation: number) => env.OBS_DB.prepare(
+      "INSERT INTO asset_display_rotation (asset_id, rotation, updated_at) VALUES (?, ?, ?) ON CONFLICT(asset_id) DO UPDATE SET rotation = excluded.rotation, updated_at = excluded.updated_at"
+    ).bind(mediaAsset.asset_id, rotation, new Date().toISOString()).run();
+    await saveRotation(addDisplayRotation(previousRotation, degrees));
+    let priorFacePrivacy: string | null = null;
+    try {
+      const parsed: unknown = JSON.parse(mediaAsset.public_derivative_metadata_json ?? "");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorFacePrivacy = facePrivacyStatusFromMetadata(parsed as Record<string, unknown>);
+    } catch { /* metadata absent */ }
+    const rebuilt = await createRealPublicImageDerivative(mediaAsset, env, { preserveExistingOnFailure: true, priorFacePrivacy }).catch(() => false);
+    if (!rebuilt) {
+      await saveRotation(previousRotation);
+      return json({ ok: false, error: "media_rotation_failed" }, 502, { "cache-control": "no-store" });
+    }
+    await refreshPublicReadmodel(recordId, env);
     return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
   }
   if (action === "add") {
@@ -26574,15 +26729,13 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     ).bind(sourceObservationId, recordId).first<{ observation_id: string }>();
     const proposedName = String(form.get("proposed_name") ?? "").trim();
     if (!target || proposedName.length < 1 || proposedName.length > 160) return json({ ok: false, error: "identification_input_invalid" }, 400, { "cache-control": "no-store" });
-    plan = await buildIdentificationClaimDualWritePlan({
+    const proposal = await submitReadingProposal(recordProposalDeps(env), {
       recordId,
-      targetObservationId: sourceObservationId,
-      legacyIdentificationId: `record-ui:${operationId}`,
-      actorUserId: session.userId,
-      actorKind: owner ? "owner" : "community_member",
-      proposedName,
-      sourcePayload: { source: "observation_first_record_ui", notePresent: Boolean(String(form.get("note") ?? "").trim()) },
+      actor: session,
+      body: { requestId: operationId.length <= 120 ? operationId : await sha256Hex(textToArrayBuffer(operationId)).then((digest) => digest.slice(0, 64)), op: "propose", observationId: sourceObservationId, name: proposedName },
     });
+    if (proposal.status !== 200) return json(proposal.body, proposal.status, { "cache-control": "no-store", ...(proposal.headers ?? {}) });
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
   } else if (action === "media_reassign") {
     if (!owner || !targetObservationId) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const mediaId = String(form.get("media_id") ?? "");
@@ -26813,6 +26966,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
+  let displayNameStatus: "confirmed" | "proposed" = "confirmed";
   if (!effectiveTaxonLabel) {
     const cardMeta = await queryPublicMapCardMeta(env, [visitId]).catch(() => new Map<string, PublicMapCardMeta>());
     const sharedTaxonLabel = cardMeta.get(visitId)?.taxonLabel ?? null;
@@ -26840,6 +26994,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     ).bind(`occ:${visitId}:0`, visitId).first<{ proposed_name: string | null }>().catch(() => null);
     if (!isWeakTaxonLabel(idRow?.proposed_name ?? null)) {
       effectiveTaxonLabel = idRow!.proposed_name!;
+      displayNameStatus = "proposed";
     }
   }
   if (!effectiveTaxonLabel) {
@@ -26870,7 +27025,9 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
   const isAwaitingId = resolvedTaxon.isAwaitingId;
   const displayName = resolvedTaxon.displayName;
 
-  const detailLocationLabel = row.public_cell === "hidden"
+  const detailLocationLabel = row.public_cell === "unknown"
+    ? "場所未設定"
+    : row.public_cell === "hidden"
     ? "位置は非公開です"
     : (isLocationDelayed24Hours(row.observed_at, Date.now()) ? "位置は24時間後に公開されます" : "位置をぼかしています");
 
@@ -26884,6 +27041,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
     displayName,
+    displayNameStatus,
     isAwaitingId,
     aiPersonPrimaryNames,
     aiCandidateLabel,
@@ -28936,6 +29094,14 @@ function normalizeCompatibleObservedAt(value: unknown): string {
   return parsed.toISOString();
 }
 
+function assertLegacyObservedAtBounds(value: unknown): void {
+  const parsed = new Date(String(value ?? "").trim());
+  const time = parsed.getTime();
+  if (Number.isNaN(time) || time > Date.now() + 5 * 60 * 1000 || time < Date.UTC(1900, 0, 1)) {
+    throw new HttpError(400, "invalid_observed_at");
+  }
+}
+
 function normalizeCompatibleLatitude(value: unknown): number {
   const latitude = Number(value);
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
@@ -29208,6 +29374,7 @@ async function attachVideoAssetToObservation(input: {
     })
   ]);
 
+  await writeRecordMediaOrder(env.OBS_DB, input.observationId, assetId);
   const pending = await env.OBS_DB.prepare(
     `SELECT outbox_id, topic, target_id FROM outbox
       WHERE outbox_id IN (?, ?) AND dispatch_state = 'pending'`
@@ -29518,10 +29685,21 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     assertNonEmpty(input.userId, "userId");
     authenticatedSession = await readCompatibleSession(request, env).catch(() => null);
   }
-  if (!Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)) {
+  const locationUnset = (input.latitude === null || input.latitude === undefined)
+    && (input.longitude === null || input.longitude === undefined);
+  if (locationUnset) {
+    input.latitude = null;
+    input.longitude = null;
+    input.locationAccuracyM = null;
+  } else if (
+    typeof input.latitude !== "number" || typeof input.longitude !== "number"
+    || !Number.isFinite(input.latitude) || !Number.isFinite(input.longitude)
+    || input.latitude < -90 || input.latitude > 90 || input.longitude < -180 || input.longitude > 180
+  ) {
     throw new HttpError(400, "missing_location");
   }
   assertNonEmpty(input.observedAt, "observedAt");
+  assertLegacyObservedAtBounds(input.observedAt);
 
   const requestedObservationId = normalizeOptionalId(input.observationId);
   if (requestedObservationId) {
@@ -29568,7 +29746,7 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
                 updated_at = CURRENT_TIMESTAMP
           WHERE client_submission_id = ?`
       ).bind(clientSubmissionId).run();
-      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${blurLocation(input.latitude, input.longitude)}`;
+      const placeId = normalizeOptionalId(existing.place_id) ?? `place:${blurLocation(input.latitude ?? undefined, input.longitude ?? undefined)}`;
       const placeName = normalizeOptionalText(input.siteName)
         ?? normalizeOptionalText(input.municipality)
         ?? normalizeOptionalText(input.prefecture)
@@ -29652,20 +29830,22 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     : null;
   const publicCell = locationShareMode === "hidden"
     ? "hidden"
-    : blurLocation(input.latitude, input.longitude);
+    : blurLocation(input.latitude ?? undefined, input.longitude ?? undefined);
   const taxonLabel = resolveLegacyTaxonLabel(input);
   const placeName = normalizeOptionalText(input.siteName)
     ?? normalizeOptionalText(input.municipality)
     ?? normalizeOptionalText(input.prefecture)
     ?? "unknown place";
   const placeId = normalizeOptionalId(input.siteId) ?? `place:${publicCell}`;
-  const visibility = input.visibility === "private" ? "private" : "public";
+  const visibility = input.visibility === "private" || locationUnset ? "private" : "public";
   const publicAreaLabel = visibility === "public" && locationShareMode !== "hidden"
     ? resolveSafePublicAreaLabel(input)
     : null;
   const dataRights = normalizeObservationDataRightsNative(input.dataRights ?? input.sourcePayload?.dataRights);
   const civicContext = buildObservationCivicContextNative(input, visitId, occurrenceId);
-  const placeMemory = await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
+  const placeMemory = locationUnset
+    ? { result: null, sample: [], statements: [] as D1PreparedStatement[] }
+    : await upsertPlaceMemoryForObservationNative(env, input, { visitId, occurrenceId, publicCell });
   const civicContextStatements = civicContext
     ? [env.OBS_DB.prepare(
       `INSERT INTO civic_observation_contexts (
@@ -29738,8 +29918,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       draftId,
       input.userId,
       input.observedAt,
-      input.latitude,
-      input.longitude,
+      input.latitude ?? null,
+      input.longitude ?? null,
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
@@ -29772,8 +29952,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
       input.observedAt,
       taxonLabel,
       input.note ?? null,
-      input.latitude,
-      input.longitude,
+      input.latitude ?? null,
+      input.longitude ?? null,
       numberOrNull(input.locationAccuracyM),
       publicCell,
       visibility,
@@ -29837,8 +30017,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         observedAt: input.observedAt,
         taxonLabel,
         note: input.note ?? null,
-        exactLat: input.latitude,
-        exactLng: input.longitude,
+        exactLat: input.latitude ?? null,
+        exactLng: input.longitude ?? null,
         locationAccuracyM: numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility,
@@ -29852,8 +30032,8 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
         input.observedAt,
         taxonLabel,
         input.note ?? null,
-        input.latitude,
-        input.longitude,
+        input.latitude ?? null,
+        input.longitude ?? null,
         numberOrNull(input.locationAccuracyM),
         publicCell,
         visibility
@@ -29862,12 +30042,15 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   ];
   observationBatchIssued = true;
   await env.OBS_DB.batch(observationBatch);
+  if (visibility === "private" && !locationUnset) {
+    await saveOwnerAreaLabel(env, visitId, ownerAreaLabelFromInput(input));
+  }
 
-  await insertCompatibleAutoEnvironmentRecordIfPresent({
+  if (!locationUnset) await insertCompatibleAutoEnvironmentRecordIfPresent({
     occurrenceId: visitId,
     actorUserId: input.userId,
-    latitude: input.latitude,
-    longitude: input.longitude,
+    latitude: input.latitude as number,
+    longitude: input.longitude as number,
     draft: input.environmentRecordDraft ?? input.sourcePayload?.environment_record_draft,
     sourceMethod: "record_photo_feedback_v1"
   }, env).catch((error) => {
@@ -29885,12 +30068,12 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
     targetTaxaScope: normalizeOptionalText(input.targetTaxaScope)
   });
 
-  await autoMatchObservationToActiveRalliesNative(env, {
+  if (!locationUnset) await autoMatchObservationToActiveRalliesNative(env, {
     userId: input.userId,
     visitId,
     occurrenceId,
-    lat: input.latitude,
-    lng: input.longitude,
+    lat: input.latitude as number,
+    lng: input.longitude as number,
     observedAt: input.observedAt
   }).catch((error) => {
     console.error("[observation-rally-auto-match] native post-save match failed", error);
@@ -30116,8 +30299,8 @@ async function hookLegacyObservationToEventNative(
         occurrence_ids: result.occurrenceIds,
         observation_id: result.visitId,
         taxon_name: result.taxonLabel,
-        public_lat: roundPublicEventCoordinate(input.latitude),
-        public_lng: roundPublicEventCoordinate(input.longitude),
+        public_lat: input.latitude == null ? null : roundPublicEventCoordinate(input.latitude),
+        public_lng: input.longitude == null ? null : roundPublicEventCoordinate(input.longitude),
         observed_at: input.observedAt,
         source_type: eventType === "field_scan_added" ? "field_scan" : "record",
         participant_role: normalizeOptionalText(input.participantRole)
@@ -30137,7 +30320,7 @@ async function hookLegacyObservationToEventNative(
     network_state: "unknown"
   }, participant ? `participant:${participant.participant_id}` : `user:${input.userId}`);
   try {
-    await recordObservationEventMeshVisit(env, {
+    if (input.latitude != null && input.longitude != null) await recordObservationEventMeshVisit(env, {
       sessionId: session.sessionId,
       lat: roundPublicEventCoordinate(input.latitude),
       lng: roundPublicEventCoordinate(input.longitude),
@@ -30447,6 +30630,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     if (!existingObject || existingObject.size !== body.byteLength) {
       return json({ ok: false, error: "media_integrity_missing" }, 503, { "cache-control": "no-store" });
     }
+    await writeRecordMediaOrder(env.OBS_DB, observationId, asset.asset_id, input.position);
     return json({
       ok: true,
       visitId: observationId,
@@ -30579,6 +30763,7 @@ async function uploadLegacyCompatiblePhoto(observationId: string, request: Reque
     throw error;
   }
 
+  await writeRecordMediaOrder(env.OBS_DB, observationId, assetId, input.position);
   const dispatch = await dispatchOutboxBestEffort(env, [
     { outboxId: outboxMediaId, topic: "media.process", targetId: observationId },
     { outboxId: outboxReadModelId, topic: "readmodel.refresh", targetId: observationId },
@@ -31364,6 +31549,9 @@ type PreparedGeminiObservation = {
   images: GeminiObservationImage[];
   mediaDedup: ObservationMediaDedupPlan<ObservationMediaDedupInput>;
   unselectedUniqueAssetIds: string[];
+  videos: VideoAssetSource[];
+  videoOnly: boolean;
+  videoRead?: VideoReadResult;
 };
 
 function publicDerivativeMetadata(value: string | null | undefined): Record<string, unknown> {
@@ -31633,7 +31821,7 @@ async function assertPublicQualityBacklogEligibility(observationId: string, env:
   if (safety.blocked) throw new Error("public_quality_backlog_public_safety_blocked");
 }
 
-async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env): Promise<PreparedGeminiObservation> {
+async function loadPreparedGeminiObservation(request: ObservationReassessmentRequestRow, env: Env, options: { allowVideoOnly?: boolean } = {}): Promise<PreparedGeminiObservation> {
   const isPublicQualityBacklog = reassessmentPayload(request.source_payload_json).qualityBacklogVersion
     === GEMINI_QUALITY_BACKLOG_VERSION;
   if (isPublicQualityBacklog) {
@@ -31643,7 +31831,20 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     "SELECT owner_user_id, observed_at, exact_lat, exact_lng, public_cell FROM observations WHERE observation_id = ?"
   ).bind(request.observation_id).first<ObservationAiRecordRow>();
   if (!record) throw new Error("ai_record_missing");
-  const selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
+  const videos: VideoAssetSource[] = isPublicQualityBacklog ? [] : (await env.OBS_DB.prepare(
+    `SELECT asset_id, object_key, mime, bytes, duration_ms FROM asset_ledger
+      WHERE observation_id = ? AND processing_state = 'uploaded' AND mime LIKE 'video/%'
+      ORDER BY created_at, asset_id LIMIT 4`
+  ).bind(request.observation_id).all<VideoAssetSource>().catch(() => ({ results: [] as VideoAssetSource[] }))).results;
+  let videoOnly = false;
+  let selection: Awaited<ReturnType<typeof loadObservationAiAssetSelection>>;
+  try {
+    selection = await loadObservationAiAssetSelection(request.observation_id, env, isPublicQualityBacklog);
+  } catch (error) {
+    if (!(options.allowVideoOnly && videos.length > 0 && error instanceof Error && error.message === "ai_photo_missing")) throw error;
+    videoOnly = true;
+    selection = { sourceAssets: [], assets: [], plan: buildObservationMediaDedupPlan([]), unselectedUniqueAssetIds: [] };
+  }
   const images: GeminiObservationImage[] = [];
   for (const asset of selection.assets) {
     images.push(await observationAiImageInput(asset, env, isPublicQualityBacklog));
@@ -31657,7 +31858,31 @@ async function loadPreparedGeminiObservation(request: ObservationReassessmentReq
     images,
     mediaDedup: selection.plan,
     unselectedUniqueAssetIds: selection.unselectedUniqueAssetIds,
+    videos,
+    videoOnly,
   };
+}
+
+async function preparedVideoRead(prepared: PreparedGeminiObservation, env: Env): Promise<VideoReadResult> {
+  if (prepared.videoRead) return prepared.videoRead;
+  const apiKey = env.GEMINI_API_KEY;
+  prepared.videoRead = prepared.videos.length === 0 || !apiKey
+    ? { readings: [], coverage: [] }
+    : await readVideos(prepared.request.observation_id, prepared.videos, {
+      fetchBytes: async (objectKey) => {
+        const object = await env.ASSET_BUCKET.get(objectKey);
+        return object?.body ? new Response(object.body).arrayBuffer() : null;
+      },
+      toBase64: imageBytesToBase64,
+      generate: async (request) => (await generateGeminiContent(apiKey, VIDEO_READ_MODEL, request)).text,
+    });
+  return prepared.videoRead;
+}
+
+async function finalizeVideoOnlyReassessment(prepared: PreparedGeminiObservation, env: Env): Promise<void> {
+  const video = await preparedVideoRead(prepared, env);
+  if (video.readings.length === 0) throw new Error("ai_video_unreadable");
+  await finalizeGeminiObservationReassessment(prepared, mergedFromVideoReadings(video.readings), env, { mode: "direct_generate_content", source: "google_gemini_video_scene_reading" });
 }
 
 async function loadPendingGeminiRequests(observationIds: string[], env: Env): Promise<ObservationReassessmentRequestRow[]> {
@@ -31743,7 +31968,7 @@ async function failPendingDirectGeminiReassessment(request: ObservationReassessm
 async function submitDirectGeminiObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
   let prepared: PreparedGeminiObservation;
   try {
-    prepared = await loadPreparedGeminiObservation(request, env);
+    prepared = await loadPreparedGeminiObservation(request, env, { allowVideoOnly: true });
   } catch (error) {
     await failPendingDirectGeminiReassessment(request, error, env);
     return;
@@ -31778,6 +32003,10 @@ async function submitDirectGeminiObservationReassessment(request: ObservationRea
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (prepared.videoOnly) {
+      await finalizeVideoOnlyReassessment(prepared, env);
+      return;
+    }
     if (reassessmentPayload(request.source_payload_json).qualityBacklogVersion === GEMINI_QUALITY_BACKLOG_VERSION) {
       await assertPublicQualityBacklogEligibility(request.observation_id, env);
     }
@@ -31888,7 +32117,7 @@ function observationCardDeps(prepared: PreparedGeminiObservation, env: Env): Car
 async function submitCardObservationReassessment(request: ObservationReassessmentRequestRow, env: Env): Promise<void> {
   let prepared: PreparedGeminiObservation;
   try {
-    prepared = await loadPreparedGeminiObservation(request, env);
+    prepared = await loadPreparedGeminiObservation(request, env, { allowVideoOnly: true });
   } catch (error) {
     await failPendingDirectGeminiReassessment(request, error, env);
     return;
@@ -31917,6 +32146,10 @@ async function submitCardObservationReassessment(request: ObservationReassessmen
   prepared.request.source_payload_json = nextPayload;
 
   try {
+    if (prepared.videoOnly) {
+      await finalizeVideoOnlyReassessment(prepared, env);
+      return;
+    }
     const result = await runObservationCardPipeline({ observedAt: prepared.record.observed_at, images: prepared.images }, observationCardDeps(prepared, env));
     await finalizeGeminiObservationReassessment(prepared, result.merged, env, { mode: "card_v1", source: "observation_card_v1_reassessment", card: { stats: result.stats } });
   } catch (error) {
@@ -32450,7 +32683,9 @@ async function finalizeGeminiObservationReassessment(
   }
   const request = prepared.request;
   const observationId = request.observation_id;
-  const candidate = merged.candidate;
+  const video = await preparedVideoRead(prepared, env).catch(() => ({ readings: [], coverage: [] } as VideoReadResult));
+  const videoInputs = videoReadingInputs(video.readings, prepared.assets.map((asset) => asset.asset_id), observationAiSubjects(merged.candidate).map((subject) => subject.candidate));
+  const candidate = prepared.videoOnly ? merged.candidate : candidateWithVideoSubjects(merged.candidate, videoInputs.subjects);
   const subjects = observationAiSubjects(candidate);
   const occurrenceId = `occ:${observationId}:0`;
   const aiRunId = newId("gemini_batch_run");
@@ -32515,6 +32750,7 @@ async function finalizeGeminiObservationReassessment(
     specialistEscalation: merged.specialistEscalation,
     specialistApplied,
     environment: merged.environment,
+    videoReading: prepared.videos.length > 0 ? { promptVersion: VIDEO_READ_PROMPT_VERSION, model: VIDEO_READ_MODEL, coverage: video.coverage, videoOnly: prepared.videoOnly } : null,
     relations: merged.relations,
     summary: merged.summary,
     subjectCount: subjects.length,
@@ -32525,11 +32761,18 @@ async function finalizeGeminiObservationReassessment(
     ? await buildObservationAiDualWritePlan({
       recordId: observationId,
       ownerUserId: prepared.record.owner_user_id,
-      mediaIds: prepared.assets.map((asset) => asset.asset_id),
+      mediaIds: [...prepared.assets.map((asset) => asset.asset_id), ...videoInputs.mediaIds],
+      mediaMeta: [...prepared.assets.map(() => ({ durationMs: null })), ...videoInputs.mediaMeta],
       legacyOccurrenceId: occurrenceId,
       requestId: request.request_id,
       aiRunId,
       candidate,
+      ...(prepared.videoOnly
+        ? { features: videoInputs.features, place: videoInputs.place }
+        : (() => {
+          const photo = recordReadingInputs(merged, prepared.assets.length, Boolean(provider.card));
+          return { features: [...photo.features, ...videoInputs.features], place: [...photo.place, ...videoInputs.place] };
+        })()),
     })
     : { observationIds: [], mutations: [] };
   const commitToken = crypto.randomUUID();
@@ -32652,31 +32895,9 @@ async function finalizeGeminiObservationReassessment(
     }
   }
   await env.OBS_DB.batch(statements);
-}
-
-function guardObservationAiMutation<T extends string | number | null>(
-  sql: string,
-  values: T[],
-  guard: string,
-  requestId: string,
-  completedPayload: string,
-): { sql: string; values: T[] } {
-  const guardValues = [requestId, completedPayload] as T[];
-  const insert = /^(\s*INSERT(?:\s+OR\s+IGNORE)?\s+INTO[\s\S]*?\))\s+VALUES\s*\(([\s\S]*)\)(\s+ON\s+CONFLICT[\s\S]*)?$/iu.exec(sql);
-  if (insert) {
-    const suffix = insert[3] ?? "";
-    return {
-      sql: `${insert[1]} SELECT ${insert[2]} WHERE ${guard}${suffix}`,
-      values: [...values, ...guardValues],
-    };
+  if (observationDualWriteEnabled(env) && !["person", "document", "object", "food"].includes(merged.recordClass)) {
+    await refreshRecordAiNote(env, observationId, prepared.record.owner_user_id).catch(() => undefined);
   }
-  if (/^\s*UPDATE\s/iu.test(sql) && /\sWHERE\s/iu.test(sql)) {
-    return {
-      sql: `${sql} AND ${guard}`,
-      values: [...values, ...guardValues],
-    };
-  }
-  throw new Error("unsupported_observation_ai_dual_write_mutation");
 }
 
 async function refreshPublicReadmodel(observationId: string, env: Env): Promise<void> {
@@ -34955,17 +35176,27 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const originalWidth = Number(originalInfo.width ?? 0);
-  const targetWidth = Number.isFinite(originalWidth) && originalWidth > 0
-    ? Math.min(originalWidth, 1600)
-    : 1600;
+  const originalView = new Uint8Array(originalBytes);
+  const exifOrientation = readJpegExifOrientation(originalView);
+  const rawSize = readJpegDimensions(originalView) ?? { width: Number(originalInfo.width ?? 0), height: Number(originalInfo.height ?? 0) };
+  const rotationRow = await env.OBS_DB.prepare("SELECT a.asset_id, r.rotation AS display_rotation FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id WHERE a.asset_id = ?")
+    .bind(asset.asset_id).first<{ display_rotation: number | null }>().catch(() => null);
+  const displayRotation = normalizeDisplayRotation(rotationRow?.display_rotation);
+  const orientationPlan = planDerivativeOrientation({
+    rawWidth: rawSize.width,
+    rawHeight: rawSize.height,
+    exifOrientation,
+    displayRotation,
+    maxWidth: 1600,
+  });
+  const runTransform = (rotate: DisplayRotation): Promise<ImagesOutput> => images
+    .input(new Response(originalBytes.slice(0)).body!)
+    .transform({ width: orientationPlan.targetWidth, ...(rotate ? { rotate } : {}) })
+    .output({ format: "image/webp", quality: 82, anim: false });
 
   let output: ImagesOutput;
   try {
-    output = await images
-      .input(new Response(originalBytes.slice(0)).body!)
-      .transform({ width: targetWidth })
-      .output({ format: "image/webp", quality: 82, anim: false });
+    output = await runTransform(orientationPlan.rotate);
   } catch (error) {
     await markFailed("image_transform_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
@@ -34986,13 +35217,13 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const derivativeBody = await outputResponse.arrayBuffer();
+  let derivativeBody = await outputResponse.arrayBuffer();
   if (derivativeBody.byteLength === 0) {
     await markFailed("image_transform_empty_output");
     return false;
   }
 
-  const metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
+  let metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
   let derivativeInfo: ImagesInfo = {};
   try {
     derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
@@ -35003,8 +35234,36 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
+  let appliedRotation: DisplayRotation = orientationPlan.rotate;
+  const correctionRotate = exifCorrectionRotation({
+    exifOrientation,
+    displayRotation,
+    expectLandscape: orientationPlan.expectLandscape,
+    derivativeWidth: Number(derivativeInfo.width ?? 0),
+    derivativeHeight: Number(derivativeInfo.height ?? 0),
+  });
+  if (correctionRotate !== null) {
+    try {
+      const corrected = (await runTransform(correctionRotate)).response();
+      const correctedBody = corrected.ok ? await corrected.arrayBuffer() : null;
+      if (correctedBody && correctedBody.byteLength > 0) {
+        const correctedInspection = inspectPublicDerivativeMetadata(correctedBody, contentType);
+        const correctedInfo = await images.info(new Response(correctedBody.slice(0)).body!);
+        derivativeBody = correctedBody;
+        metadataInspection = correctedInspection;
+        derivativeInfo = correctedInfo;
+        appliedRotation = correctionRotate;
+      }
+    } catch (error) {
+      console.warn("[media-derivative] orientation correction skipped", asset.asset_id, error);
+    }
+  }
+
   const verifiedMetadata = {
     ...metadataInspection,
+    sourceOrientation: exifOrientation,
+    displayRotation,
+    appliedRotation,
     tool: "cloudflare-images-public-derivative-v1",
     sourceContentType: asset.mime,
     sourceBytes: originalBytes.byteLength,

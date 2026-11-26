@@ -2,6 +2,7 @@ import {
   type ObservationAiCandidate,
   type ObservationAiSubjectCandidate,
 } from "./cloudflareObservationAi";
+import { FEATURE_TERMS, PLACE_SLOTS, PLACE_TERMS, featureKindFromLabel, isFeatureKind, type FeatureKind, type PlaceSlot } from "./recordReading";
 
 export const GEMINI_PRIMARY_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_ANALYSIS_MODEL = "gemini-3.1-flash-lite";
@@ -89,9 +90,17 @@ export type GeminiEnvironmentFields = {
   human_change: "trampling_mowing" | "mowing" | "trampling" | "planting" | "construction" | "release" | "none_visible" | "unknown";
 };
 
+export type GeminiPhotoReading = {
+  asset_index: number;
+  assessment_state: GeminiInformationState;
+  fields: Partial<Record<PlaceSlot, string>>;
+  feature_kinds: FeatureKind[];
+};
+
 export type GeminiEnvironmentEvidence = {
   assessment_state: GeminiInformationState;
   fields: GeminiEnvironmentFields;
+  photos?: GeminiPhotoReading[];
   cues: Array<{
     slot: "vegetation_structure" | "substrate" | "moisture" | "human_influence" | "management_signs";
     label: string;
@@ -167,6 +176,7 @@ export type GeminiMergedObservation = {
   informationState: GeminiInformationState;
   detectionState: "detected" | "not_detected" | "not_assessable";
   environment: GeminiEnvironmentEvidence;
+  featureKinds?: FeatureKind[];
   relations: string[];
   qualityFlags: string[];
   needsReview: boolean;
@@ -292,6 +302,22 @@ export const GEMINI_SPECIALIST_SCHEMA: JsonSchema = {
   required: ["assessment_state", "candidates", "comparison_summary", "needs_review"],
 };
 
+const PHOTO_FEATURE_CODES = FEATURE_TERMS.map(([code]) => code).filter((code) => code !== "unknown_feature");
+const photoPlaceProperties = Object.fromEntries(PLACE_SLOTS.map((slot) => [slot, { type: "string", enum: PLACE_TERMS[slot].map(([code]) => code) }]));
+export const GEMINI_PHOTO_READINGS_SCHEMA: JsonSchema = {
+  type: "array", maxItems: 12,
+  items: {
+    type: "object",
+    properties: {
+      asset_index: { type: "integer", minimum: 0 },
+      assessment_state: { type: "string", enum: ["informative", "not_informative", "not_assessable"] },
+      ...photoPlaceProperties,
+      feature_kinds: { type: "array", maxItems: 6, items: { type: "string", enum: PHOTO_FEATURE_CODES } },
+    },
+    required: ["asset_index", "assessment_state", ...PLACE_SLOTS, "feature_kinds"],
+  },
+};
+
 export const GEMINI_ENVIRONMENT_SCHEMA: JsonSchema = {
   type: "object",
   properties: {
@@ -308,8 +334,9 @@ export const GEMINI_ENVIRONMENT_SCHEMA: JsonSchema = {
       label: { type: "string" }, evidence: { type: "string" }, asset_index: { type: "integer", minimum: 0 }, confidence: { type: "number", minimum: 0, maximum: 1 },
     }, required: ["slot", "label", "evidence", "asset_index", "confidence"] } },
     uncertain_cues: { type: "array", maxItems: 6, items: { type: "string" } },
+    photos: GEMINI_PHOTO_READINGS_SCHEMA,
   },
-  required: ["assessment_state", "fields", "cues", "uncertain_cues"],
+  required: ["assessment_state", "fields", "cues", "uncertain_cues", "photos"],
 };
 
 export const GEMINI_SUMMARY_SCHEMA: JsonSchema = {
@@ -331,6 +358,8 @@ const imageParts = (images: GeminiObservationImage[]): Array<Record<string, unkn
 ]);
 
 const JAPANESE_HUMAN_TEXT_CONTRACT = "All human-facing string values MUST be written in natural Japanese. English prose, descriptive phrases, and comparison sentences are forbidden. Scientific names, IDs, enum values, and JSON keys may remain non-Japanese.";
+
+export const PHOTO_READING_INSTRUCTION = "photosには、写真1枚ごとに1件ずつ、その写真だけから読み取れる場所のようす5項目（place_type・contact_surface・surrounding_cover・environment_condition・human_change）と、写っている構造物・地形の種類（feature_kinds）を返してください。写真ごとに違ってよく、他の写真から推測で補わず、その写真で根拠がない項目はunknown、構造物は写っているものだけにします。看板・表札・標識の文字、車のナンバー、人の名前は読まず、書きません（種類のコードだけ）。";
 
 const generationConfig = (schema: JsonSchema, maxOutputTokens: number, temperature: number) => ({
   temperature: 1,
@@ -354,8 +383,9 @@ ${JAPANESE_HUMAN_TEXT_CONTRACT}`;
 
 export function buildGeminiEnvironmentRequest(recordId: string, images: GeminiObservationImage[]) {
   const prompt = `公開写真から、環境・場所の「写っている証拠」だけを棚卸ししてください。生物同定や一般知識による生息地推測は不要です。\n記録ID:${recordId}\n画像数:${images.length}\n\n全画像を比較し、植生構造、地表、水分、人為物、管理痕跡を具体的な画像証拠とasset_index付きで返してください。地域、土壌性質、長期的な湿潤状態、管理主体を推測しません。人物の属性や個人情報を書きません。fieldsは画像から支持できる選択肢だけを選び、根拠がなければunknownです。不在と画質等による判定不能をassessment_stateで分け、日本語、JSONのみを返してください。
+${PHOTO_READING_INSTRUCTION}
 ${JAPANESE_HUMAN_TEXT_CONTRACT}`;
-  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 2048, 0.1) };
+  return { contents: [{ role: "user", parts: [...imageParts(images), { text: prompt }] }], generationConfig: generationConfig(GEMINI_ENVIRONMENT_SCHEMA, 3072, 0.1) };
 }
 
 const specialistTraits: Record<GeminiSpecialistKind, string> = {
@@ -691,6 +721,30 @@ export const parseGeminiCensusEvidence = (text: string): GeminiCensusEvidence =>
     review_reasons: Array.isArray(parsed.review_reasons) ? parsed.review_reasons : [],
   };
 };
+export function parseGeminiPhotoReadings(value: unknown): GeminiPhotoReading[] {
+  if (!Array.isArray(value)) return [];
+  const states = new Set<string>(["informative", "not_informative", "not_assessable"]);
+  const readings: GeminiPhotoReading[] = [];
+  for (const entry of value.slice(0, 12)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const source = entry as Record<string, unknown>;
+    const assetIndex = source.asset_index;
+    if (typeof assetIndex !== "number" || !Number.isInteger(assetIndex) || assetIndex < 0) continue;
+    const fields: Partial<Record<PlaceSlot, string>> = {};
+    for (const slot of PLACE_SLOTS) if (typeof source[slot] === "string") fields[slot] = source[slot] as string;
+    const kinds = Array.isArray(source.feature_kinds)
+      ? [...new Set(source.feature_kinds.filter((kind): kind is FeatureKind => isFeatureKind(kind) && kind !== "unknown_feature"))].slice(0, 6)
+      : [];
+    readings.push({
+      asset_index: assetIndex,
+      assessment_state: typeof source.assessment_state === "string" && states.has(source.assessment_state) ? source.assessment_state as GeminiInformationState : "not_assessable",
+      fields,
+      feature_kinds: kinds,
+    });
+  }
+  return readings;
+}
+
 export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentEvidence => {
   const parsed = parseJson<Partial<GeminiEnvironmentEvidence>>(text);
   const fields = parsed.fields && typeof parsed.fields === "object" && !Array.isArray(parsed.fields)
@@ -707,6 +761,7 @@ export const parseGeminiEnvironmentEvidence = (text: string): GeminiEnvironmentE
     },
     cues: Array.isArray(parsed.cues) ? parsed.cues : [],
     uncertain_cues: Array.isArray(parsed.uncertain_cues) ? parsed.uncertain_cues : [],
+    photos: parseGeminiPhotoReadings((parsed as { photos?: unknown }).photos),
   };
 };
 export const parseGeminiObservationSummary = (text: string): GeminiObservationSummary => {
@@ -729,12 +784,18 @@ const rankForCensus = (group: GeminiCensusGroup): ObservationAiSubjectCandidate[
   return group.kind === "plant" ? "lifeform" : group.kind === "animal" ? "class" : "unknown";
 };
 
-const locatorFor = (subjectId: string, regions: GeminiRegion[], imageCount: number) => {
-  const region = regions.find((item) => item.subject_id === subjectId && item.asset_index >= 0 && item.asset_index < imageCount);
-  if (!region) return { assetIndex: 0, subjectLocator: {} };
+const locatorFor = (subjectId: string, regions: GeminiRegion[], imageCount: number): {
+  assetIndex: number | undefined;
+  assetIndices: number[];
+  subjectLocator: ObservationAiSubjectCandidate["subjectLocator"];
+} => {
+  const matching = regions.filter((item) => item.subject_id === subjectId && Number.isInteger(item.asset_index) && item.asset_index >= 0 && item.asset_index < imageCount);
+  const region = matching[0];
+  const assetIndices = [...new Set(matching.map((item) => item.asset_index))];
+  if (!region) return { assetIndex: undefined, assetIndices, subjectLocator: {} };
   const x = clipped(region.x); const y = clipped(region.y); const width = clipped(region.width); const height = clipped(region.height);
-  if (width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) return { assetIndex: region.asset_index, subjectLocator: {} };
-  return { assetIndex: region.asset_index, subjectLocator: { rect: { x, y, width, height } } };
+  if (width <= 0 || height <= 0 || x + width > 1.001 || y + height > 1.001) return { assetIndex: region.asset_index, assetIndices, subjectLocator: {} };
+  return { assetIndex: region.asset_index, assetIndices, subjectLocator: { rect: { x, y, width, height } } };
 };
 
 const normalizeName = (value: string | null): string => (value ?? "").normalize("NFKC").toLocaleLowerCase("ja-JP").replace(/[\s・_\-]/gu, "");
@@ -824,7 +885,7 @@ const primaryFusedCandidate = (
     contradictions: [],
     sourceLanes: ["primary"],
     sourceModels: [sourceModel],
-    sourceAssetIndices: [located.assetIndex],
+    sourceAssetIndices: located.assetIndices,
     subjectLocator: located.subjectLocator,
   });
 };
@@ -850,7 +911,7 @@ const censusFusedCandidate = (
     contradictions: uniqueText(group.contradictions ?? []),
     sourceLanes: ["census"],
     sourceModels: [sourceModel],
-    sourceAssetIndices: [located.assetIndex],
+    sourceAssetIndices: located.assetIndices,
     subjectLocator: located.subjectLocator,
   });
 };
@@ -902,10 +963,20 @@ const subjectFromFusedCandidate = (candidate: GeminiFusedCandidate): Observation
   confidence: candidate.confidence,
   visualEvidence: candidate.supportingFeatures.slice(0, 4),
   needsMoreEvidence: candidate.missingFeatures.slice(0, 4),
-  assetIndex: candidate.sourceAssetIndices[0] ?? 0,
+  assetIndex: candidate.sourceAssetIndices[0],
+  assetIndices: [...candidate.sourceAssetIndices],
   sourceModel: candidate.sourceModels[0],
   subjectLocator: candidate.subjectLocator,
 });
+
+const featureKindsFromPrimary = (primary: GeminiPrimaryEvidence): FeatureKind[] => {
+  if (primary.record_class === "person" || primary.record_class === "document") return [];
+  const kinds = primary.non_biological_labels
+    .filter((label): label is string => typeof label === "string")
+    .map((label) => featureKindFromLabel(label, true))
+    .filter((kind): kind is FeatureKind => kind !== null);
+  return [...new Set(kinds)];
+};
 
 export function mergeGeminiObservationEvidence(
   primary: GeminiPrimaryEvidence,
@@ -945,7 +1016,7 @@ export function mergeGeminiObservationEvidence(
     candidate: {
       candidateKey: main?.candidateKey ?? null, vernacularName: main?.vernacularName ?? null, scientificName: main?.scientificName ?? null,
       rank: main?.rank ?? "unknown", confidence: main?.confidence ?? 0, visualEvidence: main?.visualEvidence ?? [], needsMoreEvidence: main?.needsMoreEvidence ?? [],
-      assetIndex: main?.assetIndex ?? 0, subjectLocator: main?.subjectLocator ?? {}, sourceModel: main?.sourceModel ?? GEMINI_PRIMARY_MODEL,
+      assetIndex: main?.assetIndex, assetIndices: main?.assetIndices, subjectLocator: main?.subjectLocator ?? {}, sourceModel: main?.sourceModel ?? GEMINI_PRIMARY_MODEL,
       nonBiological: !main && coexisting.length === 0, coexistingSubjects: coexisting.slice(0, 7),
     },
     topCandidates,
@@ -955,6 +1026,7 @@ export function mergeGeminiObservationEvidence(
     informationState: primary.information_state,
     detectionState,
     environment,
+    featureKinds: featureKindsFromPrimary(primary),
     relations: census.relations.slice(0, 6),
     qualityFlags: primary.quality_flags.slice(0, 8),
     needsReview: Boolean(primary.needs_review || census.needs_review),
@@ -1027,7 +1099,8 @@ export function applyGeminiSpecialistEvidence(
   merged: GeminiMergedObservation,
   specialist: GeminiSpecialistEvidence,
 ): GeminiMergedObservation {
-  const sourceAssetIndex = merged.candidate.assetIndex ?? 0;
+  const sourceAssetIndices = merged.candidate.assetIndices
+    ?? (merged.candidate.assetIndex === undefined ? [] : [merged.candidate.assetIndex]);
   const specialistCandidates = specialist.candidates.slice(0, 5).map((candidate, index) => withFusionScore({
     candidateKey: `specialist:${index}:${normalizeName(short(candidate.name, 80)) || "candidate"}`,
     name: short(candidate.name, 120),
@@ -1039,7 +1112,7 @@ export function applyGeminiSpecialistEvidence(
     contradictions: uniqueText(candidate.contradictions ?? []),
     sourceLanes: ["specialist"],
     sourceModels: [GEMINI_SPECIALIST_MODEL],
-    sourceAssetIndices: [sourceAssetIndex],
+    sourceAssetIndices: [...sourceAssetIndices],
     subjectLocator: merged.candidate.subjectLocator,
   }));
   const topCandidates = mergeFusedCandidates([...specialistCandidates, ...merged.topCandidates]).slice(0, 5);

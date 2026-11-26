@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { displayRecordName, RECORD_THUMB_SQL, SEARCH_ICON_CALENDAR, ZUKAN_SEARCH_CSS, formatShortDate, highlightMatch, renderSearchBar, renderSearchEmptyIcon, renderSearchHead, renderSearchRow, thumbUrlOf } from "./zukanSearchUi";
 
 export type SeasonKey = "spring" | "summer" | "autumn" | "winter";
 
@@ -14,6 +15,8 @@ type SeasonalRecordRow = {
   observation_id: string;
   taxon_display_name: string;
   observed_at: string;
+  public_area_label?: string | null;
+  asset_id?: string | null;
 };
 
 function normalizeSeason(raw: string | null): SeasonKey {
@@ -35,15 +38,28 @@ function monthMatchesSeason(observedAt: string, season: SeasonKey): boolean {
 async function querySeasonalRecords(season: SeasonKey, query: string, db: Env["OBS_DB"]) {
   const rows = await db
     .prepare(
-      `SELECT observation_id, COALESCE(taxon_label, '') AS taxon_display_name, observed_at
-         FROM observations
-        WHERE visibility = 'public'
-        ORDER BY observed_at DESC
+      `SELECT o.observation_id AS observation_id, COALESCE(o.taxon_label, '') AS taxon_display_name, o.observed_at AS observed_at,
+              o.public_area_label AS public_area_label, ${RECORD_THUMB_SQL} AS asset_id
+         FROM observations o
+        WHERE o.visibility = 'public' AND COALESCE(o.emergency_hidden, 0) = 0
+        ORDER BY o.observed_at DESC
         LIMIT 200`
     )
     .all<SeasonalRecordRow>()
     .then((r) => r.results)
-    .catch(() => [] as SeasonalRecordRow[]);
+    .catch(() =>
+      db
+        .prepare(
+          `SELECT observation_id, COALESCE(taxon_label, '') AS taxon_display_name, observed_at
+             FROM observations
+            WHERE visibility = 'public'
+            ORDER BY observed_at DESC
+            LIMIT 200`
+        )
+        .all<SeasonalRecordRow>()
+        .then((r) => r.results)
+        .catch(() => [] as SeasonalRecordRow[])
+    );
 
   const trimmed = query.trim().toLowerCase();
   return rows
@@ -54,6 +70,8 @@ async function querySeasonalRecords(season: SeasonKey, query: string, db: Env["O
       observationId: r.observation_id,
       taxonDisplayName: r.taxon_display_name,
       observedAt: r.observed_at,
+      areaLabel: r.public_area_label ?? null,
+      assetId: r.asset_id ?? null,
     }));
 }
 
@@ -74,60 +92,60 @@ export async function handleSearchSeasonsRoute(
   const query = url.searchParams.get("q") ?? "";
   const records = await querySeasonalRecords(season, query, db);
 
-  const seasons: Array<{ key: SeasonKey; label: string; months: string }> = [
-    { key: "spring", label: "春", months: "3〜5月" },
-    { key: "summer", label: "夏", months: "6〜8月" },
-    { key: "autumn", label: "秋", months: "9〜11月" },
-    { key: "winter", label: "冬", months: "12〜2月" },
-  ];
+  const isEn = lang === "en";
+  const prefix = lang === "ja" ? "/ja" : `/${lang}`;
+  const seasons: Array<{ key: SeasonKey; label: string; months: string }> = isEn
+    ? [
+        { key: "spring", label: "Spring", months: "Mar–May" },
+        { key: "summer", label: "Summer", months: "Jun–Aug" },
+        { key: "autumn", label: "Autumn", months: "Sep–Nov" },
+        { key: "winter", label: "Winter", months: "Dec–Feb" },
+      ]
+    : [
+        { key: "spring", label: "春", months: "3〜5月" },
+        { key: "summer", label: "夏", months: "6〜8月" },
+        { key: "autumn", label: "秋", months: "9〜11月" },
+        { key: "winter", label: "冬", months: "12〜2月" },
+      ];
 
   const seasonTabs = seasons
     .map((s) => {
       const active = s.key === season;
-      return `<a class="zt-season-tab${active ? " is-active" : ""}" href="/${lang}/search/seasons?season=${s.key}"${active ? ' aria-current="page"' : ""}>
+      return `<a class="zs-season${active ? " is-active" : ""}" href="${prefix}/search/seasons?season=${s.key}"${active ? ' aria-current="page"' : ""}>
         <strong>${s.label}</strong>
         <span>${s.months}</span>
       </a>`;
     })
     .join("");
 
-  const cards = records
-    .map(
-      (r) => `<a class="zt-season-card" href="/${lang}/records/${encodeURIComponent(r.observationId)}">
-        <strong>${escapeHtml(r.taxonDisplayName)}</strong>
-        <span>${escapeHtml(r.observedAt.slice(0, 10))}</span>
-      </a>`
+  const rowsHtml = records
+    .map((r) =>
+      renderSearchRow({
+        href: `${prefix}/observations/${encodeURIComponent(r.observationId)}`,
+        title: displayRecordName(r.taxonDisplayName, isEn) || (isEn ? "Unnamed record" : "名前なしの記録"),
+        titleHtml: r.taxonDisplayName ? highlightMatch(displayRecordName(r.taxonDisplayName, isEn), query) : escapeHtml(isEn ? "Unnamed record" : "名前なしの記録"),
+        meta: [formatShortDate(r.observedAt, isEn), r.areaLabel ?? ""].filter(Boolean).join(" ・ "),
+        badge: isEn ? "Record" : "記録",
+        thumbUrl: thumbUrlOf(r.assetId),
+      })
     )
     .join("");
 
   const emptyGuide =
     records.length === 0
-      ? `<div class="zt-empty-guide" data-search-empty-guide="1">
-          <h2>見つかりませんでした</h2>
-          <p>${query.trim() ? `「${escapeHtml(query.trim())}」に合う公開記録はまだありません。` : "この季節の公開記録はまだありません。"}</p>
-          <div class="zt-empty-actions">
-            <a class="zt-btn-outline" href="/${lang}/search/explore">検索トップへ戻る</a>
-            <a class="zt-btn-outline" href="/${lang}/map/explore">マップから探す</a>
-          </div>
-        </div>`
+      ? `<div class="zs-empty" data-search-empty-guide="1">${renderSearchEmptyIcon()}
+          <h2>${isEn ? "Nothing found" : "見つかりませんでした"}</h2>
+          <p>${query.trim() ? (isEn ? `No public records match "${escapeHtml(query.trim())}".` : `「${escapeHtml(query.trim())}」に合う公開記録はまだありません。`) : isEn ? "No public records for this season yet." : "この季節の公開記録はまだありません。"}</p>
+        </div>
+        <a class="zs-btn" href="${prefix}/search/explore">${isEn ? "Back to search" : "検索トップへ戻る"}</a>
+        <a class="zs-btn" href="${prefix}/map/explore">${isEn ? "Find on the map" : "マップから探す"}</a>`
       : "";
 
-  const body = `<style>
-    .zt-search-seasons{display:grid;gap:14px;padding:16px 0}
-    .zt-season-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-    .zt-season-tab,.zt-season-tab:visited{display:grid;gap:2px;padding:10px 8px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);text-decoration:none;text-align:center}
-    .zt-season-tab.is-active,.zt-season-tab.is-active:visited{background:var(--green);border-color:var(--green);color:#fff}
-    .zt-season-tab span{font-size:12px;opacity:.85}
-    .zt-season-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
-    .zt-season-card,.zt-season-card:visited{display:grid;gap:4px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);text-decoration:none}
-    .zt-season-card span{font-size:13px;color:var(--muted)}
-    .zt-empty-guide{padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:grid;gap:10px}
-    .zt-empty-actions{display:flex;flex-wrap:wrap;gap:8px}
-  </style>
-  <section class="zt-search-seasons" data-search-view="h7-h8" data-season="${season}">
-    <h1>時期で探す</h1>
-    <nav class="zt-season-tabs" aria-label="季節">${seasonTabs}</nav>
-    ${cards ? `<div class="zt-season-grid">${cards}</div>` : emptyGuide}
+  const body = `<style>${ZUKAN_SEARCH_CSS}</style>
+  <section class="zs" data-search-view="h7-h8" data-season="${season}">
+    ${renderSearchHead(isEn ? "Search by season" : "時期で探す", `${prefix}/search/explore`, isEn ? "Back" : "戻る")}
+    <nav class="zs-seasons" aria-label="${isEn ? "Season" : "季節"}">${seasonTabs}</nav>
+    ${rowsHtml ? `<ul class="zs-list">${rowsHtml}</ul>` : emptyGuide}
   </section>`;
 
   const html = renderZukanCommonShell({

@@ -227,9 +227,11 @@ test("detail page scripts bind Atlas themes for click and keyboard and recover f
   };
   const context = vm.createContext({
     URL,
+    window: {},
     document: {
       getElementById: (id: string) => id === "global-place-detail" ? root : null,
       querySelectorAll: () => [],
+      querySelector: () => null,
     },
     CustomEvent: class {
       constructor(public type: string, public options: { detail: unknown }) {}
@@ -268,4 +270,69 @@ test("detail page scripts bind Atlas themes for click and keyboard and recover f
   assert.equal(figureClasses.has("is-image-error"), true);
   assert.equal(imageEvents[0]?.type, "ikimon:place-atlas-image-error");
   assert.equal(imageEvents[0]?.detail.src, "/derived/park.jpg");
+});
+
+function profileWithRecords(count: number) {
+  const records: PlaceAtlasSourceRecord[] = Array.from({ length: count }, (_, index) => ({
+    recordId: `record-${index + 1}`,
+    observedAt: `2026-09-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+    contributorKey: `contributor-${index + 1}`,
+    displayName: `クスノキ ${index + 1}`,
+    mediaUrl: `/thumb/400/asset-${index + 1}`,
+    mediaKind: "photo",
+    identificationStatus: "confirmed",
+  }));
+  return buildPlaceAtlasProfile({
+    placeRef: { kind: "osm_area", entityKey: "osm:way:125727939", osmType: "way", osmId: 125727939 },
+    place: { name: "常磐公園", type: "park", localityLabel: "静岡県 静岡市", description: "まちなかの公園です。", canonicalPlaceId: "plc_e3293ec4bb9288a0", multilingualNames: { ja: "常磐公園", en: "Tokiwa Park" } },
+    records,
+    recordSetComplete: true,
+    locationMode: "osm_area",
+    minimumPublicRecords: 3,
+    contributorCountAllowed: false,
+    policy: { placeVisibility: "public", recordingPolicy: "check_rules", publicLocationMode: "place", contributionCtaMode: "check_rules", ruleSource: "official", ruleUrl: null, reason: "recording_rules_unverified" },
+    sources: ["canonical_place_registry"],
+    generatedAt: "2026-09-15T00:00:00.000Z",
+  });
+}
+
+test("place detail reaches the mock layout: photo hero, record and save buttons, stats card, record mosaic", () => {
+  const html = renderGlobalPlaceDetailPage({ profile: profileWithRecords(3), lang: "ja", viewerAuthenticated: true });
+  assert.match(html, /class="gpd-hero has-photo"/);
+  assert.match(html, /<h1 id="gpd-title">常磐公園<\/h1>/);
+  assert.match(html, /この場所で記録する/);
+  assert.match(html, /href="\/ja\/record\?placeId=plc_e3293ec4bb9288a0"/);
+  assert.match(html, /data-zukan-save/);
+  assert.match(html, /class="gpd-stats"/);
+  assert.match(html, /<strong>3<\/strong><span>記録<\/span>/);
+  assert.match(html, /この場所の記録<\/h2><a href="\/ja\/records\?view=public">すべて見る/);
+  assert.match(html, /gpd-mosaic gpd-mosaic-3/);
+  assert.match(html, /場所について詳しく見る/);
+  assert.match(html, /確認済み/);
+  assert.match(html, /<dialog class="gpd-sheet" id="gpd-share-sheet"/);
+  assert.match(html, /リンクをコピーする/);
+  assert.match(html, /メールで送る/);
+  assert.match(html, /リンクを知っている人は、このページを見られます。/);
+});
+
+test("place detail CTA row wraps into equal columns so the primary label stays on one line at 375px", () => {
+  const html = renderGlobalPlaceDetailPage({ profile: profileWithRecords(3), lang: "ja", viewerAuthenticated: false });
+  assert.ok(html.includes(".gpd-cta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))"));
+  assert.ok(!html.includes(".gpd-cta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}"));
+});
+
+test("place detail with no records shows the invitation instead of zero counts", () => {
+  const html = renderGlobalPlaceDetailPage({ profile: profileWithRecords(0), lang: "ja", viewerAuthenticated: false });
+  assert.match(html, /この場所の記録は、まだありません/);
+  assert.match(html, /この場所の図鑑がここから始まります/);
+  assert.doesNotMatch(html, /class="gpd-stats"/);
+  assert.doesNotMatch(html, /class="gpd-mosaic/);
+  assert.match(html, /この場所で記録する/);
+});
+
+test("place detail does not claim zero records while public records are suppressed for privacy", () => {
+  const html = renderGlobalPlaceDetailPage({ profile: profileWithRecords(2), lang: "ja", viewerAuthenticated: false });
+  assert.match(html, /記録が集まり始めています/);
+  assert.doesNotMatch(html, /この場所の記録は、まだありません/);
+  assert.doesNotMatch(html, /class="gpd-stats"/);
 });

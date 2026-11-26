@@ -9,29 +9,16 @@ import {
   renderObservationCommentsHtml,
 } from "./zukanObservationCommentsAndShare";
 
-test("renderObservationCommentsHtml renders D5 comments and guest login prompt", () => {
+test("free comments are closed: nothing is rendered, nothing is accepted, old data is not deleted", async () => {
   const html = renderObservationCommentsHtml({
     observationId: "obs_1",
     lang: "ja",
     prefix: "/ja",
-    authenticated: false,
-    comments: [
-      {
-        commentId: "cmt_1",
-        observationId: "obs_1",
-        authorUserId: "u1",
-        authorName: "観察者A",
-        body: "きれいな翅ですね",
-        createdAt: "2026-11-25T10:00:00Z",
-      },
-    ],
+    authenticated: true,
+    comments: [{ commentId: "cmt_1", observationId: "obs_1", authorUserId: "u1", authorName: "観察者A", body: "きれいな翅ですね", createdAt: "2026-11-25T10:00:00Z" }],
   });
-  assert.match(html, /data-detail-comments="d5"/);
-  assert.match(html, /きれいな翅ですね/);
-  assert.match(html, /href="\/ja\/login"/);
-});
+  assert.equal(html, "");
 
-test("POST /api/v1/observations/:id/comments enforces 401/403 and ignores client author", async () => {
   const unauthRes = await worker.fetch(
     new Request("https://shadow.test/api/v1/observations/obs_1/comments", {
       method: "POST",
@@ -42,25 +29,11 @@ test("POST /api/v1/observations/:id/comments enforces 401/403 and ignores client
   );
   assert.equal(unauthRes.status, 401);
 
-  const r2Store = new Map<string, string>();
+  const r2Store = new Map<string, string>([["observation-comments/obs_pub.json", JSON.stringify([{ commentId: "old" }])]]);
   const fakeEnv = {
     OBS_DB: {
       prepare() {
-        return {
-          bind() {
-            return {
-              async first() {
-                return {
-                  observation_id: "obs_priv",
-                  user_id: "owner_1",
-                  visibility: "private",
-                  note: "メモ",
-                  observed_at: "2026-11-25T10:00:00Z",
-                };
-              },
-            };
-          },
-        };
+        return { bind() { return { async first() { return { observation_id: "obs_pub", user_id: "owner_1", visibility: "public" }; } }; } };
       },
     },
     ASSET_BUCKET: {
@@ -73,45 +46,19 @@ test("POST /api/v1/observations/:id/comments enforces 401/403 and ignores client
       },
     },
   };
-
-  const otherForbidden = await handlePostObservationComment(
-    "obs_priv",
-    new Request("https://shadow.test/api/v1/observations/obs_priv/comments", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body: "他人の非公開記録へ" }),
-    }),
-    { userId: "other_user", displayName: "他人", banned: false },
-    fakeEnv as any
-  );
-  assert.equal(otherForbidden.status, 403);
-
-  const ownerOk = await handlePostObservationComment(
-    "obs_priv",
-    new Request("https://shadow.test/api/v1/observations/obs_priv/comments", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        authorUserId: "spoofed_id",
-        authorName: "なりすまし",
-        body: "自分のメモコメント",
-      }),
-    }),
+  const closed = await handlePostObservationComment(
+    "obs_pub",
+    new Request("https://shadow.test/api/v1/observations/obs_pub/comments", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: "新しいコメント" }) }),
     { userId: "owner_1", displayName: "本人", banned: false },
     fakeEnv as any
   );
-  assert.equal(ownerOk.status, 201);
-  const body = (await ownerOk.json()) as { ok: boolean; comment: { authorUserId: string; authorName: string } };
-  assert.equal(body.ok, true);
-  assert.equal(body.comment.authorUserId, "owner_1");
-  assert.equal(body.comment.authorName, "本人");
+  assert.equal(closed.status, 410);
+  assert.equal(((await closed.json()) as { error: string }).error, "comments_closed");
+  assert.equal(r2Store.size, 1);
+  assert.equal(r2Store.get("observation-comments/obs_pub.json"), JSON.stringify([{ commentId: "old" }]));
 
-  const getForbidden = await handleGetObservationComments(
-    "obs_priv",
-    { userId: "other_user", banned: false },
-    fakeEnv as any
-  );
-  assert.equal(getForbidden.status, 403);
+  const listed = await handleGetObservationComments("obs_pub", null, fakeEnv as any);
+  assert.deepEqual(await listed.json(), { ok: true, comments: [], closed: true });
 });
 
 test("Share link creation (owner-only 401/403) and D8 guest resolution work for public records", async () => {

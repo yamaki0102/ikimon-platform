@@ -1,10 +1,11 @@
+import { BRAND_ASSETS } from "../../src/brandAssets";
 import type { Env } from "./core/env";
 import { assertSameOriginRequest, escapeHtml, html } from "./core/http";
 import { publicLangFromPath, readCompatibleSession } from "./core/shared";
 import {
   ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL,
   ZUKAN_OBSERVATION_PUBLICATIONS_CREATE_SQL,
-  loadUserLibraryData,
+  loadUserLibraryGroup,
   type TopLibraryGroup,
 } from "./zukanTopPage";
 
@@ -31,8 +32,9 @@ export const LINK_TARGETS_ENABLED: LinkTargetKind[] = ["place", "event"];
 export const ZUKAN_LINK_FLOW_STYLES = `
 :root{--zk-g:#143f2e;--zk-ink:#17251b;--zk-muted:#5a6a60;--zk-surface:#f6f7f4;--zk-line:#e4e8e2;--zk-red:#b3261e;--zk-fast:120ms;--zk-std:240ms;--zk-slow:360ms;--zk-out:cubic-bezier(.2,0,0,1);--zk-sheet:cubic-bezier(.32,.72,0,1)}
 *{box-sizing:border-box}
-body{margin:0;background:#fff;color:var(--zk-ink);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6}
-.lk-logo{display:inline-block;margin:14px 20px;color:var(--zk-g);font-weight:800;font-size:22px;letter-spacing:.04em;text-decoration:none}
+html body[data-zukan-design],body{margin:0;background:#fff;color:var(--zk-ink);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6}
+.lk-logo{display:inline-block;margin:14px 20px;line-height:0}
+.lk-logo img{display:block;width:120px;height:auto}
 .lk-back{display:flex;align-items:center;justify-content:center;position:relative;min-height:56px;font-weight:800;font-size:18px}
 .lk-back a{position:absolute;left:8px;top:6px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--zk-ink)}
 .lk-page{max-width:520px;margin:0 auto;padding:0 20px 48px}
@@ -138,7 +140,7 @@ export function renderLinkChooserSheet(options: {
   return pageDoc(
     "つなぐ先を選ぶ",
     options.lang,
-    `<a class="lk-logo" href="${prefix}/library">ZUKAN</a>
+    `<a class="lk-logo" href="${prefix}/library"><img src="${BRAND_ASSETS.lockupBlack}" alt="ZUKAN" width="120" height="32"></a>
 <div class="lk-backdrop" aria-hidden="true"><h2>${escapeHtml(group.headerLabel)}</h2><div class="lk-grid">${backdrop}</div></div>
 <div class="lk-shade"></div>
 <form class="lk-sheet" method="get" action="${prefix}/library/link/confirm" data-zukan-link-sheet="j1" role="dialog" aria-labelledby="lk-title">
@@ -274,8 +276,7 @@ export async function handleZukanLinkFlowRoute(
   };
 
   const groupKey = param("group").slice(0, 160);
-  const library = groupKey ? await loadUserLibraryData(env, session.userId) : null;
-  const group = library?.groups.find((g) => g.groupKey === groupKey) ?? null;
+  const group = groupKey ? await loadUserLibraryGroup(env, session.userId, groupKey) : null;
   if (!group) return new Response(null, { status: 302, headers: { location: `${prefix}/library`, "cache-control": "no-store" } });
   const event = await findEventCandidate(env, session.userId, group.groupKey);
 

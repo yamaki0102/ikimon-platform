@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import ts from "typescript";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
@@ -26,7 +27,7 @@ test("image branch never publishes the SVG shadow derivative", () => {
 });
 
 test("Images binding is configured for every deployed environment", () => {
-  const parsed = JSON.parse(config);
+  const parsed = ts.parseConfigFileTextToJson("wrangler.jsonc", config).config;
   assert.equal(parsed.images.binding, "IMAGES");
   assert.equal(parsed.env.shadow.images.binding, "IMAGES");
   assert.equal(parsed.env.staging.images.binding, "IMAGES");

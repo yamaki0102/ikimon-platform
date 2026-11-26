@@ -6,13 +6,13 @@ import { ZUKAN_DESIGN_FOUNDATION_STYLES, isAppExperiencePath, renderAppExperienc
 
 test("shared design foundation keeps semantic visual roles and accessibility invariants", () => {
   for (const token of [
-    "--zukan-action-primary:#245c3a",
-    "--zukan-action-capture:#b94f18",
+    "--zukan-action-primary:#143f2e",
+    "--zukan-action-capture:#143f2e",
     "--zukan-text-primary:#17251b",
     "--zukan-text-secondary:#40564a",
-    "--zukan-surface-base:#fff9ec",
+    "--zukan-surface-base:#ffffff",
     "--zukan-border-control:#52685a",
-    "--zukan-link:#245c3a",
+    "--zukan-link:#143f2e",
     "--zukan-status-error:#b42318",
     "--zukan-control-min:44px",
     "--zukan-radius-control:4px",
@@ -29,7 +29,7 @@ test("shared chrome preserves language and guest/member record destinations with
     for (const member of [false, true]) {
       const nav = renderAppExperienceNavigation(lang, 4, "bottom", member);
       assert.equal((nav.match(/<a /g) ?? []).length, 5);
-      assert.match(nav, new RegExp(`href="/${lang}/records\\?view=${member ? "mine" : "public"}"`));
+      assert.ok(nav.includes(`href="/${lang}/${member ? "library" : ""}"`));
       assert.match(nav, new RegExp(`href="/${lang}/community/events" aria-current="page"`));
       assert.doesNotMatch(nav, /console|organizer|admin/);
     }
@@ -43,7 +43,7 @@ test("event shell navigation uses the request language and membership", async ()
   const response = observationEventPageHtml("Join", "<h1>Join</h1>", "test", 200, "en", true);
   const html = await response.text();
   assert.match(html, /<html lang="en">/);
-  assert.match(html, /href="\/en\/records\?view=mine"/);
+  assert.match(html, /href="\/en\/library"/);
   const navBlocks = html.match(/<nav\b[\s\S]*?<\/nav>/g) ?? [];
   assert.ok(navBlocks.length >= 1);
   for (const navBlock of navBlocks) {
@@ -74,7 +74,7 @@ test("unavailable records are not reported as an empty collection", () => {
 
 test("native capture has no fabricated coordinates and its browser script parses", () => {
   const html = renderCloudflareRecordHtml({ userId: "fixture", displayName: "fixture" } as never, new URL("https://zukan.earth/ja/record"), "fixture");
-  assert.match(html, /--zukan-action-primary:#245c3a/);
+  assert.match(html, /--zukan-action-primary:#143f2e/);
   assert.match(html, /--zukan-focus-outline:#087f7c/);
   assert.match(html, /--ink:var\(--zukan-text-primary\)/);
   assert.match(html, /box-shadow:0 0 0 4px var\(--zukan-focus-yellow-300\)/);

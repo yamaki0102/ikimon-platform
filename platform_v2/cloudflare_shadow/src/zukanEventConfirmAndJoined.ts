@@ -1,13 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
-
-type EventRow = {
-  session_id: string;
-  title: string;
-  organizer_user_id: string;
-  started_at: string;
-};
+import { ZUKAN_EVENT_CSS, eventTiming, loadEventCore, phaseChip, renderEventHero, renderEventSubHead } from "./zukanEventUi";
 
 type SessionLike = {
   userId: string;
@@ -28,9 +22,7 @@ export async function handleEventConfirmOrJoinedRoute(
   session: SessionLike,
   db: Env["OBS_DB"]
 ): Promise<Response> {
-  const event = await db.prepare(
-    "SELECT session_id, title, organizer_user_id, started_at FROM observation_event_sessions WHERE session_id = ? LIMIT 1"
-  ).bind(eventId).first<EventRow>();
+  const event = await loadEventCore(db, eventId);
   if (!event) {
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
@@ -39,27 +31,29 @@ export async function handleEventConfirmOrJoinedRoute(
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
   const fieldName = resolveServerFieldName(session, lang);
+  const encodedEvent = encodeURIComponent(eventId);
+  const timing = eventTiming(event, lang);
 
   let bodyHtml = "";
   let pageTitle = event.title;
 
   if (view === "confirm") {
     pageTitle = isEn ? `Confirm participation — ${event.title}` : `参加確認 — ${event.title}`;
-    bodyHtml = `<section class="zt-hub-card" data-event-view="f7">
-      <h1>${escapeHtml(event.title)}</h1>
-      <p>${isEn ? "Starts" : "開始"}: <time>${escapeHtml(event.started_at)}</time></p>
-      <p><strong>${
+    bodyHtml = `<style>${ZUKAN_EVENT_CSS}</style><div class="ze" data-event-view="f7" style="max-width:720px">
+      ${renderEventSubHead(isEn ? "Confirm to join" : "参加の確認", `${prefix}/events/${encodedEvent}/preview`, isEn ? "Back to the event" : "イベントに戻る")}
+      <div class="ze-summary"><span class="ze-summary-thumb" aria-hidden="true"></span><div><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(timing.whenLabel)}</small></div></div>
+      <p class="ze-box">${
         isEn
-          ? "Only your field name is shared with the organizer."
-          : "主催者に伝わるのはフィールドネームまでです（メールアドレスや本名は伝わりません）。"
-      }</strong></p>
-      <p>${isEn ? "Field name" : "伝わる名前"}: <strong>${escapeHtml(fieldName)}</strong></p>
-      <div>${
+          ? `When you join, the organizer sees your <strong>field name</strong> (${escapeHtml(fieldName)}). It is only for roll call and safety. Your real name is never shared.`
+          : `申し込むと、主催の人には、あなたの<strong>フィールドネーム</strong>（${escapeHtml(fieldName)}）が伝わります。点呼と安全の確認のためです。本名は伝わりません。`
+      }</p>
+      <p class="ze-note">${isEn ? "Only your field name is shared with the organizer." : "主催者に伝わるのはフィールドネームまでです（メールアドレスや本名は伝わりません）。"} ${isEn ? "Once you join, you can add photos to the day's album." : "参加すると、当日のアルバムに写真を加えられます。"}</p>
+      ${
         authenticated
-          ? `<button type="button" class="zt-btn-capture" id="event-confirm-btn">${isEn ? "Confirm and join" : "この内容で参加する"}</button>`
-          : `<a class="zt-btn-capture" href="${escapeHtml(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/events/${eventId}/confirm`)}`)}">${isEn ? "Sign in to join" : "ログインして参加する"}</a>`
-      }</div>
-      <p id="event-confirm-status" aria-live="polite"></p>
+          ? `<button type="button" class="ze-btn" id="event-confirm-btn">${isEn ? "Confirm and join" : "参加を確定する"}</button>`
+          : `<a class="ze-btn" href="${escapeHtml(`${prefix}/login?redirect=${encodeURIComponent(`${prefix}/events/${eventId}/confirm`)}`)}">${isEn ? "Sign in to join" : "ログインして参加する"}</a>`
+      }
+      <p class="ze-note" id="event-confirm-status" aria-live="polite"></p>
       <script>
         (() => {
           const btn = document.getElementById("event-confirm-btn");
@@ -76,18 +70,25 @@ export async function handleEventConfirmOrJoinedRoute(
           });
         })();
       </script>
-    </section>`;
+    </div>`;
   } else {
     pageTitle = isEn ? `Joined — ${event.title}` : `参加済み — ${event.title}`;
-    bodyHtml = `<section class="zt-hub-card" data-event-view="f8">
-      <h1>${escapeHtml(event.title)}</h1>
-      <p>${isEn ? "You have joined this event." : "参加の確認が完了しました。"}</p>
-      <p>${isEn ? "Shared field name" : "主催者に伝わる名前"}: <strong>${escapeHtml(fieldName)}</strong></p>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        <a class="zt-btn-capture" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(eventId)}/day`)}">${isEn ? "Open event day page" : "当日のページを開く"}</a>
-        <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/record?eventSessionId=${encodeURIComponent(eventId)}`)}">${isEn ? "Capture observation" : "観察を記録する"}</a>
-      </div>
-    </section>`;
+    bodyHtml = `<style>${ZUKAN_EVENT_CSS}</style><div class="ze" data-event-view="f8" style="max-width:720px">
+      ${renderEventHero({
+        title: event.title,
+        chip: phaseChip(timing.phase, timing.dateLabel, isEn),
+        backHref: `${prefix}/events/${encodedEvent}/preview`,
+        backLabel: isEn ? "Back to the event" : "イベントに戻る",
+        shareHref: `${prefix}/events/${encodedEvent}/share`,
+        shareLabel: isEn ? "Share" : "共有する",
+      })}
+      <p class="ze-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>${isEn ? "You have joined this event." : "参加の確認が完了しました。"}</p>
+      <p class="ze-note">${isEn ? "Shared field name" : "主催者に伝わる名前"}: <strong>${escapeHtml(fieldName)}</strong></p>
+      <p class="ze-note">${isEn ? "We will remind you the day before. On the day, add photos from the event page." : "近づいたら、前日にお知らせします。当日はこの画面から写真を加えられます。"}</p>
+      <a class="ze-btn" href="${escapeHtml(`${prefix}/events/${encodedEvent}/day`)}">${isEn ? "Open event day page" : "当日のページを開く"}</a>
+      <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/record?eventSessionId=${encodedEvent}`)}">${isEn ? "Capture observation" : "観察を記録する"}</a>
+      <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/events/${encodedEvent}/details`)}">${isEn ? "Event details" : "詳細情報を見る"}</a>
+    </div>`;
   }
 
   const html = renderZukanCommonShell({

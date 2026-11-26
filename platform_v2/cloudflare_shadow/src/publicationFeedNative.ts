@@ -299,7 +299,7 @@ function pointInGeometry(lng: unknown, lat: unknown, geometry: SupportedGeometry
     : geometry.coordinates.some((polygon) => pointInPolygon(lng, lat, polygon));
 }
 
-function metadataProvesPublicFaceSafety(value: string | null): boolean {
+export function metadataProvesPublicFaceSafety(value: string | null): boolean {
   if (!value) return false;
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -357,7 +357,7 @@ function metadataProvesPublicFaceSafety(value: string | null): boolean {
   }
 }
 
-function safeDerivedKey(value: unknown): string | null {
+export function safeDerivedKey(value: unknown): string | null {
   const key = cleanText(value);
   if (!key || !key.startsWith("derived/") || key.includes("..") || key.includes("\\") || /%(?:2e|5c)/i.test(key)) return null;
   return key;

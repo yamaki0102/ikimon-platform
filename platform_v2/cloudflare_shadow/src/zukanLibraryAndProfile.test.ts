@@ -35,7 +35,10 @@ test("library (B1-B3, B6, B7) renders in common ZUKAN shell without changing bun
   assert.match(html, /data-library-group="2026-11-25\|place-sanaru"/);
   assert.match(html, /まとめて確認・公開/);
   assert.match(html, /data-library-one-year-pair="1"/);
-  assert.match(html, /去年の今日/);
+  assert.match(html, /1年前のこの場所/);
+  assert.match(html, /zt-bottom-nav/);
+  assert.match(html, /class="zt-avatar"[^>]*>テ</);
+  assert.match(html, /自分のみ/);
   assert.doesNotMatch(html, /data-zukan-otayori-fab="1"/);
   assert.match(html, /data-zukan-otayori-sidebar="1"[^>]*>改善のご要望<\/a>/);
   assert.match(html, /data-zukan-otayori-menu="1"[^>]*>改善のご要望<\/a>/);
@@ -45,6 +48,10 @@ test("library (B1-B3, B6, B7) renders in common ZUKAN shell without changing bun
     { lang: "ja", authenticated: true, displayName: "テスト太郎" }
   );
   assert.match(emptyHtml, /data-library-empty="1"/);
+  assert.match(emptyHtml, /まだ写真がありません/);
+  assert.match(emptyHtml, /記録すると、こうなります/);
+  assert.match(emptyHtml, /写真を選んで入れる/);
+  assert.match(emptyHtml, /イベントの写真を見る/);
 });
 
 test("profile hub (I1) renders in common ZUKAN shell with library, events, and settings destinations", () => {

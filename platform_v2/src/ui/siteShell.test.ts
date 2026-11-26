@@ -53,7 +53,7 @@ test("site shell applies the shared design foundation once to both product and a
   for (const currentPath of ["/ja/", "/ja/learn/field-loop"]) {
     const html = renderRecordPage({ basePath: "", title: "Test", body: "<p>body</p>", lang: "ja", currentPath });
     assert.match(html, /<body data-zukan-design="v1"/);
-    assert.equal((html.match(/--zukan-action-primary:#245c3a/g) ?? []).length, 1);
+    assert.equal((html.match(/--zukan-action-primary:#143f2e/g) ?? []).length, 1);
     assert.match(html, /--ikimon-page-max: var\(--zukan-content-max\);/);
     assert.match(html, /box-shadow: 0 0 0 4px var\(--zukan-focus-yellow-300\);/);
   }
@@ -382,8 +382,8 @@ test("app records search belongs to the content, with public guest navigation", 
   const html = renderRecordPage({basePath: "", title: "Records", body: "<p>records</p>", lang: "ja", currentPath: "/ja/records?view=public&q=bird"});
   assert.doesNotMatch(html, /<form class="site-search/);
   assert.doesNotMatch(html, /<aside class="desktop-side-nav/);
-  assert.match(html, /data-auth-guest-href="\/ja\/records\?view=public"/);
-  assert.match(html, /data-auth-member-href="\/ja\/records\?view=mine"/);
+  assert.match(html, /data-auth-guest-href="\/ja\/"/);
+  assert.match(html, /data-auth-member-href="\/ja\/library"/);
   assert.match(html, /data-home-header/);
 });
 
@@ -811,15 +811,15 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
   });
   const launcher = html.match(/<nav class="[^"]*global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
 
-  assert.match(launcher, />ホーム<\/span>/);
+  assert.match(launcher, />ライブラリ<\/span>/);
+  assert.match(launcher, />イベント<\/span>/);
   assert.match(launcher, />撮る<\/span>/);
   assert.match(launcher, />場所<\/span>/);
-  assert.match(launcher, />記録<\/span>/);
-  assert.match(launcher, />参加<\/span>/);
-  assert.ok(launcher.indexOf(">ホーム</span>") < launcher.indexOf(">記録</span>"));
-  assert.ok(launcher.indexOf(">記録</span>") < launcher.indexOf(">撮る</span>"));
+  assert.match(launcher, />自分<\/span>/);
+  assert.ok(launcher.indexOf(">ライブラリ</span>") < launcher.indexOf(">イベント</span>"));
+  assert.ok(launcher.indexOf(">イベント</span>") < launcher.indexOf(">撮る</span>"));
   assert.ok(launcher.indexOf(">撮る</span>") < launcher.indexOf(">場所</span>"));
-  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">参加</span>"));
+  assert.ok(launcher.indexOf(">場所</span>") < launcher.indexOf(">自分</span>"));
   assert.match(launcher, /data-global-record-trigger="photo"/);
   assert.doesNotMatch(launcher, /data-global-record-trigger="gallery"/);
   assert.match(launcher, /global-record-choice is-active[^>]+href="\/ja\/"[^>]*aria-current="page"/);
@@ -846,16 +846,16 @@ test("primary mobile navigation is capture-first and keeps camera separate from 
     currentPath: "/ja/profile",
   });
   const profileLauncher = profileHtml.match(/<nav class="[^"]*global-record-launcher"[\s\S]*?<\/nav>/)?.[0] ?? "";
-  assert.doesNotMatch(profileLauncher, />自分<\/span>/);
+  assert.match(profileLauncher, /aria-current="page"[^>]*>[\s\S]*?<span>自分<\/span>/);
 });
 
 test("browse navigation gives active state to the matching destination", () => {
   const surfaces = [
-    { path: "/ja/", label: "ホーム", mobile: true },
+    { path: "/ja/", label: "ライブラリ", mobile: true },
     { path: "/ja/map?tab=places", label: "場所" },
-    { path: "/ja/records?view=mine", label: "記録" },
-    { path: "/ja/community/events", label: "参加" },
-    { path: "/ja/profile", label: "自分", mobile: false },
+    { path: "/ja/records?view=mine", label: "ライブラリ" },
+    { path: "/ja/community/events", label: "イベント" },
+    { path: "/ja/profile", label: "自分" },
   ];
 
   for (const surface of surfaces) {
@@ -944,12 +944,11 @@ test("site shell localizes the mobile global record launcher", () => {
   });
 
   assert.match(html, /aria-label="Main pages"/);
-  assert.match(html, />Home<\/span>/);
+  assert.match(html, />Library<\/span>/);
+  assert.match(html, />Events<\/span>/);
   assert.match(html, />Capture<\/span>/);
   assert.match(html, />Places<\/span>/);
-  assert.match(html, />Records<\/span>/);
-  assert.match(html, />Join<\/span>/);
-  assert.doesNotMatch(html, />Me<\/span>/);
+  assert.match(html, />Me<\/span>/);
   assert.match(html, /class="home-header-login site-login-link" href="\/en\/login\?redirect=%2Fprofile">Sign in</);
   assert.match(html, /Capture a record/);
   assert.match(html, /Choose from device/);
@@ -1241,12 +1240,18 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
   const photoInput = sourceChoice ? makeNode('[data-global-record-input="photo"]', "data-global-record-input", "photo") : null;
   const native = sourceChoice ? makeNode("[data-global-record-os-camera]") : null;
   const nativeFallback = sourceChoice ? makeNode("[data-global-record-os-camera-fallback]") : null;
+  const focusFallback = cameraNode("focus-fallback");
+  const errorActions = cameraNode("error-actions");
+  const focusDevice = makeNode("[data-global-record-os-camera-focus]");
+  const standard = makeNode("[data-global-record-camera-standard]");
+  focusFallback.hidden = true;
   const nodeLists: Record<string, CameraTestNode[]> = {
     "[data-global-record-trigger]": Object.values(triggers),
     "[data-global-record-camera-close]": [],
     "[data-global-record-gallery-select]": [gallery],
     "[data-global-record-input]": photoInput ? [galleryInput, photoInput] : [galleryInput],
-    "[data-global-record-os-camera]": native && nativeFallback ? [native, nativeFallback] : [],
+    "[data-global-record-os-camera]": native && nativeFallback ? [native, nativeFallback, focusDevice] : [],
+    "[data-global-record-camera-standard]": [standard],
   };
   const configJson = recordConfigJson(html);
   const documentElement = new CameraTestNode();
@@ -1293,6 +1298,7 @@ function cameraRuntime(lang: "ja" | "en" | "es" | "pt-BR" = "en", sourceChoice =
     },
   });
   return {
+    focusFallback, errorActions, focusDevice, standard, constraintsOf: () => requests.map((request) => JSON.stringify(request.constraints)),
     sheet, video, start, capture, error, errorBody, retry, close, gallery, galleryInput, photoInput, native, nativeFallback,
     triggers, requests, timers, events,
     startPhoto() { triggers.photo!.dispatch("contextmenu"); if (sourceChoice) start.click(); },
@@ -1485,7 +1491,7 @@ test("returning from the native camera keeps its photo ready to submit across a 
 });
 
 test("camera startup failures expose localized recovery text and a stable reason in all supported languages", async () => {
-  const firstWords = { ja: /カメラ|このブラウザー/, en: /camera|browser/i, es: /cámara|navegador/i, "pt-BR": /câmera|navegador/i };
+  const firstWords = { ja: /カメラ|このブラウザ/, en: /camera|browser/i, es: /cámara|navegador/i, "pt-BR": /câmera|navegador/i };
   for (const lang of ["ja", "en", "es", "pt-BR"] as const) {
     for (const [name, reason] of [
       ["NotFoundError", "no_device"],
@@ -1511,6 +1517,71 @@ test("camera startup failures expose localized recovery text and a stable reason
   }
 });
 
+
+test("supported close-up camera keeps the exact photo constraints and goes live", async () => {
+  const runtime = cameraRuntime("ja");
+  runtime.startPhoto();
+  assert.equal(
+    runtime.constraintsOf()[0],
+    '{"video":{"facingMode":{"ideal":"environment"},"width":{"ideal":2560},"height":{"ideal":1920}},"audio":false}'
+  );
+  runtime.requests[0]!.resolve(cameraTestStream({ focusMode: ["continuous"] }));
+  await flushCameraTasks();
+  assert.equal(runtime.error.hidden, true);
+  assert.equal(runtime.focusFallback.hidden, true);
+  assert.equal(runtime.capture.hidden, false);
+});
+
+test("unsupported close-up focus offers device camera and back-to-standard instead of a dead end", async () => {
+  const runtime = cameraRuntime("ja");
+  runtime.startPhoto();
+  runtime.requests[0]!.resolve(cameraTestStream({}));
+  await flushCameraTasks();
+  assert.equal(runtime.error.hidden, false);
+  assert.equal(runtime.errorBody.textContent, "このブラウザでは、接写のピントを調整できません");
+  assert.equal(runtime.focusFallback.hidden, false);
+  assert.equal(runtime.errorActions.hidden, true);
+  assert.equal(runtime.events.find((event) => event.actionKey === "camera_start_failed")?.metadata.error, "focus_unsupported");
+  const html = compactMaterializedCapture(renderRecordPage({ basePath: "", title: "t", body: "<p>c</p>", lang: "ja", currentPath: "/ja/learn/field-loop" }));
+  assert.match(html, /data-global-record-camera-focus-fallback[\s\S]*?端末のカメラで撮る[\s\S]*?標準に戻る/);
+  runtime.focusDevice.click();
+  assert.equal(runtime.photoInput?.clicks, 1);
+  runtime.standard.click();
+  assert.equal(runtime.error.hidden, true);
+  assert.equal(runtime.focusFallback.hidden, true);
+  assert.equal(runtime.errorActions.hidden, false);
+  assert.equal(runtime.start.hidden, false);
+});
+
+test("close-up internals stay identical after the capture-screen rebuild: constraints, timeouts, zoom, focus, tap-focus, torch and capability gate", () => {
+  const engine = globalRecordEntryAsset().content.toString("utf8");
+  for (const fragment of [
+    "const CAMERA_START_TIMEOUT_MS = 10000;",
+    "const CAMERA_PHOTO_IDEAL_WIDTH = 2560;",
+    "const CAMERA_PHOTO_IDEAL_HEIGHT = 1920;",
+    "const CAMERA_VIDEO_IDEAL_WIDTH = 1280;",
+    "const CAMERA_VIDEO_IDEAL_HEIGHT = 720;",
+    "facingMode: { ideal: 'environment' },",
+    "width: { ideal: CAMERA_PHOTO_IDEAL_WIDTH },",
+    "height: { ideal: CAMERA_PHOTO_IDEAL_HEIGHT },",
+    "['continuous', 'single-shot', 'manual'].includes(mode)",
+    "if (options.requireFocusMode && !streamHasCloseupFocusMode(stream)) {\n        throw makeError('focus_unsupported');\n      }",
+    "cameraZoomTrack.applyConstraints({ advanced: [{ zoom: next }] })",
+    "cameraFocusTrack.applyConstraints({ advanced: [manualConstraint] })",
+    "cameraFocusTrack.applyConstraints({ advanced: [{ focusMode: cameraFocusAutoMode }] })",
+    "track.applyConstraints({ advanced: [constraint] })",
+    "track.applyConstraints({ advanced: [{ torch: Boolean(on) }] })",
+  ]) assert.ok(engine.includes(fragment), fragment);
+  assert.equal(engine.split("getUserMedia(constraints)").length - 1, 1);
+});
+
+test("capture-screen engine mode is inert unless the capture stage exists and exposes only the documented API", () => {
+  const engine = globalRecordEntryAsset().content.toString("utf8");
+  assert.ok(engine.includes("const embeddedCapture = Boolean(document.querySelector('[data-zukan-capture-stage]'));"));
+  assert.ok(engine.includes("window.ikimonCaptureEngine = {"));
+  assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*window\.ikimonCaptureEngine = \{\s*begin: embeddedBegin,\s*setCloseup: embeddedApplyCloseup,\s*shutter:[\s\S]*stop:[\s\S]*state: embeddedState,\s*caps: embeddedCaps,\s*clearError: hideCameraError,\s*torch:[\s\S]*location: \(forceFresh\) => requestCaptureLocation\(Boolean\(forceFresh\)\)/);
+  assert.match(engine, /if \(embeddedCapture\) \{[\s\S]*emitCapture\('ikimon-capture-photo'/);
+});
 
 test("privacy and terms render the operator statement; other pages do not", () => {
   for (const path of ["/ja/privacy", "/ja/terms", "/en/privacy"]) {

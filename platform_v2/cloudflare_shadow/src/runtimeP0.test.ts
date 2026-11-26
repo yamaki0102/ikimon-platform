@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import ts from "typescript";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { worker } from "./index";
@@ -66,7 +67,7 @@ test("staging and production identity remain safe without the shadow-only bindin
 });
 
 test("environment configs carry only the compatibility flags they require", async () => {
-  const config = JSON.parse(await readFile(configPath, "utf8")) as Record<string, any>;
+  const config = ts.parseConfigFileTextToJson("wrangler.jsonc", await readFile(configPath, "utf8")).config as Record<string, any>;
   assert.equal(config.find_additional_modules, true);
   assert.equal(config.base_dir, "../src/content");
   assert.equal(config.preserve_file_names, true);

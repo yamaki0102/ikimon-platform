@@ -1,4 +1,5 @@
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
+import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader } from "./zukanSubpageUi";
 
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
@@ -91,10 +92,16 @@ export async function handlePlaceSeasonsApi(
 
   const rows = await db
     .prepare(
-      `SELECT observed_at
-       FROM observations
-       WHERE place_id = ?
-         AND visibility = 'public'`
+      `SELECT o.observed_at
+       FROM record_place_memberships m
+       JOIN observations o
+         ON o.observation_id = m.record_id
+       WHERE m.place_id = ?
+         AND m.membership_state = 'confirmed'
+         AND m.public_precision = 'place'
+         AND m.removed_at IS NULL
+         AND o.visibility = 'public'
+         AND COALESCE(o.emergency_hidden, 0) = 0`
     )
     .bind(placeId)
     .all<{ observed_at: string | null }>();
@@ -136,67 +143,88 @@ export async function handlePlaceAboutOrSeasonsRoute(
   const authenticated = Boolean(session && !session.banned);
 
   let bodyHtml = "";
+  const placeHref = `${prefix}/places/${encodedPlace}`;
   if (tab === "about") {
-    bodyHtml = `<section class="zt-hub-card" data-place-about="e6">
-      <style>
-        .zt-place-meta{display:grid;gap:8px;margin:0}
-        .zt-place-meta dt{font-size:13px;color:#485a4e;font-weight:700}
-        .zt-place-meta dd{margin:0;font-size:15px;font-weight:700}
-      </style>
-      <h1>${escapeHtml(place.canonical_name)} — ${isEn ? "About" : "この場所について"}</h1>
-      <p>${escapeHtml(place.public_summary ?? (isEn ? "A local nature observation area." : "地域の自然観察の場です。"))}</p>
-      <dl class="zt-place-meta">
-        <div><dt>${isEn ? "Area" : "地域"}</dt><dd>${escapeHtml(place.locality_label ?? "—")}</dd></div>
-        <div><dt>${isEn ? "Type" : "種別"}</dt><dd>${escapeHtml(place.place_kind)}</dd></div>
-      </dl>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        <a class="zt-btn-outline" href="${escapeHtml(`${prefix}/places/${encodedPlace}/seasons`)}">${
-          isEn ? "Seasonal records" : "季節ごとの記録を見る"
-        }</a>
-        <a class="zt-btn-capture" href="${escapeHtml(`${prefix}/record?placeId=${encodedPlace}`)}">${
-          isEn ? "Record here" : "この場所で記録する"
-        }</a>
-      </div>
+    let recordFact: string[] | null = null;
+    try {
+      const recRows = await db
+        .prepare(
+          `SELECT o.observed_at
+           FROM record_place_memberships m
+           JOIN observations o ON o.observation_id = m.record_id
+           WHERE m.place_id = ?
+             AND m.membership_state = 'confirmed'
+             AND m.public_precision = 'place'
+             AND m.removed_at IS NULL
+             AND o.visibility = 'public'
+             AND COALESCE(o.emergency_hidden, 0) = 0`
+        )
+        .bind(place.place_id)
+        .all<{ observed_at: string | null }>();
+      const list = recRows.results ?? [];
+      const years = list.map((r) => Number(String(r.observed_at ?? "").slice(0, 4))).filter((y) => y >= 1900 && y < 3000);
+      if (list.length > 0) {
+        const since = years.length > 0 ? Math.min(...years) : null;
+        recordFact = [
+          isEn ? "Records" : "記録",
+          isEn ? `${list.length}${since ? ` (since ${since})` : ""}` : `${list.length}件${since ? `（${since}年から）` : ""}`,
+        ];
+      }
+    } catch {
+      recordFact = null;
+    }
+    const facts = [
+      place.locality_label ? [isEn ? "Area" : "所在地", place.locality_label] : null,
+      recordFact,
+    ].filter((row): row is string[] => row !== null);
+    bodyHtml = `<section class="zt-sp" data-place-about="e6">
+      <style>${ZUKAN_SUBPAGE_CSS}</style>
+      ${renderSubpageHeader({ title: isEn ? "About this place" : "場所について", backHref: placeHref, backLabel: isEn ? "Back to the place" : "場所に戻る" })}
+      <h2 class="zt-sp-title">${escapeHtml(place.canonical_name)}</h2>
+      <p class="zt-sp-text">${escapeHtml(place.public_summary ?? (isEn ? "A local nature observation area." : "地域の自然観察の場です。"))}</p>
+      ${facts.length > 0 ? `<dl class="zt-sp-facts">${facts.map(([k, v]) => `<div><dt>${escapeHtml(k!)}</dt><dd>${escapeHtml(v!)}</dd></div>`).join("")}</dl>` : ""}
+      <a class="zt-sp-secondary" href="${escapeHtml(`${prefix}/places/${encodedPlace}/propose`)}">${isEn ? "Suggest an edit" : "編集を提案する"}</a>
+      <a class="zt-sp-secondary" href="${escapeHtml(`${prefix}/places/${encodedPlace}/seasons`)}">${isEn ? "Seasonal records" : "季節の記録を見る"}</a>
+      <a class="zt-sp-primary" href="${escapeHtml(`${prefix}/record?placeId=${encodedPlace}`)}">${isEn ? "Record here" : "この場所で記録する"}</a>
     </section>`;
   } else {
     const rows = await db
       .prepare(
-        `SELECT observed_at
-         FROM observations
-         WHERE place_id = ?
-           AND visibility = 'public'`
+        `SELECT o.observed_at
+         FROM record_place_memberships m
+         JOIN observations o
+           ON o.observation_id = m.record_id
+         WHERE m.place_id = ?
+           AND m.membership_state = 'confirmed'
+           AND m.public_precision = 'place'
+           AND m.removed_at IS NULL
+           AND o.visibility = 'public'
+           AND COALESCE(o.emergency_hidden, 0) = 0`
       )
       .bind(place.place_id)
       .all<{ observed_at: string | null }>();
     const summary = aggregatePlaceSeasons(rows.results ?? []);
+    const seasonShort: Record<SeasonKey, string> = { spring: "春", summer: "夏", autumn: "秋", winter: "冬" };
 
-    bodyHtml = `<section class="zt-hub-card" data-place-seasons="e7">
-      <style>
-        .zt-season-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
-        .zt-season-card{padding:12px;border:1px solid #dce3dd;border-radius:10px;background:#fff;display:grid;gap:6px}
-        .zt-season-card strong{font-size:15px;color:#245c3a}
-        @media (prefers-reduced-motion:reduce){.zt-season-grid,.zt-season-grid *{transition:none!important;animation:none!important}}
+    bodyHtml = `<section class="zt-sp" data-place-seasons="e7">
+      <style>${ZUKAN_SUBPAGE_CSS}
+        .zt-sp-season{display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid #dde2dc}
+        .zt-sp-season p{margin:0;font-size:1.0625rem;line-height:1.6}
       </style>
-      <h1>${escapeHtml(place.canonical_name)} — ${isEn ? "Seasonal Records" : "季節ごとの記録"}</h1>
-      <p>${
-        isEn
-          ? `Comparing ${summary.lastYear} and ${summary.thisYear}`
-          : `${summary.lastYear}年と${summary.thisYear}年の記録を見比べる`
+      ${renderSubpageHeader({ title: isEn ? "Seasonal records" : "季節の記録", backHref: placeHref, backLabel: isEn ? "Back to the place" : "場所に戻る" })}
+      <p class="zt-sp-lead">${escapeHtml(place.canonical_name)} ・ ${
+        isEn ? `${summary.lastYear} vs ${summary.thisYear}` : `${summary.lastYear}年と${summary.thisYear}年を見比べる`
       }</p>
-      <div class="zt-season-grid">
+      <div>
         ${summary.seasons
           .map(
-            (s) => `<div class="zt-season-card">
-              <strong>${escapeHtml(isEn ? s.labelEn : s.labelJa)}</strong>
-              <span>${summary.thisYear}${isEn ? "" : "年"}: ${s.thisYearCount}${isEn ? "" : "件"}</span>
-              <span>${summary.lastYear}${isEn ? "" : "年"}: ${s.lastYearCount}${isEn ? "" : "件"}</span>
+            (s) => `<div class="zt-sp-season">
+              <span class="zt-sp-badge">${escapeHtml(isEn ? s.key.slice(0, 3).toUpperCase() : seasonShort[s.key])}</span>
+              <p>${escapeHtml(isEn ? s.labelEn : s.labelJa)}<br>${summary.thisYear}${isEn ? ": " : "年 "}${s.thisYearCount}${isEn ? "" : "件"} ・ ${summary.lastYear}${isEn ? ": " : "年 "}${s.lastYearCount}${isEn ? "" : "件"}</p>
             </div>`
           )
           .join("")}
       </div>
-      <p><a class="zt-btn-outline" href="${escapeHtml(`${prefix}/places/${encodedPlace}`)}">${
-        isEn ? "Back to place" : "場所ページに戻る"
-      }</a></p>
     </section>`;
   }
 

@@ -32,13 +32,13 @@ export function resolveRecordInputMode(url: URL): RecordInputMode {
 }
 
 export const ZUKAN_RECORD_INPUT_STYLES = `
-  .zt-mode-bar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;min-width:0}
-  .zt-mode-tab,.zt-mode-tab:visited{min-height:44px;padding:8px 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);text-decoration:none;font-weight:700;font-size:14px}
-  .zt-mode-tab[aria-current="page"],.zt-mode-tab[aria-current="page"]:visited{background:var(--teal);border-color:var(--teal);color:#fff}
+  .zt-mode-bar{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 12px;min-width:0;border-bottom:1px solid var(--line)}
+  .zt-mode-tab,.zt-mode-tab:visited{min-height:44px;padding:8px 14px;display:inline-flex;align-items:center;justify-content:center;border-radius:0;border:0;border-bottom:3px solid transparent;background:transparent;color:var(--muted);text-decoration:none;font-weight:700;font-size:15px}
+  .zt-mode-tab[aria-current="page"],.zt-mode-tab[aria-current="page"]:visited{border-bottom-color:var(--teal);color:var(--teal)}
   .zt-field-input-row{display:flex;align-items:flex-start;gap:8px;min-width:0}
   .zt-field-input-row textarea,.zt-field-input-row input{flex:1;min-width:0}
   .zt-voice-mic-btn{min-height:44px;min-width:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--teal);background:var(--mint);color:var(--teal);font:inherit;font-size:14px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
-  .zt-voice-mic-btn[aria-pressed="true"]{background:#b94f18;border-color:#b94f18;color:#fff}
+  .zt-voice-mic-btn[aria-pressed="true"]{background:#b42318;border-color:#b42318;color:#fff}
   .zt-voice-status{margin:6px 0 0;font-size:13px;color:var(--muted);min-height:20px}
   @media (prefers-reduced-motion:reduce){
     .zt-mode-bar,.zt-mode-bar *,.zt-voice-mic-btn{transition:none!important;animation:none!important}
@@ -78,12 +78,7 @@ export function renderRecordVoiceButtonHtml(options: {
 export const ZUKAN_RECORD_INPUT_SCRIPT = `
   (() => {
     const mode = new URLSearchParams(location.search).get("mode") || "standard";
-    const form = document.getElementById("record-form");
-    const submitPanel = document.getElementById("record-submit-panel");
-    if ((mode === "memo" || mode === "voice") && form) {
-      form.hidden = false;
-      if (submitPanel) submitPanel.hidden = false;
-    }
+    if (mode === "memo" || mode === "voice") window.__ztMemoOpenMode = mode;
     const statusEl = document.getElementById("record-voice-status");
     const micButtons = document.querySelectorAll("[data-voice-mic-target]");
     let activeRecorder = null;

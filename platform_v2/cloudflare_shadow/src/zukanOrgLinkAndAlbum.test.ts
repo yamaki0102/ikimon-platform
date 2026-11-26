@@ -40,7 +40,7 @@ function setup() {
     createHash("sha256").update(token).digest("hex"), "u1", "はまっこ", "Observer", null, 0, "2099-01-01T00:00:00.000Z", null
   );
   obs.exec(`
-    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, public_area_label TEXT, note TEXT, visibility TEXT, emergency_hidden INTEGER DEFAULT 0);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, public_area_label TEXT, note TEXT, visibility TEXT, emergency_hidden INTEGER DEFAULT 0, exact_lat REAL, exact_lng REAL);
     CREATE TABLE asset_ledger (asset_id TEXT, observation_id TEXT, mime TEXT, processing_state TEXT, public_derivative_key TEXT, public_derivative_verified_at TEXT, public_derivative_metadata_json TEXT, exif_scrub_state TEXT, public_ready_at TEXT, uploaded_at TEXT);
   `);
   for (const id of ["o1", "o2", "o3"]) {

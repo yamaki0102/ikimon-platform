@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import ts from "typescript";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import sharp from "sharp";
@@ -42,7 +43,7 @@ test("subjects drop people and non-living things, merge duplicates and coarsen f
   assert.deepEqual(out[0]!.asset_indexes, [0, 1]);
   assert.deepEqual([out[1]!.rank, out[1]!.scientific_name, out[1]!.confidence_band], ["genus", "Corvus", "low"]);
   assert.equal(out[2]!.confidence_band, "medium");
-  assert.deepEqual([out[3]!.asset_indexes, out[3]!.confidence_band], [[0], "low"]);
+  assert.deepEqual([out[3]!.asset_indexes, out[3]!.confidence_band], [[], "low"]);
   assert.deepEqual(normalizeCardSubjects([{ name: "植物" }], 1).map((x) => x.name), ["植物"]);
 });
 
@@ -226,7 +227,7 @@ test("worker routes interactive requests to card mode only behind the staging sw
   const production = config.indexOf("\"name\": \"ikimon-life-cloudflare-prod\"");
   const flag = config.indexOf("\"OBSERVATION_AI_MODE\": \"card_v1\"");
   assert.ok(staging > 0 && flag > staging && flag < production && config.lastIndexOf("\"OBSERVATION_AI_MODE\": \"card_v1\"") > production);
-  const parsed = JSON.parse(config) as { env?: { production?: { vars?: Record<string, string> } } };
+  const parsed = ts.parseConfigFileTextToJson("wrangler.jsonc", config).config as { env?: { production?: { vars?: Record<string, string> } } };
   assert.equal(parsed.env?.production?.vars?.OBSERVATION_AI_MODE, "card_v1");
 });
 

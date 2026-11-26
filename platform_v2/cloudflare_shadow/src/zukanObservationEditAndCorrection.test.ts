@@ -35,14 +35,14 @@ test("renderObservationEditAndCorrectionHtml renders D3 edit, D4 irreversible de
 });
 
 test("POST /api/v1/observations/:id/corrections enforces 401/403 and saves correction history", async () => {
-  const unauthRes = await worker.fetch(
-    new Request("https://shadow.test/api/v1/observations/obs_1/corrections", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ field: "note", nextValue: "訂正後" }),
-    }),
-    {} as any
-  );
+  const post = () => new Request("https://shadow.test/api/v1/observations/obs_1/corrections", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ field: "note", nextValue: "訂正後" }),
+  });
+  assert.equal((await worker.fetch(post(), {} as any)).status, 404);
+  const onEnv = { ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ OBSERVATION_CORRECTION_PROTOTYPE_ENABLED: { state: "all", allowlist: [] } }) };
+  const unauthRes = await worker.fetch(post(), onEnv as any);
   assert.equal(unauthRes.status, 401);
 
   const r2Store = new Map<string, string>();

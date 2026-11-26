@@ -1054,6 +1054,655 @@ function normalizePathname(path: string): string {
   }
 }
 
+export const GLOBAL_RECORD_SHEET_STYLES = `
+    .global-record-camera-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 130;
+      background: rgba(15,23,42,.22);
+      backdrop-filter: blur(3px);
+    }
+    .global-record-camera-backdrop[hidden],
+    .global-record-camera-sheet[hidden] {
+      display: none;
+    }
+    .global-record-camera-open .global-record-launcher {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+    }
+    .global-record-camera-sheet {
+      position: fixed;
+      --global-record-camera-actions-space: 104px;
+      left: calc(12px + var(--global-record-visual-left, 0px));
+      right: calc(12px + var(--global-record-visual-right, 0px));
+      top: calc(max(12px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+      bottom: calc(max(12px, calc(env(safe-area-inset-bottom) + 12px)) + var(--global-record-visual-bottom, 0px));
+      z-index: 131;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+      gap: 10px;
+      padding: 10px 10px calc(10px + var(--global-record-camera-actions-space));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-radius: 18px;
+      background: rgba(255,255,255,.98);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: 0 24px 70px rgba(15,23,42,.28);
+    }
+    .global-record-camera-head {
+      padding-right: 50px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .global-record-camera-head strong {
+      display: block;
+      color: #0f172a;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+    .global-record-camera-head p {
+      display: none;
+    }
+    .global-record-camera-modes {
+      display: inline-flex;
+      gap: 4px;
+      margin-top: 6px;
+      padding: 3px;
+      border-radius: 999px;
+      background: #eef4f0;
+    }
+    .global-record-camera-modes button {
+      min-width: 64px;
+      min-height: 36px;
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #475569;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .global-record-camera-modes button[aria-pressed="true"] {
+      background: #fff;
+      color: #065f46;
+      box-shadow: 0 1px 5px rgba(15,23,42,.12);
+    }
+    .global-record-camera-close {
+      position: fixed;
+      top: calc(max(18px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+      right: calc(18px + var(--global-record-visual-right, 0px));
+      z-index: 133;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(15,23,42,.82);
+      color: #fff;
+      font: inherit;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 12px 32px rgba(15,23,42,.28);
+      backdrop-filter: blur(14px);
+    }
+    .global-record-camera-preview {
+      position: relative;
+      min-height: 0;
+      height: clamp(260px, min(72dvh, calc(var(--global-record-visual-height, 100dvh) - 212px)), 760px);
+      overflow: hidden;
+      touch-action: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .global-record-camera-preview video,
+    .global-record-camera-preview img {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: block;
+      object-fit: contain;
+      background: #020617;
+    }
+    .global-record-camera-preview video[hidden],
+    .global-record-camera-preview img[hidden] {
+      display: none;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-preview {
+      order: 1;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-photo-tray {
+      order: 2;
+    }
+    .global-record-camera-sheet[data-camera-active="true"] {
+      overflow: hidden;
+    }
+    .global-record-camera-sheet[data-camera-active="true"] .global-record-photo-tray {
+      display: none;
+    }
+    .global-record-camera-sheet[data-camera-active="true"] .global-record-camera-preview {
+      height: clamp(300px, min(76dvh, calc(var(--global-record-visual-height, 100dvh) - 188px)), 780px);
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
+      order: 3;
+    }
+    .global-record-camera-sheet[data-active-kind="photo"] .global-record-inline-edit {
+      order: 4;
+    }
+    .global-record-camera-sheet[data-photo-draft="true"] .global-record-camera-preview {
+      display: none;
+    }
+    .global-record-camera-sheet[data-photo-draft="true"] {
+      grid-template-rows: auto auto auto auto auto;
+      align-content: start;
+    }
+    .global-record-camera-empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 22px;
+      text-align: center;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.65;
+      font-weight: 850;
+    }
+    .global-record-camera-empty[hidden] {
+      display: none;
+    }
+    .global-record-camera-zoom {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      z-index: 3;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(15,23,42,.72);
+      color: #fff;
+      box-shadow: 0 12px 34px rgba(15,23,42,.28);
+      backdrop-filter: blur(14px);
+    }
+    .global-record-camera-zoom[hidden] {
+      display: none;
+    }
+    .global-record-camera-zoom label {
+      display: grid;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 950;
+      line-height: 1.25;
+    }
+    .global-record-camera-zoom label span {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .global-record-camera-zoom input {
+      width: 100%;
+      accent-color: #34d399;
+    }
+    .global-record-camera-zoom button {
+      min-width: 58px;
+      min-height: 42px;
+      border: 0;
+      border-radius: 12px;
+      background: #34d399;
+      color: #052e16;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .global-record-camera-zoom button:disabled {
+      opacity: .58;
+      cursor: default;
+    }
+    .global-record-photo-tray {
+      display: grid;
+      gap: 9px;
+      min-width: 0;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid rgba(15,23,42,.08);
+      overflow: hidden;
+    }
+    .global-record-photo-tray[hidden] {
+      display: none;
+    }
+    .global-record-photo-tray-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.35;
+      font-weight: 850;
+    }
+    .global-record-photo-tray-head strong {
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 950;
+    }
+    .global-record-photo-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 7px;
+      min-width: 0;
+    }
+    .global-record-photo-cell {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #e2e8f0;
+      border: 1px solid rgba(15,23,42,.08);
+    }
+    .global-record-photo-cell img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .global-record-photo-cell span {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      min-width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(15,23,42,.82);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 950;
+    }
+    .global-record-photo-cell-actions {
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 3px;
+    }
+    .global-record-photo-cell-actions button {
+      min-width: 0;
+      min-height: 24px;
+      border: 0;
+      border-radius: 7px;
+      background: rgba(255,255,255,.92);
+      color: #0f172a;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1;
+      font-weight: 950;
+      cursor: pointer;
+    }
+    .global-record-photo-cell-actions button:disabled {
+      opacity: .42;
+      cursor: default;
+    }
+    .global-record-camera-status {
+      min-height: 18px;
+      color: #0f766e;
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 850;
+    }
+    .global-record-saved-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .global-record-saved-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: #ecfdf5;
+      border: 1px solid rgba(13,148,136,.24);
+      color: #0f766e;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 950;
+    }
+    .global-record-inline-edit {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .global-record-inline-edit[hidden] {
+      display: none;
+    }
+    .global-record-inline-edit-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .global-record-inline-edit-head strong {
+      color: #0f172a;
+      font-size: 14px;
+      line-height: 1.4;
+      font-weight: 950;
+    }
+    .global-record-inline-edit-head span {
+      max-width: 58%;
+      color: #047857;
+      font-size: 14px;
+      line-height: 1.45;
+      font-weight: 900;
+      text-align: right;
+    }
+    .global-record-inline-edit label {
+      display: grid;
+      gap: 6px;
+      color: #334155;
+      font-size: 14px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+    .global-record-media-meaning {
+      display: grid;
+      gap: 4px;
+      padding: 10px 11px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9));
+      border: 1px solid rgba(16,185,129,.2);
+    }
+    .global-record-media-meaning strong {
+      color: #064e3b;
+      font-size: 14px;
+      line-height: 1.35;
+      font-weight: 950;
+    }
+    .global-record-media-meaning span {
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.55;
+      font-weight: 800;
+    }
+    .global-record-inline-edit input,
+    .global-record-inline-edit textarea,
+    .global-record-inline-edit select {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid rgba(15,23,42,.14);
+      border-radius: 12px;
+      background: #fff;
+      color: #0f172a;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 10px 11px;
+      resize: vertical;
+    }
+    .global-record-video-trim {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(236,253,245,.86);
+      border: 1px solid rgba(16,185,129,.22);
+    }
+    .global-record-video-trim[hidden] {
+      display: none;
+    }
+    .global-record-video-trim-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #064e3b;
+      font-size: 14px;
+      font-weight: 950;
+      line-height: 1.4;
+    }
+    .global-record-video-trim-head span {
+      flex: 0 0 auto;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid rgba(16,185,129,.2);
+      color: #047857;
+    }
+    .global-record-video-trim-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .global-record-video-trim-controls label {
+      display: grid;
+      gap: 6px;
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.3;
+    }
+    .global-record-video-trim-controls label span {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .global-record-video-trim-controls input {
+      width: 100%;
+      accent-color: #047857;
+    }
+    .global-record-camera-actions {
+      position: fixed;
+      left: calc(12px + var(--global-record-visual-left, 0px));
+      right: calc(12px + var(--global-record-visual-right, 0px));
+      bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--global-record-visual-bottom, 0px));
+      z-index: 132;
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 24px;
+      background: rgba(255,255,255,.98);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: 0 20px 44px rgba(15,23,42,.22);
+      backdrop-filter: blur(18px);
+    }
+    .global-record-camera-action {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 68px;
+      border: 0;
+      border-radius: 16px;
+      background: rgba(248,250,252,.96);
+      color: #0f172a;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 950;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+    .global-record-camera-action.is-primary {
+      background: #064e3b;
+      color: #fff;
+    }
+    .global-record-camera-action.is-additional:not(.is-primary) {
+      min-height: 44px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .global-record-camera-action[hidden] {
+      display: none;
+    }
+    .global-record-camera-action:disabled {
+      opacity: .64;
+      cursor: wait;
+    }
+    .global-record-gallery-select {
+      min-height: 44px;
+      justify-self: center;
+      padding: 8px 16px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #0f6846;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 850;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .global-record-camera-error {
+      display: grid;
+      gap: 10px;
+      padding: 16px;
+      border: 1px solid #f0c8c3;
+      border-radius: 14px;
+      background: #fff7f5;
+      color: #4a211e;
+    }
+    .global-record-camera-error[hidden] { display: none; }
+    .global-record-camera-error > div[hidden] { display: none; }
+    .global-record-camera-error p {
+      margin: 0;
+      color: #68413d;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .global-record-camera-error > div {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .global-record-camera-error button {
+      min-height: 44px;
+      padding: 9px 12px;
+      border: 1px solid rgba(15,23,42,.12);
+      border-radius: 12px;
+      background: #fff;
+      color: #17211b;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .global-record-camera-error button:first-child {
+      border-color: #087a4d;
+      background: #087a4d;
+      color: #fff;
+    }
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-actions,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-modes,
+    .global-record-camera-sheet[data-camera-error="true"] > .global-record-gallery-select,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-preview,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-photo-tray,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-status,
+    .global-record-camera-sheet[data-camera-error="true"] .global-record-video-trim {
+      display: none;
+    }
+    .global-record-camera-sheet[data-camera-error="true"] {
+      grid-template-rows: auto auto;
+      align-content: start;
+      padding-bottom: 10px;
+    }
+    @media (max-width: 520px) {
+      .global-record-camera-sheet {
+        --global-record-camera-actions-space: 108px;
+        left: calc(8px + var(--global-record-visual-left, 0px));
+        right: calc(8px + var(--global-record-visual-right, 0px));
+        top: calc(max(8px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+        bottom: calc(max(8px, calc(env(safe-area-inset-bottom) + 8px)) + var(--global-record-visual-bottom, 0px));
+        gap: 10px;
+        padding: 10px 10px calc(10px + var(--global-record-camera-actions-space));
+      }
+      .global-record-camera-head {
+        padding-right: 46px;
+      }
+      .global-record-camera-close {
+        top: calc(max(12px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
+        right: calc(12px + var(--global-record-visual-right, 0px));
+      }
+      .global-record-camera-preview {
+        height: clamp(240px, min(70dvh, calc(var(--global-record-visual-height, 100dvh) - 214px)), 640px);
+      }
+      .global-record-camera-actions {
+        left: calc(8px + var(--global-record-visual-left, 0px));
+        right: calc(8px + var(--global-record-visual-right, 0px));
+        padding: 8px;
+        gap: 8px;
+      }
+      .global-record-camera-action {
+        min-height: 70px;
+        font-size: 15px;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) {
+        --global-record-camera-actions-space: 0px;
+        grid-template-rows: auto auto auto auto;
+        align-content: start;
+        padding-bottom: 10px;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-preview {
+        display: none;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-actions {
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        z-index: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        backdrop-filter: none;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-action {
+        min-height: 56px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-status {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .global-record-photo-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .global-record-video-trim-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+`;
+
 function shouldRenderGlobalRecordEntry(currentPath: string): boolean {
   const pathname = normalizePathname(currentPath);
   return !(
@@ -1147,6 +1796,8 @@ type GlobalRecordEntryCopy = {
   errorBody: string;
   permissionBody: string;
   startErrors: Record<"no_device" | "device_busy" | "constraints_unsupported" | "focus_unsupported" | "timeout", string>;
+  focusFallbackDevice: string;
+  focusFallbackStandard: string;
   retry: string;
   cancel: string;
   discardPreviewConfirm: string;
@@ -1230,9 +1881,11 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         no_device: "利用できるカメラが見つかりません。写真を選んで記録を続けられます。",
         device_busy: "カメラをほかのアプリが使用している可能性があります。閉じて再試行するか、写真を選んでください。",
         constraints_unsupported: "このブラウザーではカメラの設定を使えません。再試行するか、写真を選んでください。",
-        focus_unsupported: "このブラウザーでは接写用のピント調整を使えません。標準カメラか写真の選択で続けられます。",
+        focus_unsupported: "このブラウザでは、接写のピントを調整できません",
         timeout: "カメラの起動を確認できませんでした。再試行するか、写真を選んでください。",
       },
+      focusFallbackDevice: "端末のカメラで撮る",
+      focusFallbackStandard: "標準に戻る",
       trimTitle: "記録に残す最大60秒を選ぶ",
       trimStart: "開始",
       trimEnd: "終了",
@@ -1263,6 +1916,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         focus_unsupported: "This browser cannot adjust close-up focus. Use the device camera or choose a photo.",
         timeout: "The camera did not start in time. Retry or choose a photo.",
       },
+      focusFallbackDevice: "Take with device camera",
+      focusFallbackStandard: "Back to standard",
       trimTitle: "Choose up to 60 seconds",
       trimStart: "Start",
       trimEnd: "End",
@@ -1293,6 +1948,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         focus_unsupported: "Este navegador no permite ajustar el enfoque de cerca. Usa la cámara del dispositivo o elige una foto.",
         timeout: "La cámara no se inició a tiempo. Reintenta o elige una foto.",
       },
+      focusFallbackDevice: "Tomar con la cámara del dispositivo",
+      focusFallbackStandard: "Volver al modo estándar",
       trimTitle: "Elige hasta 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fin",
@@ -1323,6 +1980,8 @@ function globalRecordEntryCopy(lang: SiteLang): GlobalRecordEntryCopy {
         focus_unsupported: "Este navegador não permite ajustar o foco de perto. Use a câmera do aparelho ou escolha uma foto.",
         timeout: "A câmera não iniciou a tempo. Tente novamente ou escolha uma foto.",
       },
+      focusFallbackDevice: "Tirar com a câmera do aparelho",
+      focusFallbackStandard: "Voltar ao padrão",
       trimTitle: "Escolha ate 60 segundos",
       trimStart: "Inicio",
       trimEnd: "Fim",
@@ -1377,9 +2036,48 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
   if (!shouldRenderGlobalRecordEntry(currentPath)) {
     return "";
   }
-  const copy = globalRecordEntryCopy(lang);
   const bottomNav = renderAppExperienceNavigation(lang, appExperienceActiveIndex(currentPath), "bottom", authState === "member");
-  return `${bottomNav}
+  return `${bottomNav}${globalRecordSheetMarkup(lang)}`;
+}
+
+export function renderRecordMacroCameraAssets(basePath: string, lang: SiteLang): string {
+  return `<style>${GLOBAL_RECORD_SHEET_STYLES}</style>${globalRecordSheetMarkup(lang)}${globalRecordEntryScript(basePath, lang, true)}`;
+}
+
+export function recordMacroCameraLabel(lang: SiteLang): string {
+  return sourceChoiceCopy(lang).macro;
+}
+
+export function renderRecordCaptureEngineAssets(basePath: string, lang: SiteLang): string {
+  return globalRecordEntryScript(basePath, lang, true);
+}
+
+export function recordCaptureCameraCopy(lang: SiteLang): {
+  errorTitle: string;
+  errorBody: string;
+  focusUnsupported: string;
+  focusFallbackDevice: string;
+  focusFallbackStandard: string;
+  retry: string;
+  gallery: string;
+  native: string;
+} {
+  const copy = globalRecordEntryCopy(lang);
+  return {
+    errorTitle: copy.errorTitle,
+    errorBody: copy.errorBody,
+    focusUnsupported: copy.startErrors.focus_unsupported,
+    focusFallbackDevice: copy.focusFallbackDevice,
+    focusFallbackStandard: copy.focusFallbackStandard,
+    retry: copy.retry,
+    gallery: copy.gallery,
+    native: sourceChoiceCopy(lang).native,
+  };
+}
+
+function globalRecordSheetMarkup(lang: SiteLang): string {
+  const copy = globalRecordEntryCopy(lang);
+  return `
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
     <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden />
   <div class="global-record-camera-backdrop" data-global-record-camera-close hidden></div>
@@ -1430,7 +2128,11 @@ function globalRecordEntry(basePath: string, lang: SiteLang, currentPath: string
     <div class="global-record-camera-error" data-global-record-camera-error role="alert" hidden>
       <strong>${escapeHtml(copy.errorTitle)}</strong>
       <p data-global-record-camera-error-body>${escapeHtml(copy.errorBody)}</p>
-      <div>
+      <div data-global-record-camera-focus-fallback hidden>
+        <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera data-global-record-os-camera-focus>${escapeHtml(copy.focusFallbackDevice)}</button>
+        <button type="button" data-global-record-camera-standard>${escapeHtml(copy.focusFallbackStandard)}</button>
+      </div>
+      <div data-global-record-camera-error-actions>
         <button type="button" data-global-record-camera-retry>${escapeHtml(copy.retry)}</button>
         <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera data-global-record-os-camera-fallback>${escapeHtml(sourceChoiceCopy(lang).native)}</button>
         <button type="button" data-global-record-gallery-select>${escapeHtml(copy.gallery)}</button>
@@ -1462,6 +2164,12 @@ function globalRecordEntryScriptBody(configPrelude: string, sourceChoice: (key: 
 ${configPrelude}
   const CAMERA_START_TIMEOUT_MS = 10000;
   const REQUIRE_CLOSEUP_FOCUS = true;
+  const streamHasCloseupFocusMode = (stream) => {
+    const track = stream.getVideoTracks()[0];
+    const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
+    const modes = capabilities && capabilities.focusMode;
+    return Array.isArray(modes) && modes.some((mode) => ['continuous', 'single-shot', 'manual'].includes(mode));
+  };
   const requestCameraStream = async (mediaDevices, constraints, options = {}) => {
     const makeError = (reason, cause) => {
       const error = new Error(reason, { cause });
@@ -1486,13 +2194,8 @@ ${configPrelude}
           }, options.timeoutMs ?? CAMERA_START_TIMEOUT_MS);
         }),
       ]);
-      if (options.requireFocusMode) {
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track && track.getCapabilities ? track.getCapabilities() : null;
-        const modes = capabilities && capabilities.focusMode;
-        if (!Array.isArray(modes) || !modes.some((mode) => ['continuous', 'single-shot', 'manual'].includes(mode))) {
-          throw makeError('focus_unsupported');
-        }
+      if (options.requireFocusMode && !streamHasCloseupFocusMode(stream)) {
+        throw makeError('focus_unsupported');
       }
       return stream;
     } catch (error) {
@@ -1541,6 +2244,11 @@ ${configPrelude}
   let photoDraftSubmitConfirmUntil = 0;
   let cameraStartInFlight = false;
   let cameraRequestId = 0;
+  let closeupRequired = true;
+  const embeddedCapture = Boolean(document.querySelector('[data-zukan-capture-stage]'));
+  const emitCapture = (name, detail) => {
+    try { document.dispatchEvent(new CustomEvent(name, { detail: detail || {} })); } catch (_) {}
+  };
   let cameraZoomTrack = null;
   let cameraZoomMin = 1;
   let cameraZoomMax = 1;
@@ -2044,7 +2752,14 @@ ${configPrelude}
   const setStatus = (message) => {
     if (status) status.textContent = message || '';
   };
+  const cameraErrorActions = document.querySelector('[data-global-record-camera-error-actions]');
+  const cameraFocusFallback = document.querySelector('[data-global-record-camera-focus-fallback]');
+  const setFocusFallbackActions = (enabled) => {
+    if (cameraErrorActions) cameraErrorActions.hidden = enabled;
+    if (cameraFocusFallback) cameraFocusFallback.hidden = !enabled;
+  };
   const hideCameraError = () => {
+    setFocusFallbackActions(false);
     if (cameraError) cameraError.hidden = true;
     if (sheet) sheet.removeAttribute('data-camera-error');
   };
@@ -2294,6 +3009,7 @@ ${configPrelude}
     const capabilities = track.getCapabilities ? track.getCapabilities() : {};
     const modes = Array.isArray(capabilities.focusMode) ? capabilities.focusMode : [];
     const attempts = [];
+    emitCapture('ikimon-capture-focus', { phase: 'start', clientX, clientY });
     if (modes.indexOf('single-shot') >= 0) attempts.push({ focusMode: 'single-shot', pointsOfInterest: [point] });
     attempts.push({ pointsOfInterest: [point] });
     if (modes.indexOf('continuous') >= 0) attempts.push({ focusMode: 'continuous', pointsOfInterest: [point] });
@@ -2302,9 +3018,11 @@ ${configPrelude}
         await track.applyConstraints({ advanced: [constraint] });
         if (focusValue) focusValue.textContent = 'AF';
         setStatus('タップした位置にフォーカスを合わせました。');
+        emitCapture('ikimon-capture-focus', { phase: 'done', clientX, clientY });
         return true;
       } catch (_) {}
     }
+    emitCapture('ikimon-capture-focus', { phase: 'fail', clientX, clientY });
     return false;
   };
   const photoDraftSubmitLabel = () => selectedPhotoDraftFiles().length > 0 ? '投稿' : '写真を撮る';
@@ -3096,6 +3814,7 @@ ${configPrelude}
     hideCameraError();
     if (window.isSecureContext === false || !(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function')) {
       showCameraError(false);
+      emitCapture('ikimon-capture-start-failed', { reason: window.isSecureContext === false ? 'insecure_context' : 'unsupported', permissionDenied: false });
       sendGlobalRecordEvent('camera_unavailable', 'camera_unavailable', { reason: window.isSecureContext === false ? 'insecure_context' : 'unsupported' });
       sendGlobalRecordErrorKpi('camera_start_failed', 'media_devices_unavailable', {
         durationMs: durationSince(cameraStartedAt),
@@ -3123,7 +3842,7 @@ ${configPrelude}
         audio: activeKind === 'video',
       };
       const stream = await requestCameraStream(navigator.mediaDevices, constraints, {
-        requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS,
+        requireFocusMode: activeKind === 'photo' && REQUIRE_CLOSEUP_FOCUS && closeupRequired,
       });
       if (requestId !== cameraRequestId || !activeKind || (sheet && sheet.hidden)) {
         stream.getTracks().forEach((track) => track.stop());
@@ -3169,6 +3888,8 @@ ${configPrelude}
       if (cameraErrorBody) cameraErrorBody.textContent = permissionDenied
         ? CAMERA_COPY.permissionBody
         : CAMERA_COPY.startErrors[reason] || CAMERA_COPY.errorBody;
+      if (reason === 'focus_unsupported') setFocusFallbackActions(true);
+      emitCapture('ikimon-capture-start-failed', { reason, permissionDenied });
       sendGlobalRecordEvent(permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', permissionDenied ? 'camera_permission_denied' : 'camera_unavailable', {
         reason,
       });
@@ -3371,7 +4092,7 @@ ${configPrelude}
     const captureRequestId = cameraRequestId;
     const captureEpoch = photoPreviewEpoch;
     const capturePagePath = String(window.location.pathname || '');
-    const captureOwnerContext = draftOwnerContext();
+    const captureOwnerContext = embeddedCapture ? null : draftOwnerContext();
     const captureIsCurrent = () => captureRequestId === cameraRequestId
       && captureEpoch === photoPreviewEpoch
       && activeKind === 'photo'
@@ -3392,6 +4113,18 @@ ${configPrelude}
       if (!captureIsCurrent()) return;
       if (!blob) {
         setStatus('写真を保存できませんでした。');
+        return;
+      }
+      if (embeddedCapture) {
+        const embeddedFile = new File([blob], 'ikimon-photo-' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+        sendGlobalRecordEvent('capture_completed', 'capture_completed', { mediaType: 'photo' });
+        sendGlobalRecordKpi('capture_encode_ms', durationSince(encodeStartedAt), {
+          width,
+          height,
+          blobBytes: Number(blob.size || 0),
+        });
+        capturePressedAt = 0;
+        emitCapture('ikimon-capture-photo', { file: embeddedFile, width, height, closeup: closeupRequired, capturedAt: Date.now() });
         return;
       }
       let capturedOwner;
@@ -3460,6 +4193,13 @@ ${configPrelude}
       const type = recordedChunks[0] ? recordedChunks[0].type || 'video/webm' : 'video/webm';
       const blob = new Blob(recordedChunks, { type });
       const file = new File([blob], 'ikimon-video-' + Date.now() + '.webm', { type, lastModified: Date.now() });
+      if (embeddedCapture) {
+        mediaRecorder = null;
+        recordedChunks = [];
+        emitCapture('ikimon-capture-recording', { recording: false, seconds: 0 });
+        emitCapture('ikimon-capture-video', { file, capturedAt: Date.now() });
+        return;
+      }
       if (captureButton) {
         captureButton.disabled = false;
         captureButton.textContent = '録画開始';
@@ -3478,11 +4218,14 @@ ${configPrelude}
     };
     recordingStartedAt = Date.now();
     mediaRecorder.start(1000);
+    emitCapture('ikimon-capture-recording', { recording: true, seconds: 0 });
     if (captureButton) captureButton.textContent = '録画停止';
     setFooterActionMode('capture');
     setStatus('録画中 0秒 / 記録は最大60秒。あとで区間を選べます');
     recordingTimer = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordingStartedAt) / 1000);
+      emitCapture('ikimon-capture-recording', { recording: true, seconds: elapsed });
+      if (embeddedCapture && elapsed >= VIDEO_MAX_SECONDS) stopVideoRecording();
       setStatus('録画中 ' + String(elapsed) + '秒 / 記録は最大60秒。あとで区間を選べます');
     }, 500);
   };
@@ -3594,6 +4337,13 @@ ${configPrelude}
       clickFallbackInput('photo');
     });
   });
+  document.querySelectorAll('[data-global-record-macro-open]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      openSheet('photo');
+      if (startButton) startButton.click();
+    });
+  });
   document.querySelectorAll('[data-global-record-os-camera]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -3648,6 +4398,19 @@ ${configPrelude}
     void startCamera();
   });
   if (cameraCancelButton) cameraCancelButton.addEventListener('click', closeSheet);
+  document.querySelectorAll('[data-global-record-camera-standard]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      hideCameraError();
+      if (startButton) {
+        startButton.hidden = false;
+        startButton.disabled = false;
+        startButton.textContent = (labels[activeKind] || labels.photo).start;
+      }
+      setFooterActionMode('start');
+      setStatus(${sourceChoice("chooser")});
+    });
+  });
   if (startButton) startButton.addEventListener('click', () => {
     resetPhotoDraftSubmitConfirm();
     if (activeKind === 'photo' && photoCaptureSource === 'native' && !capturedReviewFile) {
@@ -3773,6 +4536,99 @@ ${configPrelude}
     if (captureButton) captureButton.hidden = true;
     setFooterActionMode('start');
   });
+
+  if (embeddedCapture) {
+    let embeddedStart = null;
+    const embeddedCaps = () => {
+      const track = activeStream && activeStream.getVideoTracks ? activeStream.getVideoTracks()[0] : null;
+      const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+      const modes = Array.isArray(caps.focusMode) ? caps.focusMode : [];
+      return {
+        zoom: Boolean(cameraZoomTrack && cameraZoomMax > cameraZoomMin),
+        zoomMax: cameraZoomMax,
+        focusDistance: Boolean(cameraFocusTrack),
+        autoFocusReturn: Boolean(cameraFocusAutoMode),
+        tapFocus: modes.indexOf('single-shot') >= 0 || modes.indexOf('continuous') >= 0,
+        torch: Boolean(caps.torch),
+      };
+    };
+    const embeddedState = () => ({
+      live: Boolean(activeStream),
+      kind: activeKind,
+      closeup: activeKind === 'photo' && closeupRequired,
+      recording: Boolean(mediaRecorder && mediaRecorder.state === 'recording'),
+      caps: embeddedCaps(),
+    });
+    const embeddedApplyCloseup = async (closeup) => {
+      closeupRequired = Boolean(closeup);
+      if (!activeStream || activeKind !== 'photo') return embeddedState();
+      if (!closeupRequired) {
+        hideCameraError();
+        return embeddedState();
+      }
+      if (!streamHasCloseupFocusMode(activeStream)) {
+        if (cameraErrorBody) cameraErrorBody.textContent = (CAMERA_COPY.startErrors || {}).focus_unsupported || CAMERA_COPY.errorBody || '';
+        setFocusFallbackActions(true);
+        if (cameraError) cameraError.hidden = false;
+        sendGlobalRecordEvent('camera_unavailable', 'camera_unavailable', { reason: 'focus_unsupported' });
+        emitCapture('ikimon-capture-closeup', { ok: false, reason: 'focus_unsupported' });
+        return embeddedState();
+      }
+      hideCameraError();
+      emitCapture('ikimon-capture-closeup', { ok: true });
+      return embeddedState();
+    };
+    const embeddedBegin = async (kind, closeup) => {
+      if (photoPreviewCloseInFlight) return embeddedState();
+      const nextKind = kind === 'video' ? 'video' : 'photo';
+      photoPreviewDismissed = false;
+      if (embeddedStart) await embeddedStart.catch(() => undefined);
+      if (activeKind && activeKind !== nextKind) {
+        cameraRequestId += 1;
+        cameraStartInFlight = false;
+        stopActiveStream();
+      }
+      activeKind = nextKind;
+      closeupRequired = nextKind === 'photo' && Boolean(closeup);
+      photoCaptureSource = nextKind === 'photo' ? 'camera' : '';
+      if (!activeStream) {
+        sheetOpenedAt = nowMs();
+        embeddedStart = startCamera().finally(() => { embeddedStart = null; });
+        await embeddedStart;
+        return embeddedState();
+      }
+      return embeddedApplyCloseup(closeupRequired);
+    };
+    window.ikimonCaptureEngine = {
+      begin: embeddedBegin,
+      setCloseup: embeddedApplyCloseup,
+      shutter: () => {
+        if (!activeStream) return false;
+        void captureFromSheet();
+        return true;
+      },
+      stop: () => {
+        cameraRequestId += 1;
+        cameraStartInFlight = false;
+        stopActiveStream();
+      },
+      state: embeddedState,
+      caps: embeddedCaps,
+      clearError: hideCameraError,
+      torch: async (on) => {
+        const track = activeStream && activeStream.getVideoTracks ? activeStream.getVideoTracks()[0] : null;
+        if (!track || !track.applyConstraints) return false;
+        try {
+          await track.applyConstraints({ advanced: [{ torch: Boolean(on) }] });
+          return true;
+        } catch (_) {
+          return false;
+        }
+      },
+      location: (forceFresh) => requestCaptureLocation(Boolean(forceFresh)),
+    };
+    emitCapture('ikimon-capture-engine-ready');
+  }
 
   const restorePhotoPreview = async () => {
     // /record owns its own recovery: never steal its IndexedDB draft into the global sheet.
@@ -6489,653 +7345,7 @@ ${alternateLinks}
     .onboarding-empty h3 { margin: 0 0 12px; font-size: 22px; font-weight: 800; }
     .onboarding-empty p { margin: 0 0 20px; color: #475569; max-width: 44ch; margin-inline: auto; }
     .ver-tag { font-size: 14px; font-weight: 700; color: #94a3b8; margin-right: 6px; font-family: ui-monospace, monospace; }
-    ${globalRecordNav ? `
-    .global-record-camera-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 130;
-      background: rgba(15,23,42,.22);
-      backdrop-filter: blur(3px);
-    }
-    .global-record-camera-backdrop[hidden],
-    .global-record-camera-sheet[hidden] {
-      display: none;
-    }
-    .global-record-camera-open .global-record-launcher {
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(10px);
-    }
-    .global-record-camera-sheet {
-      position: fixed;
-      --global-record-camera-actions-space: 104px;
-      left: calc(12px + var(--global-record-visual-left, 0px));
-      right: calc(12px + var(--global-record-visual-right, 0px));
-      top: calc(max(12px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
-      bottom: calc(max(12px, calc(env(safe-area-inset-bottom) + 12px)) + var(--global-record-visual-bottom, 0px));
-      z-index: 131;
-      display: grid;
-      grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
-      gap: 10px;
-      padding: 10px 10px calc(10px + var(--global-record-camera-actions-space));
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      border-radius: 18px;
-      background: rgba(255,255,255,.98);
-      border: 1px solid rgba(15,23,42,.1);
-      box-shadow: 0 24px 70px rgba(15,23,42,.28);
-    }
-    .global-record-camera-head {
-      padding-right: 50px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    .global-record-camera-head strong {
-      display: block;
-      color: #0f172a;
-      font-size: 16px;
-      line-height: 1.35;
-    }
-    .global-record-camera-head p {
-      display: none;
-    }
-    .global-record-camera-modes {
-      display: inline-flex;
-      gap: 4px;
-      margin-top: 6px;
-      padding: 3px;
-      border-radius: 999px;
-      background: #eef4f0;
-    }
-    .global-record-camera-modes button {
-      min-width: 64px;
-      min-height: 36px;
-      padding: 6px 12px;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: #475569;
-      font: inherit;
-      font-size: 14px;
-      font-weight: 850;
-      cursor: pointer;
-    }
-    .global-record-camera-modes button[aria-pressed="true"] {
-      background: #fff;
-      color: #065f46;
-      box-shadow: 0 1px 5px rgba(15,23,42,.12);
-    }
-    .global-record-camera-close {
-      position: fixed;
-      top: calc(max(18px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
-      right: calc(18px + var(--global-record-visual-right, 0px));
-      z-index: 133;
-      width: 38px;
-      height: 38px;
-      flex: 0 0 38px;
-      display: grid;
-      place-items: center;
-      border: 0;
-      border-radius: 999px;
-      background: rgba(15,23,42,.82);
-      color: #fff;
-      font: inherit;
-      font-size: 22px;
-      line-height: 1;
-      cursor: pointer;
-      box-shadow: 0 12px 32px rgba(15,23,42,.28);
-      backdrop-filter: blur(14px);
-    }
-    .global-record-camera-preview {
-      position: relative;
-      min-height: 0;
-      height: clamp(260px, min(72dvh, calc(var(--global-record-visual-height, 100dvh) - 212px)), 760px);
-      overflow: hidden;
-      touch-action: none;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.92));
-      border: 1px solid rgba(15,23,42,.08);
-    }
-    .global-record-camera-preview video,
-    .global-record-camera-preview img {
-      width: 100%;
-      height: 100%;
-      min-height: 0;
-      display: block;
-      object-fit: contain;
-      background: #020617;
-    }
-    .global-record-camera-preview video[hidden],
-    .global-record-camera-preview img[hidden] {
-      display: none;
-    }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-preview {
-      order: 1;
-    }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-photo-tray {
-      order: 2;
-    }
-    .global-record-camera-sheet[data-camera-active="true"] {
-      overflow: hidden;
-    }
-    .global-record-camera-sheet[data-camera-active="true"] .global-record-photo-tray {
-      display: none;
-    }
-    .global-record-camera-sheet[data-camera-active="true"] .global-record-camera-preview {
-      height: clamp(300px, min(76dvh, calc(var(--global-record-visual-height, 100dvh) - 188px)), 780px);
-    }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-camera-status {
-      order: 3;
-    }
-    .global-record-camera-sheet[data-active-kind="photo"] .global-record-inline-edit {
-      order: 4;
-    }
-    .global-record-camera-sheet[data-photo-draft="true"] .global-record-camera-preview {
-      display: none;
-    }
-    .global-record-camera-sheet[data-photo-draft="true"] {
-      grid-template-rows: auto auto auto auto auto;
-      align-content: start;
-    }
-    .global-record-camera-empty {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      padding: 22px;
-      text-align: center;
-      color: #475569;
-      font-size: 14px;
-      line-height: 1.65;
-      font-weight: 850;
-    }
-    .global-record-camera-empty[hidden] {
-      display: none;
-    }
-    .global-record-camera-zoom {
-      position: absolute;
-      left: 12px;
-      right: 12px;
-      bottom: 12px;
-      z-index: 3;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: end;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(15,23,42,.72);
-      color: #fff;
-      box-shadow: 0 12px 34px rgba(15,23,42,.28);
-      backdrop-filter: blur(14px);
-    }
-    .global-record-camera-zoom[hidden] {
-      display: none;
-    }
-    .global-record-camera-zoom label {
-      display: grid;
-      gap: 7px;
-      font-size: 14px;
-      font-weight: 950;
-      line-height: 1.25;
-    }
-    .global-record-camera-zoom label span {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .global-record-camera-zoom input {
-      width: 100%;
-      accent-color: #34d399;
-    }
-    .global-record-camera-zoom button {
-      min-width: 58px;
-      min-height: 42px;
-      border: 0;
-      border-radius: 12px;
-      background: #34d399;
-      color: #052e16;
-      font: inherit;
-      font-size: 14px;
-      font-weight: 950;
-      cursor: pointer;
-    }
-    .global-record-camera-zoom button:disabled {
-      opacity: .58;
-      cursor: default;
-    }
-    .global-record-photo-tray {
-      display: grid;
-      gap: 9px;
-      min-width: 0;
-      padding: 10px;
-      border-radius: 8px;
-      background: #f8fafc;
-      border: 1px solid rgba(15,23,42,.08);
-      overflow: hidden;
-    }
-    .global-record-photo-tray[hidden] {
-      display: none;
-    }
-    .global-record-photo-tray-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      color: #475569;
-      font-size: 14px;
-      line-height: 1.35;
-      font-weight: 850;
-    }
-    .global-record-photo-tray-head strong {
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
-    }
-    .global-record-photo-grid {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 7px;
-      min-width: 0;
-    }
-    .global-record-photo-cell {
-      position: relative;
-      min-width: 0;
-      min-height: 0;
-      aspect-ratio: 1;
-      overflow: hidden;
-      border-radius: 8px;
-      background: #e2e8f0;
-      border: 1px solid rgba(15,23,42,.08);
-    }
-    .global-record-photo-cell img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      max-width: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .global-record-photo-cell span {
-      position: absolute;
-      left: 4px;
-      top: 4px;
-      min-width: 18px;
-      height: 18px;
-      display: grid;
-      place-items: center;
-      border-radius: 999px;
-      background: rgba(15,23,42,.82);
-      color: #fff;
-      font-size: 14px;
-      font-weight: 950;
-    }
-    .global-record-photo-cell-actions {
-      position: absolute;
-      left: 4px;
-      right: 4px;
-      bottom: 4px;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 3px;
-    }
-    .global-record-photo-cell-actions button {
-      min-width: 0;
-      min-height: 24px;
-      border: 0;
-      border-radius: 7px;
-      background: rgba(255,255,255,.92);
-      color: #0f172a;
-      font: inherit;
-      font-size: 14px;
-      line-height: 1;
-      font-weight: 950;
-      cursor: pointer;
-    }
-    .global-record-photo-cell-actions button:disabled {
-      opacity: .42;
-      cursor: default;
-    }
-    .global-record-camera-status {
-      min-height: 18px;
-      color: #0f766e;
-      font-size: 14px;
-      line-height: 1.5;
-      font-weight: 850;
-    }
-    .global-record-saved-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .global-record-saved-actions a {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      padding: 7px 12px;
-      border-radius: 999px;
-      background: #ecfdf5;
-      border: 1px solid rgba(13,148,136,.24);
-      color: #0f766e;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 950;
-    }
-    .global-record-inline-edit {
-      display: grid;
-      gap: 10px;
-      padding: 12px;
-      border-radius: 16px;
-      background: rgba(255,255,255,.88);
-      border: 1px solid rgba(15,23,42,.1);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
-    }
-    .global-record-inline-edit[hidden] {
-      display: none;
-    }
-    .global-record-inline-edit-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
-    .global-record-inline-edit-head strong {
-      color: #0f172a;
-      font-size: 14px;
-      line-height: 1.4;
-      font-weight: 950;
-    }
-    .global-record-inline-edit-head span {
-      max-width: 58%;
-      color: #047857;
-      font-size: 14px;
-      line-height: 1.45;
-      font-weight: 900;
-      text-align: right;
-    }
-    .global-record-inline-edit label {
-      display: grid;
-      gap: 6px;
-      color: #334155;
-      font-size: 14px;
-      line-height: 1.35;
-      font-weight: 900;
-    }
-    .global-record-media-meaning {
-      display: grid;
-      gap: 4px;
-      padding: 10px 11px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, rgba(236,253,245,.92), rgba(239,246,255,.9));
-      border: 1px solid rgba(16,185,129,.2);
-    }
-    .global-record-media-meaning strong {
-      color: #064e3b;
-      font-size: 14px;
-      line-height: 1.35;
-      font-weight: 950;
-    }
-    .global-record-media-meaning span {
-      color: #475569;
-      font-size: 14px;
-      line-height: 1.55;
-      font-weight: 800;
-    }
-    .global-record-inline-edit input,
-    .global-record-inline-edit textarea,
-    .global-record-inline-edit select {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid rgba(15,23,42,.14);
-      border-radius: 12px;
-      background: #fff;
-      color: #0f172a;
-      font: inherit;
-      font-size: 14px;
-      line-height: 1.5;
-      padding: 10px 11px;
-      resize: vertical;
-    }
-    .global-record-video-trim {
-      display: grid;
-      gap: 10px;
-      padding: 12px;
-      border-radius: 16px;
-      background: rgba(236,253,245,.86);
-      border: 1px solid rgba(16,185,129,.22);
-    }
-    .global-record-video-trim[hidden] {
-      display: none;
-    }
-    .global-record-video-trim-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      color: #064e3b;
-      font-size: 14px;
-      font-weight: 950;
-      line-height: 1.4;
-    }
-    .global-record-video-trim-head span {
-      flex: 0 0 auto;
-      padding: 5px 9px;
-      border-radius: 999px;
-      background: #fff;
-      border: 1px solid rgba(16,185,129,.2);
-      color: #047857;
-    }
-    .global-record-video-trim-controls {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-    .global-record-video-trim-controls label {
-      display: grid;
-      gap: 6px;
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.3;
-    }
-    .global-record-video-trim-controls label span {
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .global-record-video-trim-controls input {
-      width: 100%;
-      accent-color: #047857;
-    }
-    .global-record-camera-actions {
-      position: fixed;
-      left: calc(12px + var(--global-record-visual-left, 0px));
-      right: calc(12px + var(--global-record-visual-right, 0px));
-      bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--global-record-visual-bottom, 0px));
-      z-index: 132;
-      display: flex;
-      gap: 10px;
-      padding: 10px;
-      border-radius: 24px;
-      background: rgba(255,255,255,.98);
-      border: 1px solid rgba(15,23,42,.1);
-      box-shadow: 0 20px 44px rgba(15,23,42,.22);
-      backdrop-filter: blur(18px);
-    }
-    .global-record-camera-action {
-      flex: 1 1 0;
-      min-width: 0;
-      min-height: 68px;
-      border: 0;
-      border-radius: 16px;
-      background: rgba(248,250,252,.96);
-      color: #0f172a;
-      font: inherit;
-      font-size: 15px;
-      font-weight: 950;
-      line-height: 1.2;
-      cursor: pointer;
-    }
-    .global-record-camera-action.is-primary {
-      background: #064e3b;
-      color: #fff;
-    }
-    .global-record-camera-action.is-additional:not(.is-primary) {
-      min-height: 44px;
-      font-size: 16px;
-      font-weight: 700;
-    }
-    .global-record-camera-action[hidden] {
-      display: none;
-    }
-    .global-record-camera-action:disabled {
-      opacity: .64;
-      cursor: wait;
-    }
-    .global-record-gallery-select {
-      min-height: 44px;
-      justify-self: center;
-      padding: 8px 16px;
-      border: 0;
-      border-radius: 999px;
-      background: transparent;
-      color: #0f6846;
-      font: inherit;
-      font-size: 14px;
-      font-weight: 850;
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      cursor: pointer;
-    }
-    .global-record-camera-error {
-      display: grid;
-      gap: 10px;
-      padding: 16px;
-      border: 1px solid #f0c8c3;
-      border-radius: 14px;
-      background: #fff7f5;
-      color: #4a211e;
-    }
-    .global-record-camera-error[hidden] { display: none; }
-    .global-record-camera-error p {
-      margin: 0;
-      color: #68413d;
-      font-size: 14px;
-      line-height: 1.55;
-    }
-    .global-record-camera-error > div {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
-    .global-record-camera-error button {
-      min-height: 44px;
-      padding: 9px 12px;
-      border: 1px solid rgba(15,23,42,.12);
-      border-radius: 12px;
-      background: #fff;
-      color: #17211b;
-      font: inherit;
-      font-size: 14px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-    .global-record-camera-error button:first-child {
-      border-color: #087a4d;
-      background: #087a4d;
-      color: #fff;
-    }
-    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-actions,
-    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-modes,
-    .global-record-camera-sheet[data-camera-error="true"] > .global-record-gallery-select,
-    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-preview,
-    .global-record-camera-sheet[data-camera-error="true"] .global-record-photo-tray,
-    .global-record-camera-sheet[data-camera-error="true"] .global-record-camera-status,
-    .global-record-camera-sheet[data-camera-error="true"] .global-record-video-trim {
-      display: none;
-    }
-    .global-record-camera-sheet[data-camera-error="true"] {
-      grid-template-rows: auto auto;
-      align-content: start;
-      padding-bottom: 10px;
-    }
-    @media (max-width: 520px) {
-      .global-record-camera-sheet {
-        --global-record-camera-actions-space: 108px;
-        left: calc(8px + var(--global-record-visual-left, 0px));
-        right: calc(8px + var(--global-record-visual-right, 0px));
-        top: calc(max(8px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
-        bottom: calc(max(8px, calc(env(safe-area-inset-bottom) + 8px)) + var(--global-record-visual-bottom, 0px));
-        gap: 10px;
-        padding: 10px 10px calc(10px + var(--global-record-camera-actions-space));
-      }
-      .global-record-camera-head {
-        padding-right: 46px;
-      }
-      .global-record-camera-close {
-        top: calc(max(12px, env(safe-area-inset-top)) + var(--global-record-visual-top, 0px));
-        right: calc(12px + var(--global-record-visual-right, 0px));
-      }
-      .global-record-camera-preview {
-        height: clamp(240px, min(70dvh, calc(var(--global-record-visual-height, 100dvh) - 214px)), 640px);
-      }
-      .global-record-camera-actions {
-        left: calc(8px + var(--global-record-visual-left, 0px));
-        right: calc(8px + var(--global-record-visual-right, 0px));
-        padding: 8px;
-        gap: 8px;
-      }
-      .global-record-camera-action {
-        min-height: 70px;
-        font-size: 15px;
-      }
-      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) {
-        --global-record-camera-actions-space: 0px;
-        grid-template-rows: auto auto auto auto;
-        align-content: start;
-        padding-bottom: 10px;
-      }
-      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-preview {
-        display: none;
-      }
-      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-actions {
-        position: static;
-        left: auto;
-        right: auto;
-        bottom: auto;
-        z-index: auto;
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 8px;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
-        backdrop-filter: none;
-      }
-      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-action {
-        min-height: 56px;
-        white-space: normal;
-        overflow-wrap: anywhere;
-      }
-      .global-record-camera-sheet[data-active-kind="photo"]:not([data-camera-active="true"]):not([data-photo-draft="true"]):not([data-camera-error="true"]) .global-record-camera-status {
-        min-width: 0;
-        overflow-wrap: anywhere;
-      }
-      .global-record-photo-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-      .global-record-video-trim-controls {
-        grid-template-columns: 1fr;
-      }
-    }
-    ` : ""}
+    ${globalRecordNav ? GLOBAL_RECORD_SHEET_STYLES : ""}
     @media (min-width: 1161px) {
       :root {
         --ikimon-desktop-sidebar-w: 204px;

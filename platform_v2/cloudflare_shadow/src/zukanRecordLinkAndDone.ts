@@ -30,11 +30,12 @@ function jsonResponse(body: unknown, status: number): Response {
 }
 
 export const ZUKAN_RECORD_LINK_DONE_STYLES = `
-  .zt-link-targets{display:grid;gap:8px;margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#fff;min-width:0}
-  .zt-link-targets-title{margin:0;font-size:15px;font-weight:900}
-  .zt-link-option{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);cursor:pointer;font-weight:700;font-size:14px}
-  .zt-link-option input{width:20px;height:20px;accent-color:var(--teal)}
-  .zt-done-card{display:grid;gap:8px;margin-top:12px;padding:14px;border:1px solid var(--teal);border-radius:12px;background:var(--mint)}
+  .zt-link-targets{display:grid;gap:0;margin:0 0 12px;padding:4px 14px;border:1px solid var(--line);border-radius:16px;background:#fff;min-width:0}
+  .zt-link-targets-title{margin:0;padding:0 4px;font-size:16px;font-weight:700}
+  .zt-link-option{display:flex;align-items:center;gap:14px;min-height:56px;padding:10px 0;border:0;border-bottom:1px solid var(--line);background:transparent;cursor:pointer;font-weight:700;font-size:16px}
+  .zt-link-option:last-of-type{border-bottom:0}
+  .zt-link-option input{width:24px;height:24px;accent-color:var(--teal)}
+  .zt-done-card{display:grid;gap:12px;margin-top:12px;padding:0;border:0;background:transparent}
   .zt-done-card[hidden]{display:none}
   .zt-done-card a,.zt-done-card a:visited{min-height:44px}
   @media (prefers-reduced-motion:reduce){

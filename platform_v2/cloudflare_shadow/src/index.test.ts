@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import zlib from "node:zlib";
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
@@ -5387,6 +5388,11 @@ class FakeStatement {
       return (row as T | undefined) ?? null;
     }
 
+    if (normalized.startsWith("SELECT public_derivative_key FROM asset_ledger WHERE asset_id = ?")) {
+      const asset = this.db.assets.get(string(v[0]));
+      return asset?.public_derivative_key ? ({ public_derivative_key: asset.public_derivative_key } as T) : null;
+    }
+
     if (normalized.startsWith("SELECT object_key, mime FROM asset_ledger")) {
       const asset = this.db.assets.get(string(v[0]));
       return asset ? ({ object_key: asset.object_key, mime: asset.mime } as T) : null;
@@ -7576,14 +7582,16 @@ class FakeStatement {
     }
     if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,")) {
       const ownerUserId = string(this.values[0]);
-      const limit = number(this.values[1]);
+      const limit = number(this.values[this.values.length - 1]) - 1;
+      const likeNeedle = normalized.includes(" LIKE ?2") ? string(this.values[1]).slice(1, -1).toLowerCase() : "";
       const rows = [...this.db.observations.values()]
         .filter((observation) =>
           observation.owner_user_id === ownerUserId &&
-          observation.emergency_hidden === 0
+          observation.emergency_hidden === 0 &&
+          (!likeNeedle || [observation.taxon_label, observation.note, observation.observed_at].some((value) => String(value ?? "").toLowerCase().includes(likeNeedle)))
         )
-        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
-        .slice(0, limit)
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at) || b.observation_id.localeCompare(a.observation_id))
+        .slice(0, limit + 1)
         .map((observation) => {
           const asset = [...this.db.assets.values()]
             .filter((candidate) =>
@@ -11549,6 +11557,93 @@ test("v1 observation upsert honors private visibility before public readmodel re
   );
   assert.equal(obs.readmodel.has("private-post-smoke-contract"), false);
   assert.equal(obs.publicMapSnapshotRecords.some((row) => row.visit_id === "private-post-smoke-contract"), false);
+});
+
+test("v1 observation upsert accepts a record with no location and forces it private", async () => {
+  const { env, obs } = createEnv();
+  const response = await post("/api/v1/observations/upsert", env, {
+    observationId: "no-location-record",
+    userId: "no-location-user",
+    observedAt: "2026-05-01T03:00:00.000Z",
+    visibility: "public",
+    taxon: { vernacularName: "未同定", rank: "unknown" }
+  });
+  assert.equal(response.ok, true);
+  const row = obs.observations.get("no-location-record");
+  assert.equal(row?.exact_lat, null);
+  assert.equal(row?.exact_lng, null);
+  assert.equal(row?.public_cell, "unknown");
+  assert.equal(row?.visibility, "private");
+  assert.equal(row?.observed_at, "2026-05-01T03:00:00.000Z");
+  assert.equal(obs.readmodel.has("no-location-record"), false);
+  const nullCoords = await post("/api/v1/observations/upsert", env, {
+    observationId: "null-location-record",
+    userId: "no-location-user",
+    observedAt: "2026-05-01T03:00:00.000Z",
+    latitude: null,
+    longitude: null
+  });
+  assert.equal(nullCoords.ok, true);
+  assert.equal(obs.observations.get("null-location-record")?.public_cell, "unknown");
+});
+
+test("v1 observation upsert rejects half-set coordinates and out-of-bounds observedAt", async () => {
+  const { env } = createEnv();
+  const send = async (body: Record<string, unknown>) => {
+    try {
+      const response = await worker.fetch(new Request("https://shadow.test/api/v1/observations/upsert", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userId: "bounds-user", observedAt: "2026-05-01T03:00:00.000Z", ...body })
+      }), env);
+      return response.status;
+    } catch (error) {
+      return (error as { status?: number }).status ?? 500;
+    }
+  };
+  assert.equal(await send({ latitude: 34.7 }), 400);
+  assert.equal(await send({ latitude: 95, longitude: 137 }), 400);
+  assert.equal(await send({ observedAt: new Date(Date.now() + 3600_000).toISOString() }), 400);
+  assert.equal(await send({ observedAt: "1899-12-31T00:00:00.000Z" }), 400);
+  assert.equal(await send({ observedAt: "not-a-date" }), 400);
+});
+
+test("v1 observation accepts many photos in one record", async () => {
+  const { env, obs } = createEnv();
+  await post("/api/v1/observations/upsert", env, {
+    observationId: "many-photos-record",
+    userId: "many-photos-user",
+    observedAt: "2026-05-01T03:00:00.000Z",
+    visibility: "private"
+  });
+  const distinctPng = (seed: number): string => {
+    const chunk = (type: string, data: Buffer): Buffer => {
+      const body = Buffer.concat([Buffer.from(type), data]);
+      const out = Buffer.alloc(12 + data.length);
+      out.writeUInt32BE(data.length, 0);
+      body.copy(out, 4);
+      out.writeUInt32BE(zlib.crc32(body), 8 + data.length);
+      return out;
+    };
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(1, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    return Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk("IHDR", ihdr),
+      chunk("IDAT", zlib.deflateSync(Buffer.from([0, seed * 20, 50, 90]))),
+      chunk("IEND", Buffer.alloc(0))
+    ]).toString("base64");
+  };
+  for (let index = 0; index < 8; index += 1) {
+    const photo = await post("/api/v1/observations/many-photos-record/photos/upload", env, {
+      filename: `p${index}.png`, mimeType: "image/png", base64Data: distinctPng(index), mediaRole: index === 0 ? "primary" : "context", position: index
+    });
+    assert.equal(photo.ok, true);
+  }
+  assert.equal([...obs.assets.values()].filter((row: any) => row.observation_id === "many-photos-record").length, 8);
 });
 
 test("v1 observation upsert materializes only safe coarse public area labels", async () => {
@@ -20881,7 +20976,7 @@ test("public participation list distinguishes empty and failed loads in the requ
   t.mock.method(globalThis, "fetch", async () => assert.fail("participation list must not make outbound requests"));
 
   const cases = [
-    { prefix: "ja", title: "参加", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
+    { prefix: "ja", title: "近くのイベント", empty: "公開中のイベントはありません", failed: "企画を読み込めませんでした。", retry: "再読み込み" },
     { prefix: "en", title: "Join", empty: "No public events", failed: "Couldn’t load programs.", retry: "Reload" },
     { prefix: "es", title: "Participar", empty: "No hay eventos públicos", failed: "No se pudieron cargar las actividades.", retry: "Recargar" },
     { prefix: "pt-br", title: "Participar", empty: "Não há eventos públicos", failed: "Não foi possível carregar as atividades.", retry: "Recarregar" },
@@ -20894,9 +20989,12 @@ test("public participation list distinguishes empty and failed loads in the requ
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(html, new RegExp(`<html lang="${item.prefix}"`));
-    assert.ok(html.includes(`<title>${item.title} | ZUKAN</title>`));
+    assert.ok(html.includes(`<title>${item.title} — ZUKAN</title>`));
     assert.ok(main.includes(item.empty));
+    assert.match(html, /class="zt-bottom-nav"/);
+    assert.doesNotMatch(html, /data-zukan-app-experience|site-core-nav/);
     if (item.prefix === "ja") {
+      assert.match(main, /<h1>近くのイベント<\/h1>/);
       assert.match(main, /イベントを作る/);
       assert.doesNotMatch(main, /観察会を作る|地域のイベントとは|参加の流れ/);
     }
@@ -21274,7 +21372,7 @@ test("production observation event APIs run location and rally routes on D1 with
     assert.equal(eventListPage.status, 200);
     assert.equal(eventListPage.headers.get("x-ikimon-cloudflare-native"), "event-page-list");
     assert.match(eventListPageText, /D1観察会/);
-    assert.match(eventListPageText, /<title>参加 \| ZUKAN<\/title>/);
+    assert.match(eventListPageText, /<title>近くのイベント — ZUKAN<\/title>/);
     assert.doesNotMatch(eventListPageText, /<title>[^<]*ikimon\.life/u);
 
     const eventJoinPage = await worker.fetch(new Request("https://ikimon.life/community/events/d1-core-event/join"), productionEnv);
@@ -27044,7 +27142,7 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
   try {
     const checks: Array<{ path: string; expected: string; native?: "profile" | "record" }> = [
       { path: "/ja/profile", expected: "八巻テスト", native: "profile" },
-      { path: "/ja/profile/settings", expected: "プロフィール設定", native: "profile" },
+      { path: "/ja/profile/settings", expected: "ログアウト・退会", native: "profile" },
       { path: "/ja/records", expected: "みんなの記録" },
       { path: "/ja/record", expected: "record-form", native: "record" }
     ];
@@ -27058,46 +27156,21 @@ test("production profile shell renders signed-in Cloudflare page for valid sessi
       assert.doesNotMatch(body, /personalized origin profile/, check.path);
       if (check.native === "profile") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "profile-session", check.path);
-        assert.match(body, /data-cloudflare-profile="signed-in"/, check.path);
-        assert.match(body, /class="site-header"/, check.path);
-        assert.match(body, /class="site-core-nav"/, check.path);
-        assert.match(body, />撮る<\/button>[\s\S]*>場所<\/a>[\s\S]*>記録<\/a>[\s\S]*>自分<\/a>/, check.path);
-        assert.match(body, /data-global-bottom-nav/, check.path);
-        assert.match(body, /data-global-record-trigger="photo"/, check.path);
-        assert.match(body, /data-global-record-gallery>端末の写真から選ぶ/, check.path);
-        assert.doesNotMatch(body, /href="\/ja\/record"[^>]*>撮る/, check.path);
-        assert.match(body, /id="main-content" class="cf-profile-shell"/, check.path);
-        assert.match(body, /<title>(?:自分|プロフィール設定) — ZUKAN<\/title>/, check.path);
-        assert.match(body, /--action:#245C3A/);
-        assert.match(body, /--soft:#F7F7F3/);
-        assert.match(body, /--ink:#17211B/);
-        assert.match(body, /--muted:#55615A/);
-        assert.match(body, /\.cf-profile-action,\.cf-profile-link\{[^}]*min-height:64px[^}]*border-radius:4px/);
-        assert.match(body, /\.cf-profile-identity\{[^}]*border-radius:8px/);
-        assert.match(body, /\.cf-profile-shell a:focus-visible\{outline:2px solid var\(--action\);outline-offset:2px;box-shadow:0 0 0 4px #fff\}/);
-        assert.doesNotMatch(body, /<title>[^<]*ikimon/u, check.path);
-        assert.doesNotMatch(body, /cf-profile-header/, check.path);
-        assert.doesNotMatch(body, /ログインしてマイページへ/, check.path);
-        assert.doesNotMatch(body, /権限|ランク|admin|管理者|ログイン中/, check.path);
+        assert.match(body, /class="zt-shell"/, check.path);
+        assert.match(body, /class="zt-bottom-nav"/, check.path);
+        assert.doesNotMatch(body, /site-core-nav|cf-profile-shell/, check.path);
       }
       if (check.path === "/ja/profile") {
         assert.match(body, /data-testid="self-control-hub"/);
-        assert.match(body, /表示名を確認し、自分の記録や参加先へ移動できます。/);
-        assert.match(body, /参加先を探す/);
-        assert.doesNotMatch(body, /今日の入口|ikimon\.lifeの流れ|最近の記録|八巻の最初の記録/);
-        assert.match(body, /href="\/ja\/records\?view=mine"/);
+        for (const text of ["自分の記録", "保存した場所", "参加イベント", "公開先", "保存した場所・イベント", "プロフィール・通知・公開範囲"]) assert.ok(body.includes(text), text);
+        assert.match(body, /href="\/ja\/profile\/notifications"/);
         assert.match(body, /href="\/ja\/profile\/settings"/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
-        assert.match(body, /href="\/ja\/community\/events"/);
-        assert.doesNotMatch(body, /公開プロフィール|公開範囲|フォロー中|参加履歴|アカウント設定/);
       }
       if (check.path === "/ja/profile/settings") {
         assert.match(body, /action="\/api\/v1\/profile\/language"/);
         assert.match(body, /name="lang"/);
-        assert.doesNotMatch(body, /data-language-disclosure/);
-        assert.match(body, /プロフィール編集/);
-        assert.match(body, /この画面からプロフィールは編集できません。/);
-        assert.doesNotMatch(body, /href="\/ja\/profile\/profile-user"/);
+        assert.match(body, /ログアウト・退会/);
+        assert.match(body, /action="\/api\/v1\/account\/withdraw"/);
       }
       if (check.native === "record") {
         assert.equal(response.headers.get("x-ikimon-cloudflare-native"), "record-session", check.path);
@@ -30269,6 +30342,14 @@ test("event guest photos and videos stay private through receipt, rights review,
   assert.equal(ownGallery.status, 200);
   assert.equal((ownGalleryHtml.match(/data-private-gallery-item/g) ?? []).length, 2);
   assert.match(ownGalleryHtml, /権利確認待ち・非公開/u);
+  assert.match(ownGalleryHtml, /data-event-view="f9"/u);
+  assert.match(ownGalleryHtml, /class="zt-bottom-nav"/u);
+  assert.match(ownGalleryHtml, /写真 2枚/u);
+  assert.match(ownGalleryHtml, /アルバムを共有/u);
+  assert.equal(ownGallery.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
+  const strangerGallery = await worker.fetch(new Request(`https://ikimon.life/events/${sessionId}/gallery`), env);
+  assert.equal(strangerGallery.status, 403);
+  assert.doesNotMatch(await strangerGallery.text(), /data-private-gallery-item|data-event-view="f9"/u);
   assert.match(ownGalleryHtml, /<video[^>]+src="\/api\/v1\/observation-events/u);
   assert.match(ownGalleryHtml, /<img[^>]+src="\/api\/v1\/observation-events/u);
   assert.match(ownGalleryHtml, /公開ページやみんなの振り返りには表示されません/u);
@@ -32396,7 +32477,8 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
   const guestTop = await worker.fetch(new Request("https://zukan.earth/ja/"), env);
   assert.equal(guestTop.status, 200);
   const guestHtml = await guestTop.text();
-  assert.match(guestHtml, /ウェイティングリストに登録/);
+  assert.match(guestHtml, /新規登録（無料）/);
+  assert.match(guestHtml, /撮ると、まちの今が図鑑になる。/);
   assert.doesNotMatch(guestHtml, /0件|まだありません/);
 
   const unauthPub = await worker.fetch(new Request("https://zukan.earth/api/v1/zukan-top/publish", {
@@ -32462,27 +32544,58 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.equal(prodRes.status, 200, topUrl);
     assert.equal(prodRes.headers.get("x-ikimon-cloudflare-native"), "zukan-top-v2", topUrl);
     const prodHtml = await prodRes.text();
-    assert.match(prodHtml, /ウェイティングリストに登録/, topUrl);
-    assert.match(prodHtml, /常盤公園・11月22日/, topUrl);
-    assert.match(prodHtml, /浜松市・11月23日/, topUrl);
-    assert.equal(prodHtml.match(/class="zt-hero-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
-    assert.equal(prodHtml.match(/class="zt-thumb-label">浜松市・11月23日<\/span>/g)?.length ?? 0, 1, topUrl);
+    assert.match(prodHtml, /新規登録（無料）/, topUrl);
+    assert.match(prodHtml, /写真は最初、自分だけに見えます/, topUrl);
+    assert.match(prodHtml, /<img src="\/assets\/brand\/zukan-lockup\.svg"/, topUrl);
+    assert.match(prodHtml, /data-zk-hero="designed"/, topUrl);
     assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
-    assert.match(prodHtml, />イベント</, topUrl);
-    assert.match(prodHtml, /<img\s+src="\/derived-transform\/w360\/derived\/obs-top-1\/display\.webp"/, topUrl);
+    assert.match(prodHtml, /\.zt-shell:has\(>\.zt-sidebar\)\{display:grid/, topUrl);
+    assert.doesNotMatch(prodHtml, /\.zt-shell\{[^}]*display:grid/, topUrl);
+    assert.match(prodHtml, />近くのイベントを見る</, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
   }
   const enRes = await worker.fetch(new Request("https://zukan.earth/en/"), prodEnv);
   assert.equal(enRes.status, 200);
   const enHtml = await enRes.text();
-  assert.match(enHtml, /Join the waitlist/);
+  assert.match(enHtml, /Sign up \(free\)/);
   assert.match(enHtml, /Nearby events/);
-  assert.match(enHtml, /Hamamatsu · Nov 23/);
-  assert.match(enHtml, /href="\/en\/observations\/obs-top-2"/);
-  assert.doesNotMatch(enHtml, /浜松市・11月23日|href="\/ja\/observations\//);
-  assert.match(enHtml, />Events</);
   assert.doesNotMatch(enHtml, />イベント<|>場所<|近くの場所|祭り・川|aria-label="ナビ"|aria-label="メニュー"/);
   assert.doesNotMatch(enHtml, /href="\/en\/(events|places|capture)["\/]|href="\/auth\/login"/);
+
+  const ownerTop = await worker.fetch(new Request("https://zukan.earth/ja/", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  assert.equal(ownerTop.status, 200);
+  const ownerHtml = await ownerTop.text();
+  assert.match(ownerHtml, /class="zt-bottom-nav"/);
+  assert.match(ownerHtml, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
+  assert.match(ownerHtml, /class="zt-avatar"[^>]*>T</);
+  assert.match(ownerHtml, /祭り・川・去年の秋で探す/);
+  assert.match(ownerHtml, /class="zk-mosaic|data-library-empty="1"/);
+
+  const welcome = await worker.fetch(new Request("https://zukan.earth/ja/welcome?step=2"), prodEnv);
+  assert.equal(welcome.status, 200);
+  const welcomeHtml = await welcome.text();
+  assert.match(welcomeHtml, /data-zukan-welcome-invite="onboarding"/);
+  assert.match(welcomeHtml, /最初は、/);
+  assert.match(welcomeHtml, /href="\/ja\/welcome\?step=3"/);
+  const missingInvite = await worker.fetch(new Request("https://zukan.earth/ja/invite/no-such-code"), prodEnv);
+  assert.equal(missingInvite.status, 404);
+  assert.match(await missingInvite.text(), /この招待は見つかりませんでした/);
+
+  const yearAgoGuest = await worker.fetch(new Request("https://zukan.earth/ja/library/year-ago", { redirect: "manual" }), prodEnv);
+  assert.equal(yearAgoGuest.status, 302);
+  assert.match(yearAgoGuest.headers.get("location") ?? "", /^\/ja\/login\?redirect=/);
+  const yearAgoOwner = await worker.fetch(new Request("https://zukan.earth/ja/library/year-ago", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  assert.equal(yearAgoOwner.status, 200);
+  assert.match(await yearAgoOwner.text(), /data-library-year-ago-list="1"/);
+  const ownerLibrary = await worker.fetch(new Request("https://zukan.earth/ja/library", { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+  const groupKey = /data-group-key="([^"]+)"/.exec(await ownerLibrary.text())?.[1];
+  if (groupKey) {
+    const groupRes = await worker.fetch(new Request(`https://zukan.earth/ja/library/group?group=${encodeURIComponent(groupKey.replace(/&amp;/g, "&"))}`, { headers: { cookie: `ikimon_v2_session=${ownerToken}` } }), prodEnv);
+    assert.equal(groupRes.status, 200);
+    const groupHtml = await groupRes.text();
+    assert.match(groupHtml, /data-library-group-detail=/);
+    assert.match(groupHtml, /写真 \d+枚/);
+  }
 });
 
 test("guide public page, booking request -> NOCOSIL event, and support seats enforce 401/403", async () => {
@@ -34095,7 +34208,7 @@ test("withdrawal confirmation copy shows what disappears first and withdrawn pub
   assert.equal(settingsRes.status, 200);
   const settingsHtml = await settingsRes.text();
   assert.match(settingsHtml, /data-testid="withdrawal-confirmation"/u);
-  assert.match(settingsHtml, /退会すると消えるもの/u);
+  assert.match(settingsHtml, /退会すると、自分の記録[0-9]+件とアカウントが全部消えます/u);
   assert.match(settingsHtml, /元に戻せません/u);
 
   const obsId = "obs-withdrawn-public-check";
@@ -34424,4 +34537,123 @@ test("v0 observation endpoints enforce 401 unauthenticated and 403 cross-user ow
     body: JSON.stringify({ draftId: draft.draftId })
   }), env);
   assert.equal(otherFinalize.status, 403);
+});
+
+test("asset thumb route redirects only ready public (or own) ledger derivatives and hides everything else", async () => {
+  const { env, obs } = createEnv();
+  const productionEnv = { ...env, ENVIRONMENT: "production", IMAGES: undefined };
+  const meta = JSON.stringify({ contentType: "image/webp", scannedContainer: "webp", gpsExifPresent: false });
+  const put = (name: string, visibility: string, assetChanges: Record<string, unknown> = {}) => {
+    const observationId = `thumb-obs-${name}`;
+    const assetId = `thumb-asset-${name}`;
+    obs.observations.set(observationId, {
+      observation_id: observationId, draft_id: `d-${name}`, owner_user_id: `owner-${name}`, observed_at: "2026-10-11T00:00:00.000Z",
+      partition_month: "2026-10", taxon_label: null, note: null, exact_lat: null, exact_lng: null, location_accuracy_m: null,
+      public_cell: "34.71,137.81", visibility, emergency_hidden: 0, processing_state: "complete"
+    } as never);
+    obs.assets.set(assetId, {
+      asset_id: assetId, draft_id: `d-${name}`, observation_id: observationId, owner_user_id: `owner-${name}`, object_key: `original/${assetId}/p.jpg`,
+      partition_month: "2026-10", sha256: `${assetId}-sha`, mime: "image/jpeg", bytes: 1, processing_state: "uploaded",
+      public_derivative_key: `derived/import/20261011/observation_photo/${assetId}/display.webp`, public_derivative_sha256: "x",
+      public_derivative_verified_at: "2026-10-11T00:00:00.000Z", public_derivative_metadata_json: meta, exif_scrub_state: "scrubbed",
+      public_ready_at: "2026-10-11T00:00:00.000Z", ...assetChanges
+    } as never);
+    return assetId;
+  };
+  const pub = put("pub", "public");
+  const priv = put("priv", "private");
+  const unready = put("unready", "public", { public_ready_at: null });
+  const ok = await worker.fetch(new Request(`https://zukan.earth/thumb/400/${pub}`, { redirect: "manual" }), productionEnv);
+  assert.equal(ok.status, 302);
+  assert.equal(ok.headers.get("location"), `/derived-transform/w360/derived/import/20261011/observation_photo/${pub}/display.webp`);
+  const big = await worker.fetch(new Request(`https://zukan.earth/thumb/600/${pub}`, { redirect: "manual" }), productionEnv);
+  assert.match(big.headers.get("location") ?? "", /^\/derived-transform\/w680\//);
+  for (const id of [priv, unready, "no-such-asset"]) {
+    const res = await worker.fetch(new Request(`https://zukan.earth/thumb/400/${id}`, { redirect: "manual" }), productionEnv);
+    assert.equal(res.status, 404, id);
+    assert.equal(res.headers.get("location"), null, id);
+  }
+});
+
+test("guest top v2 switch: only rolled-in viewers see v2, everyone else keeps the current top page", async () => {
+  const { env, core } = createEnv();
+  const session = (token: string, userId: string) => {
+    const hash = createHash("sha256").update(token).digest("hex");
+    core.authSessions.set(hash, { token_hash: hash, user_id: userId, display_name: userId, role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null });
+    return { cookie: `ikimon_v2_session=${token}` };
+  };
+  const journey = session("gt2-journey", "user_journey_synthetic");
+  const other = session("gt2-other", "user_other_1");
+  const day = (offset: number) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  const rollouts = (entry: unknown) => JSON.stringify({ GUEST_TOP_V2_PROTOTYPE_ENABLED: entry });
+  const allow = rollouts({ state: "allowlist", allowlist: ["user_journey_synthetic"], expiresOn: day(7), removeBy: day(14) });
+  const get = async (rolloutJson: string | undefined, path: string, headers: Record<string, string> = {}) => {
+    const response = await worker.fetch(new Request(`https://zukan.earth${path}`, { headers }), { ...env, ENVIRONMENT: "production", ZUKAN_FEATURE_ROLLOUTS: rolloutJson });
+    return { response, html: await response.text() };
+  };
+  const isV2 = (r: { response: Response; html: string }) => r.html.includes('data-zk-guest-top="v2"') && r.response.headers.get("x-zukan-guest-top") === "v2";
+  const isCurrent = (r: { response: Response; html: string }) => r.html.includes('data-zk-hero="designed"') && !r.html.includes("data-zk-guest-top") && r.response.headers.get("x-zukan-guest-top") === null;
+
+  assert.equal(isCurrent(await get(allow, "/ja/")), true, "logged-out stays current under allowlist");
+  assert.equal(isCurrent(await get(allow, "/ja/?as=guest")), true, "logged-out ?as=guest is not a switch");
+  assert.equal(isCurrent(await get(undefined, "/ja/")), true);
+  assert.equal(isCurrent(await get(undefined, "/ja/?as=guest", journey)), false, "flag off, logged-in: authenticated library");
+  assert.equal(isV2(await get(undefined, "/ja/?as=guest", journey)), false);
+
+  const owner = await get(allow, "/ja/", journey);
+  assert.equal(isV2(owner), false, "allowlisted logged-in without ?as=guest keeps the library");
+  assert.equal(owner.html.includes("data-zk-hero"), false);
+
+  const guestView = await get(allow, "/ja/?as=guest", journey);
+  assert.equal(guestView.response.status, 200);
+  assert.equal(isV2(guestView), true);
+  assert.equal(guestView.response.headers.get("cache-control"), "private, no-store");
+  assert.match(guestView.response.headers.get("content-security-policy") ?? "", /nonce-/);
+  const nonce = /nonce-([A-Za-z0-9+/=_-]+)/.exec(guestView.response.headers.get("content-security-policy") ?? "")?.[1];
+  assert.ok(nonce && guestView.html.includes(`<style nonce="${nonce}">`));
+  assert.match(guestView.html, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
+  assert.doesNotMatch(guestView.html, /ノコシル/);
+
+  const otherView = await get(allow, "/ja/?as=guest", other);
+  assert.equal(isV2(otherView), false, "logged-in but not allowlisted: ?as=guest is ignored");
+  assert.equal(otherView.html.includes("data-zk-guest-top"), false);
+
+  const expired = rollouts({ state: "allowlist", allowlist: ["user_journey_synthetic"], expiresOn: day(-1), removeBy: day(6) });
+  assert.equal(isV2(await get(expired, "/ja/?as=guest", journey)), false);
+  assert.equal(isV2(await get("{broken", "/ja/?as=guest", journey)), false);
+
+  const all = rollouts({ state: "all" });
+  assert.equal(isV2(await get(all, "/ja/")), true, "state all reaches logged-out viewers");
+  assert.equal(isV2(await get(all, "/", {})), true);
+  assert.equal(isV2(await get(all, "/ja/", journey)), false, "logged-in viewers keep the library under state all");
+
+  for (const lang of ["en", "es", "pt-br"]) {
+    assert.equal(isCurrent(await get(all, `/${lang}/`)), true, lang);
+    assert.equal(isV2(await get(allow, `/${lang}/?as=guest`, journey)), false, lang);
+  }
+  const off = rollouts({ state: "off" });
+  assert.equal(isCurrent(await get(off, "/ja/")), true);
+  assert.equal(isV2(await get(off, "/ja/?as=guest", journey)), false);
+});
+
+test("guest top v2 static assets are served from materialized R2 and registered for materialization", async () => {
+  const { env } = createEnv();
+  const names = ["record", "place", "map", "pond", "heron"].map(name => `zukan-guest-v2-${name}.webp`);
+  const script = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
+  for (const name of names) {
+    assert.ok(script.includes(`"/assets/img/landing/${name}"`), `${name} registered in staticAssetPaths`);
+    assert.ok(existsSync(new URL(`../../assets/img/landing/${name}`, import.meta.url)), `${name} exists on disk`);
+    await env.ASSET_BUCKET.put(`original-ui/static/assets/img/landing/${name}`, `bytes-${name}`, { httpMetadata: { contentType: "image/webp" } });
+  }
+  for (const environment of ["production", "shadow"]) {
+    for (const name of names) {
+      const response = await worker.fetch(new Request(`https://zukan.earth/assets/img/landing/${name}`), { ...env, ENVIRONMENT: environment });
+      assert.equal(response.status, 200, `${environment} ${name}`);
+      assert.equal(await response.text(), `bytes-${name}`);
+      assert.equal(response.headers.get("content-type"), "image/webp");
+      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+    }
+  }
+  const missing = await worker.fetch(new Request("https://zukan.earth/assets/img/landing/zukan-guest-v2-none.webp"), { ...env, ENVIRONMENT: "production" });
+  assert.equal(missing.status, 404);
 });

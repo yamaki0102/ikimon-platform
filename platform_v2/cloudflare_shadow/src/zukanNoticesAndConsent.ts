@@ -1,3 +1,4 @@
+import { BRAND_ASSETS } from "../../src/brandAssets";
 import type { Env } from "./core/env";
 import { assertSameOriginRequest, escapeHtml, html } from "./core/http";
 import { publicLangFromPath, readCompatibleSession } from "./core/shared";
@@ -16,9 +17,10 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 export const ZUKAN_NOTICE_STYLES = `
 :root{--zk-g:#143f2e;--zk-ink:#17251b;--zk-muted:#5a6a60;--zk-line:#e4e8e2;--zk-fast:120ms;--zk-std:240ms;--zk-out:cubic-bezier(.2,0,0,1);--zk-sheet:cubic-bezier(.32,.72,0,1)}
 *{box-sizing:border-box}
-body{margin:0;background:#fff;color:var(--zk-ink);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6}
+html body[data-zukan-design],body{margin:0;background:#fff;color:var(--zk-ink);font-family:"Noto Sans JP",system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6}
 .nc-top{padding:14px 20px}
-.nc-logo,.nc-logo:visited{color:var(--zk-g);font-weight:800;font-size:22px;letter-spacing:.04em;text-decoration:none}
+.nc-logo,.nc-logo:visited{display:inline-block;line-height:0}
+.nc-logo img{display:block;width:120px;height:auto}
 .nc-page{max-width:520px;margin:0 auto;padding:0 16px 48px}
 .nc-warn{display:flex;gap:14px;margin:8px 0 24px;padding:18px 18px;border-radius:20px;background:#fdf1e2;color:#8a4b0a}
 .nc-warn svg{flex:none;margin-top:3px}
@@ -168,7 +170,7 @@ export function renderNoticesPage(options: { lang: string; notices: ZukanNotices
   return pageDoc(
     "お知らせ",
     options.lang,
-    `<div class="nc-top"><a class="nc-logo" href="${prefix}/">ZUKAN</a></div>
+    `<div class="nc-top"><a class="nc-logo" href="${prefix}/"><img src="${BRAND_ASSETS.lockupBlack}" alt="ZUKAN" width="120" height="32"></a></div>
 <main class="nc-page" data-zukan-notices="k5">
 ${banner}
 <h2>${notices.maintenance ? "そのほかのお知らせ" : "お知らせ"}</h2>

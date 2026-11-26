@@ -57,7 +57,7 @@ test("detection presentation is derived only from durable assessment facts", () 
 });
 
 test("authenticated detail can carry the private Saved control without changing record meaning", () => {
-  const rendered = renderObservationFirstRecordDetailHtml(detail, {
+  const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
     title: "庭の観察",
     observedLabel: "2026年7月22日 18:00",
     note: null,
@@ -143,11 +143,11 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   });
 
   assert.match(rendered, /data-observation-first-record-detail="1"/);
-  assert.match(rendered, /<title>庭の観察 \| ZUKAN<\/title>/);
+  assert.match(rendered, /<title>庭の観察の記録 \| ZUKAN<\/title>/);
   assert.ok(rendered.indexOf("of-media-stage") < rendered.indexOf("of-record-info"));
   assert.equal((rendered.match(/<img[^>]+https:\/\/media\.example\/safe\.jpg/g) ?? []).length, 1);
-  assert.match(rendered, /この記録で見つかったもの|AIが見つけたもの/);
-  assert.match(rendered, /<details class="of-manage"/);
+  assert.match(rendered, /id="of-summary-title">見つかったもの</);
+  assert.match(rendered, /<details class="of-manage is-linked"/);
   assert.match(rendered, /<summary[^>]*>記録に情報を追加<\/summary>/);
   assert.match(rendered, /name="action" value="set_visibility"/);
   assert.match(rendered, /name="visibility"[\s\S]*<option value="public" selected>公開<\/option>/);
@@ -158,11 +158,11 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   assert.match(rendered, /この場所のようす/);
   assert.match(rendered, /草地と市街地の境界/);
   assert.doesNotMatch(rendered, /草地と市街地の境界のようです|写真から読み取った候補です/);
-  assert.match(rendered, /つながる記録/);
+  assert.match(rendered, /<h2 id="of-related-title">近くの記録<\/h2>/);
   assert.match(rendered, /浜松市周辺/);
   assert.match(rendered, /写真を表示できるよう整えています/);
   assert.doesNotMatch(rendered, /AIからの短いメモ|主対象と環境の要素が確認できました/);
-  assert.match(rendered, /次に撮るとよい写真：頭部とくちばしの詳細/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.match(rendered, /似た写真1枚は1枚にまとめて表示しています/);
   assert.match(rendered, /似ている候補との比較/);
   assert.match(rendered, /ナミアゲハ/);
@@ -215,7 +215,9 @@ test("guest HTML omits owner management and keeps proposals on demand", () => {
   });
   assert.doesNotMatch(rendered, /記録に情報を追加|写真を対象へ割り当てる|別の対象として分ける|別の対象とまとめる/);
   assert.doesNotMatch(rendered, /name="action" value="identify"/);
-  assert.match(rendered, /ログインして名前を提案する/);
+  assert.match(rendered, /class="of-login-proposal" href="[^"]+">ログインする<\/a>/);
+  assert.match(rendered, /ログインすると、名前の提案や、自分の記録ができます/);
+  assert.doesNotMatch(rendered, /class="of-found-link"/);
   assert.match(rendered, /a,button,input,select,textarea,summary\{min-height:44px/);
   assert.doesNotMatch(rendered, /35\.123456|138\.123456|[?&]lat=/);
   assert.doesNotMatch(rendered, /data-media-dedup-notice|similar photos|似た写真/);
@@ -288,10 +290,10 @@ test("owner identification remains available when external proposals are off", (
 
 test("all supported languages render localized viewer copy", () => {
   const expectations = {
-    ja: "この記録で見つかったもの",
-    en: "Found in this record",
-    es: "Encontrado en este registro",
-    "pt-br": "Encontrado neste registro",
+    ja: "見つかったもの",
+    en: "Found here",
+    es: "Lo encontrado",
+    "pt-br": "O que foi encontrado",
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, {
@@ -373,10 +375,10 @@ test("legacy unidentified sentinel is never exposed and uses a localized natural
 
 test("scene and non-detection copy is localized in every supported language", () => {
   const expectations = {
-    ja: ["この写真から見つかったもの", "この写真では、場所や周囲のようすが記録されています"],
-    en: ["Found in this photo", "This photo records the place and its surroundings"],
-    es: ["Encontrado en esta foto", "Esta foto registra el lugar y su entorno"],
-    "pt-br": ["Encontrado nesta foto", "Esta foto registra o local e o seu entorno"],
+    ja: ["見つかったもの", "この写真では、場所や周囲のようすが記録されています"],
+    en: ["Found here", "This photo records the place and its surroundings"],
+    es: ["Lo encontrado", "Esta foto registra el lugar y su entorno"],
+    "pt-br": ["O que foi encontrado", "Esta foto registra o local e o seu entorno"],
   } as const;
   for (const [lang, expected] of Object.entries(expectations)) {
     const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
@@ -430,10 +432,11 @@ test("multiple observations expose at most three summary rows and keep every det
     actionNonce: "nonce-many",
     viewerAuthenticated: true,
   });
-  const summary = rendered.match(/<ul class="of-summary-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
+  const summary = rendered.match(/<ul class="of-found-list">([\s\S]*?)<\/ul>/)?.[1] ?? "";
   assert.equal((summary.match(/<li/g) ?? []).length, 3);
   assert.equal((rendered.match(/<article class="of-observation-detail">/g) ?? []).length, 5);
-  assert.match(rendered, /<summary>すべて見る<\/summary>/);
+  assert.match(rendered, /<details class="of-reading[^"]*" id="of-reading"><summary>名前と場所のようすの詳細<\/summary>/);
+  assert.doesNotMatch(rendered, /<details class="of-reading[^>]* open/);
   assert.equal((rendered.match(/<video controls/g) ?? []).length, 1);
 });
 
@@ -462,9 +465,9 @@ test("a completed scene analysis without a biological candidate remains a useful
     viewerAuthenticated: false,
   });
 
-  assert.match(rendered, /この写真から見つかったもの/);
+  assert.match(rendered, /id="of-summary-title">見つかったもの</);
   assert.match(rendered, /水面/);
-  assert.match(rendered, /低い草地/);
+  assert.match(rendered, /草むら/);
   assert.match(rendered, /舗装・構造物/);
   assert.match(rendered, /この写真では、場所や周囲のようすが記録されています/);
   assert.match(rendered, /この場所のようす/);
@@ -493,7 +496,7 @@ test("scene chips ignore non-derived environment fields and unknown internal cod
     viewerAuthenticated: false,
   });
 
-  assert.match(rendered, /低い草地/);
+  assert.match(rendered, /草むら/);
   assert.doesNotMatch(rendered, /水面/);
   assert.doesNotMatch(rendered, /future_internal_code/);
 });
@@ -572,7 +575,7 @@ test("detected records label learning and location protection without exposing i
     viewerAuthenticated: false,
   });
 
-  assert.match(rendered, /この記録で見つかったもの/);
+  assert.match(rendered, /id="of-summary-title">見つかったもの</);
   assert.match(rendered, /わかること/);
   assert.match(rendered, /おおよその場所を表示/);
   assert.doesNotMatch(rendered, /provisional|human_asserted|accepted identification|provenance|occurrence/i);
@@ -796,7 +799,7 @@ test("person-only AI detail keeps the record without taxon comparisons or body c
   }
   assert.match(rendered, /地域の行事を見学したときの記録/);
   assert.match(rendered, /\/derived\/public-scene\.webp/);
-  assert.match(rendered, /地域の行事が記録されています/);
+  assert.doesNotMatch(rendered, /地域の行事が記録されています/);
   assert.equal(rendered.includes('class="of-summary"'), false);
   assert.equal(rendered.includes("生きものは見つかりませんでした"), false);
 });
@@ -816,10 +819,11 @@ test("person primary context suppresses novel AI names and learning while preser
       aiCandidateInsights: [{ name: "男性", scientificName: null, supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] }],
       aiFeedback: "地域の行事が記録されています。", aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
     });
-    assert.match(rendered, /<h1>自然の記録<\/h1>/);
+    assert.match(rendered, /<h1>10月3日の記録<\/h1>/);
+    assert.doesNotMatch(rendered, /自然の記録/);
     assert.match(rendered, /男性のいる地域の行事を記録しました/);
     assert.match(rendered, /\/derived\/public-scene\.webp/);
-    assert.match(rendered, /地域の行事が記録されています/);
+    assert.doesNotMatch(rendered, /地域の行事が記録されています/);
     assert.doesNotMatch(rendered, /男性かもしれません|>男性<|観客が写っています|人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
     assert.doesNotMatch(rendered, /class="of-summary"|生きものは見つかりませんでした/);
   }
@@ -842,7 +846,7 @@ test("person primary context retains coexisting bird and plant suggestions and a
       ],
       aiNextPhoto: subject.advice,
     });
-    for (const text of [subject.name, subject.evidence, subject.advice]) assert.ok(rendered.includes(text), text);
+    for (const text of [subject.name, subject.evidence]) assert.ok(rendered.includes(text), text);
     assert.doesNotMatch(rendered, /男性かもしれません|>男性<|観客が写っています|人物の顔を近くから撮る/);
   }
   const acceptedCard = { ...humanAiCard, assertionStatus: "human_asserted", subjectLabel: "男性", acceptedIdentification: {
@@ -853,7 +857,7 @@ test("person primary context retains coexisting bird and plant suggestions and a
     lang: "ja", title: "男性", observedLabel: "2026年10月3日", note: "利用者が残した人物の記録。", media: [], actionNonce: "accepted-novel-person",
     aiPersonPrimaryNames: ["男性"], aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
   });
-  assert.match(acceptedHtml, /<h1>男性<\/h1>/);
+  assert.match(acceptedHtml, /<h1>男性の記録<\/h1>/);
   assert.match(acceptedHtml, /<strong>男性<\/strong>/);
   assert.match(acceptedHtml, /利用者が残した人物の記録/);
   assert.doesNotMatch(acceptedHtml, /人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
@@ -884,10 +888,10 @@ test("mixed AI detail retains bird evidence and mapped guidance while excluding 
   for (const text of ["人間かもしれません", "Homo sapiens", "人物の顔を近くから撮る", "頭部および胴体の鮮明な拡大画像"]) {
     assert.equal(rendered.includes(text), false, text);
   }
-  assert.match(rendered, /スズメかもしれません/);
+  assert.match(rendered, /<span class="of-found-name">スズメ<\/span><span class="of-found-status is-ai">AIの読み取り<\/span>/);
   assert.match(rendered, /頬の黒い斑点が見えます/);
   assert.match(rendered, /翼とくちばしを横から撮る/);
-  assert.match(rendered, /次に撮るとよい写真：翼を開いたところ/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
 });
 
 test("human accepted claims and original notes remain visible when human AI advice is omitted", () => {
@@ -983,7 +987,7 @@ test("record detail resolves the 7 UX polish items: open capture, readable media
   assert.doesNotMatch(rendered, /名前はこれから/);
 });
 
-test("existing landscape record without aiFeedback renders grounded environment feedback and avoids absence wording", () => {
+test("existing landscape record without a stored AI note renders no AI sentence and avoids absence wording", () => {
   const rendered = renderObservationFirstRecordDetailHtml({ ...detail, owner: false, observationCount: 0, observations: [] }, {
     lang: "ja",
     title: "水辺の記録",
@@ -1003,7 +1007,7 @@ test("existing landscape record without aiFeedback renders grounded environment 
     actionNonce: "nonce-water-scene",
     viewerAuthenticated: false,
   });
-  assert.match(rendered, /data-ai-feedback/);
+  assert.doesNotMatch(rendered, /<section class="of-note" data-ai-feedback/);
   assert.match(rendered, /水辺/);
   assert.doesNotMatch(rendered, /水辺のよう/);
   assert.doesNotMatch(rendered, /生きものの姿は見つかりませんでした/);
@@ -1040,6 +1044,7 @@ test("rendered desktop 1440x900 page scales portrait photo height >= 600 and fra
     observedLabel: "2026/11/22 08:15",
     note: null,
     aiFeedback: "水辺の植生が見えます。",
+    aiNote: [{ slot: 1, text: "水面と草が写っているので、水辺のようすが分かります。" }],
     media: [{ mediaId: "p1", mediaKind: "photo", url: portraitSvg }],
     actionNonce: "nonce-browser-measure",
     viewerAuthenticated: false,
@@ -1110,13 +1115,12 @@ test("card mode renders each heading and candidate once without advice prose, co
       viewerAuthenticated: false,
     },
   );
-  assert.equal((rendered.match(/ナミアゲハかもしれません/g) ?? []).length, 1);
-  assert.equal((rendered.match(/ログインして名前を提案する/g) ?? []).length, 1);
-  assert.equal((rendered.match(/<small>候補<\/small>/g) ?? []).length, 1);
+  assert.equal((rendered.match(/<span class="of-found-name">ナミアゲハ<\/span>/g) ?? []).length, 1);
+  assert.equal((rendered.match(/>ログインする<\/a>/g) ?? []).length, 1);
   assert.doesNotMatch(rendered, /写っているもの/);
   assert.doesNotMatch(rendered, /写真から見える特徴と、まだ確認できない点を並べています/);
   assert.doesNotMatch(rendered, /名前はこれから/);
-  assert.match(rendered, /次に撮るとよい写真：腹部の裏面/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   const feedbackBlock = rendered.match(/data-ai-feedback[\s\S]*?<\/section>/)?.[0] ?? "";
   assert.doesNotMatch(feedbackBlock, /比べやすくなります/);
 });
@@ -1161,10 +1165,10 @@ test("card mode suppresses saved advice prose, trims next_photo to a noun, omits
     },
   );
   assert.doesNotMatch(rendered, /AIからの短いメモ|伝わりやすくなります|おすすめします/);
-  assert.match(rendered, /次に撮るとよい写真：腹部の裏面<\/p>/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.doesNotMatch(rendered, /が分かる角度からの撮影/);
   assert.doesNotMatch(rendered, /写真から読み取った候補です/);
-  assert.match(rendered, />林の中<\/p>/);
+  assert.match(rendered, /<li>林の中<\/li>/);
   assert.doesNotMatch(rendered, /林の中のようです/);
   assert.equal((rendered.match(/実物の生体詳細/g) ?? []).length, 1);
 });
@@ -1192,6 +1196,7 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
       observedLabel: "2026年11月23日",
       note: null,
       aiFeedback: null,
+      aiNote: [{ slot: 1, text: "木と地面が写っているので、林のようすが分かります。" }],
       aiNextPhoto: "実物の生体や周囲の自然環境の詳細が分かる部位・角度",
       aiCandidateInsights: [
         {
@@ -1221,7 +1226,7 @@ test("AI sections carry explicit AI label across all locales and consolidate nex
   assert.doesNotMatch(rendered, /of-ai-badge|AIの見立て|AIからの短いメモ|AIが見つけた/);
   assert.doesNotMatch(rendered, /もう少し詳しく調べるには/);
   assert.doesNotMatch(rendered, /未確認/);
-  assert.match(rendered, /次に撮るとよい写真：実物の生体や周囲の自然環境<\/p>/);
+  assert.doesNotMatch(rendered, /次に撮るとよい写真/);
   assert.doesNotMatch(rendered, /の詳細が分かる部位・角度/);
 });
 
@@ -1270,10 +1275,10 @@ test("signboard record with saved illustration-deer candidate suppresses organis
   assert.doesNotMatch(rendered, /<h1>自然の記録<\/h1>/);
   assert.doesNotMatch(rendered, /シカかもしれません|案内板のイラストのシカ/);
   assert.doesNotMatch(rendered, /次に撮るとよい写真：実物の生体/);
-  assert.equal((rendered.match(/この写真から見つかったもの/g) ?? []).length, 1);
-  assert.match(rendered, /写っているもの：案内板/);
+  assert.equal((rendered.match(/id="of-summary-title">見つかったもの</g) ?? []).length, 1);
+  assert.match(rendered, /<span class="of-found-name">案内板<\/span><span class="of-found-status is-ai">AIの読み取り<\/span>/);
   const bodyHtml = rendered.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
-  assert.equal((bodyHtml.replace(/<[^>]*>/gu, " ").match(/この説明はAIが作成しました/g) ?? []).length, 1);
+  assert.equal((bodyHtml.match(/AIの読み取り/g) ?? []).length, 1);
 
   const signCardNoQuote = {
     ...signCard,
@@ -1388,7 +1393,8 @@ test("record detail shows owner title edit form and role-based provenance withou
     media: [],
     actionNonce: "nonce-roles",
   });
-  assert.match(ownerHtml, /class="of-title-edit"/);
+  assert.match(ownerHtml, /data-title-edit/);
+  assert.doesNotMatch(ownerHtml, /class="of-title-edit"/);
   assert.match(ownerHtml, /name="action" value="set_title"/);
   assert.match(ownerHtml, /記録した人が確認/);
   assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
@@ -1398,6 +1404,7 @@ test("record detail shows owner title edit form and role-based provenance withou
     title: "キアゲハ",
     customTitle: "里山のチョウと野草",
     aiFeedback: "林縁の草地でよく見られます。",
+    aiNote: [{ slot: 1, text: "木と地面が写っているので、林のようすが分かります。" }],
     observedLabel: "2026年11月23日",
     publicLocationLabel: "静岡県浜松市",
     note: "",
@@ -1507,4 +1514,243 @@ test("signboard, object, food, and person records do not fall back to 自然の�
   assert.match(personHtml, /<h1>活動の記録<\/h1>/);
   assert.match(personHtml, /人の集まり・活動/);
   assert.doesNotMatch(personHtml, /<h1>自然の記録<\/h1>/);
+});
+
+test("AI note renders as one headless paragraph with the AI disclosure, slot 3 only for the owner, and never a banned phrase", () => {
+  const aiNote = [
+    { slot: 1 as const, text: "水面が写っているので、コサギらしい鳥が待つ場所のようすが分かります。" },
+    { slot: 2 as const, text: "足もとの面は人工の面に見えます。" },
+    { slot: 3 as const, text: "次は少し離れて、場所全体も一緒に入れると、まわりの変化も残せます。" },
+  ];
+  const presentation = { lang: "ja" as const, title: "水辺の記録", observedLabel: "2026年11月25日", note: null, media: [], actionNonce: "nonce-ai-note", viewerAuthenticated: true, aiNote };
+  const ownerHtml = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, presentation);
+  const otherHtml = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, presentation);
+  for (const slot of [1, 2, 3]) assert.match(ownerHtml, new RegExp(`data-ai-note-slot="${slot}"`));
+  assert.match(otherHtml, /data-ai-note-slot="1"/);
+  assert.match(otherHtml, /data-ai-note-slot="2"/);
+  assert.doesNotMatch(otherHtml, /data-ai-note-slot="3"|次は少し離れて/);
+  const block = ownerHtml.match(/<section class="of-note" data-ai-feedback data-ai-note[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.doesNotMatch(block, /<h2|次に撮るなら|次に撮るとよい写真/);
+  assert.match(block, /題名とこの文章はAIが作成しました/);
+  const banned = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, aiNote: [{ slot: 1, text: "水面がよく撮れています。" }, { slot: 2, text: "上手ですね。" }] });
+  assert.doesNotMatch(banned, /よく撮れ|上手ですね|data-ai-note-slot/);
+  const empty = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, aiNote: [] });
+  assert.doesNotMatch(empty, /<section class="of-note" data-ai-feedback/);
+  const english = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...presentation, lang: "en", aiNote });
+  assert.doesNotMatch(english, /data-ai-note-slot/);
+});
+
+const mockPresentation = {
+  lang: "ja" as const,
+  title: "アオサギの記録",
+  observedLabel: "2026年9月18日（金）15:20",
+  note: null,
+  publicLocationLabel: "浜松市中央区 ・ およそ半径1km以内",
+  media: [{ mediaId: "m1", mediaKind: "photo" as const, url: "https://media.example/heron.jpg" }],
+  environment: { place_type: "water_edge", contact_surface: "artificial", surrounding_cover: "low_grass", environment_condition: "sunny", human_change: "mowing", place_type_source: "derived", environment_record_status: "auto_draft" },
+  sceneElements: ["water", "low_grass"],
+  related: [{ recordId: "near-1", title: "近くの記録", observedLabel: "2026年9月18日", photoUrl: "https://media.example/near.jpg" }],
+  aiNote: [
+    { slot: 1 as const, text: "水面と足もとまで写っているので、アオサギが待っている場所の深さが分かります。" },
+    { slot: 2 as const, text: "アオサギは浅い水辺でじっと待って魚をとります。" },
+  ],
+  countBand: { text: "この記録で、みなと川の土手の秋の記録が12件になりました", href: "/api/v1/records/visit-ui-contract/place-season" },
+  actionNonce: "nonce-mock",
+};
+const mainOf = (html: string): string => html.match(/<main\b[\s\S]*<\/main>/)?.[0] ?? "";
+const renderMain = (...args: Parameters<typeof renderObservationFirstRecordDetailHtml>): string => mainOf(renderObservationFirstRecordDetailHtml(...args));
+const orderMarks = ['class="of-media-stage"', 'class="of-record-info"', 'id="of-summary-title"', "data-ai-feedback", "data-count-band", 'id="of-environment-title"', 'id="of-related-title"', 'class="of-bottom-actions"'];
+
+test("record page follows the mock order and the owner variant shows fix-name, settings and the visibility chip", () => {
+  const html = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true });
+  const at = orderMarks.map((mark) => html.indexOf(mark));
+  assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
+  assert.deepEqual([...at].sort((a, b) => a - b), at);
+  assert.match(html, /<a class="of-found-link" href="#of-reading-body" data-of-open="of-reading">名前を直す<\/a>/);
+  assert.match(html, /<a class="of-cta" href="#of-reading-body" data-of-open="of-reading">名前と場所のようすを直す<\/a>/);
+  assert.match(html, /<p class="of-settings-link"><a href="#of-manage-body" data-of-open="manage">この記録の設定<\/a><\/p>/);
+  assert.match(html, /data-owner-visibility href="#of-manage-body" data-of-open="manage">公開<\/a>/);
+  assert.match(html, /data-location-blur><svg[^>]*>.*?<\/svg>位置はぼかしています<\/span>/);
+  assert.match(html, /題名とこの文章はAIが作成しました/);
+  assert.match(html, /<span class="of-found-name">水面<\/span><span class="of-found-status is-ai">AIの読み取り<\/span>/);
+  assert.match(html, /<li>水辺<\/li><li>人工の面<\/li><li>低い草<\/li><li>日が当たっている<\/li><li>草刈りの跡<\/li>/);
+  assert.match(html, /この場所のようすはAIが読み取りました/);
+  assert.match(html, /<a class="of-band" data-count-band href="\/api\/v1\/records\/visit-ui-contract\/place-season">/);
+  assert.doesNotMatch(html, /class="of-login-proposal"|名前や場所のようすを提案する/);
+  assert.equal((html.match(/id="of-summary-title"/g) ?? []).length, 1);
+});
+
+test("record page for someone else's record keeps one suggest link and bottom button, no owner chip or settings", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, viewerAuthenticated: true });
+  const at = orderMarks.map((mark) => html.indexOf(mark));
+  assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
+  assert.deepEqual([...at].sort((a, b) => a - b), at);
+  assert.match(html, /<a class="of-found-link" href="#of-reading-body" data-of-open="of-reading">名前を提案する<\/a>/);
+  assert.equal((html.match(/class="of-found-link"/g) ?? []).length, 1);
+  assert.match(html, /<a class="of-cta" href="#of-reading-body" data-of-open="of-reading">名前や場所のようすを提案する<\/a>/);
+  assert.doesNotMatch(html, /data-owner-visibility|of-settings-link|名前を直す|名前と場所のようすを直す|この記録の設定|id="manage"|set_visibility/);
+  assert.doesNotMatch(html, /class="of-login-proposal"/);
+  assert.match(html, /題名とこの文章はAIが作成しました/);
+  assert.match(html, /位置はぼかしています/);
+});
+
+test("record page for a logged-out viewer shows only the login button and sentence", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, viewerAuthenticated: false });
+  assert.match(html, /<a class="of-login-proposal" href="[^"]*\/ja\/login\?redirect=[^"]+">ログインする<\/a><p class="of-cta-note">ログインすると、名前の提案や、自分の記録ができます<\/p>/);
+  assert.doesNotMatch(html, /class="of-found-link"|class="of-cta"|data-owner-visibility|of-settings-link|名前を直す|名前を提案する<\/a>|名前や場所のようすを提案する|name="action" value="identify"/);
+  assert.match(html, /題名とこの文章はAIが作成しました/);
+  assert.match(html, /data-count-band/);
+});
+
+test("record page omits the band without data and never renders the owner chip for hidden-band records", () => {
+  const html = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, countBand: null });
+  assert.doesNotMatch(html, /data-count-band|of-band/);
+  const ownerOnly = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, countBand: { text: "あなたの記録では、初めての水辺です", href: null } });
+  assert.match(ownerOnly, /<div class="of-band" data-count-band>/);
+  assert.doesNotMatch(ownerOnly, /<a class="of-band"/);
+});
+
+test("multi-photo record keeps per-photo switching with a counter chip", () => {
+  const html = renderMain({ ...detail, owner: false }, {
+    ...mockPresentation,
+    viewerAuthenticated: false,
+    media: [
+      { mediaId: "m1", mediaKind: "photo", url: "https://media.example/1.jpg" },
+      { mediaId: "m2", mediaKind: "photo", url: "https://media.example/2.jpg" },
+    ],
+  });
+  assert.match(html, /data-of-counter data-template="写真 \{n\} \/ 2">写真 1 \/ 2<\/span>/);
+  assert.match(html, /<nav class="of-media-switch"/);
+  assert.equal((html.match(/class="of-media-slide"/g) ?? []).length, 2);
+});
+
+const savedFixture = { savedControlHtml: '<div class="of-saved-control"><button type="button" class="zs-control" data-zukan-save aria-pressed="false"><span>保存</span></button></div>', savedScriptHtml: "<script>window.savedFixture=1;</script>" };
+const threePhotos = [
+  { mediaId: "m1", mediaKind: "photo" as const, url: "https://media.example/1.jpg" },
+  { mediaId: "m2", mediaKind: "photo" as const, url: "https://media.example/2.jpg" },
+  { mediaId: "m3", mediaKind: "photo" as const, url: "https://media.example/3.jpg" },
+];
+const blurOnlyPlace = "位置をぼかしています";
+
+test("own multi-photo record has no bookmark, pencil, status card or duplicate blur line at the top", () => {
+  const html = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, {
+    ...mockPresentation, ...savedFixture, viewerAuthenticated: true, media: threePhotos, publicLocationLabel: blurOnlyPlace,
+    processingMessage: null, processingStatusPanel: null,
+  });
+  const main = mainOf(html);
+  assert.doesNotMatch(main, /data-zukan-save|of-fab-save|of-saved-control/);
+  assert.doesNotMatch(html, /savedFixture/);
+  assert.doesNotMatch(main, /of-title-edit|この記録の状態|obs-processing-status|AIの候補を見る|data-observation-processing-status/);
+  assert.doesNotMatch(main.split('<details class="of-reading')[0]!, /位置をぼかしています/);
+  assert.doesNotMatch(main, /of-meta-place/);
+  assert.match(main, /<p class="of-meta-date">2026年9月18日（金）15:20 ・ 写真 3枚<\/p>/);
+  assert.match(main, /<h1>アオサギの記録<\/h1>/);
+  const manage = main.match(/<details class="of-manage[\s\S]*<\/details>/)?.[0] ?? "";
+  assert.match(manage, /data-title-edit/);
+  assert.match(manage, /name="action" value="set_title"/);
+});
+
+test("pending processing status still shows for the owner", () => {
+  const html = renderMain({ ...detail, owner: true }, {
+    ...mockPresentation, viewerAuthenticated: true, media: threePhotos,
+    processingMessage: "写真からわかることを調べています。", processingStatusPanel: '<section data-observation-processing-status>調べています</section>',
+  });
+  assert.match(html, /data-observation-processing-status/);
+  assert.match(html, /写真からわかることを調べています。/);
+});
+
+test("someone else's record carries the bookmark only as a small icon next to share in the photo corner", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, ...savedFixture, viewerAuthenticated: true, media: threePhotos });
+  assert.equal((html.match(/data-zukan-save/g) ?? []).length, 1);
+  const share = html.indexOf("of-fab-share");
+  const save = html.indexOf("of-fab-save");
+  const frameEnd = html.indexOf('class="of-panel"');
+  assert.ok(share >= 0 && save > share && save < frameEnd, JSON.stringify([share, save, frameEnd]));
+  assert.doesNotMatch(html, /<div class="of-actions">/);
+  assert.match(html, /data-record-visibility>公開<\/span>/);
+  assert.doesNotMatch(html, /この記録の状態|of-title-edit|data-owner-visibility/);
+});
+
+test("logged-out viewer gets no bookmark and no status card", () => {
+  const html = renderMain({ ...detail, owner: false }, { ...mockPresentation, viewerAuthenticated: false, media: threePhotos });
+  assert.doesNotMatch(html, /data-zukan-save|of-fab-save|この記録の状態|of-title-edit/);
+  assert.match(html, /of-fab-share/);
+});
+
+test("photo switcher uses thumbnails with explicit colors and never the visited-link default", () => {
+  const full = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, media: threePhotos });
+  const switcher = full.match(/<nav class="of-media-switch"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  assert.equal((switcher.match(/<a class="of-thumb"/g) ?? []).length, 3);
+  assert.equal((switcher.match(/<img src="https:\/\/media\.example\/[123]\.jpg"/g) ?? []).length, 3);
+  assert.doesNotMatch(switcher, /<a href=/);
+  assert.match(switcher, /<a class="of-thumb" href="#record-media-1" data-of-thumb="0" aria-label="写真 1" aria-current="true">/);
+  assert.doesNotMatch(full, /class="of-media-nav"/);
+  assert.match(full, /a\.of-thumb:visited\{[^}]*color:var\(--zukan-text-primary\)/);
+  assert.match(full, /:is\(\.of-page,\.of-header\) a:not\(\[class\],\[aria-current\]\):visited\{color:var\(--zukan-link\)\}/);
+  assert.doesNotMatch(full, /purple|#551a8b/i);
+  const single = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true });
+  assert.doesNotMatch(single, /<nav class="of-media-switch"|写真 \d+枚/);
+});
+
+test("own record order: photo, title, date, thumbnails, found, note, band, place, nearby, button, settings", () => {
+  const html = renderMain({ ...detail, owner: true }, { ...mockPresentation, viewerAuthenticated: true, media: threePhotos });
+  const marks = ['class="of-media-stage"', "<h1>", 'class="of-meta-date"', 'class="of-media-switch"', 'id="of-summary-title"', "data-ai-feedback", "data-count-band", 'id="of-environment-title"', 'id="of-related-title"', 'class="of-bottom-actions"', 'id="manage"'];
+  const at = marks.map((mark) => html.indexOf(mark));
+  assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
+  assert.deepEqual([...at].sort((a, b) => a - b), at);
+});
+
+test("record title: named organism, then scene words, then the date, never 自然の記録", () => {
+  const bare = { ...detail, owner: false, observations: [] as ObservationFirstRecordDetail["observations"] };
+  const base = { lang: "ja" as const, note: null, media: [], actionNonce: "nonce-title-rule", observedLabel: "2026年7月28日（火）09:00" };
+  const named = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "ツツジ属" });
+  assert.match(named, /<h1>ツツジ属の記録<\/h1>/);
+  const already = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "アオサギの記録" });
+  assert.match(already, /<h1>アオサギの記録<\/h1>/);
+  const scene = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true, sceneElements: ["water", "low_grass"] });
+  assert.match(scene, /<h1>水面と草むらの記録<\/h1>/);
+  assert.match(scene, /<title>水面と草むらの記録 \| ZUKAN<\/title>/);
+  const long = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true, sceneElements: ["built_surface", "trees_shrubs"] });
+  assert.match(long, /<h1>舗装・構造物の記録<\/h1>/);
+  const dated = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true });
+  assert.match(dated, /<h1>7月28日の記録<\/h1>/);
+  for (const html of [named, already, scene, long, dated]) {
+    assert.doesNotMatch(html, /<h1>自然の記録<\/h1>/);
+    assert.ok((html.match(/<h1>([^<]*)<\/h1>/)?.[1] ?? "").length <= 12);
+  }
+  const undated = renderObservationFirstRecordDetailHtml(bare, { ...base, observedLabel: "", title: "自然の記録", titleIsFallback: true });
+  assert.match(undated, /<h1>新しい記録<\/h1>/);
+  const english = renderObservationFirstRecordDetailHtml(bare, { ...base, lang: "en", observedLabel: "7/28/2026, 09:00", title: "Nature record", titleIsFallback: true });
+  assert.match(english, /<h1>Record of 7\/28<\/h1>/);
+});
+
+test("owner gets a per-photo rotate control in settings; guests do not", () => {
+  const photos = [
+    { mediaId: "asset-a", mediaKind: "photo" as const, url: "https://media.example/a.jpg" },
+    { mediaId: "asset-b", mediaKind: "photo" as const, url: "https://media.example/b.jpg" },
+  ];
+  const owner = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { lang: "ja", title: "庭", observedLabel: "2026年7月28日", note: null, media: photos, actionNonce: "nonce-rotate" });
+  const forms = owner.match(/<form class="of-rotate-row"[\s\S]*?<\/form>/g) ?? [];
+  assert.equal(forms.length, 2);
+  assert.match(forms[0]!, /name="action" value="rotate_media"/);
+  assert.match(forms[0]!, /name="media_id" value="asset-a"/);
+  assert.ok(forms[0]!.includes('name="degrees" value="270">左に回す</button>') && forms[0]!.includes('name="degrees" value="90">右に回す</button>'));
+  assert.match(forms[1]!, /name="media_id" value="asset-b"/);
+  const guest = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, { lang: "ja", title: "庭", observedLabel: "2026年7月28日", note: null, media: photos, actionNonce: "nonce-rotate" });
+  assert.doesNotMatch(guest, /value="rotate_media"|<form class="of-rotate-row"/);
+});
+
+test("record with only a stored name still lists it under 見つかったもの with its status; AI sentence stays omitted without slots", () => {
+  const bare = { ...detail, owner: false, observations: [] as ObservationFirstRecordDetail["observations"] };
+  const base = { lang: "ja" as const, note: null, media: [], actionNonce: "nonce-found", observedLabel: "2026年7月28日（火）09:00", title: "カタバミ属" };
+  const confirmed = renderObservationFirstRecordDetailHtml(bare, base);
+  assert.match(confirmed, /<h1>カタバミ属の記録<\/h1>/);
+  assert.match(confirmed, /<section class="of-found"[\s\S]*?<span class="of-found-name">カタバミ属<\/span><span class="of-found-status is-confirmed">確認済み/);
+  assert.doesNotMatch(confirmed, /data-ai-note/);
+  const proposed = renderObservationFirstRecordDetailHtml(bare, { ...base, titleStatus: "proposed" });
+  assert.match(proposed, /of-found-status is-proposed">提案あり/);
+  const fallback = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true });
+  assert.doesNotMatch(fallback, /<span class="of-found-name">/);
+  assert.match(confirmed, /data-record-owner="0"/);
+  assert.match(renderObservationFirstRecordDetailHtml({ ...bare, owner: true }, base), /data-record-owner="1"/);
 });
