@@ -26422,6 +26422,11 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         })),
         recordPage: recordPageReading,
         inlineEdit: recordLang === "ja" && recordInlineEditOn(env, session),
+        inlineEditCorrection: recordLang === "ja" && recordInlineEditOn(env, session) && observationCorrectionOn(env, session),
+        observedAtIso: detail.observedAt || null,
+        inlineEditEnvironment: recordLang === "ja" && recordInlineEditOn(env, session)
+          ? { fields: (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]).map((field) => ({ field, label: COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS[field], options: COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field] })) }
+          : null,
         countBand,
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
