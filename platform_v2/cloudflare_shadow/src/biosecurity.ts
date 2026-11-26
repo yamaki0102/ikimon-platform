@@ -756,10 +756,10 @@ export async function handleBiosecurityRequest(request:Request,env:BiosecurityEn
       const receipt = path.match(/^\/biosecurity\/records(?:\/(br_[a-f0-9]{40}))?\/?$/);
       const profileRoute=path.match(/^\/biosecurity\/([a-z0-9-]+)(\/capture)?\/?$/);
       const selectedProfile=profileRoute?biosecurityProfile(profileRoute[1],flagOn):null;
-      const view = receipt ? "receipt" : path === "/biosecurity/municipalities" ? "municipalities" : path === "/biosecurity/inbox" ? "inbox" : selectedProfile ? (profileRoute?.[2] ? "capture" : "guide") : ["/biosecurity","/biosecurity/"].includes(path) ? "guide" : null;
+      const view = receipt ? "receipt" : path === "/biosecurity/municipalities" ? "municipalities" : path === "/biosecurity/inbox" ? "inbox" : selectedProfile ? (profileRoute?.[2] ? "capture" : "guide") : ["/biosecurity","/biosecurity/"].includes(path) ? (flagOn?.("BIOSECURITY_GENERIC_ENABLED") ? "chooser" : "guide") : null;
       if (!view) return json({error:"not_found"},404);
       const html = renderBiosecurityPage(view,{profile:selectedProfile??BIOSECURITY_PROFILES[0]!,recordId:receipt?.[1],profiles:availableBiosecurityProfiles(flagOn)});
-      return new Response(request.method==="HEAD"?null:html,{headers:{...PRIVATE_HEADERS,"content-type":"text/html; charset=utf-8","x-ikimon-cloudflare-native":"biosecurity-selfservice-v1",...(view === "guide" ? {"cache-control":"public, max-age=300","x-robots-tag":"index, follow"}: {})}});
+      return new Response(request.method==="HEAD"?null:html,{headers:{...PRIVATE_HEADERS,"content-type":"text/html; charset=utf-8","x-ikimon-cloudflare-native":"biosecurity-selfservice-v1",...(view === "guide" || view === "chooser" ? {"cache-control":"public, max-age=300","x-robots-tag":"index, follow"}: {})}});
     }
     const api = path.slice("/api/v1/biosecurity".length);
     if (request.method === "GET" && api === "/profiles") return json({profiles:availableBiosecurityProfiles(flagOn)});

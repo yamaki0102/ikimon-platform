@@ -1,6 +1,7 @@
 <!-- BEGIN GENERATED FLAGS -->
 | flag | feature | owner lane | staging URL path |
 |---|---|---|---|
+| BIOSECURITY_GENERIC_ENABLED | 気になる外来種の見守り | zukan_biosecurity | /ja/biosecurity/gairai |
 | BIOSECURITY_NAGAETSURU_ENABLED | ナガエツルノゲイトウの見守り | zukan_biosecurity | /ja/biosecurity/nagaetsuru |
 | GUEST_TOP_V2_PROTOTYPE_ENABLED | ログイン前トップv2 | zukan_guest_top | /ja/?as=guest |
 | OBSERVATION_CORRECTION_PROTOTYPE_ENABLED | 記録の訂正と訂正履歴 | zukan_observation_correction | /ja/observations/<自分の記録> |
