@@ -1,11 +1,12 @@
 import * as flag0 from "./BIOSECURITY_GENERIC_ENABLED";
 import * as flag1 from "./BIOSECURITY_NAGAETSURU_ENABLED";
-import * as flag2 from "./GUEST_TOP_V2_PROTOTYPE_ENABLED";
-import * as flag3 from "./MAP_INVASIVE_LAYER_ENABLED";
-import * as flag4 from "./OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
-import * as flag5 from "./PLACE_PAGE_V3_PROTOTYPE_ENABLED";
-import * as flag6 from "./RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
-import * as flag7 from "./RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
+import * as flag2 from "./FIELD_CARD_ENABLED";
+import * as flag3 from "./GUEST_TOP_V2_PROTOTYPE_ENABLED";
+import * as flag4 from "./MAP_INVASIVE_LAYER_ENABLED";
+import * as flag5 from "./OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
+import * as flag6 from "./PLACE_PAGE_V3_PROTOTYPE_ENABLED";
+import * as flag7 from "./RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
+import * as flag8 from "./RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
 
 export const FLAG_DEFINITIONS = [
   { ...flag0, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
@@ -16,6 +17,7 @@ export const FLAG_DEFINITIONS = [
   { ...flag5, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag6, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag7, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
+  { ...flag8, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
 ] as const;
 
 export const PROTOTYPE_FLAGS = [
@@ -27,4 +29,5 @@ export const PROTOTYPE_FLAGS = [
   { flag: flag5.flag, feature: flag5.feature, lane: flag5.lane, path: flag5.path, stagingEnabled: flag5.staging },
   { flag: flag6.flag, feature: flag6.feature, lane: flag6.lane, path: flag6.path, stagingEnabled: flag6.staging },
   { flag: flag7.flag, feature: flag7.feature, lane: flag7.lane, path: flag7.path, stagingEnabled: flag7.staging },
+  { flag: flag8.flag, feature: flag8.feature, lane: flag8.lane, path: flag8.path, stagingEnabled: flag8.staging },
 ] as const;

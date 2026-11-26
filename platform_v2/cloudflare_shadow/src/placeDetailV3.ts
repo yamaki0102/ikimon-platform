@@ -31,6 +31,7 @@ export type PlaceV3Input = {
   records: PlaceV3Record[];
   photoUrls: string[];
   recordHref: string;
+  fieldCardHref?: string | null;
   allRecordsHref: string;
   backHref: string;
   backLabel: string;
@@ -113,6 +114,7 @@ export const PLACE_V3_STYLES = `
 .pv3-cta{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
 .pv3-cta .gpd-primary{flex:1 1 220px;max-width:480px;height:52px;border-radius:14px;min-height:52px}
 .pv3-cta .gpd-secondary,.pv3-cta .zs-control{min-height:52px;border-radius:14px}
+.pv3-fc,.pv3-fc:visited{display:inline-flex;align-items:center;min-height:44px;margin-top:6px;font-size:14px;font-weight:700;color:#143F2E;text-underline-offset:4px}
 .pv3-invite{background:#F7F7F3;border-radius:18px;padding:24px 20px;margin-top:22px}
 .pv3-invite h2{margin:0;font-size:20px;font-weight:800;line-height:1.5;letter-spacing:-.01em}
 .pv3-invite p{margin:9px 0 0;font-size:16px;line-height:1.8}
@@ -226,6 +228,7 @@ export function renderPlaceV3(input: PlaceV3Input): string {
     ? `<div class="pv3-cta">${primary(c.record)}${input.saveHtml}</div>`
     : `<div class="pv3-invite" data-pv3-invite><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pv3-cta">${primary(input.suppressed ? c.record : c.first)}</div></div>`;
 
+  const fieldCardLink = input.fieldCardHref ? `<a class="pv3-fc" data-pv3-field-card href="${e(input.fieldCardHref)}">出発前カード</a>` : "";
   let season = "";
   if (input.hasRecords && nowJst) {
     const pick = input.records.find((r) => {
@@ -267,5 +270,5 @@ export function renderPlaceV3(input: PlaceV3Input): string {
 
   const seen = `<script>(()=>{try{const r=document.currentScript.parentElement;const k='pv3:'+${JSON.stringify(input.canonicalPlaceId).replace(/</g, "\\u003c")};if(sessionStorage.getItem(k))r.classList.add('pv3-seen');else sessionStorage.setItem(k,'1');}catch{}})();</script>`;
 
-  return `<div class="pv3" data-place-page-v3>${seen}<div class="pv3-grid"><div class="pv3-col">${band}${head}${desc}${strip}${cta}${season}${recent}</div>${rail}</div></div>`;
+  return `<div class="pv3" data-place-page-v3>${seen}<div class="pv3-grid"><div class="pv3-col">${band}${head}${desc}${strip}${cta}${fieldCardLink}${season}${recent}</div>${rail}</div></div>`;
 }

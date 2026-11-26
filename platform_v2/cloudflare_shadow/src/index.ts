@@ -178,6 +178,7 @@ const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCom
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
+const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
 const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
 const mapInvasiveRequested = async (request: Request, url: URL, env: Env): Promise<boolean> => url.searchParams.get("taxon_group") === INVASIVE_TAXON_GROUP && mapInvasiveOn(env, await readCompatibleSession(request, env).catch(() => null));
@@ -198,6 +199,7 @@ import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsS
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
+import { FIELD_CARD_FLAG, handlePlaceFieldCardRoute } from "./fieldCard";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   handleCreatePlaceProposal,
@@ -2606,7 +2608,8 @@ async function getGlobalPlaceDetailPage(
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
-    ...(authenticated && placePageV3On(env, session) ? { v3: true } : {})
+    ...(authenticated && placePageV3On(env, session) ? { v3: true } : {}),
+    ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
@@ -5025,6 +5028,15 @@ export const worker = {
         const tab = placeAboutSeasonsMatch[3] as "about" | "seasons";
         const session = await readCompatibleSession(request, env);
         return handlePlaceAboutOrSeasonsRoute(decodeURIComponent(placeAboutSeasonsMatch[2]), tab, viewLang, session, env.OBS_DB);
+      }
+
+      const placeFieldCardMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/card$/);
+      if (request.method === "GET" && placeFieldCardMatch?.[2]) {
+        const fieldCardSession = await readCompatibleSession(request, env);
+        if (fieldCardOn(env, fieldCardSession)) {
+          if (placeFieldCardMatch[1] && placeFieldCardMatch[1] !== "ja") return new Response("Not found", { status: 404 });
+          return handlePlaceFieldCardRoute(decodeURIComponent(placeFieldCardMatch[2]), fieldCardSession, env.OBS_DB);
+        }
       }
 
       const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
