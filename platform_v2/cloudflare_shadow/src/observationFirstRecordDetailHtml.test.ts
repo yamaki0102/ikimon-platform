@@ -1991,7 +1991,9 @@ test("inline edit on turns title, names and visibility into uniform tap-to-edit 
   }
   assert.match(html, /data-of-page-script[\s\S]*function ieSet\(/);
   assert.match(html, /\.of-ie-pen\{[^}]*stroke:#8a8f8a/);
-  assert.match(html, /<form method="post" action="[^"]*"><input type="hidden" name="action" value="set_title">/);
+  assert.doesNotMatch(html, /data-title-edit/);
+  assert.doesNotMatch(html, /<h3>題名を編集<\/h3>/);
+  assert.equal(html.split("name=\"action\" value=\"set_title\"").length - 1, 1);
 });
 
 test("inline edit stays off for non-japanese pages", () => {
@@ -2009,4 +2011,70 @@ test("inline edit on: per-media organism rows get the same tap-to-edit pattern, 
   assert.match(html, /aria-label="キアゲハを編集"/u);
   assert.match(html, /<span class="of-found-name">建物<\/span>/u);
   assert.doesNotMatch(html, /aria-label="建物を編集"/u);
+});
+
+const inlineEditEnv = { fields: [
+  { field: "place_type", label: "場所", options: [{ value: "water_edge", label: "水辺" }, { value: "unknown", label: "不明" }] },
+  { field: "surrounding_cover", label: "周囲", options: [{ value: "low_grass", label: "低い草地" }, { value: "unknown", label: "不明" }] },
+] };
+const inlineEditRound2 = {
+  ...inlineEditBase,
+  note: "朝の散歩<script>x</script>",
+  environment: { place_type: "water_edge", surrounding_cover: "low_grass" },
+  observedAtIso: "2026-11-23T01:12:00.000Z",
+  inlineEdit: true,
+  inlineEditCorrection: true,
+  inlineEditEnvironment: inlineEditEnv,
+};
+
+test("inline edit round 2: note, observed date and place chips use the same pattern and JSON endpoints", () => {
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, inlineEditRound2);
+  const note = html.match(/<div class="of-ie of-ie-note" data-of-ie="note">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(note, /aria-label="メモを編集"/);
+  assert.match(note, /action="\/api\/v1\/observations\/visit-ui-contract\/corrections" data-of-ie-json="note" hidden/);
+  assert.match(note, /<textarea name="nextValue" rows="4" maxlength="1000" required aria-label="メモ">朝の散歩&lt;script&gt;x&lt;\/script&gt;<\/textarea>/);
+  assert.doesNotMatch(note, /<script>x/);
+  assert.doesNotMatch(note, /name="action"/);
+  const date = html.match(/<div class="of-ie of-ie-meta-date" data-of-ie="observed-at">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(date, /aria-label="撮影日時を編集"/);
+  assert.match(date, /action="\/api\/v1\/occurrences\/visit-ui-contract\/observed-at" data-of-ie-json="observed-at"/);
+  assert.match(date, /<input type="datetime-local" name="observedAtLocal" value="2026-11-23T10:12" required/);
+  const place = html.match(/<div class="of-ie of-ie-place" data-of-ie="place">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(place, /aria-label="この場所のようすを編集"/);
+  assert.match(place, /action="\/api\/v1\/occurrences\/visit-ui-contract\/environment-record" data-of-ie-json="environment-record"/);
+  assert.match(place, /<span class="of-ie-chip">水辺<\/span>/);
+  assert.match(place, /<select name="place_type"><option value="water_edge" selected>/);
+  assert.match(place, /<select name="surrounding_cover"><option value="low_grass" selected>/);
+  for (const part of [note, date, place]) {
+    for (const marker of ['class="of-ie-tap"', "data-of-ie-open", 'class="of-ie-pen"', 'class="of-ie-form"', 'class="of-ie-save"', "data-of-ie-cancel", 'class="of-ie-msg"']) {
+      assert.ok(part.includes(marker), `${marker} missing`);
+    }
+  }
+  assert.match(html, /function ieJson\(/);
+  assert.match(html, /\/api\/v1\/occurrences\/[^"]*|environment-record/);
+});
+
+test("inline edit round 2: empty note offers an add row; correction off keeps the plain note", () => {
+  const empty = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, note: "" });
+  assert.match(empty, /<span class="of-ie-placeholder">メモを追加<\/span>/);
+  assert.match(empty, /<textarea name="nextValue"[^>]*>\s*<\/textarea>/);
+  const off = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, inlineEditCorrection: false });
+  assert.doesNotMatch(off, /data-of-ie="note"/);
+  assert.match(off, /<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">[^<]*<\/h2><p>朝の散歩&lt;script&gt;x&lt;\/script&gt;<\/p><\/section>/);
+});
+
+test("inline edit round 2: title reset moves into the title editor, settings box loses the title form, guests and off-state unchanged", () => {
+  const custom = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, customTitle: "里山のチョウ" });
+  assert.match(custom, /<button type="submit" form="ie-title-reset" formnovalidate class="of-ie-reset">自動の題名に戻す<\/button>/);
+  assert.match(custom, /<form id="ie-title-reset" method="post" action="[^"]*"><input type="hidden" name="action" value="reset_title">/);
+  assert.doesNotMatch(custom, /data-title-edit|<p class="of-title-edit">/);
+  const plain = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, customTitle: null });
+  assert.doesNotMatch(plain, /ie-title-reset/);
+  const base = { ...inlineEditBase, note: "メモ", environment: { place_type: "water_edge" } };
+  const offOwner = renderObservationFirstRecordDetailHtml(inlineEditOwner, base);
+  assert.match(offOwner, /data-title-edit/);
+  assert.doesNotMatch(offOwner, /data-of-ie|ie-title-reset|datetime-local/);
+  const guest = { ...inlineEditOwner, owner: false };
+  assert.equal(renderObservationFirstRecordDetailHtml(guest, inlineEditRound2), renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null }));
+  assert.equal(renderObservationFirstRecordDetailHtml(guest, base).includes("data-of-ie"), false);
 });
