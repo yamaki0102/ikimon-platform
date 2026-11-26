@@ -1,7 +1,7 @@
 import type { DiscoveryDatabase, DiscoveryStatement, DiscoveryBucket } from "./eventDiscovery";
 import { credentialDigest, guestCookieName, privateCookie, randomCredential, readGuestCredential, readOpaqueCookie } from "./guestCredentialNative";
 import { removePhotoMetadata } from "./biosecurityMedia";
-import { BIOSECURITY_PROFILES, biosecurityProfile } from "../../src/services/biosecurityProfiles";
+import { BIOSECURITY_PROFILES, availableBiosecurityProfiles, biosecurityProfile } from "../../src/services/biosecurityProfiles";
 import { MUNICIPALITIES, MUNICIPALITY_DIRECTORY_VERSION, findMunicipality, matchMunicipalityEmail } from "../../src/services/municipalityDirectory";
 import { renderBiosecurityPage } from "../../src/ui/biosecurity";
 import { officialMailboxDomain, resolveOfficialMailboxDomain } from "./municipalDomainEvidence";
@@ -120,11 +120,11 @@ export interface CaptureInput {
   isMinor: boolean; key: string; photos: CapturePhoto[]; digest: string; captureMetadata: BiosecurityCaptureMetadata;
 }
 
-export async function parseCapture(request: Request): Promise<CaptureInput> {
+export async function parseCapture(request: Request, flagOn?: (flag: string) => boolean): Promise<CaptureInput> {
   if (!request.headers.get("content-type")?.startsWith("multipart/form-data;")) fail(415, "multipart_required");
   let form: FormData;
   try { form = await new Response(await bodyBytes(request, BIOSECURITY_LIMITS.requestBytes), { headers: { "content-type": request.headers.get("content-type")! } }).formData(); } catch (error) { if (error instanceof BiosecurityError) throw error; fail(422, "form_invalid"); }
-  const profile = biosecurityProfile(form.get("profile_id")); if (!profile) fail(422, "profile_invalid");
+  const profile = biosecurityProfile(form.get("profile_id"), flagOn); if (!profile) fail(422, "profile_invalid");
   const files = form.getAll("photos");
   if (files.length < 1 || files.length > BIOSECURITY_LIMITS.photos) fail(422, "one_to_six_photos_required");
   const photos: CapturePhoto[] = [];
@@ -428,7 +428,7 @@ export class BiosecurityStore {
       })),
       id, recordVersion: metadata.edit?.version ?? 0, recordedAt: row.created_at, profileId: row.profile_id, observedAt: metadata.time.instant, observedTime: metadata.time, locationSource: metadata.location.source, photoConflicts: metadata.conflicts, municipalityCode: row.municipality_code,
       municipalityName: findMunicipality(row.municipality_code ?? "")?.name ?? null,
-      officialUrl: findMunicipality(row.municipality_code ?? "")?.website ?? biosecurityProfile(row.profile_id)?.guideUrl,
+      officialUrl: findMunicipality(row.municipality_code ?? "")?.website ?? biosecurityProfile(row.profile_id, () => true)?.guideUrl,
       spotLabel: row.spot_label, signal: row.signal, note: observation.note, isMinor: Boolean(row.is_minor),
       exactLocation: observation.exact_lat !== null && observation.exact_lng !== null ? { lat: observation.exact_lat, lng: observation.exact_lng } : null,
       status: "saved", photoCount: assets.length, expiresAt: row.expires_at, environment,
@@ -739,7 +739,7 @@ async function photoResponse(store:BiosecurityStore, record:CaptureRow, assetId:
   return new Response(object.body,{headers:{...PRIVATE_HEADERS,"content-type":asset.mime,"content-disposition":`inline; filename="${asset.asset_id}.${asset.mime === "image/png" ? "png" : asset.mime === "image/webp" ? "webp" : "jpg"}"`}});
 }
 
-export async function handleBiosecurityRequest(request:Request,env:BiosecurityEnv):Promise<Response|null> {
+export async function handleBiosecurityRequest(request:Request,env:BiosecurityEnv,flagOn?:(flag:string)=>boolean):Promise<Response|null> {
   const url = new URL(request.url); const path = url.pathname.replace(/^\/(?:ja|en|es|pt-br)(?=\/)/,"");
   if (!path.startsWith("/biosecurity") && !path.startsWith("/api/v1/biosecurity") && !path.startsWith("/kubiaka")) return null;
   const store = new BiosecurityStore(env.OBS_DB,env.ASSET_BUCKET);
@@ -755,14 +755,14 @@ export async function handleBiosecurityRequest(request:Request,env:BiosecurityEn
     if (["GET","HEAD"].includes(request.method) && path.startsWith("/biosecurity")) {
       const receipt = path.match(/^\/biosecurity\/records(?:\/(br_[a-f0-9]{40}))?\/?$/);
       const profileRoute=path.match(/^\/biosecurity\/([a-z0-9-]+)(\/capture)?\/?$/);
-      const selectedProfile=profileRoute?biosecurityProfile(profileRoute[1]):null;
+      const selectedProfile=profileRoute?biosecurityProfile(profileRoute[1],flagOn):null;
       const view = receipt ? "receipt" : path === "/biosecurity/municipalities" ? "municipalities" : path === "/biosecurity/inbox" ? "inbox" : selectedProfile ? (profileRoute?.[2] ? "capture" : "guide") : ["/biosecurity","/biosecurity/"].includes(path) ? "guide" : null;
       if (!view) return json({error:"not_found"},404);
-      const html = renderBiosecurityPage(view,{profile:selectedProfile??BIOSECURITY_PROFILES[0]!,recordId:receipt?.[1]});
+      const html = renderBiosecurityPage(view,{profile:selectedProfile??BIOSECURITY_PROFILES[0]!,recordId:receipt?.[1],profiles:availableBiosecurityProfiles(flagOn)});
       return new Response(request.method==="HEAD"?null:html,{headers:{...PRIVATE_HEADERS,"content-type":"text/html; charset=utf-8","x-ikimon-cloudflare-native":"biosecurity-selfservice-v1",...(view === "guide" ? {"cache-control":"public, max-age=300","x-robots-tag":"index, follow"}: {})}});
     }
     const api = path.slice("/api/v1/biosecurity".length);
-    if (request.method === "GET" && api === "/profiles") return json({profiles:BIOSECURITY_PROFILES});
+    if (request.method === "GET" && api === "/profiles") return json({profiles:availableBiosecurityProfiles(flagOn)});
     if (request.method === "GET" && api === "/municipalities") {
       const query = (url.searchParams.get("q") ?? "").trim().slice(0,100);
       const code = url.searchParams.get("code");
@@ -789,7 +789,7 @@ export async function handleBiosecurityRequest(request:Request,env:BiosecurityEn
       return json({ok:true},200,{"set-cookie":privateCookie(STAFF_COOKIE,"",0)});
     }
     if (api === "/records" && request.method === "POST") {
-      const active = await guest(request,env); const input = await parseCapture(request);
+      const active = await guest(request,env); const input = await parseCapture(request,flagOn);
       const budget = Number(env.BIOSECURITY_STORAGE_BUDGET_BYTES);
       if (!Number.isSafeInteger(budget) || budget <= 0 || budget > 1024*1024*1024) fail(503,"capture_capacity_unconfigured");
       const ipHash = await credentialDigest("biosecurity-ip:" + nowIso().slice(0,10) + ":" + (request.headers.get("cf-connecting-ip") ?? "unknown"));
