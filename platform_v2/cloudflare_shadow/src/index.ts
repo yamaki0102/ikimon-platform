@@ -167,6 +167,8 @@ import {
   type ZukanTopLang
 } from "./zukanTopPage";
 import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
+const OBSERVATION_CORRECTION_FLAG = "OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
+const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
@@ -313,6 +315,12 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  handleGetObservationCorrections,
+  handlePostObservationCorrection,
+  loadObservationCorrectionHistory,
+  renderObservationEditAndCorrectionHtml,
+} from "./zukanObservationEditAndCorrection";
 import {
   buildObservationDetailEvidence,
   handleGetObservationEvidence,
@@ -4878,6 +4886,19 @@ export const worker = {
       const observationPackageMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/package$/);
       if (request.method === "GET" && observationPackageMatch?.[1]) {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
+      }
+
+      const observationCorrectionMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/corrections$/);
+      if (observationCorrectionMatch?.[1]) {
+        const obsId = decodeURIComponent(observationCorrectionMatch[1]);
+        const session = await readCompatibleSession(request, env);
+        if (!observationCorrectionOn(env, session)) return new Response("Not Found", { status: 404 });
+        if (request.method === "POST") {
+          return handlePostObservationCorrection(obsId, request, session, env);
+        }
+        if (request.method === "GET") {
+          return handleGetObservationCorrections(obsId, session, env);
+        }
       }
 
       const observationEvidenceMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/evidence$/);
@@ -26282,7 +26303,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         signboardTitle: null,
       };
       const bandViewerId = session && !session.banned ? session.userId : null;
-      const [signboardTitle, customTitleObj, recordUsages, expertComments, observationComments, countBand] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory, observationComments, countBand] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
@@ -26290,6 +26311,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId),
+        observationCorrectionOn(env, session) ? loadObservationCorrectionHistory(detail.visitId, env) : Promise.resolve([]),
         Promise.resolve([] as Awaited<ReturnType<typeof loadObservationComments>>),
         recordLang === "ja"
           ? Promise.race([
@@ -26302,6 +26324,14 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
             ])
           : Promise.resolve(null),
       ]);
+      const editAndCorrectionHtml = !observationCorrectionOn(env, session) ? "" : renderObservationEditAndCorrectionHtml({
+        observationId: detail.visitId,
+        lang: recordLang,
+        isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
+        currentNote: detail.note ?? null,
+        currentTaxon: detail.displayName,
+        history: correctionHistory,
+      });
       const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
         buildObservationDetailEvidence({
           observationId: detail.visitId,
@@ -26320,7 +26350,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         authenticated: Boolean(session && !session.banned),
         comments: observationComments,
       });
-      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}${commentsHtml}`;
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}${editAndCorrectionHtml}${commentsHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
