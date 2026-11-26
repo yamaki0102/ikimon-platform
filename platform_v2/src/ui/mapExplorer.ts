@@ -524,6 +524,7 @@ export const MAP_EXPLORER_COPY: Record<SiteLang, MapExplorerCopy> = {
       { value: "mammal", label: "哺乳類", icon: "🐾" },
       { value: "fungi", label: "菌類", icon: "🍄" },
       { value: "other", label: "その他", icon: "🔍" },
+      { value: "invasive", label: "外来種", icon: "⚠️" },
     ],
   },
   en: {
@@ -1482,7 +1483,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
         type="button"
         class="me-chip me-taxon-chip${idx === 0 ? " is-active" : ""}"
         data-taxon-group="${escapeHtml(chip.value)}"
-        aria-pressed="${idx === 0 ? "true" : "false"}">
+        aria-pressed="${idx === 0 ? "true" : "false"}"${chip.value === "invasive" ? " hidden data-map-invasive-chip" : ""}>
         <span class="me-chip-icon" aria-hidden="true">${escapeHtml(chip.icon)}</span>
         <span>${escapeHtml(chip.label)}</span>
       </button>`,
@@ -3289,6 +3290,9 @@ export function mapExplorerDeferredScriptSource(): string {
     YEAR_VALUES = JSON.parse((yearRangeEl && yearRangeEl.getAttribute('data-year-values')) || '[]');
   } catch (_) { YEAR_VALUES = []; }
   var OBSERVATION_HREF_TPL = CFG.observationHrefTpl || '/observations/__ID__';
+  var INVASIVE_ON = typeof document !== 'undefined' && !!document.body && !!document.body.dataset && document.body.dataset.mapInvasive === '1';
+  var INVASIVE_CAPTURE_HREF = '/ja/biosecurity/gairai/capture';
+  var INVASIVE_LEARN_PREFIX = '/ja/learn/invasive-species';
   var RECORD_HREF = CFG.recordHref || '/record';
   var NOTES_HREF = CFG.notesHref || '/records?view=mine';
   var COMMUNITY_RECORDS_HREF = CFG.communityRecordsHref || '/records?view=public';
@@ -4566,10 +4570,35 @@ export function mapExplorerDeferredScriptSource(): string {
     var badges = [];
     if (record && record.isAwaitingId) badges.push('<span class="me-result-badge me-result-awaiting">' + escapeHtml(COPY.awaitingIdLabel) + '</span>');
     else if (record && record.isAiCandidate) badges.push('<span class="me-result-badge me-result-ai">' + escapeHtml(COPY.aiCandidateLabel) + '</span>');
+    if (record && record.invasive && record.invasive.label) badges.unshift('<span class="me-result-badge me-result-invasive">' + escapeHtml(record.invasive.label) + '</span>');
     return badges.length ? '<span class="me-result-badges">' + badges.join('') + '</span>' : '';
   }
 
+  function renderInvasiveNotice(record) {
+    var inv = record && record.invasive;
+    if (!inv || !record.occurrenceId) return '';
+    var recordHref = OBSERVATION_HREF_TPL.replace('__ID__', encodeURIComponent(record.occurrenceId));
+    var learnHref = typeof inv.learnHref === 'string' && inv.learnHref.indexOf(INVASIVE_LEARN_PREFIX) === 0 ? inv.learnHref : INVASIVE_LEARN_PREFIX;
+    return '<section class="me-invasive-notice" data-testid="map-invasive-notice">' +
+      '<span class="me-invasive-badge">' + escapeHtml(inv.label || '外来種') + '</span>' +
+      '<p>' + escapeHtml(inv.legalNote || '持ち帰らない・動かさない') + '</p>' +
+      '<div class="me-invasive-actions">' +
+        '<a href="' + escapeHtml(recordHref) + '">記録を見る</a>' +
+        '<a href="' + escapeHtml(INVASIVE_CAPTURE_HREF) + '">見つけたら記録する</a>' +
+        '<a href="' + escapeHtml(learnHref) + '">くわしく</a>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function renderInvasiveEmptyState() {
+    return '<section class="me-results-empty me-invasive-empty" data-testid="map-invasive-empty">' +
+      '<p>この範囲に外来種の公開記録はまだありません。見つけたら記録してください。</p>' +
+      '<div class="me-results-empty-actions"><a class="me-results-empty-action is-primary" href="' + escapeHtml(INVASIVE_CAPTURE_HREF) + '">見つけたら記録する</a></div>' +
+    '</section>';
+  }
+
   function renderResultsEmptyState() {
+    if (INVASIVE_ON && state.taxonGroup === 'invasive') return renderInvasiveEmptyState();
     return ''
       + '<section class="me-results-empty" aria-label="' + escapeHtml(COPY.emptyTitle) + '">'
       +   '<span class="me-results-empty-kicker">' + escapeHtml(COPY.recordingGapLabel) + '</span>'
@@ -6249,6 +6278,7 @@ export function mapExplorerDeferredScriptSource(): string {
           badge: COPY.selectionObservationLabel + (record.isAiCandidate ? ' · ' + COPY.aiCandidateLabel : record.isAwaitingId ? ' · ' + COPY.awaitingIdLabel : ''),
           photoUrl: record.photoUrl || '',
         }) +
+        renderInvasiveNotice(record) +
         renderDetailVisitReasons(context) +
         renderContextComparisonStrip(context) +
         renderDetailRecentFinds(context) +
@@ -6945,6 +6975,7 @@ export function mapExplorerDeferredScriptSource(): string {
       '<span>' + escapeHtml(record.localityLabel || '—') + '</span>' +
       (record.observedAt ? '<span>' + escapeHtml(String(record.observedAt).slice(0, 10)) + '</span>' : '') +
       '</div>' +
+      renderInvasiveNotice(record) +
       '<div class="me-bottom-actions">' +
         '<a class="btn btn-solid" href="' + href + '">' + escapeHtml(COPY.popupOpenLabel) + '</a>' +
       '<a class="inline-link" href="' + identifyHref + '">' + escapeHtml(COPY.identifyLabel) + '</a>' +
@@ -7306,6 +7337,7 @@ export function mapExplorerDeferredScriptSource(): string {
           badge: COPY.selectionObservationLabel + (record.isAiCandidate ? ' · ' + COPY.aiCandidateLabel : record.isAwaitingId ? ' · ' + COPY.awaitingIdLabel : ''),
           photoUrl: record.photoUrl || '',
         }) +
+        renderInvasiveNotice(record) +
         renderDetailVisitReasons(detailContext) +
         renderContextComparisonStrip(detailContext) +
         renderDetailRecentFinds(detailContext) +
@@ -8711,8 +8743,8 @@ export function mapExplorerDeferredScriptSource(): string {
       type: 'line',
       source: sourceId,
       paint: {
-        'line-color': 'rgba(14,165,233,0.55)',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 12, 1.4],
+        'line-color': ['case', ['>', ['coalesce', ['get', 'invasiveCount'], 0], 0], '#d9480f', 'rgba(14,165,233,0.55)'],
+        'line-width': ['case', ['>', ['coalesce', ['get', 'invasiveCount'], 0], 0], 3, ['interpolate', ['linear'], ['zoom'], 6, 0.6, 12, 1.4]],
       },
     });
     map.addLayer({
@@ -10056,6 +10088,7 @@ export function mapExplorerDeferredScriptSource(): string {
     if (params.actor) state.actorClass = params.actor;
     if (params.mp === 'manual_only' || params.mp === 'trusted_only' || params.mp === 'all_research_artifacts') state.markerProfile = params.mp;
     if (params.taxon !== undefined) state.taxonGroup = params.taxon;
+    if (state.taxonGroup === 'invasive' && !INVASIVE_ON) state.taxonGroup = '';
     if (params.year) state.year = params.year;
     if (params.season) state.season = params.season;
     if (params.bm && BASEMAPS[params.bm]) state.basemap = params.bm;
@@ -10424,6 +10457,7 @@ export function mapExplorerDeferredScriptSource(): string {
   if (state._mapLoadFired) initDeferredMapHandlers();
 
   // Bind UI events.
+  if (INVASIVE_ON) document.querySelectorAll('[data-map-invasive-chip]').forEach(function (el) { el.hidden = false; });
   document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var value = btn.getAttribute('data-taxon-group') || '';
@@ -14741,6 +14775,16 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .me-result-badge { display: inline-flex; width: fit-content; padding: 2px 7px; border-radius: 999px; font-size: 14px; line-height: 1.2; font-weight: 900; letter-spacing: .04em; }
   .me-result-ai { background: rgba(14,165,233,.14); color: #075985; }
   .me-result-awaiting { background: rgba(234,179,8,.18); color: #713f12; }
+  .me-taxon-chip[hidden] { display: none; }
+  .me-taxon-chip[data-map-invasive-chip] { min-height: 44px; border-color: rgba(217,72,15,.45); color: #9a3412; }
+  .me-taxon-chip[data-map-invasive-chip].is-active { background: rgba(217,72,15,.12); border-color: #d9480f; color: #9a3412; }
+  .me-result-invasive { background: rgba(217,72,15,.14); color: #9a3412; }
+  .me-invasive-notice { display: grid; gap: 8px; margin: 10px 0; padding: 12px; border-radius: 14px; border: 1px solid rgba(217,72,15,.35); background: rgba(217,72,15,.08); }
+  .me-invasive-badge { justify-self: start; padding: 2px 10px; border-radius: 999px; background: #d9480f; color: #fff; font-size: 14px; font-weight: 900; line-height: 1.4; }
+  .me-invasive-notice p { margin: 0; font-size: 14px; font-weight: 800; color: #7c2d12; line-height: 1.5; }
+  .me-invasive-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .me-invasive-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(217,72,15,.45); background: #fff; color: #9a3412; font-size: 14px; font-weight: 850; text-decoration: none; }
+  .me-invasive-empty .me-results-empty-action { min-height: 44px; }
   .me-map-card-ai { color: #075985; font-weight: 900; }
   .me-map-card-awaiting { color: #713f12; font-weight: 900; }
   .me-results-empty, .me-side-empty {
