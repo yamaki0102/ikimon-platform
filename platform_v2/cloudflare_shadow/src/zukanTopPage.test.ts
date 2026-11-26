@@ -56,6 +56,20 @@ test("renderZukanTopPage logged-out renders owner hero photos, waitlist CTA, and
   assert.doesNotMatch(html, /0件|まだありません/);
 });
 
+test("renderZukanTopPage logged-out shell has no sidebar and logged-in shell puts sidebar as direct first child", () => {
+  const loggedOut = renderZukanTopPage(emptyEventsBaseData, { lang: "ja", authenticated: false, cspNonce: "n1" });
+  assert.match(loggedOut, /<div class="zt-shell zt-landing">/);
+  assert.doesNotMatch(loggedOut, /class="zt-sidebar"/);
+  const loggedIn = renderZukanTopPage(emptyEventsBaseData, { lang: "ja", authenticated: true, cspNonce: "n1" });
+  assert.match(loggedIn, /<div class="zt-shell">\s*<aside class="zt-sidebar"/);
+});
+
+test("ZUKAN shell CSS applies grid only when a sidebar is a direct child", () => {
+  const html = renderZukanTopPage(emptyEventsBaseData, { lang: "ja", authenticated: false, cspNonce: "n1" });
+  assert.ok(html.includes(".zt-shell:has(>.zt-sidebar){display:grid"));
+  assert.doesNotMatch(html, /\.zt-shell\{[^}]*display:grid/);
+});
+
 test("renderZukanTopPage logged-in renders library groups with 圖鑑に載せる / 図鑑に掲載中 and empty-library fallback", () => {
   const withLibrary = renderZukanTopPage(
     {
