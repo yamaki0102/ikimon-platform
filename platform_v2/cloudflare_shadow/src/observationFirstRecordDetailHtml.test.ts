@@ -1875,10 +1875,10 @@ test("record page rationale: row with evidence renders details with at most two 
   const html = whyHtml(d, "species");
   const row = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why"><div class="of-why-row">[\s\S]*?<\/details><\/li>/u);
   assert.ok(row);
-  assert.match(row[0], /<div class="of-why-row">[\s\S]*<span class="of-found-name">アゲハ類<\/span>[\s\S]*<\/div><details class="of-why"><summary><span class="of-why-peek">見分けた点：尾のような突起があります 翅の模様が縞状です<\/span><span class="of-why-more">続きを見る<\/span><span class="of-why-less">閉じる<\/span><\/summary>/u);
+  assert.match(row[0], /<div class="of-why-row">[\s\S]*<span class="of-found-name">アゲハ類<\/span>[\s\S]*<\/div><details class="of-why"><summary><span class="of-why-peek">見分けた点：尾のような突起があります。翅の模様が縞状です。<\/span><span class="of-why-body"><span class="of-why-label">見分けた点<\/span><span class="of-why-item">尾のような突起があります<\/span><span class="of-why-item">翅の模様が縞状です<\/span><\/span><span class="of-why-more">続きを見る<\/span><span class="of-why-less">閉じる<\/span><\/summary><\/details>/u);
   assert.match(row[0], /見分けた点/u);
-  assert.equal([...row[0].matchAll(/<ul><li>/gu)].length, 1);
-  assert.equal([...row[0].matchAll(/<li>/gu)].length, 2);
+  assert.equal([...row[0].matchAll(/class="of-why-label"/gu)].length, 1);
+  assert.equal([...row[0].matchAll(/class="of-why-item"/gu)].length, 2);
   assert.match(row[0], /\.of-why-peek|of-why-peek/u);
   assert.doesNotMatch(row[0], /三つ目の根拠/u);
   assert.doesNotMatch(row[0], /ここまでにした理由/u);
