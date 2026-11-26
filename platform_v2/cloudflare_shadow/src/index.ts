@@ -199,7 +199,7 @@ import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsS
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
-import { FIELD_CARD_FLAG, handlePlaceFieldCardRoute } from "./fieldCard";
+import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   handleCreatePlaceProposal,
@@ -2529,12 +2529,8 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
 }
 
 
-async function getGlobalPlaceDetailPage(
-  request: Request,
-  url: URL,
-  env: Env,
-  canonicalPlaceId: string,
-): Promise<Response> {
+type PublicPlaceProfile = NonNullable<Awaited<ReturnType<typeof loadCloudflarePlaceAtlasProfile>>>;
+async function loadPublicPlaceProfile(env: Env, canonicalPlaceId: string): Promise<Response | PublicPlaceProfile> {
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(canonicalPlaceId)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
@@ -2580,6 +2576,18 @@ async function getGlobalPlaceDetailPage(
   if (!isPublicGlobalPlaceDetailProfile(profile, canonicalPlaceId)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
+  return profile;
+}
+
+async function getGlobalPlaceDetailPage(
+  request: Request,
+  url: URL,
+  env: Env,
+  canonicalPlaceId: string,
+): Promise<Response> {
+  const loadedPlace = await loadPublicPlaceProfile(env, canonicalPlaceId);
+  if (loadedPlace instanceof Response) return loadedPlace;
+  const profile = loadedPlace;
 
   const session = await readCompatibleSession(request, env).catch(() => null);
   const authenticated = Boolean(session && !session.banned);
@@ -5035,7 +5043,9 @@ export const worker = {
         const fieldCardSession = await readCompatibleSession(request, env);
         if (fieldCardOn(env, fieldCardSession)) {
           if (placeFieldCardMatch[1] && placeFieldCardMatch[1] !== "ja") return new Response("Not found", { status: 404 });
-          return handlePlaceFieldCardRoute(decodeURIComponent(placeFieldCardMatch[2]), fieldCardSession, env.OBS_DB);
+          const fieldCardPlace = await loadPublicPlaceProfile(env, decodeURIComponent(placeFieldCardMatch[2]));
+          if (fieldCardPlace instanceof Response) return fieldCardPlace;
+          return fieldCardResponse(fieldCardPlace, fieldCardSession);
         }
       }
 
