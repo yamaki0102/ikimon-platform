@@ -1754,3 +1754,101 @@ test("record with only a stored name still lists it under 見つかったもの 
   assert.match(confirmed, /data-record-owner="0"/);
   assert.match(renderObservationFirstRecordDetailHtml({ ...bare, owner: true }, base), /data-record-owner="1"/);
 });
+
+const perMediaBase = {
+  title: "川沿いの記録", observedLabel: "2026年11月26日 10:00", note: null, actionNonce: "per-media", viewerAuthenticated: true,
+  environment: { place_type: "water_edge", contact_surface: "artificial", environment_condition: "sunny", surrounding_cover: "low_grass", human_change: "mowing" },
+  aiNote: [{ slot: 1 as const, text: "護岸と草が写っているので、水辺のようすが分かります。" }],
+};
+const perMediaOwnerless: ObservationFirstRecordDetail = { ...detail, owner: false };
+const emptyReadingPlace = () => ({ place_type: null, contact_surface: null, surrounding_cover: null, environment_condition: null, human_change: null });
+const readingMedia = (assetId: string, over: Record<string, unknown> = {}) => ({ assetId, mediaKind: "photo" as const, position: 0, durationMs: null, found: [], place: emptyReadingPlace(), placeRead: false, ...over });
+const readingFeature = (code: string, labelJa: string, over: Record<string, unknown> = {}) => ({ itemId: `f-${code}`, kind: "feature" as const, state: "ai_read" as const, code, labelJa, observationId: null, name: null, locator: { kind: "full" as const }, ...over });
+const readingPlace = (slot: string, code: string, labelJa: string) => ({ itemId: `p-${slot}`, code, labelJa, state: "ai_read" as const, actorKind: "ai", locator: { kind: "full" as const } });
+const readingOf = (media: unknown[], recordLevel: Record<string, unknown> = {}) => ({ recordId: "visit-ui-contract", analyzed: true, media, recordLevel: { found: [], place: emptyReadingPlace(), placeRead: false, ...recordLevel } }) as never;
+const photoMedia = (...ids: string[]) => ids.map((id) => ({ mediaId: id, mediaKind: "photo" as const, url: `https://example.test/${id}.jpg` }));
+
+test("record page per-media: no recordPage or no media is byte-identical to the current page", () => {
+  const media = photoMedia("a1", "a2");
+  const base = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media });
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: null }), base);
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: undefined }), base);
+  const noMediaBase = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: [] });
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: [], recordPage: { reading: readingOf([]), protectedRecord: false } }), noMediaBase);
+  assert.doesNotMatch(base, /data-of-media-panel|<dl class="of-place-fields">/u);
+});
+
+test("record page per-media: two photos render panels in place and the script toggles them with the photo", () => {
+  const reading = readingOf([
+    readingMedia("a1", { found: [readingFeature("building", "建物")], place: { ...emptyReadingPlace(), place_type: readingPlace("place_type", "urban", "まちなか") }, placeRead: true }),
+    readingMedia("a2", { position: 1, found: [readingFeature("grass_patch", "草むら")], place: { ...emptyReadingPlace(), surrounding_cover: readingPlace("surrounding_cover", "low_grass", "低い草") }, placeRead: true }),
+  ]);
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: photoMedia("a1", "a2"), recordPage: { reading, protectedRecord: false } });
+  const panels = [...html.matchAll(/<section class="of-(found|environment)"[^>]*data-of-media-panel="(\d)"([^>]*)>/gu)];
+  assert.deepEqual(panels.map((m) => [m[1], m[2], m[3]!.includes("hidden")]), [["found", "0", false], ["found", "1", true], ["environment", "0", false], ["environment", "1", true]]);
+  assert.match(html, /この写真から見つかったもの/u);
+  const firstPanel = html.indexOf('data-of-media-panel="0"');
+  assert.ok(firstPanel > html.indexOf("of-media-stage") && firstPanel < html.indexOf("<section class=\"of-note\" data-ai-feedback") && html.lastIndexOf('data-of-media-panel="0"') > html.indexOf("<section class=\"of-note\" data-ai-feedback"));
+  assert.match(html, /<span class="of-found-name">建物<\/span>/u);
+  assert.match(html, /<dt>場所の種類<\/dt><dd>まちなか/u);
+  assert.match(html, /<dt>周囲<\/dt><dd>低い草/u);
+  assert.match(html, /pn\[q\]\.hidden=Number\(pn\[q\]\.getAttribute\('data-of-media-panel'\)\)!==i/u);
+});
+
+test("record page per-media: feature-only video shows both features, place, and the AI sentence for the object class", () => {
+  const media = [{ mediaId: "v1", mediaKind: "video" as const, url: "https://example.test/v1.mp4" }];
+  const reading = readingOf([readingMedia("v1", {
+    mediaKind: "video", durationMs: 9000,
+    found: [readingFeature("revetment", "護岸", { locator: { kind: "time_range", startMs: 0, endMs: 5000 } }), readingFeature("grass_patch", "草むら", { locator: { kind: "time_range", startMs: 5000, endMs: 9000 } })],
+    place: { ...emptyReadingPlace(), place_type: readingPlace("place_type", "water_edge", "水辺") },
+    placeRead: true,
+  })]);
+  const presentation = { ...perMediaBase, media, recordClass: "object", recordPage: { reading, protectedRecord: false } };
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, presentation);
+  assert.match(html, /この動画から見つかったもの/u);
+  assert.equal([...html.matchAll(/<li data-found-kind="feature"/gu)].length, 2);
+  assert.match(html, /0:00–0:05/u);
+  assert.match(html, /<dt>場所の種類<\/dt><dd>水辺/u);
+  assert.match(html, /data-ai-note/u);
+  assert.doesNotMatch(html, /建物・人工物/u);
+  assert.doesNotMatch(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...presentation, recordPage: null }), /data-ai-note/u);
+});
+
+test("record page per-media: protected record hides organism time detail", () => {
+  const media = [{ mediaId: "v1", mediaKind: "video" as const, url: "https://example.test/v1.mp4" }];
+  const reading = readingOf([readingMedia("v1", {
+    mediaKind: "video",
+    found: [{ ...readingFeature("revetment", "護岸"), kind: "organism", code: null, labelJa: null, observationId: "obs-x", name: { vernacular: "希少な鳥", scientific: null, rank: "species" }, locator: { kind: "time_range", startMs: 1000, endMs: 4000 } }],
+  })]);
+  const open = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: { reading, protectedRecord: false } });
+  const blocked = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: { reading, protectedRecord: true } });
+  assert.match(open, /0:01–0:04/u);
+  assert.match(blocked, /希少な鳥/u);
+  assert.doesNotMatch(blocked, /<span class="of-found-time">/u);
+});
+
+test("record page per-media: hidden asset readings are never rendered and unread media fall back to the record-level content", () => {
+  const reading = readingOf([
+    readingMedia("hidden", { found: [readingFeature("bridge", "橋")] }),
+    readingMedia("a1", { position: 1, found: [readingFeature("fence", "柵")] }),
+  ]);
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: photoMedia("a1", "a2"), recordPage: { reading, protectedRecord: false } });
+  assert.doesNotMatch(html, /橋/u);
+  assert.match(html, /柵/u);
+  const second = html.match(/<section class="of-found" aria-labelledby="of-summary-title-1" data-of-media-panel="1" hidden>[\s\S]*?<\/section>/u);
+  assert.ok(second);
+  assert.doesNotMatch(second[0], /柵/u);
+  const env = html.match(/<section class="of-environment" aria-labelledby="of-environment-title-1" data-of-media-panel="1" hidden>[\s\S]*?<\/section>/u);
+  assert.ok(env);
+  assert.match(env[0], /<ul class="of-chips">/u);
+});
+
+test("record page per-media: a record with no reading renders the current content inside panels", () => {
+  const media = photoMedia("a1");
+  const base = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media });
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: { reading: null, protectedRecord: false } });
+  assert.match(html, /<ul class="of-chips">/u);
+  assert.doesNotMatch(html, /<dl class="of-place-fields">/u);
+  const strip = (value: string) => value.replace(/ data-of-media-panel="0"/gu, "").replace(/<style>[\s\S]*?<\/style>/u, "").replace(/<script data-of-page-script>[\s\S]*?<\/script>/u, "");
+  assert.equal(strip(html), strip(base));
+});

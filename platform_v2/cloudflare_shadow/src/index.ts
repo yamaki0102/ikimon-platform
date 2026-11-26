@@ -168,6 +168,8 @@ import {
 } from "./zukanTopPage";
 import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
 const OBSERVATION_CORRECTION_FLAG = "OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
+const RECORD_PAGE_PER_MEDIA_FLAG = "RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
+const recordPagePerMediaOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, v.principalId, v.role); };
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
@@ -225,7 +227,8 @@ import {
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
 import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects, mergedFromVideoReadings, readVideos, videoReadingInputs, type VideoAssetSource, type VideoReadResult } from "./recordVideoReading";
-import { writeRecordMediaOrder } from "./recordReading";
+import { d1ReadingQuery, readRecordReading, writeRecordMediaOrder } from "./recordReading";
+import { buildRecordPageSections, recordPageSectionsJson } from "./recordPageSections";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
   buildObservationAiQualityBacklogPayload,
@@ -26178,7 +26181,26 @@ async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<
   if (!detail) {
     return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
   }
-  return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
+  if (!prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, null)) {
+    return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
+  }
+  const mediaRefs = [
+    ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const })),
+    ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const })),
+    ...(detail.audioAssets as Array<{ assetId: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const })),
+  ];
+  const recordPageSource = await Promise.race([
+    (async () => {
+      const [reading, gate] = await Promise.all([
+        readRecordReading(d1ReadingQuery(env.OBS_DB), detail.visitId),
+        publicSafetyGateForObservation(detail.visitId, env),
+      ]);
+      return { reading, protectedRecord: gate.blocked };
+    })().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+  ]);
+  const recordPage = recordPageSectionsJson(buildRecordPageSections({ reading: recordPageSource?.reading ?? null, media: mediaRefs, protectedRecord: recordPageSource?.protectedRecord ?? true }));
+  return json({ ok: true, observation: { ...detail, recordPage } }, 200, { "cache-control": "no-store" });
 }
 
 function renderObservationSavedContinuity(
@@ -26303,7 +26325,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         signboardTitle: null,
       };
       const bandViewerId = session && !session.banned ? session.userId : null;
-      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory, observationComments, countBand] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory, observationComments, countBand, recordPageReading] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
@@ -26319,6 +26341,18 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
                 if ((await publicSafetyGateForObservation(detail.visitId, env)).blocked) return null;
                 const band = await computeRecordCountBand(recordCountBandDeps(env), detail.visitId, { userId: bandViewerId });
                 return band ? { text: band.text, href: band.href } : null;
+              })().catch(() => null),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+            ])
+          : Promise.resolve(null),
+        recordLang === "ja" && recordPagePerMediaOn(env, session)
+          ? Promise.race([
+              (async () => {
+                const [reading, gate] = await Promise.all([
+                  readRecordReading(d1ReadingQuery(env.OBS_DB), detail.visitId),
+                  publicSafetyGateForObservation(detail.visitId, env),
+                ]);
+                return { reading, protectedRecord: gate.blocked };
               })().catch(() => null),
               new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
             ])
@@ -26382,6 +26416,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
           observedLabel: recordLang === "ja" ? jaDateText(item.observedAt, false) : formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),
+        recordPage: recordPageReading,
         countBand,
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
