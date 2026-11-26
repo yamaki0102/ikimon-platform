@@ -133,6 +133,7 @@ test("guest top v2 renders the reviewed structure with development frames, no pr
   assert.match(html, /href="\/ja\/register">順番待ちに登録する</);
   assert.equal((html.match(/写真はイメージです/g) ?? []).length, (html.match(/class="zg2-mock-photo"/g) ?? []).length);
   assert.match(html, /いまは招待制です/);
+  assert.match(html, /.zg2-cta>a{[^}]*white-space:nowrap/);
   assert.doesNotMatch(html, />はじめる</);
   assert.match(html, /イネ科植物の記録、2026年5月25日/);
   assert.match(html, /常盤公園/);
