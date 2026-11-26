@@ -31,7 +31,7 @@ export function renderGuestTopV2Main(options: { prefix: string; places: GuestTop
     <div class="zg2" data-zk-guest-top="v2">
       <section class="zg2-band zg2-hero" aria-labelledby="zg2-h1">
         <div class="zg2-hero-copy">
-          <h1 id="zg2-h1">撮ると、まちの今が<br>図鑑になる。</h1>
+          <h1 id="zg2-h1"><span>撮ると、</span><span>まちの今が</span><span>図鑑になる。</span></h1>
           <p class="zg2-lead">ズカンは、撮った写真が場所と日付でたまって、その場所の図鑑になっていくサービスです。</p>
           <div class="zg2-cta">
             <a class="zk-btn-primary" href="${prefix}/register">はじめる</a>
@@ -113,7 +113,7 @@ export const GUEST_TOP_V2_CSS = `
     .zg2-sec{padding:24px 0}
     .zg2-hero{display:grid;gap:18px;padding-top:20px}
     .zg2-hero-copy{display:grid;gap:12px;align-content:center}
-    .zg2 .zg2-hero h1{font-size:30px;line-height:1.4;font-weight:800;letter-spacing:.01em}
+    .zg2 .zg2-hero h1{font-size:30px;line-height:1.4;font-weight:800;letter-spacing:.01em}.zg2 .zg2-hero h1 span{display:inline-block}
     .zg2-lead{font-size:16px;line-height:1.7}
     .zg2-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
     .zg2-cta>a{flex:1;min-width:140px;padding:0 20px}

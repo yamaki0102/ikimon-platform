@@ -129,7 +129,7 @@ test("guest top v2 renders the reviewed structure with development frames, no pr
   assert.match(html, /data-zk-guest-top="v2"/);
   assert.match(html, /<style nonce="n1">/);
   assert.match(html, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
-  assert.match(html, /撮ると、まちの今が<br>図鑑になる。/);
+  assert.match(html, /<h1 id="zg2-h1"><span>撮ると、<\/span><span>まちの今が<\/span><span>図鑑になる。<\/span><\/h1>/);
   assert.match(html, /href="\/ja\/register">はじめる</);
   assert.match(html, /イネ科植物の記録、2026年5月25日/);
   assert.match(html, /常盤公園/);
