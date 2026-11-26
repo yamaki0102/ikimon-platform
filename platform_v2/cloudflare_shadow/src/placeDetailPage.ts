@@ -142,6 +142,7 @@ export function renderGlobalPlaceDetailPage(input: {
   paperArchiveTimelineHtml?: string;
   fixedPointTimelineHtml?: string;
   v3?: boolean;
+  fieldCardHref?: string;
   v3Extras?: { stewardIntro?: string | null; events?: PlaceV3Event[]; steward?: PlaceV3Steward | null; nearby?: PlaceV3Nearby[] };
   now?: Date;
 }): string {
@@ -258,6 +259,7 @@ export function renderGlobalPlaceDetailPage(input: {
     records: v3Records,
     photoUrls: mediaRecords.map((record) => clean(record.mediaUrl)).filter((url, index, all) => url && all.indexOf(url) === index),
     recordHref,
+    fieldCardHref: input.fieldCardHref ?? null,
     allRecordsHref,
     backHref: prefix + "/map?tab=places",
     backLabel: copy.back,
