@@ -177,6 +177,10 @@ const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
 const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_INLINE_EDIT_FLAG, v.principalId, v.role); };
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
+import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
+const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
+const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
+const mapInvasiveRequested = async (request: Request, url: URL, env: Env): Promise<boolean> => url.searchParams.get("taxon_group") === INVASIVE_TAXON_GROUP && mapInvasiveOn(env, await readCompatibleSession(request, env).catch(() => null));
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -2737,7 +2741,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/cells") {
-        return getPublicMapCells(url, env);
+        return getPublicMapCells(url, env, await mapInvasiveRequested(request, url, env));
       }
 
       if (request.method === "GET" && nativePathname.startsWith("/api/v1/publication-feeds/")) {
@@ -2746,7 +2750,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && (nativePathname === "/api/v1/map/observations" || nativePathname === "/api/v1/areas/observations")) {
-        return getPublicMapObservations(url, env);
+        return getPublicMapObservations(url, env, await mapInvasiveRequested(request, url, env));
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/place-profile") {
@@ -10911,10 +10915,11 @@ function researchCsvCell(value: unknown): string {
   return `"${raw.replaceAll("\"", "\"\"")}"`;
 }
 
-async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
+async function getPublicMapCells(url: URL, env: Env, invasive = false): Promise<Response> {
   const rows = await queryPublicMapRows(env);
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
-  const scopedRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
+  const bboxRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
+  const scopedRows = invasive ? filterInvasiveRows(bboxRows) : bboxRows;
   const groups = new Map<string, PublicMapRow[]>();
   for (const row of scopedRows) {
     if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
@@ -10955,7 +10960,8 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
           latestObservedAt: formatPublicDateOnly(latestObservedAt(group)),
           taxonMix,
           centroidLat: parsed.lat,
-          centroidLng: parsed.lng
+          centroidLng: parsed.lng,
+          ...invasiveCellExtras(group, invasive)
         }
       };
     })
@@ -11263,7 +11269,7 @@ async function resolvePlaceScope(
   return { bbox: null, visitIds: ids.size > 0 ? ids : new Set() };
 }
 
-async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
+async function getPublicMapObservations(url: URL, env: Env, invasive = false): Promise<Response> {
   const startedAt = performance.now();
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   const rawCellId = normalizeOptionalText(url.searchParams.get("cell_id"));
@@ -11287,7 +11293,7 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   const effectiveBbox = bbox ?? placeScope?.bbox ?? null;
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "300"), 1, 1200);
   const rows = await queryPublicMapRows(env);
-  const areaAndPeriodRows = rows
+  const areaAndPeriodRows = (invasive ? filterInvasiveRows(rows) : rows)
     .filter((row) => {
       if ((selectedCell || effectiveBbox) && (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now()))) return false;
       if (selectedCell && row.public_cell !== selectedCell) return false;
@@ -11330,13 +11336,14 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
         scene_surrounding_cover: row.scene_surrounding_cover ?? meta?.sceneSurroundingCover ?? null,
       };
       const item = publicMapObservationItem(enrichedRow, photoUrls.get(row.observation_id) ?? null, kind);
-      return {
+      const mapItem = {
         ...item,
         localityLabel: row.public_cell === "hidden"
           ? "位置は非公開です"
           : (hiddenOrDelayed ? "位置は24時間後に公開されます" : item.localityLabel),
         publicCellId: hiddenOrDelayed ? null : publicCellToCellId(row.public_cell),
       };
+      return invasive ? decorateInvasiveItem(mapItem, row.taxon_label) : mapItem;
     }),
     stats: {
       totalReturned: scopedRows.length,
@@ -22707,6 +22714,7 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
     return originalUiHtmlQueryVariant(url) ? withHeaderMenu : injectRecentObservationRecords(withHeaderMenu, url, env);
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
+  if (isMapHtmlPath(url.pathname)) return injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session));
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
   return injectOAuthEmailConflictNotice(personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect"))), url);
 }
