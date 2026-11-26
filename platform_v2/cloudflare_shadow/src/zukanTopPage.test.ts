@@ -181,3 +181,12 @@ test("guest top v2 images carry dimensions, only the first is eager, and places 
   assert.doesNotMatch(noPlaces, /class="zk-place-row"/);
   assert.match(noPlaces, /data-zk-guest-top="v2"/);
 });
+
+test("renderZukanTopPage logged-in library shows a more link to older records when a cursor exists", () => {
+  const group = { groupKey: "2026-06-01__浜松市", headerLabel: "6月1日・浜松市", placeName: "浜松市", published: false, photos: [{ observationId: "o1", title: "x", observedAt: "2026-06-01T00:00:00Z", photoUrl: "https://example.test/a.webp" }] };
+  const withMore = renderZukanTopPage({ ...emptyEventsBaseData, libraryGroups: [group], libraryNextCursor: "abc" } as ZukanTopPageData, { lang: "ja", authenticated: true, cspNonce: "n1" });
+  assert.match(withMore, /data-library-more="1"/);
+  assert.match(withMore, /href="\/ja\/library\?before=abc"/);
+  const atEnd = renderZukanTopPage({ ...emptyEventsBaseData, libraryGroups: [group], libraryNextCursor: null } as ZukanTopPageData, { lang: "ja", authenticated: true, cspNonce: "n1" });
+  assert.doesNotMatch(atEnd, /data-library-more="1"/);
+});

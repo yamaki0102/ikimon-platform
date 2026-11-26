@@ -2,8 +2,8 @@ import type { Env } from "./core/env";
 import { renderOtayoriFloatingButton } from "./otayori";
 import { OWNER_AREA_LABEL_NO_LOCATION, loadOwnerAreaLabels } from "./ownerAreaLabel";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
-import { dayBoundsFromGroupKey, decodePageCursor, encodePageCursor, likePatternFromQuery } from "./ownerRecordPaging";
-import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderYearPairCard } from "./zukanLibraryBlocks";
+import { dayBoundsFromGroupKey, decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
+import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderLibraryMore, renderYearPairCard } from "./zukanLibraryBlocks";
 import { GUEST_TOP_V2_CSS, renderGuestTopV2Main } from "./zukanGuestTopV2";
 
 function publicMediaUrl(key: string, width: 360 | 680 = 360): string {
@@ -789,6 +789,7 @@ export async function loadZukanTopPageData(
     recentPublicRecords,
     placesStrip,
     libraryGroups: library.groups,
+    libraryNextCursor: library.nextCursor,
     oneYearPair: library.oneYearPair
   };
 }
@@ -881,6 +882,7 @@ export function renderZukanTopPage(
 
   const libraryBodyHtml = data.libraryGroups.length > 0
     ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "top" })
+      + (data.libraryNextCursor ? `${renderLibraryMore({ href: `${prefix}/library?before=${encodeURIComponent(data.libraryNextCursor)}`, isEn })}${loadMoreScript({ list: ".zk-groups", more: "[data-library-more]", loading: isEn ? "Loading..." : "読み込み中…" })}` : "")
     : renderLibraryEmpty({ prefix, isEn });
 
   const loggedInMain = `
