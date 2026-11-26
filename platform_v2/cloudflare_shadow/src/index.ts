@@ -26404,7 +26404,14 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         titleIsFallback: detail.isAwaitingId,
         titleStatus: detail.displayNameStatus,
         recordClass: recordClassOut.value,
-        observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
+        observedLabel: (() => {
+          const exact = detail.observedAtExact ?? detail.observedAt;
+          if (!exact) return "—";
+          if (observationFirst.detail.owner) return formatRecordDate(exact);
+          if (recordLang === "ja") return jaDateText(exact, false);
+          const d = new Date(exact);
+          return Number.isNaN(d.getTime()) ? exact : d.toLocaleDateString(locale, { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric" });
+        })(),
         note: detail.note,
         publicLocationLabel: detail.publicLocation.label,
         detectionState,
@@ -26426,7 +26433,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordPage: recordPageReading,
         inlineEdit: recordLang === "ja" && recordInlineEditOn(env, session),
         inlineEditCorrection: recordLang === "ja" && recordInlineEditOn(env, session) && observationCorrectionOn(env, session),
-        observedAtIso: detail.observedAt || null,
+        observedAtIso: observationFirst.detail.owner ? (detail.observedAtExact ?? detail.observedAt ?? null) : null,
         inlineEditEnvironment: recordLang === "ja" && recordInlineEditOn(env, session)
           ? { fields: (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]).map((field) => ({ field, label: COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS[field], options: COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field] })) }
           : null,
@@ -26869,7 +26876,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
   const detail = await buildObservationDetail(rawId, env, null);
   if (!detail) return null;
   // Primary person identities guide server rendering only, never the public API.
-  const { aiPersonPrimaryNames: _aiPersonPrimaryNames, ...publicDetail } = detail;
+  const { aiPersonPrimaryNames: _aiPersonPrimaryNames, observedAtExact: _observedAtExact, ...publicDetail } = detail;
   return publicDetail;
 }
 
@@ -27090,6 +27097,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
     observedAt: formatPublicDateOnly(row.observed_at),
+    observedAtExact: typeof row.observed_at === "string" ? row.observed_at : null,
     note: row.note && containsDiscoveryPersonalInformation(row.note) ? null : row.note,
     placeName: detailLocationLabel,
     municipality: null,
