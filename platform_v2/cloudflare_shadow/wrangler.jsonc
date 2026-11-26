@@ -22,6 +22,8 @@
     "enabled": true
   },
   "vars": {
+    // BEGIN GENERATED FLAGS
+    // END GENERATED FLAGS
     "ENVIRONMENT": "shadow",
     "PUBLIC_LOCATION_CELL_PRECISION": "geohash6",
     "OBSERVATION_DB_NAME": "ikimon_shadow_observations_2026_06",
@@ -98,6 +100,8 @@
         "binding": "CF_VERSION_METADATA"
       },
       "vars": {
+        // BEGIN GENERATED FLAGS
+        // END GENERATED FLAGS
         "ENVIRONMENT": "shadow",
         "OBSERVATION_EVENT_APPLICATION_CODES": "",
         "OBSERVATION_EVENT_GUEST_MEDIA_CODES": "",
@@ -193,6 +197,8 @@
         }
       ],
       "vars": {
+        // BEGIN GENERATED FLAGS
+        // END GENERATED FLAGS
         "ENVIRONMENT": "staging",
         "NOCOSIL_REVISION_RECEIVER_ENABLED": "true",
         "ZUKAN_STAMP_RALLY_ENABLED": "false",
@@ -305,7 +311,10 @@
         "www.ikimon.life/*"
       ],
       "vars": {
+        // BEGIN GENERATED FLAGS
+        // END GENERATED FLAGS
         "ENVIRONMENT": "production",
+        "ZUKAN_FEATURE_ROLLOUTS": "{}",
         "ZUKAN_STAMP_RALLY_ENABLED": "false",
         "BIOSECURITY_ENABLED": "on",
         "BIOSECURITY_STORAGE_BUDGET_BYTES": "268435456",
