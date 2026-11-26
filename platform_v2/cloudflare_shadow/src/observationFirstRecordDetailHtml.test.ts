@@ -2043,8 +2043,9 @@ test("inline edit round 2: note, observed date and place chips use the same patt
   assert.match(place, /aria-label="この場所のようすを編集"/);
   assert.match(place, /action="\/api\/v1\/occurrences\/visit-ui-contract\/environment-record" data-of-ie-json="environment-record"/);
   assert.match(place, /<span class="of-ie-chip">水辺<\/span>/);
-  assert.match(place, /<select name="place_type"><option value="water_edge" selected>/);
-  assert.match(place, /<select name="surrounding_cover"><option value="low_grass" selected>/);
+  assert.match(place, /<input type="radio" name="place_type" value="water_edge" checked>/);
+  assert.match(place, /<input type="checkbox" name="surrounding_cover" value="low_grass" checked>/);
+  assert.doesNotMatch(place, /<select/);
   for (const part of [note, date, place]) {
     for (const marker of ['class="of-ie-tap"', "data-of-ie-open", 'class="of-ie-pen"', 'class="of-ie-form"', 'class="of-ie-save"', "data-of-ie-cancel", 'class="of-ie-msg"']) {
       assert.ok(part.includes(marker), `${marker} missing`);
@@ -2077,4 +2078,57 @@ test("inline edit round 2: title reset moves into the title editor, settings box
   const guest = { ...inlineEditOwner, owner: false };
   assert.equal(renderObservationFirstRecordDetailHtml(guest, inlineEditRound2), renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null }));
   assert.equal(renderObservationFirstRecordDetailHtml(guest, base).includes("data-of-ie"), false);
+});
+
+const multiEnvFields = { fields: [
+  { field: "place_type", label: "場所", options: [{ value: "water_edge", label: "水辺" }, { value: "urban", label: "市街地" }, { value: "unknown", label: "不明" }] },
+  { field: "contact_surface", label: "足元", options: [{ value: "soil", label: "土" }, { value: "plant", label: "植物上" }, { value: "unknown", label: "不明" }] },
+  { field: "human_change", label: "人の影響", options: [{ value: "mowing", label: "草刈り" }, { value: "none_visible", label: "目立つ変化なし" }, { value: "unknown", label: "不明" }] },
+] };
+const multiEnvRender = (environment: Record<string, string>, extra: Record<string, unknown> = {}) => renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, environment, inlineEditEnvironment: multiEnvFields, ...extra });
+const multiEnvPlace = (html: string) => html.match(/<div class="of-ie of-ie-place" data-of-ie="place">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+
+test("environment multi: read-only chips show every selected label", () => {
+  const guest = { ...inlineEditOwner, owner: false };
+  const html = renderObservationFirstRecordDetailHtml(guest, { ...inlineEditBase, environment: { place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant", human_change: "mowing" } });
+  const chips = html.match(/<ul class="of-chips">[\s\S]*?<\/ul>/)?.[0] ?? "";
+  assert.match(chips, /<li>土の面<\/li>/);
+  assert.match(chips, /<li>植物<\/li>/);
+  assert.match(chips, /<li>草刈りの跡<\/li>/);
+  assert.match(chips, /<li>水辺<\/li>/);
+});
+
+test("environment multi: editor pre-checks from _values and from a legacy single value", () => {
+  const fromValues = multiEnvPlace(multiEnvRender({ place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant" }));
+  assert.match(fromValues, /<input type="checkbox" name="contact_surface" value="soil" checked>/);
+  assert.match(fromValues, /<input type="checkbox" name="contact_surface" value="plant" checked>/);
+  assert.match(fromValues, /<input type="checkbox" name="contact_surface" value="unknown" data-of-ie-excl>/);
+  assert.match(fromValues, /<input type="radio" name="place_type" value="water_edge" checked>/);
+  assert.match(fromValues, /<input type="radio" name="place_type" value="urban"><span>/);
+  assert.match(fromValues, /data-of-ie-group="contact_surface" data-of-ie-pick="many"><legend>足元<\/legend>/);
+  assert.match(fromValues, /data-of-ie-group="place_type" data-of-ie-pick="one"><legend>場所<\/legend>/);
+  assert.match(fromValues, /<input type="checkbox" name="human_change" value="unknown" checked data-of-ie-excl>/);
+  const legacy = multiEnvPlace(multiEnvRender({ place_type: "urban", contact_surface: "plant", human_change: "none_visible" }));
+  assert.match(legacy, /<input type="checkbox" name="contact_surface" value="plant" checked>/);
+  assert.doesNotMatch(legacy, /<input type="checkbox" name="contact_surface" value="soil" checked>/);
+  assert.match(legacy, /<input type="checkbox" name="human_change" value="none_visible" checked data-of-ie-excl>/);
+  assert.doesNotMatch(legacy, /<select/);
+});
+
+test("environment multi: submit script collects arrays per group and exclusivity handler exists", () => {
+  const html = multiEnvRender({ place_type: "water_edge" });
+  assert.match(html, /querySelectorAll\('\[data-of-ie-group\]'\)/);
+  assert.match(html, /'many'\?\(ar\.length\?ar:\['unknown'\]\)/);
+  assert.match(html, /addEventListener\('change'/);
+});
+
+test("environment multi: switch off and non-owner output stay free of the editor", () => {
+  const off = multiEnvRender({ place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant" }, { inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null });
+  assert.doesNotMatch(off, /data-of-ie-group|of-ie-opt"/);
+  const guest = { ...inlineEditOwner, owner: false };
+  const env = { place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant" };
+  assert.equal(
+    renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, environment: env, inlineEditEnvironment: multiEnvFields }),
+    renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, environment: env, inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null }),
+  );
 });

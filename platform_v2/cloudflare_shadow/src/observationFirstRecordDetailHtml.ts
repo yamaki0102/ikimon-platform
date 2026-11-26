@@ -4,6 +4,7 @@ import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNa
 import type { ObservationFirstCard, ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import { isPublicObservationAiSubjectEligible } from "./publicObservationAiPresentation";
 import { finalizeVisibleAiNoteSlots } from "./recordAiNote";
+import { compatibleEnvironmentRecordRawValues, isCompatibleEnvironmentRecordMultiField } from "./environmentRecordMulti";
 import { buildRecordPageSections, type RecordPageFoundItem, type RecordPageMediaSection, type RecordPagePlaceField } from "./recordPageSections";
 import type { ReadingState, RecordReading } from "./recordReading";
 import {
@@ -577,18 +578,30 @@ function renderInlineEdit(ctx: InlineEditCtx, spec: { key: string; id?: string; 
   return `<div class="of-ie${spec.className ? ` ${spec.className}` : ""}" data-of-ie="${escapeHtml(spec.key)}"${spec.id ? ` id="${escapeHtml(spec.id)}"` : ""}>${spec.wrap ? spec.wrap(tap) : tap}${spec.trail ?? ""}${form}${spec.extraForms ?? ""}</div>`;
 }
 
-function inlineEditPlace(ctx: InlineEditCtx, environment: Record<string, string>, chips: readonly string[]): string {
-  const selects = (ctx.envEdit?.fields ?? []).map((field) => {
+const ENV_EXCLUSIVE_VALUES = new Set(["unknown", "none_visible"]);
+
+function inlineEditEnvironmentField(field: { field: string; label: string; options: Array<{ value: string; label: string }> }, environment: Record<string, string>): string {
+  const multi = isCompatibleEnvironmentRecordMultiField(field.field);
+  if (!multi && field.field !== "place_type") {
     const current = environment[field.field];
     const selected = field.options.some((option) => option.value === current) ? current : "unknown";
     return `<label class="of-ie-field"><span>${escapeHtml(field.label)}</span><select name="${escapeHtml(field.field)}">${field.options.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === selected ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label>`;
-  }).join("");
+  }
+  const valid = new Set(field.options.map((option) => option.value));
+  const picked = new Set(compatibleEnvironmentRecordRawValues(environment, field.field).filter((value) => valid.has(value)));
+  if (picked.size === 0) picked.add("unknown");
+  const options = field.options.map((option) => `<label class="of-ie-opt"><input type="${multi ? "checkbox" : "radio"}" name="${escapeHtml(field.field)}" value="${escapeHtml(option.value)}"${picked.has(option.value) ? " checked" : ""}${multi && ENV_EXCLUSIVE_VALUES.has(option.value) ? " data-of-ie-excl" : ""}><span>${escapeHtml(option.label)}</span></label>`).join("");
+  return `<fieldset class="of-ie-group" data-of-ie-group="${escapeHtml(field.field)}" data-of-ie-pick="${multi ? "many" : "one"}"><legend>${escapeHtml(field.label)}</legend><div class="of-ie-opts">${options}</div></fieldset>`;
+}
+
+function inlineEditPlace(ctx: InlineEditCtx, environment: Record<string, string>, chips: readonly string[]): string {
+  const groups = (ctx.envEdit?.fields ?? []).map((field) => inlineEditEnvironmentField(field, environment)).join("");
   return renderInlineEdit(ctx, {
     key: "place",
     label: "この場所のようす",
     display: `<span class="of-ie-chips">${chips.map((label) => `<span class="of-ie-chip">${escapeHtml(label)}</span>`).join("")}</span>`,
     json: { url: `/api/v1/occurrences/${encodeURIComponent(ctx.recordId)}/environment-record`, kind: "environment-record" },
-    control: `<div class="of-ie-fields">${selects}</div>`,
+    control: `<div class="of-ie-fields">${groups}</div>`,
     className: "of-ie-place",
   });
 }
@@ -821,7 +834,7 @@ function renderEnvironment(environment: Record<string, string> | null | undefine
   const placeType = environment.place_type;
   const labels = [
     placeType && placeType !== "unknown" ? copy.environmentHeadlines[placeType] ?? null : null,
-    ...(["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).map((field) => chipLabel(environment[field])),
+    ...(["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).flatMap((field) => compatibleEnvironmentRecordRawValues(environment, field).map((value) => chipLabel(value))),
   ].filter((label): label is string => Boolean(label));
   const chips = [...new Set(labels)];
   if (chips.length === 0) return "";
@@ -1180,9 +1193,18 @@ const INLINE_EDIT_STYLES = `
   .of-ie-chips{display:inline-flex;flex-wrap:wrap;gap:8px;vertical-align:middle}
   .of-ie-chip{display:inline-flex;padding:7px 12px;border:1.5px solid #DDE2DC;border-radius:999px;background:#fff;font-size:13.5px;font-weight:600;color:#17211B}
   .of-ie-place .of-ie-tap{display:flex;align-items:center}
-  .of-ie-fields{display:grid;gap:10px;flex:1 1 100%}
+  .of-ie-fields{display:grid;gap:14px;flex:1 1 100%}
   .of-ie-field{display:grid;gap:4px;font-size:13px;font-weight:700;color:var(--muted)}
   .of-ie-field select{width:100%}
+  .of-ie-group{display:block;min-width:0;margin:0;padding:0;border:0}
+  .of-ie-group legend{padding:0;margin:0 0 6px;font-size:13px;font-weight:700;color:var(--muted)}
+  .of-ie-opts{display:flex;flex-wrap:wrap;gap:8px}
+  .of-ie-opt{position:relative;display:inline-flex}
+  .of-ie-form .of-ie-opt input{position:absolute;inset:0;flex:none;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
+  .of-ie-opt span{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1.5px solid #DDE2DC;border-radius:999px;background:var(--paper);font-size:14px;font-weight:600;color:var(--ink)}
+  .of-ie-opt input:checked+span{border-color:var(--green);background:var(--soft);font-weight:800}
+  .of-ie-opt input:checked+span::before{content:"✓";margin-right:6px;font-weight:900;color:var(--green)}
+  .of-ie-opt input:focus-visible+span{outline:3px solid var(--focus);outline-offset:2px}
 `;
 
 const INLINE_EDIT_SCRIPT = `
@@ -1191,11 +1213,12 @@ const INLINE_EDIT_SCRIPT = `
     function say(t,bad){if(!m)return;m.textContent=t;m.hidden=false;m.className='of-ie-msg'+(bad?' is-error':'');}
     if(k==='note'){body={field:'note',nextValue:String(f.elements.nextValue.value||'').trim()};if(!body.nextValue){say('メモを入れてください。',1);return;}}
     else if(k==='observed-at'){var s=String(f.elements.observedAtLocal.value||'');if(s.length===16)s+=':00';var d=new Date(s+'+09:00');if(!s||isNaN(d.getTime())){say('日時を入れてください。',1);return;}body={observedAt:d.toISOString()};}
-    else{var vals={},sel=f.querySelectorAll('select[name]');for(var q=0;q<sel.length;q++)vals[sel[q].name]=sel[q].value;body={values:vals};}
+    else{var vals={},gs=f.querySelectorAll('[data-of-ie-group]'),sel=f.querySelectorAll('select[name]');for(var q=0;q<gs.length;q++){var ck=gs[q].querySelectorAll('input:checked'),ar=[];for(var z=0;z<ck.length;z++)ar.push(ck[z].value);vals[gs[q].getAttribute('data-of-ie-group')]=gs[q].getAttribute('data-of-ie-pick')==='many'?(ar.length?ar:['unknown']):(ar.length?ar[0]:'unknown');}for(q=0;q<sel.length;q++)vals[sel[q].name]=sel[q].value;body={values:vals};}
     if(b)b.disabled=true;say('保存しています…',0);
     fetch(f.getAttribute('action')||'',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return {};}).then(function(p){if(!r.ok||!p||!p.ok){var er=p&&p.error?String(p.error):'';throw new Error(r.status===401?'ログインが必要です。':r.status===403?'この記録の持ち主だけが変えられます。':er==='invalid_observed_at'?'この日時は保存できません。未来の日時は選べません。':er==='occurrence_location_required'?'位置の情報がない記録では保存できません。':'保存できませんでした。もう一度ためしてください。');}try{sessionStorage.setItem('of-ie-return',w.getAttribute('data-of-ie')||'');sessionStorage.setItem('of-ie-saved','1');}catch(x){}location.reload();});}).catch(function(err){if(b)b.disabled=false;say(err&&err.message?err.message:'保存できませんでした。',1);});}
   document.addEventListener('input',function(e){var f=e.target&&e.target.closest?e.target.closest('.of-ie-form'):null;if(f)ieCheck(f);});
-  function ieSet(w,on){var f=w.querySelector('.of-ie-form'),t=w.querySelector('[data-of-ie-open]');if(!f)return;f.hidden=!on;w.classList.toggle('is-editing',on);if(t)t.setAttribute('aria-expanded',on?'true':'false');if(on){var i=f.querySelector('input:not([type=hidden]),select,textarea');ieCheck(f);if(i){i.focus();if(i.tagName!=='SELECT'&&i.select)i.select();}}else if(t)t.focus();}
+  document.addEventListener('change',function(e){var t=e.target;if(!t||!t.matches||!t.matches('.of-ie-opt input[type=checkbox]')||!t.checked)return;var g=t.closest('[data-of-ie-group]');if(!g)return;var all=g.querySelectorAll('input[type=checkbox]');for(var i=0;i<all.length;i++){if(all[i]!==t&&(t.hasAttribute('data-of-ie-excl')||all[i].hasAttribute('data-of-ie-excl')))all[i].checked=false;}});
+  function ieSet(w,on){var f=w.querySelector('.of-ie-form'),t=w.querySelector('[data-of-ie-open]');if(!f)return;f.hidden=!on;w.classList.toggle('is-editing',on);if(t)t.setAttribute('aria-expanded',on?'true':'false');if(on){var i=f.querySelector('input:not([type=hidden]),select,textarea');ieCheck(f);if(i){i.focus();if(i.tagName!=='SELECT'&&i.type!=='radio'&&i.type!=='checkbox'&&i.select)i.select();}}else if(t)t.focus();}
   document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e.target.closest('[data-of-ie-open],[data-of-ie-cancel]'):null;if(!t)return;var w=t.closest('[data-of-ie]');if(!w)return;e.preventDefault();ieSet(w,t.hasAttribute('data-of-ie-open'));});
   document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;var w=e.target&&e.target.closest?e.target.closest('[data-of-ie]'):null;if(w&&w.classList.contains('is-editing')){e.preventDefault();ieSet(w,false);}});
   document.addEventListener('submit',function(e){var w=e.target&&e.target.closest?e.target.closest('[data-of-ie]'):null;if(!w)return;if(e.target.hasAttribute&&e.target.hasAttribute('data-of-ie-json')){e.preventDefault();ieJson(e.target,w);return;}try{sessionStorage.setItem('of-ie-return',w.getAttribute('data-of-ie')||'');}catch(x){}});

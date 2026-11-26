@@ -435,6 +435,16 @@ import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, E
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
 import { computeRecordCountBand, handleRecordCountBandRoute, readPlaceSeasonCountFacts, renderPlaceSeasonListHtml, type BandDeps } from "./recordCountBand";
+import {
+  COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS,
+  COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS,
+  mergeCompatibleUserEnvironmentRecordValues,
+  normalizeCompatibleEnvironmentRecordInput,
+  parseCompatibleStructuredJson,
+  publicCompatibleEnvironmentRecord,
+  serializeCompatibleStructuredJson,
+  type CompatibleEnvironmentRecordField,
+} from "./environmentRecordMulti";
 import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
 import { handleGbifConsentRoute } from "./gbifConsent";
 import { gbifDbFromD1 } from "./gbifDb";
@@ -26184,10 +26194,11 @@ export async function resolveLiveSignboardTitle(
 }
 
 async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<Response> {
-  const detail = await buildPublicObservationDetail(rawId, env);
-  if (!detail) {
+  const built = await buildPublicObservationDetail(rawId, env);
+  if (!built) {
     return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
   }
+  const detail = { ...built, environmentRecord: publicCompatibleEnvironmentRecord(built.environmentRecord) };
   if (!prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, null)) {
     return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
   }
@@ -28748,7 +28759,6 @@ async function assertObservationOwnedByUser(observationId: string, userId: strin
 
 type CompatibleOccurrenceDetailEditKind = "origin" | "observed-at" | "location" | "environment-field" | "environment-record";
 type CompatibleOrganismOrigin = "wild" | "planted" | "captive" | "released" | "unknown";
-type CompatibleEnvironmentRecordField = "place_type" | "contact_surface" | "surrounding_cover" | "environment_condition" | "human_change";
 
 const COMPATIBLE_ORGANISM_ORIGIN_OPTIONS: Array<{ value: CompatibleOrganismOrigin; label: string }> = [
   { value: "wild", label: "野生" },
@@ -28757,63 +28767,6 @@ const COMPATIBLE_ORGANISM_ORIGIN_OPTIONS: Array<{ value: CompatibleOrganismOrigi
   { value: "released", label: "放流" },
   { value: "unknown", label: "不明" }
 ];
-
-const COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS: Record<CompatibleEnvironmentRecordField, Array<{ value: string; label: string }>> = {
-  place_type: [
-    { value: "grassland_urban_edge", label: "草地と市街地の縁" },
-    { value: "urban", label: "市街地" },
-    { value: "woodland", label: "林内" },
-    { value: "water_edge", label: "水辺" },
-    { value: "wetland", label: "湿地" },
-    { value: "coast", label: "海岸" },
-    { value: "unknown", label: "不明" }
-  ],
-  contact_surface: [
-    { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
-    { value: "soil", label: "土" },
-    { value: "plant", label: "植物上" },
-    { value: "water", label: "水面・水中" },
-    { value: "rock", label: "岩・石" },
-    { value: "artificial", label: "人工物" },
-    { value: "unknown", label: "不明" }
-  ],
-  surrounding_cover: [
-    { value: "low_grass", label: "低い草地" },
-    { value: "trees_shrubs", label: "樹木・低木" },
-    { value: "bare_ground", label: "裸地" },
-    { value: "water", label: "水" },
-    { value: "snow", label: "雪" },
-    { value: "built_surface", label: "舗装・構造物" },
-    { value: "unknown", label: "不明" }
-  ],
-  environment_condition: [
-    { value: "open_dry", label: "開けて乾き気味" },
-    { value: "sunny", label: "日当たり" },
-    { value: "shaded", label: "日陰" },
-    { value: "wet", label: "湿り気あり" },
-    { value: "flowing", label: "流れあり" },
-    { value: "windy", label: "風あり" },
-    { value: "unknown", label: "不明" }
-  ],
-  human_change: [
-    { value: "trampling_mowing", label: "踏圧・草刈り跡" },
-    { value: "mowing", label: "草刈り" },
-    { value: "trampling", label: "踏圧" },
-    { value: "planting", label: "植栽・管理" },
-    { value: "construction", label: "造成・工事" },
-    { value: "release", label: "放流・放逐" },
-    { value: "none_visible", label: "目立つ変化なし" },
-    { value: "unknown", label: "不明" }
-  ]
-};
-
-const COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS: Record<CompatibleEnvironmentRecordField, string> = {
-  place_type: "場所",
-  contact_surface: "足元",
-  surrounding_cover: "周囲",
-  environment_condition: "状態",
-  human_change: "人の影響"
-};
 
 async function existingOwnerObservationDualWritePlan(
   recordId: string,
@@ -28999,13 +28952,16 @@ async function updateCompatibleOccurrenceEnvironmentField(
   env: Env
 ): Promise<Response> {
   const field = normalizeCompatibleEnvironmentRecordField(body.field);
-  const value = normalizeCompatibleEnvironmentRecordValue(field, body.value);
-  const result = await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, { [field]: value }, env);
+  const list = normalizeCompatibleEnvironmentRecordInput(field, body.value);
+  if (!list) throw new HttpError(400, "invalid_environment_record_value");
+  const value = list[0]!;
+  const result = await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, { [field]: list }, env);
   return json({
     ok: true,
     occurrenceId,
     field,
     value,
+    values: list,
     label: compatibleEnvironmentRecordLabel(field, value),
     recordId: result.recordId
   }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
@@ -29020,10 +28976,12 @@ async function updateCompatibleOccurrenceEnvironmentRecord(
   const rawValues = body.values && typeof body.values === "object" && !Array.isArray(body.values)
     ? body.values as Record<string, unknown>
     : {};
-  const values: Partial<Record<CompatibleEnvironmentRecordField, string>> = {};
+  const values: Partial<Record<CompatibleEnvironmentRecordField, string[]>> = {};
   for (const [rawField, rawValue] of Object.entries(rawValues)) {
     const field = normalizeCompatibleEnvironmentRecordField(rawField);
-    values[field] = normalizeCompatibleEnvironmentRecordValue(field, rawValue);
+    const list = normalizeCompatibleEnvironmentRecordInput(field, rawValue);
+    if (!list) throw new HttpError(400, "invalid_environment_record_value");
+    values[field] = list;
   }
   if (Object.keys(values).length === 0) {
     throw new HttpError(400, "invalid_environment_record_value");
@@ -29032,9 +28990,10 @@ async function updateCompatibleOccurrenceEnvironmentRecord(
   return json({
     ok: true,
     occurrenceId,
-    values: Object.fromEntries(Object.entries(values).map(([field, value]) => [field, {
-      value,
-      label: compatibleEnvironmentRecordLabel(field as CompatibleEnvironmentRecordField, value),
+    values: Object.fromEntries(Object.entries(values).map(([field, list]) => [field, {
+      value: list[0]!,
+      values: list,
+      label: list.map((item) => compatibleEnvironmentRecordLabel(field as CompatibleEnvironmentRecordField, item)).join("・"),
       source: "user"
     }]))
   }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
@@ -29043,7 +29002,7 @@ async function updateCompatibleOccurrenceEnvironmentRecord(
 async function insertCompatibleEnvironmentRecord(
   occurrenceId: string,
   userId: string,
-  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
+  values: Partial<Record<CompatibleEnvironmentRecordField, string[]>>,
   env: Env
 ): Promise<{ recordId: string }> {
   await requireCompatibleEnvironmentRecordStorage(env);
@@ -29080,7 +29039,7 @@ async function insertCompatibleEnvironmentRecord(
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
-    ).bind(recordId, occurrenceId, lat, lng, JSON.stringify(structured)),
+    ).bind(recordId, occurrenceId, lat, lng, serializeCompatibleStructuredJson(structured)),
     compatibleOccurrenceDetailEditEvent(env, occurrenceId, userId, "environment-record", { values }),
     compatibleReadmodelRefreshOutbox(env, occurrenceId, null),
     ...observationDualWriteStatements(env, ownerPlan),
@@ -29178,43 +29137,6 @@ function normalizeCompatibleEnvironmentRecordValue(field: CompatibleEnvironmentR
 
 function compatibleEnvironmentRecordLabel(field: CompatibleEnvironmentRecordField, value: string): string {
   return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].find((item) => item.value === value)?.label ?? "不明";
-}
-
-function parseCompatibleStructuredJson(value: string | null | undefined): Record<string, string> {
-  if (!value) return {};
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>)
-        .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "")
-    );
-  } catch {
-    return {};
-  }
-}
-
-function mergeCompatibleUserEnvironmentRecordValues(
-  previous: Record<string, string>,
-  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
-  updatedBy: string
-): Record<string, string> {
-  const updatedAt = new Date().toISOString();
-  const structured = { ...previous };
-  for (const field of Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]) {
-    const value = values[field];
-    if (value == null) continue;
-    structured[field] = normalizeCompatibleEnvironmentRecordValue(field, value);
-    structured[`${field}_source`] = "user";
-    structured[`${field}_confidence`] = "1.00";
-    structured[`${field}_updated_at`] = updatedAt;
-  }
-  structured.environment_record_status = "user_edited";
-  structured.environment_record_updated_by = updatedBy;
-  structured.environment_record_updated_at = updatedAt;
-  structured.updated_by = updatedBy;
-  structured.updated_at = updatedAt;
-  return structured;
 }
 
 function compatibleEnvironmentRecordDraftHasValues(record: Record<string, string>): boolean {
@@ -29327,7 +29249,7 @@ async function insertCompatibleAutoEnvironmentRecordIfPresent(
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
-    ).bind(recordId, input.occurrenceId, input.latitude, input.longitude, JSON.stringify(structured)),
+    ).bind(recordId, input.occurrenceId, input.latitude, input.longitude, serializeCompatibleStructuredJson(structured)),
     compatibleOccurrenceDetailEditEvent(env, input.occurrenceId, input.actorUserId, "environment-record-auto-draft", {
       source: input.sourceMethod,
       fields: Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS).filter((field) => structured[field])
