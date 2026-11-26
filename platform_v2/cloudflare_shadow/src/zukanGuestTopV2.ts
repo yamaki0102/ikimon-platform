@@ -15,7 +15,7 @@ const placeRow = (pl: GuestTopV2Place): string =>
   `<li><a class="zk-place-row" href="${esc(pl.href)}">${pl.photoUrl ? `<img src="${esc(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>`}<span class="zk-place-text"><strong>${esc(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>記録 ${pl.recordCount}件</span>` : ""}</span><span class="zk-chev" aria-hidden="true">›</span></a></li>`;
 
 const devFrame = (barLabel: string, body: string, photo?: string): string =>
-  `<div class="zg2-dev"><span class="zg2-dev-badge">開発中</span><div class="zg2-mock"><div class="zg2-mock-bar"><img src="${LOCKUP}" alt="ZUKAN" width="63" height="14" loading="lazy"><span>${esc(barLabel)}</span></div><div class="zg2-mock-body">${photo ? `<img class="zg2-mock-photo" src="${IMG}${photo}.webp" width="640" height="240" alt="" loading="lazy">` : ""}${body}</div></div></div>`;
+  `<div class="zg2-dev"><span class="zg2-dev-badge">開発中</span><div class="zg2-mock"><div class="zg2-mock-bar"><img src="${LOCKUP}" alt="ZUKAN" width="63" height="14" loading="lazy"><span>${esc(barLabel)}</span></div><div class="zg2-mock-body">${photo ? `<img class="zg2-mock-photo" src="${IMG}${photo}.webp" width="640" height="240" alt="" loading="lazy"><span class="zg2-photo-note">写真はイメージです</span>` : ""}${body}</div></div></div>`;
 
 const row = (k: string, v: string): string => `<div class="zg2-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`;
 
@@ -34,10 +34,10 @@ export function renderGuestTopV2Main(options: { prefix: string; places: GuestTop
           <h1 id="zg2-h1"><span>撮ると、</span><span>まちの今が</span><span>図鑑になる。</span></h1>
           <p class="zg2-lead">ズカンは、撮った写真が場所と日付でたまって、その場所の図鑑になっていくサービスです。</p>
           <div class="zg2-cta">
-            <a class="zk-btn-primary" href="${prefix}/register">はじめる</a>
+            <a class="zk-btn-primary" href="${prefix}/register">順番待ちに登録する</a>
             <a class="zk-btn-secondary" href="${prefix}/login">ログイン</a>
           </div>
-          <p class="zg2-note">ズカンは、いまも作っている途中のサービスです。</p>
+          <p class="zg2-note">ズカンは作っている途中のサービスで、いまは招待された方から少しずつ案内しています。</p>
         </div>
         ${screenFrame("record", 750, 700, "ズカンの記録の画面。イネ科植物の記録、2026年5月25日、写真3枚", true)}
       </section>
@@ -80,9 +80,9 @@ export function renderGuestTopV2Main(options: { prefix: string; places: GuestTop
         <p class="zg2-sub">ズカンは、使う人といっしょに作っています。</p>
         <div class="zg2-join-grid">
           <div class="zg2-card">
-            <h3>使ってみる</h3>
-            <p>まずは近くの場所で1枚撮ってみてください。写真は自分だけに見える状態から始まります。</p>
-            <a class="zg2-btn" href="${prefix}/register">はじめる</a>
+            <h3>使ってみたい方へ</h3>
+            <p>いまは招待制です。登録しておくと、案内できるようになったときに連絡します。写真は自分だけに見える状態から始まります。</p>
+            <a class="zg2-btn" href="${prefix}/register">順番待ちに登録する</a>
           </div>
           <div class="zg2-card">
             <h3>声を届ける</h3>
@@ -153,6 +153,7 @@ export const GUEST_TOP_V2_CSS = `
     .zg2-ex-body>p{font-size:15px}
     .zg2-dev{position:relative;border:2px dashed var(--dev-line);border-radius:14px;background:#fff;padding:12px 10px 10px;margin-top:6px}
     .zg2-dev-badge{position:absolute;top:-13px;left:14px;background:var(--dev-line);color:#3d2600;font-size:12px;font-weight:800;border-radius:999px;padding:3px 12px}
+    .zg2-photo-note{display:block;margin:-6px 0 8px;font-size:11px;color:var(--sub,#5b6660);text-align:right}
     .zg2-mock{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
     .zg2-mock-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line)}
     .zg2-mock-bar img{height:14px;width:auto}

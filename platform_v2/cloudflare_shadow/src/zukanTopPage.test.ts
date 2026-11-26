@@ -130,7 +130,10 @@ test("guest top v2 renders the reviewed structure with development frames, no pr
   assert.match(html, /<style nonce="n1">/);
   assert.match(html, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
   assert.match(html, /<h1 id="zg2-h1"><span>撮ると、<\/span><span>まちの今が<\/span><span>図鑑になる。<\/span><\/h1>/);
-  assert.match(html, /href="\/ja\/register">はじめる</);
+  assert.match(html, /href="\/ja\/register">順番待ちに登録する</);
+  assert.equal((html.match(/写真はイメージです/g) ?? []).length, (html.match(/class="zg2-mock-photo"/g) ?? []).length);
+  assert.match(html, /いまは招待制です/);
+  assert.doesNotMatch(html, />はじめる</);
   assert.match(html, /イネ科植物の記録、2026年5月25日/);
   assert.match(html, /常盤公園/);
   assert.match(html, /class="zk-place-row"[^]*記録 128件/);
