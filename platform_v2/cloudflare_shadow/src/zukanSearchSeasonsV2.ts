@@ -32,7 +32,7 @@ async function loadSeasonRows(db: Db): Promise<SeasonRow[]> {
   return db
     .prepare(
       `SELECT p.place_id AS place_id, p.canonical_name AS name, p.locality_label AS locality_label, o.observed_at AS observed_at, ${RECORD_THUMB_SQL} AS asset_id, o.observation_id AS observation_id,
-              (SELECT s.title FROM observation_event_sessions s WHERE substr(o.observed_at,1,10) BETWEEN substr(s.started_at,1,10) AND substr(COALESCE(s.ended_at, s.started_at),1,10) AND s.title <> '' ORDER BY s.started_at DESC LIMIT 1) AS event_title
+              (SELECT s.title FROM observation_event_sessions s WHERE substr(o.observed_at,1,10) BETWEEN substr(s.started_at,1,10) AND substr(COALESCE(s.ended_at, s.started_at),1,10) AND s.field_id = p.place_id AND s.event_code IS NOT NULL AND trim(s.event_code) <> '' AND s.title <> '' ORDER BY s.started_at DESC LIMIT 1) AS event_title
          FROM observations o
          JOIN record_place_memberships m ON m.record_id = o.observation_id
          JOIN places p ON p.place_id = m.place_id
