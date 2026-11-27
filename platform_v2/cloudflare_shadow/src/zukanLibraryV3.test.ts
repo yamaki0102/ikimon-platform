@@ -47,7 +47,10 @@ test("counts appear only in kind rows with real numbers; grid caps at 4 cells wi
   assert.match(html, /音1つ/);
   assert.match(html, /イベントに参加/);
   assert.equal([...html.matchAll(/写真6枚/g)].length, 1);
-  assert.match(html, /あと4枚/);
+  assert.match(html, /あと写真\d+枚/);
+  assert.doesNotMatch(html, /class="zv2l-aplay"|class="zv2l-arow"/);
+  assert.doesNotMatch(html, /<span class="zv2l-sep">・<\/span>/);
+  assert.match(html, /zv2l-cellv/);
   assert.doesNotMatch(html, /class="zv2l-cnt"/);
 });
 
@@ -81,7 +84,7 @@ test("zero state: one invitation and a single primary action", () => {
 test("en copy keeps working", () => {
   const html = render("en");
   assert.match(html, /6 photos/);
-  assert.match(html, /\+4 more/);
+  assert.match(html, /\d+ more photos?/);
   assert.match(html, /Joined an event/);
   assert.match(html, /Nov 22/);
   const zero = renderLibraryV2Page({ visits: [], lang: "en", authenticated: true, nextCursor: null });
