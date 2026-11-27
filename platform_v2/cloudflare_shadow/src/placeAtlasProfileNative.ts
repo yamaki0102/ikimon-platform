@@ -755,7 +755,7 @@ export async function loadOwnerPlaceRecordSummary(
     }>();
     const geometry = safeGeometry(boundary?.boundary_geojson);
     if (!boundary || !geometry || !placeAtlasGeometryWithinRuntimeBudget(geometry)) return empty;
-    const box = [boundary.bbox_west, boundary.bbox_south, boundary.bbox_east, boundary.bbox_north]
+    const box: [number, number, number, number] | null = [boundary.bbox_west, boundary.bbox_south, boundary.bbox_east, boundary.bbox_north]
       .every((value) => typeof value === "number" && Number.isFinite(value))
       ? [boundary.bbox_west!, boundary.bbox_south!, boundary.bbox_east!, boundary.bbox_north!]
       : geometryBbox(geometry);
