@@ -124,6 +124,8 @@ export type ObservationFirstRecordPresentation = {
   publicationReturn?: OwnerPublicationReturn | null;
   countBand?: { text: string; href: string | null } | null;
   recordPage?: { reading: RecordReading | null; protectedRecord: boolean } | null;
+  posterName?: string | null;
+  placeHref?: string | null;
   inlineEdit?: boolean;
   inlineEditCorrection?: boolean;
   observedAtIso?: string | null;
@@ -203,9 +205,32 @@ function renderMediaSwitcher(items: ObservationFirstMediaPresentation[], copy: O
   }).join("")}</nav>`;
 }
 
-function renderPhotoLightbox(hasPhotos: boolean, copy: ObservationFirstRecordDetailCopy): string {
+const deleteDialogScript = `<script data-of-delete-script>
+(function(){
+  var dlg = document.querySelector('[data-of-delete-dialog]');
+  var open = document.querySelector('[data-of-delete-open]');
+  if (!dlg || !open) return;
+  var go = dlg.querySelector('[data-of-delete-go]');
+  var cancel = dlg.querySelector('[data-of-delete-cancel]');
+  var st = dlg.querySelector('[data-of-delete-status]');
+  function close() { dlg.hidden = true; document.documentElement.style.overflow = ''; open.focus(); }
+  open.addEventListener('click', function() { st.textContent = ''; go.disabled = false; dlg.hidden = false; document.documentElement.style.overflow = 'hidden'; cancel.focus(); });
+  cancel.addEventListener('click', close);
+  dlg.addEventListener('click', function(e) { if (e.target === dlg) close(); });
+  document.addEventListener('keydown', function(e) { if (!dlg.hidden && e.key === 'Escape') close(); });
+  go.addEventListener('click', function() {
+    go.disabled = true;
+    st.textContent = '消しています...';
+    fetch(go.getAttribute('data-endpoint'), { method: 'POST', headers: { accept: 'application/json' }, cache: 'no-store', credentials: 'same-origin' })
+      .then(function(r) { return r.json().catch(function(){ return {}; }).then(function(j) { if (!r.ok || (j && j.ok === false)) throw new Error('failed'); st.textContent = '消しました。'; setTimeout(function(){ window.location.href = go.getAttribute('data-next'); }, 600); }); })
+      .catch(function() { st.textContent = '消せませんでした。もう一度お試しください。'; go.disabled = false; });
+  });
+})();
+</script>`;
+
+function renderPhotoLightbox(hasPhotos: boolean, copy: ObservationFirstRecordDetailCopy, owner = false, lang: ObservationRecordLang = "ja"): string {
   if (!hasPhotos) return "";
-  return `<div class="of-lightbox" data-of-lightbox role="dialog" aria-modal="true" aria-label="${escapeHtml(copy.enlargePhoto)}" hidden><button type="button" class="of-lightbox-toggle" data-of-lightbox-toggle data-zoom-actual="${escapeHtml(copy.zoomActual)}" data-zoom-fit="${escapeHtml(copy.zoomFit)}" aria-pressed="false">${escapeHtml(copy.zoomActual)}</button><button type="button" class="of-lightbox-close" data-of-lightbox-close aria-label="${escapeHtml(copy.closeZoom)}">✕ ${escapeHtml(copy.closeZoom)}</button><div class="of-lightbox-inner" data-of-lightbox-inner><img class="of-lightbox-img is-fit" data-of-lightbox-img alt=""></div></div>`;
+  return `<div class="of-lightbox" data-of-lightbox role="dialog" aria-modal="true" aria-label="${escapeHtml(copy.enlargePhoto)}" hidden><button type="button" class="of-lightbox-toggle" data-of-lightbox-toggle data-zoom-actual="${escapeHtml(copy.zoomActual)}" data-zoom-fit="${escapeHtml(copy.zoomFit)}" aria-pressed="false">${escapeHtml(copy.zoomActual)}</button><button type="button" class="of-lightbox-close" data-of-lightbox-close aria-label="${escapeHtml(copy.closeZoom)}">✕ ${escapeHtml(copy.closeZoom)}</button><button type="button" class="of-lb-nav of-lb-prev" data-of-lb-prev aria-label="前の写真" hidden>‹</button><button type="button" class="of-lb-nav of-lb-next" data-of-lb-next aria-label="次の写真" hidden>›</button><div class="of-lb-foot" data-of-lb-foot><span data-of-lb-count></span>${owner && lang === "ja" ? `<a class="of-lb-edit" href="#of-manage-body" data-of-open="manage" data-of-lb-edit>編集</a>` : ""}</div><div class="of-lightbox-inner" data-of-lightbox-inner><img class="of-lightbox-img is-fit" data-of-lightbox-img alt=""></div></div>`;
 }
 
 function renderPhotoLightboxScript(hasPhotos: boolean): string {
@@ -220,6 +245,33 @@ function renderPhotoLightboxScript(hasPhotos: boolean): string {
   var closeBtn = lb.querySelector('[data-of-lightbox-close]');
   if (!inner || !img || !toggle || !closeBtn) return;
   var lastTrigger = null;
+  var prevBtn = lb.querySelector('[data-of-lb-prev]');
+  var nextBtn = lb.querySelector('[data-of-lb-next]');
+  var countEl = lb.querySelector('[data-of-lb-count]');
+  var editLink = lb.querySelector('[data-of-lb-edit]');
+  var list = [];
+  var idx = 0;
+  function collect() {
+    var seen = {};
+    list = [];
+    Array.prototype.forEach.call(document.querySelectorAll('[data-of-photo-trigger]'), function(t) {
+      var u = t.getAttribute('data-of-photo-src') || t.getAttribute('href');
+      if (!u || seen[u]) return;
+      seen[u] = 1;
+      list.push({ src: u, alt: t.getAttribute('data-of-photo-alt') || '', el: t });
+    });
+  }
+  function show(i) {
+    if (!list.length) return;
+    idx = (i + list.length) % list.length;
+    img.src = list[idx].src;
+    img.alt = list[idx].alt;
+    setActual(false);
+    var multi = list.length > 1;
+    if (prevBtn) prevBtn.hidden = !multi;
+    if (nextBtn) nextBtn.hidden = !multi;
+    if (countEl) countEl.textContent = multi ? (idx + 1) + ' / ' + list.length : '';
+  }
   var drag = null;
   var dragged = false;
   function setActual(actual) {
@@ -230,9 +282,11 @@ function renderPhotoLightboxScript(hasPhotos: boolean): string {
   }
   function open(src, alt, trigger) {
     lastTrigger = trigger || null;
-    img.src = src;
-    img.alt = alt || '';
-    setActual(false);
+    collect();
+    var at = -1;
+    for (var k = 0; k < list.length; k++) { if (list[k].src === src) { at = k; break; } }
+    if (at < 0) { list.unshift({ src: src, alt: alt || '', el: trigger }); at = 0; }
+    show(at);
     lb.hidden = false;
     document.documentElement.style.overflow = 'hidden';
     closeBtn.focus();
@@ -255,6 +309,17 @@ function renderPhotoLightboxScript(hasPhotos: boolean): string {
   });
   toggle.addEventListener('click', function() { setActual(!img.classList.contains('is-actual')); });
   closeBtn.addEventListener('click', close);
+  if (prevBtn) prevBtn.addEventListener('click', function(e) { e.stopPropagation(); show(idx - 1); });
+  if (nextBtn) nextBtn.addEventListener('click', function(e) { e.stopPropagation(); show(idx + 1); });
+  if (editLink) editLink.addEventListener('click', function() { lastTrigger = null; close(); });
+  var sx = null;
+  lb.addEventListener('touchstart', function(e) { sx = e.touches.length === 1 && !img.classList.contains('is-actual') ? e.touches[0].clientX : null; }, { passive: true });
+  lb.addEventListener('touchend', function(e) {
+    if (sx === null || list.length < 2) return;
+    var dx = e.changedTouches[0].clientX - sx;
+    sx = null;
+    if (Math.abs(dx) > 48) show(dx < 0 ? idx + 1 : idx - 1);
+  }, { passive: true });
   lb.addEventListener('click', function(e) {
     if (e.target === lb || e.target === inner) close();
   });
@@ -288,6 +353,8 @@ function renderPhotoLightboxScript(hasPhotos: boolean): string {
   document.addEventListener('keydown', function(e) {
     if (lb.hidden) return;
     if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); show(idx - 1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); show(idx + 1); }
   });
 })();
 </script>`;
@@ -1354,7 +1421,7 @@ export function renderObservationFirstRecordDetailHtml(
     : "";
 
   const mediaStage = renderRecordMedia(media, title, copy, heroOverlay);
-  const photoLightbox = renderPhotoLightbox(hasPhotos, copy);
+  const photoLightbox = renderPhotoLightbox(hasPhotos, copy, detail.owner, lang);
   const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
   const aiFeedback = renderAiFeedback(detail, presentation, copy, Boolean(recordPageSections?.some((section) => section.found.some((item) => item.kind === "feature"))));
   const environment = recordPageSections ? renderPerMediaPlace(recordPageSections, presentation.environment, copy, ie) : renderEnvironment(presentation.environment, copy, ie);
@@ -1455,6 +1522,14 @@ export function renderObservationFirstRecordDetailHtml(
     : presentation.viewerAuthenticated
       ? (canEditNames ? `<div class="of-bottom-actions">${openLink("of-cta", copy.suggestReading)}</div>` : "")
       : `<div class="of-bottom-actions"><a class="of-login-proposal" href="${escapeHtml(loginHref)}">${escapeHtml(copy.loginCta)}</a><p class="of-cta-note">${escapeHtml(copy.loginCtaNote)}</p></div>`;
+  const deleteEntry = detail.owner && lang === "ja"
+    ? `<div class="of-delete-entry"><button type="button" class="of-delete-open" data-of-delete-open>この記録を消す</button></div><div class="of-delete-dialog" data-of-delete-dialog hidden><div class="of-delete-card" role="alertdialog" aria-modal="true" aria-labelledby="of-delete-title" aria-describedby="of-delete-desc"><h2 id="of-delete-title">この記録を消しますか?</h2><p id="of-delete-desc">この記録は一覧と公開ページから見えなくなります。写真は監査のために保管され、ほかの人には表示されません。</p><p class="of-delete-status" data-of-delete-status role="status" aria-live="polite"></p><button type="button" class="of-delete-go" data-of-delete-go data-endpoint="${escapeHtml(`/api/v1/observations/${encodeURIComponent(detail.recordId)}/hide`)}" data-next="/ja/records?view=mine">消す</button><button type="button" class="of-delete-cancel" data-of-delete-cancel>やめる</button></div></div>`
+    : "";
+  const posterName = presentation.posterName?.trim() ?? "";
+  const placeCardInner = `<small>場所</small><strong>${escapeHtml(publicLocation)}</strong>`;
+  const otherHeader = !detail.owner && lang === "ja" && (posterName || presentation.placeHref)
+    ? `<div class="of-other-head">${posterName ? `<p class="of-poster"><span class="of-poster-avatar" aria-hidden="true">${escapeHtml(Array.from(posterName)[0] ?? "")}</span><strong>${escapeHtml(posterName)}</strong></p>` : ""}${presentation.placeHref ? `<a class="of-place-card" href="${escapeHtml(presentation.placeHref)}">${placeCardInner}<span aria-hidden="true">›</span></a>` : ""}</div>`
+    : "";
   const readingInner = `${summary.reading}${comparison}${capture}${publicationReturn}${presentation.nocosilUsageHtml ?? ""}`;
   const reading = readingInner
     ? `<details class="of-reading${canEditNames ? " is-linked" : ""}" id="of-reading"><summary>${escapeHtml(copy.readingDetails)}</summary><div class="of-reading-body" id="of-reading-body">${readingInner}</div></details>`
@@ -1503,5 +1578,8 @@ export function renderObservationFirstRecordDetailHtml(
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .of-ai-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:#55635b;text-align:left}.of-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.of-title-edit{display:inline-block}.of-title-edit summary{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:750;color:var(--green);cursor:pointer;list-style:none}.of-title-edit summary::-webkit-details-marker{display:none}.of-title-edit form{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.of-title-edit input{flex:1 1 220px;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-title-edit button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800;cursor:pointer}
   ${RECORD_PAGE_STYLES}${recordPageSections ? PER_MEDIA_STYLES : ""}${ie ? INLINE_EDIT_STYLES : ""}${(readerModesEnabled || speciesLayerActive) ? RECORD_READER_MODES_STYLES : ""}
-  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta">${observedBlock}${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${visibilityEdit}${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${readerModesHtml}${speciesReaderLayerHtml}${aiCoarseBlock}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript(Boolean(recordPageSections), ie !== null)}${readerModesScript}</body></html>`;
+.of-lb-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;min-width:44px;min-height:44px;width:48px;height:48px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:28px;line-height:1;cursor:pointer}.of-lb-nav[hidden]{display:none}.of-lb-prev{left:8px}.of-lb-next{right:8px}.of-lb-foot{position:fixed;left:0;right:0;bottom:0;z-index:3;display:flex;justify-content:center;align-items:center;gap:16px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));color:#fff;font-size:14px;pointer-events:none}.of-lb-edit{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;padding:0 18px;border-radius:999px;background:#fff;color:#143F2E;font-weight:700;text-decoration:none;white-space:nowrap}
+  .of-other-head{display:grid;gap:10px;margin:12px 0}.of-poster{display:flex;align-items:center;gap:10px;margin:0}.of-poster-avatar{width:32px;height:32px;border-radius:50%;background:#143F2E;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px}.of-place-card{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:56px;padding:8px 14px;border:1px solid #dfe4dd;border-radius:12px;background:#F7F7F3;color:#17211B;text-decoration:none}.of-place-card small{display:block;color:#55615A;font-size:12px}.of-place-card strong{font-size:14px}
+  .of-delete-entry{margin:20px 0 8px;text-align:center}.of-delete-open{min-height:44px;padding:0 16px;border:0;background:none;color:#B3261E;font-size:14px;text-decoration:underline;cursor:pointer;white-space:nowrap}.of-delete-dialog[hidden]{display:none}.of-delete-dialog{position:fixed;inset:0;z-index:130;background:rgba(8,12,20,.6);display:flex;align-items:flex-end;justify-content:center;padding:16px}.of-delete-card{width:100%;max-width:420px;background:#fff;color:#17211B;border-radius:16px;padding:20px;display:grid;gap:12px}.of-delete-card h2{margin:0;font-size:18px}.of-delete-card p{margin:0;font-size:14px;color:#55615A;line-height:1.7}.of-delete-go,.of-delete-cancel{min-height:48px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;white-space:nowrap}.of-delete-go{border:0;background:#B3261E;color:#fff}.of-delete-cancel{border:1px solid #cfd6cf;background:#fff;color:#17211B}.of-delete-go:disabled{opacity:.6}
+  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta">${observedBlock}${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${otherHeader}${visibilityEdit}${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${readerModesHtml}${speciesReaderLayerHtml}${aiCoarseBlock}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${deleteEntry}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${deleteEntry ? deleteDialogScript : ""}${renderRecordPageScript(Boolean(recordPageSections), ie !== null)}${readerModesScript}</body></html>`;
 }
