@@ -2,7 +2,7 @@ import { withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, type SiteLang } from "../i18n.js";
 import { MAPLIBRE_SELF_HOSTED_CSS_PATH, MAPLIBRE_SELF_HOSTED_JS_PATH } from "./mapExplorerAssetPaths.js";
 
-const MAP_STANDARD_STYLE_URL = "https://tiles.openfreemap.org/planet";
+const MAP_STANDARD_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 
 function escapeHtml(value: string | null | undefined): string {
   return String(value ?? "")
