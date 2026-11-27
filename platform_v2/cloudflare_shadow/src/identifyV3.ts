@@ -89,17 +89,21 @@ const ICONS = {
   swap: svgIcon('<path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/>'),
 };
 
-function jstMonthDayTimeLabel(iso: string): string {
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+function jstMonthDayTimeLabel(iso: string, en = false): string {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return iso.slice(0, 10);
   const jst = new Date(ms + 9 * 60 * 60 * 1000);
+  if (en) return `${MONTHS_EN[jst.getUTCMonth()]} ${jst.getUTCDate()}, ${jst.getUTCHours()}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
   return `${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日 ${jst.getUTCHours()}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
 }
 
-function jstMonthDayLabel(iso: string): string {
+function jstMonthDayLabel(iso: string, en = false): string {
   const ms = Date.parse(iso);
   if (!Number.isFinite(ms)) return iso.slice(0, 10);
   const jst = new Date(ms + 9 * 60 * 60 * 1000);
+  if (en) return `${MONTHS_EN[jst.getUTCMonth()]} ${jst.getUTCDate()}`;
   return `${jst.getUTCMonth() + 1}月${jst.getUTCDate()}日`;
 }
 
@@ -160,11 +164,12 @@ function computeStatusFromVotes(
   humanVotes: Array<{ actorUserId: string; proposedName: string; actorName?: string }>,
   openDisputeCount: number,
   hasAi: boolean,
+  en = false,
 ): { statusWord: IdentifyStatusWord; summaryText: string; agreedName: string | null } {
   if (humanVotes.length === 0) {
     return {
       statusWord: "AIの読み取り",
-      summaryText: hasAi ? "まだ、ほかの人の賛成はありません" : "まだ名前の手がかりがありません",
+      summaryText: en ? (hasAi ? "No one else has agreed yet" : "No clues to a name yet") : (hasAi ? "まだ、ほかの人の賛成はありません" : "まだ名前の手がかりがありません"),
       agreedName: null,
     };
   }
@@ -183,20 +188,20 @@ function computeStatusFromVotes(
   if (distinctTotal >= 2 && top[1].count * 3 >= distinctTotal * 2 && openDisputeCount === 0) {
     return {
       statusWord: "確認済み",
-      summaryText: `${top[0]}で、確認済みになりました`,
+      summaryText: en ? `Confirmed as ${top[0]}` : `${top[0]}で、確認済みになりました`,
       agreedName: top[0],
     };
   }
   if (openDisputeCount > 0) {
     return {
       statusWord: "人の提案",
-      summaryText: `証拠の確認や別候補の意見が${openDisputeCount}件あります`,
+      summaryText: en ? `${openDisputeCount} open ${openDisputeCount === 1 ? "question" : "questions"} about the evidence or other candidates` : `証拠の確認や別候補の意見が${openDisputeCount}件あります`,
       agreedName: top[0],
     };
   }
   return {
     statusWord: "人の提案",
-    summaryText: `${top[0]}に賛成${top[1].count}人。あと${Math.max(1, 2 - top[1].count)}人の賛成で、確認済みになります`,
+    summaryText: en ? `${top[1].count} ${top[1].count === 1 ? "person agrees" : "people agree"} on ${top[0]}. ${Math.max(1, 2 - top[1].count)} more to confirm` : `${top[0]}に賛成${top[1].count}人。あと${Math.max(1, 2 - top[1].count)}人の賛成で、確認済みになります`,
     agreedName: top[0],
   };
 }
@@ -208,7 +213,8 @@ export async function loadIdentifyV3WorkspaceData(
 ): Promise<IdentifyV3WorkspaceData> {
   const view: IdentifyV3View = options.view ?? "feed";
   const lang: Lang = options.lang ?? "ja";
-  const displayName = options.displayName ?? "メンバー";
+  const displayName = options.displayName ?? (lang === "ja" ? "メンバー" : "Member");
+  const en = lang !== "ja";
   const offset = Math.max(0, Number(options.cursor ?? 0) || 0);
 
   // 1. Load user skills & dismissals from CORE_DB user_saved_items (`identify_v3_skill`)
@@ -367,7 +373,7 @@ export async function loadIdentifyV3WorkspaceData(
     );
     const votes = votesByOcc.get(row.observation_id) ?? [];
     const disp = disputesByOcc.get(row.observation_id) ?? { openCount: 0, hasInsufficientEvidence: false };
-    const consensus = computeStatusFromVotes(votes, disp.openCount, aiCandidates.length > 0);
+    const consensus = computeStatusFromVotes(votes, disp.openCount, aiCandidates.length > 0, en);
     const primaryTaxonLabel = aiCandidates[0]?.name ?? row.taxon_label ?? majorGroup;
     const evalRes = evaluateConfirmationRules({
       targetTaxon: primaryTaxonLabel,
@@ -402,7 +408,7 @@ export async function loadIdentifyV3WorkspaceData(
     const itemInput: IdentifyFeedCandidateInput = {
       observationId: row.observation_id,
       observedAt: row.observed_at,
-      ownerDisplayName: "記録者",
+      ownerDisplayName: en ? "Recorder" : "記録者",
       aiMajorGroup: majorGroup,
       aiCandidates,
       humanProposals,
@@ -427,20 +433,20 @@ export async function loadIdentifyV3WorkspaceData(
       try {
         holdMeta = JSON.parse(hold.source_payload_json) as typeof holdMeta;
       } catch {}
-      const topName = consensus.agreedName ?? aiCandidates[0]?.name ?? row.taxon_label ?? "名前はまだ決まっていません";
+      const topName = consensus.agreedName ?? aiCandidates[0]?.name ?? row.taxon_label ?? (en ? "Name not decided yet" : "名前はまだ決まっていません");
       const node = findTaxonNode(topName) ?? findTaxonNode(majorGroup);
       const savedCard: IdentifyV3SavedItem = {
         occurrenceId: row.observation_id,
         photoUrl,
-        currentTitle: consensus.statusWord === "AIの読み取り" ? `${topName}（AIの読み取り）` : topName,
+        currentTitle: consensus.statusWord === "AIの読み取り" ? (en ? `${topName} (AI reading)` : `${topName}（AIの読み取り）`) : topName,
         statusWord: consensus.statusWord,
-        ownerDisplayName: "記録者",
+        ownerDisplayName: en ? "Recorder" : "記録者",
         locationText: loc.text,
-        observedDateLabel: jstMonthDayLabel(row.observed_at),
+        observedDateLabel: jstMonthDayLabel(row.observed_at, en),
         savedCandidateName: holdMeta.savedCandidateName ?? aiCandidates[0]?.name ?? null,
-        savedAtLabel: jstMonthDayLabel(holdMeta.savedAt ?? hold.updated_at),
+        savedAtLabel: jstMonthDayLabel(holdMeta.savedAt ?? hold.updated_at, en),
         settledByActorName: null,
-        settledReason: consensus.statusWord === "確認済み" ? "ほかの人の根拠つきの提案で決まりました。" : null,
+        settledReason: consensus.statusWord === "確認済み" ? (en ? "Settled by another person's proposal with evidence." : "ほかの人の根拠つきの提案で決まりました。") : null,
         taxonNodeKey: node?.key ?? majorGroup,
         stateSummary: consensus.summaryText,
       };
@@ -558,28 +564,30 @@ ${ZUKAN_SHELL_CSS}
 .id3-expert .id3-ebtn{display:flex;align-items:center;justify-content:center;width:100%;border:1.5px solid #143f2e;color:#143f2e;font-size:15px;font-weight:700;border-radius:12px;min-height:48px;background:#fff;margin-top:10px;cursor:pointer}
 `;
 
-export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[]): string {
+export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[], lang: Lang = "ja"): string {
+  const en = lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   return items
     .map((ranked, index) => {
       const obs = ranked.observation;
       const topCand = obs.aiCandidates[0] ?? null;
-      const topCandName = topCand?.name ?? "この生きもの";
+      const topCandName = topCand?.name ?? t("この生きもの", "this species");
       const thumbAttr = obs.photoUrl ? esc(obs.photoUrl) : "";
       const cardsHtml = obs.aiCandidates
         .slice(0, 3)
         .map((cand, cIdx) => {
           const isMain = cIdx === 0;
-          const evText = cand.visualEvidence[0] ? `見分ける点：${esc(cand.visualEvidence[0])}` : "";
+          const evText = cand.visualEvidence[0] ? `${t("見分ける点：", "Key feature: ")}${esc(cand.visualEvidence[0])}` : "";
           const prop = obs.humanProposals.find((p) => p.proposedName === cand.name);
           const fromText = prop
-            ? `AIの読み取り ・ <b>${prop.count}人が賛成しています</b>`
+            ? (en ? `AI reading · <b>${prop.count} ${prop.count === 1 ? "person agrees" : "people agree"}</b>` : `AIの読み取り ・ <b>${prop.count}人が賛成しています</b>`)
             : cand.rankOrder >= 2
-              ? `AIの読み取り（${cand.rankOrder}番目の候補）`
-              : "AIの読み取り";
+              ? (en ? `AI reading (candidate #${cand.rankOrder})` : `AIの読み取り（${cand.rankOrder}番目の候補）`)
+              : t("AIの読み取り", "AI reading");
           return `<div class="id3-fcand">
             <div class="id3-fcand-row">
               <div><div class="id3-fname">${esc(cand.name)}</div>${cand.scientificName ? `<div class="id3-fsci">${esc(cand.scientificName)}</div>` : ""}</div>
-              <button type="button" class="id3-agree${isMain ? " main" : ""}" data-id3-agree="${esc(obs.observationId)}" data-candidate-name="${esc(cand.name)}" data-candidate-rank="${esc(cand.rank)}">${isMain ? ICONS.check : ""}賛成する</button>
+              <button type="button" class="id3-agree${isMain ? " main" : ""}" data-id3-agree="${esc(obs.observationId)}" data-candidate-name="${esc(cand.name)}" data-candidate-rank="${esc(cand.rank)}">${isMain ? ICONS.check : ""}${t("賛成する", "Agree")}</button>
             </div>
             ${evText ? `<div class="id3-fdiff">${evText}</div>` : ""}
             <div class="id3-ffrom">${fromText}</div>
@@ -588,67 +596,67 @@ export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[]): s
         .join("");
 
       const statusLabel = obs.confirmedWithObjection
-        ? `確認済み（異議あり）・研究公開停止中`
+        ? t("確認済み（異議あり）・研究公開停止中", "Confirmed (with objection) · research sharing paused")
         : obs.humanProposals.length > 0
-          ? `${esc(obs.humanProposals[0]!.proposedName)}に賛成${obs.humanProposals[0]!.count}人。あと${Math.max(1, 2 - obs.humanProposals[0]!.count)}人の賛成で、確認済みになります`
-          : "まだ、ほかの人の賛成はありません";
+          ? (en ? `${obs.humanProposals[0]!.count} ${obs.humanProposals[0]!.count === 1 ? "person agrees" : "people agree"} on ${esc(obs.humanProposals[0]!.proposedName)}. ${Math.max(1, 2 - obs.humanProposals[0]!.count)} more to confirm` : `${esc(obs.humanProposals[0]!.proposedName)}に賛成${obs.humanProposals[0]!.count}人。あと${Math.max(1, 2 - obs.humanProposals[0]!.count)}人の賛成で、確認済みになります`)
+          : t("まだ、ほかの人の賛成はありません", "No one else has agreed yet");
 
       const badgeHtml = [
         obs.splitReasonTag ? `<span class="id3-tag-reason">${esc(obs.splitReasonTag)}</span>` : "",
-        obs.needsInquiry ? `<span class="id3-tag-reason">要照会</span>` : "",
-        obs.escalatedOneRankUp ? `<span class="id3-tag-reason">14日無判断・一段上へ</span>` : "",
+        obs.needsInquiry ? `<span class="id3-tag-reason">${t("要照会", "Needs review")}</span>` : "",
+        obs.escalatedOneRankUp ? `<span class="id3-tag-reason">${t("14日無判断・一段上へ", "No decision in 14 days · escalated")}</span>` : "",
       ].filter(Boolean).join(" ");
 
       const expertBoxHtml = obs.canConfirmScoped
         ? `<div class="id3-expert" data-id3-expert="${esc(obs.observationId)}">
-            <div class="id3-et">あなたは、${esc(topCandName)}の範囲を確認できます</div>
-            <div class="id3-eb">形質・写真の場所・見える／見えないの根拠を添えると、1人で確認済みにできます。</div>
-            <button type="button" class="id3-ebtn" data-id3-expert-confirm-open="${esc(obs.observationId)}">根拠を添えて確定する</button>
+            <div class="id3-et">${en ? `You can confirm within the ${esc(topCandName)} range` : `あなたは、${esc(topCandName)}の範囲を確認できます`}</div>
+            <div class="id3-eb">${t("形質・写真の場所・見える／見えないの根拠を添えると、1人で確認済みにできます。", "Add the trait, the part of the photo, and whether it is visible, and you can confirm this on your own.")}</div>
+            <button type="button" class="id3-ebtn" data-id3-expert-confirm-open="${esc(obs.observationId)}">${t("根拠を添えて確定する", "Confirm with evidence")}</button>
           </div>`
         : "";
 
       return `<article class="id3-card" data-id3-card="${esc(obs.observationId)}" data-top-name="${esc(topCandName)}" data-thumb="${thumbAttr}" data-index="${index}">
         <div class="id3-ghead"><h2>${esc(ranked.matchedNodeLabel)}</h2></div>
         <div class="id3-classband">
-          <span>AIの分類：<b>${esc(findTaxonNode(obs.aiMajorGroup)?.labelJa ?? obs.aiMajorGroup)}</b>（仮説）${ranked.isLowConfidenceCandidateMatch ? " ・ 候補に入っています（下位の候補です）" : ""}${badgeHtml ? ` ${badgeHtml}` : ""}</span>
+          <span>${t("AIの分類：", "AI classification: ")}<b>${esc(findTaxonNode(obs.aiMajorGroup)?.labelJa ?? obs.aiMajorGroup)}</b>${t("（仮説）", " (hypothesis)")}${ranked.isLowConfidenceCandidateMatch ? t(" ・ 候補に入っています（下位の候補です）", " · Listed as a lower-ranked candidate") : ""}${badgeHtml ? ` ${badgeHtml}` : ""}</span>
         </div>
-        ${obs.photoUrl ? `<div class="id3-photo"><img src="${esc(obs.photoUrl)}" alt="${esc(topCandName)}の写真" loading="lazy"></div>` : ""}
-        <div class="id3-sumline"><span>${esc(obs.ownerDisplayName)}さんの記録 ・ ${esc(obs.locationText ?? "場所の情報なし")} ・ ${esc(jstMonthDayTimeLabel(obs.observedAt))}</span></div>
+        ${obs.photoUrl ? `<div class="id3-photo"><img src="${esc(obs.photoUrl)}" alt="${en ? `Photo of ${esc(topCandName)}` : `${esc(topCandName)}の写真`}" loading="lazy"></div>` : ""}
+        <div class="id3-sumline"><span>${en ? `${esc(obs.ownerDisplayName)}'s record` : `${esc(obs.ownerDisplayName)}さんの記録`} ・ ${esc(obs.locationText ?? t("場所の情報なし", "No location info"))} ・ ${esc(jstMonthDayTimeLabel(obs.observedAt, en))}</span></div>
         ${obs.areaNote ? `<div class="id3-gwhy">${esc(obs.areaNote)}</div>` : ""}
         ${obs.needsInquiry && obs.outlierReasons?.length ? `<div class="id3-gwhy" style="color:#8a4b00">${esc(obs.outlierReasons.join(" / "))}</div>` : ""}
         ${cardsHtml}
-        <button type="button" class="id3-vrow" data-id3-voice-open="${esc(obs.observationId)}">${ICONS.mic}声で理由を添える<span class="id3-vs">任意・根拠入力</span></button>
+        <button type="button" class="id3-vrow" data-id3-voice-open="${esc(obs.observationId)}">${ICONS.mic}${t("声で理由を添える", "Add a reason by voice")}<span class="id3-vs">${t("任意・根拠入力", "Optional")}</span></button>
         <div class="id3-voicebox" data-id3-voicebox="${esc(obs.observationId)}" hidden>
-          <div class="id3-gwhy">形質・写真の箇所・見える／見えないを選び、話した内容を確認・修正して残します。</div>
-          <div class="id3-partchips" role="group" aria-label="形質選択">
-            <button type="button" class="id3-partchip on" data-id3-trait="頭・顔の模様">頭・顔の模様</button>
-            <button type="button" class="id3-partchip" data-id3-trait="くちばし・口元">くちばし・口元</button>
-            <button type="button" class="id3-partchip" data-id3-trait="羽・体の色">羽・体の色</button>
-            <button type="button" class="id3-partchip" data-id3-trait="大きさ・形">大きさ・形</button>
+          <div class="id3-gwhy">${t("形質・写真の箇所・見える／見えないを選び、話した内容を確認・修正して残します。", "Pick the trait, the part of the photo, and whether it is visible, then review and edit what you said before saving.")}</div>
+          <div class="id3-partchips" role="group" aria-label="${t("形質選択", "Trait")}">
+            <button type="button" class="id3-partchip on" data-id3-trait="頭・顔の模様">${t("頭・顔の模様", "Head and face pattern")}</button>
+            <button type="button" class="id3-partchip" data-id3-trait="くちばし・口元">${t("くちばし・口元", "Bill or mouth")}</button>
+            <button type="button" class="id3-partchip" data-id3-trait="羽・体の色">${t("羽・体の色", "Feather or body color")}</button>
+            <button type="button" class="id3-partchip" data-id3-trait="大きさ・形">${t("大きさ・形", "Size and shape")}</button>
           </div>
-          <div class="id3-partchips" role="group" aria-label="写真の箇所">
-            <button type="button" class="id3-partchip on" data-id3-part="全体の姿">全体の姿</button>
-            <button type="button" class="id3-partchip" data-id3-part="頭・顔">頭・顔</button>
-            <button type="button" class="id3-partchip" data-id3-part="羽・背中">羽・背中</button>
-            <button type="button" class="id3-partchip" data-id3-part="腹・足">腹・足</button>
+          <div class="id3-partchips" role="group" aria-label="${t("写真の箇所", "Part of photo")}">
+            <button type="button" class="id3-partchip on" data-id3-part="全体の姿">${t("全体の姿", "Whole body")}</button>
+            <button type="button" class="id3-partchip" data-id3-part="頭・顔">${t("頭・顔", "Head and face")}</button>
+            <button type="button" class="id3-partchip" data-id3-part="羽・背中">${t("羽・背中", "Wings and back")}</button>
+            <button type="button" class="id3-partchip" data-id3-part="腹・足">${t("腹・足", "Belly and legs")}</button>
           </div>
-          <div class="id3-partchips" role="group" aria-label="見えるか">
-            <button type="button" class="id3-partchip on" data-id3-vis="見える">見える</button>
-            <button type="button" class="id3-partchip" data-id3-vis="見えない">見えない</button>
+          <div class="id3-partchips" role="group" aria-label="${t("見えるか", "Visible or not")}">
+            <button type="button" class="id3-partchip on" data-id3-vis="見える">${t("見える", "Visible")}</button>
+            <button type="button" class="id3-partchip" data-id3-vis="見えない">${t("見えない", "Not visible")}</button>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button type="button" class="id3-partchip" data-id3-speech-start="${esc(obs.observationId)}">${ICONS.mic} 声で入力</button>
+            <button type="button" class="id3-partchip" data-id3-speech-start="${esc(obs.observationId)}">${ICONS.mic} ${t("声で入力", "Speak")}</button>
             <span class="id3-gwhy" data-id3-speech-status="${esc(obs.observationId)}"></span>
           </div>
-          <textarea data-id3-voice-text="${esc(obs.observationId)}" placeholder="見分ける理由を書いて確認します"></textarea>
-          <button type="button" class="id3-agree main" data-id3-voice-submit="${esc(obs.observationId)}" data-candidate-name="${esc(topCandName)}">確認して「${esc(topCandName)}」に添える</button>
-          ${obs.canConfirmScoped ? `<button type="button" class="id3-agree" data-id3-expert-submit="${esc(obs.observationId)}" data-candidate-name="${esc(topCandName)}">この根拠で確定する</button>` : ""}
+          <textarea data-id3-voice-text="${esc(obs.observationId)}" placeholder="${t("見分ける理由を書いて確認します", "Write why you can tell, then review")}"></textarea>
+          <button type="button" class="id3-agree main" data-id3-voice-submit="${esc(obs.observationId)}" data-candidate-name="${esc(topCandName)}">${en ? `Review and add to "${esc(topCandName)}"` : `確認して「${esc(topCandName)}」に添える`}</button>
+          ${obs.canConfirmScoped ? `<button type="button" class="id3-agree" data-id3-expert-submit="${esc(obs.observationId)}" data-candidate-name="${esc(topCandName)}">${t("この根拠で確定する", "Confirm with this evidence")}</button>` : ""}
         </div>
-        <div class="id3-sumline"><span>確認の状態：${statusLabel}</span></div>
+        <div class="id3-sumline"><span>${t("確認の状態：", "Status: ")}${statusLabel}</span></div>
         ${expertBoxHtml}
         <div class="id3-blockend">
-          <button type="button" class="id3-be" data-id3-delegate="${esc(obs.observationId)}">${ICONS.users}ほかの人にまかせる</button>
-          <button type="button" class="id3-be" data-id3-undetermined="${esc(obs.observationId)}">${ICONS.photoHelp}この写真では決められない</button>
+          <button type="button" class="id3-be" data-id3-delegate="${esc(obs.observationId)}">${ICONS.users}${t("ほかの人にまかせる", "Leave it to others")}</button>
+          <button type="button" class="id3-be" data-id3-undetermined="${esc(obs.observationId)}">${ICONS.photoHelp}${t("この写真では決められない", "Cannot tell from this photo")}</button>
         </div>
       </article>`;
     })
@@ -656,6 +664,8 @@ export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[]): s
 }
 
 function renderSkillsViewBody(data: IdentifyV3WorkspaceData): string {
+  const en = data.lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const majors = TAXON_TREE.filter((n) => n.level === "major");
   const childrenMap = new Map<string, typeof TAXON_TREE[number][]>();
   for (const n of TAXON_TREE) {
@@ -666,10 +676,10 @@ function renderSkillsViewBody(data: IdentifyV3WorkspaceData): string {
   }
 
   const levels: Array<{ key: SkillDeclarationLevel; label: string }> = [
-    { key: "expert", label: "くわしい" },
-    { key: "general", label: "全般わかる" },
-    { key: "some", label: "わかるものもある" },
-    { key: "none", label: "流さない" },
+    { key: "expert", label: t("くわしい", "Expert") },
+    { key: "general", label: t("全般わかる", "General") },
+    { key: "some", label: t("わかるものもある", "Some") },
+    { key: "none", label: t("流さない", "Hide") },
   ];
 
   const blocks = majors
@@ -684,7 +694,7 @@ function renderSkillsViewBody(data: IdentifyV3WorkspaceData): string {
         .join("");
       const subNodes = (childrenMap.get(m.key) ?? []).flatMap((ch) => [ch, ...(childrenMap.get(ch.key) ?? [])]);
       const fineHtml = subNodes.length
-        ? `<details style="margin-top:8px"><summary class="id3-gwhy" style="cursor:pointer">仲間・種類ごとに分ける（${subNodes.length}件）</summary><div class="id3-fine">${subNodes
+        ? `<details style="margin-top:8px"><summary class="id3-gwhy" style="cursor:pointer">${en ? `Split by group or species (${subNodes.length})` : `仲間・種類ごとに分ける（${subNodes.length}件）`}</summary><div class="id3-fine">${subNodes
             .map((sub) => {
               const sLevel = resolveNodeSkillLevel(sub.key, data.skills);
               const sOpts = levels
@@ -699,51 +709,53 @@ function renderSkillsViewBody(data: IdentifyV3WorkspaceData): string {
         : "";
       const suggest = data.promotionSuggestions.find((s) => s.taxonNodeKey === m.key);
       const suggestHtml = suggest
-        ? `<div class="id3-suggest"><div>${esc(suggest.label)}では、あなたの同定が${suggest.confirmedCount}件確認済みになっています。「くわしい」に変えると、${esc(suggest.label)}の記録が先に流れます。</div><div style="display:flex;gap:18px;margin-top:8px"><button type="button" class="id3-undo" data-id3-promote-node="${esc(m.key)}">くわしいに変える</button><button type="button" class="id3-undo" style="color:#55615a" data-id3-keep-node="${esc(m.key)}">このままにする</button></div></div>`
+        ? `<div class="id3-suggest"><div>${en ? `${suggest.confirmedCount} of your IDs for ${esc(suggest.label)} have been confirmed. Switch to "Expert" to see ${esc(suggest.label)} records first.` : `${esc(suggest.label)}では、あなたの同定が${suggest.confirmedCount}件確認済みになっています。「くわしい」に変えると、${esc(suggest.label)}の記録が先に流れます。`}</div><div style="display:flex;gap:18px;margin-top:8px"><button type="button" class="id3-undo" data-id3-promote-node="${esc(m.key)}">${t("くわしいに変える", "Switch to Expert")}</button><button type="button" class="id3-undo" style="color:#55615a" data-id3-keep-node="${esc(m.key)}">${t("このままにする", "Keep as is")}</button></div></div>`
         : "";
-      return `<div class="id3-skill"><div class="id3-sname">${esc(m.labelJa)}</div>${fact ? `<div class="id3-sfact">これまで<b>${fact}件</b>の同定が確認済みになっています。</div>` : ""}<div class="id3-opts4">${opts}</div>${fineHtml}${suggestHtml}</div>`;
+      return `<div class="id3-skill"><div class="id3-sname">${esc(m.labelJa)}</div>${fact ? `<div class="id3-sfact">${en ? `<b>${fact}</b> of your IDs have been confirmed so far.` : `これまで<b>${fact}件</b>の同定が確認済みになっています。`}</div>` : ""}<div class="id3-opts4">${opts}</div>${fineHtml}${suggestHtml}</div>`;
     })
     .join("");
 
   const grownHtml = data.autoGrown.length
-    ? `<div class="id3-gwhy" style="margin-top:16px">自動で育った得意</div>${data.autoGrown
+    ? `<div class="id3-gwhy" style="margin-top:16px">${t("自動で育った得意", "Strengths that grew automatically")}</div>${data.autoGrown
         .map(
           (g) => `<div class="id3-grown" data-id3-grown="${esc(g.taxonNodeKey)}">
             <div style="font-weight:800;color:#143f2e">${esc(g.label)}</div>
             <div class="id3-gwhy">${esc(g.reasonText)}</div>
             <div style="display:flex;gap:18px;margin-top:8px">
-              <button type="button" class="id3-undo" data-id3-grown-keep="${esc(g.taxonNodeKey)}">このまま</button>
-              <button type="button" class="id3-undo" style="color:#55615a" data-id3-grown-dismiss="${esc(g.taxonNodeKey)}">得意から外す</button>
+              <button type="button" class="id3-undo" data-id3-grown-keep="${esc(g.taxonNodeKey)}">${t("このまま", "Keep")}</button>
+              <button type="button" class="id3-undo" style="color:#55615a" data-id3-grown-dismiss="${esc(g.taxonNodeKey)}">${t("得意から外す", "Remove")}</button>
             </div>
           </div>`,
         )
         .join("")}`
     : "";
 
-  return `<h1 style="font-size:19px;font-weight:800;margin-top:8px">あなたの得意を教えてください</h1>
-    <p class="id3-lead">最初は、大きな分類だけで大丈夫です。細かい得意は、あなたの判断（賛成・提案・保存）から自動で育ちます。申告はいつでもここで直せます。</p>
-    <div style="margin-top:12px"><input type="search" data-id3-skill-search placeholder="分類や種類をさがす" style="width:100%;min-height:46px;border-radius:999px;border:1px solid #dde2dc;background:#f7f7f3;padding:8px 16px;font:inherit"></div>
+  return `<h1 style="font-size:19px;font-weight:800;margin-top:8px">${t("あなたの得意を教えてください", "Tell us what you know well")}</h1>
+    <p class="id3-lead">${t("最初は、大きな分類だけで大丈夫です。細かい得意は、あなたの判断（賛成・提案・保存）から自動で育ちます。申告はいつでもここで直せます。", "Broad groups are enough to start. Finer strengths grow automatically from your decisions (agreeing, proposing, saving). You can change this here anytime.")}</p>
+    <div style="margin-top:12px"><input type="search" data-id3-skill-search placeholder="${t("分類や種類をさがす", "Search groups or species")}" style="width:100%;min-height:46px;border-radius:999px;border:1px solid #dde2dc;background:#f7f7f3;padding:8px 16px;font:inherit"></div>
     ${grownHtml}
     <div id="id3-skills-list">${blocks}</div>
-    <div class="id3-note">申告していない分類でも、賛成や提案を続けると、得意として自動で育ちます。</div>
-    <button type="button" class="id3-btn-main" id="id3-save-skills">この内容で保存する</button>`;
+    <div class="id3-note">${t("申告していない分類でも、賛成や提案を続けると、得意として自動で育ちます。", "Even groups you have not set will grow into strengths as you keep agreeing and proposing.")}</div>
+    <button type="button" class="id3-btn-main" id="id3-save-skills">${t("この内容で保存する", "Save")}</button>`;
 }
 
 function renderSavedViewBody(data: IdentifyV3WorkspaceData): string {
+  const en = data.lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const settledHtml = data.settledSavedItems.length
-    ? `<div class="id3-ghead" style="margin-top:18px"><h2>決まったもの</h2></div>
-      <div class="id3-gwhy">保存した記録が決まると、ここに移ります。見終わると、ここから消えます。</div>
+    ? `<div class="id3-ghead" style="margin-top:18px"><h2>${t("決まったもの", "Settled")}</h2></div>
+      <div class="id3-gwhy">${t("保存した記録が決まると、ここに移ります。見終わると、ここから消えます。", "Saved records move here once settled. They disappear after you mark them as seen.")}</div>
       ${data.settledSavedItems
         .map(
           (item) => `<div class="id3-row" data-id3-settled="${esc(item.occurrenceId)}">
             ${item.photoUrl ? `<img src="${esc(item.photoUrl)}" alt="">` : ""}
             <div style="flex:1;min-width:0">
               <div style="font-weight:800">${esc(item.currentTitle)}</div>
-              <div class="id3-gwhy">${esc(item.ownerDisplayName)}さんの記録 ・ ${esc(item.locationText)} ・ ${esc(item.observedDateLabel)}</div>
-              ${item.savedCandidateName ? `<div class="id3-gwhy">保存したときの候補：${esc(item.savedCandidateName)} ・ ${esc(item.savedAtLabel)}に保存</div>` : ""}
-              <div style="font-size:13px;font-weight:700;color:#143f2e;margin-top:3px">確認済みになりました ${item.settledReason ? `・ ${esc(item.settledReason)}` : ""}</div>
+              <div class="id3-gwhy">${en ? `${esc(item.ownerDisplayName)}'s record` : `${esc(item.ownerDisplayName)}さんの記録`} ・ ${esc(item.locationText)} ・ ${esc(item.observedDateLabel)}</div>
+              ${item.savedCandidateName ? `<div class="id3-gwhy">${en ? `Candidate when saved: ${esc(item.savedCandidateName)} · Saved ${esc(item.savedAtLabel)}` : `保存したときの候補：${esc(item.savedCandidateName)} ・ ${esc(item.savedAtLabel)}に保存`}</div>` : ""}
+              <div style="font-size:13px;font-weight:700;color:#143f2e;margin-top:3px">${t("確認済みになりました", "Confirmed")} ${item.settledReason ? `・ ${esc(item.settledReason)}` : ""}</div>
             </div>
-            <button type="button" class="id3-undo" data-id3-ack-settled="${esc(item.occurrenceId)}">見終わった</button>
+            <button type="button" class="id3-undo" data-id3-ack-settled="${esc(item.occurrenceId)}">${t("見終わった", "Seen")}</button>
           </div>`,
         )
         .join("")}`
@@ -756,38 +768,40 @@ function renderSavedViewBody(data: IdentifyV3WorkspaceData): string {
             ${item.photoUrl ? `<img src="${esc(item.photoUrl)}" alt="">` : ""}
             <div style="flex:1;min-width:0">
               <div style="font-weight:800">${esc(item.currentTitle)}</div>
-              <div class="id3-gwhy">${esc(item.ownerDisplayName)}さんの記録 ・ ${esc(item.locationText)} ・ ${esc(item.observedDateLabel)}</div>
-              ${item.savedCandidateName ? `<div class="id3-gwhy">保存したときの候補：${esc(item.savedCandidateName)} ・ ${esc(item.savedAtLabel)}に保存</div>` : ""}
+              <div class="id3-gwhy">${en ? `${esc(item.ownerDisplayName)}'s record` : `${esc(item.ownerDisplayName)}さんの記録`} ・ ${esc(item.locationText)} ・ ${esc(item.observedDateLabel)}</div>
+              ${item.savedCandidateName ? `<div class="id3-gwhy">${en ? `Candidate when saved: ${esc(item.savedCandidateName)} · Saved ${esc(item.savedAtLabel)}` : `保存したときの候補：${esc(item.savedCandidateName)} ・ ${esc(item.savedAtLabel)}に保存`}</div>` : ""}
               <div style="font-size:13px;font-weight:700;color:#143f2e;margin-top:3px">${esc(item.stateSummary)}</div>
             </div>
             ${ICONS.chevRight}
           </a>`,
         )
         .join("")
-    : `<div class="id3-note">保存した記録はまだありません。作業場の「保存」を押すと、ここにまとまります。</div>`;
+    : `<div class="id3-note">${t("保存した記録はまだありません。作業場の「保存」を押すと、ここにまとまります。", "No saved records yet. Press Save in the workspace and they will collect here.")}</div>`;
 
-  return `<p class="id3-lead">保存した記録です。いま <b>${data.savedCount}件</b> あります。よく判断する分類のものが上に並んでいます。</p>
+  return `<p class="id3-lead">${en ? `Your saved records. You have <b>${data.savedCount}</b> now, with the groups you decide on most at the top.` : `保存した記録です。いま <b>${data.savedCount}件</b> あります。よく判断する分類のものが上に並んでいます。`}</p>
     ${settledHtml}
-    <div class="id3-ghead" style="margin-top:20px"><h2>保存した記録</h2></div>
+    <div class="id3-ghead" style="margin-top:20px"><h2>${t("保存した記録", "Saved records")}</h2></div>
     <div id="id3-saved-list">${itemsHtml}</div>
     <details style="margin-top:18px;border-top:1px solid #eef1ee;padding-top:12px">
-      <summary style="cursor:pointer;font-weight:700;color:#17211b">分類や時期で絞る（必要なときだけ開く）</summary>
+      <summary style="cursor:pointer;font-weight:700;color:#17211b">${t("分類や時期で絞る（必要なときだけ開く）", "Filter by group or season (open when needed)")}</summary>
       <div class="id3-partchips" style="margin-top:10px">
-        <button type="button" class="id3-partchip on" data-id3-saved-filter="all">すべて</button>
-        <button type="button" class="id3-partchip" data-id3-saved-filter="bird">鳥</button>
-        <button type="button" class="id3-partchip" data-id3-saved-filter="cicada">セミの仲間</button>
-        <button type="button" class="id3-partchip" data-id3-saved-filter="grass">草</button>
+        <button type="button" class="id3-partchip on" data-id3-saved-filter="all">${t("すべて", "All")}</button>
+        <button type="button" class="id3-partchip" data-id3-saved-filter="bird">${t("鳥", "Birds")}</button>
+        <button type="button" class="id3-partchip" data-id3-saved-filter="cicada">${t("セミの仲間", "Cicadas")}</button>
+        <button type="button" class="id3-partchip" data-id3-saved-filter="grass">${t("草", "Grasses")}</button>
       </div>
     </details>
-    <div class="id3-note">決まった記録は「決まったもの」に移り、この一覧には残りません。既読にした記録もここには残りません。</div>`;
+    <div class="id3-note">${t("決まった記録は「決まったもの」に移り、この一覧には残りません。既読にした記録もここには残りません。", "Settled records move to Settled and leave this list. Records marked as read are removed too.")}</div>`;
 }
 
 export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
+  const en = data.lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const prefix = data.lang === "ja" ? "/ja" : `/${data.lang}`;
   const titleMap: Record<IdentifyV3View, string> = {
-    feed: "同定の作業場",
-    skills: "あなたの得意",
-    saved: "保存したもの",
+    feed: t("同定の作業場", "Identification workspace"),
+    skills: t("あなたの得意", "Your strengths"),
+    saved: t("保存したもの", "Saved"),
   };
 
   let innerHtml = "";
@@ -801,37 +815,39 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
     const myChips = data.skills
       .filter((s) => s.level !== "none")
       .slice(0, 4)
-      .map((s) => `<a class="id3-chip" href="${prefix}/identify?view=skills">${esc(taxonNodeLabelWithParent(s.taxonNodeKey))} ・ ${s.level === "expert" ? "くわしい" : s.level === "general" ? "全般わかる" : "わかるものもある"}</a>`)
+      .map((s) => `<a class="id3-chip" href="${prefix}/identify?view=skills">${esc(taxonNodeLabelWithParent(s.taxonNodeKey))} ・ ${s.level === "expert" ? t("くわしい", "Expert") : s.level === "general" ? t("全般わかる", "General") : t("わかるものもある", "Some")}</a>`)
       .join("");
     const first = data.feedItems[0]?.observation;
-    const firstTopName = first?.aiCandidates[0]?.name ?? "この生きもの";
+    const firstTopName = first?.aiCandidates[0]?.name ?? t("この生きもの", "this species");
 
     innerHtml = `
       <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
-        <h2 style="margin:0;font-size:17px;font-weight:800">あなたの得意</h2>
-        <a href="${prefix}/identify?view=skills" style="margin-left:auto;font-size:13.5px;font-weight:700;color:#0055ad;text-decoration:none">変える</a>
+        <h2 style="margin:0;font-size:17px;font-weight:800">${t("あなたの得意", "Your strengths")}</h2>
+        <a href="${prefix}/identify?view=skills" style="margin-left:auto;font-size:13.5px;font-weight:700;color:#0055ad;text-decoration:none">${t("変える", "Change")}</a>
       </div>
       <div class="id3-mychips">
-        ${myChips || `<a class="id3-chip" href="${prefix}/identify?view=skills">得意を選ぶ</a>`}
-        <a class="id3-chip sub" href="${prefix}/identify?view=saved">${ICONS.bookmark}保存したもの ${data.savedCount}件</a>
+        ${myChips || `<a class="id3-chip" href="${prefix}/identify?view=skills">${t("得意を選ぶ", "Choose strengths")}</a>`}
+        <a class="id3-chip sub" href="${prefix}/identify?view=saved">${ICONS.bookmark}${en ? `Saved: ${data.savedCount}` : `保存したもの ${data.savedCount}件`}</a>
       </div>
-      <p class="id3-lead">得意な記録だけが流れています。細かい得意が先に届きます。決めた記録は細い行になって残り、いつでも取り消せます。</p>
+      <p class="id3-lead">${t("得意な記録だけが流れています。細かい得意が先に届きます。決めた記録は細い行になって残り、いつでも取り消せます。", "Only records in your areas of strength appear here, with finer strengths first. Records you decide on shrink to a thin row and can be undone anytime.")}</p>
       <div class="id3-strips" id="id3-strips" aria-live="polite"></div>
-      <div class="id3-feed" id="id3-feed">${data.feedItems.length ? renderFeedCardsHtml(data.feedItems) : `<div class="id3-note">いま流れている未確認の記録はありません。<a href="${prefix}/identify?view=skills">得意の設定を見る</a>か、時間をおいて開いてください。</div>`}</div>
-      ${data.nextCursor ? `<div id="id3-sentinel" data-next-cursor="${esc(data.nextCursor)}" class="id3-gwhy" style="padding:18px 0;text-align:center">つづきを読み込んでいます…</div>` : ""}`;
+      <div class="id3-feed" id="id3-feed">${data.feedItems.length ? renderFeedCardsHtml(data.feedItems, data.lang) : `<div class="id3-note">${en ? `There are no unconfirmed records right now. <a href="${prefix}/identify?view=skills">Check your strengths settings</a>, or come back later.` : `いま流れている未確認の記録はありません。<a href="${prefix}/identify?view=skills">得意の設定を見る</a>か、時間をおいて開いてください。`}</div>`}</div>
+      ${data.nextCursor ? `<div id="id3-sentinel" data-next-cursor="${esc(data.nextCursor)}" class="id3-gwhy" style="padding:18px 0;text-align:center">${t("つづきを読み込んでいます…", "Loading more…")}</div>` : ""}`;
 
     if (first) {
       fixedDecbar = `<div class="id3-decbar" id="id3-decbar" data-target-id="${esc(first.observationId)}">
         <img src="${esc(first.photoUrl ?? "")}" alt="">
-        <button type="button" class="id3-dpill" data-id3-bar-agree>${ICONS.check}<span>${esc(firstTopName)}に賛成する</span></button>
-        <button type="button" class="id3-dmini" data-id3-bar-save>${ICONS.bookmark}<span>保存</span></button>
-        <button type="button" class="id3-dmini" data-id3-bar-read>${ICONS.eye}<span>既読</span></button>
+        <button type="button" class="id3-dpill" data-id3-bar-agree>${ICONS.check}<span>${en ? `Agree with ${esc(firstTopName)}` : `${esc(firstTopName)}に賛成する`}</span></button>
+        <button type="button" class="id3-dmini" data-id3-bar-save>${ICONS.bookmark}<span>${t("保存", "Save")}</span></button>
+        <button type="button" class="id3-dmini" data-id3-bar-read>${ICONS.eye}<span>${t("既読", "Seen")}</span></button>
       </div>`;
     }
   }
 
   const nonceAttr = data.cspNonce ? ` nonce="${esc(data.cspNonce)}"` : "";
   const script = `<script${nonceAttr}>(() => {
+    const EN = ${JSON.stringify(en)};
+    const T = (ja, e) => (EN ? e : ja);
     const api = async (path, body) => {
       const res = await fetch(path, {
         method: body ? 'POST' : 'GET',
@@ -859,12 +875,12 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         if (dist < bestDist) { bestDist = dist; best = c; }
       }
       const id = best.getAttribute('data-id3-card') || '';
-      const name = best.getAttribute('data-top-name') || 'この生きもの';
+      const name = best.getAttribute('data-top-name') || T('この生きもの', 'this species');
       const thumb = best.getAttribute('data-thumb') || '';
       if (decbar.getAttribute('data-target-id') !== id) {
         decbar.setAttribute('data-target-id', id);
         const span = decbar.querySelector('[data-id3-bar-agree] span');
-        if (span) span.textContent = name + 'に賛成する';
+        if (span) span.textContent = EN ? 'Agree with ' + name : name + 'に賛成する';
         const img = decbar.querySelector('img');
         if (img && thumb) img.src = thumb;
       }
@@ -891,7 +907,7 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         const strip = document.createElement('div');
         strip.className = 'id3-strip';
         strip.setAttribute('data-id3-strip', occId);
-        strip.innerHTML = (thumb ? '<img src="' + thumb + '" alt="">' : '') + '<span class="id3-st">' + summaryLabel + '</span><button type="button" class="id3-undo" data-id3-undo="' + occId + '">取り消す</button>';
+        strip.innerHTML = (thumb ? '<img src="' + thumb + '" alt="">' : '') + '<span class="id3-st">' + summaryLabel + '</span><button type="button" class="id3-undo" data-id3-undo="' + occId + '">' + T('取り消す', 'Undo') + '</button>';
         strips.prepend(strip);
       }
     };
@@ -910,26 +926,26 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         const id = t.getAttribute('data-id3-agree');
         const name = t.getAttribute('data-candidate-name');
         const rank = t.getAttribute('data-candidate-rank') || 'species';
-        await submitDecision(id, { decision: 'identify', proposedName: name, proposedRank: rank }, name + 'に賛成しました');
+        await submitDecision(id, { decision: 'identify', proposedName: name, proposedRank: rank }, EN ? 'Agreed with ' + name : name + 'に賛成しました');
       } else if (t.hasAttribute('data-id3-bar-agree')) {
         const id = decbar?.getAttribute('data-target-id');
         const card = id ? document.querySelector('[data-id3-card="' + id + '"]') : null;
-        const name = card?.getAttribute('data-top-name') || '候補';
-        if (id) await submitDecision(id, { decision: 'identify', proposedName: name, proposedRank: 'species' }, name + 'に賛成しました');
+        const name = card?.getAttribute('data-top-name') || T('候補', 'candidate');
+        if (id) await submitDecision(id, { decision: 'identify', proposedName: name, proposedRank: 'species' }, EN ? 'Agreed with ' + name : name + 'に賛成しました');
       } else if (t.hasAttribute('data-id3-bar-save')) {
         const id = decbar?.getAttribute('data-target-id');
         const card = id ? document.querySelector('[data-id3-card="' + id + '"]') : null;
         const name = card?.getAttribute('data-top-name') || '';
-        if (id) await submitDecision(id, { decision: 'save', savedCandidateName: name }, '保存しました');
+        if (id) await submitDecision(id, { decision: 'save', savedCandidateName: name }, T('保存しました', 'Saved'));
       } else if (t.hasAttribute('data-id3-bar-read')) {
         const id = decbar?.getAttribute('data-target-id');
-        if (id) await submitDecision(id, { decision: 'read' }, '見ました');
+        if (id) await submitDecision(id, { decision: 'read' }, T('見ました', 'Marked as seen'));
       } else if (t.hasAttribute('data-id3-delegate')) {
         const id = t.getAttribute('data-id3-delegate');
-        await submitDecision(id, { decision: 'delegate' }, 'ほかの人にまかせました');
+        await submitDecision(id, { decision: 'delegate' }, T('ほかの人にまかせました', 'Left to others'));
       } else if (t.hasAttribute('data-id3-undetermined')) {
         const id = t.getAttribute('data-id3-undetermined');
-        await submitDecision(id, { decision: 'undetermined', reason: 'この写真では決められない' }, 'この写真では決められないと記録しました');
+        await submitDecision(id, { decision: 'undetermined', reason: 'この写真では決められない' }, T('この写真では決められないと記録しました', 'Noted that this cannot be decided from this photo'));
       } else if (t.hasAttribute('data-id3-undo')) {
         const id = t.getAttribute('data-id3-undo');
         const r = await api('/api/v1/identify-v3/undo', { occurrenceId: id });
@@ -948,21 +964,21 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         const area = document.querySelector('[data-id3-voice-text="' + id + '"]');
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SR) {
-          if (status) status.textContent = 'このブラウザでは音声認識が使えないため、文字で入力して確認してください。';
+          if (status) status.textContent = T('このブラウザでは音声認識が使えないため、文字で入力して確認してください。', 'Voice input is not available in this browser. Please type instead.');
           return;
         }
         const rec = new SR();
         rec.lang = 'ja-JP';
         rec.interimResults = false;
-        if (status) status.textContent = '聞き取っています…';
+        if (status) status.textContent = T('聞き取っています…', 'Listening…');
         rec.onresult = (e) => {
           const raw = e.results?.[0]?.[0]?.transcript || '';
           const cleaned = raw.replace(/(?:えー+と|あのー+|えっと|なんか)[、,\\s]*/g, '').trim();
           const formatted = cleaned && !/[。．！？!?]$/.test(cleaned) ? cleaned + '。' : cleaned;
           if (area) area.value = formatted;
-          if (status) status.textContent = '内容を確認・修正してから保存してください。';
+          if (status) status.textContent = T('内容を確認・修正してから保存してください。', 'Review and edit before saving.');
         };
-        rec.onerror = () => { if (status) status.textContent = '音声をとれませんでした。文字で直せます。'; };
+        rec.onerror = () => { if (status) status.textContent = T('音声をとれませんでした。文字で直せます。', 'Could not capture audio. You can type it instead.'); };
         rec.start();
       } else if (t.hasAttribute('data-id3-expert-confirm-open')) {
         const id = t.getAttribute('data-id3-expert-confirm-open');
@@ -990,7 +1006,7 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         await submitDecision(
           id,
           { decision: isConfirm ? 'confirm' : 'identify', proposedName: name, traits, photoPart: part, visibility: vis, justificationText: area?.value || '' },
-          isConfirm ? name + 'を根拠つきで確定しました' : name + 'に理由を添えて賛成しました'
+          EN ? (isConfirm ? 'Confirmed ' + name + ' with evidence' : 'Agreed with ' + name + ' and added a reason') : (isConfirm ? name + 'を根拠つきで確定しました' : name + 'に理由を添えて賛成しました')
         );
       } else if (t.hasAttribute('data-id3-skill-opt')) {
         const node = t.getAttribute('data-node');
@@ -1033,7 +1049,7 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         const cur = sentinel.getAttribute('data-next-cursor');
         if (!cur) return;
         loading = true;
-        const dataRes = await api('/api/v1/identify-v3/feed?cursor=' + encodeURIComponent(cur));
+        const dataRes = await api('/api/v1/identify-v3/feed?cursor=' + encodeURIComponent(cur) + '&lang=' + encodeURIComponent(${JSON.stringify(data.lang)}));
         if (dataRes && dataRes.ok && dataRes.cardsHtml) {
           feed.insertAdjacentHTML('beforeend', dataRes.cardsHtml);
           if (dataRes.nextCursor) sentinel.setAttribute('data-next-cursor', dataRes.nextCursor);
@@ -1047,7 +1063,7 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
 
   const backHref = data.view === "feed" ? `${prefix}/` : `${prefix}/identify`;
   const mainBody = `<div class="id3-topbar">
-      <a class="id3-back" href="${backHref}" aria-label="もどる">${ICONS.back}</a>
+      <a class="id3-back" href="${backHref}" aria-label="${t("もどる", "Back")}">${ICONS.back}</a>
       <span class="id3-tt">${titleMap[data.view]}</span>
       <span class="id3-sp"></span>
     </div>
@@ -1108,11 +1124,13 @@ export async function handleIdentifyV3ApiRequest(
 
   if (request.method === "GET" && sub === "feed") {
     const cursor = url.searchParams.get("cursor");
-    const ws = await loadIdentifyV3WorkspaceData(env, session.userId, { view: "feed", cursor, displayName: session.displayName });
+    const langParam = url.searchParams.get("lang");
+    const feedLang: Lang = langParam === "en" || langParam === "es" || langParam === "pt-br" ? langParam : "ja";
+    const ws = await loadIdentifyV3WorkspaceData(env, session.userId, { view: "feed", cursor, lang: feedLang, displayName: session.displayName });
     return jsonRes({
       ok: true,
       items: ws.feedItems,
-      cardsHtml: renderFeedCardsHtml(ws.feedItems),
+      cardsHtml: renderFeedCardsHtml(ws.feedItems, feedLang),
       nextCursor: ws.nextCursor,
     });
   }

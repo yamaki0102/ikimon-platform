@@ -64,6 +64,14 @@ const VISIT_SAME_PLACE_METERS = 500;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+function enDayLabel(dateDay: string, fallback: string): string {
+  const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(dateDay);
+  if (!m) return fallback;
+  return `${MONTHS_EN[Number(m[1]) - 1] ?? ""} ${Number(m[2])}`;
+}
+
 const esc = (v: string): string =>
   v.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
@@ -392,7 +400,9 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-id{font-size:14px;color:#55615A;margin-top:2px}
 `;
 
-function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string): string {
+function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false): string {
+  const dateLabel = isEn ? enDayLabel(visit.dateDay, visit.dateLabel) : visit.dateLabel;
+  const headingTitle = isEn && visit.headingTitle === "記録" ? "Record" : visit.headingTitle;
   const href = `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
   const mediaAll = [...visit.photos, ...visit.videos];
   const shown = mediaAll.slice(0, 3);
@@ -402,7 +412,7 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string): string {
     const cls = shown.length === 1 ? "zv2l-grid one" : shown.length === 2 ? "zv2l-grid two" : "zv2l-grid";
     const cells = shown.map((m, idx) => {
       if (extraCount > 0 && idx === 2) {
-        return `<span class="zv2l-more-tile">＋${extraCount}件</span>`;
+        return `<span class="zv2l-more-tile">＋${extraCount}${isEn ? "" : "件"}</span>`;
       }
       if (m.isVideo) {
         return `<span class="zv2l-cellv"><img src="${esc(m.url)}" alt="" loading="lazy"><span class="zv2l-vbadge">${ICONS.play}</span></span>`;
@@ -423,10 +433,10 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string): string {
   </div>`).join("");
 
   const typeParts: string[] = [];
-  if (visit.photos.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span>写真 ${visit.photos.length}枚</span></span>`);
-  if (visit.videos.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span>動画 ${visit.videos.length}本</span></span>`);
-  if (visit.audios.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.audio}<span>音 ${visit.audios.length}つ</span></span>`);
-  if (visit.report) typeParts.push(`<span class="zv2l-vt">${ICONS.report}<span>フィールドレポート</span></span>`);
+  if (visit.photos.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span>${isEn ? `${visit.photos.length} ${visit.photos.length === 1 ? "photo" : "photos"}` : `写真 ${visit.photos.length}枚`}</span></span>`);
+  if (visit.videos.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span>${isEn ? `${visit.videos.length} ${visit.videos.length === 1 ? "video" : "videos"}` : `動画 ${visit.videos.length}本`}</span></span>`);
+  if (visit.audios.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.audio}<span>${isEn ? `${visit.audios.length} ${visit.audios.length === 1 ? "sound" : "sounds"}` : `音 ${visit.audios.length}つ`}</span></span>`);
+  if (visit.report) typeParts.push(`<span class="zv2l-vt">${ICONS.report}<span>${isEn ? "Field report" : "フィールドレポート"}</span></span>`);
   if (visit.eventParticipation) {
     typeParts.push(
       `<a class="zv2l-evlink" href="${esc(`${prefix}/community/events`)}">${ICONS.event}<span>${esc(visit.eventParticipation.title)}</span>${ICONS.chev}</a>`,
@@ -435,16 +445,16 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string): string {
   const typesHtml = typeParts.length > 0 ? `<div class="zv2l-types">${typeParts.join('<span class="zv2l-sep">・</span>')}</div>` : "";
 
   const statusParts: string[] = [];
-  if (visit.isPublic) statusParts.push(`<span class="zv2l-st pub">${ICONS.pubEye}<span>公開しています</span></span>`);
-  if (visit.zukanPublished) statusParts.push(`<span class="zv2l-st pub">${ICONS.book}<span>図鑑に載せています</span></span>`);
+  if (visit.isPublic) statusParts.push(`<span class="zv2l-st pub">${ICONS.pubEye}<span>${isEn ? "Public" : "公開しています"}</span></span>`);
+  if (visit.zukanPublished) statusParts.push(`<span class="zv2l-st pub">${ICONS.book}<span>${isEn ? "In the field guide" : "図鑑に載せています"}</span></span>`);
   const statusHtml = statusParts.length > 0
     ? `<div class="zv2l-status">${statusParts.join('<span class="zv2l-sep">・</span>')}</div>`
-    : `<div class="zv2l-status"><span class="zv2l-st">${ICONS.lock}<span>自分のみ</span></span></div>`;
+    : `<div class="zv2l-status"><span class="zv2l-st">${ICONS.lock}<span>${isEn ? "Only me" : "自分のみ"}</span></span></div>`;
 
   const metaParts = [visit.areaLabel || visit.placeName, visit.timeRangeLabel].filter(Boolean);
   return `<article class="zv2l-visit" data-library-visit="${esc(visit.visitKey)}">
     <a class="zv2l-visit-link" href="${esc(href)}">
-      <h3 class="zv2l-vhead"><span class="nw">${esc(visit.dateLabel)}</span>・${esc(visit.headingTitle)}</h3>
+      <h3 class="zv2l-vhead"><span class="nw">${esc(dateLabel)}</span>・${esc(headingTitle)}</h3>
       <div class="zv2l-vmeta">${metaParts.map((m) => `<span class="nw">${esc(m)}</span>`).join(" ・ ")}</div>
       ${reportHtml}
       ${gridHtml}
@@ -465,6 +475,8 @@ export function renderLibraryV2Page(options: {
   cspNonce?: string | null;
 }): string {
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
+  const isEn = options.lang !== "ja";
+  const t = (ja: string, en: string): string => (isEn ? en : ja);
   const nonceAttr = options.cspNonce ? ` nonce="${esc(options.cspNonce)}"` : "";
   const chrome = renderZukanChrome({
     lang: options.lang,
@@ -483,34 +495,34 @@ export function renderLibraryV2Page(options: {
     if (trimmedSearch) {
       listContent = `<section class="zv2l-zero" data-library-search-empty="1">
       <div class="zv2l-zicon">${ZUKAN_SHELL_ICONS.search}</div>
-      <h1>条件に合う記録がありません</h1>
+      <h1>${t("条件に合う記録がありません", "No matching records")}</h1>
       <div class="zv2l-zbody">
-        <p>「${esc(trimmedSearch)}」に一致する自分の記録が見つかりませんでした。生きものの名前・場所・メモ・季節（「去年の秋」など）でお試しください。</p>
+        <p>${isEn ? `No records of yours match "${esc(trimmedSearch)}". Try a species name, place, note, or season (like "last autumn").` : `「${esc(trimmedSearch)}」に一致する自分の記録が見つかりませんでした。生きものの名前・場所・メモ・季節（「去年の秋」など）でお試しください。`}</p>
       </div>
-      <a class="zv2l-btn-main" href="${esc(`${prefix}/library`)}">検索をリセット</a>
+      <a class="zv2l-btn-main" href="${esc(`${prefix}/library`)}">${t("検索をリセット", "Reset search")}</a>
     </section>`;
     } else {
       listContent = `<section class="zv2l-zero" data-library-empty="1">
       <div class="zv2l-zicon">${ICONS.photo}</div>
-      <h1>まだ記録がありません</h1>
+      <h1>${t("まだ記録がありません", "No records yet")}</h1>
       <div class="zv2l-zbody">
-        <p>出かけた先で撮った写真が、ここに場所と日にちでたまります。</p>
+        <p>${t("出かけた先で撮った写真が、ここに場所と日にちでたまります。", "Photos you take while out will collect here by place and date.")}</p>
       </div>
-      <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">${ZUKAN_SHELL_ICONS.camera}<span>撮る</span></a>
-      <a class="zv2l-btn-sub" href="${esc(`${prefix}/record?mode=upload`)}">写真を選ぶ</a>
+      <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">${ZUKAN_SHELL_ICONS.camera}<span>${t("撮る", "Capture")}</span></a>
+      <a class="zv2l-btn-sub" href="${esc(`${prefix}/record?mode=upload`)}">${t("写真を選ぶ", "Choose photos")}</a>
     </section>`;
     }
   } else {
     const parts: string[] = [];
     if (trimmedSearch) {
-      parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）</span><a href="${esc(`${prefix}/library`)}">検索をリセット</a></div>`);
+      parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>${isEn ? `Results for "${esc(trimmedSearch)}" (${options.visits.length})` : `「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）`}</span><a href="${esc(`${prefix}/library`)}">${t("検索をリセット", "Reset search")}</a></div>`);
     }
     for (const v of options.visits) {
-      parts.push(renderVisitCardHtml(v, prefix));
+      parts.push(renderVisitCardHtml(v, prefix, isEn));
     }
     if (options.nextCursor) {
       const moreHref = `${prefix}/library?before=${encodeURIComponent(options.nextCursor)}${trimmedSearch ? `&q=${encodeURIComponent(trimmedSearch)}` : ""}`;
-      parts.push(`<div style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" href="${esc(moreHref)}">もっと見る</a></div>`);
+      parts.push(`<div style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" href="${esc(moreHref)}">${t("もっと見る", "Show more")}</a></div>`);
     }
     listContent = parts.join("\n");
   }
@@ -518,13 +530,13 @@ export function renderLibraryV2Page(options: {
   const addSheetHtml = `<div class="zv2l-scrim" id="zv2l-scrim" hidden></div>
   <section class="zv2l-sheet" id="zv2l-add-sheet" hidden role="dialog" aria-modal="true" aria-labelledby="zv2l-sheet-title">
     <div class="zv2l-grab" aria-hidden="true"></div>
-    <h2 id="zv2l-sheet-title" style="margin:0;font-size:18px;font-weight:800;">記録を足す</h2>
-    <p style="margin:4px 0 8px;font-size:14.5px;color:#55615A;">最初に出る場所は自分だけです。後から公開や図鑑への掲載を選べます。</p>
-    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=photo`)}"><span class="zv2l-iic">${ZUKAN_SHELL_ICONS.camera}</span><span><span class="zv2l-it">写真を撮る</span><br><span class="zv2l-id">その場の生きものや風景を残します</span></span></a>
-    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=audio`)}"><span class="zv2l-iic">${ICONS.audio}</span><span><span class="zv2l-it">音を録る</span><br><span class="zv2l-id">鳥の声や水辺の音を記録します</span></span></a>
-    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=report`)}"><span class="zv2l-iic">${ICONS.report}</span><span><span class="zv2l-it">フィールドレポートを書く</span><br><span class="zv2l-id">気づいたことを文章で残します</span></span></a>
-    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=upload`)}"><span class="zv2l-iic">${ICONS.upload}</span><span><span class="zv2l-it">端末から選ぶ</span><br><span class="zv2l-id">保存済みの写真や動画を追加します</span></span></a>
-    <button type="button" class="zv2l-add-btn" id="zv2l-sheet-close" style="width:100%;justify-content:center;margin-top:12px;">閉じる</button>
+    <h2 id="zv2l-sheet-title" style="margin:0;font-size:18px;font-weight:800;">${t("記録を足す", "Add a record")}</h2>
+    <p style="margin:4px 0 8px;font-size:14.5px;color:#55615A;">${t("最初に出る場所は自分だけです。後から公開や図鑑への掲載を選べます。", "New records are visible only to you at first. You can share them or add them to the field guide later.")}</p>
+    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=photo`)}"><span class="zv2l-iic">${ZUKAN_SHELL_ICONS.camera}</span><span><span class="zv2l-it">${t("写真を撮る", "Take a photo")}</span><br><span class="zv2l-id">${t("その場の生きものや風景を残します", "Save the wildlife and scenery in front of you")}</span></span></a>
+    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=audio`)}"><span class="zv2l-iic">${ICONS.audio}</span><span><span class="zv2l-it">${t("音を録る", "Record a sound")}</span><br><span class="zv2l-id">${t("鳥の声や水辺の音を記録します", "Capture bird song or sounds by the water")}</span></span></a>
+    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=report`)}"><span class="zv2l-iic">${ICONS.report}</span><span><span class="zv2l-it">${t("フィールドレポートを書く", "Write a field report")}</span><br><span class="zv2l-id">${t("気づいたことを文章で残します", "Write down what you noticed")}</span></span></a>
+    <a class="zv2l-irow" href="${esc(`${prefix}/record?mode=upload`)}"><span class="zv2l-iic">${ICONS.upload}</span><span><span class="zv2l-it">${t("端末から選ぶ", "Choose from device")}</span><br><span class="zv2l-id">${t("保存済みの写真や動画を追加します", "Add saved photos or videos")}</span></span></a>
+    <button type="button" class="zv2l-add-btn" id="zv2l-sheet-close" style="width:100%;justify-content:center;margin-top:12px;">${t("閉じる", "Close")}</button>
   </section>`;
 
   const recentCutoff = Date.now() - 48 * 3600 * 1000;
@@ -535,10 +547,10 @@ export function renderLibraryV2Page(options: {
 
   const body = `<div class="zv2l-col" data-library-v2="1">
     <div class="zv2l-headbar">
-      <h1 class="zv2l-title">ライブラリ</h1>
-      <button type="button" class="zv2l-add-btn" data-zv2l-open-add="1">${ICONS.plus}<span>記録を足す</span></button>
+      <h1 class="zv2l-title">${t("ライブラリ", "Library")}</h1>
+      <button type="button" class="zv2l-add-btn" data-zv2l-open-add="1">${ICONS.plus}<span>${t("記録を足す", "Add a record")}</span></button>
     </div>
-    <p class="zv2l-sub">あなたが残した記録です</p>
+    <p class="zv2l-sub">${t("あなたが残した記録です", "Records you have saved")}</p>
     ${chrome.searchHtml}
     <div class="zv2l-sync" id="zv2l-sync" data-library-sync hidden></div>
     ${listContent}
@@ -549,7 +561,7 @@ export function renderLibraryV2Page(options: {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ライブラリ — ZUKAN</title>
+  <title>${t("ライブラリ", "Library")} — ZUKAN</title>
   <style${nonceAttr}>${LIBRARY_V2_CSS}</style>
 </head>
 <body>
@@ -565,6 +577,7 @@ export function renderLibraryV2Page(options: {
     (function(){
       var box = document.getElementById('zv2l-sync');
       var retryHref = ${JSON.stringify(`${prefix}/record?draft=1`).replace(/</g, "\\u003c")};
+      var L = ${JSON.stringify(isEn ? { retry: "Send again", failed: " could not be sent", sending: " sending", kept: "Your photos are still on this device.", auto: "They will be sent automatically when you are back online." } : { retry: "もう一度送る", failed: "件を送れませんでした", sending: "件を送っています", kept: "写真はこの端末に残っています。", auto: "通信が戻ると自動で送られます。" }).replace(/</g, "\u003c")};
       var recentIds = ${JSON.stringify(recentIds).replace(/</g, "\\u003c")};
       function readOutbox(cb){
         var done = false;
@@ -608,13 +621,13 @@ export function renderLibraryV2Page(options: {
         if (!failed && !sending) { box.hidden = true; box.innerHTML = ''; return; }
         var html;
         if (failed) {
-          html = '<div class="zt-status-band" data-tone="error" data-sync-state="failed" role="status"><div class="zt-status-copy"><strong></strong><span></span></div><a class="zt-status-act" data-sync-retry="1" href="' + retryHref + '">もう一度送る</a></div>';
+          html = '<div class="zt-status-band" data-tone="error" data-sync-state="failed" role="status"><div class="zt-status-copy"><strong></strong><span></span></div><a class="zt-status-act" data-sync-retry="1" href="' + retryHref + '">' + L.retry + '</a></div>';
         } else {
           html = '<div class="zt-status-band" data-tone="warn" data-sync-state="sending" role="status"><div class="zt-status-copy"><strong></strong><span></span><i class="zv2l-sync-bar"><b></b></i></div></div>';
         }
         box.innerHTML = html;
-        box.querySelector('strong').textContent = failed ? failed + '件を送れませんでした' : sending + '件を送っています';
-        box.querySelector('span').textContent = failed ? '写真はこの端末に残っています。' : '通信が戻ると自動で送られます。';
+        box.querySelector('strong').textContent = failed ? failed + L.failed : sending + L.sending;
+        box.querySelector('span').textContent = failed ? L.kept : L.auto;
         box.hidden = false;
       }
       function refresh(){

@@ -388,8 +388,14 @@ function shell(options: { lang: Lang; title: string; session: SessionLike; bodyH
 const CHEV = '<svg class="ze-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 const PENDING = "まだ決まっていません。決まりしだい、このページで知らせます";
 const FOOTNOTE = "行事は、ノコシルで企画されています。主催の人への連絡は、ノコシルからできます。";
+const FOOTNOTE_EN = "Events are organized on NOCOSIL. You can contact the organizer through NOCOSIL.";
 
-function peopleText(ev: Pick<EventsV2Event, "participants" | "capacity">, phase: EventPhase): string {
+function peopleText(ev: Pick<EventsV2Event, "participants" | "capacity">, phase: EventPhase, en = false): string {
+  if (en) {
+    if (phase === "past") return ev.participants > 0 ? `${ev.participants} ${ev.participants === 1 ? "person" : "people"} joined` : "";
+    if (ev.participants <= 0) return "No one has joined yet. Be the first";
+    return `${ev.participants} ${ev.participants === 1 ? "person is" : "people are"} joining${ev.capacity ? ` (capacity ${ev.capacity})` : ""}`;
+  }
   if (phase === "past") return ev.participants > 0 ? `${ev.participants}人が参加しました` : "";
   if (ev.participants <= 0) return "参加はまだいません。最初の一人として参加できます";
   return `${ev.participants}人が参加します${ev.capacity ? `（定員${ev.capacity}人）` : ""}`;
@@ -401,12 +407,13 @@ function jstYear(iso: string): string {
 }
 
 function listRow(prefix: string, ev: EventsV2ListItem, lang: Lang): string {
+  const en = lang !== "ja";
   const timing = eventTiming(ev, lang);
   const line1 = [ev.kind ?? "", timing.timeLabel].filter(Boolean).join(" ");
-  const lines = [ev.placeName ?? "", ev.distanceKm !== null ? (ev.distanceKm < 1 ? "ここから1km未満" : `ここから約${ev.distanceKm}km`) : "", peopleText(ev, ev.phase)].filter(Boolean);
+  const lines = [ev.placeName ?? "", ev.distanceKm !== null ? (en ? (ev.distanceKm < 1 ? "Under 1 km away" : `About ${ev.distanceKm} km away`) : (ev.distanceKm < 1 ? "ここから1km未満" : `ここから約${ev.distanceKm}km`)) : "", peopleText(ev, ev.phase, en)].filter(Boolean);
   return `<li><a class="ze-row" data-event-row="${escapeHtml(ev.sessionId)}" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(ev.sessionId)}/preview`)}">
     <span class="ze-date" aria-hidden="true"><small>${escapeHtml(timing.shortMonth)}</small><b>${escapeHtml(timing.shortDay)}</b></span>
-    <span class="ze-row-body"><strong>${escapeHtml(ev.title)}${ev.phase === "today" ? '<span class="zev-chip">本日開催</span>' : ""}</strong>${line1 ? `<small>${escapeHtml(line1)}</small>` : ""}${lines.map((l) => `<small>${escapeHtml(l)}</small>`).join("")}</span>${CHEV}
+    <span class="ze-row-body"><strong>${escapeHtml(ev.title)}${ev.phase === "today" ? '<span class="zev-chip">${en ? "Today" : "本日開催"}</span>' : ""}</strong>${line1 ? `<small>${escapeHtml(line1)}</small>` : ""}${lines.map((l) => `<small>${escapeHtml(l)}</small>`).join("")}</span>${CHEV}
   </a></li>`;
 }
 
@@ -415,7 +422,7 @@ function groupedRows(prefix: string, items: EventsV2ListItem[], lang: Lang): str
   const groups: Array<{ label: string; items: EventsV2ListItem[] }> = [];
   for (const ev of items) {
     const y = jstYear(ev.startedAt);
-    const label = `${y && y !== thisYear ? `${y}年` : ""}${eventTiming(ev, lang).dateLabel}`;
+    const label = `${y && y !== thisYear ? (lang === "ja" ? `${y}年` : `${y} `) : ""}${eventTiming(ev, lang).dateLabel}`;
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.items.push(ev);
     else groups.push({ label, items: [ev] });
@@ -429,6 +436,8 @@ function matchesQuery(ev: EventsV2ListItem, q: string): boolean {
 }
 
 export async function handleEventsV2List(url: URL, lang: Lang, session: SessionLike, db: Env["OBS_DB"]): Promise<Response> {
+  const en = lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const latRaw = url.searchParams.get("lat");
   const lngRaw = url.searchParams.get("lng");
@@ -441,35 +450,35 @@ export async function handleEventsV2List(url: URL, lang: Lang, session: SessionL
   const recent = q ? data.recent.filter((e) => matchesQuery(e, q)) : data.recent;
 
   const upcomingHtml = data.failed
-    ? `<p class="ze-empty">イベントを読み込めませんでした。少し待ってからもう一度開いてください。</p>`
+    ? `<p class="ze-empty">${t("イベントを読み込めませんでした。少し待ってからもう一度開いてください。", "Could not load events. Please wait a moment and try again.")}</p>`
     : upcoming.length > 0
       ? `<div data-events-upcoming="1">${groupedRows(prefix, upcoming, lang)}</div>`
       : q
-        ? `<p class="ze-empty" data-events-empty="1">「${escapeHtml(q)}」に合う行事は見つかりませんでした。ことばを変えて探してみてください。</p>`
-        : `<p class="ze-empty" data-events-empty="1">近くでは、まだ行事が開かれていません。行事が開かれたら、ここに出ます。それまで、みんなの記録を見てみましょう。</p>
-         <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/library`)}">みんなの記録を見る</a>`;
+        ? `<p class="ze-empty" data-events-empty="1">${en ? `No events match "${escapeHtml(q)}". Try different words.` : `「${escapeHtml(q)}」に合う行事は見つかりませんでした。ことばを変えて探してみてください。`}</p>`
+        : `<p class="ze-empty" data-events-empty="1">${t("近くでは、まだ行事が開かれていません。行事が開かれたら、ここに出ます。それまで、みんなの記録を見てみましょう。", "No events are being held nearby yet. They will appear here once scheduled. In the meantime, browse everyone's records.")}</p>
+         <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/library`)}">${t("みんなの記録を見る", "See everyone's records")}</a>`;
   const recentHtml = recent.length > 0
-    ? `<section class="zev-sec"><h2>最近の観察会</h2><ul class="ze-list" data-events-recent="1">${recent.map((e) => listRow(prefix, e, lang)).join("")}</ul></section>`
+    ? `<section class="zev-sec"><h2>${t("最近の観察会", "Recent observation events")}</h2><ul class="ze-list" data-events-recent="1">${recent.map((e) => listRow(prefix, e, lang)).join("")}</ul></section>`
     : "";
   const geo = known
-    ? `<p class="ze-note">距離は、いまいる場所からの目安です。</p>`
-    : `<button type="button" class="zev-geo" id="zev-geo">現在地からの距離を表示する</button>
+    ? `<p class="ze-note">${t("距離は、いまいる場所からの目安です。", "Distances are approximate, from where you are now.")}</p>`
+    : `<button type="button" class="zev-geo" id="zev-geo">${t("現在地からの距離を表示する", "Show distance from my location")}</button>
        <script>(()=>{const b=document.getElementById("zev-geo");if(!b||!navigator.geolocation)return;b.addEventListener("click",()=>{navigator.geolocation.getCurrentPosition(p=>{const u=new URL(location.href);u.searchParams.set("lat",p.coords.latitude.toFixed(3));u.searchParams.set("lng",p.coords.longitude.toFixed(3));location.href=u.toString();},()=>{b.textContent="現在地を取得できませんでした";});});})();</script>`;
   const search = `<form class="zev-search" role="search" method="get" action="${escapeHtml(`${prefix}/community/events`)}" data-events-search="1">
       ${known ? `<input type="hidden" name="lat" value="${lat}"><input type="hidden" name="lng" value="${lng}">` : ""}
-      <input type="search" name="q" value="${escapeHtml(q)}" placeholder="行事の名前・場所で探す" aria-label="行事を探す" maxlength="60">
-      <button type="submit">探す</button>
+      <input type="search" name="q" value="${escapeHtml(q)}" placeholder="${t("行事の名前・場所で探す", "Search by event name or place")}" aria-label="${t("行事を探す", "Search events")}" maxlength="60">
+      <button type="submit">${t("探す", "Search")}</button>
     </form>`;
   const bodyHtml = `<div class="ze zev" data-event-view="v2-list">
-    <h1 class="zev-title">近くのイベント</h1>
-    <p class="ze-note">日付の近い順に並んでいます。</p>
+    <h1 class="zev-title">${t("近くのイベント", "Nearby events")}</h1>
+    <p class="ze-note">${t("日付の近い順に並んでいます。", "Sorted by date, soonest first.")}</p>
     ${search}
     ${geo}
     <section class="zev-sec">${upcomingHtml}</section>
     ${recentHtml}
-    <p class="ze-note">${FOOTNOTE}</p>
+    <p class="ze-note">${en ? FOOTNOTE_EN : FOOTNOTE}</p>
   </div>`;
-  return shell({ lang, title: "近くのイベント", session, bodyHtml, pathname: `${prefix}/community/events` });
+  return shell({ lang, title: t("近くのイベント", "Nearby events"), session, bodyHtml, pathname: `${prefix}/community/events` });
 }
 
 function recordsGrid(records: EventsV2Record[], prefix: string): string {
