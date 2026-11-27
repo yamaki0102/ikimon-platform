@@ -204,7 +204,7 @@ function badgeClass(category: InvasiveCategory): string {
 }
 
 const WARN_ICON = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.5 21 19.5H3z"/><path d="M12 10v4.2M12 17h.01"/></svg>`;
-const CHEV_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg>`;
+export const CHEV_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg>`;
 
 const badge = (category: InvasiveCategory, label: string): string =>
   `<span class="${badgeClass(category)}">${category === "iaspecified" || category === "conditional" ? WARN_ICON : ""}<span class="iv-nb">${esc(label)}</span></span>`;
@@ -252,13 +252,13 @@ function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: n
 const BACK_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 6-6 6 6 6"/></svg>`;
 const SHARE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V4"/><path d="m7.5 8 4.5-4 4.5 4"/><path d="M5 13.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-5.5"/></svg>`;
 
-const headBar = (backHref: string): string => `<div class="iv-bar"><a class="iv-ib" data-iv-back="1" href="${esc(backHref)}" aria-label="戻る">${BACK_ICON}</a><button type="button" class="iv-ib" data-iv-share="1" aria-label="共有">${SHARE_ICON}</button></div><p class="iv-tstate" id="iv-share-state" aria-live="polite" style="margin:0"></p>`;
+export const headBar = (backHref: string): string => `<div class="iv-bar"><a class="iv-ib" data-iv-back="1" href="${esc(backHref)}" aria-label="戻る">${BACK_ICON}</a><button type="button" class="iv-ib" data-iv-share="1" aria-label="共有">${SHARE_ICON}</button></div><p class="iv-tstate" id="iv-share-state" aria-live="polite" style="margin:0"></p>`;
 
 const watchLink = (prefix: string): string => `<a class="iv-link" data-invasive-biosecurity="1" href="${esc(`${prefix}/biosecurity`)}"><span>外来種の見守りについて</span>${CHEV_ICON}</a>`;
 
 const speciesLinks = (slug: string): string => `<div class="iv-sl"><a href="${esc(`${INVASIVE_LEARN_PATH}/${slug}`)}" data-invasive-about="1">この種について</a><a href="${esc(`${INVASIVE_LEARN_PATH}/${slug}#identify`)}" data-invasive-identify="1">見分けの助け</a></div>`;
 
-const SHARE_SCRIPT = `(function(){
+export const SHARE_SCRIPT = `(function(){
   var back=document.querySelector('[data-iv-back]');var sh=document.querySelector('[data-iv-share]');var st=document.getElementById('iv-share-state');
   if(back)back.addEventListener('click',function(e){if(history.length>1&&document.referrer){e.preventDefault();history.back();}});
   if(sh)sh.addEventListener('click',function(){
@@ -339,7 +339,8 @@ ${ZUKAN_SHELL_CSS}
 .iv-tstate{margin:8px 2px 0;font-size:13.5px;color:var(--muted);min-height:20px}
 `;
 
-function shell(options: {
+export function shell(options: {
+  extraCss?: string;
   title: string;
   lang: "ja" | "en" | "es" | "pt-br";
   authenticated: boolean;
@@ -365,7 +366,7 @@ function shell(options: {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>${esc(options.title)} — ZUKAN</title>
-  <style${nonceAttr}>${BASE_CSS}</style>
+  <style${nonceAttr}>${BASE_CSS}${options.extraCss ?? ""}</style>
 </head>
 <body>
   <div class="zt-shell">

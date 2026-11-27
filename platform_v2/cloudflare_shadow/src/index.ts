@@ -206,8 +206,10 @@ const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
+import { REGION_SURFACE_V1_FLAG, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
+const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
 const MAP_INVASIVE_TOP_CHIP_FLAG = "MAP_INVASIVE_TOP_CHIP_ENABLED";
 const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
@@ -3836,6 +3838,16 @@ export const worker = {
           const invasiveSession = await readCompatibleSession(request, env).catch(() => null);
           if (invasiveMapV1On(env, invasiveSession)) {
             return handleInvasiveMapV1Route(request, url, env, invasiveSession, invasiveV1Route);
+          }
+        }
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const regionMatch = stripPublicLangPrefix(url.pathname).match(/^\/regions\/([^/]+)(\/species)?$/u);
+        if (regionMatch?.[1]) {
+          const regionSession = await readCompatibleSession(request, env).catch(() => null);
+          if (regionSurfaceV1On(env, regionSession)) {
+            return handleRegionSurfaceRoute(request, url, env, regionSession, regionMatch[1], Boolean(regionMatch[2]));
           }
         }
       }
@@ -25845,6 +25857,39 @@ async function loadInvasivePublicRecords(env: Env): Promise<InvasiveRecord[]> {
     areas.set(row.observation_id, normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? normalizeSafePublicAreaLabelCandidate(meta.get(row.observation_id)?.publicAreaLabel) ?? null);
   }
   return buildInvasiveRecords(candidates, { areas, photos, nowMs: Date.now() });
+}
+
+async function handleRegionSurfaceRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+  rawArea: string,
+  speciesList: boolean,
+): Promise<Response> {
+  const notFound = () => json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  let area = "";
+  try { area = decodeURIComponent(rawArea); } catch { return notFound(); }
+  if (!area || normalizeSafePublicAreaLabelCandidate(area) !== area) return notFound();
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const data = await loadRegionSurfaceData(env.OBS_DB, area, (ids) => queryPublicMapPhotoUrls(env, ids));
+  if (!regionSurfaceHasContent(data)) return notFound();
+  const cspNonce = createHtmlCspNonce();
+  const authenticated = Boolean(session && !session.banned);
+  const invasiveAvailable = invasiveMapV1On(env, session);
+  const page = speciesList
+    ? renderRegionSpeciesListPage({ data, group: parseGroupFilter(url.searchParams.get("group")), lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable })
+    : renderRegionSurfacePage({ data, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": speciesList ? "region-species-v1" : "region-surface-v1",
+    },
+  });
 }
 
 async function invasiveRegionHasPublicRecords(env: Env, area: string): Promise<boolean> {

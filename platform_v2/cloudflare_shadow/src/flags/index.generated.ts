@@ -17,9 +17,10 @@ import * as flag15 from "./PLACE_REGISTER_ENABLED";
 import * as flag16 from "./RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
 import * as flag17 from "./RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
 import * as flag18 from "./RECORD_READER_MODES_ENABLED";
-import * as flag19 from "./SEARCH_V2_ENABLED";
-import * as flag20 from "./SHOP_PHOTO_PERK_ENABLED";
-import * as flag21 from "./SPECIES_READER_LAYER_ENABLED";
+import * as flag19 from "./REGION_SURFACE_V1_ENABLED";
+import * as flag20 from "./SEARCH_V2_ENABLED";
+import * as flag21 from "./SHOP_PHOTO_PERK_ENABLED";
+import * as flag22 from "./SPECIES_READER_LAYER_ENABLED";
 
 export const FLAG_DEFINITIONS = [
   { ...flag0, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
@@ -44,6 +45,7 @@ export const FLAG_DEFINITIONS = [
   { ...flag19, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag20, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag21, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
+  { ...flag22, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
 ] as const;
 
 export const PROTOTYPE_FLAGS = [
@@ -69,4 +71,5 @@ export const PROTOTYPE_FLAGS = [
   { flag: flag19.flag, feature: flag19.feature, lane: flag19.lane, path: flag19.path, stagingEnabled: flag19.staging },
   { flag: flag20.flag, feature: flag20.feature, lane: flag20.lane, path: flag20.path, stagingEnabled: flag20.staging },
   { flag: flag21.flag, feature: flag21.feature, lane: flag21.lane, path: flag21.path, stagingEnabled: flag21.staging },
+  { flag: flag22.flag, feature: flag22.feature, lane: flag22.lane, path: flag22.path, stagingEnabled: flag22.staging },
 ] as const;
