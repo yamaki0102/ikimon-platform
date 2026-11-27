@@ -93,3 +93,23 @@ test("I8-I9-I11 settings pages render edit, notifications, and account views in 
     }
   }
 });
+
+test("I11 account section shows masked email and login methods read-only", async (t) => {
+  const db = setupDb(t);
+  const core = {
+    prepare(sql: string) {
+      return {
+        bind() {
+          return {
+            first: async () => (sql.includes("auth_users") ? { email: "taro@example.com", password_hash: "x" } : sql.includes("oauth_accounts") ? { x: 1 } : null),
+          };
+        },
+      };
+    },
+  } as never;
+  const html = await (await handleAccountSettingsDetailRoute("account", "ja", { userId: "user-1", displayName: "ユイ" }, db, core)).text();
+  assert.match(html, /ta\*\*\*@example\.com/);
+  assert.ok(!html.includes("taro@example.com"));
+  assert.match(html, /パスワード・Google/);
+  assert.ok(!html.includes("カレンダー"));
+});

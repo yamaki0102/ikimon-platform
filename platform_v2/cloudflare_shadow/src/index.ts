@@ -4493,7 +4493,7 @@ export const worker = {
         const viewLang = (accountSettingsDetailMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const section = accountSettingsDetailMatch[2] as SettingsDetailSection;
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleAccountSettingsDetailRoute(section, viewLang, session, env.OBS_DB);
+        return handleAccountSettingsDetailRoute(section, viewLang, session, env.OBS_DB, env.CORE_DB);
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/profile/linked-and-saved") {

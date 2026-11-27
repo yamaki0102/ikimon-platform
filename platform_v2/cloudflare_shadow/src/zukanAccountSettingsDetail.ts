@@ -3,6 +3,31 @@ import { escapeHtml, json } from "./core/http";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 import { ZUKAN_SUBPAGE_CSS, renderSubpageHeader, renderSubpageRow } from "./zukanSubpageUi";
 
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at < 1) return "";
+  const local = email.slice(0, at);
+  return `${local.slice(0, Math.min(2, local.length))}***${email.slice(at)}`;
+}
+
+async function loadLoginMethods(coreDb: Env["CORE_DB"] | null | undefined, userId: string): Promise<{ email: string; password: boolean; google: boolean } | null> {
+  if (!coreDb) return null;
+  try {
+    const u = await coreDb
+      .prepare(`SELECT email, password_hash FROM auth_users WHERE user_id = ?`)
+      .bind(userId)
+      .first<{ email: string | null; password_hash: string | null }>();
+    const g = await coreDb
+      .prepare(`SELECT 1 AS x FROM oauth_accounts WHERE user_id = ? AND provider = 'google' LIMIT 1`)
+      .bind(userId)
+      .first<{ x: number }>()
+      .catch(() => null);
+    return { email: u?.email ?? "", password: Boolean(u?.password_hash), google: Boolean(g) };
+  } catch {
+    return null;
+  }
+}
+
 export type SettingsDetailSection = "edit" | "notifications" | "account";
 
 type SessionLike = {
@@ -108,7 +133,8 @@ export async function handleAccountSettingsDetailRoute(
   section: SettingsDetailSection,
   lang: "ja" | "en" | "es" | "pt-br",
   session: SessionLike,
-  db: Env["OBS_DB"]
+  db: Env["OBS_DB"],
+  coreDb?: Env["CORE_DB"] | null
 ): Promise<Response> {
   if (!session?.userId) {
     const html = renderZukanCommonShell({
@@ -195,7 +221,16 @@ export async function handleAccountSettingsDetailRoute(
     </form>`;
   } else {
     heading = "アカウント";
-    panelHtml = `<ul class="zt-sp-list">
+    const login = await loadLoginMethods(coreDb, session.userId);
+    const methods = login ? [login.password ? "パスワード" : "", login.google ? "Google" : ""].filter(Boolean).join("・") : "";
+    const infoRow = (label: string, value: string, attr: string) =>
+      `<li><div class="zt-sp-row" ${attr}><span class="zt-sp-body"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(value)}</small></span></div></li>`;
+    const emailMasked = login?.email ? maskEmail(login.email) : "";
+    const accountRows = [
+      emailMasked ? infoRow("メールアドレス", emailMasked, 'data-account-email="1"') : "",
+      methods ? infoRow("ログイン方法", methods, 'data-account-login-methods="1"') : "",
+    ].join("");
+    panelHtml = `${accountRows ? `<ul class="zt-sp-list" data-account-info="1">${accountRows}</ul>` : ""}<ul class="zt-sp-list">
       ${linkRow(`/${lang}/profile/public-settings`, "公開範囲の設定", "プロフィールを公開するかどうか")}
       ${linkRow(`/${lang}/profile/linked-saved`, "つないだ先・保存したもの", "保存した場所やイベント")}
       ${linkRow(`/${lang}/profile/settings`, "表示言語・退会", "言語の切り替えと退会の確認")}

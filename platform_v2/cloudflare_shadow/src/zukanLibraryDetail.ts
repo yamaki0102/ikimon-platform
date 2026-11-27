@@ -26,6 +26,7 @@ export const ZUKAN_LIBRARY_DETAIL_CSS = `
     .zd-row{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:14px 0;border-bottom:1px solid var(--line);font-size:16px}
     .zd-row dt{color:var(--muted);font-weight:700}
     .zd-row dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+    .zd-row dd a,.zd-row dd a:visited{color:var(--green)}
     .zd-cta{display:grid;gap:12px;margin:0 0 24px}
     .zd-cta a,.zd-cta a:visited{min-height:52px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:16px;font-size:17px;font-weight:700;text-decoration:none}
     .zd-cta .is-main{background:var(--green);color:#fff}
@@ -83,7 +84,9 @@ export function renderLibraryGroupDetailPage(
     ${restHtml}
     <dl class="zd-rows">
       <div class="zd-row"><dt>${isEn ? "Status" : "状態"}</dt><dd>${esc(status)}</dd></div>
-      <div class="zd-row"><dt>${isEn ? "Place" : "場所"}</dt><dd>${esc(group.placeName)}</dd></div>
+      <div class="zd-row"><dt>${isEn ? "Place" : "場所"}</dt><dd>${group.placeId ? `<a href="${esc(`${prefix}/places/${encodeURIComponent(group.placeId)}`)}" data-group-place-link="1">${esc(group.placeName)}</a>` : esc(group.placeName)}</dd></div>
+      <div class="zd-row"><dt>${isEn ? "Date" : "日付"}</dt><dd>${esc(dateOnly(group.headerLabel))}</dd></div>
+      <div class="zd-row"><dt>${isEn ? "Photos" : "枚数"}</dt><dd>${isEn ? group.photos.length : `${group.photos.length}枚`}</dd></div>
     </dl>
     <div class="zd-cta">
       <a class="is-main" href="${esc(group.published ? `${prefix}/records?view=mine` : `${prefix}/library/link?group=${k}`)}">${BOOK}${group.published ? (isEn ? "Review" : "公開中・確認") : (isEn ? "Add to ZUKAN" : "図鑑に載せる")}</a>
