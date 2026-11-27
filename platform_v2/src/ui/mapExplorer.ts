@@ -10458,6 +10458,18 @@ export function mapExplorerDeferredScriptSource(): string {
 
   // Bind UI events.
   if (INVASIVE_ON) document.querySelectorAll('[data-map-invasive-chip]').forEach(function (el) { el.hidden = false; });
+  var placeRegisterLink = document.querySelector('[data-map-place-register]');
+  if (placeRegisterLink) {
+    var updatePlaceRegisterHref = function () {
+      if (!state.map || typeof state.map.getCenter !== 'function') return;
+      var center = state.map.getCenter();
+      if (!center || !isFinite(center.lat) || !isFinite(center.lng)) return;
+      var baseHref = (placeRegisterLink.getAttribute('href') || '').split('?')[0];
+      placeRegisterLink.setAttribute('href', baseHref + '?lat=' + Number(center.lat).toFixed(6) + '&lng=' + Number(center.lng).toFixed(6));
+    };
+    placeRegisterLink.addEventListener('click', updatePlaceRegisterHref);
+    placeRegisterLink.addEventListener('pointerdown', updatePlaceRegisterHref);
+  }
   document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var value = btn.getAttribute('data-taxon-group') || '';
@@ -14789,6 +14801,8 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .me-invasive-actions { display: flex; flex-wrap: wrap; gap: 8px; }
   .me-invasive-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(217,72,15,.45); background: #fff; color: #9a3412; font-size: 14px; font-weight: 850; text-decoration: none; }
   .me-invasive-empty .me-results-empty-action { min-height: 44px; }
+  .me-admin-place-register, .me-admin-place-register:visited { position: absolute; top: 10px; left: 108px; z-index: 6; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 999px; background: #fff; border: 1px solid rgba(20,63,46,.35); color: #143f2e; font-size: 14px; font-weight: 800; line-height: 1.2; text-decoration: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(15,23,42,.12); }
+  @media (max-width: 700px) { .me-admin-place-register { left: 102px; max-width: calc(100% - 156px); padding: 0 10px; overflow: hidden; text-overflow: ellipsis; } }
   .me-map-card-ai { color: #075985; font-weight: 900; }
   .me-map-card-awaiting { color: #713f12; font-weight: 900; }
   .me-results-empty, .me-side-empty {

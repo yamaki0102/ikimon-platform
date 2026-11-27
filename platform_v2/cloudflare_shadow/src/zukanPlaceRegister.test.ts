@@ -13,6 +13,7 @@ import {
   guessPlaceKindFromName,
   handlePlaceRegisterRequest,
   haversineMeters,
+  injectMapAdminPlaceRegisterButton,
   validatePlaceRegisterInput,
 } from "./zukanPlaceRegister";
 
@@ -491,4 +492,13 @@ test("page: only name and the register button are outside the details block", as
   }
   assert.ok(outside.includes('id="pr-name"') && outside.includes('id="pr-submit"'));
   assert.ok(inside.includes("<summary>詳しく</summary>"));
+});
+
+test("injectMapAdminPlaceRegisterButton injects only when enabled", () => {
+  const sample = '<!doctype html><html><body><div class="me-map-wrap"><div id="map-explorer"></div><button type="button" class="me-search-area-btn"></button></div></body></html>';
+  assert.equal(injectMapAdminPlaceRegisterButton(sample, false), sample);
+  const injected = injectMapAdminPlaceRegisterButton(sample, true);
+  assert.match(injected, /<a class="me-admin-place-register" data-map-place-register href="\/ja\/admin\/places\/new">ここを場所に登録<\/a><button type="button" class="me-search-area-btn/);
+  assert.ok(!sample.includes("ここを場所に登録"));
+  assert.ok(!sample.includes("/ja/admin/places/new"));
 });
