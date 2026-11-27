@@ -4472,7 +4472,7 @@ export const worker = {
             ).bind(found.occurrenceId, session.userId).first<{ id: string; title: string | null; observedAt: string; area: string | null; assetId: string | null }>().catch(() => null)
           : null;
         return new Response(
-          request.method === "HEAD" ? null : renderNotificationDetail(viewLang, who, found, rec ? { ...rec, title: (rec.title ?? "").trim() || "名前なしの記録" } : null),
+          request.method === "HEAD" ? null : renderNotificationDetail(viewLang, who, found, rec ? { ...rec, title: (rec.title ?? "").trim() || (viewLang !== "ja" ? "Unnamed record" : "名前なしの記録") } : null),
           { status: 200, headers: noStore }
         );
       }

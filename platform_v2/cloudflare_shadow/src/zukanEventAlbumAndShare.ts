@@ -22,7 +22,7 @@ export async function handleEventAlbumOrShareRoute(
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
 
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
   const encodedEvent = encodeURIComponent(eventId);
@@ -121,7 +121,7 @@ export function renderEventGalleryDocument(options: {
 .ze-tile-state{position:absolute;left:6px;right:6px;bottom:6px;padding:2px 8px;border-radius:999px;background:rgba(23,33,27,.72);color:#fff;font-size:.6875rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ze-dot{display:block;line-height:1.7}.ze-dot::before{display:inline-block;vertical-align:middle;margin-right:8px}
 </style><div class="ze" data-event-view="f9" style="max-width:720px">
-    ${renderEventSubHead(event.title, `${p}/events/${id}/preview`, lang === "en" ? "Back to the event" : "イベントに戻る")}
+    ${renderEventSubHead(event.title, `${p}/events/${id}/preview`, lang !== "ja" ? "Back to the event" : "イベントに戻る")}
     <p class="ze-note">${escapeHtml(meta)}</p>
     ${options.organizerSectionHtml ?? (options.tiles.length ? `<div class="ze-grid" data-event-album-grid="1">${tiles}</div>` : empty)}
     <p class="ze-dot">ここにはご自身の写真・動画だけが表示されます。すべて非公開で、公開ページやみんなの振り返りには表示されません。</p>

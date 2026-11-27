@@ -2070,6 +2070,7 @@ export function recordCaptureCameraCopy(lang: SiteLang): {
   gallery: string;
   native: string;
 } {
+  lang = lang === "ja" ? "ja" : "en";
   const copy = globalRecordEntryCopy(lang);
   return {
     errorTitle: copy.errorTitle,

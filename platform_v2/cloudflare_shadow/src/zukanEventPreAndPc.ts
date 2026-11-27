@@ -20,7 +20,7 @@ export async function handleEventPreAndPcRoute(
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
 
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
   const encodedEvent = encodeURIComponent(eventId);

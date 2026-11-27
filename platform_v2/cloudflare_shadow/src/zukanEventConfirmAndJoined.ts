@@ -12,7 +12,7 @@ type SessionLike = {
 function resolveServerFieldName(session: SessionLike, lang: "ja" | "en" | "es" | "pt-br"): string {
   const raw = (session?.displayName ?? "").trim();
   if (raw) return raw.slice(0, 32);
-  return lang === "en" ? "Participant" : "参加者";
+  return lang !== "ja" ? "Participant" : "参加者";
 }
 
 export async function handleEventConfirmOrJoinedRoute(
@@ -27,7 +27,7 @@ export async function handleEventConfirmOrJoinedRoute(
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
 
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
   const fieldName = resolveServerFieldName(session, lang);
