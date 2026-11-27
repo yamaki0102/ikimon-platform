@@ -13,5 +13,6 @@
 | RECORD_INLINE_EDIT_PROTOTYPE_ENABLED | 記録ページのその場で編集 | zukan_record_page | /ja/observations/<自分の記録> |
 | RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED | 記録ページの写真ごとの読み取り | zukan_record_page | /ja/observations/<記録> |
 | RECORD_READER_MODES_ENABLED | 記録詳細のこども・おや切り替え | zukan_record_reader | /ja/observations |
+| SHOP_PHOTO_PERK_ENABLED | 店の写真投稿＋引換券 | zukan_shop_photo_perk | /ja/shops |
 | SPECIES_READER_LAYER_ENABLED | 種ごとの解説レイヤー（こども／おや／せんせい） | zukan_species_reader_layer | /ja/records |
 <!-- END GENERATED FLAGS -->
