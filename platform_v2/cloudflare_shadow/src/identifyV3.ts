@@ -2,14 +2,19 @@ import type { Env } from "./core/env";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
 import {
   TAXON_TREE,
+  computeVoterOverturnRate,
   deriveAutoGrownSkills,
+  evaluateConfirmationRules,
   findTaxonNode,
   formatIdentifyLocationDisplay,
   formatSpokenJustificationJa,
   rankIdentifyFeedItems,
   resolveNodeSkillLevel,
   taxonNodeLabelWithParent,
+  validateStructuredJustification,
   canApproveSplitRule,
+  type ConfirmationObjectionInput,
+  type ConfirmationVoteInput,
   type IdentifyAiCandidate,
   type IdentifyDecisionKind,
   type IdentifyFeedCandidateInput,
@@ -252,7 +257,7 @@ export async function loadIdentifyV3WorkspaceData(
 
   // 3. Load candidate observations + AI targets + holds + votes + disputes
   const obsRows = await env.OBS_DB.prepare(
-    `SELECT o.observation_id, o.owner_user_id, o.observed_at, o.taxon_label, o.location_accuracy_m,
+    `SELECT o.observation_id, o.owner_user_id, o.observed_at, o.taxon_label, o.exact_lat, o.exact_lng, o.location_accuracy_m,
             o.public_cell, o.public_area_label,
             (SELECT a.public_derivative_key FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed' ORDER BY a.uploaded_at DESC LIMIT 1) AS derivative_key,
             (SELECT COUNT(*) FROM asset_ledger a2 WHERE a2.observation_id = o.observation_id) AS photo_count,
@@ -267,6 +272,8 @@ export async function loadIdentifyV3WorkspaceData(
     owner_user_id: string;
     observed_at: string;
     taxon_label: string | null;
+    exact_lat: number | null;
+    exact_lng: number | null;
     location_accuracy_m: number | null;
     public_cell: string | null;
     public_area_label: string | null;
@@ -316,6 +323,32 @@ export async function loadIdentifyV3WorkspaceData(
     }
   }
 
+  const userAuthorities = await env.OBS_DB.prepare(
+    `SELECT scope_taxon_name, scope_taxon_key
+       FROM specialist_authorities
+      WHERE subject_user_id = ? AND status = 'active' AND authority_kind = 'taxon_identification'`
+  ).bind(userId).all<{ scope_taxon_name: string; scope_taxon_key: string | null }>().catch(() => ({ results: [] }));
+
+  const hasAuthorityForTaxon = (names: Array<string | null | undefined>): boolean => {
+    const candidateTerms = new Set<string>();
+    for (const raw of names) {
+      const val = String(raw ?? "").trim().toLowerCase();
+      if (!val) continue;
+      candidateTerms.add(val);
+      let node = findTaxonNode(val);
+      while (node) {
+        candidateTerms.add(node.key.toLowerCase());
+        candidateTerms.add(node.labelJa.toLowerCase());
+        node = node.parentKey ? findTaxonNode(node.parentKey) : null;
+      }
+    }
+    return userAuthorities.results.some((auth) => {
+      const sName = String(auth.scope_taxon_name ?? "").trim().toLowerCase();
+      const sKey = String(auth.scope_taxon_key ?? "").trim().toLowerCase();
+      return (sName && candidateTerms.has(sName)) || (sKey && candidateTerms.has(sKey));
+    });
+  };
+
   const nowMs = Date.now();
   const candidates: IdentifyFeedCandidateInput[] = [];
   const savedItems: IdentifyV3SavedItem[] = [];
@@ -335,6 +368,24 @@ export async function loadIdentifyV3WorkspaceData(
     const votes = votesByOcc.get(row.observation_id) ?? [];
     const disp = disputesByOcc.get(row.observation_id) ?? { openCount: 0, hasInsufficientEvidence: false };
     const consensus = computeStatusFromVotes(votes, disp.openCount, aiCandidates.length > 0);
+    const primaryTaxonLabel = aiCandidates[0]?.name ?? row.taxon_label ?? majorGroup;
+    const evalRes = evaluateConfirmationRules({
+      targetTaxon: primaryTaxonLabel,
+      targetRank: aiCandidates[0]?.rank ?? "species",
+      observedAt: row.observed_at,
+      nowMs,
+      votes: votes.map((v) => ({
+        actorUserId: v.actorUserId,
+        proposedName: v.proposedName,
+        activeDays: 30,
+        overturnRate: computeVoterOverturnRate([]),
+        hasScopedAuthority: false,
+      })),
+      objections: disp.openCount > 0 ? [{ actorUserId: "dispute", structuredJustification: { traits: ["異議"], photoPart: "全体の姿", visibility: "見える" } }] : [],
+      lat: row.exact_lat,
+      lng: row.exact_lng,
+    });
+    const canConfirmScoped = hasAuthorityForTaxon([primaryTaxonLabel, majorGroup, row.ai_scientific]);
     const loc = formatIdentifyLocationDisplay({
       publicAreaLabel: row.public_area_label,
       publicCell: row.public_cell,
@@ -363,6 +414,12 @@ export async function loadIdentifyV3WorkspaceData(
       photoCount: Math.max(1, Number(row.photo_count ?? 1)),
       locationText: loc.text,
       areaNote: loc.areaNote,
+      canConfirmScoped,
+      confirmedWithObjection: evalRes.confirmedWithObjection,
+      tier3ExportAllowed: evalRes.tier3ExportAllowed,
+      needsInquiry: evalRes.needsInquiry,
+      outlierReasons: evalRes.outlierReasons,
+      escalatedOneRankUp: evalRes.escalatedOneRankUp,
     };
 
     if (holdReason === "saved" && hold) {
@@ -495,6 +552,10 @@ ${ZUKAN_SHELL_CSS}
 .id3-row{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #eef1ee;align-items:center;text-decoration:none;color:inherit}
 .id3-row img{width:62px;height:62px;border-radius:12px;object-fit:cover;flex:none;background:#eff3ee}
 .id3-tag-reason{display:inline-flex;align-items:center;background:#fdf3e7;color:#8a4b00;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px}
+.id3-expert{background:#e9f0eb;border-radius:14px;padding:15px 16px;margin-top:14px}
+.id3-expert .id3-et{font-size:15px;font-weight:800;color:#143f2e;line-height:1.5}
+.id3-expert .id3-eb{font-size:14px;line-height:1.65;color:#26332a;margin-top:4px}
+.id3-expert .id3-ebtn{display:flex;align-items:center;justify-content:center;width:100%;border:1.5px solid #143f2e;color:#143f2e;font-size:15px;font-weight:700;border-radius:12px;min-height:48px;background:#fff;margin-top:10px;cursor:pointer}
 `;
 
 export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[]): string {
@@ -526,37 +587,65 @@ export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[]): s
         })
         .join("");
 
-      const statusLabel =
-        obs.humanProposals.length > 0
+      const statusLabel = obs.confirmedWithObjection
+        ? `確認済み（異議あり）・研究公開停止中`
+        : obs.humanProposals.length > 0
           ? `${esc(obs.humanProposals[0]!.proposedName)}に賛成${obs.humanProposals[0]!.count}人。あと${Math.max(1, 2 - obs.humanProposals[0]!.count)}人の賛成で、確認済みになります`
           : "まだ、ほかの人の賛成はありません";
+
+      const badgeHtml = [
+        obs.splitReasonTag ? `<span class="id3-tag-reason">${esc(obs.splitReasonTag)}</span>` : "",
+        obs.needsInquiry ? `<span class="id3-tag-reason">要照会</span>` : "",
+        obs.escalatedOneRankUp ? `<span class="id3-tag-reason">14日無判断・一段上へ</span>` : "",
+      ].filter(Boolean).join(" ");
+
+      const expertBoxHtml = obs.canConfirmScoped
+        ? `<div class="id3-expert" data-id3-expert="${esc(obs.observationId)}">
+            <div class="id3-et">あなたは、${esc(topCandName)}の範囲を確認できます</div>
+            <div class="id3-eb">形質・写真の場所・見える／見えないの根拠を添えると、1人で確認済みにできます。</div>
+            <button type="button" class="id3-ebtn" data-id3-expert-confirm-open="${esc(obs.observationId)}">根拠を添えて確定する</button>
+          </div>`
+        : "";
 
       return `<article class="id3-card" data-id3-card="${esc(obs.observationId)}" data-top-name="${esc(topCandName)}" data-thumb="${thumbAttr}" data-index="${index}">
         <div class="id3-ghead"><h2>${esc(ranked.matchedNodeLabel)}</h2></div>
         <div class="id3-classband">
-          <span>AIの分類：<b>${esc(findTaxonNode(obs.aiMajorGroup)?.labelJa ?? obs.aiMajorGroup)}</b>（仮説）${ranked.isLowConfidenceCandidateMatch ? " ・ 候補に入っています（下位の候補です）" : ""}${obs.splitReasonTag ? ` <span class="id3-tag-reason">${esc(obs.splitReasonTag)}</span>` : ""}</span>
+          <span>AIの分類：<b>${esc(findTaxonNode(obs.aiMajorGroup)?.labelJa ?? obs.aiMajorGroup)}</b>（仮説）${ranked.isLowConfidenceCandidateMatch ? " ・ 候補に入っています（下位の候補です）" : ""}${badgeHtml ? ` ${badgeHtml}` : ""}</span>
         </div>
         ${obs.photoUrl ? `<div class="id3-photo"><img src="${esc(obs.photoUrl)}" alt="${esc(topCandName)}の写真" loading="lazy"></div>` : ""}
         <div class="id3-sumline"><span>${esc(obs.ownerDisplayName)}さんの記録 ・ ${esc(obs.locationText ?? "場所の情報なし")} ・ ${esc(jstMonthDayTimeLabel(obs.observedAt))}</span></div>
         ${obs.areaNote ? `<div class="id3-gwhy">${esc(obs.areaNote)}</div>` : ""}
+        ${obs.needsInquiry && obs.outlierReasons?.length ? `<div class="id3-gwhy" style="color:#8a4b00">${esc(obs.outlierReasons.join(" / "))}</div>` : ""}
         ${cardsHtml}
-        <button type="button" class="id3-vrow" data-id3-voice-open="${esc(obs.observationId)}">${ICONS.mic}声で理由を添える<span class="id3-vs">任意</span></button>
+        <button type="button" class="id3-vrow" data-id3-voice-open="${esc(obs.observationId)}">${ICONS.mic}声で理由を添える<span class="id3-vs">任意・根拠入力</span></button>
         <div class="id3-voicebox" data-id3-voicebox="${esc(obs.observationId)}" hidden>
-          <div class="id3-gwhy">ブラウザ内の音声入力で話した内容を整形します。残す前にご自身で内容を確認・修正してください。</div>
+          <div class="id3-gwhy">形質・写真の箇所・見える／見えないを選び、話した内容を確認・修正して残します。</div>
+          <div class="id3-partchips" role="group" aria-label="形質選択">
+            <button type="button" class="id3-partchip on" data-id3-trait="頭・顔の模様">頭・顔の模様</button>
+            <button type="button" class="id3-partchip" data-id3-trait="くちばし・口元">くちばし・口元</button>
+            <button type="button" class="id3-partchip" data-id3-trait="羽・体の色">羽・体の色</button>
+            <button type="button" class="id3-partchip" data-id3-trait="大きさ・形">大きさ・形</button>
+          </div>
+          <div class="id3-partchips" role="group" aria-label="写真の箇所">
+            <button type="button" class="id3-partchip on" data-id3-part="全体の姿">全体の姿</button>
+            <button type="button" class="id3-partchip" data-id3-part="頭・顔">頭・顔</button>
+            <button type="button" class="id3-partchip" data-id3-part="羽・背中">羽・背中</button>
+            <button type="button" class="id3-partchip" data-id3-part="腹・足">腹・足</button>
+          </div>
+          <div class="id3-partchips" role="group" aria-label="見えるか">
+            <button type="button" class="id3-partchip on" data-id3-vis="見える">見える</button>
+            <button type="button" class="id3-partchip" data-id3-vis="見えない">見えない</button>
+          </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button type="button" class="id3-partchip" data-id3-speech-start="${esc(obs.observationId)}">${ICONS.mic} 声で入力</button>
             <span class="id3-gwhy" data-id3-speech-status="${esc(obs.observationId)}"></span>
           </div>
           <textarea data-id3-voice-text="${esc(obs.observationId)}" placeholder="見分ける理由を書いて確認します"></textarea>
-          <div class="id3-partchips" role="group" aria-label="写真の箇所">
-            <button type="button" class="id3-partchip on" data-id3-part="全体の姿">全体の姿</button>
-            <button type="button" class="id3-partchip" data-id3-part="頭・顔">頭・顔</button>
-            <button type="button" class="id3-partchip" data-id3-part="羽・背中">羽・背中</button>
-            <button type="button" class="id3-partchip" data-id3-part="鳴き声・動き">鳴き声・動き</button>
-          </div>
           <button type="button" class="id3-agree main" data-id3-voice-submit="${esc(obs.observationId)}" data-candidate-name="${esc(topCandName)}">確認して「${esc(topCandName)}」に添える</button>
+          ${obs.canConfirmScoped ? `<button type="button" class="id3-agree" data-id3-expert-submit="${esc(obs.observationId)}" data-candidate-name="${esc(topCandName)}">この根拠で確定する</button>` : ""}
         </div>
         <div class="id3-sumline"><span>確認の状態：${statusLabel}</span></div>
+        ${expertBoxHtml}
         <div class="id3-blockend">
           <button type="button" class="id3-be" data-id3-delegate="${esc(obs.observationId)}">${ICONS.users}ほかの人にまかせる</button>
           <button type="button" class="id3-be" data-id3-undetermined="${esc(obs.observationId)}">${ICONS.photoHelp}この写真では決められない</button>
@@ -875,17 +964,34 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
         };
         rec.onerror = () => { if (status) status.textContent = '音声をとれませんでした。文字で直せます。'; };
         rec.start();
+      } else if (t.hasAttribute('data-id3-expert-confirm-open')) {
+        const id = t.getAttribute('data-id3-expert-confirm-open');
+        const box = document.querySelector('[data-id3-voicebox="' + id + '"]');
+        if (box) { box.hidden = false; box.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      } else if (t.hasAttribute('data-id3-trait')) {
+        t.classList.toggle('on');
+      } else if (t.hasAttribute('data-id3-vis')) {
+        const box = t.closest('[data-id3-voicebox]');
+        box?.querySelectorAll('[data-id3-vis]').forEach((b) => b.classList.remove('on'));
+        t.classList.add('on');
       } else if (t.hasAttribute('data-id3-part')) {
         const box = t.closest('[data-id3-voicebox]');
         box?.querySelectorAll('[data-id3-part]').forEach((b) => b.classList.remove('on'));
         t.classList.add('on');
-      } else if (t.hasAttribute('data-id3-voice-submit')) {
-        const id = t.getAttribute('data-id3-voice-submit');
+      } else if (t.hasAttribute('data-id3-voice-submit') || t.hasAttribute('data-id3-expert-submit')) {
+        const isConfirm = t.hasAttribute('data-id3-expert-submit');
+        const id = t.getAttribute(isConfirm ? 'data-id3-expert-submit' : 'data-id3-voice-submit');
         const name = t.getAttribute('data-candidate-name');
         const box = document.querySelector('[data-id3-voicebox="' + id + '"]');
         const area = box?.querySelector('[data-id3-voice-text="' + id + '"]');
+        const traits = [...(box?.querySelectorAll('[data-id3-trait].on') || [])].map((b) => b.getAttribute('data-id3-trait'));
         const part = box?.querySelector('[data-id3-part].on')?.getAttribute('data-id3-part') || '全体の姿';
-        await submitDecision(id, { decision: 'identify', proposedName: name, justificationText: area?.value || '', photoPart: part }, name + 'に理由を添えて賛成しました');
+        const vis = box?.querySelector('[data-id3-vis].on')?.getAttribute('data-id3-vis') || '見える';
+        await submitDecision(
+          id,
+          { decision: isConfirm ? 'confirm' : 'identify', proposedName: name, traits, photoPart: part, visibility: vis, justificationText: area?.value || '' },
+          isConfirm ? name + 'を根拠つきで確定しました' : name + 'に理由を添えて賛成しました'
+        );
       } else if (t.hasAttribute('data-id3-skill-opt')) {
         const node = t.getAttribute('data-node');
         document.querySelectorAll('[data-id3-skill-opt][data-node="' + node + '"]').forEach((b) => {
@@ -1021,20 +1127,204 @@ export async function handleIdentifyV3ApiRequest(
   if (request.method === "POST" && sub === "decisions") {
     const occurrenceId = String(body.occurrenceId ?? "").trim();
     const decision = String(body.decision ?? "").trim() as IdentifyDecisionKind;
-    if (!occurrenceId || !["identify", "save", "delegate", "read", "undetermined"].includes(decision)) {
+    if (!occurrenceId || !["identify", "confirm", "object", "save", "delegate", "read", "undetermined"].includes(decision)) {
       return jsonRes({ ok: false, error: "invalid_decision_request" }, 400);
     }
     const target = await env.OBS_DB.prepare(
-      "SELECT observation_id, visibility, owner_user_id FROM observations WHERE observation_id = ? LIMIT 1",
+      "SELECT observation_id, visibility, owner_user_id, taxon_label, observed_at, exact_lat, exact_lng FROM observations WHERE observation_id = ? LIMIT 1",
     )
       .bind(occurrenceId)
-      .first<{ observation_id: string; visibility: string; owner_user_id: string }>()
+      .first<{ observation_id: string; visibility: string; owner_user_id: string; taxon_label: string | null; observed_at: string; exact_lat: number | null; exact_lng: number | null }>()
       .catch(() => null);
     if (!target) {
       return jsonRes({ ok: false, error: "observation_not_found" }, 404);
     }
     if (target.visibility !== "public" && target.owner_user_id !== session.userId) {
       return jsonRes({ ok: false, error: "forbidden" }, 403);
+    }
+
+    const evaluateCurrentOccurrence = async (taxonHint: string) => {
+      const [votesRes, dispRes, revRes] = await Promise.all([
+        env.OBS_DB.prepare("SELECT actor_user_id, proposed_name, proposed_rank, source_payload_json FROM observation_identifications WHERE occurrence_id = ? AND is_current = 1")
+          .bind(occurrenceId)
+          .all<{ actor_user_id: string; proposed_name: string; proposed_rank: string | null; source_payload_json: string }>()
+          .catch(() => ({ results: [] })),
+        env.OBS_DB.prepare("SELECT actor_user_id, proposed_name, kind, source_payload_json FROM observation_identification_disputes WHERE occurrence_id = ? AND status = 'open'")
+          .bind(occurrenceId)
+          .all<{ actor_user_id: string; proposed_name: string | null; kind: string; source_payload_json: string }>()
+          .catch(() => ({ results: [] })),
+        env.OBS_DB.prepare("SELECT actor_user_id, proposed_name, proposed_rank, decision, source_payload_json FROM observation_specialist_reviews WHERE occurrence_id = ? AND decision = 'approve'")
+          .bind(occurrenceId)
+          .all<{ actor_user_id: string; proposed_name: string | null; proposed_rank: string | null; decision: string; source_payload_json: string }>()
+          .catch(() => ({ results: [] })),
+      ]);
+
+      const scopedActorIds = new Set(revRes.results.map((r) => r.actor_user_id));
+      const votes: ConfirmationVoteInput[] = votesRes.results.map((v) => {
+        let meta: { structuredJustification?: unknown } = {};
+        try {
+          meta = JSON.parse(v.source_payload_json) as typeof meta;
+        } catch {}
+        return {
+          actorUserId: v.actor_user_id,
+          proposedName: v.proposed_name,
+          proposedRank: v.proposed_rank,
+          activeDays: 30,
+          overturnRate: computeVoterOverturnRate([]),
+          hasScopedAuthority: scopedActorIds.has(v.actor_user_id),
+          structuredJustification: (meta.structuredJustification as ConfirmationVoteInput["structuredJustification"]) ?? null,
+        };
+      });
+      for (const r of revRes.results) {
+        if (!votes.some((v) => v.actorUserId === r.actor_user_id)) {
+          let meta: { structuredJustification?: unknown } = {};
+          try {
+            meta = JSON.parse(r.source_payload_json) as typeof meta;
+          } catch {}
+          votes.push({
+            actorUserId: r.actor_user_id,
+            proposedName: r.proposed_name ?? taxonHint,
+            proposedRank: r.proposed_rank,
+            activeDays: 30,
+            overturnRate: 0,
+            hasScopedAuthority: true,
+            structuredJustification: (meta.structuredJustification as ConfirmationVoteInput["structuredJustification"]) ?? null,
+          });
+        }
+      }
+      const objections: ConfirmationObjectionInput[] = dispRes.results.map((d) => {
+        let meta: { structuredJustification?: unknown } = {};
+        try {
+          meta = JSON.parse(d.source_payload_json) as typeof meta;
+        } catch {}
+        return {
+          actorUserId: d.actor_user_id,
+          proposedName: d.proposed_name,
+          structuredJustification:
+            (meta.structuredJustification as ConfirmationObjectionInput["structuredJustification"]) ??
+            (d.kind === "insufficient_evidence" ? { traits: ["写真証拠不足"], photoPart: "全体の姿", visibility: "見えない" } : null),
+        };
+      });
+
+      return evaluateConfirmationRules({
+        targetTaxon: taxonHint,
+        observedAt: target.observed_at,
+        votes,
+        objections,
+        lat: target.exact_lat,
+        lng: target.exact_lng,
+      });
+    };
+
+    if (decision === "confirm") {
+      const proposedName = String(body.proposedName ?? target.taxon_label ?? "").trim().slice(0, 160);
+      if (!proposedName) return jsonRes({ ok: false, error: "identification_name_required" }, 400);
+      const proposedRank = typeof body.proposedRank === "string" ? body.proposedRank.trim().slice(0, 60) : "species";
+
+      const authRows = await env.OBS_DB.prepare(
+        `SELECT scope_taxon_name, scope_taxon_key
+           FROM specialist_authorities
+          WHERE subject_user_id = ? AND status = 'active' AND authority_kind = 'taxon_identification'`
+      ).bind(session.userId).all<{ scope_taxon_name: string; scope_taxon_key: string | null }>().catch(() => ({ results: [] }));
+
+      const terms = new Set<string>();
+      for (const candidate of [proposedName, target.taxon_label]) {
+        const val = String(candidate ?? "").trim().toLowerCase();
+        if (!val) continue;
+        terms.add(val);
+        let node = findTaxonNode(val);
+        while (node) {
+          terms.add(node.key.toLowerCase());
+          terms.add(node.labelJa.toLowerCase());
+          node = node.parentKey ? findTaxonNode(node.parentKey) : null;
+        }
+      }
+      const hasScope = authRows.results.some((a) => {
+        const sName = String(a.scope_taxon_name ?? "").trim().toLowerCase();
+        const sKey = String(a.scope_taxon_key ?? "").trim().toLowerCase();
+        return (sName && terms.has(sName)) || (sKey && terms.has(sKey));
+      });
+      if (!hasScope) {
+        return jsonRes({ ok: false, error: "specialist_authority_required" }, 403);
+      }
+
+      const evCheck = validateStructuredJustification({
+        traits: body.traits as string[],
+        photoPart: String(body.photoPart ?? ""),
+        visibility: body.visibility as "見える" | "見えない",
+        textNote: typeof body.justificationText === "string" ? body.justificationText : null,
+      });
+      if (!evCheck.ok || !evCheck.normalized) {
+        return jsonRes({ ok: false, error: evCheck.reason ?? "structured_justification_incomplete" }, 400);
+      }
+
+      const payload = { source: "identify_v3_confirm", structuredJustification: evCheck.normalized, updatedAt: now };
+      const sourceKey = `cf_specialist_review:${occurrenceId}:expert-lane:${session.userId}`;
+      await env.OBS_DB.batch([
+        env.OBS_DB.prepare(
+          `INSERT INTO observation_specialist_reviews (
+             review_id, occurrence_id, actor_user_id, lane, decision, proposed_name, proposed_rank,
+             accepted_rank, notes, review_class, source_payload_json, created_at, updated_at
+           ) VALUES (?, ?, ?, 'expert-lane', 'approve', ?, ?, ?, ?, 'authority_backed', ?, ?, ?)
+           ON CONFLICT(occurrence_id, actor_user_id, lane) DO UPDATE SET
+             decision = excluded.decision,
+             proposed_name = excluded.proposed_name,
+             proposed_rank = excluded.proposed_rank,
+             accepted_rank = excluded.accepted_rank,
+             notes = excluded.notes,
+             source_payload_json = excluded.source_payload_json,
+             updated_at = excluded.updated_at`
+        ).bind(`rev_${crypto.randomUUID()}`, occurrenceId, session.userId, proposedName, proposedRank, proposedRank, evCheck.normalized.textNote ?? evCheck.normalized.traits.join("・"), JSON.stringify(payload), now, now),
+        env.OBS_DB.prepare(
+          `INSERT INTO observation_identifications (
+             identification_id, occurrence_id, actor_user_id, proposed_name, proposed_rank,
+             stance, notes, source_key, source_payload_json, is_current, created_at, updated_at
+           ) VALUES (?, ?, ?, ?, ?, 'support', ?, ?, ?, 1, ?, ?)
+           ON CONFLICT(source_key) DO UPDATE SET
+             proposed_name = excluded.proposed_name,
+             proposed_rank = excluded.proposed_rank,
+             notes = excluded.notes,
+             source_payload_json = excluded.source_payload_json,
+             is_current = 1,
+             updated_at = excluded.updated_at`
+        ).bind(`id_${crypto.randomUUID()}`, occurrenceId, session.userId, proposedName, proposedRank, evCheck.normalized.textNote ?? evCheck.normalized.traits.join("・"), sourceKey, JSON.stringify(payload), now, now),
+      ]);
+
+      const state = await evaluateCurrentOccurrence(proposedName);
+      return jsonRes({ ok: true, occurrenceId, decision, proposedName, ...state });
+    }
+
+    if (decision === "object") {
+      const evCheck = validateStructuredJustification({
+        traits: body.traits as string[],
+        photoPart: String(body.photoPart ?? ""),
+        visibility: body.visibility as "見える" | "見えない",
+        textNote: typeof body.reason === "string" ? body.reason : typeof body.justificationText === "string" ? body.justificationText : null,
+      });
+      if (!evCheck.ok || !evCheck.normalized) {
+        return jsonRes({ ok: false, error: evCheck.reason ?? "structured_justification_incomplete" }, 400);
+      }
+      const proposedName = typeof body.proposedName === "string" ? body.proposedName.trim().slice(0, 160) : null;
+      const reason = String(body.reason ?? evCheck.normalized.textNote ?? evCheck.normalized.traits.join("・")).slice(0, 240);
+      const dispId = `disp_${crypto.randomUUID()}`;
+      await env.OBS_DB.prepare(
+        `INSERT INTO observation_identification_disputes (
+           dispute_id, occurrence_id, actor_user_id, kind, proposed_name, reason, status, source_payload_json, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`
+      ).bind(
+        dispId,
+        occurrenceId,
+        session.userId,
+        proposedName ? "alternative_id" : "evidence_objection",
+        proposedName,
+        reason,
+        JSON.stringify({ source: "identify_v3_objection", structuredJustification: evCheck.normalized, createdAt: now }),
+        now,
+        now,
+      ).run();
+
+      const state = await evaluateCurrentOccurrence(target.taxon_label ?? proposedName ?? "");
+      return jsonRes({ ok: true, occurrenceId, decision, disputeId: dispId, ...state });
     }
 
     if (decision === "identify") {

@@ -11,13 +11,19 @@ import { PROTOTYPE_FLAGS } from "./flags/index.generated";
 import {
   TAXON_TREE,
   applyRegionalSplitToObservation,
+  applyTaxonomyChange,
   canApproveSplitRule,
+  checkSeasonAndDistributionOutlier,
+  computeVoterOverturnRate,
   deriveAutoGrownSkills,
+  evaluateConfirmationRules,
   formatIdentifyLocationDisplay,
   formatSpokenJustificationJa,
+  isVoterEligible,
   rankIdentifyFeedItems,
   recomputeUnitStatsAfterSplit,
   resolveNodeSkillLevel,
+  validateStructuredJustification,
   type IdentifyFeedCandidateInput,
   type IdentifySkillDeclaration,
 } from "./identifyV3Domain";
@@ -642,8 +648,216 @@ test("Playwright verifies 375px and 1280px layout, fixed decbar, scroll dim guar
     if (vp.width < 960) {
       assert.ok(check.dpillHeight >= 44, `pill height ${check.dpillHeight} < 44`);
     }
-    // U1-U6 pending: must NOT render expert confirmation CTA
+    // Without scoped authority, expert confirmation CTA stays hidden
     assert.equal(check.hasExpertMockButton, false);
     await ctx.close();
   }
+});
+
+test("confirmation rules: voter eligibility (7 days & <20% overturn excluding taxonomy changes), 14-day escalation, outlier inquiry, objection Tier3 halt, and taxonomy rename/merge/split", () => {
+  // Overturn rate excludes taxonomy/split updates
+  const rate = computeVoterOverturnRate([
+    { overturned: true, reasonTag: "分類の変更" },
+    { overturned: true, reasonTag: "taxon_split" },
+    { overturned: false, reasonTag: null },
+    { overturned: false, reasonTag: null },
+    { overturned: false, reasonTag: null },
+    { overturned: true, reasonTag: "misidentification" },
+  ]);
+  // Only 4 non-taxonomy outcomes, 1 overturned => 0.25 (>= 20%)
+  assert.equal(rate, 0.25);
+  assert.equal(isVoterEligible({ activeDays: 7, overturnRate: 0.19 }), true);
+  assert.equal(isVoterEligible({ activeDays: 6, overturnRate: 0.1 }), false);
+  assert.equal(isVoterEligible({ activeDays: 10, overturnRate: 0.2 }), false);
+
+  // Justification validation requires trait selection + photoPosition + visibility ('見える' | '見えない')
+  assert.equal(validateStructuredJustification({ traits: [], photoPart: "頭・顔", visibility: "見える" }).ok, false);
+  assert.equal(validateStructuredJustification({ traits: ["ほおが白い"], photoPart: "頭・顔", visibility: "見える" }).ok, true);
+
+  // Scoped reviewer + structured justification confirms alone, while non-matching voter does not
+  const expertConfirmed = evaluateConfirmationRules({
+    targetTaxon: "文鳥",
+    observedAt: "2026-11-20T01:00:00Z",
+    nowMs: Date.parse("2026-11-27T01:00:00Z"),
+    votes: [
+      {
+        actorUserId: "u-exp",
+        proposedName: "文鳥",
+        proposedRank: "species",
+        activeDays: 30,
+        overturnRate: 0.02,
+        hasScopedAuthority: true,
+        structuredJustification: { traits: ["ほおが白い"], photoPart: "頭・顔", visibility: "見える" },
+      },
+    ],
+    objections: [],
+    lat: 34.71,
+    lng: 137.7,
+  });
+  assert.equal(expertConfirmed.statusWord, "確認済み");
+  assert.equal(expertConfirmed.confirmedWithObjection, false);
+  assert.equal(expertConfirmed.tier3ExportAllowed, true);
+  assert.equal(expertConfirmed.confirmedBasis, "scoped_reviewer");
+
+  // Justified objection sets Confirmed-with-objection modifier AND halts Tier3 export
+  const disputedConfirmed = evaluateConfirmationRules({
+    targetTaxon: "文鳥",
+    observedAt: "2026-11-20T01:00:00Z",
+    nowMs: Date.parse("2026-11-27T01:00:00Z"),
+    votes: [
+      {
+        actorUserId: "u-exp",
+        proposedName: "文鳥",
+        proposedRank: "species",
+        activeDays: 30,
+        overturnRate: 0.02,
+        hasScopedAuthority: true,
+        structuredJustification: { traits: ["ほおが白い"], photoPart: "頭・顔", visibility: "見える" },
+      },
+    ],
+    objections: [
+      {
+        actorUserId: "u-obj",
+        proposedName: "ジュウシマツ",
+        structuredJustification: { traits: ["背中に模様"], photoPart: "羽・背中", visibility: "見える" },
+      },
+    ],
+    lat: 34.71,
+    lng: 137.7,
+  });
+  assert.equal(disputedConfirmed.statusWord, "確認済み");
+  assert.equal(disputedConfirmed.confirmedWithObjection, true);
+  assert.equal(disputedConfirmed.tier3ExportAllowed, false);
+
+  // 14 days without confirmation escalates target evaluation rank 1 step up
+  const escalated = evaluateConfirmationRules({
+    targetTaxon: "スズメ",
+    targetRank: "species",
+    observedAt: "2026-11-01T01:00:00Z",
+    nowMs: Date.parse("2026-11-27T01:00:00Z"),
+    votes: [{ actorUserId: "u-1", proposedName: "スズメ", proposedRank: "species", activeDays: 14, overturnRate: 0.05, hasScopedAuthority: false }],
+    objections: [],
+    lat: 34.71,
+    lng: 137.7,
+  });
+  assert.equal(escalated.escalatedOneRankUp, true);
+  assert.equal(escalated.recommendedRank, "genus");
+
+  // Season / distribution outlier -> needsInquiry ('要照会')
+  const outlierWinterCicada = checkSeasonAndDistributionOutlier({
+    taxonKeyOrName: "アブラゼミ",
+    observedAt: "2026-12-20T03:00:00Z",
+    lat: 34.71,
+    lng: 137.7,
+  });
+  assert.equal(outlierWinterCicada.needsInquiry, true);
+  assert.match(outlierWinterCicada.reasons.join(" "), /時期/);
+
+  const outlierCoord = checkSeasonAndDistributionOutlier({
+    taxonKeyOrName: "アブラゼミ",
+    observedAt: "2026-08-15T03:00:00Z",
+    lat: 10.0,
+    lng: 137.7,
+  });
+  assert.equal(outlierCoord.needsInquiry, true);
+  assert.match(outlierCoord.reasons.join(" "), /分布/);
+
+  // Taxonomy maintenance: rename & merge automatic preserving confirmed; non-geo split widens to reconfirmationShelf
+  const renamed = applyTaxonomyChange({ kind: "rename", currentTaxon: "旧種名", newTaxon: "新種名", statusWord: "確認済み" });
+  assert.equal(renamed.nextTaxon, "新種名");
+  assert.equal(renamed.nextStatusWord, "確認済み");
+  assert.equal(renamed.reconfirmationShelf, false);
+  assert.equal(renamed.countsAsOverturn, false);
+
+  const merged = applyTaxonomyChange({ kind: "merge", currentTaxon: "統合元種", newTaxon: "統合先種", statusWord: "確認済み" });
+  assert.equal(merged.nextTaxon, "統合先種");
+  assert.equal(merged.nextStatusWord, "確認済み");
+  assert.equal(merged.countsAsOverturn, false);
+
+  const nonGeoSplit = applyTaxonomyChange({ kind: "split", currentTaxon: "トウキョウダルマガエル", broadenedTaxon: "アカガエルの仲間", statusWord: "確認済み" });
+  assert.equal(nonGeoSplit.nextTaxon, "アカガエルの仲間");
+  assert.equal(nonGeoSplit.nextStatusWord, "人の提案");
+  assert.equal(nonGeoSplit.reconfirmationShelf, true);
+  assert.equal(nonGeoSplit.reasonTag, "分類の変更");
+  assert.equal(nonGeoSplit.countsAsOverturn, false);
+});
+
+test("worker API enforces scoped reviewer authorization and structured evidence for confirm/object decisions", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`
+    CREATE TABLE auth_sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, display_name TEXT NOT NULL, role_name TEXT NOT NULL DEFAULT 'member', rank_label TEXT, banned INTEGER NOT NULL DEFAULT 0, expires_at TEXT NOT NULL, last_used_at TEXT);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, draft_id TEXT NOT NULL UNIQUE, owner_user_id TEXT NOT NULL, observed_at TEXT NOT NULL, taxon_label TEXT, note TEXT, exact_lat REAL, exact_lng REAL, location_accuracy_m REAL, public_cell TEXT NOT NULL, public_area_label TEXT, visibility TEXT NOT NULL DEFAULT 'public', emergency_hidden INTEGER NOT NULL DEFAULT 0, processing_state TEXT NOT NULL DEFAULT 'accepted', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, draft_id TEXT, observation_id TEXT, owner_user_id TEXT, mime TEXT NOT NULL, exif_scrub_state TEXT NOT NULL DEFAULT 'scrubbed', public_derivative_key TEXT, uploaded_at TEXT);
+    CREATE TABLE observation_ai_review_targets (occurrence_id TEXT PRIMARY KEY, ai_assessment_status TEXT NOT NULL DEFAULT 'ai_judgement', scientific_name TEXT, vernacular_name TEXT, taxon_rank TEXT, ai_run_id TEXT, candidate_id TEXT, candidate_scientific_name TEXT, candidate_vernacular_name TEXT, candidate_taxon_rank TEXT, ai_recommended_taxon_name TEXT, ai_recommended_rank TEXT, source_payload_json TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE observation_identifications (identification_id TEXT PRIMARY KEY, occurrence_id TEXT NOT NULL, actor_user_id TEXT NOT NULL, proposed_name TEXT NOT NULL, proposed_rank TEXT, stance TEXT NOT NULL DEFAULT 'support', notes TEXT, source_key TEXT NOT NULL UNIQUE, source_payload_json TEXT NOT NULL DEFAULT '{}', is_current INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE observation_identification_disputes (dispute_id TEXT PRIMARY KEY, occurrence_id TEXT NOT NULL, actor_user_id TEXT NOT NULL, kind TEXT NOT NULL, proposed_name TEXT, proposed_rank TEXT, reason TEXT, status TEXT NOT NULL DEFAULT 'open', source_payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE observation_identification_workbench_holds (hold_id TEXT PRIMARY KEY, occurrence_id TEXT NOT NULL, actor_user_id TEXT NOT NULL, hold_reason TEXT NOT NULL DEFAULT '', source_payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE (occurrence_id, actor_user_id));
+    CREATE TABLE specialist_authorities (authority_id TEXT PRIMARY KEY, subject_user_id TEXT NOT NULL, granted_by_user_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', authority_kind TEXT NOT NULL DEFAULT 'taxon_identification', scope_taxon_name TEXT NOT NULL, scope_taxon_rank TEXT, scope_taxon_key TEXT, scope_json TEXT NOT NULL DEFAULT '{}', granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, revoked_at TEXT, expires_at TEXT, reason TEXT, source_payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE observation_specialist_reviews (review_id TEXT PRIMARY KEY, occurrence_id TEXT NOT NULL, actor_user_id TEXT NOT NULL, lane TEXT NOT NULL DEFAULT 'expert-lane', decision TEXT NOT NULL, proposed_name TEXT, proposed_rank TEXT, accepted_rank TEXT, notes TEXT, review_class TEXT NOT NULL DEFAULT 'authority_backed', source_payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE (occurrence_id, actor_user_id, lane));
+    CREATE TABLE user_saved_items (user_id TEXT NOT NULL, object_kind TEXT NOT NULL, object_id TEXT NOT NULL, canonical_path TEXT NOT NULL, display_title TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, last_command_id TEXT NOT NULL, last_command_digest TEXT NOT NULL, saved_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (user_id, object_kind, object_id));
+  `);
+  const sha = (t: string) => createHash("sha256").update(t).digest("hex");
+  const exp = new Date(Date.now() + 86_400_000).toISOString();
+  sqlite.prepare("INSERT INTO auth_sessions VALUES (?,?,?,?,?,?,?,?)").run(sha("tok-member"), "u-mem", "一般", "member", null, 0, exp, null);
+  sqlite.prepare("INSERT INTO auth_sessions VALUES (?,?,?,?,?,?,?,?)").run(sha("tok-bird-rev"), "u-bird", "鳥確認者", "specialist", null, 0, exp, null);
+  sqlite.prepare("INSERT INTO observations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").run(
+    "obs-b1", "d-b1", "u-owner", "2026-11-23T00:41:00Z", "文鳥", null, 34.71, 137.7, 50, "cell:34.71,137.70", "佐鳴湖（浜松市中央区）", "public", 0, "accepted", "2026-11-23T00:41:00Z",
+  );
+  sqlite.prepare("INSERT INTO specialist_authorities (authority_id, subject_user_id, granted_by_user_id, status, authority_kind, scope_taxon_name, scope_taxon_rank, scope_taxon_key) VALUES (?,?,?,?,?,?,?,?)").run(
+    "auth-bird", "u-bird", "u-admin", "active", "taxon_identification", "鳥", "class", "bird",
+  );
+
+  const db = {
+    prepare(query: string) {
+      let values: unknown[] = [];
+      const stmt = {
+        bind(...args: unknown[]) { values = args; return stmt; },
+        async run() { return { meta: { changes: Number(sqlite.prepare(query).run(...(values as never[])).changes) } }; },
+        async first<T>() { return (sqlite.prepare(query).get(...(values as never[])) as T | undefined) ?? null; },
+        async all<T>() { return { results: sqlite.prepare(query).all(...(values as never[])) as T[] }; },
+      };
+      return stmt;
+    },
+    async batch(stmts: Array<{ run(): Promise<{ meta?: { changes?: number } }> }>) { const r = []; for (const s of stmts) r.push(await s.run()); return r; },
+  } as unknown as Env["OBS_DB"];
+  const env = { ENVIRONMENT: "staging", CORE_DB: db, OBS_DB: db, ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ IDENTIFY_V3_ENABLED: { state: "all" } }) } as unknown as Env;
+
+  // Member without scoped authority cannot confirm -> 403
+  const memConfirm = await worker.fetch(new Request("https://zukan.earth/api/v1/identify-v3/decisions", {
+    method: "POST",
+    headers: { cookie: `${SESSION_COOKIE_NAME}=tok-member`, "content-type": "application/json" },
+    body: JSON.stringify({ occurrenceId: "obs-b1", decision: "confirm", proposedName: "文鳥", traits: ["ほおが白い"], photoPart: "頭・顔", visibility: "見える" }),
+  }), env);
+  assert.equal(memConfirm.status, 403);
+
+  // Scoped reviewer without structured justification cannot confirm -> 400
+  const noEvConfirm = await worker.fetch(new Request("https://zukan.earth/api/v1/identify-v3/decisions", {
+    method: "POST",
+    headers: { cookie: `${SESSION_COOKIE_NAME}=tok-bird-rev`, "content-type": "application/json" },
+    body: JSON.stringify({ occurrenceId: "obs-b1", decision: "confirm", proposedName: "文鳥" }),
+  }), env);
+  assert.equal(noEvConfirm.status, 400);
+
+  // Scoped reviewer WITH structured justification confirms alone -> 200
+  const okConfirm = await worker.fetch(new Request("https://zukan.earth/api/v1/identify-v3/decisions", {
+    method: "POST",
+    headers: { cookie: `${SESSION_COOKIE_NAME}=tok-bird-rev`, "content-type": "application/json" },
+    body: JSON.stringify({ occurrenceId: "obs-b1", decision: "confirm", proposedName: "文鳥", proposedRank: "species", traits: ["頭が黒くほおが白い"], photoPart: "頭・顔", visibility: "見える", justificationText: "くちばしが太くピンク色です" }),
+  }), env);
+  assert.equal(okConfirm.status, 200);
+  const okJson = (await okConfirm.json()) as { statusWord: string; tier3ExportAllowed: boolean };
+  assert.equal(okJson.statusWord, "確認済み");
+  assert.equal(okJson.tier3ExportAllowed, true);
+  assert.equal((sqlite.prepare("SELECT decision FROM observation_specialist_reviews WHERE occurrence_id = 'obs-b1'").get() as { decision: string }).decision, "approve");
+
+  // Justified objection marks 確認済み（異議あり） + Tier3停止
+  const okObject = await worker.fetch(new Request("https://zukan.earth/api/v1/identify-v3/decisions", {
+    method: "POST",
+    headers: { cookie: `${SESSION_COOKIE_NAME}=tok-member`, "content-type": "application/json" },
+    body: JSON.stringify({ occurrenceId: "obs-b1", decision: "object", proposedName: "ジュウシマツ", traits: ["背中にうろこ模様"], photoPart: "羽・背中", visibility: "見える", reason: "背中の模様がジュウシマツです" }),
+  }), env);
+  assert.equal(okObject.status, 200);
+  const objJson = (await okObject.json()) as { confirmedWithObjection: boolean; tier3ExportAllowed: boolean };
+  assert.equal(objJson.confirmedWithObjection, true);
+  assert.equal(objJson.tier3ExportAllowed, false);
 });
