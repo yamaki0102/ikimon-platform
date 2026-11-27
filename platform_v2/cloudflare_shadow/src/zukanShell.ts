@@ -102,6 +102,8 @@ export const ZUKAN_SHELL_FOUNDATION_CSS = `
     .zt-state-card h2,.zt-state-card h3{margin:0;font-size:var(--text-lg);line-height:1.4}
     .zt-state-card p{margin:0;color:var(--muted);font-size:var(--text-sm);line-height:1.7;max-width:30em}
     .zt-state-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%}
+    .zt-offline-banner{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:var(--radius-pill);background:#17211b;color:#fff;font-size:var(--text-sm);line-height:1.4;box-shadow:0 8px 24px rgba(20,63,46,.24)}
+    .zt-offline-banner[hidden]{display:none}
     @keyframes zt-sheet-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
     @keyframes zt-shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
     @media(prefers-reduced-motion:reduce){
@@ -197,6 +199,12 @@ export function renderZukanErrorState(options: {
   </section>`;
 }
 
+export function renderZukanOfflineBanner(nonce?: string): string {
+  const nonceAttr = nonce ? ` nonce="${esc(nonce)}"` : "";
+  return `<div class="zt-offline-banner" data-zukan-offline-banner="1" role="status" aria-live="polite" hidden>オフラインです。つながると自動で送ります</div>
+<script${nonceAttr}>(function(){var b=document.querySelector("[data-zukan-offline-banner]");if(!b)return;function u(){b.hidden=navigator.onLine!==false}u();window.addEventListener("online",u);window.addEventListener("offline",u)})();</script>`;
+}
+
 export function renderZukanShellDocument(options: {
   lang: ZukanLang;
   activeNav: ZukanShellNavKey;
@@ -250,6 +258,7 @@ export function renderZukanShellDocument(options: {
   </div>
   ${options.authenticated ? chrome.bottomNavHtml : ""}
   ${options.afterShellHtml ?? ""}
+  ${renderZukanOfflineBanner(options.cspNonce)}
 </body>
 </html>`;
 }
