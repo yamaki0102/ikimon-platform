@@ -960,6 +960,22 @@ async function loadRegisteredPlaceByOsmRef(
   osmId: number,
   generatedAt: string,
 ): Promise<RegisteredPlaceProjection | null> {
+  return loadRegisteredPlace(db, { osmSourceId: `${osmType}:${osmId}` }, generatedAt);
+}
+
+async function loadRegisteredPlaceById(
+  db: PlaceAtlasD1Database,
+  placeId: string,
+  generatedAt: string,
+): Promise<RegisteredPlaceProjection | null> {
+  return loadRegisteredPlace(db, { placeId }, generatedAt);
+}
+
+async function loadRegisteredPlace(
+  db: PlaceAtlasD1Database,
+  lookup: { osmSourceId: string } | { placeId: string },
+  generatedAt: string,
+): Promise<RegisteredPlaceProjection | null> {
   type PlaceRow = {
     place_id: string;
     canonical_name: string;
@@ -975,14 +991,7 @@ async function loadRegisteredPlaceByOsmRef(
     policy_verification_status: string | null;
   };
   try {
-    const row = await db.prepare(
-      `SELECT p.place_id, p.canonical_name, p.locality_label, p.place_kind,
-              p.verification_status, p.official_status, p.public_summary,
-              pp.recording_policy, pp.public_location_mode, pp.contribution_cta_mode,
-              pp.official_rule_url, pp.verification_status AS policy_verification_status
-         FROM place_source_references ps
-         JOIN places p ON p.place_id = ps.place_id
-         LEFT JOIN place_policies pp
+    const policyJoin = `LEFT JOIN place_policies pp
            ON pp.place_policy_id = (
              SELECT place_policy_id
                FROM place_policies
@@ -990,7 +999,26 @@ async function loadRegisteredPlaceByOsmRef(
                 AND valid_to IS NULL
               ORDER BY last_checked_at DESC, updated_at DESC
               LIMIT 1
-           )
+           )`;
+    const selectColumns = `SELECT p.place_id, p.canonical_name, p.locality_label, p.place_kind,
+              p.verification_status, p.official_status, p.public_summary,
+              pp.recording_policy, pp.public_location_mode, pp.contribution_cta_mode,
+              pp.official_rule_url, pp.verification_status AS policy_verification_status`;
+    const row = "placeId" in lookup
+      ? await db.prepare(
+        `${selectColumns}
+         FROM places p
+         ${policyJoin}
+        WHERE p.place_id = ?
+          AND p.public_profile_status = 'published'
+          AND p.superseded_by_place_id IS NULL
+        LIMIT 1`
+      ).bind(lookup.placeId).first<PlaceRow>()
+      : await db.prepare(
+        `${selectColumns}
+         FROM place_source_references ps
+         JOIN places p ON p.place_id = ps.place_id
+         ${policyJoin}
         WHERE ps.source_type = 'osm'
           AND ps.source_id = ?
           AND ps.valid_to IS NULL
@@ -998,7 +1026,7 @@ async function loadRegisteredPlaceByOsmRef(
           AND p.public_profile_status = 'published'
           AND p.superseded_by_place_id IS NULL
         LIMIT 1`
-    ).bind(`${osmType}:${osmId}`).first<PlaceRow>();
+      ).bind(lookup.osmSourceId).first<PlaceRow>();
     if (!row) return null;
 
     const [aliasRows, sourceRows, boundaryRow, facilityRows, contentRows] = await Promise.all([
@@ -1703,6 +1731,61 @@ async function loadOsmPlaceAtlasProfile(
   });
 }
 
+async function loadRegisteredPlaceAtlasProfile(
+  input: LoadCloudflarePlaceAtlasInput,
+  ref: Extract<PlaceAtlasRef, { kind: "registered_place" }>,
+): Promise<PlaceAtlasProfile | null> {
+  const registered = await loadRegisteredPlaceById(
+    input.db,
+    ref.placeId,
+    input.generatedAt ?? new Date().toISOString(),
+  );
+  const place = registeredResolvedOsmPlace(registered);
+  if (!registered || !place) return null;
+  const records = await buildRecordsForGeometry(input, place.geometry, place.bbox, undefined, registered.placeId);
+  const publicCell = publicCellFromCoordinates(place.center.lat, place.center.lng);
+  const guide = guideForScope(input.guideSpots ?? [], place.geometry, place.center, 500);
+  const memories = await loadPublicPlaceMemories(input.db, publicCell);
+  const policy = registered.policy;
+  const suppressedSections = policy.contributionCtaMode === "suppressed" ? ["contribution_cta"] : [];
+  return buildPlaceAtlasProfile({
+    placeRef: ref,
+    place: {
+      name: registered.canonicalName,
+      type: registered.placeKind,
+      localityLabel: registered.localityLabel,
+      description: registered.description,
+      canonicalPlaceId: registered.placeId,
+      aliases: registered.aliases,
+      multilingualNames: registered.multilingualNames,
+      verificationStatus: registered.verificationStatus,
+      officialStatus: registered.officialStatus,
+    },
+    records: records.records,
+    recordSetComplete: records.complete,
+    locationMode: "registered_place",
+    minimumPublicRecords: 3,
+    contributorCountAllowed: false,
+    guide,
+    memories,
+    facilities: registered.facilities.slice(0, 12),
+    activities: registered.activities,
+    stories: registered.stories,
+    policy,
+    suppressedSections,
+    dataGaps: [],
+    sources: profileSources(
+      "canonical_place_registry",
+      "public_map_snapshot_records_v1",
+      records.membershipProjectionUsed && "record_place_memberships",
+      guide && "map_guide_spots",
+      memories.length > 0 && "place_memory",
+    ),
+    sourceReferences: registered.sourceReferences,
+    generatedAt: input.generatedAt,
+  });
+}
+
 async function loadPublicCellPlaceAtlasProfile(
   input: LoadCloudflarePlaceAtlasInput,
   ref: Extract<PlaceAtlasRef, { kind: "public_cell" }>,
@@ -1747,6 +1830,9 @@ export async function loadCloudflarePlaceAtlasProfile(
   }
   if (input.placeRef.kind === "osm_area") {
     return loadOsmPlaceAtlasProfile(input, input.placeRef);
+  }
+  if (input.placeRef.kind === "registered_place") {
+    return loadRegisteredPlaceAtlasProfile(input, input.placeRef);
   }
   return loadPublicCellPlaceAtlasProfile(input, input.placeRef);
 }

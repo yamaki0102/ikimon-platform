@@ -509,6 +509,7 @@ export async function getPlaceAtlasProfile(
 ): Promise<PlaceAtlasProfile | null> {
   if (ref.kind === "field") return buildFieldProfile(ref, context, dependencies);
   if (ref.kind === "osm_area") return buildOsmAreaProfile(ref, context, dependencies);
+  if (ref.kind === "registered_place") return null;
   return buildPublicCellProfile(ref, context, dependencies);
 }
 

@@ -23,7 +23,8 @@ export type PlaceAtlasRef =
       osmType: "way" | "relation";
       osmId: number;
     }
-  | { kind: "public_cell"; cellId: string };
+  | { kind: "public_cell"; cellId: string }
+  | { kind: "registered_place"; placeId: string };
 
 export type PlaceAtlasIdentificationStatus =
   | "confirmed"
@@ -116,7 +117,7 @@ export type PlaceAtlasProfile = {
   publication: {
     status: "published" | "partial" | "suppressed";
     suppressedSections: string[];
-    locationMode: "field" | "osm_area" | "public_cell" | "public_cell_derived";
+    locationMode: "field" | "osm_area" | "public_cell" | "public_cell_derived" | "registered_place";
   };
   provenance: {
     generatedAt: string;

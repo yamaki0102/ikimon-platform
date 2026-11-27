@@ -83,12 +83,14 @@ function toEvidence(source: SourceReference): EvidenceRef | null {
 function externalIdentifierScheme(ref: PlaceAtlasRef): string {
   if (ref.kind === "field") return "place_atlas.field";
   if (ref.kind === "osm_area") return "place_atlas.osm_area";
+  if (ref.kind === "registered_place") return "place_atlas.registered_place";
   return "place_atlas.public_cell";
 }
 
 function externalIdentifierValue(ref: PlaceAtlasRef): string {
   if (ref.kind === "field") return ref.fieldId;
   if (ref.kind === "osm_area") return ref.entityKey;
+  if (ref.kind === "registered_place") return ref.placeId;
   return ref.cellId;
 }
 
