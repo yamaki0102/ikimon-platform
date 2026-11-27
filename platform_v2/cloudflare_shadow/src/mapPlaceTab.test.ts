@@ -43,7 +43,9 @@ test("place tab markup", () => {
 
 test("list rows: link, distance order, no duplicate photos, cap", () => {
   const script = clientScript(renderMapExplorerV2Document({ ...base, placeTab: true }));
-  const src = ["fmtDist", "renderPlaceTabList"].map((n) => extractFn(script, n)).join("\n");
+  const src = ["t", "recLabel", "fmtDist", "renderPlaceTabList"].map((n) => extractFn(script, n)).join("\n");
+  const CFG = { lang: "ja", placeTab: true, defaultCenter: [137.7, 34.7] };
+  const EN = CFG.lang !== "ja";
   const plistEl = { innerHTML: "" };
   const state = { userCenter: { lat: 34.7, lng: 137.7 }, map: null as null };
   const places = Array.from({ length: 30 }, (_, i) => ({
@@ -56,11 +58,11 @@ test("list rows: link, distance order, no duplicate photos, cap", () => {
     photoUrl: i % 2 === 0 ? "https://x/same.jpg" : `https://x/${i}.jpg`,
   }));
   const run = new Function(
-    "plistEl", "state", "CFG", "esc", "kindLabel", "placeHref", "distMeters", "rcOf", "renderListHtml", "places",
+    "EN", "plistEl", "state", "CFG", "esc", "kindLabel", "placeHref", "distMeters", "rcOf", "renderListHtml", "places",
     `${src}\nrenderPlaceTabList(places.filter((p) => p.recordCount > 0).reverse(), places.filter((p) => p.recordCount === 0));`,
   );
   const dm = (aLat: number, aLng: number, bLat: number, bLng: number) => Math.hypot((aLat - bLat) * 111320, (aLng - bLng) * 91000);
-  run(plistEl, state, { placeTab: true, defaultCenter: [137.7, 34.7] }, (v: unknown) => String(v), () => "公園", (id: string) => `/ja/places/${id}`, dm, (p: { recordCount: number }) => p.recordCount, () => "EMPTY", places);
+  run(EN, plistEl, state, CFG, (v: unknown) => String(v), () => "公園", (id: string) => `/ja/places/${id}`, dm, (p: { recordCount: number }) => p.recordCount, () => "EMPTY", places);
   const html = plistEl.innerHTML;
   assert.equal((html.match(/data-zv2-place-row=/g) ?? []).length, 20);
   assert.ok(html.indexOf('href="/ja/places/p0"') < html.indexOf('href="/ja/places/p1"'));

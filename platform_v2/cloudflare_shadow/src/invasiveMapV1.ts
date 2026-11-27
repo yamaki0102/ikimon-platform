@@ -315,7 +315,7 @@ ${ZUKAN_SHELL_CSS}
 .iv-sw-row{border-bottom:1px solid #EDF0EC}
 .iv-sw-row .iv-sprow{border-bottom:0;padding-bottom:4px}
 .iv-sw-row .iv-sl{padding-left:68px}
-.iv-crumb{font-size:15px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;min-height:32px}
+.iv-crumb{font-size:15px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;min-height:32px}.iv-crumb a{display:inline-flex;align-items:center;min-height:44px}
 .iv-title{margin:6px 0 0;font-size:24px;font-weight:800;line-height:1.35}
 .iv-sci{font-size:14px;color:var(--muted);font-style:italic;margin-top:2px}
 .iv-desc{margin:10px 0 0;font-size:15.5px;line-height:1.75;color:var(--ink)}
