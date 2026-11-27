@@ -178,6 +178,7 @@ const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCom
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
+import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
 const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
@@ -1117,6 +1118,7 @@ interface PublicMapRow {
   public_cell: string;
   observed_at: string;
   taxon_label: string | null;
+  taxon_group?: string | null;
   asset_count: number;
   public_area_label?: string | null;
   public_note?: string | null;
@@ -1193,6 +1195,7 @@ interface PublicMapSnapshotRow {
   cell_1000: string;
   observed_at: string;
   display_name: string | null;
+  taxon_group?: string | null;
   asset_count: number;
 }
 
@@ -10930,7 +10933,12 @@ async function getPublicMapCells(url: URL, env: Env, invasive = false): Promise<
   const rows = await queryPublicMapRows(env);
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   const bboxRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
-  const scopedRows = invasive ? filterInvasiveRows(bboxRows) : bboxRows;
+  const taxonGroupFilter = invasive ? null : parseMapTaxonGroupFilter(url.searchParams.get("taxon_group"));
+  const scopedRows = invasive
+    ? filterInvasiveRows(bboxRows)
+    : (taxonGroupFilter
+      ? bboxRows.filter((row) => inferTaxonGroupForLabel(row.taxon_label, row.taxon_group) === taxonGroupFilter)
+      : bboxRows);
   const groups = new Map<string, PublicMapRow[]>();
   for (const row of scopedRows) {
     if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
@@ -10947,7 +10955,7 @@ async function getPublicMapCells(url: URL, env: Env, invasive = false): Promise<
       const parsed = parsePublicCell(publicCell);
       if (!parsed) return null;
       const taxonMix = group.reduce<Record<string, number>>((mix, row) => {
-        const key = taxonGroupForLabel(row.taxon_label);
+        const key = inferTaxonGroupForLabel(row.taxon_label, row.taxon_group);
         mix[key] = (mix[key] ?? 0) + 1;
         return mix;
       }, {});
@@ -11303,8 +11311,14 @@ async function getPublicMapObservations(url: URL, env: Env, invasive = false): P
   const placeScope = rawPlaceId ? await resolvePlaceScope(rawPlaceId, env) : null;
   const effectiveBbox = bbox ?? placeScope?.bbox ?? null;
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "300"), 1, 1200);
+  const taxonGroupFilter = invasive ? null : parseMapTaxonGroupFilter(url.searchParams.get("taxon_group"));
   const rows = await queryPublicMapRows(env);
-  const areaAndPeriodRows = (invasive ? filterInvasiveRows(rows) : rows)
+  const taxonScopedRows = invasive
+    ? filterInvasiveRows(rows)
+    : (taxonGroupFilter
+      ? rows.filter((row) => inferTaxonGroupForLabel(row.taxon_label, row.taxon_group) === taxonGroupFilter)
+      : rows);
+  const areaAndPeriodRows = taxonScopedRows
     .filter((row) => {
       if ((selectedCell || effectiveBbox) && (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now()))) return false;
       if (selectedCell && row.public_cell !== selectedCell) return false;
@@ -25570,24 +25584,43 @@ async function coarsenSparsePublicCells(env: Env, rows: PublicMapRow[]): Promise
 
 async function queryPublicMapSnapshotRows(env: Env): Promise<PublicMapRow[]> {
   try {
-    const rows = await env.OBS_DB.prepare(
-      `SELECT visit_id, cell_1000, observed_at, display_name, asset_count
-         FROM public_map_snapshot_records_v1
-        WHERE snapshot_key = 'public-map:v1:global'
-          AND NOT EXISTS (
-            SELECT 1 FROM observation_data_rights rights
-             WHERE rights.visit_id = public_map_snapshot_records_v1.visit_id
-               AND rights.withdrawal_status IS NOT NULL
-               AND rights.withdrawal_status <> 'active'
-          )
-        ORDER BY observed_at DESC
-        LIMIT 5000`
-    ).all<PublicMapSnapshotRow>();
-    return rows.results.map((row) => ({
+    let results: PublicMapSnapshotRow[];
+    try {
+      results = (await env.OBS_DB.prepare(
+        `SELECT visit_id, cell_1000, observed_at, display_name, taxon_group, asset_count
+           FROM public_map_snapshot_records_v1
+          WHERE snapshot_key = 'public-map:v1:global'
+            AND NOT EXISTS (
+              SELECT 1 FROM observation_data_rights rights
+               WHERE rights.visit_id = public_map_snapshot_records_v1.visit_id
+                 AND rights.withdrawal_status IS NOT NULL
+                 AND rights.withdrawal_status <> 'active'
+            )
+          ORDER BY observed_at DESC
+          LIMIT 5000`
+      ).all<PublicMapSnapshotRow>()).results;
+    } catch (colError) {
+      if (!(colError instanceof Error) || !/no such column: taxon_group/i.test(colError.message)) throw colError;
+      results = (await env.OBS_DB.prepare(
+        `SELECT visit_id, cell_1000, observed_at, display_name, asset_count
+           FROM public_map_snapshot_records_v1
+          WHERE snapshot_key = 'public-map:v1:global'
+            AND NOT EXISTS (
+              SELECT 1 FROM observation_data_rights rights
+               WHERE rights.visit_id = public_map_snapshot_records_v1.visit_id
+                 AND rights.withdrawal_status IS NOT NULL
+                 AND rights.withdrawal_status <> 'active'
+            )
+          ORDER BY observed_at DESC
+          LIMIT 5000`
+      ).all<PublicMapSnapshotRow>()).results;
+    }
+    return results.map((row) => ({
       observation_id: row.visit_id,
       public_cell: row.cell_1000,
       observed_at: row.observed_at,
       taxon_label: row.display_name,
+      taxon_group: row.taxon_group ?? null,
       asset_count: row.asset_count,
       public_area_label: null
     }));
@@ -25737,7 +25770,7 @@ function publicMapObservationItem(row: PublicMapRow, photoUrl: string | null, me
     observedAt: formatPublicDateOnly(row.observed_at),
     photoUrl,
     mediaKind,
-    taxonGroup: taxonGroupForLabel(row.taxon_label),
+    taxonGroup: inferTaxonGroupForLabel(row.taxon_label, row.taxon_group),
     privacy: publicMapExactCoordinateGate()
   };
 }
@@ -35621,15 +35654,7 @@ function publicMapExactCoordinateGate() {
 }
 
 function taxonGroupForLabel(label: string | null): string {
-  if (isWeakTaxonLabel(label)) return "other";
-  const text = label ?? "";
-  if (/鳥|bird|aves/i.test(text)) return "bird";
-  if (/虫|昆虫|蝶|蜂|insect/i.test(text)) return "insect";
-  if (/草|木|花|plant|植物/i.test(text)) return "plant";
-  if (/菌|fung/i.test(text)) return "fungi";
-  if (/蛙|蛇|爬虫|amphibian|reptile/i.test(text)) return "amphibian_reptile";
-  if (/獣|哺乳|mammal/i.test(text)) return "mammal";
-  return "other";
+  return inferTaxonGroupForLabel(label);
 }
 
 function renderFieldDetailHtml(row: FieldDetailReadmodelRow, lang: string, records: AreaRecordContext = { core: [], nearby: [] }): string {
