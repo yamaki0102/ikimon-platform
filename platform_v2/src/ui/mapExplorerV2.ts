@@ -577,7 +577,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     if (isZero) {
       h += '<div class="zv2-pmeta">' + esc(kindLabel(p.placeKind)) + t(' ・ まだ記録がありません', ' · No records yet') + '</div>';
       if (!mobileLow) {
-        h += '<div class="zv2-zerobox">' + t('まだ記録がありません。最初の記録を残すと、この場所の図鑑が始まります。', 'No records yet. Add the first one to start this place\'s field guide.') + '</div>';
+        h += '<div class="zv2-zerobox">' + t('まだ記録がありません。最初の記録を残すと、この場所の図鑑が始まります。', 'No records yet. Add the first one to start this place’s field guide.') + '</div>';
       }
       h += '<div class="zv2-btnrow">';
       h += '<a class="zv2-btn-main" href="' + esc(CFG.recordHref + '?placeId=' + encodeURIComponent(p.placeId)) + '">' + t('ここで最初の記録を', 'Add the first record here') + '</a>';
