@@ -44,6 +44,11 @@ import {
 } from "./guestObservationPost";
 import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
+  handleShopPhotoPerkRequest,
+  loadShopPlacePerkSectionData,
+  renderShopPlacePerkSectionHtml,
+} from "./shopPhotoPerk";
+import {
   handleConfirmEventParticipation,
   handleEventConfirmOrJoinedRoute,
 } from "./zukanEventConfirmAndJoined";
@@ -2605,12 +2610,14 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const [placeUsages, paperPages, fp] = await Promise.all([
+  const [placeUsages, paperPages, fp, shopPerkData] = await Promise.all([
     listNocosilOutcomeUsagesForPlace(env, canonicalPlaceId),
     listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
-    listFixedPointsAndRecordsForPlace(env, canonicalPlaceId)
+    listFixedPointsAndRecordsForPlace(env, canonicalPlaceId),
+    loadShopPlacePerkSectionData(env, canonicalPlaceId, session).catch(() => null),
   ]);
   const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
+  const shopPhotoPerkHtml = renderShopPlacePerkSectionHtml(shopPerkData);
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
@@ -2620,6 +2627,7 @@ async function getGlobalPlaceDetailPage(
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
+    ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
@@ -4125,6 +4133,12 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (url.pathname.includes("/shops/")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const shopRes = await handleShopPhotoPerkRequest(request, url, env, session);
+        if (shopRes) return shopRes;
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
