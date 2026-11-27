@@ -646,7 +646,7 @@ export function renderLibraryV2Page(options: {
       }
       function render(items, srv){
         if (!box) return;
-        var dFailed = items.filter(function(x){ return x.status === 'failed'; });
+        var dFailed = items.filter(function(x){ return x.status === 'failed' || (Date.now() - Number(x.createdAt || 0)) > 20 * 60 * 1000 || Number(x.attempts || 0) >= 3; });
         var dQueued = items.length - dFailed.length;
         var failed = dFailed.length + srv.failed;
         var sending = dQueued + srv.sending;
