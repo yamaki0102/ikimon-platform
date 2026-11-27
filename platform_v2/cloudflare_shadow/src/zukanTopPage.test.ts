@@ -119,7 +119,7 @@ test("guest top v2 off or not applicable renders exactly the current page", () =
   assert.equal(renderZukanTopPage(emptyEventsBaseData, { ...v2Options, guestTopV2: false }), current);
   assert.doesNotMatch(current, /data-zk-guest-top|zg2-/);
   const en = renderZukanTopPage(emptyEventsBaseData, { lang: "en", authenticated: false, cspNonce: "n1" });
-  assert.equal(renderZukanTopPage(emptyEventsBaseData, { lang: "en", authenticated: false, cspNonce: "n1", guestTopV2: true }), en);
+  assert.equal(renderZukanTopPage(emptyEventsBaseData, { lang: "en", authenticated: false, cspNonce: "n1", guestTopV2: false }), en);
   const member = renderZukanTopPage(emptyEventsBaseData, { lang: "ja", authenticated: true, cspNonce: "n1" });
   assert.equal(renderZukanTopPage(emptyEventsBaseData, { ...v2Options, authenticated: true }), member);
 });
@@ -230,4 +230,20 @@ test("renderZukanTopPage distinguishes fetch failure from 0 records with 読み�
   assert.match(guestHtml, /読み込めませんでした/);
   assert.match(guestHtml, />もう一度</);
   assert.doesNotMatch(guestHtml, /0件/);
+});
+
+test("guest top v2 renders in English for en/es/pt-br with invite-only wording and no Japanese UI copy", () => {
+  const ja = renderZukanTopPage(emptyEventsBaseData, v2Options);
+  for (const lang of ["en", "es", "pt-br"] as const) {
+    const html = renderZukanTopPage(emptyEventsBaseData, { lang, authenticated: false, cspNonce: "n1", guestTopV2: true });
+    assert.match(html, /data-zk-guest-top="v2"/);
+    assert.match(html, /Join the waitlist/);
+    assert.match(html, /invite-only/);
+    assert.match(html, new RegExp(`href="/${lang}/register"`));
+    assert.doesNotMatch(html, /Sign up \(free\)/);
+    const main = html.slice(html.indexOf('<div class="zg2"'), html.indexOf('<footer class="zg2-foot-bar">'));
+    assert.doesNotMatch(main.replace(/<img[^>]*>/g, "").replace(/<strong>[^<]*<\/strong>/g, ""), /[぀-ヿ一-鿿]/);
+    assert.equal((html.match(/<span class="zg2-dev-badge">In development<\/span>/g) ?? []).length, 4);
+  }
+  assert.match(ja, /順番待ちに登録する/);
 });

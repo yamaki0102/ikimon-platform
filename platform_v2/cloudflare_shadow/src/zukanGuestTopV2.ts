@@ -11,95 +11,99 @@ const LOCKUP = "/assets/brand/zukan-lockup.svg";
 const screenFrame = (src: string, w: number, h: number, alt: string, first: boolean): string =>
   `<div class="zg2-screen"><div class="zg2-bar" aria-hidden="true"><span></span><span></span><span></span><i>zukan.earth</i></div><img src="${IMG}${src}.webp" width="${w}" height="${h}" alt="${esc(alt)}" decoding="async"${first ? ' fetchpriority="high"' : ' loading="lazy"'}></div>`;
 
-const placeRow = (pl: GuestTopV2Place): string =>
-  `<li><a class="zk-place-row" href="${esc(pl.href)}">${pl.photoUrl ? `<img src="${esc(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>`}<span class="zk-place-text"><strong>${esc(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>記録 ${pl.recordCount}件</span>` : ""}</span><span class="zk-chev" aria-hidden="true">›</span></a></li>`;
+export type GuestTopV2Lang = "ja" | "en";
 
-const devFrame = (barLabel: string, body: string, photo?: string): string =>
-  `<div class="zg2-dev"><span class="zg2-dev-badge">開発中</span><div class="zg2-mock"><div class="zg2-mock-bar"><img src="${LOCKUP}" alt="ZUKAN" width="63" height="14" loading="lazy"><span>${esc(barLabel)}</span></div><div class="zg2-mock-body">${photo ? `<img class="zg2-mock-photo" src="${IMG}${photo}.webp" width="640" height="240" alt="" loading="lazy"><span class="zg2-photo-note">写真はイメージです</span>` : ""}${body}</div></div></div>`;
+const placeRow = (pl: GuestTopV2Place, en: boolean): string =>
+  `<li><a class="zk-place-row" href="${esc(pl.href)}">${pl.photoUrl ? `<img src="${esc(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>`}<span class="zk-place-text"><strong>${esc(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>${en ? `${pl.recordCount} ${pl.recordCount === 1 ? "record" : "records"}` : `記録 ${pl.recordCount}件`}</span>` : ""}</span><span class="zk-chev" aria-hidden="true">›</span></a></li>`;
+
+const devFrame = (en: boolean, barLabel: string, body: string, photo?: string): string =>
+  `<div class="zg2-dev"><span class="zg2-dev-badge">${en ? "In development" : "開発中"}</span><div class="zg2-mock"><div class="zg2-mock-bar"><img src="${LOCKUP}" alt="ZUKAN" width="63" height="14" loading="lazy"><span>${esc(barLabel)}</span></div><div class="zg2-mock-body">${photo ? `<img class="zg2-mock-photo" src="${IMG}${photo}.webp" width="640" height="240" alt="" loading="lazy"><span class="zg2-photo-note">${en ? "Photo is an illustration" : "写真はイメージです"}</span>` : ""}${body}</div></div></div>`;
 
 const row = (k: string, v: string): string => `<div class="zg2-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`;
 
 const example = (open: boolean, title: string, text: string, frame: string): string =>
   `<details class="zg2-ex"${open ? " open" : ""}><summary><h3>${esc(title)}</h3></summary><div class="zg2-ex-body"><p>${esc(text)}</p>${frame}</div></details>`;
 
-export function renderGuestTopV2Main(options: { prefix: string; places: GuestTopV2Place[] }): string {
+export function renderGuestTopV2Main(options: { prefix: string; places: GuestTopV2Place[]; lang?: GuestTopV2Lang }): string {
   const { prefix } = options;
+  const en = options.lang === "en";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const feedbackHref = `${prefix}/otayori?from=${encodeURIComponent(`${prefix}/`)}`;
   const places = options.places.slice(0, 2);
-  const placeList = places.length > 0 ? `<ul class="zk-place-list zg2-places">${places.map(placeRow).join("")}</ul>` : "";
+  const placeList = places.length > 0 ? `<ul class="zk-place-list zg2-places">${places.map((pl) => placeRow(pl, en)).join("")}</ul>` : "";
   return `
     <div class="zg2" data-zk-guest-top="v2">
       <section class="zg2-band zg2-hero" aria-labelledby="zg2-h1">
         <div class="zg2-hero-copy">
-          <h1 id="zg2-h1"><span>撮ると、</span><span>まちの今が</span><span>図鑑になる。</span></h1>
-          <p class="zg2-lead">ZUKANは、撮った写真が場所と日付でたまって、その場所の図鑑になっていくサービスです。</p>
+          <h1 id="zg2-h1">${en ? "<span>Snap a photo,</span> <span>and your town</span> <span>becomes a guide.</span>" : "<span>撮ると、</span><span>まちの今が</span><span>図鑑になる。</span>"}</h1>
+          <p class="zg2-lead">${t("ZUKANは、撮った写真が場所と日付でたまって、その場所の図鑑になっていくサービスです。", "ZUKAN collects the photos you take by place and date, and turns each place into its own nature guide.")}</p>
           <div class="zg2-cta">
-            <a class="zk-btn-primary" href="${prefix}/register">順番待ちに登録する</a>
-            <a class="zk-btn-secondary" href="${prefix}/login">ログイン</a>
+            <a class="zk-btn-primary" href="${prefix}/register">${t("順番待ちに登録する", "Join the waitlist")}</a>
+            <a class="zk-btn-secondary" href="${prefix}/login">${t("ログイン", "Log in")}</a>
           </div>
-          <p class="zg2-note">ZUKANは作っている途中のサービスで、いまは招待された方から少しずつ案内しています。</p>
+          <p class="zg2-note">${t("ZUKANは作っている途中のサービスで、いまは招待された方から少しずつ案内しています。", "ZUKAN is still being built, and for now we are opening it gradually to people who have been invited.")}</p>
         </div>
-        ${screenFrame("record", 750, 700, "ZUKANの記録の画面。広葉樹の葉の記録、2026年5月25日、写真3枚", true)}
+        ${screenFrame("record", 750, 700, t("ZUKANの記録の画面。広葉樹の葉の記録、2026年5月25日、写真3枚", "The ZUKAN record screen. A record of broadleaf leaves, May 25, 2026, with 3 photos"), true)}
       </section>
 
       <section class="zg2-sec" aria-labelledby="zg2-now">
-        <span class="zg2-tag">いま動いているもの</span>
-        <h2 id="zg2-now">今できること</h2>
-        <p class="zg2-sub">下の画面は、実際に動いている本番の画面です。</p>
+        <span class="zg2-tag">${t("いま動いているもの", "Working now")}</span>
+        <h2 id="zg2-now">${t("今できること", "What you can do today")}</h2>
+        <p class="zg2-sub">${t("下の画面は、実際に動いている本番の画面です。", "The screens below are the live, working product.")}</p>
         <div class="zg2-now-grid">
           <div class="zg2-now-item">
-            ${screenFrame("place", 718, 560, "場所の図鑑の画面。常盤公園の記録がたまっています", false)}
-            <h3>場所の図鑑</h3>
-            <p>公開されている場所では、その場所の記録が図鑑のようにたまっていきます。</p>
+            ${screenFrame("place", 718, 560, t("場所の図鑑の画面。常盤公園の記録がたまっています", "A place guide screen. Records are building up for Tokiwa Park"), false)}
+            <h3>${t("場所の図鑑", "Place guides")}</h3>
+            <p>${t("公開されている場所では、その場所の記録が図鑑のようにたまっていきます。", "In places that are made public, records for that place build up like a guide.")}</p>
             ${placeList}
           </div>
           <div class="zg2-now-item">
-            ${screenFrame("map", 750, 560, "地図の画面。場所を探せます", false)}
-            <h3>地図で場所を探す</h3>
-            <p>地図から、公開されている場所を探せます。<a class="zg2-link" href="${prefix}/map">地図を開く</a></p>
+            ${screenFrame("map", 750, 560, t("地図の画面。場所を探せます", "The map screen. You can look for places"), false)}
+            <h3>${t("地図で場所を探す", "Find places on the map")}</h3>
+            <p>${t("地図から、公開されている場所を探せます。", "You can find public places from the map.")}<a class="zg2-link" href="${prefix}/map">${t("地図を開く", "Open the map")}</a></p>
           </div>
         </div>
-        <p class="zg2-foot">写真は最初、自分だけに見えます。公開する場所は自分で選べます。</p>
+        <p class="zg2-foot">${t("写真は最初、自分だけに見えます。公開する場所は自分で選べます。", "Photos are visible only to you at first. You choose which places to make public.")}</p>
       </section>
 
       <section class="zg2-band zg2-future" aria-labelledby="zg2-future">
-        <span class="zg2-tag zg2-tag-dev">これから作るもの</span>
-        <h2 id="zg2-future">NOCOSILとつなぐと</h2>
-        <p class="zg2-sub">仕事の道具「NOCOSIL」とつなぐ使い方を開発しています。点線の枠は、できたらこう見えるという作り画面です（名前・数字は架空）。</p>
+        <span class="zg2-tag zg2-tag-dev">${t("これから作るもの", "Coming next")}</span>
+        <h2 id="zg2-future">${t("NOCOSILとつなぐと", "Connecting with NOCOSIL")}</h2>
+        <p class="zg2-sub">${t("仕事の道具「NOCOSIL」とつなぐ使い方を開発しています。点線の枠は、できたらこう見えるという作り画面です（名前・数字は架空）。", "We are building ways to connect ZUKAN with NOCOSIL, our tool for work. The dashed frames are mock-ups of how it could look (names and numbers are made up).")}</p>
         <div class="zg2-ex-list">
-          ${example(true, "記録が、活動の成果として使われたことが分かる", "NOCOSILでまとめた活動の成果にZUKANの記録が使われたら、場所や記録のページに表示できるように開発を進めています。", devFrame("場所のページ", `<h4>みなと川の土手</h4><p class="zg2-meta">この場所の記録 42件</p><div class="zg2-bandline">この場所の記録 12件が、「みなと川をきれいにする会」の活動報告に使われました</div>${row("使われた記録", "秋の記録 12件")}${row("まとめた場所", "活動報告")}`))}
-          ${example(false, "お店や団体のページを、場所とつないで公開する", "NOCOSILで作ったお店や団体のページを、ZUKANの場所のページに載せられるように開発を進めています。", devFrame("場所のページ", `<h4>みなと川の土手</h4><p class="zg2-meta">この場所の記録 42件</p><div class="zg2-bandline">この場所のお店：ベーカリー そらいろ</div>${row("営業時間", "9:00〜18:00")}${row("パンの予約", "お店のページを見る")}`, "pond"))}
-          ${example(false, "イベントや観察会を公開して、参加を受ける", "NOCOSILで企画したイベントや観察会を、ZUKANで公開して参加を受けられるように開発を進めています。", devFrame("イベント", `<h4>冬の水辺観察会</h4><p class="zg2-meta">12月14日（月）9:00〜11:00・みなと川の土手</p><div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">参加する</span><span class="zg2-chip">あと6名</span></div><div class="zg2-bandline">申し込みと当日の段取りを見る</div>`, "heron"))}
-          ${example(false, "学校や団体からの案内の依頼を受ける", "学校や団体からの「自然案内をお願いしたい」という依頼をZUKANで受けられるように開発を進めています。", devFrame("案内の依頼", `<h4>自然案内の依頼が届いています</h4><p class="zg2-meta">みなと小学校・3年生の校外学習</p>${row("日にち", "1月20日（水）午前")}${row("場所", "みなと川の土手")}<div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">受ける</span><span class="zg2-chip">段取りを見る</span></div>`))}
+          ${example(true, t("記録が、活動の成果として使われたことが分かる", "See when your records are used in a group's results"), t("NOCOSILでまとめた活動の成果にZUKANの記録が使われたら、場所や記録のページに表示できるように開発を進めています。", "We are working on showing it on the place and record pages when ZUKAN records are used in activity results compiled in NOCOSIL."), devFrame(en, t("場所のページ", "Place page"), `<h4>${t("みなと川の土手", "Minato River bank")}</h4><p class="zg2-meta">${t("この場所の記録 42件", "42 records at this place")}</p><div class="zg2-bandline">${t("この場所の記録 12件が、「みなと川をきれいにする会」の活動報告に使われました", "12 records from this place were used in the activity report of the Minato River Cleanup Group")}</div>${row(t("使われた記録", "Records used"), t("秋の記録 12件", "12 autumn records"))}${row(t("まとめた場所", "Compiled in"), t("活動報告", "Activity report"))}`))}
+          ${example(false, t("お店や団体のページを、場所とつないで公開する", "Publish a shop or group page linked to a place"), t("NOCOSILで作ったお店や団体のページを、ZUKANの場所のページに載せられるように開発を進めています。", "We are working on letting pages for shops and groups made in NOCOSIL appear on ZUKAN place pages."), devFrame(en, t("場所のページ", "Place page"), `<h4>${t("みなと川の土手", "Minato River bank")}</h4><p class="zg2-meta">${t("この場所の記録 42件", "42 records at this place")}</p><div class="zg2-bandline">${t("この場所のお店：ベーカリー そらいろ", "Shop at this place: Sorairo Bakery")}</div>${row(t("営業時間", "Hours"), t("9:00〜18:00", "9:00 AM-6:00 PM"))}${row(t("パンの予約", "Bread orders"), t("お店のページを見る", "View the shop page"))}`, "pond"))}
+          ${example(false, t("イベントや観察会を公開して、参加を受ける", "Publish events and nature walks and take sign-ups"), t("NOCOSILで企画したイベントや観察会を、ZUKANで公開して参加を受けられるように開発を進めています。", "We are working on letting events and nature walks planned in NOCOSIL be published on ZUKAN, with sign-ups."), devFrame(en, t("イベント", "Event"), `<h4>${t("冬の水辺観察会", "Winter Waterside Walk")}</h4><p class="zg2-meta">${t("12月14日（月）9:00〜11:00・みなと川の土手", "Mon, Dec 14, 9:00-11:00 AM · Minato River bank")}</p><div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">${t("参加する", "Join")}</span><span class="zg2-chip">${t("あと6名", "6 spots left")}</span></div><div class="zg2-bandline">${t("申し込みと当日の段取りを見る", "See sign-up and plans for the day")}</div>`, "heron"))}
+          ${example(false, t("学校や団体からの案内の依頼を受ける", "Receive guide requests from schools and groups"), t("学校や団体からの「自然案内をお願いしたい」という依頼をZUKANで受けられるように開発を進めています。", "We are working on letting you receive requests on ZUKAN from schools and groups asking for a nature guide."), devFrame(en, t("案内の依頼", "Guide request"), `<h4>${t("自然案内の依頼が届いています", "A nature guide request has arrived")}</h4><p class="zg2-meta">${t("みなと小学校・3年生の校外学習", "Minato Elementary School · Grade 3 field trip")}</p>${row(t("日にち", "Date"), t("1月20日（水）午前", "Wed, Jan 20, morning"))}${row(t("場所", "Place"), t("みなと川の土手", "Minato River bank"))}<div class="zg2-chips"><span class="zg2-chip zg2-chip-fill">${t("受ける", "Accept")}</span><span class="zg2-chip">${t("段取りを見る", "See the plan")}</span></div>`))}
         </div>
       </section>
 
       <section class="zg2-sec" aria-labelledby="zg2-join">
-        <span class="zg2-tag">いっしょに作る</span>
-        <h2 id="zg2-join">いっしょに作りませんか</h2>
-        <p class="zg2-sub">ZUKANは、使う人といっしょに作っています。</p>
+        <span class="zg2-tag">${t("いっしょに作る", "Build it together")}</span>
+        <h2 id="zg2-join">${t("いっしょに作りませんか", "Help us build it")}</h2>
+        <p class="zg2-sub">${t("ZUKANは、使う人といっしょに作っています。", "We are building ZUKAN together with the people who use it.")}</p>
         <div class="zg2-join-grid">
           <div class="zg2-card">
-            <h3>使ってみたい方へ</h3>
-            <p>いまは招待制です。登録しておくと、案内できるようになったときに連絡します。写真は自分だけに見える状態から始まります。</p>
-            <a class="zg2-btn" href="${prefix}/register">順番待ちに登録する</a>
+            <h3>${t("使ってみたい方へ", "Want to try it?")}</h3>
+            <p>${t("いまは招待制です。登録しておくと、案内できるようになったときに連絡します。写真は自分だけに見える状態から始まります。", "It is invite-only for now. Join the waitlist and we will contact you when we can open a spot. Your photos start out visible only to you.")}</p>
+            <a class="zg2-btn" href="${prefix}/register">${t("順番待ちに登録する", "Join the waitlist")}</a>
           </div>
           <div class="zg2-card">
-            <h3>声を届ける</h3>
-            <p>使ってみて気づいたことを送れます。届いた声は、作る順番を決める材料になります。</p>
-            <a class="zg2-btn" href="${esc(feedbackHref)}">声を届ける</a>
+            <h3>${t("声を届ける", "Send feedback")}</h3>
+            <p>${t("使ってみて気づいたことを送れます。届いた声は、作る順番を決める材料になります。", "Tell us what you notice while using it. What we hear helps decide what we build first.")}</p>
+            <a class="zg2-btn" href="${esc(feedbackHref)}">${t("声を届ける", "Send feedback")}</a>
           </div>
           <div class="zg2-card">
-            <h3>お店・団体・学校の方へ</h3>
-            <p>NOCOSILとの連携を最初に試す仲間を探しています。使ってみたい場面を教えてください。</p>
-            <a class="zg2-btn" href="${esc(feedbackHref)}">相談する</a>
+            <h3>${t("お店・団体・学校の方へ", "For shops, groups and schools")}</h3>
+            <p>${t("NOCOSILとの連携を最初に試す仲間を探しています。使ってみたい場面を教えてください。", "We are looking for partners to be first to try the NOCOSIL connection. Tell us how you would like to use it.")}</p>
+            <a class="zg2-btn" href="${esc(feedbackHref)}">${t("相談する", "Get in touch")}</a>
           </div>
         </div>
       </section>
 
       <footer class="zg2-foot-bar">
-        <p>NOCOSILとの連携は開発中です。</p>
-        <p>© IKIMON株式会社</p>
+        <p>${t("NOCOSILとの連携は開発中です。", "The NOCOSIL connection is in development.")}</p>
+        <p>© ${t("IKIMON株式会社", "IKIMON Inc.")}</p>
       </footer>
     </div>
   `;

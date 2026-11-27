@@ -22985,10 +22985,10 @@ async function getNativeZukanTopHtmlIfAvailable(
   const sessionActive = Boolean(session && !session.banned);
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
-  const asGuest = lang === "ja" && sessionActive && viewAsGuest(request, env, GUEST_TOP_V2_FLAG, session);
+  const asGuest = sessionActive && viewAsGuest(request, env, GUEST_TOP_V2_FLAG, session);
   const authenticated = sessionActive && !asGuest;
   const guestViewer = viewerFromSession(session);
-  const guestTopV2 = lang === "ja" && !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
+  const guestTopV2 = !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
   if (authenticated && session && libraryV2On(env, session)) {
     const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery);
