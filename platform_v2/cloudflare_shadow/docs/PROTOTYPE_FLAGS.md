@@ -25,4 +25,5 @@
 | SEARCH_V2_ENABLED | 探す画面 再設計 v2（候補・最近・時期ことば） | zukan_search | /ja/search/explore |
 | SHOP_PHOTO_PERK_ENABLED | 店の写真投稿＋引換券 | zukan_shop_photo_perk | /ja/shops |
 | SPECIES_READER_LAYER_ENABLED | 種ごとの解説レイヤー（こども／おや／せんせい） | zukan_species_reader_layer | /ja/records |
+| SPECIES_SURFACE_V1_ENABLED | 種の面（生物の個別ページ）と地域の種一覧の整理 | zukan_region | /ja/species/カワセミ |
 <!-- END GENERATED FLAGS -->

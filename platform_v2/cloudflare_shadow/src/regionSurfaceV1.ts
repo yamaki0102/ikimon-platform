@@ -81,6 +81,20 @@ export function regionKeyFromLabel(value: unknown): string | null {
   return v || null;
 }
 
+const HIGHER_RANK_JA = /[界門綱目科]$/u;
+const COARSE_WORDS = new Set(["クモ", "アリ", "ハチ", "ガ", "チョウ", "トンボ", "カエル", "魚", "鳥", "虫", "昆虫", "草", "木", "花", "きのこ", "キノコ", "貝", "カビ", "コケ", "シダ"]);
+export function isHigherRankName(name: string): boolean {
+  const n = String(name ?? "").normalize("NFKC").trim();
+  if (!n) return false;
+  if (COARSE_WORDS.has(n)) return true;
+  if (n.length >= 2 && HIGHER_RANK_JA.test(n) && !/[A-Za-z]/.test(n)) return true;
+  return /^[A-Z][a-z]+$/.test(n) && /(?:idae|aceae|ales|inae|opsida|mycota|mycetes|phyta)$/.test(n);
+}
+export const splitByRank = <T extends { name: string }>(rows: readonly T[]): { fine: T[]; coarse: T[] } => ({
+  fine: rows.filter((r) => !isHigherRankName(r.name)),
+  coarse: rows.filter((r) => isHigherRankName(r.name)),
+});
+
 const PLACE_AREA_SQL = `public_profile_status = 'published' AND superseded_by_place_id IS NULL AND (
   municipality = ?1 OR prefecture = ?1 OR locality_label = ?1
   OR (locality_label LIKE '%' || ?1 AND length(locality_label) <= length(?1) + 4)
@@ -177,7 +191,7 @@ export async function loadPlaceRegionArea(db: Db, placeId: string, normalize: (v
   } catch { return null; }
 }
 
-export function regionMapCardHtml(cells: readonly RegionCell[], mapHref: string, lang: Lang = "ja"): string {
+export function regionMapCardHtml(cells: readonly RegionCell[], mapHref: string, lang: Lang = "ja", copy?: { title: [string, string]; aria: [string, string]; note: [string, string] }): string {
   const parsed = cells.map((c) => ({ ...c, p: parseCell(c.cell), h: cellHalfStep(c.cell) })).filter((c): c is typeof c & { p: { lat: number; lng: number } } => c.p !== null);
   if (parsed.length === 0) return "";
   const W = 288;
@@ -202,7 +216,7 @@ export function regionMapCardHtml(cells: readonly RegionCell[], mapHref: string,
     const y = Math.min(Math.max(cy - h / 2, 3), H - h - 3);
     return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="6" fill="#143F2E" fill-opacity="${(0.14 + Math.min(c.count, 20) / 20 * 0.4).toFixed(2)}" stroke="#143F2E" stroke-opacity=".55" stroke-width="1.5"/>`;
   }).join("");
-  return `<div class="rs-rc" data-region-map="1"><div class="rs-rh">${tr(lang, "この地域の地図", "Map of this area")}</div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${tr(lang, "この地域の記録がある範囲（大まかな位置）", "Area with records in this region (approximate location)")}" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="12" fill="#EDEFE7"/>${rects}</svg><p class="rs-rn">${tr(lang, "記録がある範囲を、大まかに表示しています。", "The area with records is shown roughly.")}</p><a class="rs-all" href="${esc(mapHref)}">${tr(lang, "地図で見る", "View on map")}</a></div>`;
+  return `<div class="rs-rc" data-region-map="1"><div class="rs-rh">${tr(lang, copy?.title[0] ?? "この地域の地図", copy?.title[1] ?? "Map of this area")}</div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${tr(lang, copy?.aria[0] ?? "この地域の記録がある範囲（大まかな位置）", copy?.aria[1] ?? "Area with records in this region (approximate location)")}" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="12" fill="#EDEFE7"/>${rects}</svg><p class="rs-rn">${tr(lang, copy?.note[0] ?? "記録がある範囲を、大まかに表示しています。", copy?.note[1] ?? "The area with records is shown roughly.")}</p><a class="rs-all" href="${esc(mapHref)}">${tr(lang, "地図で見る", "View on map")}</a></div>`;
 }
 
 export const regionSurfaceHasContent = (d: RegionSurfaceData): boolean => d.species.length > 0 || d.placeTotal > 0 || d.eventTotal > 0;
@@ -217,7 +231,7 @@ const dateLabel = (iso: string, lang: Lang = "ja"): string => {
 const PIN_ICON = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>`;
 const FLAG_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg>`;
 
-const EXTRA_CSS = `
+export const EXTRA_CSS = `
 .rs-stats{display:flex;gap:24px;margin:16px 0 0;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap}
 .rs-stat b{display:block;font-size:22px;font-weight:800;color:var(--ink)}
 .rs-stat span{display:block;font-size:14px;color:var(--muted);white-space:nowrap}
@@ -262,8 +276,8 @@ function dedupePhotos(species: readonly RegionSpecies[], seen: Set<string>): Map
   return out;
 }
 
-function speciesRow(s: RegionSpecies, photo: string | null, prefix: string, lang: Lang): string {
-  const href = s.invasiveSlug ? `${prefix}/invasive/${encodeURIComponent(s.invasiveSlug)}` : `${prefix}/observations/${encodeURIComponent(s.lastObservationId)}`;
+function speciesRow(s: RegionSpecies, photo: string | null, prefix: string, lang: Lang, surface = false): string {
+  const href = surface && !isHigherRankName(s.name) ? `${prefix}/species/${encodeURIComponent(s.name)}` : s.invasiveSlug ? `${prefix}/invasive/${encodeURIComponent(s.invasiveSlug)}` : `${prefix}/observations/${encodeURIComponent(s.lastObservationId)}`;
   return `<a class="rs-row" data-region-species="${esc(s.name)}" href="${esc(href)}">${thumb(photo)}<span class="rs-b"><span class="rs-n">${esc(s.name)}</span><span class="rs-m">${lang === "ja" ? `${esc(groupLabel(s.group, lang))} ・ 記録 <span class="iv-nb">${s.records}件</span>` : `${esc(groupLabel(s.group, lang))} · <span class="iv-nb">${plural(s.records, "record", "records")}</span>`}</span></span>${CHEV_ICON}</a>`;
 }
 
@@ -277,6 +291,7 @@ export function renderRegionSurfacePage(options: {
   displayName?: string | null;
   cspNonce?: string | null;
   invasiveAvailable?: boolean;
+  speciesSurface?: boolean;
   origin?: string;
 }): string {
   const { data } = options;
@@ -284,17 +299,19 @@ export function renderRegionSurfacePage(options: {
   const base = regionBase(options.lang, data.area);
   const stats: string[] = [];
   const L = options.lang;
+  const ranked = splitByRank(data.species);
+  const fineSpecies = ranked.fine;
   if (data.recordTotal > 0) stats.push(`<div class="rs-stat"><b>${data.recordTotal}</b><span>${tr(L, "この地域の記録", "Records in this area")}</span></div>`);
-  if (data.species.length > 0) stats.push(`<div class="rs-stat"><b>${data.species.length}</b><span>${tr(L, "記録された種", "Species recorded")}</span></div>`);
+  if (fineSpecies.length > 0) stats.push(`<div class="rs-stat"><b>${fineSpecies.length}</b><span>${tr(L, "記録された種", "Species recorded")}</span></div>`);
   if (data.placeTotal > 0) stats.push(`<div class="rs-stat"><b>${data.placeTotal}</b><span>${tr(L, "この地域の場所", "Places in this area")}</span></div>`);
   if (data.eventTotal > 0) stats.push(`<div class="rs-stat"><b>${data.eventTotal}</b><span>${tr(L, "行事", "Events")}</span></div>`);
   const shelves: string[] = [];
-  if (data.species.length > 0) {
-    const top = data.species.slice(0, 5);
+  if (fineSpecies.length > 0) {
+    const top = fineSpecies.slice(0, 5);
     const photos = dedupePhotos(top, new Set<string>());
-    const invasiveCount = data.species.filter((s) => s.invasiveSlug).length;
-    shelves.push(`<section data-region-shelf="bio"><div class="rs-shelf-h"><h2>${tr(L, "生物", "Wildlife")}<small>${tr(L, "記録されている種", "Species recorded")} ${data.species.length}</small></h2><a class="rs-all" href="${esc(`${base}/species`)}">${tr(L, "すべて見る", "See all")}</a></div>
-    ${top.map((s) => speciesRow(s, photos.get(s.name) ?? null, prefix, L)).join("")}
+    const invasiveCount = fineSpecies.filter((s) => s.invasiveSlug).length;
+    shelves.push(`<section data-region-shelf="bio"><div class="rs-shelf-h"><h2>${tr(L, "生物", "Wildlife")}<small>${tr(L, "記録されている種", "Species recorded")} ${fineSpecies.length}</small></h2><a class="rs-all" href="${esc(`${base}/species`)}">${tr(L, "すべて見る", "See all")}</a></div>
+    ${top.map((s) => speciesRow(s, photos.get(s.name) ?? null, prefix, L, options.speciesSurface)).join("")}
     ${options.invasiveAvailable && invasiveCount > 0 ? invasiveCallout(base, invasiveCount, L) : ""}</section>`);
   }
   if (data.placeTotal > 0) {
@@ -319,8 +336,8 @@ export function renderRegionSurfacePage(options: {
     <p class="rs-foot" data-region-guide="1">${tr(L, "この地域の面には、記録や場所から集まったものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records and places. Shelves for shops, companies and organizations, and people will appear once there is content for them.")}</p>
   </div>${mapCard ? `<aside class="rs-rail" aria-label="${tr(L, "この地域の地図", "Map of this area")}">${mapCard}</aside>` : ""}</div>`;
   const parts = L === "ja"
-    ? [data.species.length > 0 ? `記録された生きもの${data.species.length}種` : "", data.recordTotal > 0 ? `記録${data.recordTotal}件` : "", data.placeTotal > 0 ? `場所${data.placeTotal}か所` : ""].filter(Boolean)
-    : [data.species.length > 0 ? plural(data.species.length, "species", "species") : "", data.recordTotal > 0 ? plural(data.recordTotal, "record", "records") : "", data.placeTotal > 0 ? plural(data.placeTotal, "place", "places") : ""].filter(Boolean);
+    ? [fineSpecies.length > 0 ? `記録された生きもの${fineSpecies.length}種` : "", data.recordTotal > 0 ? `記録${data.recordTotal}件` : "", data.placeTotal > 0 ? `場所${data.placeTotal}か所` : ""].filter(Boolean)
+    : [fineSpecies.length > 0 ? plural(fineSpecies.length, "species", "species") : "", data.recordTotal > 0 ? plural(data.recordTotal, "record", "records") : "", data.placeTotal > 0 ? plural(data.placeTotal, "place", "places") : ""].filter(Boolean);
   const description = L === "ja"
     ? `${data.area}の生きものと場所。${parts.join("、")}。ZUKANの公開記録から集めています。`
     : `Wildlife and places in ${data.area}: ${parts.join(", ")}. Gathered from public records on ZUKAN.`;
@@ -351,36 +368,45 @@ export function renderRegionSpeciesListPage(options: {
   displayName?: string | null;
   cspNonce?: string | null;
   invasiveAvailable?: boolean;
+  speciesSurface?: boolean;
   origin?: string;
 }): string {
   const { data } = options;
   const L = options.lang;
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
   const base = regionBase(options.lang, data.area);
-  const present = GROUP_ORDER.filter((g) => data.species.some((s) => s.group === g));
+  const { fine, coarse } = splitByRank(data.species);
+  const present = GROUP_ORDER.filter((g) => fine.some((s) => s.group === g));
   const group = options.group && present.includes(options.group) ? options.group : null;
-  const shown = group ? data.species.filter((s) => s.group === group) : data.species;
-  const photos = dedupePhotos(shown, new Set<string>());
+  const shown = group ? fine.filter((s) => s.group === group) : fine;
+  const seenPhotos = new Set<string>();
+  const photos = dedupePhotos(shown, seenPhotos);
+  const coarseShown = group ? [] : coarse;
+  const coarsePhotos = dedupePhotos(coarseShown, seenPhotos);
   const chips = present.length > 1
     ? `<nav class="rs-chips" aria-label="${tr(L, "分類", "Category")}" data-region-chips="1"><a class="rs-chip" href="${esc(`${base}/species`)}"${group === null ? ' aria-current="true"' : ""}>${tr(L, "すべて", "All")}</a>${present.map((g) => `<a class="rs-chip" href="${esc(`${base}/species?group=${g}`)}"${group === g ? ' aria-current="true"' : ""}>${esc(groupLabel(g, L))}</a>`).join("")}</nav>`
     : "";
-  const invasiveCount = data.species.filter((s) => s.invasiveSlug).length;
+  const invasiveCount = fine.filter((s) => s.invasiveSlug).length;
   const callout = options.invasiveAvailable && invasiveCount > 0 ? invasiveCallout(base, invasiveCount, L) : "";
   const list = shown.length
-    ? `<p class="iv-note">${tr(L, "記録が多い順に並べています。", "Sorted by number of records.")}</p><div data-region-species-list="1">${shown.map((s) => speciesRow(s, photos.get(s.name) ?? null, prefix, L)).join("")}</div>`
+    ? `<p class="iv-note">${tr(L, "記録が多い順に並べています。", "Sorted by number of records.")}</p><div data-region-species-list="1">${shown.map((s) => speciesRow(s, photos.get(s.name) ?? null, prefix, L, options.speciesSurface)).join("")}</div>`
     : `<p class="rs-foot" data-region-empty="1">${tr(L, "この地域では、名前の確認が済んだ生きものの記録が、まだ集まっていません。", "No records of wildlife with confirmed names have been gathered in this area yet.")}</p><div class="rs-cta"><a class="iv-btn" href="${esc(`${prefix}/record`)}">${tr(L, "この地域で記録する", "Record in this area")}</a></div>`;
+  const coarseHtml = coarseShown.length
+    ? `<section data-region-coarse="1"><div class="rs-shelf-h"><h2>${tr(L, "名前が大まかな記録", "Records with broad names")}<small>${tr(L, `${coarseShown.length}件`, plural(coarseShown.length, "name", "names"))}</small></h2></div><p class="iv-note">${tr(L, "科や目など、種まで確認できていない名前です。", "Names at family, order or similar level, not confirmed to species.")}</p>${coarseShown.map((s) => speciesRow(s, coarsePhotos.get(s.name) ?? null, prefix, L, false)).join("")}</section>`
+    : "";
   const body = `<div class="iv-col rs-col" data-region-species-page="${esc(data.area)}">
     ${headBar(base, L)}
     <div class="iv-crumb">${PIN_ICON}<span>${esc(data.area)}</span></div>
     <h1 class="iv-title">${tr(L, "生物", "Wildlife")}</h1>
-    ${data.species.length ? `<p class="iv-desc">${tr(L, `この地域で記録されている種 ${data.species.length}種`, `Species recorded in this area: ${data.species.length}`)}</p>` : ""}
+    ${fine.length ? `<p class="iv-desc">${tr(L, `この地域で記録されている種 ${fine.length}種`, `Species recorded in this area: ${fine.length}`)}</p>` : ""}
     ${chips}
     ${callout}
     ${list}
+    ${coarseHtml}
   </div>`;
   const description = L === "ja"
-    ? `${data.area}で記録されている生きもの${data.species.length}種の一覧。ZUKANの公開記録から。`
-    : `${plural(data.species.length, "species", "species")} recorded in ${data.area}. From public records on ZUKAN.`;
+    ? `${data.area}で記録されている生きもの${fine.length}種の一覧。ZUKANの公開記録から。`
+    : `${plural(fine.length, "species", "species")} recorded in ${data.area}. From public records on ZUKAN.`;
   return shell({
     seo: { title: tr(L, `${data.area}の生きもの一覧 | ZUKAN`, `Wildlife in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(data.area)}/species`, image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: tr(L, `${data.area}の生物`, `Wildlife in ${data.area}`),
