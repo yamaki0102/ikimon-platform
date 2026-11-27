@@ -88,6 +88,7 @@ import {
   handleSaveAccountSettingsDetail,
   type SettingsDetailSection,
 } from "./zukanAccountSettingsDetail";
+import { handleProfileAvatarGet, handleProfileAvatarUpload } from "./zukanProfileAvatar";
 import {
   handleMyRecordsApi,
   handleMyRecordsRoute,
@@ -4550,7 +4551,17 @@ export const worker = {
 
       if (request.method === "POST" && url.pathname === "/api/v1/profile/settings-detail") {
         const session = await readCompatibleSession(request, env).catch(() => null);
-        return handleSaveAccountSettingsDetail(request, session, env.OBS_DB);
+        return handleSaveAccountSettingsDetail(request, session, env.OBS_DB, env.CORE_DB);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/v1/profile/avatar") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        return handleProfileAvatarUpload(request, session, env.CORE_DB, (userId, input) => storeProfileAvatarIfPresent(env, userId, input));
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/avatar/me") {
+        const session = await readCompatibleSession(request, env, false).catch(() => null);
+        return handleProfileAvatarGet(request, session, env.CORE_DB, env.ASSET_BUCKET);
       }
 
       const accountSettingsDetailMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/profile\/settings\/(edit|notifications|account)$/);

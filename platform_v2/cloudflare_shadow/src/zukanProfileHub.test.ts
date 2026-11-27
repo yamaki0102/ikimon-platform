@@ -26,11 +26,11 @@ test("profile hub (I1) shows stats, record mosaic and the four menu rows in the 
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, visibility TEXT, public_area_label TEXT);
     CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT, exif_scrub_state TEXT);
     CREATE TABLE observation_event_participants (participant_id TEXT, session_id TEXT, user_id TEXT);
-    CREATE TABLE user_account_settings (user_id TEXT, bio TEXT);
+    CREATE TABLE user_account_settings (user_id TEXT, bio TEXT, display_name TEXT);
     INSERT INTO observations VALUES ('o1','u1','2026-11-15T01:00:00Z','カワセミ','private','東川の河川敷'),('o2','u1','2026-11-24T01:00:00Z','クスノキ','public',NULL),('x','u2','2026-11-24T01:00:00Z','他人','public',NULL),('o3','u1','2026-11-10T01:00:00Z','ツバメ','public',NULL),('o4','u1','2026-11-09T01:00:00Z','ハクセキレイ','private',NULL);
     INSERT INTO asset_ledger VALUES ('a1','o1','scrubbed'),('a2','o2','scrubbed');
     INSERT INTO observation_event_participants VALUES ('p1','s1','u1'),('p2','s1','u1'),('p3','s2','u1');
-    INSERT INTO user_account_settings VALUES ('u1','浜松の里山と川辺を記録しています。');
+    INSERT INTO user_account_settings VALUES ('u1','浜松の里山と川辺を記録しています。','');
   `);
   core.exec(`
     CREATE TABLE user_saved_items (user_id TEXT, object_id TEXT, object_kind TEXT, state TEXT);
@@ -81,7 +81,7 @@ test("profile hub recent records use legacy import names instead of raw 'unident
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, observed_at TEXT, taxon_label TEXT, visibility TEXT, public_area_label TEXT);
     CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT, exif_scrub_state TEXT);
     CREATE TABLE observation_event_participants (participant_id TEXT, session_id TEXT, user_id TEXT);
-    CREATE TABLE user_account_settings (user_id TEXT, bio TEXT);
+    CREATE TABLE user_account_settings (user_id TEXT, bio TEXT, display_name TEXT);
     CREATE TABLE production_import_occurrences (occurrence_id TEXT PRIMARY KEY, visit_id TEXT, scientific_name TEXT, vernacular_name TEXT, taxon_rank TEXT, confidence_score REAL, quality_grade TEXT, created_at TEXT, updated_at TEXT);
     INSERT INTO observations VALUES ('o1','u1','2026-11-15T01:00:00Z','unidentified','public',NULL),('o2','u1','2026-11-14T01:00:00Z','unidentified','public',NULL);
     INSERT INTO production_import_occurrences VALUES ('occ:o1:0','o1',NULL,NULL,NULL,NULL,NULL,'2020-01-01',NULL),('occ:o1:1','o1','Parus minor','シジュウカラ','species',0.5,NULL,'2020-01-02',NULL);
