@@ -5,7 +5,15 @@ import test from "node:test";
 import { chromium } from "@playwright/test";
 import worker from "./index";
 import type { PlaceAtlasProfile, PlaceAtlasProfileRecord } from "../../src/services/placeAtlasContract";
-import { fieldCardRecordsFromProfile, fieldCardResponse, pickFieldCardRecords, renderFieldCardPage, type FieldCardRecord } from "./fieldCard";
+import {
+  classifyFieldCardGroup,
+  fieldCardRecordsFromProfile,
+  fieldCardResponse,
+  pickFieldCardRecords,
+  renderFieldCardPage,
+  resolveFieldCardGroupsFromDb,
+  type FieldCardRecord,
+} from "./fieldCard";
 
 const rec = (id: string, name: string | null, at: string, mediaUrl: string | null, extra: Partial<PlaceAtlasProfileRecord> = {}): PlaceAtlasProfileRecord => ({
   recordId: id, observedAt: at, displayName: name, href: null, mediaUrl, mediaKind: "photo", taxonGroup: null, themes: [], identificationStatus: "confirmed", ...extra,
@@ -79,6 +87,62 @@ test("taxon group selects fixed question and prompt copy", () => {
   const html = renderFieldCardPage({ placeId: "p", placeName: "場所", authenticated: false, records: pickFieldCardRecords([r("insect", 1), r("plant", 2), r("bird", 3)]) });
   for (const t of ["見つけたら、足やもようを指さしてもらおう", "同じ形の葉っぱを探してもらおう", "鳴き声が聞こえたら、まねしてもらおう"]) assert.ok(html.includes(t), t);
   assert.equal(fieldCardRecordsFromProfile(profile(RECORDS)).length, 5);
+});
+
+test("classifyFieldCardGroup resolves insect/plant/bird from kingdom, class, order, taxonGroup, or name and keeps unknown generic", () => {
+  assert.equal(classifyFieldCardGroup({ kingdom: "Plantae" }), "plant");
+  assert.equal(classifyFieldCardGroup({ kingdom: "植物界" }), "plant");
+  assert.equal(classifyFieldCardGroup({ className: "Insecta", kingdom: "Animalia" }), "insect");
+  assert.equal(classifyFieldCardGroup({ className: "昆虫綱" }), "insect");
+  assert.equal(classifyFieldCardGroup({ className: "Aves", kingdom: "Animalia" }), "bird");
+  assert.equal(classifyFieldCardGroup({ className: "鳥綱" }), "bird");
+  assert.equal(classifyFieldCardGroup({ order: "Lepidoptera" }), "insect");
+  assert.equal(classifyFieldCardGroup({ order: "チョウ目" }), "insect");
+  assert.equal(classifyFieldCardGroup({ order: "Passeriformes" }), "bird");
+  assert.equal(classifyFieldCardGroup({ order: "スズメ目" }), "bird");
+  assert.equal(classifyFieldCardGroup({ order: "Asterales" }), "plant");
+  assert.equal(classifyFieldCardGroup({ className: "Mammalia", kingdom: "Animalia" }), "generic");
+  assert.equal(classifyFieldCardGroup({ taxonGroup: "species", name: "ナミアゲハ" }), "insect");
+  assert.equal(classifyFieldCardGroup({ taxonGroup: "other", name: "ツバメ" }), "bird");
+  assert.equal(classifyFieldCardGroup({ taxonGroup: null, name: "ソメイヨシノ" }), "plant");
+  assert.equal(classifyFieldCardGroup({ taxonGroup: null, name: "不明" }), "generic");
+});
+
+test("recentRecords without taxonGroup infer group from name or gbif_taxon_matches taxonomy and render group prompts", async () => {
+  const noGroupRecords = [
+    rec("o1", "モンシロチョウ", "2026-09-10T03:00:00Z", "/derived/a/11.jpg", { taxonGroup: "species" }),
+    rec("o2", "カワセミ", "2026-08-10T03:00:00Z", "/derived/a/12.jpg", { taxonGroup: "other" }),
+    rec("o3", "ヒメジョオン", "2026-07-10T03:00:00Z", "/derived/a/13.jpg", { taxonGroup: null }),
+  ];
+  const fakeDb = {
+    prepare() {
+      return {
+        bind(key: string) {
+          const rows = key === "ヒメジョオン"
+            ? [{ name_key: "ヒメジョオン", submitted_name: "ヒメジョオン", accepted_name: "Erigeron annuus", kingdom: "Plantae", class_name: "Magnoliopsida", order_name: "Asterales" }]
+            : key === "アキアカネ"
+              ? [{ name_key: "アキアカネ", submitted_name: "アキアカネ", accepted_name: "Sympetrum frequens", kingdom: "Animalia", class_name: "Insecta", order_name: "Odonata" }]
+              : [];
+          return {
+            async first() { return rows[0] ?? null; },
+            async all() { return { results: rows }; },
+          };
+        },
+      };
+    },
+  };
+  const baseRecords = pickFieldCardRecords(fieldCardRecordsFromProfile(profile(noGroupRecords)));
+  const resolved = await resolveFieldCardGroupsFromDb(fakeDb as any, baseRecords);
+  const html = await fieldCardResponse(profile(noGroupRecords), null, resolved).text();
+  assert.ok(html.includes("足は何本見える？もようはある？"));
+  assert.ok(html.includes("くちばしは長い？短い？どんな色？"));
+  assert.ok(html.includes("葉っぱはどんな形？ふちはギザギザ？"));
+
+  const dragonfly = [rec("o4", "アキアカネ", "2026-09-10T03:00:00Z", "/derived/a/14.jpg", { taxonGroup: null })];
+  const dfBase = pickFieldCardRecords(fieldCardRecordsFromProfile(profile(dragonfly)));
+  const dfResolved = await resolveFieldCardGroupsFromDb(fakeDb as any, dfBase);
+  const dfHtml = await fieldCardResponse(profile(dragonfly), null, dfResolved).text();
+  assert.ok(dfHtml.includes("足は何本見える？もようはある？"));
 });
 
 const findBrowserPath = (): string | null => {
