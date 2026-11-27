@@ -1,6 +1,6 @@
 import type { Env } from "./core/env";
 import { loadOwnerAreaLabels } from "./ownerAreaLabel";
-import { decodePageCursor, encodePageCursor, likePatternFromQuery } from "./ownerRecordPaging";
+import { decodePageCursor, encodePageCursor } from "./ownerRecordPaging";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
 
 export type LibraryV2ObservationInput = {
@@ -344,6 +344,8 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-zbody p{font-size:15.5px;line-height:1.75;color:#3C4A41;margin:10px 0 0}
 .zv2l-btn-main{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:22px auto 0;padding:12px 18px;border-radius:999px;background:var(--green);color:#fff!important;font-size:16px;font-weight:800;text-decoration:none;border:0;cursor:pointer}
 .zv2l-zlink{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-height:44px;margin-top:14px;font-size:15px;font-weight:700;color:var(--link)!important;text-decoration:none}
+.zv2l-search-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;padding:6px 12px;border-radius:10px;background:#EFF3EE;font-size:14px;color:#3C4A41}
+.zv2l-search-meta a,.zv2l-search-meta a:visited{min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:var(--green);text-decoration:none}
 
 /* Open Visit page */
 .zv2l-open-head{display:flex;align-items:center;gap:8px;min-height:48px;margin-bottom:8px}
@@ -463,9 +465,20 @@ export function renderLibraryV2Page(options: {
     homeHref: `${prefix}/library`,
   });
 
+  const trimmedSearch = (options.searchQuery ?? "").trim();
   let listContent = "";
   if (options.visits.length === 0) {
-    listContent = `<section class="zv2l-zero" data-library-empty="1">
+    if (trimmedSearch) {
+      listContent = `<section class="zv2l-zero" data-library-search-empty="1">
+      <div class="zv2l-zicon">${ZUKAN_SHELL_ICONS.search}</div>
+      <h1>条件に合う記録がありません</h1>
+      <div class="zv2l-zbody">
+        <p>「${esc(trimmedSearch)}」に一致する自分の記録が見つかりませんでした。生きものの名前・場所・メモ・季節（「去年の秋」など）でお試しください。</p>
+      </div>
+      <a class="zv2l-btn-main" href="${esc(`${prefix}/library`)}">検索をリセット</a>
+    </section>`;
+    } else {
+      listContent = `<section class="zv2l-zero" data-library-empty="1">
       <div class="zv2l-zicon">${ICONS.pen}</div>
       <h1>まだ記録がありません</h1>
       <div class="zv2l-zbody">
@@ -475,9 +488,13 @@ export function renderLibraryV2Page(options: {
       <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">記録をはじめる</a>
       <a class="zv2l-zlink" href="${esc(`${prefix}/map`)}"><span>近くの場所を見てみる</span>${ICONS.chev}</a>
     </section>`;
+    }
   } else {
     let lastDay = "";
     const parts: string[] = [];
+    if (trimmedSearch) {
+      parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）</span><a href="${esc(`${prefix}/library`)}">検索をリセット</a></div>`);
+    }
     for (const v of options.visits) {
       if (v.dateDay !== lastDay) {
         lastDay = v.dateDay;
@@ -486,7 +503,8 @@ export function renderLibraryV2Page(options: {
       parts.push(renderVisitCardHtml(v, prefix));
     }
     if (options.nextCursor) {
-      parts.push(`<div style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" href="${esc(`${prefix}/library?before=${encodeURIComponent(options.nextCursor)}`)}">もっと見る</a></div>`);
+      const moreHref = `${prefix}/library?before=${encodeURIComponent(options.nextCursor)}${trimmedSearch ? `&q=${encodeURIComponent(trimmedSearch)}` : ""}`;
+      parts.push(`<div style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" href="${esc(moreHref)}">もっと見る</a></div>`);
     }
     listContent = parts.join("\n");
   }
@@ -694,6 +712,102 @@ export function renderLibraryV2VisitDetailPage(
 </html>`;
 }
 
+const SEASON_MONTHS: Readonly<Record<string, ReadonlySet<number>>> = {
+  春: new Set([3, 4, 5]),
+  夏: new Set([6, 7, 8]),
+  秋: new Set([9, 10, 11]),
+  冬: new Set([12, 1, 2]),
+};
+
+function jstYearFromMs(nowMs: number): number {
+  const isoDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(nowMs));
+  return Number(isoDate.slice(0, 4)) || 2026;
+}
+
+function jstYearMonthFromDateDay(dateDay: string): { year: number; month: number } | null {
+  const m = dateDay.match(/^(\d{4})-(\d{2})-/);
+  if (!m) return null;
+  return { year: Number(m[1]), month: Number(m[2]) };
+}
+
+type SearchTokenSpec = {
+  textToken: string;
+  temporalMatch: ((obs: { year: number; month: number } | null) => boolean) | null;
+};
+
+function parseLibraryV2SearchToken(rawToken: string, currentYear: number): SearchTokenSpec {
+  const normalized = rawToken.normalize("NFKC").trim();
+  const textToken = normalized.toLocaleLowerCase("ja-JP");
+  const match = normalized.match(
+    /^(?:(今年|去年|昨年|一昨年|おととし|(?:19|20)\d{2}年?)(?:の)?)?(?:(春|夏|秋|冬)|([1-9]|1[0-2])月)?$/u,
+  );
+  if (!match || (!match[1] && !match[2] && !match[3])) {
+    return { textToken, temporalMatch: null };
+  }
+  const yearPart = match[1] ?? "";
+  let targetYear: number | null = null;
+  if (yearPart === "今年") targetYear = currentYear;
+  else if (yearPart === "去年" || yearPart === "昨年") targetYear = currentYear - 1;
+  else if (yearPart === "一昨年" || yearPart === "おととし") targetYear = currentYear - 2;
+  else if (yearPart) targetYear = Number(yearPart.replace(/年$/u, ""));
+
+  const targetMonths: ReadonlySet<number> | null = match[2]
+    ? (SEASON_MONTHS[match[2]] ?? null)
+    : match[3]
+      ? new Set([Number(match[3])])
+      : null;
+
+  return {
+    textToken,
+    temporalMatch: (obs) => {
+      if (!obs) return false;
+      if (targetYear !== null && obs.year !== targetYear) return false;
+      if (targetMonths !== null && !targetMonths.has(obs.month)) return false;
+      return true;
+    },
+  };
+}
+
+export function filterLibraryV2Visits(
+  visits: readonly LibraryV2Visit[],
+  searchQuery: string,
+  visitExtraTexts?: ReadonlyMap<string, readonly string[]>,
+  nowMs = Date.now(),
+): LibraryV2Visit[] {
+  const rawTokens = searchQuery.normalize("NFKC").trim().split(/\s+/u).filter(Boolean);
+  if (rawTokens.length === 0) return [...visits];
+  const currentYear = jstYearFromMs(nowMs);
+  const tokens = rawTokens.map((t) => parseLibraryV2SearchToken(t, currentYear));
+
+  return visits.filter((visit) => {
+    const ym = jstYearMonthFromDateDay(visit.dateDay);
+    const baseTexts = [
+      visit.headingTitle,
+      visit.placeName,
+      visit.areaLabel,
+      visit.dateDay,
+      visit.dateLabel,
+      visit.report?.title ?? "",
+      visit.report?.body ?? "",
+      visit.eventParticipation?.title ?? "",
+      ...visit.audios.map((a) => a.title),
+      ...(visitExtraTexts?.get(visit.visitKey) ?? []),
+    ]
+      .filter(Boolean)
+      .map((s) => s.normalize("NFKC").toLocaleLowerCase("ja-JP"));
+
+    return tokens.every((tok) => {
+      if (tok.temporalMatch && tok.temporalMatch(ym)) return true;
+      return baseTexts.some((s) => s.includes(tok.textToken));
+    });
+  });
+}
+
 type DbObsRow = {
   observation_id: string;
   observed_at: string;
@@ -712,26 +826,23 @@ export async function loadUserLibraryV2Data(
   env: Env,
   userId: string,
   searchQuery = "",
-  options: { limit?: number; before?: string | null } = {},
+  options: { limit?: number; before?: string | null; nowMs?: number } = {},
 ): Promise<{ visits: LibraryV2Visit[]; nextCursor: string | null }> {
   const limit = options.limit ?? 60;
+  const trimmedQuery = searchQuery.trim();
+  const isSearchMode = trimmedQuery.length > 0;
   const params: Array<string | number> = [userId];
   const where: string[] = ["o.owner_user_id = ?1", "COALESCE(o.emergency_hidden, 0) = 0"];
-  const like = likePatternFromQuery(searchQuery);
-  if (like) {
-    params.push(like);
-    const l = `?${params.length}`;
-    where.push(`(o.taxon_label LIKE ${l} ESCAPE '\\' OR o.public_area_label LIKE ${l} ESCAPE '\\' OR o.note LIKE ${l} ESCAPE '\\' OR o.observed_at LIKE ${l} ESCAPE '\\')`);
-  }
   const cursor = decodePageCursor(options.before);
-  if (cursor) {
+  if (!isSearchMode && cursor) {
     params.push(cursor.observedAt);
     const at = `?${params.length}`;
     params.push(cursor.id);
     const idp = `?${params.length}`;
     where.push(`(o.observed_at < ${at} OR (o.observed_at = ${at} AND o.observation_id < ${idp}))`);
   }
-  params.push(limit + 1);
+  const sqlLimit = isSearchMode ? 300 : limit + 1;
+  params.push(sqlLimit);
   const lim = `?${params.length}`;
 
   let rows: DbObsRow[] = [];
@@ -758,9 +869,9 @@ export async function loadUserLibraryV2Data(
     return { visits: [], nextCursor: null };
   }
 
-  const sliced = rows.slice(0, limit);
+  const sliced = isSearchMode ? rows : rows.slice(0, limit);
   const lastRow = sliced[sliced.length - 1];
-  const nextCursor = rows.length > limit && lastRow ? encodePageCursor(lastRow.observed_at, lastRow.observation_id) : null;
+  const nextCursor = !isSearchMode && rows.length > limit && lastRow ? encodePageCursor(lastRow.observed_at, lastRow.observation_id) : null;
   if (sliced.length === 0) return { visits: [], nextCursor: null };
 
   const obsIds = sliced.map((r) => r.observation_id);
@@ -778,6 +889,24 @@ export async function loadUserLibraryV2Data(
       placeByObs.set(r.visit_id, { placeId: r.place_id, placeName: r.canonical_name });
     }
   } catch { /* optional table in tests */ }
+
+  const aiLabelByObs = new Map<string, string>();
+  if (isSearchMode) {
+    try {
+      const occIds = obsIds.map((id) => `occ:${id}:0`);
+      const occPlaceholders = occIds.map(() => "?").join(", ");
+      const aiRes = await env.OBS_DB.prepare(
+        `SELECT occurrence_id, COALESCE(candidate_vernacular_name, candidate_scientific_name, ai_recommended_taxon_name) AS ai_label
+           FROM observation_ai_review_targets
+          WHERE occurrence_id IN (${occPlaceholders})`,
+      ).bind(...occIds).all<{ occurrence_id: string; ai_label: string | null }>();
+      for (const row of aiRes.results ?? []) {
+        const obsId = row.occurrence_id.replace(/^occ:/, "").replace(/:0$/, "");
+        const label = (row.ai_label ?? "").trim();
+        if (label) aiLabelByObs.set(obsId, label);
+      }
+    } catch { /* optional table in tests */ }
+  }
 
   const ownerLabels = await loadOwnerAreaLabels(env, sliced.filter((r) => !(r.public_area_label ?? "").trim()).map((r) => r.observation_id)).catch(() => new Map<string, string>());
 
@@ -808,8 +937,9 @@ export async function loadUserLibraryV2Data(
     }
   } catch { /* optional */ }
 
+  const titleFetchLimit = isSearchMode ? Math.min(sliced.length, 60) : 20;
   const titleEntries = await Promise.all(
-    sliced.slice(0, 20).map(async (r) => {
+    sliced.slice(0, titleFetchLimit).map(async (r) => {
       try {
         const obj = await env.ASSET_BUCKET?.get(`record-title/${r.observation_id}.json`);
         if (!obj?.body) return [r.observation_id, null] as const;
@@ -822,6 +952,7 @@ export async function loadUserLibraryV2Data(
   );
   const titleMap = new Map(titleEntries);
 
+  const obsExtraTextById = new Map<string, string[]>();
   const inputs: LibraryV2ObservationInput[] = sliced.map((r) => {
     const mime = String(r.mime ?? "").toLowerCase();
     const mediaKind: LibraryV2ObservationInput["mediaKind"] = mime.startsWith("video/")
@@ -836,6 +967,10 @@ export async function loadUserLibraryV2Data(
     const dateDay = r.observed_at.slice(0, 10);
     const legacyKey = `${dateDay}__${pl?.placeId ?? (area || "身近な場所")}`;
     const eventSession = (pl?.placeId ? eventsByPlaceOrDay.get(`${dateDay}__${pl.placeId}`) : null) ?? eventsByPlaceOrDay.get(dateDay) ?? null;
+    const taxonLabel = (r.taxon_label ?? "").trim() || "";
+    const aiLabel = aiLabelByObs.get(r.observation_id) || "";
+    const customTitle = titleMap.get(r.observation_id) ?? null;
+    obsExtraTextById.set(r.observation_id, [taxonLabel, aiLabel, customTitle ?? "", r.note ?? "", area, pl?.placeName ?? ""].filter(Boolean));
     return {
       observationId: r.observation_id,
       observedAt: r.observed_at,
@@ -844,11 +979,11 @@ export async function loadUserLibraryV2Data(
       areaLabel: area || null,
       lat: typeof r.exact_lat === "number" ? r.exact_lat : null,
       lng: typeof r.exact_lng === "number" ? r.exact_lng : null,
-      reportTitle: titleMap.get(r.observation_id) ?? null,
+      reportTitle: customTitle,
       reportBody: (r.note ?? "").trim() || null,
       mediaKind,
       photoUrl: r.derivative_key ? `/${String(r.derivative_key).replace(/^\/+/, "")}` : null,
-      audioTitle: (r.taxon_label ?? "").trim() || null,
+      audioTitle: taxonLabel || aiLabel || null,
       durationMs: typeof r.duration_ms === "number" ? r.duration_ms : null,
       visibility: r.visibility === "public" ? "public" : "private",
       zukanPublished: pubByObs.get(r.observation_id) === true || pubByGroup.get(legacyKey) === true,
@@ -856,5 +991,26 @@ export async function loadUserLibraryV2Data(
     };
   });
 
-  return { visits: groupObservationsIntoVisitsV2(inputs), nextCursor };
+  const allVisits = groupObservationsIntoVisitsV2(inputs);
+  if (!isSearchMode) {
+    return { visits: allVisits, nextCursor };
+  }
+
+  const visitExtraTexts = new Map<string, string[]>();
+  for (const v of allVisits) {
+    visitExtraTexts.set(
+      v.visitKey,
+      v.observationIds.flatMap((id) => obsExtraTextById.get(id) ?? []),
+    );
+  }
+  const filtered = filterLibraryV2Visits(allVisits, trimmedQuery, visitExtraTexts, options.nowMs);
+  const filteredCursor = cursor
+    ? filtered.filter((v) => v.endedAt < cursor.observedAt)
+    : filtered;
+  const pageVisits = filteredCursor.slice(0, limit);
+  const lastVisit = pageVisits[pageVisits.length - 1];
+  const searchNextCursor = filteredCursor.length > limit && lastVisit
+    ? encodePageCursor(lastVisit.endedAt, lastVisit.observationIds[0] ?? lastVisit.visitKey)
+    : null;
+  return { visits: pageVisits, nextCursor: searchNextCursor };
 }
