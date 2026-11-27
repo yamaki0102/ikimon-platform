@@ -12,6 +12,8 @@ import { handleLibraryDetailRoute } from "./zukanLibraryDetail";
 import { handleZukanLinkFlowRoute } from "./zukanLinkFlow";
 import { checkFieldNameAvailability, getWaitlistStatusForEmail } from "./zukanEntryScreens";
 import { renderZukanLibraryPage } from "./zukanLibraryAndProfile";
+import { decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
+import { ownerAreaLabelFromInput, saveOwnerAreaLabel } from "./ownerAreaLabel";
 import { loadProfileHubData, renderNotificationDetail, renderNotificationsList, renderProfileHub, renderProfileSettingsHub, type AlertItem } from "./zukanProfileHub";
 import {
   isWeakTaxonLabel,
@@ -19,6 +21,7 @@ import {
   publicTaxonDisplayName,
   resolveUnifiedTaxonName,
 } from "./taxonNameResolver";
+import { legacyImportDisplayName, loadLegacyImportNames, resolveWeakLabels, type LegacyImportName } from "./legacyImportNames";
 import {
   buildClearedGuestPassCookieHeader,
   buildGuestPassCookieHeader,
@@ -164,11 +167,27 @@ import {
   renderZukanTopPage,
   type ZukanTopLang
 } from "./zukanTopPage";
+import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
+const OBSERVATION_CORRECTION_FLAG = "OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
+const RECORD_PAGE_PER_MEDIA_FLAG = "RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
+const recordPagePerMediaOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, v.principalId, v.role); };
+const PLACE_PAGE_V3_FLAG = "PLACE_PAGE_V3_PROTOTYPE_ENABLED";
+const placePageV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_PAGE_V3_FLAG, v.principalId, v.role); };
+const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
+const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_INLINE_EDIT_FLAG, v.principalId, v.role); };
+const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
+import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
+import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
+const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
+const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
+const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
+const mapInvasiveRequested = async (request: Request, url: URL, env: Env): Promise<boolean> => url.searchParams.get("taxon_group") === INVASIVE_TAXON_GROUP && mapInvasiveOn(env, await readCompatibleSession(request, env).catch(() => null));
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
 import { normalizeSafePublicAreaLabelCandidate, publicSafetyDecisionForContext, publicStreamAllowsLocationPrecision, resolveSafePublicAreaLabel, type PublicSafetyContextRow } from "./publicAreaLabel";
+import { addDisplayRotation, exifCorrectionRotation, normalizeDisplayRotation, planDerivativeOrientation, readJpegDimensions, readJpegExifOrientation, type DisplayRotation } from "./imageOrientation";
 import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
   LEGACY_PUBLIC_IMAGE_UPGRADE_SQL,
@@ -181,6 +200,7 @@ import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsS
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
+import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   handleCreatePlaceProposal,
@@ -219,7 +239,8 @@ import {
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite";
 import { recordReadingInputs } from "./recordReadingInputs";
 import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects, mergedFromVideoReadings, readVideos, videoReadingInputs, type VideoAssetSource, type VideoReadResult } from "./recordVideoReading";
-import { writeRecordMediaOrder } from "./recordReading";
+import { d1ReadingQuery, readRecordReading, writeRecordMediaOrder } from "./recordReading";
+import { buildRecordPageSections, recordPageSectionsJson } from "./recordPageSections";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
 import {
   buildObservationAiQualityBacklogPayload,
@@ -309,6 +330,12 @@ import {
   type RecordObservationReadSnapshot,
 } from "./cloudflareObservationReadModel";
 import { extractSignboardQuote, isObservationDetectionEvidence, isSignboardRecord, renderObservationFirstRecordDetailHtml, resolveObservationFirstDetectionState } from "./observationFirstRecordDetailHtml";
+import {
+  handleGetObservationCorrections,
+  handlePostObservationCorrection,
+  loadObservationCorrectionHistory,
+  renderObservationEditAndCorrectionHtml,
+} from "./zukanObservationEditAndCorrection";
 import {
   buildObservationDetailEvidence,
   handleGetObservationEvidence,
@@ -415,6 +442,16 @@ import type { AlertDeliveryJob, D1Database, D1PreparedStatement, D1Value, Env, E
 import { HttpError, arrayBufferToBase64Url, arrayBufferToText, assertNonEmpty, assertSameOriginRequest, base64ToArrayBuffer, base64UrlEncodeText, base64UrlToArrayBuffer, clampInteger, concatBytes, constantTimeStringEqual, escapeHtml, finiteNumberOrNull, formatPublicObservationDate, hmacSha256Hex, html, integerOrNull, integerOrZero, json, newId, normalizeOptionalId, normalizeOptionalText, numberOrNull, numberOrNullFromUnknown, parseCookies, randomToken, readJson, redirect303, sanitizeFileName, sanitizeIdPart, secureCookieAttribute, sha256Hex, stableJson, stringFromUnknown, stringOrNullFromUnknown, stringValue, textToArrayBuffer, uniqueNonEmpty } from "./core/http";
 import { PUBLIC_MAP_PLACEHOLDER_PHOTO_HEIGHT, PUBLIC_MAP_PLACEHOLDER_PHOTO_MAX_BYTES, PUBLIC_MAP_PLACEHOLDER_PHOTO_WIDTH, SESSION_COOKIE_NAME, applyCspNonceToHtmlScripts, asPlainObject, browserSecurityHeaders, createHtmlCspNonce, getFieldManagerRoleFromD1, isD1UniqueConstraintError, isFieldManagerRole, isMunicipalWalkMapAdminRole, isSafeFieldId, isSafePublicDerivedImageKey, jsonArray, jsonObject, langQueryToUrlSegment, presentablePublicPhotoSql, publicAreaApproxPolygon, publicLangFromPath, readCompatibleSession, readSessionTokenFromCookie, roundPublicEventCoordinate, safeRedirectPath, stringArray, stripPublicLangPrefix, type FieldManagerRole, type PublicDetailAssetRow, type SessionSnapshot } from "./core/shared";
 import { computeRecordCountBand, handleRecordCountBandRoute, readPlaceSeasonCountFacts, renderPlaceSeasonListHtml, type BandDeps } from "./recordCountBand";
+import {
+  COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS,
+  COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS,
+  mergeCompatibleUserEnvironmentRecordValues,
+  normalizeCompatibleEnvironmentRecordInput,
+  parseCompatibleStructuredJson,
+  publicCompatibleEnvironmentRecord,
+  serializeCompatibleStructuredJson,
+  type CompatibleEnvironmentRecordField,
+} from "./environmentRecordMulti";
 import { handleRecordProposalRoute, submitReadingProposal, type ProposalDb, type ProposalDeps } from "./recordProposals";
 import { handleGbifConsentRoute } from "./gbifConsent";
 import { gbifDbFromD1 } from "./gbifDb";
@@ -2489,12 +2526,8 @@ export function withAiContentPolicy(response: Response, request: Request, env: P
 }
 
 
-async function getGlobalPlaceDetailPage(
-  request: Request,
-  url: URL,
-  env: Env,
-  canonicalPlaceId: string,
-): Promise<Response> {
+type PublicPlaceProfile = NonNullable<Awaited<ReturnType<typeof loadCloudflarePlaceAtlasProfile>>>;
+async function loadPublicPlaceProfile(env: Env, canonicalPlaceId: string): Promise<Response | PublicPlaceProfile> {
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,159}$/u.test(canonicalPlaceId)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
@@ -2540,6 +2573,18 @@ async function getGlobalPlaceDetailPage(
   if (!isPublicGlobalPlaceDetailProfile(profile, canonicalPlaceId)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
+  return profile;
+}
+
+async function getGlobalPlaceDetailPage(
+  request: Request,
+  url: URL,
+  env: Env,
+  canonicalPlaceId: string,
+): Promise<Response> {
+  const loadedPlace = await loadPublicPlaceProfile(env, canonicalPlaceId);
+  if (loadedPlace instanceof Response) return loadedPlace;
+  const profile = loadedPlace;
 
   const session = await readCompatibleSession(request, env).catch(() => null);
   const authenticated = Boolean(session && !session.banned);
@@ -2567,7 +2612,9 @@ async function getGlobalPlaceDetailPage(
     viewerAuthenticated: authenticated,
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
-    paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages)
+    paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
+    ...(authenticated && placePageV3On(env, session) ? { v3: true } : {}),
+    ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
   const response = html(body, 200, {
     "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
@@ -2682,7 +2729,9 @@ export const worker = {
       const accessSessionResponse = await issueStagingAccessSessionIfNeeded(request, url, env, ctx);
       if (accessSessionResponse) return accessSessionResponse;
 
-      const biosecurityResponse = await handleBiosecurityRequest(request, env);
+      const biosecuritySession = /^\/(?:(?:ja|en|es|pt-br)\/)?(?:biosecurity|api\/v1\/biosecurity)(?:\/|$)/.test(url.pathname) ? await readCompatibleSession(request, env).catch(() => null) : null;
+      const biosecurityViewer = viewerFromSession(biosecuritySession);
+      const biosecurityResponse = await handleBiosecurityRequest(request, env, flag => prototypeEnabledForViewer(env, flag, biosecurityViewer.principalId, biosecurityViewer.role));
       if (biosecurityResponse) return biosecurityResponse;
 
       if (request.method === "GET" && (
@@ -2700,7 +2749,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/cells") {
-        return getPublicMapCells(url, env);
+        return getPublicMapCells(url, env, await mapInvasiveRequested(request, url, env));
       }
 
       if (request.method === "GET" && nativePathname.startsWith("/api/v1/publication-feeds/")) {
@@ -2709,7 +2758,7 @@ export const worker = {
       }
 
       if (request.method === "GET" && (nativePathname === "/api/v1/map/observations" || nativePathname === "/api/v1/areas/observations")) {
-        return getPublicMapObservations(url, env);
+        return getPublicMapObservations(url, env, await mapInvasiveRequested(request, url, env));
       }
 
       if (request.method === "GET" && nativePathname === "/api/v1/map/place-profile") {
@@ -3820,9 +3869,10 @@ export const worker = {
         const session = await readCompatibleSession(request, env).catch(() => null);
         const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
         const searchQuery = url.searchParams.get("q") ?? "";
-        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja");
-        const noticeHtml = await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
-        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml }), 200, { "cache-control": "private, no-store" });
+        const before = decodePageCursor(url.searchParams.get("before")) ? url.searchParams.get("before") : null;
+        const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja", { before });
+        const noticeHtml = before ? "" : await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
+        return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml, continuation: Boolean(before) }), 200, { "cache-control": "private, no-store" });
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/library/group" || nativePathname === "/library/year-ago")) {
@@ -4871,6 +4921,19 @@ export const worker = {
         return getObservationPackageNative(request, url, env, decodeURIComponent(observationPackageMatch[1]));
       }
 
+      const observationCorrectionMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/corrections$/);
+      if (observationCorrectionMatch?.[1]) {
+        const obsId = decodeURIComponent(observationCorrectionMatch[1]);
+        const session = await readCompatibleSession(request, env);
+        if (!observationCorrectionOn(env, session)) return new Response("Not Found", { status: 404 });
+        if (request.method === "POST") {
+          return handlePostObservationCorrection(obsId, request, session, env);
+        }
+        if (request.method === "GET") {
+          return handleGetObservationCorrections(obsId, session, env);
+        }
+      }
+
       const observationEvidenceMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/evidence$/);
       if (request.method === "GET" && observationEvidenceMatch?.[1]) {
         const session = await readCompatibleSession(request, env);
@@ -4970,6 +5033,17 @@ export const worker = {
         const tab = placeAboutSeasonsMatch[3] as "about" | "seasons";
         const session = await readCompatibleSession(request, env);
         return handlePlaceAboutOrSeasonsRoute(decodeURIComponent(placeAboutSeasonsMatch[2]), tab, viewLang, session, env.OBS_DB);
+      }
+
+      const placeFieldCardMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/card$/);
+      if (request.method === "GET" && placeFieldCardMatch?.[2]) {
+        const fieldCardSession = await readCompatibleSession(request, env);
+        if (fieldCardOn(env, fieldCardSession)) {
+          if (placeFieldCardMatch[1] && placeFieldCardMatch[1] !== "ja") return new Response("Not found", { status: 404 });
+          const fieldCardPlace = await loadPublicPlaceProfile(env, decodeURIComponent(placeFieldCardMatch[2]));
+          if (fieldCardPlace instanceof Response) return fieldCardPlace;
+          return fieldCardResponse(fieldCardPlace, fieldCardSession);
+        }
       }
 
       const placeSubViewMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/places\/([^/]+)\/(records|photos)$/);
@@ -10838,10 +10912,11 @@ function researchCsvCell(value: unknown): string {
   return `"${raw.replaceAll("\"", "\"\"")}"`;
 }
 
-async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
+async function getPublicMapCells(url: URL, env: Env, invasive = false): Promise<Response> {
   const rows = await queryPublicMapRows(env);
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
-  const scopedRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
+  const bboxRows = bbox ? rows.filter((row) => publicCellInBbox(row.public_cell, bbox)) : rows;
+  const scopedRows = invasive ? filterInvasiveRows(bboxRows) : bboxRows;
   const groups = new Map<string, PublicMapRow[]>();
   for (const row of scopedRows) {
     if (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now())) continue;
@@ -10882,7 +10957,8 @@ async function getPublicMapCells(url: URL, env: Env): Promise<Response> {
           latestObservedAt: formatPublicDateOnly(latestObservedAt(group)),
           taxonMix,
           centroidLat: parsed.lat,
-          centroidLng: parsed.lng
+          centroidLng: parsed.lng,
+          ...invasiveCellExtras(group, invasive)
         }
       };
     })
@@ -11190,7 +11266,7 @@ async function resolvePlaceScope(
   return { bbox: null, visitIds: ids.size > 0 ? ids : new Set() };
 }
 
-async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
+async function getPublicMapObservations(url: URL, env: Env, invasive = false): Promise<Response> {
   const startedAt = performance.now();
   const bbox = parseBboxParam(url.searchParams.get("bbox"));
   const rawCellId = normalizeOptionalText(url.searchParams.get("cell_id"));
@@ -11214,7 +11290,7 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
   const effectiveBbox = bbox ?? placeScope?.bbox ?? null;
   const limit = clampInteger(Number(url.searchParams.get("limit") ?? "300"), 1, 1200);
   const rows = await queryPublicMapRows(env);
-  const areaAndPeriodRows = rows
+  const areaAndPeriodRows = (invasive ? filterInvasiveRows(rows) : rows)
     .filter((row) => {
       if ((selectedCell || effectiveBbox) && (row.public_cell === "hidden" || isLocationDelayed24Hours(row.observed_at, Date.now()))) return false;
       if (selectedCell && row.public_cell !== selectedCell) return false;
@@ -11257,13 +11333,14 @@ async function getPublicMapObservations(url: URL, env: Env): Promise<Response> {
         scene_surrounding_cover: row.scene_surrounding_cover ?? meta?.sceneSurroundingCover ?? null,
       };
       const item = publicMapObservationItem(enrichedRow, photoUrls.get(row.observation_id) ?? null, kind);
-      return {
+      const mapItem = {
         ...item,
         localityLabel: row.public_cell === "hidden"
           ? "位置は非公開です"
           : (hiddenOrDelayed ? "位置は24時間後に公開されます" : item.localityLabel),
         publicCellId: hiddenOrDelayed ? null : publicCellToCellId(row.public_cell),
       };
+      return invasive ? decorateInvasiveItem(mapItem, row.taxon_label) : mapItem;
     }),
     stats: {
       totalReturned: scopedRows.length,
@@ -22573,9 +22650,13 @@ async function getNativeZukanTopHtmlIfAvailable(
   const nativePathname = stripPublicLangPrefix(url.pathname);
   if (nativePathname !== "/" && nativePathname !== "/index.html") return null;
   const session = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
-  const authenticated = Boolean(session && !session.banned);
+  const sessionActive = Boolean(session && !session.banned);
   const langCandidate = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang"));
   const lang: ZukanTopLang = langCandidate === "en" || langCandidate === "es" || langCandidate === "pt-br" ? langCandidate : "ja";
+  const asGuest = lang === "ja" && sessionActive && viewAsGuest(request, env, GUEST_TOP_V2_FLAG, session);
+  const authenticated = sessionActive && !asGuest;
+  const guestViewer = viewerFromSession(session);
+  const guestTopV2 = lang === "ja" && !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
   const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
@@ -22584,15 +22665,17 @@ async function getNativeZukanTopHtmlIfAvailable(
     authenticated,
     displayName: session?.displayName ?? null,
     searchQuery,
-    cspNonce
+    cspNonce,
+    ...(guestTopV2 ? { guestTopV2: true } : {})
   });
   return new Response(request.method === "HEAD" ? null : body, {
     status: 200,
     headers: {
       ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
       "content-type": "text/html; charset=utf-8",
-      "cache-control": authenticated ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
-      "x-ikimon-cloudflare-native": "zukan-top-v2"
+      "cache-control": authenticated || guestTopV2 ? "private, no-store" : "public, max-age=60, stale-while-revalidate=300",
+      "x-ikimon-cloudflare-native": "zukan-top-v2",
+      ...(guestTopV2 ? { "x-zukan-guest-top": "v2" } : {})
     }
   });
 }
@@ -22628,6 +22711,7 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
     return originalUiHtmlQueryVariant(url) ? withHeaderMenu : injectRecentObservationRecords(withHeaderMenu, url, env);
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
+  if (isMapHtmlPath(url.pathname)) return injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session));
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
   return injectOAuthEmailConflictNotice(personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect"))), url);
 }
@@ -23690,7 +23774,8 @@ const RECORDS_PRODUCT_LIMIT = 120;
 const recordsSearchScopeCopy = {
   ja: {
     titleMine: "自分の記録", titlePublic: "みんなの記録", searchLabel: "記録を検索", searchSubmit: "探す",
-    mine: `直近の写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
+    mine: "これまでの写真やメモを新しい順に見られます。名前や場所、日付で探せます。",
+    more: "もっと見る", loadingMore: "読み込み中…",
     public: `直近の公開された写真やメモ（最大${RECORDS_PRODUCT_LIMIT}件）から、名前や場所で探せます。`,
     noMatch: (query: string) => `直近の記録に「${query}」に合うものは見つかりませんでした。`,
     empty: "まだ記録はありません。",
@@ -23702,7 +23787,8 @@ const recordsSearchScopeCopy = {
   },
   en: {
     titleMine: "Your records", titlePublic: "Community records", searchLabel: "Search records", searchSubmit: "Search",
-    mine: `Search up to ${RECORDS_PRODUCT_LIMIT} of your recent photos and notes by name or place.`,
+    mine: "All your photos and notes, newest first. Search by name, place or date.",
+    more: "Show more", loadingMore: "Loading...",
     public: `Search up to ${RECORDS_PRODUCT_LIMIT} recent public photos and notes by name or place.`,
     noMatch: (query: string) => `No recent records matched “${query}”.`,
     empty: "No records yet.",
@@ -23714,7 +23800,8 @@ const recordsSearchScopeCopy = {
   },
   es: {
     titleMine: "Tus registros", titlePublic: "Registros de la comunidad", searchLabel: "Buscar registros", searchSubmit: "Buscar",
-    mine: `Busca por nombre o lugar entre tus fotos y notas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
+    mine: "Todas tus fotos y notas, de la más reciente a la más antigua. Busca por nombre, lugar o fecha.",
+    more: "Ver más", loadingMore: "Cargando...",
     public: `Busca por nombre o lugar entre las fotos y notas públicas recientes (hasta ${RECORDS_PRODUCT_LIMIT}).`,
     noMatch: (query: string) => `No se encontraron registros recientes que coincidan con «${query}».`,
     empty: "Todavía no hay registros.",
@@ -23726,7 +23813,8 @@ const recordsSearchScopeCopy = {
   },
   "pt-br": {
     titleMine: "Seus registros", titlePublic: "Registros da comunidade", searchLabel: "Buscar registros", searchSubmit: "Buscar",
-    mine: `Busque por nome ou lugar entre suas fotos e notas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
+    mine: "Todas as suas fotos e notas, da mais recente à mais antiga. Busque por nome, lugar ou data.",
+    more: "Ver mais", loadingMore: "Carregando...",
     public: `Busque por nome ou lugar entre as fotos e notas públicas recentes (até ${RECORDS_PRODUCT_LIMIT}).`,
     noMatch: (query: string) => `Nenhum registro recente corresponde a “${query}”.`,
     empty: "Ainda não há registros.",
@@ -23788,7 +23876,8 @@ export function renderRecordsProductSection(
   session: SessionSnapshot | null,
   unavailable = false,
   savedStates: Map<string, SavedItem> | null = null,
-  publicPlaces: Array<{ placeId: string; name: string }> = []
+  publicPlaces: Array<{ placeId: string; name: string }> = [],
+  moreHref: string | null = null
 ): string {
   const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
@@ -23809,14 +23898,22 @@ export function renderRecordsProductSection(
   return `<section class="cf-records-native" data-cloudflare-records-native data-records-mode="${mode}">
     ${session && savedStates !== null ? `<style>${QUIET_HOME_STYLES}</style>` : ""}
     <style>
-      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+      .cf-records-native{box-sizing:border-box;width:min(1120px,calc(100% - 28px));min-width:0;margin:0 auto 100px;padding:max(24px,env(safe-area-inset-top)) 0 0;scroll-margin-top:88px;color:#17211b}.cf-records-native *{box-sizing:border-box}.cf-records-native-head{display:grid;gap:14px;margin-bottom:18px}.cf-records-native-head h1{margin:0;font-size:clamp(1.8rem,6vw,3rem);line-height:1.2;letter-spacing:-.03em;text-wrap:balance}.cf-records-native-head p{max-width:42rem;margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-tabs{display:flex;flex-wrap:wrap;gap:8px;scroll-margin-top:88px}.cf-records-native-tabs a,.cf-records-native-tabs a:is(:link,:visited){min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border:1px solid #d9e1dc;border-radius:999px;color:#245c3a;background:#fff;font-weight:850;text-decoration:none}.cf-records-native-tabs a[aria-current=page],.cf-records-native-tabs a[aria-current=page]:is(:link,:visited){border-color:#245c3a;background:#245c3a;color:#fff}.cf-records-native-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.cf-records-native-search input{width:100%;min-width:0;min-height:48px;padding:0 16px;border:1px solid #cfd9d2;border-radius:14px;background:#fff;color:#17211b;font:inherit}.cf-records-native-search button{min-width:76px;min-height:48px;padding:0 16px;border:0;border-radius:14px;background:#245c3a;color:#fff;font:inherit;font-weight:850;cursor:pointer}.cf-records-places{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}.cf-records-places-label{font-size:.875rem;font-weight:800;color:#436151}.cf-records-places a,.cf-records-places a:is(:link,:visited){min-height:40px;display:inline-flex;align-items:center;padding:6px 14px;border:1px solid #cfd9d2;border-radius:999px;background:#fff;color:#245c3a;font-size:.875rem;font-weight:750;text-decoration:none}.cf-records-native-grid{display:grid;grid-template-columns:1fr;gap:12px}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){min-width:0;display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;overflow:hidden;border:1px solid #e0e6e2;border-radius:18px;background:#fff;color:#17211b;text-decoration:none}.cf-records-native-media{display:grid;place-items:center;width:104px;height:104px;aspect-ratio:1/1;overflow:hidden;background:#f0f2ed}.cf-records-native-media img{width:100%;height:100%;min-height:0;display:block;object-fit:cover}.cf-records-native-no-media{font-size:.875rem;font-weight:850;color:#436151}.cf-records-native-copy{min-width:0;display:grid;align-content:center;gap:5px;padding:12px 14px 12px 0}.cf-records-native-copy strong{font-size:1rem;line-height:1.4;overflow-wrap:anywhere}.cf-records-native-copy span,.cf-records-native-copy small{color:#657168;font-size:.875rem;line-height:1.45}.cf-records-native-copy small{width:max-content;padding:4px 8px;border-radius:999px;background:#eef4ef;color:#245c3a;font-weight:800}.cf-records-native-empty{display:grid;gap:14px;justify-items:start;padding:28px;border:1px dashed #bdcbc1;border-radius:18px;background:#f7faf7}.cf-records-native-empty>strong{max-width:100%;overflow-wrap:anywhere}.cf-records-native-empty-hint{margin:0;color:#5f6b63;line-height:1.7}.cf-records-native-empty-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0;max-width:100%}.cf-records-native-empty a,.cf-records-native-empty a:is(:link,:visited){min-height:44px;scroll-margin-block:100px;max-width:100%;display:inline-flex;align-items:center;padding:8px 16px;border-radius:999px;background:#245c3a;color:#fff;font-weight:850;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}.cf-records-native-empty .cf-records-native-empty-secondary,.cf-records-native-empty .cf-records-native-empty-secondary:is(:link,:visited){background:transparent;color:#245c3a;border:1px solid #bdcbc1}.cf-records-native :is(a,button,input):focus-visible{outline:2px solid var(--zukan-focus-outline,#000000);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300,#FFD43D)}@supports(word-break:auto-phrase){html[lang=ja] .cf-records-native :is(h1,p,strong){word-break:auto-phrase}}@media(min-width:640px){.cf-records-native-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cf-records-native-card,.cf-records-native-card:is(:link,:visited){grid-template-columns:1fr}.cf-records-native-media{width:100%;height:auto;aspect-ratio:4/3}.cf-records-native-media img{height:100%;min-height:0;aspect-ratio:4/3}.cf-records-native-copy{padding:14px}}@media(min-width:980px){.cf-records-native-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}.cf-records-native-more{display:flex;justify-content:center;margin:24px 0 8px}.cf-records-native-more a,.cf-records-native-more a:is(:link,:visited){min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:0 28px;border:2px solid #245c3a;border-radius:999px;background:#fff;color:#245c3a;font-weight:850;text-decoration:none}.cf-records-native-more a[aria-busy=true]{opacity:.6}.cf-records-saved-link{margin:0 0 4px}.cf-records-saved-link a,.cf-records-saved-link a:is(:link,:visited){display:inline-flex;align-items:center;min-height:44px;color:#245c3a;font-weight:800}.cf-records-native .zs-status{margin:0;min-height:0}.cf-records-native .zs-status:empty{display:none}.cf-records-native .zs-card{position:relative;display:block}.cf-records-native .zs-card>.zs-control{position:absolute;right:10px;bottom:10px;z-index:2;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:999px}.cf-records-native .zs-card .cf-records-native-copy{padding-right:64px}.cf-records-native .zs-card>.zs-control span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     </style>
     <header class="cf-records-native-head">${session ? `<div class="cf-records-native-tabs">` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=mine"${mode === "mine" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titleMine)}</a>` : ""}${session ? `<a class="cf-records-native-tab" href="${prefix}/records?view=public"${mode === "public" ? ' aria-current="page"' : ""}>${escapeHtml(scopeCopy.titlePublic)}</a></div>` : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><form class="cf-records-native-search" action="${prefix}/records" method="get" role="search"><input type="hidden" name="view" value="${mode}"><input type="search" name="q" value="${escapeHtml(query)}" placeholder="${escapeHtml(scopeCopy.searchLabel)}" aria-label="${escapeHtml(scopeCopy.searchLabel)}"><button type="submit">${escapeHtml(scopeCopy.searchSubmit)}</button></form></header>
     ${mode === "public" && publicPlaces.length > 0 ? `<nav class="cf-records-places" aria-label="${escapeHtml(isJapanese ? "公開されている場所ページ" : "Public place pages")}"><span class="cf-records-places-label">${escapeHtml(isJapanese ? "場所ページ" : "Places")}</span>${publicPlaces.map((p) => `<a href="${prefix}/places/${encodeURIComponent(p.placeId)}">${escapeHtml(p.name)}</a>`).join("")}</nav>` : ""}
     ${session && savedStates !== null ? `<p class="cf-records-saved-link"><a href="${prefix}/records?view=saved">${quietHomeCopy[lang].saved}</a></p>` : ""}
     ${cards}
+    ${moreHref && !unavailable && items.length > 0 ? `<div class="cf-records-native-more" data-records-more><a class="cf-records-native-more-link" data-load-more="1" href="${escapeHtml(moreHref)}">${escapeHtml(scopeCopy.more)}</a></div>${loadMoreScript({ list: ".cf-records-native-grid", more: "[data-records-more]", loading: scopeCopy.loadingMore, rebindSaved: Boolean(session && savedStates !== null) })}` : ""}
     ${session && savedStates !== null ? renderSavedItemsScript(lang) : ""}
   </section>`;
+}
+
+function recordsMoreHref(prefix: string, query: string, cursor: string): string {
+  const params = new URLSearchParams({ view: "mine" });
+  if (query) params.set("q", query);
+  params.set("before", cursor);
+  return `${prefix}/records?${params.toString()}`;
 }
 
 async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env): Promise<Response> {
@@ -23837,10 +23934,18 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
   }
   if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(recordsSearchQuery(url.searchParams.get("q")));
+  const beforeParam = url.searchParams.get("before");
+  const mineBefore = decodePageCursor(beforeParam) ? beforeParam : null;
+  const minePage = requestedMode === "mine"
+    ? await ownerHomeRecordPage(session!.userId, env, RECORDS_PRODUCT_LIMIT, { query: recordsSearchQuery(url.searchParams.get("q")), before: mineBefore }).catch(() => null)
+    : null;
   const sourceItems = requestedMode === "saved" ? [] : requestedMode === "mine"
-    ? await ownerHomeRecordCards(session!.userId, env, RECORDS_PRODUCT_LIMIT).catch(() => null)
+    ? (minePage?.items ?? null)
     : await recentPublicRecordCards(env, RECORDS_PRODUCT_LIMIT).catch(() => null);
-  const items = (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
+  const items = requestedMode === "mine" ? (sourceItems ?? []) : (sourceItems ?? []).filter((item) => recordsProductItemMatches(item, query));
+  const moreHref = minePage?.nextCursor
+    ? recordsMoreHref(prefix, recordsSearchQuery(url.searchParams.get("q")), minePage.nextCursor)
+    : null;
   const cspNonce = createHtmlCspNonce();
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
@@ -23849,7 +23954,7 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     ? renderSavedPage(await listSavedItems(env.CORE_DB, session!.userId, { limit: 30, ...(url.searchParams.has("cursor") ? { cursor: url.searchParams.get("cursor")! } : {}) }).catch(() => null), lang)
     : renderRecordsProductSection(items, url, requestedMode, session, sourceItems === null,
       session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null,
-      publicPlaces);
+      publicPlaces, moreHref);
   if (/<main\b[^>]*>[\s\S]*?<\/main>/i.test(html)) {
     html = html.replace(/<main\b([^>]*)>[\s\S]*?<\/main>/i, `<main$1>${section}</main>`);
   } else if (/<\/body>/i.test(html)) {
@@ -24690,9 +24795,51 @@ function appendPublicRecordCards(
   }
 }
 
+type OwnerHomeRecordPageOptions = { query?: string | null; before?: string | null };
+
+function ownerRecordsPageFilter(ownerUserId: string, limit: number, options: OwnerHomeRecordPageOptions, level: "full" | "basic"): { where: string; params: Array<string | number>; limitParam: string } {
+  const params: Array<string | number> = [];
+  const p = (value: string | number): string => {
+    params.push(value);
+    return `?${params.length}`;
+  };
+  const where = [`o.owner_user_id = ${p(ownerUserId)}`, "o.emergency_hidden = 0"];
+  const like = likePatternFromQuery(options.query);
+  if (like) {
+    const l = p(like);
+    const parts = [
+      `o.taxon_label LIKE ${l} ESCAPE '\\'`,
+      `o.note LIKE ${l} ESCAPE '\\'`,
+      `o.observed_at LIKE ${l} ESCAPE '\\'`,
+      `o.public_area_label LIKE ${l} ESCAPE '\\'`
+    ];
+    if (level === "full") {
+      parts.push(
+        `art.candidate_vernacular_name LIKE ${l} ESCAPE '\\'`,
+        `art.candidate_scientific_name LIKE ${l} ESCAPE '\\'`,
+        `art.ai_recommended_taxon_name LIKE ${l} ESCAPE '\\'`,
+        `EXISTS (SELECT 1 FROM civic_observation_contexts c JOIN places pl ON pl.place_id = c.field_id WHERE c.visit_id = o.observation_id AND pl.public_profile_status = 'published' AND pl.canonical_name LIKE ${l} ESCAPE '\\')`,
+        `EXISTS (SELECT 1 FROM readmodel_public_observations r WHERE r.observation_id = o.observation_id AND r.public_area_label LIKE ${l} ESCAPE '\\')`
+      );
+    }
+    where.push(`(${parts.join(" OR ")})`);
+  }
+  const cursor = decodePageCursor(options.before);
+  if (cursor) {
+    const at = p(cursor.observedAt);
+    where.push(`(o.observed_at < ${at} OR (o.observed_at = ${at} AND o.observation_id < ${p(cursor.id)}))`);
+  }
+  return { where: where.join(" AND "), params, limitParam: p(limit + 1) };
+}
+
 async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120): Promise<OwnerHomeRecordItem[]> {
+  return (await ownerHomeRecordPage(ownerUserId, env, limit)).items;
+}
+
+export async function ownerHomeRecordPage(ownerUserId: string, env: Env, limit = 120, options: OwnerHomeRecordPageOptions = {}): Promise<{ items: OwnerHomeRecordItem[]; nextCursor: string | null }> {
   let rows;
   try {
+    const f = ownerRecordsPageFilter(ownerUserId, limit, options, "full");
     rows = await env.OBS_DB.prepare(
     `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
             art.ai_assessment_status,
@@ -24718,13 +24865,13 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
             ) AS public_derivative_key
        FROM observations o
        LEFT JOIN observation_ai_review_targets art ON art.occurrence_id = 'occ:' || o.observation_id || ':0'
-      WHERE o.owner_user_id = ?
-        AND o.emergency_hidden = 0
-      ORDER BY o.observed_at DESC
-      LIMIT ?`
-  ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+      WHERE ${f.where}
+      ORDER BY o.observed_at DESC, o.observation_id DESC
+      LIMIT ${f.limitParam}`
+  ).bind(...f.params).all<OwnerHomeRecordRow>();
   } catch (error) {
     if (!(error instanceof Error) || !/no such table|no such column/i.test(error.message)) throw error;
+    const f = ownerRecordsPageFilter(ownerUserId, limit, options, "basic");
     rows = await env.OBS_DB.prepare(
       `SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,
               (
@@ -24737,27 +24884,32 @@ async function ownerHomeRecordCards(ownerUserId: string, env: Env, limit = 120):
                  ORDER BY COALESCE(a.public_ready_at, a.uploaded_at, '') DESC LIMIT 1
               ) AS public_derivative_key
          FROM observations o
-        WHERE o.owner_user_id = ? AND o.emergency_hidden = 0
-        ORDER BY o.observed_at DESC LIMIT ?`
-    ).bind(ownerUserId, limit).all<OwnerHomeRecordRow>();
+        WHERE ${f.where}
+        ORDER BY o.observed_at DESC, o.observation_id DESC LIMIT ${f.limitParam}`
+    ).bind(...f.params).all<OwnerHomeRecordRow>();
   }
-  if (Array.isArray(rows?.results) && rows.results.length === 0) return [];
+  if (Array.isArray(rows?.results) && rows.results.length === 0) return { items: [], nextCursor: null };
   // Media kinds only for this owner's rows. A malformed result skips the lookup and still
   // fails below, so it stays "unavailable" instead of becoming an empty success.
-  const ownerIds = Array.isArray(rows?.results) ? [...new Set(rows.results.map((row) => row.observation_id))] : [];
+  const pageRows = Array.isArray(rows?.results) ? rows.results.slice(0, limit) : rows.results;
+  const lastPageRow = Array.isArray(pageRows) ? pageRows[pageRows.length - 1] : undefined;
+  const nextCursor = Array.isArray(rows?.results) && rows.results.length > limit && lastPageRow ? encodePageCursor(lastPageRow.observed_at, lastPageRow.observation_id) : null;
+  const ownerIds = Array.isArray(pageRows) ? [...new Set(pageRows.map((row) => row.observation_id))] : [];
   const mediaKinds = await queryPublicMapMediaKinds(env, ownerIds).catch(() => new Map<string, HomeRecordMediaKind>());
-  return rows.results.map((row) => ({
+  const legacyNames = await resolveWeakLabels(env.OBS_DB, Array.isArray(pageRows) ? pageRows.map((row) => ({ id: row.observation_id, label: row.taxon_label })) : []);
+  const items = pageRows.map((row) => ({
     ...publicMapObservationItem({
       observation_id: row.observation_id,
       public_cell: "",
       observed_at: row.observed_at,
-      taxon_label: row.taxon_label ?? row.note,
+      taxon_label: legacyNames.get(row.observation_id) ?? row.taxon_label ?? row.note,
       asset_count: row.public_derivative_key ? 1 : 0
     }, row.public_derivative_key ? publicMediaUrl(row.public_derivative_key) : null, mediaKinds.get(row.observation_id) ?? (row.public_derivative_key ? "photo" : "record")),
     aiAssessmentStatus: row.ai_assessment_status ?? row.ai_request_status ?? null,
     aiCandidateLabel: normalizeOptionalText(row.ai_candidate_label),
     ownerVisibility: row.visibility ?? "private"
   }));
+  return { items, nextCursor };
 }
 
 function renderRecentRecordCard(item: ReturnType<typeof publicMapObservationItem>, copy: ReturnType<typeof recordsInjectionCopy>): string {
@@ -26049,11 +26201,31 @@ export async function resolveLiveSignboardTitle(
 }
 
 async function getPublicObservationDetailJson(rawId: string, env: Env): Promise<Response> {
-  const detail = await buildPublicObservationDetail(rawId, env);
-  if (!detail) {
+  const built = await buildPublicObservationDetail(rawId, env);
+  if (!built) {
     return json({ ok: false, error: "observation_not_found" }, 404, { "cache-control": "no-store" });
   }
-  return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
+  const detail = { ...built, environmentRecord: publicCompatibleEnvironmentRecord(built.environmentRecord) };
+  if (!prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, null)) {
+    return json({ ok: true, observation: detail }, 200, { "cache-control": "no-store" });
+  }
+  const mediaRefs = [
+    ...detail.photoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "photo" as const })),
+    ...detail.videoAssets.map((item) => ({ mediaId: item.assetId, mediaKind: "video" as const })),
+    ...(detail.audioAssets as Array<{ assetId: string }>).map((item) => ({ mediaId: item.assetId, mediaKind: "audio" as const })),
+  ];
+  const recordPageSource = await Promise.race([
+    (async () => {
+      const [reading, gate] = await Promise.all([
+        readRecordReading(d1ReadingQuery(env.OBS_DB), detail.visitId),
+        publicSafetyGateForObservation(detail.visitId, env),
+      ]);
+      return { reading, protectedRecord: gate.blocked };
+    })().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+  ]);
+  const recordPage = recordPageSectionsJson(buildRecordPageSections({ reading: recordPageSource?.reading ?? null, media: mediaRefs, protectedRecord: recordPageSource?.protectedRecord ?? true }));
+  return json({ ok: true, observation: { ...detail, recordPage } }, 200, { "cache-control": "no-store" });
 }
 
 function renderObservationSavedContinuity(
@@ -26178,7 +26350,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         signboardTitle: null,
       };
       const bandViewerId = session && !session.banned ? session.userId : null;
-      const [signboardTitle, customTitleObj, recordUsages, expertComments, observationComments, countBand] = await Promise.all([
+      const [signboardTitle, customTitleObj, recordUsages, expertComments, correctionHistory, observationComments, countBand, recordPageReading] = await Promise.all([
         isSignboardRecord(observationFirst.detail, signboardPresentationProbe)
           && !extractSignboardQuote(observationFirst.detail, signboardPresentationProbe)
           ? resolveLiveSignboardTitle(detail.visitId, detail.photoAssets[0]?.assetId ?? null, env, ctx)
@@ -26186,6 +26358,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         env.ASSET_BUCKET?.get(`record-title/${detail.visitId}.json`).catch(() => null) ?? Promise.resolve(null),
         listNocosilOutcomeUsagesForRecord(env, detail.visitId),
         listHumanExpertCommentsForRecord(env, detail.visitId),
+        observationCorrectionOn(env, session) ? loadObservationCorrectionHistory(detail.visitId, env) : Promise.resolve([]),
         Promise.resolve([] as Awaited<ReturnType<typeof loadObservationComments>>),
         recordLang === "ja"
           ? Promise.race([
@@ -26197,7 +26370,27 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
               new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
             ])
           : Promise.resolve(null),
+        recordLang === "ja" && recordPagePerMediaOn(env, session)
+          ? Promise.race([
+              (async () => {
+                const [reading, gate] = await Promise.all([
+                  readRecordReading(d1ReadingQuery(env.OBS_DB), detail.visitId),
+                  publicSafetyGateForObservation(detail.visitId, env),
+                ]);
+                return { reading, protectedRecord: gate.blocked };
+              })().catch(() => null),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+            ])
+          : Promise.resolve(null),
       ]);
+      const editAndCorrectionHtml = !observationCorrectionOn(env, session) ? "" : renderObservationEditAndCorrectionHtml({
+        observationId: detail.visitId,
+        lang: recordLang,
+        isOwner: Boolean(session && !session.banned && detail.visibility !== "public"),
+        currentNote: detail.note ?? null,
+        currentTaxon: detail.displayName,
+        history: correctionHistory,
+      });
       const detailEvidenceHtml = renderObservationDetailEvidenceHtml(
         buildObservationDetailEvidence({
           observationId: detail.visitId,
@@ -26216,7 +26409,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         authenticated: Boolean(session && !session.banned),
         comments: observationComments,
       });
-      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}${commentsHtml}`;
+      const nocosilUsageHtml = `${renderNocosilOutcomeUsageHtml(recordUsages)}${detailEvidenceHtml}${editAndCorrectionHtml}${commentsHtml}`;
       const humanExpertCommentsHtml = renderHumanExpertCommentHtml(expertComments);
       const customTitleParsed = customTitleObj
         ? (await new Response(customTitleObj.body).json().catch(() => null) as { title?: unknown } | null)
@@ -26227,8 +26420,16 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         recordsDiscoveryContext,
         title: detail.displayName,
         titleIsFallback: detail.isAwaitingId,
+        titleStatus: detail.displayNameStatus,
         recordClass: recordClassOut.value,
-        observedLabel: detail.observedAt ? formatRecordDate(detail.observedAt) : "—",
+        observedLabel: (() => {
+          const exact = detail.observedAtExact ?? detail.observedAt;
+          if (!exact) return "—";
+          if (observationFirst.detail.owner) return formatRecordDate(exact);
+          if (recordLang === "ja") return jaDateText(exact, false);
+          const d = new Date(exact);
+          return Number.isNaN(d.getTime()) ? exact : d.toLocaleDateString(locale, { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric" });
+        })(),
         note: detail.note,
         publicLocationLabel: detail.publicLocation.label,
         detectionState,
@@ -26247,6 +26448,13 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
           observedLabel: recordLang === "ja" ? jaDateText(item.observedAt, false) : formatRecordDate(item.observedAt),
           photoUrl: item.photoUrl,
         })),
+        recordPage: recordPageReading,
+        inlineEdit: recordLang === "ja" && recordInlineEditOn(env, session),
+        inlineEditCorrection: recordLang === "ja" && recordInlineEditOn(env, session) && observationCorrectionOn(env, session),
+        observedAtIso: observationFirst.detail.owner ? (detail.observedAtExact ?? detail.observedAt ?? null) : null,
+        inlineEditEnvironment: recordLang === "ja" && recordInlineEditOn(env, session)
+          ? { fields: (Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]).map((field) => ({ field, label: COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS[field], options: COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field] })) }
+          : null,
         countBand,
         canonicalUrl: new URL(canonicalObservationPath, url.origin).toString(),
         shareUrl: new URL(appendSharedArrivalContext(canonicalObservationPath, sharedArrivalContext), url.origin).toString(),
@@ -26499,6 +26707,35 @@ async function handleObservationFirstRecordAction(recordId: string, request: Req
     await env.ASSET_BUCKET?.delete(`record-title/${recordId}.json`);
     return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
   }
+  if (action === "rotate_media") {
+    if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
+    const degrees = Number(form.get("degrees") ?? 90);
+    if (![90, 180, 270].includes(degrees)) return json({ ok: false, error: "media_rotation_input_invalid" }, 400, { "cache-control": "no-store" });
+    const mediaAsset = await env.OBS_DB.prepare(
+      `SELECT a.asset_id, a.object_key, a.sha256, a.mime, r.rotation AS display_rotation, a.public_derivative_metadata_json
+         FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id
+        WHERE a.asset_id = ? AND a.observation_id = ? AND a.owner_user_id = ? AND a.mime LIKE 'image/%' LIMIT 1`
+    ).bind(String(form.get("media_id") ?? ""), recordId, session.userId)
+      .first<UploadedAssetRow & { display_rotation: number | null; public_derivative_metadata_json: string | null }>();
+    if (!mediaAsset) return json({ ok: false, error: "media_rotation_target_invalid" }, 400, { "cache-control": "no-store" });
+    const previousRotation = normalizeDisplayRotation(mediaAsset.display_rotation);
+    const saveRotation = (rotation: number) => env.OBS_DB.prepare(
+      "INSERT INTO asset_display_rotation (asset_id, rotation, updated_at) VALUES (?, ?, ?) ON CONFLICT(asset_id) DO UPDATE SET rotation = excluded.rotation, updated_at = excluded.updated_at"
+    ).bind(mediaAsset.asset_id, rotation, new Date().toISOString()).run();
+    await saveRotation(addDisplayRotation(previousRotation, degrees));
+    let priorFacePrivacy: string | null = null;
+    try {
+      const parsed: unknown = JSON.parse(mediaAsset.public_derivative_metadata_json ?? "");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorFacePrivacy = facePrivacyStatusFromMetadata(parsed as Record<string, unknown>);
+    } catch { /* metadata absent */ }
+    const rebuilt = await createRealPublicImageDerivative(mediaAsset, env, { preserveExistingOnFailure: true, priorFacePrivacy }).catch(() => false);
+    if (!rebuilt) {
+      await saveRotation(previousRotation);
+      return json({ ok: false, error: "media_rotation_failed" }, 502, { "cache-control": "no-store" });
+    }
+    await refreshPublicReadmodel(recordId, env);
+    return new Response(null, { status: 303, headers: { location: `/${returnLang}/observations/${encodeURIComponent(recordId)}?action=updated`, "cache-control": "no-store" } });
+  }
   if (action === "add") {
     if (!owner) return json({ ok: false, error: "owner_required" }, 403, { "cache-control": "no-store" });
     const subjectType = String(form.get("subject_type") ?? "unknown_subject");
@@ -26657,7 +26894,7 @@ async function buildPublicObservationDetail(rawId: string, env: Env) {
   const detail = await buildObservationDetail(rawId, env, null);
   if (!detail) return null;
   // Primary person identities guide server rendering only, never the public API.
-  const { aiPersonPrimaryNames: _aiPersonPrimaryNames, ...publicDetail } = detail;
+  const { aiPersonPrimaryNames: _aiPersonPrimaryNames, observedAtExact: _observedAtExact, ...publicDetail } = detail;
   return publicDetail;
 }
 
@@ -26802,6 +27039,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     .slice(0, 6);
   const relatedPhotoUrls = await queryPublicMapPhotoUrls(env);
   let effectiveTaxonLabel: string | null = !isWeakTaxonLabel(row.taxon_label) ? row.taxon_label : null;
+  let displayNameStatus: "confirmed" | "proposed" = "confirmed";
   if (!effectiveTaxonLabel) {
     const cardMeta = await queryPublicMapCardMeta(env, [visitId]).catch(() => new Map<string, PublicMapCardMeta>());
     const sharedTaxonLabel = cardMeta.get(visitId)?.taxonLabel ?? null;
@@ -26829,21 +27067,12 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     ).bind(`occ:${visitId}:0`, visitId).first<{ proposed_name: string | null }>().catch(() => null);
     if (!isWeakTaxonLabel(idRow?.proposed_name ?? null)) {
       effectiveTaxonLabel = idRow!.proposed_name!;
+      displayNameStatus = "proposed";
     }
   }
   if (!effectiveTaxonLabel) {
-    const importRow = await env.OBS_DB.prepare(
-      `SELECT vernacular_name, scientific_name
-         FROM production_import_occurrences
-        WHERE visit_id = ?
-        ORDER BY created_at ASC
-        LIMIT 1`
-    ).bind(visitId).first<{ vernacular_name: string | null; scientific_name: string | null }>().catch(() => null);
-    const candidate = !isWeakTaxonLabel(importRow?.vernacular_name ?? null)
-      ? importRow!.vernacular_name!.trim()
-      : !isWeakTaxonLabel(importRow?.scientific_name ?? null)
-      ? importRow!.scientific_name!.trim()
-      : null;
+    const importRow = (await loadLegacyImportNames(env.OBS_DB, [visitId]).catch(() => new Map<string, LegacyImportName>())).get(visitId);
+    const candidate = legacyImportDisplayName(importRow);
     if (candidate) {
       effectiveTaxonLabel = candidate;
     }
@@ -26875,6 +27104,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     visitId: row.observation_id,
     canonicalPath: `/observations/${encodeURIComponent(row.observation_id)}`,
     displayName,
+    displayNameStatus,
     isAwaitingId,
     aiPersonPrimaryNames,
     aiCandidateLabel,
@@ -26885,6 +27115,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiRequestStatus: row.ai_request_status,
     visibility: row.visibility,
     observedAt: formatPublicDateOnly(row.observed_at),
+    observedAtExact: typeof row.observed_at === "string" ? row.observed_at : null,
     note: row.note && containsDiscoveryPersonalInformation(row.note) ? null : row.note,
     placeName: detailLocationLabel,
     municipality: null,
@@ -28535,7 +28766,6 @@ async function assertObservationOwnedByUser(observationId: string, userId: strin
 
 type CompatibleOccurrenceDetailEditKind = "origin" | "observed-at" | "location" | "environment-field" | "environment-record";
 type CompatibleOrganismOrigin = "wild" | "planted" | "captive" | "released" | "unknown";
-type CompatibleEnvironmentRecordField = "place_type" | "contact_surface" | "surrounding_cover" | "environment_condition" | "human_change";
 
 const COMPATIBLE_ORGANISM_ORIGIN_OPTIONS: Array<{ value: CompatibleOrganismOrigin; label: string }> = [
   { value: "wild", label: "野生" },
@@ -28544,63 +28774,6 @@ const COMPATIBLE_ORGANISM_ORIGIN_OPTIONS: Array<{ value: CompatibleOrganismOrigi
   { value: "released", label: "放流" },
   { value: "unknown", label: "不明" }
 ];
-
-const COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS: Record<CompatibleEnvironmentRecordField, Array<{ value: string; label: string }>> = {
-  place_type: [
-    { value: "grassland_urban_edge", label: "草地と市街地の縁" },
-    { value: "urban", label: "市街地" },
-    { value: "woodland", label: "林内" },
-    { value: "water_edge", label: "水辺" },
-    { value: "wetland", label: "湿地" },
-    { value: "coast", label: "海岸" },
-    { value: "unknown", label: "不明" }
-  ],
-  contact_surface: [
-    { value: "soil_gravel_litter", label: "土・礫・枯れ草" },
-    { value: "soil", label: "土" },
-    { value: "plant", label: "植物上" },
-    { value: "water", label: "水面・水中" },
-    { value: "rock", label: "岩・石" },
-    { value: "artificial", label: "人工物" },
-    { value: "unknown", label: "不明" }
-  ],
-  surrounding_cover: [
-    { value: "low_grass", label: "低い草地" },
-    { value: "trees_shrubs", label: "樹木・低木" },
-    { value: "bare_ground", label: "裸地" },
-    { value: "water", label: "水" },
-    { value: "snow", label: "雪" },
-    { value: "built_surface", label: "舗装・構造物" },
-    { value: "unknown", label: "不明" }
-  ],
-  environment_condition: [
-    { value: "open_dry", label: "開けて乾き気味" },
-    { value: "sunny", label: "日当たり" },
-    { value: "shaded", label: "日陰" },
-    { value: "wet", label: "湿り気あり" },
-    { value: "flowing", label: "流れあり" },
-    { value: "windy", label: "風あり" },
-    { value: "unknown", label: "不明" }
-  ],
-  human_change: [
-    { value: "trampling_mowing", label: "踏圧・草刈り跡" },
-    { value: "mowing", label: "草刈り" },
-    { value: "trampling", label: "踏圧" },
-    { value: "planting", label: "植栽・管理" },
-    { value: "construction", label: "造成・工事" },
-    { value: "release", label: "放流・放逐" },
-    { value: "none_visible", label: "目立つ変化なし" },
-    { value: "unknown", label: "不明" }
-  ]
-};
-
-const COMPATIBLE_ENVIRONMENT_RECORD_FIELD_LABELS: Record<CompatibleEnvironmentRecordField, string> = {
-  place_type: "場所",
-  contact_surface: "足元",
-  surrounding_cover: "周囲",
-  environment_condition: "状態",
-  human_change: "人の影響"
-};
 
 async function existingOwnerObservationDualWritePlan(
   recordId: string,
@@ -28786,13 +28959,16 @@ async function updateCompatibleOccurrenceEnvironmentField(
   env: Env
 ): Promise<Response> {
   const field = normalizeCompatibleEnvironmentRecordField(body.field);
-  const value = normalizeCompatibleEnvironmentRecordValue(field, body.value);
-  const result = await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, { [field]: value }, env);
+  const list = normalizeCompatibleEnvironmentRecordInput(field, body.value);
+  if (!list) throw new HttpError(400, "invalid_environment_record_value");
+  const value = list[0]!;
+  const result = await insertCompatibleEnvironmentRecord(occurrenceId, session.userId, { [field]: list }, env);
   return json({
     ok: true,
     occurrenceId,
     field,
     value,
+    values: list,
     label: compatibleEnvironmentRecordLabel(field, value),
     recordId: result.recordId
   }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
@@ -28807,10 +28983,12 @@ async function updateCompatibleOccurrenceEnvironmentRecord(
   const rawValues = body.values && typeof body.values === "object" && !Array.isArray(body.values)
     ? body.values as Record<string, unknown>
     : {};
-  const values: Partial<Record<CompatibleEnvironmentRecordField, string>> = {};
+  const values: Partial<Record<CompatibleEnvironmentRecordField, string[]>> = {};
   for (const [rawField, rawValue] of Object.entries(rawValues)) {
     const field = normalizeCompatibleEnvironmentRecordField(rawField);
-    values[field] = normalizeCompatibleEnvironmentRecordValue(field, rawValue);
+    const list = normalizeCompatibleEnvironmentRecordInput(field, rawValue);
+    if (!list) throw new HttpError(400, "invalid_environment_record_value");
+    values[field] = list;
   }
   if (Object.keys(values).length === 0) {
     throw new HttpError(400, "invalid_environment_record_value");
@@ -28819,9 +28997,10 @@ async function updateCompatibleOccurrenceEnvironmentRecord(
   return json({
     ok: true,
     occurrenceId,
-    values: Object.fromEntries(Object.entries(values).map(([field, value]) => [field, {
-      value,
-      label: compatibleEnvironmentRecordLabel(field as CompatibleEnvironmentRecordField, value),
+    values: Object.fromEntries(Object.entries(values).map(([field, list]) => [field, {
+      value: list[0]!,
+      values: list,
+      label: list.map((item) => compatibleEnvironmentRecordLabel(field as CompatibleEnvironmentRecordField, item)).join("・"),
       source: "user"
     }]))
   }, 200, { "x-ikimon-cloudflare-native": "occurrence-detail-edit" });
@@ -28830,7 +29009,7 @@ async function updateCompatibleOccurrenceEnvironmentRecord(
 async function insertCompatibleEnvironmentRecord(
   occurrenceId: string,
   userId: string,
-  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
+  values: Partial<Record<CompatibleEnvironmentRecordField, string[]>>,
   env: Env
 ): Promise<{ recordId: string }> {
   await requireCompatibleEnvironmentRecordStorage(env);
@@ -28867,7 +29046,7 @@ async function insertCompatibleEnvironmentRecord(
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
-    ).bind(recordId, occurrenceId, lat, lng, JSON.stringify(structured)),
+    ).bind(recordId, occurrenceId, lat, lng, serializeCompatibleStructuredJson(structured)),
     compatibleOccurrenceDetailEditEvent(env, occurrenceId, userId, "environment-record", { values }),
     compatibleReadmodelRefreshOutbox(env, occurrenceId, null),
     ...observationDualWriteStatements(env, ownerPlan),
@@ -28965,43 +29144,6 @@ function normalizeCompatibleEnvironmentRecordValue(field: CompatibleEnvironmentR
 
 function compatibleEnvironmentRecordLabel(field: CompatibleEnvironmentRecordField, value: string): string {
   return COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS[field].find((item) => item.value === value)?.label ?? "不明";
-}
-
-function parseCompatibleStructuredJson(value: string | null | undefined): Record<string, string> {
-  if (!value) return {};
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return Object.fromEntries(
-      Object.entries(parsed as Record<string, unknown>)
-        .filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== "")
-    );
-  } catch {
-    return {};
-  }
-}
-
-function mergeCompatibleUserEnvironmentRecordValues(
-  previous: Record<string, string>,
-  values: Partial<Record<CompatibleEnvironmentRecordField, string>>,
-  updatedBy: string
-): Record<string, string> {
-  const updatedAt = new Date().toISOString();
-  const structured = { ...previous };
-  for (const field of Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS) as CompatibleEnvironmentRecordField[]) {
-    const value = values[field];
-    if (value == null) continue;
-    structured[field] = normalizeCompatibleEnvironmentRecordValue(field, value);
-    structured[`${field}_source`] = "user";
-    structured[`${field}_confidence`] = "1.00";
-    structured[`${field}_updated_at`] = updatedAt;
-  }
-  structured.environment_record_status = "user_edited";
-  structured.environment_record_updated_by = updatedBy;
-  structured.environment_record_updated_at = updatedAt;
-  structured.updated_by = updatedBy;
-  structured.updated_at = updatedAt;
-  return structured;
 }
 
 function compatibleEnvironmentRecordDraftHasValues(record: Record<string, string>): boolean {
@@ -29114,7 +29256,7 @@ async function insertCompatibleAutoEnvironmentRecordIfPresent(
   await env.OBS_DB.batch([
     env.OBS_DB.prepare(
       "INSERT INTO observation_environment_records (record_id, occurrence_id, lat, lng, structured_json, source_lang) VALUES (?, ?, ?, ?, ?, 'ja')"
-    ).bind(recordId, input.occurrenceId, input.latitude, input.longitude, JSON.stringify(structured)),
+    ).bind(recordId, input.occurrenceId, input.latitude, input.longitude, serializeCompatibleStructuredJson(structured)),
     compatibleOccurrenceDetailEditEvent(env, input.occurrenceId, input.actorUserId, "environment-record-auto-draft", {
       source: input.sourceMethod,
       fields: Object.keys(COMPATIBLE_ENVIRONMENT_RECORD_OPTIONS).filter((field) => structured[field])
@@ -29846,6 +29988,9 @@ async function upsertLegacyCompatibleObservation(request: Request, env: Env): Pr
   ];
   observationBatchIssued = true;
   await env.OBS_DB.batch(observationBatch);
+  if (visibility === "private" && !locationUnset) {
+    await saveOwnerAreaLabel(env, visitId, ownerAreaLabelFromInput(input));
+  }
 
   if (!locationUnset) await insertCompatibleAutoEnvironmentRecordIfPresent({
     occurrenceId: visitId,
@@ -30338,6 +30483,7 @@ async function runScheduledObservationEventQuests(env: Env): Promise<void> {
         WHERE (ended_at IS NULL OR julianday(ended_at) > julianday('now'))
           AND COALESCE(json_extract(config_json, '$.program_receiver_private'), 0) = 0
           AND julianday(started_at) <= julianday('now')
+          AND (ended_at IS NOT NULL OR julianday(started_at) > julianday('now', '-1 day'))
         ORDER BY started_at DESC
         LIMIT 50`
     ).all<ObservationEventSessionD1Row>();
@@ -34977,17 +35123,27 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const originalWidth = Number(originalInfo.width ?? 0);
-  const targetWidth = Number.isFinite(originalWidth) && originalWidth > 0
-    ? Math.min(originalWidth, 1600)
-    : 1600;
+  const originalView = new Uint8Array(originalBytes);
+  const exifOrientation = readJpegExifOrientation(originalView);
+  const rawSize = readJpegDimensions(originalView) ?? { width: Number(originalInfo.width ?? 0), height: Number(originalInfo.height ?? 0) };
+  const rotationRow = await env.OBS_DB.prepare("SELECT a.asset_id, r.rotation AS display_rotation FROM asset_ledger a LEFT JOIN asset_display_rotation r ON r.asset_id = a.asset_id WHERE a.asset_id = ?")
+    .bind(asset.asset_id).first<{ display_rotation: number | null }>().catch(() => null);
+  const displayRotation = normalizeDisplayRotation(rotationRow?.display_rotation);
+  const orientationPlan = planDerivativeOrientation({
+    rawWidth: rawSize.width,
+    rawHeight: rawSize.height,
+    exifOrientation,
+    displayRotation,
+    maxWidth: 1600,
+  });
+  const runTransform = (rotate: DisplayRotation): Promise<ImagesOutput> => images
+    .input(new Response(originalBytes.slice(0)).body!)
+    .transform({ width: orientationPlan.targetWidth, ...(rotate ? { rotate } : {}) })
+    .output({ format: "image/webp", quality: 82, anim: false });
 
   let output: ImagesOutput;
   try {
-    output = await images
-      .input(new Response(originalBytes.slice(0)).body!)
-      .transform({ width: targetWidth })
-      .output({ format: "image/webp", quality: 82, anim: false });
+    output = await runTransform(orientationPlan.rotate);
   } catch (error) {
     await markFailed("image_transform_failed", {
       message: error instanceof Error ? error.message.slice(0, 240) : "unknown_error"
@@ -35008,13 +35164,13 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
-  const derivativeBody = await outputResponse.arrayBuffer();
+  let derivativeBody = await outputResponse.arrayBuffer();
   if (derivativeBody.byteLength === 0) {
     await markFailed("image_transform_empty_output");
     return false;
   }
 
-  const metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
+  let metadataInspection = inspectPublicDerivativeMetadata(derivativeBody, contentType);
   let derivativeInfo: ImagesInfo = {};
   try {
     derivativeInfo = await images.info(new Response(derivativeBody.slice(0)).body!);
@@ -35025,8 +35181,36 @@ async function createRealPublicImageDerivative(
     return false;
   }
 
+  let appliedRotation: DisplayRotation = orientationPlan.rotate;
+  const correctionRotate = exifCorrectionRotation({
+    exifOrientation,
+    displayRotation,
+    expectLandscape: orientationPlan.expectLandscape,
+    derivativeWidth: Number(derivativeInfo.width ?? 0),
+    derivativeHeight: Number(derivativeInfo.height ?? 0),
+  });
+  if (correctionRotate !== null) {
+    try {
+      const corrected = (await runTransform(correctionRotate)).response();
+      const correctedBody = corrected.ok ? await corrected.arrayBuffer() : null;
+      if (correctedBody && correctedBody.byteLength > 0) {
+        const correctedInspection = inspectPublicDerivativeMetadata(correctedBody, contentType);
+        const correctedInfo = await images.info(new Response(correctedBody.slice(0)).body!);
+        derivativeBody = correctedBody;
+        metadataInspection = correctedInspection;
+        derivativeInfo = correctedInfo;
+        appliedRotation = correctionRotate;
+      }
+    } catch (error) {
+      console.warn("[media-derivative] orientation correction skipped", asset.asset_id, error);
+    }
+  }
+
   const verifiedMetadata = {
     ...metadataInspection,
+    sourceOrientation: exifOrientation,
+    displayRotation,
+    appliedRotation,
     tool: "cloudflare-images-public-derivative-v1",
     sourceContentType: asset.mime,
     sourceBytes: originalBytes.byteLength,

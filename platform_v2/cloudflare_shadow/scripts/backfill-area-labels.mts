@@ -3,8 +3,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import {
+  AREA_BACKFILL_ACTIVE_LIST_VERSION_SQL,
   AREA_BACKFILL_CANDIDATE_SQL,
-  AREA_BACKFILL_SENSITIVE_SQL,
+  buildAreaBackfillSensitiveTaxaSql,
   buildAreaBackfillSql,
   buildAreaPreviewCsv,
   cellLocalityFromNominatim,
@@ -69,9 +70,15 @@ async function main(): Promise<void> {
   const rows: AreaBackfillRow[] = args.snapshot
     ? JSON.parse(await readFile(args.snapshot, "utf8"))
     : d1Select<AreaBackfillRow>(args.d1!, AREA_BACKFILL_CANDIDATE_SQL);
-  const sensitiveRows: Array<{ name_key: string; tier: string }> = args.sensitive
-    ? JSON.parse(await readFile(args.sensitive, "utf8"))
-    : args.d1 ? d1Select(args.d1, AREA_BACKFILL_SENSITIVE_SQL) : [];
+  let sensitiveRows: Array<{ name_key: string; tier: string }> = [];
+  if (args.sensitive) {
+    sensitiveRows = JSON.parse(await readFile(args.sensitive, "utf8"));
+  } else if (args.d1) {
+    const activeVersion = d1Select<{ list_version: string }>(args.d1, AREA_BACKFILL_ACTIVE_LIST_VERSION_SQL)[0];
+    if (activeVersion?.list_version) {
+      sensitiveRows = d1Select(args.d1, buildAreaBackfillSensitiveTaxaSql(String(activeVersion.list_version)));
+    }
+  }
   const tiers = new Map<string, SensitiveTier>(sensitiveRows.map((r) => [String(r.name_key), r.tier === "withhold" ? "withhold" : "coarse"]));
 
   const cache = await readJson<Record<string, CellLocality | null>>(args.cache, {});

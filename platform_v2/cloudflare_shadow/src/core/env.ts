@@ -1,4 +1,5 @@
 import type { RuntimeIdentityEnv } from "../runtimeIdentity";
+import type { PrototypeEnvironment } from "../prototype-flags";
 
 export type D1Value = string | number | null;
 
@@ -105,7 +106,8 @@ export interface WorkersAiBinding {
   run(model: string, input: Record<string, unknown>): Promise<unknown>;
 }
 
-export interface Env {
+export interface Env extends PrototypeEnvironment {
+  ZUKAN_FEATURE_ROLLOUTS?: string;
   GENRE_PORTALS_ENABLED?: string;
   JOURNEY_SESSION_HMAC_SECRET?: string;
   NOCOSIL_REVISION_RECEIVER_ENABLED?: string;

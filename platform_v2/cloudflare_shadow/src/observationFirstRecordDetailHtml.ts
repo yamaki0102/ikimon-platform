@@ -4,11 +4,15 @@ import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNa
 import type { ObservationFirstCard, ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
 import { isPublicObservationAiSubjectEligible } from "./publicObservationAiPresentation";
 import { finalizeVisibleAiNoteSlots } from "./recordAiNote";
+import { compatibleEnvironmentRecordRawValues, isCompatibleEnvironmentRecordMultiField } from "./environmentRecordMulti";
+import { buildRecordPageSections, type RecordPageFoundItem, type RecordPageMediaSection, type RecordPagePlaceField } from "./recordPageSections";
+import type { ReadingState, RecordReading } from "./recordReading";
 import {
   observationFirstRecordDetailCopy,
   type ObservationFirstRecordDetailCopy,
   type ObservationRecordLang,
 } from "./observationFirstRecordDetailI18n";
+import { sizedImageUrl, sizedImgAttrs } from "./derivedImageUrl";
 import { PRODUCTION_PUBLIC_ORIGIN } from "../../src/services/trustedPublicOrigin";
 import type {
   OwnerPublicationExclusionCode,
@@ -72,6 +76,7 @@ export type ObservationFirstRecordPresentation = {
   recordsDiscoveryContext?: RecordsDiscoveryContext | null;
   title: string;
   titleIsFallback?: boolean;
+  titleStatus?: "confirmed" | "proposed";
   recordClass?: string | null;
   observedLabel: string;
   note: string | null;
@@ -109,6 +114,11 @@ export type ObservationFirstRecordPresentation = {
   viewerAuthenticated?: boolean;
   publicationReturn?: OwnerPublicationReturn | null;
   countBand?: { text: string; href: string | null } | null;
+  recordPage?: { reading: RecordReading | null; protectedRecord: boolean } | null;
+  inlineEdit?: boolean;
+  inlineEditCorrection?: boolean;
+  observedAtIso?: string | null;
+  inlineEditEnvironment?: { fields: Array<{ field: string; label: string; options: Array<{ value: string; label: string }> }> } | null;
 };
 
 const escapeHtml = (value: unknown): string => String(value ?? "")
@@ -162,7 +172,7 @@ function renderRecordMedia(items: ObservationFirstMediaPresentation[], title: st
   const slides = items.map((item, index) => {
     const label = `${title} — ${mediaLabel(item.mediaKind, copy)} ${index + 1}`;
     if (item.mediaKind === "photo") {
-      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-of-photo-trigger data-of-photo-src="${escapeHtml(item.url)}" data-of-photo-alt="${escapeHtml(label)}" aria-label="${escapeHtml(copy.enlargePhoto)}"><img src="${escapeHtml(item.url)}" alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
+      return `<figure class="of-media-slide" id="record-media-${index + 1}"><a href="${escapeHtml(item.url)}" target="_blank" rel="noopener" data-of-photo-trigger data-of-photo-src="${escapeHtml(item.url)}" data-of-photo-alt="${escapeHtml(label)}" aria-label="${escapeHtml(copy.enlargePhoto)}"><img ${sizedImgAttrs(item.url, 680, [680, 1020, 1360], "(max-width: 899px) 100vw, 60vw", escapeHtml)} alt="${escapeHtml(label)}" loading="${index === 0 ? "eager" : "lazy"}" decoding="async"${index === 0 ? ' fetchpriority="high"' : ""}></a></figure>`;
     }
     if (item.mediaKind === "video") {
       return `<figure class="of-media-slide" id="record-media-${index + 1}"><video controls preload="metadata" aria-label="${escapeHtml(label)}" src="${escapeHtml(item.url)}"><a href="${escapeHtml(item.url)}">${escapeHtml(copy.openVideo)}</a></video></figure>`;
@@ -176,7 +186,7 @@ function renderMediaSwitcher(items: ObservationFirstMediaPresentation[], copy: O
   if (items.length < 2) return "";
   return `<nav class="of-media-switch" aria-label="${escapeHtml(copy.mediaNavigation)}">${items.map((item, index) => {
     const inner = item.mediaKind === "photo" && item.url
-      ? `<img src="${escapeHtml(item.url)}" alt="" loading="lazy" decoding="async">`
+      ? `<img src="${escapeHtml(sizedImageUrl(item.url, 320))}" alt="" loading="lazy" decoding="async">`
       : `<span>${escapeHtml(mediaLabel(item.mediaKind, copy))}</span>`;
     return `<a class="of-thumb" href="#record-media-${index + 1}" data-of-thumb="${index}" aria-label="${escapeHtml(`${mediaLabel(item.mediaKind, copy)} ${index + 1}`)}"${index === 0 ? ' aria-current="true"' : ""}>${inner}</a>`;
   }).join("")}</nav>`;
@@ -423,9 +433,10 @@ function renderAiFeedback(
   detail: ObservationFirstRecordDetail,
   presentation: ObservationFirstRecordPresentation,
   copy: ObservationFirstRecordDetailCopy,
+  allowObjectClass = false,
 ): string {
   if (isSignboardRecord(detail, presentation)) return "";
-  if (presentation.recordClass && NON_BIOTA_RECORD_CLASSES.has(presentation.recordClass)) return "";
+  if (presentation.recordClass && NON_BIOTA_RECORD_CLASSES.has(presentation.recordClass) && !(allowObjectClass && presentation.recordClass === "object")) return "";
   const lang = presentation.lang ?? "ja";
   const subjects = detail.observations.filter((card) => card.state === "active").flatMap((card) => [
     ...card.aiSuggestions,
@@ -507,7 +518,115 @@ function renderObservationDetail(
   return `<article class="of-observation-detail">${heading}${accepted}${ai}${proposalList}${form}</article>`;
 }
 
-type FoundRow = { name: string; label: string; tone: "confirmed" | "proposed" | "ai" };
+type RowWhy = { evidence: string[]; reason: string[] };
+type FoundRow = { name: string; label: string; tone: "confirmed" | "proposed" | "ai"; observationId?: string; why?: RowWhy };
+type WhyContext = { sectionObservationIds: ReadonlySet<string>; fallbackShown: boolean };
+
+const SPECIES_OR_BELOW_RANKS = new Set(["species", "subspecies", "variety", "form", "forma", "cultivar", "hybrid"]);
+const rankAboveSpecies = (rank: string | null | undefined): boolean => {
+  const normalized = rank?.trim().toLowerCase();
+  return Boolean(normalized) && !SPECIES_OR_BELOW_RANKS.has(normalized!);
+};
+
+function whyForCard(
+  card: ObservationFirstCard,
+  rank: string | null | undefined,
+  lang: ObservationRecordLang,
+  personPrimaryNames: readonly string[] | undefined,
+  nextPhotoItem: string | null,
+): RowWhy | null {
+  const clean = (values: string[]): string[] => aiProseListForLang(values, lang).filter((text) => !SIGNBOARD_CANDIDATE_PATTERN.test(text));
+  for (const item of displayAiSuggestions(card, personPrimaryNames)) {
+    const evidence = clean(item.visualEvidence).slice(0, 2);
+    const reason = rankAboveSpecies(rank)
+      ? clean(item.shootingAdvice).filter((text) => {
+          if (!nextPhotoItem) return true;
+          const concise = conciseNextPhotoItem(text);
+          return concise !== nextPhotoItem && !text.includes(nextPhotoItem) && !nextPhotoItem.includes(concise) && !/実物の生体詳細/.test(text);
+        }).slice(0, 1)
+      : [];
+    if (evidence.length > 0 || reason.length > 0) return { evidence, reason };
+  }
+  return null;
+}
+
+function renderWhyBody(why: RowWhy, copy: ObservationFirstRecordDetailCopy): string {
+  const block = (label: string, items: string[]): string => items.length > 0
+    ? `<span class="of-why-label">${escapeHtml(label)}</span>${items.map((item) => `<span class="of-why-item">${escapeHtml(item)}</span>`).join("")}`
+    : "";
+  return `<span class="of-why-body">${block(copy.whyDistinguishing, why.evidence)}${block(copy.whyStoppedAtRank, why.reason)}</span>`;
+}
+
+type InlineEditCtx = {
+  action: string;
+  lang: ObservationRecordLang;
+  nonce: string;
+  recordId: string;
+  correction: boolean;
+  observedAtIso: string | null;
+  envEdit: NonNullable<ObservationFirstRecordPresentation["inlineEditEnvironment"]> | null;
+};
+const jstLocalInput = (iso: string | null | undefined): string => {
+  const time = Date.parse(iso ?? "");
+  return Number.isNaN(time) ? "" : new Date(time + 9 * 3600000).toISOString().slice(0, 16);
+};
+const INLINE_EDIT_PEN = `<svg class="of-ie-pen" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>`;
+
+function renderInlineEdit(ctx: InlineEditCtx, spec: { key: string; id?: string; label: string; display: string; op?: string; hiddenFields?: string; control: string; wrap?: (tap: string) => string; trail?: string; className?: string; json?: { url: string; kind: string }; extraActions?: string; extraForms?: string }): string {
+  const tap = `<button type="button" class="of-ie-tap" data-of-ie-open aria-label="${escapeHtml(spec.label)}を編集" aria-expanded="false"><span class="of-ie-text">${spec.display}</span>${INLINE_EDIT_PEN}</button>`;
+  const lead = spec.json ? "" : `${hidden("action", spec.op ?? "")}${hidden("return_lang", ctx.lang)}${spec.hiddenFields ?? ""}`;
+  const form = `<form class="of-ie-form" method="post" action="${escapeHtml(spec.json ? spec.json.url : ctx.action)}"${spec.json ? ` data-of-ie-json="${escapeHtml(spec.json.kind)}"` : ""} hidden>${lead}${spec.control}<div class="of-ie-actions"><button type="submit" class="of-ie-save">保存</button><button type="button" class="of-ie-cancel" data-of-ie-cancel>やめる</button>${spec.extraActions ?? ""}</div>${spec.json ? `<p class="of-ie-msg" role="status" aria-live="polite" hidden></p>` : ""}</form>`;
+  return `<div class="of-ie${spec.className ? ` ${spec.className}` : ""}" data-of-ie="${escapeHtml(spec.key)}"${spec.id ? ` id="${escapeHtml(spec.id)}"` : ""}>${spec.wrap ? spec.wrap(tap) : tap}${spec.trail ?? ""}${form}${spec.extraForms ?? ""}</div>`;
+}
+
+const ENV_EXCLUSIVE_VALUES = new Set(["unknown", "none_visible"]);
+
+function inlineEditEnvironmentField(field: { field: string; label: string; options: Array<{ value: string; label: string }> }, environment: Record<string, string>): string {
+  const multi = isCompatibleEnvironmentRecordMultiField(field.field);
+  if (!multi && field.field !== "place_type") {
+    const current = environment[field.field];
+    const selected = field.options.some((option) => option.value === current) ? current : "unknown";
+    return `<label class="of-ie-field"><span>${escapeHtml(field.label)}</span><select name="${escapeHtml(field.field)}">${field.options.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === selected ? " selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label>`;
+  }
+  const valid = new Set(field.options.map((option) => option.value));
+  const picked = new Set(compatibleEnvironmentRecordRawValues(environment, field.field).filter((value) => valid.has(value)));
+  if (picked.size === 0) picked.add("unknown");
+  const options = field.options.map((option) => `<label class="of-ie-opt"><input type="${multi ? "checkbox" : "radio"}" name="${escapeHtml(field.field)}" value="${escapeHtml(option.value)}"${picked.has(option.value) ? " checked" : ""}${multi && ENV_EXCLUSIVE_VALUES.has(option.value) ? " data-of-ie-excl" : ""}><span>${escapeHtml(option.label)}</span></label>`).join("");
+  return `<fieldset class="of-ie-group" data-of-ie-group="${escapeHtml(field.field)}" data-of-ie-pick="${multi ? "many" : "one"}"><legend>${escapeHtml(field.label)}</legend><div class="of-ie-opts">${options}</div></fieldset>`;
+}
+
+function inlineEditPlace(ctx: InlineEditCtx, environment: Record<string, string>, chips: readonly string[]): string {
+  const groups = (ctx.envEdit?.fields ?? []).map((field) => inlineEditEnvironmentField(field, environment)).join("");
+  return renderInlineEdit(ctx, {
+    key: "place",
+    label: "この場所のようす",
+    display: `<span class="of-ie-chips">${chips.map((label) => `<span class="of-ie-chip">${escapeHtml(label)}</span>`).join("")}</span>`,
+    json: { url: `/api/v1/occurrences/${encodeURIComponent(ctx.recordId)}/environment-record`, kind: "environment-record" },
+    control: `<div class="of-ie-fields">${groups}</div>`,
+    className: "of-ie-place",
+  });
+}
+
+function inlineEditNameRow(ctx: InlineEditCtx, observationId: string, name: string, trail: string): string {
+  return renderInlineEdit(ctx, {
+    key: "name",
+    label: name,
+    display: escapeHtml(name),
+    op: "identify",
+    hiddenFields: hidden("observation_id", observationId) + hidden("operation_id", `${ctx.nonce}-ie-name-${observationId}`),
+    control: `<input name="proposed_name" value="${escapeHtml(name)}" maxlength="160" required autocomplete="off" aria-label="名前">`,
+    wrap: (tap) => `<span class="of-found-name">${tap}</span>`,
+    trail,
+    className: "of-ie-row",
+  });
+}
+
+function renderFoundRowLi(attrs: string, inner: string, why: RowWhy | null | undefined, copy: ObservationFirstRecordDetailCopy): string {
+  if (!why || (why.evidence.length === 0 && why.reason.length === 0)) return `<li${attrs}>${inner}</li>`;
+  const peekLabel = why.evidence.length > 0 ? copy.whyDistinguishing : copy.whyStoppedAtRank;
+  const peekText = (why.evidence.length > 0 ? why.evidence : why.reason).map((t) => t.replace(/[。．.]\s*$/u, "")).join("。") + "。";
+  return `<li${attrs} class="of-has-why"><div class="of-why-row">${inner}</div><details class="of-why"><summary><span class="of-why-peek">${escapeHtml(peekLabel)}：${escapeHtml(peekText)}</span>${renderWhyBody(why, copy)}<span class="of-why-more">${escapeHtml(copy.whyMore)}</span><span class="of-why-less">${escapeHtml(copy.whyLess)}</span></summary></details></li>`;
+}
 type ObservationSummary = { rows: FoundRow[]; reading: string };
 
 function renderObservationSummary(
@@ -515,6 +634,7 @@ function renderObservationSummary(
   presentation: ObservationFirstRecordPresentation,
   action: string,
   copy: ObservationFirstRecordDetailCopy,
+  whyContext: WhyContext | null = null,
 ): ObservationSummary {
   const empty: ObservationSummary = { rows: [], reading: "" };
   if (isSignboardRecord(detail, presentation)) {
@@ -542,23 +662,37 @@ function renderObservationSummary(
     const aiName = displayAiSuggestions(item.card, presentation.aiPersonPrimaryNames)
       .map((suggestion) => publicSubjectName(suggestion.proposedName) ?? publicSubjectName(suggestion.proposedScientificName))
       .find((name): name is string => name !== null) ?? null;
+    const acceptedRank = item.card.acceptedIdentification?.proposedRank ?? null;
+    const proposalRank = item.card.communityIdentifications.find((proposal) => !proposal.accepted && publicSubjectName(proposal.proposedName) === proposalName)?.proposedRank ?? null;
+    const aiRank = displayAiSuggestions(item.card, presentation.aiPersonPrimaryNames).find((suggestion) => (publicSubjectName(suggestion.proposedName) ?? publicSubjectName(suggestion.proposedScientificName)) === aiName)?.proposedRank ?? null;
     const row: FoundRow | null = acceptedName
-      ? { name: acceptedName, label: copy.statusConfirmed, tone: "confirmed" }
+      ? { name: acceptedName, label: copy.statusConfirmed, tone: "confirmed", observationId: item.card.observationId }
       : proposalName
-        ? { name: proposalName, label: copy.statusProposed, tone: "proposed" }
+        ? { name: proposalName, label: copy.statusProposed, tone: "proposed", observationId: item.card.observationId }
         : aiName
-          ? { name: aiName, label: copy.statusAiRead, tone: "ai" }
+          ? { name: aiName, label: copy.statusAiRead, tone: "ai", observationId: item.card.observationId }
           : null;
     if (!row || seenNames.has(row.name)) return [];
     seenNames.add(row.name);
+    if (whyContext) {
+      const why = whyForCard(item.card, acceptedName ? acceptedRank : proposalName ? proposalRank : aiRank, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null);
+      if (why) row.why = why;
+    }
     return [row];
   });
   const nextPhotoItem = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
+  const rowEvidence = new Set<string>();
+  if (whyContext) {
+    const learningCard = active[0]!;
+    const shown = whyContext.sectionObservationIds.has(learningCard.observationId)
+      || (whyContext.fallbackShown && rows.some((row) => row.observationId === learningCard.observationId && row.why));
+    if (shown) for (const text of whyForCard(learningCard, null, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, nextPhotoItem)?.evidence ?? []) rowEvidence.add(text);
+  }
   const comparison = renderAiCandidateComparison(active[0]!, presentation, copy, nextPhotoItem);
   const comparisonEvidence = new Set(
     (presentation.aiCandidateInsights ?? []).flatMap((candidate) => aiProseListForLang(candidate.supportingFeatures, presentation.lang ?? "ja")),
   );
-  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, comparison ? comparisonEvidence : new Set(), nextPhotoItem);
+  const learning = renderLearning(active[0]!, copy, presentation.lang ?? "ja", presentation.aiPersonPrimaryNames, new Set([...(comparison ? comparisonEvidence : []), ...rowEvidence]), nextPhotoItem);
   const detailCards = (meaningful.length > 0 ? meaningful.map((item) => item.card) : active.slice(0, 1))
     .map((card, index) => renderObservationDetail(card, index, detail, presentation, action, copy, {
       omitHeading: meaningful.length > 0 || seenNames.size > 0,
@@ -613,6 +747,7 @@ function renderFoundSection(
   scene: SceneFound,
   copy: ObservationFirstRecordDetailCopy,
   headingLink: string,
+  ie: InlineEditCtx | null = null,
 ): string {
   const seen = new Set<string>();
   const rows = [...summary.rows, ...scene.rows].filter((row) => {
@@ -621,7 +756,11 @@ function renderFoundSection(
     return true;
   }).slice(0, 6);
   const list = rows.length > 0
-    ? `<ul class="of-found-list">${rows.map((row) => `<li${row.tone === "ai" ? ' data-ai-candidate="true"' : ""}><span class="of-found-name">${escapeHtml(row.name)}</span><span class="of-found-status is-${row.tone}">${escapeHtml(row.label)}</span></li>`).join("")}</ul>`
+    ? `<ul class="of-found-list">${rows.map((row) => {
+      const status = `<span class="of-found-status is-${row.tone}">${escapeHtml(row.label)}</span>`;
+      const editable = ie !== null && Boolean(row.observationId);
+      return renderFoundRowLi(`${row.tone === "ai" ? ' data-ai-candidate="true"' : ""}${editable ? " data-of-ie-row" : ""}`, editable ? inlineEditNameRow(ie!, row.observationId!, row.name, status) : `<span class="of-found-name">${escapeHtml(row.name)}</span>${status}`, row.why, copy);
+    }).join("")}</ul>`
     : "";
   if (rows.length === 0 && !scene.stateMessage) return "";
   const empty = scene.stateMessage
@@ -630,24 +769,79 @@ function renderFoundSection(
   return `<section class="of-found" aria-labelledby="of-summary-title"><div class="of-found-head"><h2 id="of-summary-title">${escapeHtml(copy.foundTitle)}</h2>${headingLink}</div>${list}${empty}</section>`;
 }
 
+const readingTone = (state: ReadingState): FoundRow["tone"] => state === "confirmed" ? "confirmed" : state === "proposed" ? "proposed" : "ai";
+const readingStateLabel = (state: ReadingState, copy: ObservationFirstRecordDetailCopy): string => state === "confirmed" ? copy.statusConfirmed : state === "proposed" ? copy.statusProposed : copy.statusAiRead;
+const clock = (ms: number): string => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+const panelAttrs = (index: number): string => `data-of-media-panel="${index}"${index === 0 ? "" : " hidden"}`;
+
+function renderPanelFoundList(items: readonly RecordPageFoundItem[], copy: ObservationFirstRecordDetailCopy, whyOf: (item: RecordPageFoundItem) => RowWhy | null, ie: InlineEditCtx | null = null): string {
+  return `<ul class="of-found-list">${items.slice(0, 8).map((item) => {
+    const trail = `${item.timeRange ? `<span class="of-found-time">${escapeHtml(`${clock(item.timeRange.startMs)}–${clock(item.timeRange.endMs)}`)}</span>` : ""}<span class="of-found-status is-${readingTone(item.state)}">${escapeHtml(readingStateLabel(item.state, copy))}</span>`;
+    const editable = ie !== null && item.kind === "organism" && Boolean(item.observationId);
+    return renderFoundRowLi(` data-found-kind="${item.kind}"${item.state === "ai_read" ? ' data-ai-candidate="true"' : ""}${editable ? " data-of-ie-row" : ""}`, editable ? inlineEditNameRow(ie!, item.observationId!, item.label, trail) : `<span class="of-found-name">${escapeHtml(item.label)}</span>${trail}`, item.kind === "organism" ? whyOf(item) : null, copy);
+  }).join("")}</ul>`;
+}
+
+function renderPerMediaFound(
+  sections: readonly RecordPageMediaSection[],
+  fallback: string,
+  copy: ObservationFirstRecordDetailCopy,
+  headingLink: string,
+  whyOf: (item: RecordPageFoundItem) => RowWhy | null,
+  ie: InlineEditCtx | null = null,
+): string {
+  return sections.map((section, index) => {
+    if (!section.fromReading || section.found.length === 0) {
+      return fallback ? fallback.replace('<section class="of-found" aria-labelledby="of-summary-title">', `<section class="of-found" aria-labelledby="of-summary-title${index === 0 ? "" : `-${index}`}" ${panelAttrs(index)}>`).replace('id="of-summary-title"', `id="of-summary-title${index === 0 ? "" : `-${index}`}"`) : "";
+    }
+    const heading = section.kind === "video" ? copy.sceneFoundVideo : section.kind === "photo" ? copy.sceneFound : copy.foundTitle;
+    const id = `of-summary-title${index === 0 ? "" : `-${index}`}`;
+    return `<section class="of-found" aria-labelledby="${id}" ${panelAttrs(index)}><div class="of-found-head"><h2 id="${id}">${escapeHtml(heading)}</h2>${headingLink}</div>${renderPanelFoundList(section.found, copy, whyOf, ie)}</section>`;
+  }).join("");
+}
+
+function renderPlaceFieldRows(fields: readonly RecordPagePlaceField[], copy: ObservationFirstRecordDetailCopy): string {
+  const labelOf = (slot: RecordPagePlaceField["slot"]): string => slot === "place_type" ? copy.placeTypeField : copy.environmentFields[slot];
+  return `<dl class="of-place-fields">${fields.map((field) => `<div data-place-slot="${field.slot}"><dt>${escapeHtml(labelOf(field.slot))}</dt><dd><span class="of-place-value">${escapeHtml(field.label)}</span><span class="of-found-status is-${readingTone(field.state)}">${escapeHtml(readingStateLabel(field.state, copy))}</span></dd></div>`).join("")}</dl>`;
+}
+
+function renderPerMediaPlace(
+  sections: readonly RecordPageMediaSection[],
+  environment: Record<string, string> | null | undefined,
+  copy: ObservationFirstRecordDetailCopy,
+  ie: InlineEditCtx | null = null,
+): string {
+  const fallback = renderEnvironment(environment, copy, ie);
+  return sections.map((section, index) => {
+    const id = `of-environment-title${index === 0 ? "" : `-${index}`}`;
+    if (!section.place) {
+      return fallback ? fallback.replace('<section class="of-environment" aria-labelledby="of-environment-title">', `<section class="of-environment" aria-labelledby="${id}" ${panelAttrs(index)}>`).replace('id="of-environment-title"', `id="${id}"`) : "";
+    }
+    const inferred = section.place.some((field) => field.state === "ai_read");
+    return `<section class="of-environment" aria-labelledby="${id}" ${panelAttrs(index)}><h2 id="${id}">${escapeHtml(copy.placeSummary)}</h2>${renderPlaceFieldRows(section.place, copy)}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
+  }).join("");
+}
+
+const PER_MEDIA_STYLES = `.of-place-fields{display:grid;gap:8px;margin:10px 0 0}.of-place-fields>div{display:grid;grid-template-columns:minmax(0,9em) 1fr;gap:4px 12px;align-items:baseline}.of-place-fields dt{margin:0;font-size:13px;color:var(--muted)}.of-place-fields dd{margin:0;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}.of-found-time{font-size:12px;color:var(--muted)}.of-found-list li.of-has-why{display:block;padding:0}.of-found-status.is-ai{font-size:0;line-height:0}.of-found-status.is-ai::after{content:"AI";display:inline-block;font-size:11px;line-height:1;font-weight:800;letter-spacing:.06em;color:#4F5B53;background:#EEF1EC;border-radius:6px;padding:4px 7px}.of-place-fields{grid-template-columns:max-content minmax(0,1fr);column-gap:14px}.of-place-fields>div{display:contents}.of-place-fields dt{white-space:nowrap;align-self:center}.of-place-fields dd{align-self:center}.of-place-fields dd{flex-wrap:nowrap;justify-content:space-between;gap:10px}.of-place-value{flex:1;min-width:0}.of-why-row{display:flex;align-items:center;gap:12px;padding:11px 0 4px}.of-why>summary{display:block;min-height:44px;box-sizing:border-box;padding:0 0 10px;list-style:none;cursor:pointer;font-size:12.5px;line-height:1.6;color:var(--muted)}.of-why>summary::-webkit-details-marker{display:none}.of-why-peek{display:block;max-height:2.4em;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,#000 50%,transparent);mask-image:linear-gradient(to bottom,#000 50%,transparent)}.of-why-more,.of-why-less{display:inline-block;margin-top:2px;font-weight:700;color:#0b5cad}.of-why-less{display:none}.of-why[open]>summary .of-why-peek,.of-why[open]>summary .of-why-more{display:none}.of-why[open]>summary .of-why-less{display:inline-block}.of-why[open]>summary{padding-bottom:4px}.of-why-body{display:none}.of-why[open]>summary .of-why-body{display:block}.of-why-label{display:block;margin:2px 0;font-weight:700;color:var(--ink)}.of-why-item{display:block;position:relative;padding-left:1em}.of-why-item::before{content:"・";position:absolute;left:0}.of-why-item+.of-why-label{margin-top:8px}`;
+
 function renderComparison(comparison: ObservationFirstComparisonPresentation | null | undefined, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
   if (!comparison?.summary.trim() || !comparison.comparedObservedLabel.trim() || !/^[A-Za-z0-9:_-]{1,180}$/u.test(comparison.comparedRecordId)) return "";
   return `<section class="of-comparison" aria-labelledby="of-comparison-title"><h2 id="of-comparison-title">${escapeHtml(copy.previousChange)}</h2><p>${escapeHtml(comparison.summary.trim())}</p><a href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(comparison.comparedRecordId)}`)}">${escapeHtml(template(copy.comparedWith, comparison.comparedObservedLabel.trim()))}</a></section>`;
 }
 
-function renderEnvironment(environment: Record<string, string> | null | undefined, copy: ObservationFirstRecordDetailCopy): string {
+function renderEnvironment(environment: Record<string, string> | null | undefined, copy: ObservationFirstRecordDetailCopy, ie: InlineEditCtx | null = null): string {
   if (!environment) return "";
   const chipLabel = (value: string | undefined): string | null => value && value !== "unknown" ? copy.environmentChipValues[value] ?? copy.environmentValues[value] ?? null : null;
   const placeType = environment.place_type;
   const labels = [
     placeType && placeType !== "unknown" ? copy.environmentHeadlines[placeType] ?? null : null,
-    ...(["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).map((field) => chipLabel(environment[field])),
+    ...(["contact_surface", "surrounding_cover", "environment_condition", "human_change"] as const).flatMap((field) => compatibleEnvironmentRecordRawValues(environment, field).map((value) => chipLabel(value))),
   ].filter((label): label is string => Boolean(label));
   const chips = [...new Set(labels)];
   if (chips.length === 0) return "";
   const inferred = environment.environment_record_status === "auto_draft"
     || Object.keys(environment).some((key) => key.endsWith("_source") && environment[key] === "derived");
-  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2><ul class="of-chips">${chips.map((label) => `<li>${escapeHtml(label)}</li>`).join("")}</ul>${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
+  return `<section class="of-environment" aria-labelledby="of-environment-title"><h2 id="of-environment-title">${escapeHtml(copy.placeSummary)}</h2>${ie?.envEdit && environment ? inlineEditPlace(ie, environment, chips) : `<ul class="of-chips">${chips.map((label) => `<li>${escapeHtml(label)}</li>`).join("")}</ul>`}${inferred ? `<p class="of-ai-note">${escapeHtml(copy.aiGeneratedEnvironmentNote)}</p>` : ""}</section>`;
 }
 
 function renderCountBand(band: { text: string; href: string | null } | null | undefined): string {
@@ -703,11 +897,15 @@ function renderOwnerManagement(
   const mediaAssignment = media.length > 0 && active.length > 0
     ? `<section><h3>${escapeHtml(copy.assignMedia)}</h3><p>${escapeHtml(copy.assignMediaLead)}</p>${media.map((item, index) => `<form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "media_reassign")}${hidden("media_id", item.mediaId)}${hidden("operation_id", `${presentation.actionNonce}-media-${index}`)}<label>${escapeHtml(mediaLabel(item.mediaKind, copy))}<select name="target_observation_id">${active.map((card) => `<option value="${escapeHtml(card.observationId)}">${escapeHtml(observationName(card, copy, presentation.aiPersonPrimaryNames).text)}</option>`).join("")}</select></label><button type="submit">${escapeHtml(copy.assign)}</button></form>`).join("")}</section>`
     : "";
+  const photoItems = media.filter((item) => item.mediaKind === "photo" && item.url);
+  const orientation = photoItems.length > 0
+    ? `<section data-photo-orientation><h3>${escapeHtml(copy.photoOrientation)}</h3>${photoItems.map((item, index) => `<form class="of-rotate-row" method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "rotate_media")}${hidden("media_id", item.mediaId)}${hidden("operation_id", `${presentation.actionNonce}-rotate-${index}`)}<span>${escapeHtml(`${copy.photo} ${index + 1}`)}</span><button class="is-secondary" type="submit" name="degrees" value="270">${escapeHtml(copy.rotatePhotoLeft)}</button><button class="is-secondary" type="submit" name="degrees" value="90">${escapeHtml(copy.rotatePhotoRight)}</button></form>`).join("")}</section>`
+    : "";
   const visibilitySettings = `<section><h3>${escapeHtml(copy.visibilitySettings)}</h3><p>${escapeHtml(copy.visibilityLead)}</p><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "set_visibility")}${hidden("operation_id", `${presentation.actionNonce}-visibility-${detail.visibility}`)}<label>${escapeHtml(copy.visibilitySettings)}<select name="visibility">${selectOptions({ public: copy.visibility.public, private: copy.visibility.private }, detail.visibility === "public" ? "public" : "private")}</select></label><button type="submit">${escapeHtml(copy.saveVisibility)}</button></form></section>`;
   const policy = detail.visibility !== "private"
     ? `<section><form method="post" action="${escapeHtml(action)}">${returnLang}${hidden("action", "set_proposal_policy")}${hidden("accepts_identification_proposals", detail.proposalPolicy.identification ? "0" : "1")}${hidden("operation_id", `${presentation.actionNonce}-policy-${detail.proposalPolicy.identification ? "off" : "on"}`)}<button class="is-secondary" type="submit">${escapeHtml(detail.proposalPolicy.identification ? copy.pauseProposals : copy.receiveProposals)}</button></form></section>`
     : "";
-  return `<details class="of-manage is-linked" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body" id="of-manage-body">${visibilitySettings}${titleSection}${add}${cards}${mediaAssignment}${policy}${renderObservationOwnerDeletePanel({basePath:"",visitId:detail.recordId,isOwner:detail.owner,lang:presentation.lang === "pt-br" ? "pt-BR" : presentation.lang ?? "ja"})}</div></details>`;
+  return `<details class="of-manage is-linked" id="manage"><summary>${escapeHtml(copy.manage)}</summary><p class="of-manage-lead">${escapeHtml(copy.manageLead)}</p><div class="of-manage-body" id="of-manage-body">${visibilitySettings}${titleSection}${add}${cards}${mediaAssignment}${orientation}${policy}${renderObservationOwnerDeletePanel({basePath:"",visitId:detail.recordId,isOwner:detail.owner,lang:presentation.lang === "pt-br" ? "pt-BR" : presentation.lang ?? "ja"})}</div></details>`;
 }
 
 function renderCaptureInfo(
@@ -828,9 +1026,27 @@ function renderRelated(items: ObservationFirstRelatedPresentation[] | undefined,
       : forbiddenEmptyCopy.test(item.title) || SIGNBOARD_CANDIDATE_PATTERN.test(item.title)
         ? copy.relatedRecord
         : item.title;
-    return `<a class="of-related-card${safePhoto ? "" : " has-no-photo"}" href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(item.recordId)}`)}">${safePhoto ? `<img src="${escapeHtml(safePhoto)}" alt="" loading="lazy" decoding="async">` : ""}<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(item.observedLabel)}</small></span></a>`;
+    return `<a class="of-related-card${safePhoto ? "" : " has-no-photo"}" href="${escapeHtml(`${langPrefix(lang)}/observations/${encodeURIComponent(item.recordId)}`)}">${safePhoto ? `<img src="${escapeHtml(sizedImageUrl(safePhoto, 320))}" alt="" loading="lazy" decoding="async">` : ""}<span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(item.observedLabel)}</small></span></a>`;
   }).join("");
   return `<section class="of-related" aria-labelledby="of-related-title"><h2 id="of-related-title">${escapeHtml(copy.related)}</h2><div>${cards}</div></section>`;
+}
+
+const GENERIC_SCENE_WORD = /不明|未決定|記録|候補|可能性|自然|生きもの|対象|AI/u;
+
+function fallbackRecordTitle(rows: FoundRow[], observedLabel: string, lang: ObservationRecordLang, copy: ObservationFirstRecordDetailCopy): string {
+  if (lang === "ja") {
+    const nouns = [...new Set(rows.map((row) => row.name.trim()))]
+      .filter((name) => name.length >= 1 && name.length <= 9 && !GENERIC_SCENE_WORD.test(name) && !forbiddenEmptyCopy.test(name));
+    const first = nouns[0];
+    if (first) {
+      const second = nouns[1];
+      const joined = second && first.length + 1 + second.length <= 9 ? `${first}と${second}` : first;
+      return `${joined}の記録`;
+    }
+  }
+  const date = observedLabel.match(/(\d{1,2})月(\d{1,2})日/u) ?? observedLabel.match(/(\d{1,2})\/(\d{1,2})/u);
+  if (date) return copy.recordOfDate.replace("{m}", String(Number(date[1]))).replace("{d}", String(Number(date[2])));
+  return copy.recordUntitled;
 }
 
 const RECORD_PAGE_STYLES = `
@@ -900,6 +1116,7 @@ const RECORD_PAGE_STYLES = `
   .of-bottom-actions{margin:26px 0 0}
   .of-page a.of-cta,.of-page a.of-cta:visited,.of-page a.of-login-proposal,.of-page a.of-login-proposal:visited{display:flex;align-items:center;justify-content:center;min-height:52px;padding:15px;border-radius:14px;background:#143F2E;color:#fff;font-size:15.5px;font-weight:700;text-align:center;text-decoration:none}
   .of-settings-link{margin:14px 0 0;text-align:center}
+  .of-title-edit{margin:-4px 0 8px}.of-page .of-title-edit a,.of-page .of-title-edit a:visited{display:inline-flex;align-items:center;min-height:44px;font-size:14px;font-weight:700;color:#0055AD;text-decoration:none}
   .of-page .of-settings-link a,.of-page .of-settings-link a:visited{display:inline-flex;align-items:center;font-size:14px;font-weight:700;color:#0055AD;text-decoration:none}
   .of-cta-note{margin:10px 0 0;font-size:12.5px;line-height:1.5;color:#68746C;text-align:center}
   .of-panel .of-reading,.of-panel .of-manage{margin:18px 0 0;padding:0;border:0;border-radius:0;background:none}
@@ -946,7 +1163,69 @@ const RECORD_PAGE_STYLES = `
   }
 `;
 
-function renderRecordPageScript(): string {
+const INLINE_EDIT_STYLES = `
+  .of-ie{min-width:0}
+  .of-ie-form[hidden]{display:none}
+  .of-ie-tap{appearance:none;display:block;width:100%;margin:0;padding:0;border:0;border-radius:6px;background:none;font:inherit;color:inherit;letter-spacing:inherit;text-align:left;cursor:pointer}
+  .of-ie-pen{display:inline-block;flex:none;width:14px;height:14px;margin-left:6px;vertical-align:-1px;fill:none;stroke:#8a8f8a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .of-ie-tap:hover .of-ie-text,.of-ie-tap:focus-visible .of-ie-text{text-decoration:underline dotted;text-decoration-color:#8a8f8a;text-decoration-thickness:1px;text-underline-offset:4px}
+  .of-ie-form{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1 1 100%;min-width:0;margin:6px 0 8px;font-size:16px;font-weight:400;letter-spacing:0;line-height:1.5}
+  .of-ie-form input,.of-ie-form select{flex:1 1 200px;min-width:0;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:16px}
+  .of-ie-actions{display:flex;align-items:center;gap:8px}
+  .of-ie-save{min-height:44px;padding:0 20px;border:0;border-radius:10px;background:var(--green);color:var(--zukan-on-action-primary,#fff);font:inherit;font-size:15px;font-weight:800;cursor:pointer}
+  .of-ie-cancel{min-height:44px;padding:0 12px;border:0;background:none;color:var(--muted);font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+  .of-ie.is-editing>:not(.of-ie-form){display:none!important}
+  .of-ie-row{display:flex;flex:1;flex-wrap:wrap;align-items:center;gap:0 12px;min-width:0}
+  .of-ie-row .of-found-name{flex:1;min-width:0}
+  .of-ie-row .of-ie-tap{display:flex;align-items:center;min-height:44px}
+  .of-found-list li[data-of-ie-row]{padding:0}
+  .of-ie-meta{margin:3px 0 0}
+  .of-ie-meta-line{display:flex;align-items:center;gap:8px;margin:0;color:#55615A;font-size:13.5px;font-weight:600;line-height:1.5}
+  .of-ie-meta .of-ie-tap{display:inline-flex;align-items:center;width:auto;min-height:44px;font-weight:700}
+  .of-ie-msg{flex:1 1 100%;margin:0;font-size:13px;color:var(--muted)}
+  .of-ie-msg.is-error{color:#b42318;font-weight:700}
+  .of-ie-save:disabled{opacity:.45;cursor:default}
+  .of-ie-reset{min-height:44px;padding:0 8px;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer}
+  .of-ie-saved{display:block;margin:2px 0;font-size:13px;font-weight:700;color:var(--green)}
+  .of-ie-meta-date .of-ie-tap{display:inline-block;width:auto;min-height:0;padding:10px 0;margin:-10px 0}
+  .of-ie-note .of-ie-tap{min-height:44px}
+  .of-ie-note .of-ie-text{white-space:pre-wrap}
+  .of-ie-placeholder{color:var(--muted)}
+  .of-ie-chips{display:inline-flex;flex-wrap:wrap;gap:8px;vertical-align:middle}
+  .of-ie-chip{display:inline-flex;padding:7px 12px;border:1.5px solid #DDE2DC;border-radius:999px;background:#fff;font-size:13.5px;font-weight:600;color:#17211B}
+  .of-ie-place .of-ie-tap{display:flex;align-items:center}
+  .of-ie-fields{display:grid;gap:14px;flex:1 1 100%}
+  .of-ie-field{display:grid;gap:4px;font-size:13px;font-weight:700;color:var(--muted)}
+  .of-ie-field select{width:100%}
+  .of-ie-group{display:block;min-width:0;margin:0;padding:0;border:0}
+  .of-ie-group legend{padding:0;margin:0 0 6px;font-size:13px;font-weight:700;color:var(--muted)}
+  .of-ie-opts{display:flex;flex-wrap:wrap;gap:8px}
+  .of-ie-opt{position:relative;display:inline-flex}
+  .of-ie-form .of-ie-opt input{position:absolute;inset:0;flex:none;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
+  .of-ie-opt span{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1.5px solid #DDE2DC;border-radius:999px;background:var(--paper);font-size:14px;font-weight:600;color:var(--ink)}
+  .of-ie-opt input:checked+span{border-color:var(--green);background:var(--soft);font-weight:800}
+  .of-ie-opt input:checked+span::before{content:"✓";margin-right:6px;font-weight:900;color:var(--green)}
+  .of-ie-opt input:focus-visible+span{outline:3px solid var(--focus);outline-offset:2px}
+`;
+
+const INLINE_EDIT_SCRIPT = `
+  function ieCheck(f){var s=f.querySelector('.of-ie-save');if(!s)return;var ok=true,c=f.querySelectorAll('[required]');for(var q=0;q<c.length;q++){if(!String(c[q].value||'').trim())ok=false;}s.disabled=!ok;}
+  function ieJson(f,w){var k=f.getAttribute('data-of-ie-json'),m=f.querySelector('.of-ie-msg'),b=f.querySelector('.of-ie-save'),body;
+    function say(t,bad){if(!m)return;m.textContent=t;m.hidden=false;m.className='of-ie-msg'+(bad?' is-error':'');}
+    if(k==='note'){body={field:'note',nextValue:String(f.elements.nextValue.value||'').trim()};if(!body.nextValue){say('メモを入れてください。',1);return;}}
+    else if(k==='observed-at'){var s=String(f.elements.observedAtLocal.value||'');if(s.length===16)s+=':00';var d=new Date(s+'+09:00');if(!s||isNaN(d.getTime())){say('日時を入れてください。',1);return;}body={observedAt:d.toISOString()};}
+    else{var vals={},gs=f.querySelectorAll('[data-of-ie-group]'),sel=f.querySelectorAll('select[name]');for(var q=0;q<gs.length;q++){var ck=gs[q].querySelectorAll('input:checked'),ar=[];for(var z=0;z<ck.length;z++)ar.push(ck[z].value);vals[gs[q].getAttribute('data-of-ie-group')]=gs[q].getAttribute('data-of-ie-pick')==='many'?(ar.length?ar:['unknown']):(ar.length?ar[0]:'unknown');}for(q=0;q<sel.length;q++)vals[sel[q].name]=sel[q].value;body={values:vals};}
+    if(b)b.disabled=true;say('保存しています…',0);
+    fetch(f.getAttribute('action')||'',{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return {};}).then(function(p){if(!r.ok||!p||!p.ok){var er=p&&p.error?String(p.error):'';throw new Error(r.status===401?'ログインが必要です。':r.status===403?'この記録の持ち主だけが変えられます。':er==='invalid_observed_at'?'この日時は保存できません。未来の日時は選べません。':er==='occurrence_location_required'?'位置の情報がない記録では保存できません。':'保存できませんでした。もう一度ためしてください。');}try{sessionStorage.setItem('of-ie-return',w.getAttribute('data-of-ie')||'');sessionStorage.setItem('of-ie-saved','1');}catch(x){}location.reload();});}).catch(function(err){if(b)b.disabled=false;say(err&&err.message?err.message:'保存できませんでした。',1);});}
+  document.addEventListener('input',function(e){var f=e.target&&e.target.closest?e.target.closest('.of-ie-form'):null;if(f)ieCheck(f);});
+  document.addEventListener('change',function(e){var t=e.target;if(!t||!t.matches||!t.matches('.of-ie-opt input[type=checkbox]')||!t.checked)return;var g=t.closest('[data-of-ie-group]');if(!g)return;var all=g.querySelectorAll('input[type=checkbox]');for(var i=0;i<all.length;i++){if(all[i]!==t&&(t.hasAttribute('data-of-ie-excl')||all[i].hasAttribute('data-of-ie-excl')))all[i].checked=false;}});
+  function ieSet(w,on){var f=w.querySelector('.of-ie-form'),t=w.querySelector('[data-of-ie-open]');if(!f)return;f.hidden=!on;w.classList.toggle('is-editing',on);if(t)t.setAttribute('aria-expanded',on?'true':'false');if(on){var i=f.querySelector('input:not([type=hidden]),select,textarea');ieCheck(f);if(i){i.focus();if(i.tagName!=='SELECT'&&i.type!=='radio'&&i.type!=='checkbox'&&i.select)i.select();}}else if(t)t.focus();}
+  document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e.target.closest('[data-of-ie-open],[data-of-ie-cancel]'):null;if(!t)return;var w=t.closest('[data-of-ie]');if(!w)return;e.preventDefault();ieSet(w,t.hasAttribute('data-of-ie-open'));});
+  document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;var w=e.target&&e.target.closest?e.target.closest('[data-of-ie]'):null;if(w&&w.classList.contains('is-editing')){e.preventDefault();ieSet(w,false);}});
+  document.addEventListener('submit',function(e){var w=e.target&&e.target.closest?e.target.closest('[data-of-ie]'):null;if(!w)return;if(e.target.hasAttribute&&e.target.hasAttribute('data-of-ie-json')){e.preventDefault();ieJson(e.target,w);return;}try{sessionStorage.setItem('of-ie-return',w.getAttribute('data-of-ie')||'');}catch(x){}});
+  try{var rk=sessionStorage.getItem('of-ie-return');if(rk){sessionStorage.removeItem('of-ie-return');var rt=document.querySelector('[data-of-ie="'+rk+'"]');if(rt){rt.scrollIntoView({block:'center'});if(sessionStorage.getItem('of-ie-saved')){sessionStorage.removeItem('of-ie-saved');var sp=document.createElement('span');sp.className='of-ie-saved';sp.setAttribute('role','status');sp.textContent='保存しました';rt.appendChild(sp);setTimeout(function(){if(sp.parentNode)sp.parentNode.removeChild(sp);},3500);}}}}catch(x){}`;
+
+function renderRecordPageScript(panels = false, inlineEdit = false): string {
   return `<script data-of-page-script>
 (function(){
   function reveal(id){var el=document.getElementById(id);if(!el)return false;for(var n=el;n;n=n.parentElement){if(n.tagName==='DETAILS')n.open=true;}el.scrollIntoView({block:'start',behavior:'smooth'});return true;}
@@ -954,12 +1233,12 @@ function renderRecordPageScript(): string {
   document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('[data-of-share]'):null;if(!a||!navigator.share)return;e.preventDefault();navigator.share({title:a.getAttribute('data-share-title')||'',url:a.getAttribute('data-share-url')||location.href}).catch(function(){});});
   var g=document.querySelector('.of-media-gallery'),c=document.querySelector('[data-of-counter]'),th=document.querySelectorAll('[data-of-thumb]');
   if(g&&th.length){
-    var mark=function(i){for(var k=0;k<th.length;k++){if(k===i)th[k].setAttribute('aria-current','true');else th[k].removeAttribute('aria-current');}};
+    var mark=function(i){for(var k=0;k<th.length;k++){if(k===i)th[k].setAttribute('aria-current','true');else th[k].removeAttribute('aria-current');}${panels ? "var pn=document.querySelectorAll('[data-of-media-panel]');for(var q=0;q<pn.length;q++){pn[q].hidden=Number(pn[q].getAttribute('data-of-media-panel'))!==i;}" : ""}};
     g.addEventListener('scroll',function(){mark(Math.round(g.scrollLeft/Math.max(1,g.clientWidth)));},{passive:true});
     for(var j=0;j<th.length;j++){(function(a,i){a.addEventListener('click',function(e){e.preventDefault();g.scrollTo({left:i*g.clientWidth,behavior:'smooth'});});})(th[j],j);}
   }
   if(g&&c){var t=c.getAttribute('data-template')||'';g.addEventListener('scroll',function(){var i=Math.round(g.scrollLeft/Math.max(1,g.clientWidth))+1;c.textContent=t.replace('{n}',String(i));},{passive:true});}
-  if(location.hash.length>1){var h=document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var n=h;n;n=n.parentElement){if(n.tagName==='DETAILS')n.open=true;}}
+  if(location.hash.length>1){var h=document.getElementById(decodeURIComponent(location.hash.slice(1)));for(var n=h;n;n=n.parentElement){if(n.tagName==='DETAILS')n.open=true;}}${inlineEdit ? INLINE_EDIT_SCRIPT : ""}
 })();
 </script>`;
 }
@@ -973,14 +1252,32 @@ export function renderObservationFirstRecordDetailHtml(
   const media = safeMedia(presentation.media);
   const signboard = isSignboardRecord(detail, presentation);
   const customTitle = presentation.customTitle?.trim() || null;
+  const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
+  const ie: InlineEditCtx | null = presentation.inlineEdit && detail.owner && lang === "ja" ? { action, lang, nonce: presentation.actionNonce, recordId: detail.recordId, correction: Boolean(presentation.inlineEditCorrection), observedAtIso: presentation.observedAtIso ?? null, envEdit: presentation.inlineEditEnvironment ?? null } : null;
+  const recordPageSections = presentation.recordPage && media.length > 0
+    ? buildRecordPageSections({ reading: presentation.recordPage.reading, media, protectedRecord: presentation.recordPage.protectedRecord }).media
+    : null;
+  const whyContext: WhyContext | null = recordPageSections
+    ? {
+        sectionObservationIds: new Set(recordPageSections.flatMap((section) => section.found).flatMap((item) => item.kind === "organism" && item.observationId ? [item.observationId] : [])),
+        fallbackShown: recordPageSections.some((section) => !section.fromReading || section.found.length === 0),
+      }
+    : null;
+  const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy, whyContext);
+  const whyNextPhoto = presentation.aiNextPhoto ? conciseNextPhotoItem(presentation.aiNextPhoto) : null;
+  const whyOf = (item: RecordPageFoundItem): RowWhy | null => {
+    if (!item.observationId) return null;
+    const card = detail.observations.find((candidate) => candidate.state === "active" && candidate.observationId === item.observationId);
+    return card ? whyForCard(card, item.rank, lang, presentation.aiPersonPrimaryNames, whyNextPhoto) : null;
+  };
+  const scene = sceneFoundRows({ ...presentation, lang }, copy, signboard);
   const title = customTitle
     ? customTitle
     : signboard
       ? resolveSignboardTitle(detail, presentation, copy, lang)
       : presentation.titleIsFallback || forbiddenEmptyCopy.test(presentation.title)
-        ? (nonBiotaFallbackTitle(presentation.recordClass, lang) ?? copy.natureRecord)
-        : presentation.title;
-  const action = `/api/v1/records/${encodeURIComponent(detail.recordId)}/observation-actions`;
+        ? (nonBiotaFallbackTitle(presentation.recordClass, lang) ?? fallbackRecordTitle([...summary.rows, ...scene.rows], presentation.observedLabel, lang, copy))
+        : lang === "ja" && !/記録$/u.test(presentation.title) ? `${presentation.title}の記録` : presentation.title;
   const canonicalUrl = presentation.canonicalUrl ?? `${PRODUCTION_PUBLIC_ORIGIN}/${lang}/observations/${encodeURIComponent(detail.recordId)}`;
   const shareUrl = presentation.shareUrl ?? canonicalUrl;
   const prefix = langPrefix(lang);
@@ -1007,21 +1304,57 @@ export function renderObservationFirstRecordDetailHtml(
   const mediaStage = renderRecordMedia(media, title, copy, heroOverlay);
   const photoLightbox = renderPhotoLightbox(hasPhotos, copy);
   const photoLightboxScript = renderPhotoLightboxScript(hasPhotos);
-  const summary = renderObservationSummary(detail, { ...presentation, lang }, action, copy);
-  const aiFeedback = renderAiFeedback(detail, presentation, copy);
-  const scene = sceneFoundRows({ ...presentation, lang }, copy, signboard);
-  const environment = renderEnvironment(presentation.environment, copy);
+  const aiFeedback = renderAiFeedback(detail, presentation, copy, Boolean(recordPageSections?.some((section) => section.found.some((item) => item.kind === "feature"))));
+  const environment = recordPageSections ? renderPerMediaPlace(recordPageSections, presentation.environment, copy, ie) : renderEnvironment(presentation.environment, copy, ie);
   const resetTitleForm = customTitle
     ? `<form method="post" action="${escapeHtml(action)}">${hidden("action", "reset_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title-reset`)}<button type="submit" class="is-secondary">${escapeHtml(copy.resetTitle)}</button></form>`
     : "";
   const titleSection = detail.owner
-    ? `<section data-title-edit><h3>${escapeHtml(copy.editTitle)}</h3><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<label>${escapeHtml(copy.editTitle)}<input name="title" value="${escapeHtml(title)}" maxlength="120" required></label><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</section>`
+    ? `<section data-title-edit><h3>${escapeHtml(copy.editTitle)}</h3><form method="post" action="${escapeHtml(action)}">${hidden("action", "set_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-title`)}<label><span class="of-title-edit-text">${escapeHtml(copy.editTitle)}</span><input name="title" value="${escapeHtml(title)}" maxlength="120" required></label><button type="submit">${escapeHtml(copy.saveTitle)}</button></form>${resetTitleForm}</section>`
     : "";
-  const titleBlock = `<h1>${escapeHtml(title)}</h1>`;
+  const visibilityEdit = ie
+    ? renderInlineEdit(ie, {
+        key: "visibility",
+        id: "ie-visibility",
+        label: "公開範囲",
+        display: escapeHtml(copy.visibility[detail.visibility]),
+        op: "set_visibility",
+        hiddenFields: hidden("operation_id", `${presentation.actionNonce}-ie-visibility-${detail.visibility}`),
+        control: `<select name="visibility" aria-label="公開範囲">${selectOptions({ public: copy.visibility.public, private: copy.visibility.private }, detail.visibility === "public" ? "public" : "private")}</select>`,
+        wrap: (tap) => `<p class="of-ie-meta-line"><span class="of-ie-meta-label">公開範囲</span>${tap}</p>`,
+        className: "of-ie-meta",
+      })
+    : "";
+  const titleBlock = ie
+    ? renderInlineEdit(ie, {
+        key: "title",
+        id: "ie-title",
+        label: "題名",
+        display: escapeHtml(title),
+        op: "set_title",
+        hiddenFields: hidden("operation_id", `${presentation.actionNonce}-ie-title`),
+        control: `<input name="title" value="${escapeHtml(title)}" maxlength="120" required autocomplete="off" aria-label="題名">`,
+        wrap: (tap) => `<h1>${tap}</h1>`,
+        className: "of-ie-title",
+        extraActions: customTitle ? `<button type="submit" form="ie-title-reset" formnovalidate class="of-ie-reset">${escapeHtml(copy.resetTitle)}</button>` : "",
+        extraForms: customTitle ? `<form id="ie-title-reset" method="post" action="${escapeHtml(action)}">${hidden("action", "reset_title")}${hidden("return_lang", lang)}${hidden("operation_id", `${presentation.actionNonce}-ie-title-reset`)}</form>` : "",
+      })
+    : `<h1>${escapeHtml(title)}</h1>${titleSection ? `<p class="of-title-edit"><a href="#of-manage-body" data-of-open="manage">${escapeHtml(copy.editTitle)}</a></p>` : ""}`;
   const comparison = renderComparison(presentation.comparison, lang, copy);
-  const note = presentation.note?.trim() ? `<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
+  const noteText = presentation.note?.trim() ?? "";
+  const note = ie?.correction
+    ? `<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2>${renderInlineEdit(ie, {
+        key: "note",
+        label: "メモ",
+        display: noteText ? escapeHtml(noteText) : `<span class="of-ie-placeholder">メモを追加</span>`,
+        json: { url: `/api/v1/observations/${encodeURIComponent(detail.recordId)}/corrections`, kind: "note" },
+        control: `<textarea name="nextValue" rows="4" maxlength="1000" required aria-label="メモ">${escapeHtml(noteText)}</textarea>`,
+        wrap: (tap) => `<p>${tap}</p>`,
+        className: "of-ie-note",
+      })}</section>`
+    : presentation.note?.trim() ? `<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">${escapeHtml(copy.note)}</h2><p>${escapeHtml(presentation.note.trim())}</p></section>` : "";
   const publicationReturn = renderOwnerPublicationReturn(detail, { ...presentation, lang }, copy);
-  const management = renderOwnerManagement(detail, { ...presentation, lang }, media, action, copy, titleSection);
+  const management = renderOwnerManagement(detail, { ...presentation, lang }, media, action, copy, ie ? "" : titleSection);
   const capture = renderCaptureInfo(detail, presentation, media, copy);
   const related = renderRelated(presentation.related, lang, copy);
   const observedLabel = presentation.observedLabel.trim() || (lang === "ja" ? "日時不明" : lang === "es" ? "Fecha desconocida" : lang === "pt-br" ? "Data desconhecida" : "Date unknown");
@@ -1033,7 +1366,16 @@ export function renderObservationFirstRecordDetailHtml(
     ? `<a class="${className}" href="#${readingTarget === "manage" ? "of-manage-body" : "of-reading-body"}" data-of-open="${readingTarget}">${escapeHtml(label)}</a>`
     : "";
   const foundLink = canEditNames ? openLink("of-found-link", detail.owner ? copy.fixName : copy.proposeName) : "";
-  const found = renderFoundSection(summary, scene, copy, foundLink);
+  const identifiedName = !signboard && !presentation.titleIsFallback && summary.rows.length === 0 && !forbiddenEmptyCopy.test(presentation.title) && presentation.title !== copy.natureRecord
+    ? publicSubjectName(presentation.title)
+    : null;
+  const identifiedRows: FoundRow[] = identifiedName
+    ? [presentation.titleStatus === "proposed"
+        ? { name: identifiedName, label: copy.statusProposed, tone: "proposed" }
+        : { name: identifiedName, label: copy.statusConfirmed, tone: "confirmed" }]
+    : [];
+  const recordFound = renderFoundSection(identifiedRows.length > 0 ? { ...summary, rows: identifiedRows } : summary, scene, copy, foundLink, ie);
+  const found = recordPageSections ? renderPerMediaFound(recordPageSections, recordFound, copy, foundLink, whyOf, ie) : recordFound;
   const loginHref = `${langPrefix(lang)}/login?redirect=${encodeURIComponent(recordsDiscoveryDetailHref(detail.recordId, lang, presentation.recordsDiscoveryContext ?? null))}`;
   const actionsBlock = detail.owner
     ? (canEditNames || management
@@ -1055,11 +1397,23 @@ export function renderObservationFirstRecordDetailHtml(
   const placeIsBlurNotice = placeText === "" || [copy.locationBlurred, locationProtection].some((item) => item.trim() === placeText) || /^(?:位置[をは]ぼかして(?:います|表示)|Location (?:is )?(?:blurred|generalized))$/iu.test(placeText);
   const photoCountText = media.length > 1 ? ` ・ ${copy.photoCountSuffix.replace("{total}", String(media.length))}` : "";
   const mediaSwitcher = renderMediaSwitcher(media, copy);
+  const observedBlock = ie
+    ? renderInlineEdit(ie, {
+        key: "observed-at",
+        label: "撮影日時",
+        display: escapeHtml(observedLabel),
+        json: { url: `/api/v1/occurrences/${encodeURIComponent(detail.recordId)}/observed-at`, kind: "observed-at" },
+        control: `<input type="datetime-local" name="observedAtLocal" value="${escapeHtml(jstLocalInput(ie.observedAtIso))}" required aria-label="撮影日時（日本時間）">`,
+        wrap: (tap) => `<p class="of-meta-date">${tap}${escapeHtml(photoCountText)}</p>`,
+        className: "of-ie-meta-date",
+      })
+    : `<p class="of-meta-date">${escapeHtml(observedLabel + photoCountText)}</p>`;
   const languageFooter = `<nav class="of-lang-foot" aria-label="${escapeHtml(copy.language)}">${languageLinks}</nav>`;
   return `<!doctype html><html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} | ${escapeHtml(copy.documentSuffix)}</title>
   <style>
     :root{color-scheme:light;--ink:#16231c;--muted:#607067;--line:#dce7e0;--paper:#fff;--wash:#f4f8f5;--green:#0a7b57;--soft:#edf7f2;--focus:#f59e0b}*{box-sizing:border-box}html{overflow-x:hidden;scroll-behavior:smooth}body{margin:0;background:var(--wash);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:16px;line-height:1.65;overflow-wrap:anywhere}a,a:visited{color:#0b6f61}button,input,select,textarea{font:inherit;max-width:100%;min-width:0}a,button,input,select,textarea,summary{min-height:44px}:focus-visible{outline:3px solid var(--focus);outline-offset:3px}.of-header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;min-height:58px;padding:6px max(12px,calc((100vw - 1320px)/2));background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}.of-back,.of-back:visited{display:inline-flex;align-items:center;gap:7px;padding:0 10px;color:var(--ink);font-weight:800;text-decoration:none}.of-menu{position:relative}.of-menu>summary{display:grid;place-items:center;width:48px;cursor:pointer;list-style:none;border-radius:999px;font-weight:900}.of-menu>summary::-webkit-details-marker{display:none}.of-menu nav{position:absolute;right:0;top:50px;display:grid;width:min(270px,calc(100vw - 24px));padding:10px;border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 20px 50px rgba(15,35,25,.18)}.of-menu:not([open]) nav{display:none}.of-menu nav>a{display:flex;align-items:center;padding:8px 10px;border-radius:10px;font-weight:800;text-decoration:none}.of-menu nav div{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding-top:8px;border-top:1px solid var(--line)}.of-menu nav div a{display:grid;place-items:center;border-radius:9px;text-decoration:none}.of-menu [aria-current="page"]{background:var(--soft);font-weight:900}.of-page{width:min(1320px,100%);margin:0 auto 56px}.of-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);align-items:start}.of-layout.has-no-media{grid-template-columns:minmax(0,700px);justify-content:center}.of-layout.has-no-media .of-media-column{display:none}.of-media-column{position:sticky;top:58px;min-width:0}.of-media-stage{position:relative;display:grid;align-items:center;min-height:calc(100vh - 58px);background:#101713;color:#fff}.of-media-gallery{display:flex;width:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin;overscroll-behavior-x:contain}.of-media-slide{display:grid;place-items:center;flex:0 0 100%;min-width:0;min-height:min(74vw,calc(100vh - 96px));margin:0;scroll-snap-align:start}.of-media-slide a{display:grid;place-items:center;width:100%;min-height:inherit}.of-media-slide img{display:block;width:auto;max-width:100%;height:auto;max-height:calc(100vh - 96px);object-fit:contain}.of-media-slide video{display:block;width:100%;height:auto;max-height:calc(100vh - 96px);object-fit:contain}.of-media-slide.is-audio{align-content:center;gap:22px;padding:32px}.of-media-slide audio{width:min(520px,100%)}.of-audio-mark{font-size:72px;line-height:1;color:#9be7c9}.of-media-nav{display:flex;justify-content:center;gap:8px;padding:10px 12px;background:#101713}.of-media-nav a{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font-weight:800;text-decoration:none}.of-media-nav a:hover,.of-media-nav a:focus-visible{background:rgba(255,255,255,.3)}.of-panel{min-width:0;padding:28px 24px 48px;background:#fff;min-height:calc(100vh - 58px);border-left:1px solid var(--line)}.of-layout.has-no-media .of-panel{border-left:0}.of-record-info h1{margin:0;font-size:clamp(27px,3vw,38px);line-height:1.22;letter-spacing:-.02em}.of-meta{display:grid;gap:5px;margin:14px 0 18px;color:var(--muted)}.of-meta p{display:flex;align-items:flex-start;gap:8px;margin:0}.of-meta p span:first-child{font-weight:800;color:var(--ink)}.of-meta .of-location-protection{color:#365848;font-weight:750}.of-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}.of-action{display:inline-flex;align-items:center;justify-content:center;padding:9px 15px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font-weight:850;text-decoration:none}.of-action.is-primary{border-color:var(--green);background:var(--green);color:#fff}.of-status{margin:0 0 14px;padding:10px 12px;border-radius:12px;background:var(--soft)}.of-summary,.of-scene,.of-environment,.of-comparison,.of-note,.of-manage,.of-capture,.of-publication-return{margin-top:14px;padding:17px;border:1px solid var(--line);border-radius:17px;background:#fff}.of-summary{background:linear-gradient(150deg,#effaf5,#fff 55%)}.of-summary h2,.of-scene h2,.of-environment h2,.of-comparison h2,.of-note h2,.of-publication-return h2{margin:0 0 9px;font-size:19px;line-height:1.35}.of-summary-list{display:grid;gap:7px;margin:0;padding:0;list-style:none}.of-summary-list li{position:relative;display:grid;padding-left:18px;font-size:17px}.of-summary-list li:before{content:"";position:absolute;left:1px;top:.72em;width:7px;height:7px;border-radius:50%;background:var(--green)}.of-summary-list li strong{font-weight:850}.of-summary-list li small{color:var(--muted);font-size:13px}.of-learning{display:grid;gap:10px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}.of-learning>h3{margin:0;font-size:17px}.of-learning h4{margin:0 0 5px;font-size:15px}.of-learning ul{margin:0;padding-left:20px;color:#33473c}.of-scene{background:#f5f8fb}.of-scene ul{display:flex;flex-wrap:wrap;gap:7px;margin:0;padding:0;list-style:none}.of-scene li{padding:5px 10px;border:1px solid #cbd8df;border-radius:999px;background:#fff;font-weight:750}.of-detection-state{margin:11px 0 0;color:#33473c}.of-comparison p{margin:0 0 6px}.of-comparison a{display:inline-flex;align-items:center;font-weight:800}.of-publication-return{background:#f7faf0}.of-publication-return dl{display:grid;gap:8px;margin:0}.of-publication-return dl div{display:grid;grid-template-columns:minmax(100px,.8fr) minmax(0,1.2fr);gap:10px}.of-publication-return dt{color:var(--muted)}.of-publication-return dd{margin:0;font-weight:800}.of-publication-return h3{margin:13px 0 5px;font-size:16px}.of-publication-return ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}.of-publication-return li{display:grid;gap:1px;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:#fff}.of-publication-return li span{font-weight:800}.of-publication-return li small,.of-publication-exclusion{color:var(--muted);font-size:14px}.of-publication-exclusion{margin:12px 0 0}.of-observation-details,.of-propose{margin-top:12px}.of-observation-details>summary,.of-propose>summary,.of-manage>summary,.of-capture>summary{display:flex;align-items:center;cursor:pointer;color:var(--green);font-weight:900;list-style-position:inside}.of-observation-detail{margin-top:12px;padding:14px;border-radius:13px;background:var(--wash)}.of-observation-detail h3{margin:0 0 8px;font-size:17px}.of-record-name{display:grid;margin-bottom:9px}.of-record-name span,.of-ai-detail span{color:var(--muted);font-size:13px}.of-ai-detail h4,.of-proposals h4{margin:10px 0 5px;font-size:14px}.of-ai-detail ul,.of-proposals ul{display:grid;gap:6px;margin:0;padding:0;list-style:none}.of-ai-detail li{display:grid}.of-proposals li{display:flex;align-items:center;justify-content:space-between;gap:8px}.of-proposals form{margin:0}.of-proposals button{padding:7px 11px}.of-propose form,.of-manage form{display:grid;gap:8px;margin-top:9px}.of-propose label,.of-manage label{display:grid;gap:4px;font-weight:800}.of-propose input,.of-propose textarea,.of-manage input,.of-manage select{width:100%;padding:9px 10px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-propose button,.of-manage button{border:0;border-radius:11px;background:var(--green);color:#fff;font-weight:900;padding:10px 13px}.of-manage button.is-secondary{border:1px solid var(--line);background:#fff;color:var(--ink)}.of-login-proposal{display:inline-flex;align-items:center;margin-top:10px;font-weight:850}.of-environment{background:#f7faf0}.of-environment-headline{margin:0 0 8px;font-weight:850}.of-environment ul{display:grid;gap:5px;margin:0;padding:0;list-style:none}.of-environment li{display:grid;grid-template-columns:minmax(112px,.75fr) minmax(0,1.25fr);gap:10px}.of-environment li span{color:var(--muted)}.of-environment small{display:block;margin-top:9px;color:var(--muted)}.of-note p{margin:0;white-space:pre-wrap}.of-manage>summary,.of-capture>summary{color:var(--ink)}.of-manage-lead{margin:3px 0 0;color:var(--muted);font-size:14px}.of-manage-body{display:grid;gap:14px;padding-top:11px}.of-manage-body>section{padding-top:12px;border-top:1px solid var(--line)}.of-manage-body>section:first-child{padding-top:0;border-top:0}.of-manage h3{margin:0;font-size:16px}.of-manage p{margin:5px 0;color:var(--muted);font-size:14px}.of-capture dl{display:grid;gap:8px;margin:11px 0 0}.of-capture dl div{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px}.of-capture dt{color:var(--muted)}.of-capture dd{margin:0;font-weight:750}.of-related{padding:24px}.of-related h2{margin:0 0 12px;font-size:21px}.of-related>div{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}.of-related-card{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;min-height:76px;overflow:hidden;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);text-decoration:none}.of-related-card.has-no-photo{grid-template-columns:minmax(0,1fr)}.of-related-card img{width:76px;height:76px;object-fit:cover}.of-related-card span{display:grid;padding:8px 10px}.of-related-card small{color:var(--muted)}@media(max-width:899px){.of-layout{display:flex;flex-direction:column}.of-media-column{position:static;width:100%}.of-media-stage{min-height:0}.of-media-slide{min-height:min(82vh,133vw)}.of-media-slide img,.of-media-slide video{max-height:min(82vh,133vw)}.of-panel{width:100%;min-height:0;padding:22px 16px 38px;border-left:0}.of-related{padding:18px 16px}.of-related>div{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x proximity;padding-bottom:8px}.of-related-card{flex:0 0 min(76vw,300px);scroll-snap-align:start}.of-record-info h1{font-size:29px}.of-observation-details[open],.of-manage[open]{position:fixed;inset:58px 0 0;z-index:60;margin:0;padding:16px;overflow-y:auto;border-radius:0;background:#fff}.of-observation-details[open]>summary,.of-manage[open]>summary{position:sticky;top:0;z-index:2;padding:8px 0;background:#fff;border-bottom:1px solid var(--line)}}@media(max-width:390px){.of-header{padding-inline:6px}.of-panel{padding:19px 12px 34px}.of-summary,.of-scene,.of-environment,.of-comparison,.of-note,.of-manage,.of-capture,.of-publication-return{padding:14px;border-radius:14px}.of-related{padding-inline:12px}.of-environment li{grid-template-columns:1fr;gap:0}.of-capture dl div,.of-publication-return dl div{grid-template-columns:92px minmax(0,1fr)}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.of-media-gallery,.of-related>div{scroll-behavior:auto}}
     .of-candidate-comparison{display:grid;gap:10px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}.of-candidate-comparison>h3{margin:0;font-size:17px}.of-candidate-comparison>p{margin:0;color:var(--muted);font-size:14px}.of-candidate-comparison>ul{display:grid;gap:8px;margin:0;padding:0;list-style:none}.of-candidate-comparison li{display:grid;gap:3px;padding:10px;border-radius:11px;background:#fff}.of-candidate-comparison li small{color:var(--muted)}.of-candidate-comparison li span{font-size:14px;color:#33473c}.of-candidate-comparison li b{font-size:12px;color:var(--muted)}.of-likely{justify-self:start;font-style:normal;font-size:12px;padding:1px 8px;border-radius:99px;background:#e8ece9;color:#33473c}.of-likely[data-likely="high"]{background:#2f6f4a;color:#fff}
+  .of-manage .of-rotate-row{display:flex;align-items:center;gap:12px;margin-top:9px}.of-rotate-row span{flex:1;font-weight:700}
   #of-manage-body{scroll-margin-top:88px}.of-manage .obs-owner-delete{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #dce2dc;padding-top:20px}.of-manage .obs-owner-delete-button{color:#a32920;background:#fff;border:1px solid currentColor;min-height:44px}.of-manage .obs-owner-delete-status{font-size:14px}.of-manage .obs-owner-tool-label{font-weight:700}
   ${APP_EXPERIENCE_STYLES}
   :root{--ink:var(--zukan-text-primary);--muted:var(--zukan-text-secondary);--line:var(--zukan-border-decorative);--paper:var(--zukan-surface-base);--wash:var(--zukan-surface-subtle);--green:var(--zukan-action-primary);--soft:var(--zukan-surface-subtle);--focus:var(--zukan-focus-yellow-300)}
@@ -1077,6 +1431,6 @@ export function renderObservationFirstRecordDetailHtml(
   :focus-visible{outline:2px solid var(--zukan-focus-outline);outline-offset:2px;box-shadow:0 0 0 4px var(--zukan-focus-yellow-300)}
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .of-ai-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:#55635b;text-align:left}.of-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.of-title-edit{display:inline-block}.of-title-edit summary{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:750;color:var(--green);cursor:pointer;list-style:none}.of-title-edit summary::-webkit-details-marker{display:none}.of-title-edit form{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.of-title-edit input{flex:1 1 220px;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-title-edit button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800;cursor:pointer}
-  ${RECORD_PAGE_STYLES}
-  </style></head><body data-zukan-app-experience="v1"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta"><p class="of-meta-date">${escapeHtml(observedLabel + photoCountText)}</p>${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript()}</body></html>`;
+  ${RECORD_PAGE_STYLES}${recordPageSections ? PER_MEDIA_STYLES : ""}${ie ? INLINE_EDIT_STYLES : ""}
+  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta">${observedBlock}${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${visibilityEdit}${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript(Boolean(recordPageSections), ie !== null)}</body></html>`;
 }

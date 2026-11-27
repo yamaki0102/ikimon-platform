@@ -7582,14 +7582,16 @@ class FakeStatement {
     }
     if (normalized.startsWith("SELECT o.observation_id, o.observed_at, o.taxon_label, o.note, o.visibility,")) {
       const ownerUserId = string(this.values[0]);
-      const limit = number(this.values[1]);
+      const limit = number(this.values[this.values.length - 1]) - 1;
+      const likeNeedle = normalized.includes(" LIKE ?2") ? string(this.values[1]).slice(1, -1).toLowerCase() : "";
       const rows = [...this.db.observations.values()]
         .filter((observation) =>
           observation.owner_user_id === ownerUserId &&
-          observation.emergency_hidden === 0
+          observation.emergency_hidden === 0 &&
+          (!likeNeedle || [observation.taxon_label, observation.note, observation.observed_at].some((value) => String(value ?? "").toLowerCase().includes(likeNeedle)))
         )
-        .sort((a, b) => b.observed_at.localeCompare(a.observed_at))
-        .slice(0, limit)
+        .sort((a, b) => b.observed_at.localeCompare(a.observed_at) || b.observation_id.localeCompare(a.observation_id))
+        .slice(0, limit + 1)
         .map((observation) => {
           const asset = [...this.db.assets.values()]
             .filter((candidate) =>
@@ -32547,6 +32549,8 @@ test("ZUKAN top page and publish/unpublish APIs enforce 401/403 and zero-events 
     assert.match(prodHtml, /<img src="\/assets\/brand\/zukan-lockup\.svg"/, topUrl);
     assert.match(prodHtml, /data-zk-hero="designed"/, topUrl);
     assert.match(prodHtml, /\.zt-main>\*,\.zt-shell>\*\{min-width:0\}/, topUrl);
+    assert.match(prodHtml, /\.zt-shell:has\(>\.zt-sidebar\)\{display:grid/, topUrl);
+    assert.doesNotMatch(prodHtml, /\.zt-shell\{[^}]*display:grid/, topUrl);
     assert.match(prodHtml, />近くのイベントを見る</, topUrl);
     assert.doesNotMatch(prodHtml, /0件|まだありません|旧トップ|class="zt-thumb-placeholder"|PR973|prod rally|src="\/media\/|ヤツデ・11月22日|地域・/, topUrl);
   }
@@ -34569,4 +34573,192 @@ test("asset thumb route redirects only ready public (or own) ledger derivatives 
     assert.equal(res.status, 404, id);
     assert.equal(res.headers.get("location"), null, id);
   }
+});
+
+test("guest top v2 switch: only rolled-in viewers see v2, everyone else keeps the current top page", async () => {
+  const { env, core } = createEnv();
+  const session = (token: string, userId: string) => {
+    const hash = createHash("sha256").update(token).digest("hex");
+    core.authSessions.set(hash, { token_hash: hash, user_id: userId, display_name: userId, role_name: "Observer", rank_label: null, banned: 0, expires_at: "2099-01-01T00:00:00.000Z", last_used_at: null });
+    return { cookie: `ikimon_v2_session=${token}` };
+  };
+  const journey = session("gt2-journey", "user_journey_synthetic");
+  const other = session("gt2-other", "user_other_1");
+  const day = (offset: number) => new Date(Date.now() + offset * 86400000).toISOString().slice(0, 10);
+  const rollouts = (entry: unknown) => JSON.stringify({ GUEST_TOP_V2_PROTOTYPE_ENABLED: entry });
+  const allow = rollouts({ state: "allowlist", allowlist: ["user_journey_synthetic"], expiresOn: day(7), removeBy: day(14) });
+  const get = async (rolloutJson: string | undefined, path: string, headers: Record<string, string> = {}) => {
+    const response = await worker.fetch(new Request(`https://zukan.earth${path}`, { headers }), { ...env, ENVIRONMENT: "production", ZUKAN_FEATURE_ROLLOUTS: rolloutJson });
+    return { response, html: await response.text() };
+  };
+  const isV2 = (r: { response: Response; html: string }) => r.html.includes('data-zk-guest-top="v2"') && r.response.headers.get("x-zukan-guest-top") === "v2";
+  const isCurrent = (r: { response: Response; html: string }) => r.html.includes('data-zk-hero="designed"') && !r.html.includes("data-zk-guest-top") && r.response.headers.get("x-zukan-guest-top") === null;
+
+  assert.equal(isCurrent(await get(allow, "/ja/")), true, "logged-out stays current under allowlist");
+  assert.equal(isCurrent(await get(allow, "/ja/?as=guest")), true, "logged-out ?as=guest is not a switch");
+  assert.equal(isCurrent(await get(undefined, "/ja/")), true);
+  assert.equal(isCurrent(await get(undefined, "/ja/?as=guest", journey)), false, "flag off, logged-in: authenticated library");
+  assert.equal(isV2(await get(undefined, "/ja/?as=guest", journey)), false);
+
+  const owner = await get(allow, "/ja/", journey);
+  assert.equal(isV2(owner), false, "allowlisted logged-in without ?as=guest keeps the library");
+  assert.equal(owner.html.includes("data-zk-hero"), false);
+
+  const guestView = await get(allow, "/ja/?as=guest", journey);
+  assert.equal(guestView.response.status, 200);
+  assert.equal(isV2(guestView), true);
+  assert.equal(guestView.response.headers.get("cache-control"), "private, no-store");
+  assert.match(guestView.response.headers.get("content-security-policy") ?? "", /nonce-/);
+  const nonce = /nonce-([A-Za-z0-9+/=_-]+)/.exec(guestView.response.headers.get("content-security-policy") ?? "")?.[1];
+  assert.ok(nonce && guestView.html.includes(`<style nonce="${nonce}">`));
+  assert.match(guestView.html, /<img src="\/assets\/brand\/zukan-lockup\.svg"/);
+  assert.doesNotMatch(guestView.html, /ノコシル/);
+
+  const otherView = await get(allow, "/ja/?as=guest", other);
+  assert.equal(isV2(otherView), false, "logged-in but not allowlisted: ?as=guest is ignored");
+  assert.equal(otherView.html.includes("data-zk-guest-top"), false);
+
+  const expired = rollouts({ state: "allowlist", allowlist: ["user_journey_synthetic"], expiresOn: day(-1), removeBy: day(6) });
+  assert.equal(isV2(await get(expired, "/ja/?as=guest", journey)), false);
+  assert.equal(isV2(await get("{broken", "/ja/?as=guest", journey)), false);
+
+  const all = rollouts({ state: "all" });
+  assert.equal(isV2(await get(all, "/ja/")), true, "state all reaches logged-out viewers");
+  assert.equal(isV2(await get(all, "/", {})), true);
+  assert.equal(isV2(await get(all, "/ja/", journey)), false, "logged-in viewers keep the library under state all");
+
+  for (const lang of ["en", "es", "pt-br"]) {
+    assert.equal(isCurrent(await get(all, `/${lang}/`)), true, lang);
+    assert.equal(isV2(await get(allow, `/${lang}/?as=guest`, journey)), false, lang);
+  }
+  const off = rollouts({ state: "off" });
+  assert.equal(isCurrent(await get(off, "/ja/")), true);
+  assert.equal(isV2(await get(off, "/ja/?as=guest", journey)), false);
+});
+
+test("guest top v2 static assets are served from materialized R2 and registered for materialization", async () => {
+  const { env } = createEnv();
+  const names = ["record", "place", "map", "pond", "heron"].map(name => `zukan-guest-v2-${name}.webp`);
+  const script = await readFile(new URL("../scripts/materialize-original-ui-html.mjs", import.meta.url), "utf8");
+  for (const name of names) {
+    assert.ok(script.includes(`"/assets/img/landing/${name}"`), `${name} registered in staticAssetPaths`);
+    assert.ok(existsSync(new URL(`../../assets/img/landing/${name}`, import.meta.url)), `${name} exists on disk`);
+    await env.ASSET_BUCKET.put(`original-ui/static/assets/img/landing/${name}`, `bytes-${name}`, { httpMetadata: { contentType: "image/webp" } });
+  }
+  for (const environment of ["production", "shadow"]) {
+    for (const name of names) {
+      const response = await worker.fetch(new Request(`https://zukan.earth/assets/img/landing/${name}`), { ...env, ENVIRONMENT: environment });
+      assert.equal(response.status, 200, `${environment} ${name}`);
+      assert.equal(await response.text(), `bytes-${name}`);
+      assert.equal(response.headers.get("content-type"), "image/webp");
+      assert.equal(response.headers.get("x-ikimon-cloudflare-materialized"), "original-ui-static-asset");
+    }
+  }
+  const missing = await worker.fetch(new Request("https://zukan.earth/assets/img/landing/zukan-guest-v2-none.webp"), { ...env, ENVIRONMENT: "production" });
+  assert.equal(missing.status, 404);
+});
+
+test("map invasive layer is gated by flag and filters after the full-set coarsening", async () => {
+  const { env, obs } = createEnv();
+  const observedAt = "2026-10-15T14:23:45.000Z";
+  const addRecord = (observationId: string, ownerUserId: string, publicCell: string, taxonLabel: string) => {
+    obs.observations.set(observationId, {
+      observation_id: observationId,
+      draft_id: `d-${observationId}`,
+      owner_user_id: ownerUserId,
+      observed_at: observedAt,
+      partition_month: "2026-10",
+      taxon_label: taxonLabel,
+      note: null,
+      exact_lat: 35.6812,
+      exact_lng: 139.7671,
+      location_accuracy_m: 10,
+      public_cell: `cell:${publicCell}`,
+      visibility: "public",
+      emergency_hidden: 0,
+      processing_state: "accepted",
+      public_area_label: "東京都千代田区"
+    });
+    obs.readmodel.set(observationId, {
+      observation_id: observationId,
+      public_cell: publicCell,
+      observed_at: observedAt,
+      taxon_label: taxonLabel,
+      asset_count: 0,
+      partition_month: "2026-10",
+      public_area_label: "東京都千代田区"
+    });
+  };
+  addRecord("obs-dense-1", "owner-a", "35.52,139.52", "アライグマ");
+  addRecord("obs-dense-2", "owner-b", "35.52,139.52", "スズメ");
+  addRecord("obs-dense-3", "owner-c", "35.52,139.52", "ヤツデ");
+  addRecord("obs-sparse-1", "owner-1", "35.68,139.77", "ブラックバス");
+  addRecord("obs-sparse-2", "owner-1", "35.68,139.77", "ニホンザリガニ");
+  addRecord("obs-sparse-3", "owner-1", "35.68,139.77", "カンサイタンポポ");
+
+  const bbox = "139.0,35.0,140.0,36.0";
+  const flagOn = { ...env, MAP_INVASIVE_LAYER_ENABLED: "true" } as typeof env;
+  const get = async (query: string, path: string, useEnv: typeof env) => (await worker.fetch(new Request(`https://zukan.earth/api/v1/map/${path}?bbox=${bbox}${query}`), useEnv)).text();
+  const stable = (text: string) => JSON.stringify(JSON.parse(text), (key, value) => (key === "durationMs" ? undefined : value));
+
+  const baselineCells = await get("", "cells", env);
+  const baselineItems = stable(await get("", "observations", env));
+  assert.equal(await get("&taxon_group=invasive", "cells", env), baselineCells);
+  assert.equal(stable(await get("&taxon_group=invasive", "observations", env)), baselineItems);
+  assert.equal(await get("", "cells", flagOn), baselineCells);
+  assert.equal(stable(await get("", "observations", flagOn)), baselineItems);
+  assert.equal(await get("&taxon_group=plant", "cells", flagOn), baselineCells);
+  assert.ok(!baselineCells.includes("invasiveCount"));
+  assert.ok(!baselineItems.includes("\"invasive\""));
+  const rolloutOnlyForOthers = { ...env, ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ MAP_INVASIVE_LAYER_ENABLED: { state: "allowlist", allowlist: ["someone-else"], expiresOn: "2099-01-01", removeBy: "2099-02-01" } }) } as typeof env;
+  assert.equal(await get("&taxon_group=invasive", "cells", rolloutOnlyForOthers), baselineCells);
+
+  const cells = JSON.parse(await get("&taxon_group=invasive", "cells", flagOn)) as {
+    features: Array<{ properties: { cellId: string; count: number; invasiveCount: number; gridM: number; taxonMix: Record<string, number> } }>;
+    stats: { totalRecords: number };
+  };
+  assert.deepEqual(cells.features.map((feature) => feature.properties.cellId).sort(), ["cell:35.52,139.52", "cell:35.7,139.8"]);
+  const dense = cells.features.find((feature) => feature.properties.cellId === "cell:35.52,139.52")!;
+  assert.equal(dense.properties.count, 1);
+  assert.equal(dense.properties.invasiveCount, 1);
+  assert.equal(dense.properties.gridM, 1000);
+  const sparse = cells.features.find((feature) => feature.properties.cellId === "cell:35.7,139.8")!;
+  assert.equal(sparse.properties.count, 1);
+  assert.equal(sparse.properties.invasiveCount, 1);
+  assert.equal(sparse.properties.gridM, 10000);
+  assert.equal(cells.stats.totalRecords, 2);
+
+  const list = JSON.parse(await get("&taxon_group=invasive", "observations", flagOn)) as {
+    items: Array<{ visitId: string; publicCellId: string | null; invasive?: { category: string; label: string; legalNote: string; learnHref: string } }>;
+    stats: { totalAll: number };
+  };
+  assert.deepEqual(list.items.map((item) => item.visitId).sort(), ["obs-dense-1", "obs-sparse-1"]);
+  assert.equal(list.stats.totalAll, 2);
+  const raccoon = list.items.find((item) => item.visitId === "obs-dense-1")!;
+  assert.deepEqual(raccoon.invasive, { category: "iaspecified", label: "特定外来生物", legalNote: "持ち帰らない・動かさない", learnHref: "/ja/learn/invasive-species/procyon-lotor" });
+  assert.equal(raccoon.publicCellId, "cell:35.52,139.52");
+  const bass = list.items.find((item) => item.visitId === "obs-sparse-1")!;
+  assert.equal(bass.invasive?.learnHref, "/ja/learn/invasive-species/micropterus-salmoides");
+  assert.equal(bass.publicCellId, "cell:35.7,139.8");
+  assert.ok(!JSON.stringify(list).match(/35\.6812|139\.7671/u));
+
+  const scoped = JSON.parse(await (await worker.fetch(new Request("https://zukan.earth/api/v1/map/observations?cell_id=cell:35.52,139.52&taxon_group=invasive"), flagOn)).text()) as { items: Array<{ visitId: string }> };
+  assert.deepEqual(scoped.items.map((item) => item.visitId), ["obs-dense-1"]);
+});
+
+test("map html carries the invasive marker only when the flag is on for the viewer", async () => {
+  const { env } = createEnv();
+  const mapHtml = "<!doctype html><html><head><title>materialized ja map</title></head><body data-zukan-design=\"v1\"><header><div class=\"site-header-actions\"></div></header><main id=\"map-explorer\"></main></body></html>";
+  await env.ASSET_BUCKET.put("original-ui/html/ja/map.html", mapHtml, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+  const fetchMap = async (useEnv: typeof env) => (await worker.fetch(new Request("https://zukan.earth/ja/map"), useEnv)).text();
+  const off = await fetchMap(env);
+  assert.ok(off.includes("<main id=\"map-explorer\">"));
+  assert.ok(!off.includes("data-map-invasive"));
+  const on = await fetchMap({ ...env, MAP_INVASIVE_LAYER_ENABLED: "true" } as typeof env);
+  assert.ok(on.includes("<body data-map-invasive=\"1\" data-zukan-design=\"v1\">"));
+  assert.equal(on.replace(" data-map-invasive=\"1\"", ""), off);
+  const allowlisted = await fetchMap({ ...env, ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ MAP_INVASIVE_LAYER_ENABLED: { state: "allowlist", allowlist: ["someone-else"], expiresOn: "2099-01-01", removeBy: "2099-02-01" } }) } as typeof env);
+  assert.equal(allowlisted, off);
+  const everyone = await fetchMap({ ...env, ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ MAP_INVASIVE_LAYER_ENABLED: { state: "all" } }) } as typeof env);
+  assert.equal(everyone, on);
 });

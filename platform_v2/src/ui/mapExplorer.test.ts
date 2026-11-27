@@ -2593,3 +2593,72 @@ test("mobile bottom sheet, legend and controls share the bottom nav height varia
   assert.match(MAP_EXPLORER_STYLES, /\.me-section \.me-bottom-sheet--detail \{ bottom: calc\(var\(--me-nav-top\) \+ 8px\); \}/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-section \.me-legend \{ bottom: calc\(var\(--me-nav-top\) \+ 8px\);/);
 });
+
+test("map explorer ships a hidden invasive chip only for ja and reveals it by the body marker", () => {
+  const ja = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const chip = ja.match(/<button[^>]*data-taxon-group="invasive"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+  assert.ok(chip, "invasive chip rendered");
+  assert.match(chip, /\shidden[\s>]/);
+  assert.match(chip, /data-map-invasive-chip/);
+  assert.match(chip, /外来種/);
+  assert.equal((ja.match(/data-taxon-group="invasive"/g) ?? []).length, 1);
+  for (const lang of ["en", "es", "pt-BR"] as const) {
+    assert.doesNotMatch(renderMapExplorer({ basePath: "", lang, years: [2026] }), /data-taxon-group="invasive"/);
+  }
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  assert.doesNotThrow(() => new vm.Script(script));
+  assert.match(script, /document\.body\.dataset\.mapInvasive === '1'/);
+  assert.match(script, /querySelectorAll\('\[data-map-invasive-chip\]'\)/);
+  assert.match(script, /state\.taxonGroup === 'invasive' && !INVASIVE_ON\) state\.taxonGroup = ''/);
+  assert.match(script, /'line-color': \['case', \['>', \['coalesce', \['get', 'invasiveCount'\], 0\], 0\], '#d9480f'/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-taxon-chip\[hidden\] \{ display: none; \}/);
+});
+
+test("map explorer invasive empty state and record notice render the required copy and links", () => {
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  const context = vm.createContext({});
+  const declarations = ["OBSERVATION_HREF_TPL", "INVASIVE_CAPTURE_HREF", "INVASIVE_LEARN_PREFIX"].map((name) => script.split("\n").find((line) => line.trim().startsWith(`var ${name} = `))!);
+  assert.ok(declarations.every(Boolean));
+  new vm.Script([
+    "var CFG = {}; var state = { taxonGroup: 'invasive' }; var INVASIVE_ON = true;",
+    ...declarations,
+    bootSection("function escapeHtml(s)", "function escapeAttr(s)"),
+    bootSection("function renderInvasiveNotice(record)", "function renderResultsEmptyState()"),
+    bootSection("function renderResultsEmptyState()", "function renderResultsLoadingState()"),
+  ].join("\n")).runInContext(context);
+
+  const empty = context.renderResultsEmptyState() as string;
+  assert.ok(empty.includes("この範囲に外来種の公開記録はまだありません。見つけたら記録してください。"));
+  assert.ok(empty.includes('href="/ja/biosecurity/gairai/capture"'));
+  assert.ok(empty.includes("見つけたら記録する"));
+
+  const notice = context.renderInvasiveNotice({
+    occurrenceId: "occ:abc:0",
+    invasive: { category: "iaspecified", label: "特定外来生物", legalNote: "持ち帰らない・動かさない", learnHref: "/ja/learn/invasive-species/procyon-lotor" },
+  }) as string;
+  assert.ok(notice.includes("特定外来生物"));
+  assert.ok(notice.includes("持ち帰らない・動かさない"));
+  assert.ok(notice.includes('href="/observations/occ%3Aabc%3A0">記録を見る</a>'));
+  assert.ok(notice.includes('href="/ja/biosecurity/gairai/capture">見つけたら記録する</a>'));
+  assert.ok(notice.includes('href="/ja/learn/invasive-species/procyon-lotor">くわしく</a>'));
+
+  assert.equal(context.renderInvasiveNotice({ occurrenceId: "occ:abc:0" }), "");
+  const hostile = context.renderInvasiveNotice({
+    occurrenceId: "occ:abc:0",
+    invasive: { label: "<img src=x>", legalNote: "<script>1</script>", learnHref: "https://evil.example/x" },
+  }) as string;
+  assert.ok(!hostile.includes("<img"));
+  assert.ok(!hostile.includes("<script"));
+  assert.ok(!hostile.includes("evil.example"));
+  assert.ok(hostile.includes('href="/ja/learn/invasive-species">くわしく</a>'));
+
+  const plain = vm.createContext({});
+  new vm.Script([
+    "var CFG = {}; var state = { taxonGroup: '' }; var INVASIVE_ON = false;",
+    ...declarations,
+    bootSection("function escapeHtml(s)", "function escapeAttr(s)"),
+    bootSection("function renderInvasiveNotice(record)", "function renderResultsEmptyState()"),
+    bootSection("function renderResultsEmptyState()", "function renderResultsLoadingState()"),
+  ].join("\n").replace("function renderResultsEmptyState() {", "function renderResultsEmptyState() { var COPY = { emptyTitle: 'e', recordingGapLabel: 'g', emptyLead: 'l', emptyActionAreas: 'a', emptyActionWiden: 'w', emptyActionRecord: 'r', empty: 'n' }; var RECORD_HREF = '/record';")).runInContext(plain);
+  assert.ok(!(plain.renderResultsEmptyState() as string).includes("この範囲に外来種の公開記録"));
+});

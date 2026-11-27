@@ -143,7 +143,7 @@ test("owner HTML is media-first, no-JS, privacy-safe, and gives every action its
   });
 
   assert.match(rendered, /data-observation-first-record-detail="1"/);
-  assert.match(rendered, /<title>庭の観察 \| ZUKAN<\/title>/);
+  assert.match(rendered, /<title>庭の観察の記録 \| ZUKAN<\/title>/);
   assert.ok(rendered.indexOf("of-media-stage") < rendered.indexOf("of-record-info"));
   assert.equal((rendered.match(/<img[^>]+https:\/\/media\.example\/safe\.jpg/g) ?? []).length, 1);
   assert.match(rendered, /id="of-summary-title">見つかったもの</);
@@ -819,7 +819,8 @@ test("person primary context suppresses novel AI names and learning while preser
       aiCandidateInsights: [{ name: "男性", scientificName: null, supportingFeatures: ["観客が写っています"], missingFeatures: [], contradictions: [] }],
       aiFeedback: "地域の行事が記録されています。", aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
     });
-    assert.match(rendered, /<h1>自然の記録<\/h1>/);
+    assert.match(rendered, /<h1>10月3日の記録<\/h1>/);
+    assert.doesNotMatch(rendered, /自然の記録/);
     assert.match(rendered, /男性のいる地域の行事を記録しました/);
     assert.match(rendered, /\/derived\/public-scene\.webp/);
     assert.doesNotMatch(rendered, /地域の行事が記録されています/);
@@ -856,7 +857,7 @@ test("person primary context retains coexisting bird and plant suggestions and a
     lang: "ja", title: "男性", observedLabel: "2026年10月3日", note: "利用者が残した人物の記録。", media: [], actionNonce: "accepted-novel-person",
     aiPersonPrimaryNames: ["男性"], aiNextPhoto: "頭部および胴体の鮮明な拡大画像",
   });
-  assert.match(acceptedHtml, /<h1>男性<\/h1>/);
+  assert.match(acceptedHtml, /<h1>男性の記録<\/h1>/);
   assert.match(acceptedHtml, /<strong>男性<\/strong>/);
   assert.match(acceptedHtml, /利用者が残した人物の記録/);
   assert.doesNotMatch(acceptedHtml, /人物の顔を近くから撮る|頭部および胴体の鮮明な拡大画像/);
@@ -1393,7 +1394,7 @@ test("record detail shows owner title edit form and role-based provenance withou
     actionNonce: "nonce-roles",
   });
   assert.match(ownerHtml, /data-title-edit/);
-  assert.doesNotMatch(ownerHtml, /class="of-title-edit"/);
+  assert.match(ownerHtml, /<p class="of-title-edit"><a href="#of-manage-body" data-of-open="manage">題名を編集<\/a><\/p>/);
   assert.match(ownerHtml, /name="action" value="set_title"/);
   assert.match(ownerHtml, /記録した人が確認/);
   assert.match(ownerHtml, /ナミアゲハ.*ほかの人 2人/);
@@ -1639,7 +1640,8 @@ test("own multi-photo record has no bookmark, pencil, status card or duplicate b
   const main = mainOf(html);
   assert.doesNotMatch(main, /data-zukan-save|of-fab-save|of-saved-control/);
   assert.doesNotMatch(html, /savedFixture/);
-  assert.doesNotMatch(main, /of-title-edit|この記録の状態|obs-processing-status|AIの候補を見る|data-observation-processing-status/);
+  assert.match(main, /class="of-title-edit"/);
+  assert.doesNotMatch(main, /この記録の状態|obs-processing-status|AIの候補を見る|data-observation-processing-status/);
   assert.doesNotMatch(main.split('<details class="of-reading')[0]!, /位置をぼかしています/);
   assert.doesNotMatch(main, /of-meta-place/);
   assert.match(main, /<p class="of-meta-date">2026年9月18日（金）15:20 ・ 写真 3枚<\/p>/);
@@ -1697,4 +1699,436 @@ test("own record order: photo, title, date, thumbnails, found, note, band, place
   const at = marks.map((mark) => html.indexOf(mark));
   assert.ok(at.every((index) => index >= 0), JSON.stringify(at));
   assert.deepEqual([...at].sort((a, b) => a - b), at);
+});
+
+test("record title: named organism, then scene words, then the date, never 自然の記録", () => {
+  const bare = { ...detail, owner: false, observations: [] as ObservationFirstRecordDetail["observations"] };
+  const base = { lang: "ja" as const, note: null, media: [], actionNonce: "nonce-title-rule", observedLabel: "2026年7月28日（火）09:00" };
+  const named = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "ツツジ属" });
+  assert.match(named, /<h1>ツツジ属の記録<\/h1>/);
+  const already = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "アオサギの記録" });
+  assert.match(already, /<h1>アオサギの記録<\/h1>/);
+  const scene = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true, sceneElements: ["water", "low_grass"] });
+  assert.match(scene, /<h1>水面と草むらの記録<\/h1>/);
+  assert.match(scene, /<title>水面と草むらの記録 \| ZUKAN<\/title>/);
+  const long = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true, sceneElements: ["built_surface", "trees_shrubs"] });
+  assert.match(long, /<h1>舗装・構造物の記録<\/h1>/);
+  const dated = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true });
+  assert.match(dated, /<h1>7月28日の記録<\/h1>/);
+  for (const html of [named, already, scene, long, dated]) {
+    assert.doesNotMatch(html, /<h1>自然の記録<\/h1>/);
+    assert.ok((html.match(/<h1>([^<]*)<\/h1>/)?.[1] ?? "").length <= 12);
+  }
+  const undated = renderObservationFirstRecordDetailHtml(bare, { ...base, observedLabel: "", title: "自然の記録", titleIsFallback: true });
+  assert.match(undated, /<h1>新しい記録<\/h1>/);
+  const english = renderObservationFirstRecordDetailHtml(bare, { ...base, lang: "en", observedLabel: "7/28/2026, 09:00", title: "Nature record", titleIsFallback: true });
+  assert.match(english, /<h1>Record of 7\/28<\/h1>/);
+});
+
+test("owner gets a per-photo rotate control in settings; guests do not", () => {
+  const photos = [
+    { mediaId: "asset-a", mediaKind: "photo" as const, url: "https://media.example/a.jpg" },
+    { mediaId: "asset-b", mediaKind: "photo" as const, url: "https://media.example/b.jpg" },
+  ];
+  const owner = renderObservationFirstRecordDetailHtml({ ...detail, owner: true }, { lang: "ja", title: "庭", observedLabel: "2026年7月28日", note: null, media: photos, actionNonce: "nonce-rotate" });
+  const forms = owner.match(/<form class="of-rotate-row"[\s\S]*?<\/form>/g) ?? [];
+  assert.equal(forms.length, 2);
+  assert.match(forms[0]!, /name="action" value="rotate_media"/);
+  assert.match(forms[0]!, /name="media_id" value="asset-a"/);
+  assert.ok(forms[0]!.includes('name="degrees" value="270">左に回す</button>') && forms[0]!.includes('name="degrees" value="90">右に回す</button>'));
+  assert.match(forms[1]!, /name="media_id" value="asset-b"/);
+  const guest = renderObservationFirstRecordDetailHtml({ ...detail, owner: false }, { lang: "ja", title: "庭", observedLabel: "2026年7月28日", note: null, media: photos, actionNonce: "nonce-rotate" });
+  assert.doesNotMatch(guest, /value="rotate_media"|<form class="of-rotate-row"/);
+});
+
+test("record with only a stored name still lists it under 見つかったもの with its status; AI sentence stays omitted without slots", () => {
+  const bare = { ...detail, owner: false, observations: [] as ObservationFirstRecordDetail["observations"] };
+  const base = { lang: "ja" as const, note: null, media: [], actionNonce: "nonce-found", observedLabel: "2026年7月28日（火）09:00", title: "カタバミ属" };
+  const confirmed = renderObservationFirstRecordDetailHtml(bare, base);
+  assert.match(confirmed, /<h1>カタバミ属の記録<\/h1>/);
+  assert.match(confirmed, /<section class="of-found"[\s\S]*?<span class="of-found-name">カタバミ属<\/span><span class="of-found-status is-confirmed">確認済み/);
+  assert.doesNotMatch(confirmed, /data-ai-note/);
+  const proposed = renderObservationFirstRecordDetailHtml(bare, { ...base, titleStatus: "proposed" });
+  assert.match(proposed, /of-found-status is-proposed">提案あり/);
+  const fallback = renderObservationFirstRecordDetailHtml(bare, { ...base, title: "自然の記録", titleIsFallback: true });
+  assert.doesNotMatch(fallback, /<span class="of-found-name">/);
+  assert.match(confirmed, /data-record-owner="0"/);
+  assert.match(renderObservationFirstRecordDetailHtml({ ...bare, owner: true }, base), /data-record-owner="1"/);
+});
+
+const perMediaBase = {
+  title: "川沿いの記録", observedLabel: "2026年11月26日 10:00", note: null, actionNonce: "per-media", viewerAuthenticated: true,
+  environment: { place_type: "water_edge", contact_surface: "artificial", environment_condition: "sunny", surrounding_cover: "low_grass", human_change: "mowing" },
+  aiNote: [{ slot: 1 as const, text: "護岸と草が写っているので、水辺のようすが分かります。" }],
+};
+const perMediaOwnerless: ObservationFirstRecordDetail = { ...detail, owner: false };
+const emptyReadingPlace = () => ({ place_type: null, contact_surface: null, surrounding_cover: null, environment_condition: null, human_change: null });
+const readingMedia = (assetId: string, over: Record<string, unknown> = {}) => ({ assetId, mediaKind: "photo" as const, position: 0, durationMs: null, found: [], place: emptyReadingPlace(), placeRead: false, ...over });
+const readingFeature = (code: string, labelJa: string, over: Record<string, unknown> = {}) => ({ itemId: `f-${code}`, kind: "feature" as const, state: "ai_read" as const, code, labelJa, observationId: null, name: null, locator: { kind: "full" as const }, ...over });
+const readingPlace = (slot: string, code: string, labelJa: string) => ({ itemId: `p-${slot}`, code, labelJa, state: "ai_read" as const, actorKind: "ai", locator: { kind: "full" as const } });
+const readingOf = (media: unknown[], recordLevel: Record<string, unknown> = {}) => ({ recordId: "visit-ui-contract", analyzed: true, media, recordLevel: { found: [], place: emptyReadingPlace(), placeRead: false, ...recordLevel } }) as never;
+const photoMedia = (...ids: string[]) => ids.map((id) => ({ mediaId: id, mediaKind: "photo" as const, url: `https://example.test/${id}.jpg` }));
+
+test("record page per-media: no recordPage or no media is byte-identical to the current page", () => {
+  const media = photoMedia("a1", "a2");
+  const base = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media });
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: null }), base);
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: undefined }), base);
+  const noMediaBase = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: [] });
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: [], recordPage: { reading: readingOf([]), protectedRecord: false } }), noMediaBase);
+  assert.doesNotMatch(base, /data-of-media-panel|<dl class="of-place-fields">/u);
+});
+
+test("record page per-media: two photos render panels in place and the script toggles them with the photo", () => {
+  const reading = readingOf([
+    readingMedia("a1", { found: [readingFeature("building", "建物")], place: { ...emptyReadingPlace(), place_type: readingPlace("place_type", "urban", "まちなか") }, placeRead: true }),
+    readingMedia("a2", { position: 1, found: [readingFeature("grass_patch", "草むら")], place: { ...emptyReadingPlace(), surrounding_cover: readingPlace("surrounding_cover", "low_grass", "低い草") }, placeRead: true }),
+  ]);
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: photoMedia("a1", "a2"), recordPage: { reading, protectedRecord: false } });
+  const panels = [...html.matchAll(/<section class="of-(found|environment)"[^>]*data-of-media-panel="(\d)"([^>]*)>/gu)];
+  assert.deepEqual(panels.map((m) => [m[1], m[2], m[3]!.includes("hidden")]), [["found", "0", false], ["found", "1", true], ["environment", "0", false], ["environment", "1", true]]);
+  assert.match(html, /この写真から見つかったもの/u);
+  const firstPanel = html.indexOf('data-of-media-panel="0"');
+  assert.ok(firstPanel > html.indexOf("of-media-stage") && firstPanel < html.indexOf("<section class=\"of-note\" data-ai-feedback") && html.lastIndexOf('data-of-media-panel="0"') > html.indexOf("<section class=\"of-note\" data-ai-feedback"));
+  assert.match(html, /<span class="of-found-name">建物<\/span>/u);
+  assert.match(html, /<dt>場所の種類<\/dt><dd><span class="of-place-value">まちなか<\/span>/u);
+  assert.match(html, /<dt>周囲<\/dt><dd><span class="of-place-value">低い草<\/span>/u);
+  assert.match(html, /pn\[q\]\.hidden=Number\(pn\[q\]\.getAttribute\('data-of-media-panel'\)\)!==i/u);
+});
+
+test("record page per-media: feature-only video shows both features, place, and the AI sentence for the object class", () => {
+  const media = [{ mediaId: "v1", mediaKind: "video" as const, url: "https://example.test/v1.mp4" }];
+  const reading = readingOf([readingMedia("v1", {
+    mediaKind: "video", durationMs: 9000,
+    found: [readingFeature("revetment", "護岸", { locator: { kind: "time_range", startMs: 0, endMs: 5000 } }), readingFeature("grass_patch", "草むら", { locator: { kind: "time_range", startMs: 5000, endMs: 9000 } })],
+    place: { ...emptyReadingPlace(), place_type: readingPlace("place_type", "water_edge", "水辺") },
+    placeRead: true,
+  })]);
+  const presentation = { ...perMediaBase, media, recordClass: "object", recordPage: { reading, protectedRecord: false } };
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, presentation);
+  assert.match(html, /この動画から見つかったもの/u);
+  assert.equal([...html.matchAll(/<li data-found-kind="feature"/gu)].length, 2);
+  assert.match(html, /0:00–0:05/u);
+  assert.match(html, /<dt>場所の種類<\/dt><dd><span class="of-place-value">水辺<\/span>/u);
+  assert.match(html, /data-ai-note/u);
+  assert.doesNotMatch(html, /建物・人工物/u);
+  assert.doesNotMatch(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...presentation, recordPage: null }), /data-ai-note/u);
+});
+
+test("record page per-media: protected record hides organism time detail", () => {
+  const media = [{ mediaId: "v1", mediaKind: "video" as const, url: "https://example.test/v1.mp4" }];
+  const reading = readingOf([readingMedia("v1", {
+    mediaKind: "video",
+    found: [{ ...readingFeature("revetment", "護岸"), kind: "organism", code: null, labelJa: null, observationId: "obs-x", name: { vernacular: "希少な鳥", scientific: null, rank: "species" }, locator: { kind: "time_range", startMs: 1000, endMs: 4000 } }],
+  })]);
+  const open = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: { reading, protectedRecord: false } });
+  const blocked = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: { reading, protectedRecord: true } });
+  assert.match(open, /0:01–0:04/u);
+  assert.match(blocked, /希少な鳥/u);
+  assert.doesNotMatch(blocked, /<span class="of-found-time">/u);
+});
+
+test("record page per-media: hidden asset readings are never rendered and unread media fall back to the record-level content", () => {
+  const reading = readingOf([
+    readingMedia("hidden", { found: [readingFeature("bridge", "橋")] }),
+    readingMedia("a1", { position: 1, found: [readingFeature("fence", "柵")] }),
+  ]);
+  const html = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media: photoMedia("a1", "a2"), recordPage: { reading, protectedRecord: false } });
+  assert.doesNotMatch(html, /橋/u);
+  assert.match(html, /柵/u);
+  const second = html.match(/<section class="of-found" aria-labelledby="of-summary-title-1" data-of-media-panel="1" hidden>[\s\S]*?<\/section>/u);
+  assert.ok(second);
+  assert.doesNotMatch(second[0], /柵/u);
+  const env = html.match(/<section class="of-environment" aria-labelledby="of-environment-title-1" data-of-media-panel="1" hidden>[\s\S]*?<\/section>/u);
+  assert.ok(env);
+  assert.match(env[0], /<ul class="of-chips">/u);
+});
+
+test("record page per-media: a record with no reading renders the current content inside panels", () => {
+  const media = photoMedia("a1");
+  const plain: ObservationFirstRecordDetail = { ...perMediaOwnerless, observations: perMediaOwnerless.observations.map((card) => ({ ...card, aiSuggestions: card.aiSuggestions.map((item) => ({ ...item, visualEvidence: [] })) })) };
+  const base = renderObservationFirstRecordDetailHtml(plain, { ...perMediaBase, media });
+  const html = renderObservationFirstRecordDetailHtml(plain, { ...perMediaBase, media, recordPage: { reading: null, protectedRecord: false } });
+  assert.match(html, /<ul class="of-chips">/u);
+  assert.doesNotMatch(html, /<dl class="of-place-fields">/u);
+  const strip = (value: string) => value.replace(/ data-of-media-panel="0"/gu, "").replace(/<style>[\s\S]*?<\/style>/u, "").replace(/<script data-of-page-script>[\s\S]*?<\/script>/u, "");
+  assert.equal(strip(html), strip(base));
+});
+
+const whyDetail = (suggestion: Partial<ObservationFirstRecordDetail["observations"][number]["aiSuggestions"][number]>): ObservationFirstRecordDetail => ({
+  ...perMediaOwnerless,
+  observations: perMediaOwnerless.observations.map((card) => card.observationId === "obs-owner" ? { ...card, aiSuggestions: [{ ...card.aiSuggestions[0]!, ...suggestion }] } : card),
+});
+const whyOrganism = (rank: string | null, over: Record<string, unknown> = {}) => ({ ...readingFeature("x", "x"), kind: "organism" as const, code: null, labelJa: null, observationId: "obs-owner", name: { vernacular: "アゲハ類", scientific: null, rank }, ...over });
+const whyReading = (rank: string | null) => readingOf([readingMedia("a1", { found: [whyOrganism(rank), readingFeature("fence", "柵")] })]);
+const whyHtml = (d: ObservationFirstRecordDetail, rank: string | null, extra: Record<string, unknown> = {}) =>
+  renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1"), recordPage: { reading: whyReading(rank), protectedRecord: false }, ...extra });
+
+test("record page rationale: switch off stays byte-identical and renders no details", () => {
+  const media = photoMedia("a1");
+  const off = renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media });
+  assert.doesNotMatch(off, /of-why/u);
+  assert.equal(renderObservationFirstRecordDetailHtml(perMediaOwnerless, { ...perMediaBase, media, recordPage: null }), off);
+});
+
+test("record page rationale: row with evidence renders details with at most two points and feature rows stay plain", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります", "翅の模様が縞状です", "三つ目の根拠です"], shootingAdvice: [] });
+  const html = whyHtml(d, "species");
+  const row = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why"><div class="of-why-row">[\s\S]*?<\/details><\/li>/u);
+  assert.ok(row);
+  assert.match(row[0], /<div class="of-why-row">[\s\S]*<span class="of-found-name">アゲハ類<\/span>[\s\S]*<\/div><details class="of-why"><summary><span class="of-why-peek">見分けた点：尾のような突起があります。翅の模様が縞状です。<\/span><span class="of-why-body"><span class="of-why-label">見分けた点<\/span><span class="of-why-item">尾のような突起があります<\/span><span class="of-why-item">翅の模様が縞状です<\/span><\/span><span class="of-why-more">続きを見る<\/span><span class="of-why-less">閉じる<\/span><\/summary><\/details>/u);
+  assert.match(row[0], /見分けた点/u);
+  assert.equal([...row[0].matchAll(/class="of-why-label"/gu)].length, 1);
+  assert.equal([...row[0].matchAll(/class="of-why-item"/gu)].length, 2);
+  assert.match(row[0], /\.of-why-peek|of-why-peek/u);
+  assert.doesNotMatch(row[0], /三つ目の根拠/u);
+  assert.doesNotMatch(row[0], /ここまでにした理由/u);
+  assert.match(html, /<li data-found-kind="feature" data-ai-candidate="true"><span class="of-found-name">柵<\/span>/u);
+});
+
+test("record page rationale: genus rank shows the reason, species rank hides it", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: ["翅の表側も写すと比べやすくなります"] });
+  const genus = whyHtml(d, "genus");
+  assert.match(genus, /ここまでにした理由[\s\S]*翅の表側も写すと比べやすくなります/u);
+  const species = whyHtml(d, "species");
+  assert.doesNotMatch(species.match(/<details class="of-why">[\s\S]*?<\/details>/u)![0], /ここまでにした理由|翅の表側/u);
+  const next = whyHtml(d, "genus", { aiNextPhoto: "翅の表側も写すと比べやすくなります" });
+  assert.doesNotMatch(next.match(/<details class="of-why">[\s\S]*?<\/details>/u)![0], /ここまでにした理由/u);
+});
+
+test("record page rationale: no evidence renders a plain row", () => {
+  const d = whyDetail({ visualEvidence: [], shootingAdvice: [] });
+  const html = whyHtml(d, "genus");
+  assert.doesNotMatch(html, /<details class="of-why">/u);
+  assert.match(html, /<li data-found-kind="organism" data-ai-candidate="true"><span class="of-found-name">アゲハ類<\/span>/u);
+});
+
+test("record page rationale: row evidence is not repeated in the learning section", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: ["翅の表側も写すと比べやすくなります"] });
+  const html = whyHtml(d, "species");
+  const rowHtml = html.match(/<li data-found-kind="organism"[^>]*class="of-has-why">[\s\S]*?<\/details><\/li>/u)![0];
+  assert.equal(rowHtml.split("尾のような突起があります").length - 1, 2);
+  assert.equal(html.split("尾のような突起があります").length - 1, 2);
+  assert.match(html, /翅の表側も写すと比べやすくなります/u);
+  const off = renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1") });
+  assert.equal(off.split("尾のような突起があります").length - 1, 1);
+});
+
+test("record page rationale: signboard-like evidence is never shown in the row", () => {
+  const d = whyDetail({ visualEvidence: ["案内板の文字が読めます", "尾のような突起があります"], shootingAdvice: [] });
+  const html = whyHtml(d, "species");
+  const body = html.match(/<details class="of-why">[\s\S]*?<\/details>/u)![0];
+  assert.doesNotMatch(body, /案内板/u);
+  assert.match(body, /尾のような突起/u);
+});
+
+test("record page rationale: record-level fallback rows get the same rationale", () => {
+  const d = whyDetail({ visualEvidence: ["尾のような突起があります"], shootingAdvice: [] });
+  const html = renderObservationFirstRecordDetailHtml(d, { ...perMediaBase, media: photoMedia("a1"), recordPage: { reading: null, protectedRecord: false } });
+  assert.match(html, /<li class="of-has-why"><div class="of-why-row"><span class="of-found-name">ナミアゲハ<\/span>/u);
+  assert.equal(html.split("尾のような突起があります").length - 1, 2);
+});
+
+const inlineEditOwner = {
+  ...detail,
+  owner: true,
+  observations: [
+    {
+      ...detail.observations[0]!,
+      acceptedIdentification: { claimId: "acc-ie", actorType: "owner" as const, actorId: "u1", proposalActorType: "owner" as const, proposedName: "キアゲハ", proposedScientificName: null, proposedRank: "species", humanDecision: true as const },
+    },
+  ],
+};
+const inlineEditBase = {
+  lang: "ja" as const,
+  title: "キアゲハ",
+  customTitle: `里山の"チョウ"<b>x</b>`,
+  observedLabel: "2026年11月23日",
+  publicLocationLabel: "静岡県浜松市",
+  note: "",
+  media: [],
+  actionNonce: "nonce-inline-edit",
+};
+
+test("inline edit off leaves owner and guest html unchanged", () => {
+  const ownerDefault = renderObservationFirstRecordDetailHtml(inlineEditOwner, inlineEditBase);
+  const ownerOff = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, inlineEdit: false });
+  assert.equal(ownerOff, ownerDefault);
+  assert.doesNotMatch(ownerOff, /data-of-ie|of-ie-tap|of-ie-form/);
+  assert.match(ownerOff, /<p class="of-title-edit"><a href="#of-manage-body" data-of-open="manage">題名を編集<\/a><\/p>/);
+  assert.match(ownerOff, /<label><span class="of-title-edit-text">題名を編集<\/span><input name="title"/);
+  const guest = { ...inlineEditOwner, owner: false };
+  const guestDefault = renderObservationFirstRecordDetailHtml(guest, inlineEditBase);
+  const guestOn = renderObservationFirstRecordDetailHtml(guest, { ...inlineEditBase, inlineEdit: true });
+  assert.equal(guestOn, guestDefault);
+  assert.doesNotMatch(guestOn, /data-of-ie|of-ie-tap|of-ie-pen/);
+});
+
+test("inline edit on turns title, names and visibility into uniform tap-to-edit items for the owner", () => {
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, inlineEdit: true });
+  assert.doesNotMatch(html, /<p class="of-title-edit">/);
+  const title = html.match(/<div class="of-ie of-ie-title" data-of-ie="title" id="ie-title">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(title, /^<div class="of-ie of-ie-title" data-of-ie="title" id="ie-title"><h1><button type="button" class="of-ie-tap" data-of-ie-open aria-label="題名を編集" aria-expanded="false"><span class="of-ie-text">里山の&quot;チョウ&quot;&lt;b&gt;x&lt;\/b&gt;<\/span><svg class="of-ie-pen"/);
+  assert.match(title, /<form class="of-ie-form" method="post" action="\/api\/v1\/records\/visit-ui-contract\/observation-actions" hidden>/);
+  assert.match(title, /name="action" value="set_title"/);
+  assert.match(title, /name="operation_id" value="nonce-inline-edit-ie-title"/);
+  assert.match(title, /<input name="title" value="里山の&quot;チョウ&quot;&lt;b&gt;x&lt;\/b&gt;" maxlength="120" required/);
+  assert.doesNotMatch(title, /<b>x<\/b>/);
+  const name = html.match(/<div class="of-ie of-ie-row" data-of-ie="name">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(name, /aria-label="キアゲハを編集"/);
+  assert.match(name, /name="action" value="identify"/);
+  assert.match(name, /name="observation_id" value="obs-owner"/);
+  assert.match(name, /name="proposed_name" value="キアゲハ"/);
+  assert.match(html, /<li data-of-ie-row>|<li[^>]* data-of-ie-row/);
+  const visibility = html.match(/<div class="of-ie of-ie-meta" data-of-ie="visibility" id="ie-visibility">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(visibility, /aria-label="公開範囲を編集"/);
+  assert.match(visibility, /name="action" value="set_visibility"/);
+  assert.match(visibility, /<option value="public" selected>/);
+  for (const part of [title, name, visibility]) {
+    for (const marker of ['class="of-ie-tap"', 'data-of-ie-open', 'class="of-ie-pen"', 'class="of-ie-form"', 'class="of-ie-save"', 'data-of-ie-cancel', "保存", "やめる"]) {
+      assert.ok(part.includes(marker), `${marker} missing`);
+    }
+  }
+  assert.match(html, /data-of-page-script[\s\S]*function ieSet\(/);
+  assert.match(html, /\.of-ie-pen\{[^}]*stroke:#8a8f8a/);
+  assert.doesNotMatch(html, /data-title-edit/);
+  assert.doesNotMatch(html, /<h3>題名を編集<\/h3>/);
+  assert.equal(html.split("name=\"action\" value=\"set_title\"").length - 1, 1);
+});
+
+test("inline edit stays off for non-japanese pages", () => {
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, lang: "en", inlineEdit: true });
+  assert.doesNotMatch(html, /data-of-ie|of-ie-tap/);
+});
+
+test("inline edit on: per-media organism rows get the same tap-to-edit pattern, features stay plain", () => {
+  const reading = readingOf([
+    readingMedia("a1", { found: [readingFeature("building", "建物"), { itemId: "o-1", kind: "organism" as const, state: "confirmed" as const, code: null, labelJa: null, observationId: "obs-owner", name: { vernacular: "キアゲハ", scientific: null, rank: "species" }, locator: { kind: "full" as const } }] }),
+  ]);
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditBase, customTitle: null, media: photoMedia("a1"), recordPage: { reading, protectedRecord: false }, inlineEdit: true });
+  const rows = [...html.matchAll(/<div class="of-ie of-ie-row" data-of-ie="name">/gu)];
+  assert.ok(rows.length >= 1);
+  assert.match(html, /aria-label="キアゲハを編集"/u);
+  assert.match(html, /<span class="of-found-name">建物<\/span>/u);
+  assert.doesNotMatch(html, /aria-label="建物を編集"/u);
+});
+
+const inlineEditEnv = { fields: [
+  { field: "place_type", label: "場所", options: [{ value: "water_edge", label: "水辺" }, { value: "unknown", label: "不明" }] },
+  { field: "surrounding_cover", label: "周囲", options: [{ value: "low_grass", label: "低い草地" }, { value: "unknown", label: "不明" }] },
+] };
+const inlineEditRound2 = {
+  ...inlineEditBase,
+  note: "朝の散歩<script>x</script>",
+  environment: { place_type: "water_edge", surrounding_cover: "low_grass" },
+  observedAtIso: "2026-11-23T01:12:00.000Z",
+  inlineEdit: true,
+  inlineEditCorrection: true,
+  inlineEditEnvironment: inlineEditEnv,
+};
+
+test("inline edit round 2: note, observed date and place chips use the same pattern and JSON endpoints", () => {
+  const html = renderObservationFirstRecordDetailHtml(inlineEditOwner, inlineEditRound2);
+  const note = html.match(/<div class="of-ie of-ie-note" data-of-ie="note">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(note, /aria-label="メモを編集"/);
+  assert.match(note, /action="\/api\/v1\/observations\/visit-ui-contract\/corrections" data-of-ie-json="note" hidden/);
+  assert.match(note, /<textarea name="nextValue" rows="4" maxlength="1000" required aria-label="メモ">朝の散歩&lt;script&gt;x&lt;\/script&gt;<\/textarea>/);
+  assert.doesNotMatch(note, /<script>x/);
+  assert.doesNotMatch(note, /name="action"/);
+  const date = html.match(/<div class="of-ie of-ie-meta-date" data-of-ie="observed-at">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(date, /aria-label="撮影日時を編集"/);
+  assert.match(date, /action="\/api\/v1\/occurrences\/visit-ui-contract\/observed-at" data-of-ie-json="observed-at"/);
+  assert.match(date, /<input type="datetime-local" name="observedAtLocal" value="2026-11-23T10:12" required/);
+  const place = html.match(/<div class="of-ie of-ie-place" data-of-ie="place">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+  assert.match(place, /aria-label="この場所のようすを編集"/);
+  assert.match(place, /action="\/api\/v1\/occurrences\/visit-ui-contract\/environment-record" data-of-ie-json="environment-record"/);
+  assert.match(place, /<span class="of-ie-chip">水辺<\/span>/);
+  assert.match(place, /<input type="radio" name="place_type" value="water_edge" checked>/);
+  assert.match(place, /<input type="checkbox" name="surrounding_cover" value="low_grass" checked>/);
+  assert.doesNotMatch(place, /<select/);
+  for (const part of [note, date, place]) {
+    for (const marker of ['class="of-ie-tap"', "data-of-ie-open", 'class="of-ie-pen"', 'class="of-ie-form"', 'class="of-ie-save"', "data-of-ie-cancel", 'class="of-ie-msg"']) {
+      assert.ok(part.includes(marker), `${marker} missing`);
+    }
+  }
+  assert.match(html, /function ieJson\(/);
+  assert.match(html, /\/api\/v1\/occurrences\/[^"]*|environment-record/);
+});
+
+test("inline edit round 2: empty note offers an add row; correction off keeps the plain note", () => {
+  const empty = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, note: "" });
+  assert.match(empty, /<span class="of-ie-placeholder">メモを追加<\/span>/);
+  assert.match(empty, /<textarea name="nextValue"[^>]*>\s*<\/textarea>/);
+  const off = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, inlineEditCorrection: false });
+  assert.doesNotMatch(off, /data-of-ie="note"/);
+  assert.match(off, /<section class="of-note of-photo-note" aria-labelledby="of-note-title"><h2 id="of-note-title">[^<]*<\/h2><p>朝の散歩&lt;script&gt;x&lt;\/script&gt;<\/p><\/section>/);
+});
+
+test("inline edit round 2: title reset moves into the title editor, settings box loses the title form, guests and off-state unchanged", () => {
+  const custom = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, customTitle: "里山のチョウ" });
+  assert.match(custom, /<button type="submit" form="ie-title-reset" formnovalidate class="of-ie-reset">自動の題名に戻す<\/button>/);
+  assert.match(custom, /<form id="ie-title-reset" method="post" action="[^"]*"><input type="hidden" name="action" value="reset_title">/);
+  assert.doesNotMatch(custom, /data-title-edit|<p class="of-title-edit">/);
+  const plain = renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, customTitle: null });
+  assert.doesNotMatch(plain, /ie-title-reset/);
+  const base = { ...inlineEditBase, note: "メモ", environment: { place_type: "water_edge" } };
+  const offOwner = renderObservationFirstRecordDetailHtml(inlineEditOwner, base);
+  assert.match(offOwner, /data-title-edit/);
+  assert.doesNotMatch(offOwner, /data-of-ie|ie-title-reset|datetime-local/);
+  const guest = { ...inlineEditOwner, owner: false };
+  assert.equal(renderObservationFirstRecordDetailHtml(guest, inlineEditRound2), renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null }));
+  assert.equal(renderObservationFirstRecordDetailHtml(guest, base).includes("data-of-ie"), false);
+});
+
+const multiEnvFields = { fields: [
+  { field: "place_type", label: "場所", options: [{ value: "water_edge", label: "水辺" }, { value: "urban", label: "市街地" }, { value: "unknown", label: "不明" }] },
+  { field: "contact_surface", label: "足元", options: [{ value: "soil", label: "土" }, { value: "plant", label: "植物上" }, { value: "unknown", label: "不明" }] },
+  { field: "human_change", label: "人の影響", options: [{ value: "mowing", label: "草刈り" }, { value: "none_visible", label: "目立つ変化なし" }, { value: "unknown", label: "不明" }] },
+] };
+const multiEnvRender = (environment: Record<string, string>, extra: Record<string, unknown> = {}) => renderObservationFirstRecordDetailHtml(inlineEditOwner, { ...inlineEditRound2, environment, inlineEditEnvironment: multiEnvFields, ...extra });
+const multiEnvPlace = (html: string) => html.match(/<div class="of-ie of-ie-place" data-of-ie="place">[\s\S]*?<\/form><\/div>/)?.[0] ?? "";
+
+test("environment multi: read-only chips show every selected label", () => {
+  const guest = { ...inlineEditOwner, owner: false };
+  const html = renderObservationFirstRecordDetailHtml(guest, { ...inlineEditBase, environment: { place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant", human_change: "mowing" } });
+  const chips = html.match(/<ul class="of-chips">[\s\S]*?<\/ul>/)?.[0] ?? "";
+  assert.match(chips, /<li>土の面<\/li>/);
+  assert.match(chips, /<li>植物<\/li>/);
+  assert.match(chips, /<li>草刈りの跡<\/li>/);
+  assert.match(chips, /<li>水辺<\/li>/);
+});
+
+test("environment multi: editor pre-checks from _values and from a legacy single value", () => {
+  const fromValues = multiEnvPlace(multiEnvRender({ place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant" }));
+  assert.match(fromValues, /<input type="checkbox" name="contact_surface" value="soil" checked>/);
+  assert.match(fromValues, /<input type="checkbox" name="contact_surface" value="plant" checked>/);
+  assert.match(fromValues, /<input type="checkbox" name="contact_surface" value="unknown" data-of-ie-excl>/);
+  assert.match(fromValues, /<input type="radio" name="place_type" value="water_edge" checked>/);
+  assert.match(fromValues, /<input type="radio" name="place_type" value="urban"><span>/);
+  assert.match(fromValues, /data-of-ie-group="contact_surface" data-of-ie-pick="many"><legend>足元<\/legend>/);
+  assert.match(fromValues, /data-of-ie-group="place_type" data-of-ie-pick="one"><legend>場所<\/legend>/);
+  assert.match(fromValues, /<input type="checkbox" name="human_change" value="unknown" checked data-of-ie-excl>/);
+  const legacy = multiEnvPlace(multiEnvRender({ place_type: "urban", contact_surface: "plant", human_change: "none_visible" }));
+  assert.match(legacy, /<input type="checkbox" name="contact_surface" value="plant" checked>/);
+  assert.doesNotMatch(legacy, /<input type="checkbox" name="contact_surface" value="soil" checked>/);
+  assert.match(legacy, /<input type="checkbox" name="human_change" value="none_visible" checked data-of-ie-excl>/);
+  assert.doesNotMatch(legacy, /<select/);
+});
+
+test("environment multi: submit script collects arrays per group and exclusivity handler exists", () => {
+  const html = multiEnvRender({ place_type: "water_edge" });
+  assert.match(html, /querySelectorAll\('\[data-of-ie-group\]'\)/);
+  assert.match(html, /'many'\?\(ar\.length\?ar:\['unknown'\]\)/);
+  assert.match(html, /addEventListener\('change'/);
+});
+
+test("environment multi: switch off and non-owner output stay free of the editor", () => {
+  const off = multiEnvRender({ place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant" }, { inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null });
+  assert.doesNotMatch(off, /data-of-ie-group|of-ie-opt"/);
+  const guest = { ...inlineEditOwner, owner: false };
+  const env = { place_type: "water_edge", contact_surface: "soil", contact_surface_values: "soil,plant" };
+  assert.equal(
+    renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, environment: env, inlineEditEnvironment: multiEnvFields }),
+    renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, environment: env, inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null }),
+  );
 });

@@ -315,6 +315,12 @@ test("place detail reaches the mock layout: photo hero, record and save buttons,
   assert.match(html, /リンクを知っている人は、このページを見られます。/);
 });
 
+test("place detail CTA row wraps into equal columns so the primary label stays on one line at 375px", () => {
+  const html = renderGlobalPlaceDetailPage({ profile: profileWithRecords(3), lang: "ja", viewerAuthenticated: false });
+  assert.ok(html.includes(".gpd-cta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))"));
+  assert.ok(!html.includes(".gpd-cta{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}"));
+});
+
 test("place detail with no records shows the invitation instead of zero counts", () => {
   const html = renderGlobalPlaceDetailPage({ profile: profileWithRecords(0), lang: "ja", viewerAuthenticated: false });
   assert.match(html, /この場所の記録は、まだありません/);

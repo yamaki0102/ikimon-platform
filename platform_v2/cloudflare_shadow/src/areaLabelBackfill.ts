@@ -50,8 +50,12 @@ LEFT JOIN readmodel_public_observations r ON r.observation_id = o.observation_id
 LEFT JOIN civic_observation_contexts c ON c.visit_id = o.observation_id
 ORDER BY o.observation_id`;
 
-export const AREA_BACKFILL_SENSITIVE_SQL = `SELECT t.name_key, t.tier FROM gbif_sensitive_taxa t
-WHERE t.list_version = (SELECT list_version FROM gbif_sensitive_list_versions WHERE status = 'active' LIMIT 1)`;
+export const AREA_BACKFILL_ACTIVE_LIST_VERSION_SQL =
+  "SELECT list_version FROM gbif_sensitive_list_versions WHERE status = 'active' LIMIT 1";
+
+export function buildAreaBackfillSensitiveTaxaSql(listVersion: string): string {
+  return `SELECT name_key, tier FROM gbif_sensitive_taxa WHERE list_version = '${listVersion.replace(/'/g, "''")}'`;
+}
 
 const isEmpty = (value: string | null | undefined): boolean => !value || value.trim() === "";
 

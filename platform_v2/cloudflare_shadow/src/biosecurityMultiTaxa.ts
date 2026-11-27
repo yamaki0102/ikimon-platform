@@ -36,6 +36,8 @@ export const VISIBLE_TAXA: readonly TaxonOption[] = [
   { id: "rosaceae", rank: "family", scientificName: "Rosaceae", label: "バラ科", parentId: null, distinguishingHint: "Plants with identifiable Rosaceae botanical characters" },
   { id: "prunus", rank: "genus", scientificName: "Prunus", label: "サクラ属", parentId: "rosaceae", distinguishingHint: "Cherries, plums and relatives, where leaves or flowers are visible" },
   { id: "poaceae", rank: "family", scientificName: "Poaceae", label: "イネ科", parentId: null, distinguishingHint: "Grasses with visible grass-like morphology" },
+  { id: "amaranthaceae", rank: "family", scientificName: "Amaranthaceae", label: "ヒユ科", parentId: null, distinguishingHint: "Amaranth family plants" },
+  { id: "alternanthera", rank: "genus", scientificName: "Alternanthera", label: "ツルノゲイトウ属", parentId: "amaranthaceae", distinguishingHint: "Alligator weeds; white globular flower heads, opposite leaves, often forming mats on water; lookalikes exist, require visible flower stalk" },
   { id: "aves", rank: "class", scientificName: "Aves", label: "鳥類", parentId: null, distinguishingHint: "Living birds" },
 ] as const;
 

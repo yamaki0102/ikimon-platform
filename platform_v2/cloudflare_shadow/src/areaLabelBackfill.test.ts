@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
+  AREA_BACKFILL_ACTIVE_LIST_VERSION_SQL,
+  buildAreaBackfillSensitiveTaxaSql,
   buildAreaBackfillSql,
   buildAreaPreviewCsv,
   cellLocalityFromNominatim,
@@ -119,4 +122,19 @@ test("プレビューCSVと集計", () => {
   assert.equal(s.filled, 1);
   assert.equal(s.skipped, 1);
   assert.equal(s.byPrefecture["沖縄県"], 1);
+});
+
+test("希少種リスト取得SQLが gbif_sensitive_list_versions と gbif_sensitive_taxa の実列だけで動く", (t) => {
+  const db = new DatabaseSync(":memory:");
+  t.after(() => db.close());
+  db.exec(`
+    CREATE TABLE gbif_sensitive_list_versions (list_version TEXT PRIMARY KEY, status TEXT NOT NULL);
+    CREATE TABLE gbif_sensitive_taxa (list_version TEXT NOT NULL, name_key TEXT NOT NULL, tier TEXT NOT NULL);
+    INSERT INTO gbif_sensitive_list_versions (list_version, status) VALUES ('v1', 'active');
+    INSERT INTO gbif_sensitive_taxa (list_version, name_key, tier) VALUES ('v1', 'yanbarukuina', 'coarse');
+  `);
+  const ver = db.prepare(AREA_BACKFILL_ACTIVE_LIST_VERSION_SQL).get() as { list_version: string } | undefined;
+  assert.equal(ver?.list_version, "v1");
+  const taxa = db.prepare(buildAreaBackfillSensitiveTaxaSql(ver!.list_version)).all() as Array<{ name_key: string; tier: string }>;
+  assert.deepEqual(taxa.map((r) => ({ name_key: r.name_key, tier: r.tier })), [{ name_key: "yanbarukuina", tier: "coarse" }]);
 });
