@@ -459,6 +459,7 @@ async function renderLlmsFull(app) {
 
 async function renderStaticAsset(app, pathname) {
   if (pathname === "/llms-full.txt") return renderLlmsFull(app);
+  if (pathname === recordPageScriptAsset().path) return { statusCode: 200, headers: { "content-type": recordPageScriptAsset().contentType }, rawPayload: recordPageScriptAsset().content };
   if (faceDetectorStaticAssetPaths.includes(pathname)) {
     // Byte-exact copies of the committed MediaPipe face detector files.
     const rawPayload = await readFile(join(repoRoot, "upload_package", "public_html", pathname.slice(1)));
