@@ -68,6 +68,7 @@ export async function loadStoredAiNote(db: NoteDb, recordId: string): Promise<{ 
 export type LoadVisibleAiNoteOptions = {
   isOwner: boolean;
   protectedRecord: boolean | (() => Promise<boolean>);
+  ownerUserId?: string | null;
   taxonNotes?: readonly TaxonNote[];
   counts?: readonly AiNoteCountFact[] | (() => Promise<readonly AiNoteCountFact[]>);
 };
@@ -78,9 +79,29 @@ export async function loadVisibleAiNote(
   options: LoadVisibleAiNoteOptions,
 ): Promise<{ slots: VisibleAiNoteSlot[]; claimedStale: AiNoteSlotNo[]; ownerUserId: string | null }> {
   const stored = await loadStoredAiNote(db, recordId);
-  const none = { slots: [], claimedStale: [], ownerUserId: stored.ownerUserId };
-  if (stored.slots.length === 0) return none;
+  const resolvedOwnerId = stored.ownerUserId ?? options.ownerUserId ?? null;
+  const none = { slots: [], claimedStale: [], ownerUserId: resolvedOwnerId };
   if (typeof options.protectedRecord === "function" ? await options.protectedRecord() : options.protectedRecord) return none;
+  if (stored.slots.length === 0) {
+    if (!resolvedOwnerId) return none;
+    const reading = await readRecordReading(d1ReadingQuery(db as unknown as Parameters<typeof d1ReadingQuery>[0]), recordId);
+    const evidence = buildAiNoteEvidence(reading, { taxonNotes: options.taxonNotes });
+    if (!reading.analyzed || !evidence.some((item) => item.capture)) return none;
+    const claimId = await deterministicUuid(`record-ai-note-row:${recordId}:1`);
+    const claim = await db.prepare(
+      `INSERT INTO record_ai_notes (note_id, record_runtime, record_id, owner_user_id, slot, rule_version, generation_id, text_ja, evidence_json, invite_kind, model, status)
+       VALUES (?, 'cloudflare_d1', ?, ?, 1, ?, 'pending-claim', '再生成待機中', '[]', NULL, '', 'stale')
+       ON CONFLICT(record_runtime, record_id, slot) DO UPDATE SET
+         owner_user_id = excluded.owner_user_id,
+         rule_version = excluded.rule_version,
+         generation_id = excluded.generation_id,
+         status = 'stale',
+         updated_at = CURRENT_TIMESTAMP
+       WHERE (rule_version <> excluded.rule_version)
+          OR (status = 'stale' AND updated_at < datetime('now', '${AI_NOTE_RETRY_AFTER_SQL}'))`,
+    ).bind(claimId, recordId, resolvedOwnerId, AI_NOTE_RULE_VERSION).run() as { meta?: { changes?: number } } | undefined;
+    return { slots: [], claimedStale: (claim?.meta?.changes ?? 0) > 0 ? [1] : [], ownerUserId: resolvedOwnerId };
+  }
   const reading = await readRecordReading(d1ReadingQuery(db as unknown as Parameters<typeof d1ReadingQuery>[0]), recordId);
   const needsCounts = stored.slots.some((slot) => slot.evidence.some((ref) => ref.id.startsWith("count:")));
   const counts = typeof options.counts === "function" ? (needsCounts ? await options.counts().catch(() => []) : []) : options.counts;
