@@ -566,6 +566,10 @@ export function renderLibraryV2Page(options: {
     .filter((v) => Date.parse(v.endedAt) >= recentCutoff)
     .flatMap((v) => v.observationIds)
     .slice(0, 6);
+  const freshCutoff = Date.now() - 20 * 60 * 1000;
+  const freshIds = options.visits
+    .filter((v) => Date.parse(v.endedAt) >= freshCutoff)
+    .flatMap((v) => v.observationIds);
 
   const body = `<div class="zv2l-col" data-library-v2="1">
     <div class="zv2l-headbar">
@@ -599,8 +603,9 @@ export function renderLibraryV2Page(options: {
     (function(){
       var box = document.getElementById('zv2l-sync');
       var retryHref = ${JSON.stringify(`${prefix}/record?draft=1`).replace(/</g, "\\u003c")};
-      var L = ${JSON.stringify(isEn ? { retry: "Send again", failed: " could not be sent", sending: " sending", kept: "Your photos are still on this device.", auto: "They will be sent automatically when you are back online." } : { retry: "もう一度送る", failed: "件を送れませんでした", sending: "件を送っています", kept: "写真はこの端末に残っています。", auto: "通信が戻ると自動で送られます。" }).replace(/</g, "\u003c")};
+      var L = ${JSON.stringify(isEn ? { retry: "Send again", failed: " could not be sent", sending: " sending", kept: "Your photos are still on this device.", auto: "They will be sent automatically when you are back online.", finishing: "Preparing your photo. This takes a moment." } : { retry: "もう一度送る", failed: "件を送れませんでした", sending: "件を送っています", kept: "写真はこの端末に残っています。", auto: "通信が戻ると自動で送られます。", finishing: "写真を仕上げています。少しお待ちください。" }).replace(/</g, "\u003c")};
       var recentIds = ${JSON.stringify(recentIds).replace(/</g, "\\u003c")};
+      var freshIds = ${JSON.stringify(freshIds)};
       function readOutbox(cb){
         var done = false;
         function fin(v){ if (!done) { done = true; cb(v); } }
@@ -627,9 +632,9 @@ export function renderLibraryV2Page(options: {
             .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
         })).then(function(rs){
           var sending = 0, failed = 0;
-          rs.forEach(function(r){
+          rs.forEach(function(r, i){
             var m = r && r.status && r.status.mediaState;
-            if (m === 'processing') sending++; else if (m === 'retry_required') failed++;
+            if (m === 'processing' && freshIds.indexOf(recentIds[i]) >= 0) sending++; else if (m === 'retry_required') failed++;
           });
           cb({ sending: sending, failed: failed });
         }).catch(function(){ cb({ sending: 0, failed: 0 }); });
@@ -649,7 +654,7 @@ export function renderLibraryV2Page(options: {
         }
         box.innerHTML = html;
         box.querySelector('strong').textContent = failed ? failed + L.failed : sending + L.sending;
-        box.querySelector('span').textContent = failed ? L.kept : L.auto;
+        box.querySelector('span').textContent = failed ? L.kept : (dQueued ? L.auto : L.finishing);
         box.hidden = false;
       }
       function refresh(){
