@@ -28,7 +28,7 @@ function setup(t: test.TestContext) {
   t.after(() => s.close());
   s.exec(`
     CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, locality_label TEXT);
-    CREATE TABLE observation_event_sessions (session_id TEXT, title TEXT, started_at TEXT);
+    CREATE TABLE observation_event_sessions (session_id TEXT, title TEXT, started_at TEXT, ended_at TEXT, field_id TEXT, event_code TEXT);
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, taxon_label TEXT, observed_at TEXT, visibility TEXT, emergency_hidden INTEGER DEFAULT 0, public_area_label TEXT, owner_user_id TEXT, created_at TEXT);
     CREATE TABLE asset_ledger (asset_id TEXT, observation_id TEXT, exif_scrub_state TEXT);
     CREATE TABLE record_place_memberships (record_id TEXT, place_id TEXT, membership_state TEXT, public_precision TEXT, removed_at TEXT);
@@ -46,7 +46,8 @@ function setup(t: test.TestContext) {
   add("d", "2025-10-05T01:00:00Z", "public", "p2");
   add("e", "2026-11-18T01:00:00Z", "private", "p1");
   add("f", "2026-11-18T01:00:00Z", "public", "p3");
-  s.exec("INSERT INTO asset_ledger VALUES ('t1','a','scrubbed'),('t1','b','scrubbed')");
+  s.exec("INSERT INTO asset_ledger VALUES ('t1','a','scrubbed'),('t1','b','scrubbed'),('t2','c','scrubbed')");
+  s.exec("INSERT INTO observation_event_sessions VALUES ('s1','みなと通り 朝市','2026-11-16',NULL,'p1','E1'),('s2','別の場所の祭り','2026-11-17',NULL,'p1','E2')");
   return wrap(s);
 }
 
@@ -61,6 +62,19 @@ test("default is latest month grouped by public places with counts", async (t) =
   assert.match(h, /東川の河川敷/);
   assert.doesNotMatch(h, /非公開/);
   assert.match(h, /場所 2件・記録 3件/);
+  assert.equal((h.match(/\/thumb\/400\/t1/g) ?? []).length, 1);
+});
+
+test("photo strips: grouped by day/event, max 3 per group, no duplicates, public only, capped", async (t) => {
+  const db = setup(t);
+  const h = await html("https://x/ja/search/seasons", db);
+  assert.match(h, /data-search-v2-group="photos"/);
+  assert.match(h, /11月16日（月） ・ みなと通り 朝市/);
+  assert.match(h, /11月17日（火）<\/h3>/);
+  assert.doesNotMatch(h, /別の場所の祭り/);
+  assert.match(h, /\/thumb\/400\/t2/);
+  assert.match(h, /href="\/ja\/observations\/b"/);
+  assert.doesNotMatch(h, /observations\/e"/);
   assert.equal((h.match(/\/thumb\/400\/t1/g) ?? []).length, 1);
 });
 
