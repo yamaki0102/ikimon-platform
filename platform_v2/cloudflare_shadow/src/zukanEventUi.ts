@@ -157,7 +157,7 @@ export const ZUKAN_EVENT_CSS = `
 .ze-btn.is-outline,.ze-btn.is-outline:visited{background:#fff;color:#143F2E;box-shadow:none}
 .ze-section h2{margin:0 0 12px;font-size:1.25rem}
 .ze-dot{display:flex;align-items:center;gap:8px;margin:0;font-weight:700;color:#143F2E}.ze-dot::before{content:"";width:8px;height:8px;border-radius:50%;background:#2f8f63}
-.ze-empty{margin:0;padding:24px 16px;border:1px solid #dde2dc;border-radius:20px;text-align:center;color:#55615a;background:#fff;line-height:1.7}
+.ze-empty{margin:0;padding:24px 16px;border:1px solid #dde2dc;border-radius:20px;text-align:center;color:#55615a;background:#fff;line-height:1.7;text-wrap:balance}
 .ze-box{margin:0;padding:16px 18px;border-radius:16px;background:#f5f6f2;line-height:1.8}
 .ze-summary{display:flex;align-items:center;gap:14px;padding-bottom:16px;border-bottom:1px solid #dde2dc}
 .ze-summary-thumb{flex:none;width:64px;height:64px;border-radius:14px;background:linear-gradient(150deg,#2a6b4f,#143F2E)}

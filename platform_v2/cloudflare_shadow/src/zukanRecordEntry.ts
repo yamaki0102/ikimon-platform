@@ -60,6 +60,7 @@ export type RecordCaptureCopy = {
   memoDone: string;
   discardConfirm: string;
   sideCaption: string;
+  autoHint: string;
   saveFailed: string;
   dateFormat: string;
 };
@@ -123,6 +124,7 @@ export function recordCaptureCopy(lang: RecordCaptureLang): RecordCaptureCopy {
       memoDone: "閉じる",
       discardConfirm: "撮った写真は記録されていません。閉じますか？（この端末に下書きとして残ります）",
       sideCaption: "撮った写真は束でたまります。「記録する」でまとめて保存できます。",
+      autoHint: "場所と日時は自動で付きます",
       saveFailed: "まだ保存されていません。もう一度「記録する」を押してください。",
       dateFormat: "{m}月{d}日 {h}:{mi}",
     };
@@ -184,6 +186,7 @@ export function recordCaptureCopy(lang: RecordCaptureLang): RecordCaptureCopy {
     memoDone: "Close",
     discardConfirm: "These photos are not recorded yet. Close anyway? (They stay on this device as a draft.)",
     sideCaption: "Photos stack up. Save them together as one record.",
+    autoHint: "Place and time are added automatically",
     saveFailed: "Not saved yet. Press Save again.",
     dateFormat: "{m}/{d} {h}:{mi}",
   };
@@ -289,6 +292,7 @@ export const ZUKAN_RECORD_ENTRY_STYLES = `
   .zt-cap[data-zukan-capture-stage] .zt-cap-shutter:active .zt-cap-shutter-dot{transform:scale(.9)}
   .zt-cap[data-zukan-capture-stage] .zt-cap-shutter[aria-pressed="true"] .zt-cap-shutter-dot{background:#dc2626;border-radius:14px;transform:scale(.62)}
   .zt-cap[data-live="false"] .zt-cap-shutter{opacity:.8}
+  .zt-cap[data-zukan-capture-stage] .zt-cap-auto-hint{order:10;margin:14px 0 0;font-size:12px;line-height:1.6;color:#b8c9bc;text-align:center}
   .zt-cap[data-zukan-capture-stage] .zt-cap-side-caption{display:none;margin:0;font-size:12px;line-height:1.6;color:#b8c9bc}
   .zt-cap[data-zukan-capture-stage] .zt-cap-card{position:absolute;left:21px;right:21px;top:50%;z-index:4;max-width:420px;margin:0 auto;transform:translateY(-58%);padding:22px;border-radius:20px;background:#fff;color:#17211b;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.4)}
   .zt-cap[data-zukan-capture-stage] .zt-cap-card-main{margin:0 0 10px;font-size:19px;line-height:1.45;font-weight:800}
@@ -373,6 +377,7 @@ export const ZUKAN_RECORD_ENTRY_STYLES = `
     .zt-cap[data-zukan-capture-stage] .zt-cap-bundle[hidden]~.zt-cap-controls{margin-top:auto}
     .zt-cap[data-zukan-capture-stage] .zt-cap-side{justify-self:center}
     .zt-cap[data-zukan-capture-stage] .zt-cap-side-caption{display:block;order:9;margin-top:24px}
+    .zt-cap[data-zukan-capture-stage] .zt-cap-auto-hint{display:none}
     .zt-cap[data-zukan-capture-stage] .zt-cap-top{padding-right:14px}
   }
   @media (prefers-reduced-motion:reduce){
@@ -470,6 +475,7 @@ export function renderRecordEntryStageHtml(options: {
         <button type="button" class="zt-cap-side is-memo" data-zt-memo-open>${ICON_MEMO}<span>${e(c.memo)}</span><span class="zt-cap-memo-dot" data-zt-memo-dot hidden></span></button>
       </div>
       <p class="zt-cap-side-caption">${e(c.sideCaption)}</p>
+      <p class="zt-cap-auto-hint" data-zt-auto-hint>${e(c.autoHint)}</p>
       <label class="zt-cap-inputs" aria-hidden="true"><input id="record-media-video-camera" type="file" accept="video/*" capture="environment" tabindex="-1"></label>
     </div>
     <div class="zt-cap-review" data-zt-review hidden>

@@ -126,3 +126,9 @@ test("record page keeps the macro engine byte-for-byte: constraints, focus fallb
   assert.ok(engine.includes("const CAMERA_PHOTO_IDEAL_HEIGHT = 1920;"));
   assert.ok(engine.includes("streamHasCloseupFocusMode"));
 });
+
+test("capture stage shows the auto place/time hint on mobile only", () => {
+  const html = STAGE();
+  assert.match(html, /data-zt-auto-hint>場所と日時は自動で付きます</);
+  assert.match(ZUKAN_RECORD_ENTRY_STYLES, /\.zt-cap-auto-hint\{display:none\}/);
+});

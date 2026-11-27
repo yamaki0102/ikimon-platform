@@ -42,6 +42,9 @@ export const ZUKAN_LIBRARY_DETAIL_CSS = `
     .zd-ymeta small{display:block;color:var(--muted);font-size:14px}
     .zd-ychev{color:var(--control,#8a948d);font-size:26px;line-height:1}
     .zd-empty{padding:32px 0;color:var(--muted);font-size:16px;line-height:1.8}
+    .zd-zero{display:grid;justify-items:center;gap:16px;padding:32px 0;text-align:center}
+    .zd-zero p{margin:0;max-width:320px;color:var(--muted);font-size:16px;line-height:1.8;text-wrap:balance}
+    .zd-zero a,.zd-zero a:visited{min-height:52px;display:inline-flex;align-items:center;justify-content:center;padding:0 32px;border-radius:999px;background:var(--green);color:#fff;font-size:17px;font-weight:700;text-decoration:none;white-space:nowrap}
     @media(min-width:960px){.zd-yrows{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 28px}}
 `;
 
@@ -133,8 +136,7 @@ export function renderLibraryYearAgoListPage(
     .join("");
   const body = `<section data-library-year-ago-list="1">
     ${head(isEn ? "This place, a year ago" : "1年前のこの場所", `${prefix}/library`, isEn)}
-    <p class="zd-lead">${isEn ? "Same places, last year and this year." : "同じ場所の、去年と今年の写真です。場所に時間がたまっているのが分かります。"}</p>
-    ${rows ? `<ul class="zd-yrows">${rows}</ul>` : `<p class="zd-empty">${isEn ? "A place appears here once you have photos from a year apart." : "1年あいだをあけて同じ場所で撮ると、ここに並びます。"}</p>`}
+    ${rows ? `<p class="zd-lead">${isEn ? "Same places, last year and this year." : "同じ場所の、去年と今年の写真です。場所に時間がたまっているのが分かります。"}</p><ul class="zd-yrows">${rows}</ul>` : `<div class="zd-zero" data-year-ago-empty="1"><p>${isEn ? "A place appears here once you have photos from a year apart." : "同じ場所で1年あいだをあけて撮ると、去年と今年の写真がここに並びます。"}</p><a href="${esc(`${prefix}/record`)}">${isEn ? "Capture" : "撮る"}</a></div>`}
   </section>`;
   return renderZukanCommonShell({
     lang: options.lang,
