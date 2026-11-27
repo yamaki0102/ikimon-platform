@@ -1,3 +1,4 @@
+import { recordPageScriptAsset } from "./recordPageScriptAsset";
 import assert from "node:assert/strict";
 import test from "node:test";
 import worker, { renderCloudflareRecordHtml } from "./index";
@@ -147,7 +148,7 @@ test("renderCloudflareRecordHtml includes C4-C6 place and datetime controls", ()
     { userId: "user_c4_c6", displayName: "テスター", banned: false } as any,
     new URL("https://ikimon.life/ja/record"),
     "test-nonce"
-  );
+  ) + recordPageScriptAsset().content.toString("utf8");
   assert.match(html, /data-record-place-time="c4-c5-c6"/);
   assert.match(html, /\/api\/v1\/record\/places\/nearby/);
   assert.match(html, /id="record-observed-at"/);

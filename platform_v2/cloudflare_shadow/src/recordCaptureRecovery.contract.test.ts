@@ -6,6 +6,9 @@ import test from "node:test";
 const indexSource = readFileSync(
   fileURLToPath(new URL("./index.ts", import.meta.url)),
   "utf8",
+) + readFileSync(
+  fileURLToPath(new URL("./recordPageScriptAsset.ts", import.meta.url)),
+  "utf8",
 );
 const entrySource = readFileSync(
   fileURLToPath(new URL("./zukanRecordEntry.ts", import.meta.url)),

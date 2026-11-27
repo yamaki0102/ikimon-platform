@@ -1,3 +1,4 @@
+import { recordPageScriptAsset } from "./recordPageScriptAsset";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
@@ -73,7 +74,9 @@ test("unavailable records are not reported as an empty collection", () => {
 });
 
 test("native capture has no fabricated coordinates and its browser script parses", () => {
-  const html = renderCloudflareRecordHtml({ userId: "fixture", displayName: "fixture" } as never, new URL("https://zukan.earth/ja/record"), "fixture");
+  const pageHtml = renderCloudflareRecordHtml({ userId: "fixture", displayName: "fixture" } as never, new URL("https://zukan.earth/ja/record"), "fixture");
+  const assetScript = recordPageScriptAsset().content.toString("utf8");
+  const html = pageHtml + assetScript;
   assert.match(html, /--zukan-action-primary:#143f2e/);
   assert.match(html, /--zukan-focus-outline:#087f7c/);
   assert.match(html, /--ink:var\(--zukan-text-primary\)/);
@@ -90,5 +93,7 @@ test("native capture has no fabricated coordinates and its browser script parses
   assert.match(html, /setStatus\(copy\.saved \+ " " \+ files\.length \+ copy\.photoSaved/);
   assert.doesNotMatch(html, /lang === "ja" \? copy\.saved/);
   assert.doesNotMatch(html, /value="34\.710800"|value="137\.726100"/);
-  for (const match of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]!);
+  for (const match of pageHtml.matchAll(/<script\b(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]!);
+  new vm.Script(assetScript);
+  assert.match(pageHtml, /<script src="\/assets\/ui\/record-page\.[a-f0-9]{12}\.js" defer><\/script>/);
 });

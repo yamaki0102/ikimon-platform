@@ -34,6 +34,7 @@ import {
 } from "../../src/ui/mapExplorerAssets.ts";
 import { globalRecordEntryAsset } from "../../src/ui/siteShell.ts";
 import { placeYearBandAsset } from "../../src/ui/placeYearBandScript.ts";
+import { recordPageScriptAsset } from "../src/recordPageScriptAsset.ts";
 
 const productionApproval = "APPROVE_IKIMON_CF_PRODUCTION_WORKER_DEPLOY";
 const stagingApproval = "APPROVE_IKIMON_CF_STAGING_WORKER_DEPLOY";
@@ -307,6 +308,7 @@ const staticAssetPaths = [
   mapExplorerDeferredStylesAsset().path,
   globalRecordEntryAsset().path,
   placeYearBandAsset().path,
+  recordPageScriptAsset().path,
   MAPLIBRE_SELF_HOSTED_JS.path,
   MAPLIBRE_SELF_HOSTED_CSS.path,
   ...MAP_GLYPH_SUBSET_ASSET_LIST.map((asset) => asset.path),

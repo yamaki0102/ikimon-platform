@@ -1,3 +1,4 @@
+import { recordPageScriptAsset } from "./recordPageScriptAsset";
 import assert from "node:assert/strict";
 import test from "node:test";
 import worker, { renderCloudflareRecordHtml } from "./index";
@@ -92,7 +93,7 @@ test("renderCloudflareRecordHtml puts the memo and voice mic in the capture stag
     { userId: "user_c3_c11_c12", displayName: "テスター", banned: false } as any,
     new URL("https://ikimon.life/ja/record"),
     "test-nonce"
-  );
+  ) + recordPageScriptAsset().content.toString("utf8");
   assert.match(html, /data-zt-memo-open/);
   assert.doesNotMatch(html, /data-record-mode-bar=/);
   assert.match(html, /data-voice-mic-target/);
