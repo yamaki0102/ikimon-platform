@@ -421,6 +421,7 @@ import {
   renderRecordDoneCardHtml,
   renderRecordLinkSelectorHtml,
 } from "./zukanRecordLinkAndDone";
+import { ZUKAN_RECORD_MEMO_ONLY_SCRIPT, ZUKAN_RECORD_MEMO_ONLY_STYLES, renderRecordMemoOnlyHtml } from "./zukanRecordMemoOnly";
 import { ZUKAN_RECORD_CAPTURE_SCRIPT, ZUKAN_RECORD_ENTRY_STYLES, recordCaptureCopy, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { observationFirstRecordDetailCopy, type ObservationRecordLang } from "./observationFirstRecordDetailI18n";
 import { handleZukanShareAndUnlinkRoute } from "./zukanShareAndUnlink";
@@ -23269,6 +23270,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
     ${ZUKAN_RECORD_INPUT_STYLES}
     ${ZUKAN_RECORD_LINK_DONE_STYLES}
     ${ZUKAN_RECORD_ENTRY_STYLES}
+    ${ZUKAN_RECORD_MEMO_ONLY_STYLES}
   </style>
 </head>
 <body class="zt-capturing" data-zukan-app-experience="v1" data-record-start="${escapeHtml(startMode)}" data-event-code="${escapeHtml(eventCode)}" data-event-session-id="${escapeHtml(eventSessionId)}" data-event-team-id="${escapeHtml(eventTeamId)}" data-event-participant-role="${escapeHtml(eventParticipantRole)}">
@@ -23282,6 +23284,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       startMode,
       voiceButtonHtml: renderRecordVoiceButtonHtml({ targetSelector: 'textarea[name="note"]', lang })
     })}
+    ${renderRecordMemoOnlyHtml({ lang, prefix, userId: session.userId })}
     ${renderRecordCaptureEngineAssets("", captureEngineLang)}
     <form id="record-form" class="cf-record-form" data-user-id="${escapeHtml(session.userId)}" hidden>
       <section id="record-photo-review" class="cf-record-photo-review" aria-label="${escapeHtml(mediaCopy.reviewPhotos)}" hidden><h2 class="cf-record-photo-heading"><span>${escapeHtml(mediaCopy.reviewPhotos)}</span><span id="record-photo-count" aria-live="polite"></span></h2><div id="record-photo-grid" class="cf-record-photo-grid"></div><button type="button" id="record-add-photo" class="cf-record-add">${escapeHtml(mediaCopy.addPhoto)}</button></section>
@@ -23332,6 +23335,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
   ${FACE_PRIVACY_CLIENT_SCRIPT}
   ${ZUKAN_RECORD_PLACE_TIME_SCRIPT}
   ${ZUKAN_RECORD_INPUT_SCRIPT}
+  ${ZUKAN_RECORD_MEMO_ONLY_SCRIPT}
   </script>
   <script nonce="${escapeHtml(cspNonce)}">
   (() => {
