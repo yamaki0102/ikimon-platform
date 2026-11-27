@@ -364,7 +364,33 @@ ${ZUKAN_SHELL_CSS}
 .iv-tstate{margin:8px 2px 0;font-size:13.5px;color:var(--muted);min-height:20px}
 `;
 
+export type SeoMeta = { title: string; description: string; origin: string; suffix: string; image?: string | null; ogType?: string };
+
+export const SEO_DEFAULT_ORIGIN = "https://zukan.earth";
+
+export function seoHeadHtml(seo: SeoMeta, lang: SiteLang): string {
+  const origin = seo.origin.replace(/\/+$/, "");
+  const url = (l: string): string => `${origin}${l === "ja" ? "/ja" : `/${l}`}${seo.suffix}`;
+  const image = seo.image ? (/^https?:\/\//.test(seo.image) ? seo.image : seo.image.startsWith("/") ? `${origin}${seo.image}` : "") : "";
+  const m = (k: string, v: string, attr = "name"): string => `<meta ${attr}="${k}" content="${esc(v)}" />`;
+  return [
+    m("description", seo.description),
+    `<link rel="canonical" href="${esc(url(lang))}" />`,
+    `<link rel="alternate" hreflang="ja" href="${esc(url("ja"))}" />`,
+    `<link rel="alternate" hreflang="en" href="${esc(url("en"))}" />`,
+    `<link rel="alternate" hreflang="x-default" href="${esc(url("ja"))}" />`,
+    m("og:site_name", "ZUKAN", "property"),
+    m("og:type", seo.ogType ?? "website", "property"),
+    m("og:title", seo.title, "property"),
+    m("og:description", seo.description, "property"),
+    m("og:url", url(lang), "property"),
+    ...(image ? [m("og:image", image, "property")] : []),
+    m("twitter:card", image ? "summary_large_image" : "summary"),
+  ].join("\n  ");
+}
+
 export function shell(options: {
+  seo?: SeoMeta;
   extraCss?: string;
   title: string;
   lang: "ja" | "en" | "es" | "pt-br";
@@ -390,7 +416,7 @@ export function shell(options: {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${esc(options.title)} — ZUKAN</title>
+  <title>${esc(options.seo?.title ?? `${options.title} — ZUKAN`)}</title>${options.seo ? `\n  ${seoHeadHtml(options.seo, options.lang)}` : ""}
   <style${nonceAttr}>${BASE_CSS}${options.extraCss ?? ""}</style>
 </head>
 <body>
@@ -414,6 +440,7 @@ export function renderRegionInvasivePage(options: {
   displayName?: string | null;
   cspNonce?: string | null;
   regionHref?: string | null;
+  origin?: string;
 }): string {
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
   const area = esc(options.area);
@@ -463,7 +490,11 @@ export function renderRegionInvasivePage(options: {
     ${inner}
     ${sources}
   </div>`;
+  const ivDesc = species.length > 0
+    ? tr(options.lang, `${options.area}で見つかっている外来種${species.length}種。種ごとの区分と見つかった場所を、国のリストに基づいて表示しています。`, `${plural(species.length, "invasive species", "invasive species")} found in ${options.area}, with categories based on national lists.`)
+    : tr(options.lang, `${options.area}の外来種の記録。国のリストに基づく区分と、公式の案内を表示しています。`, `Invasive species records in ${options.area}, with categories based on national lists and official guidance.`);
   return shell({
+    seo: { title: tr(options.lang, `${options.area}の外来種 | ZUKAN`, `Invasive species in ${options.area} | ZUKAN`), description: ivDesc, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(options.area)}/invasive` },
     title: tr(options.lang, `${options.area}の外来種`, `Invasive species in ${options.area}`),
     lang: options.lang,
     authenticated: options.authenticated,
@@ -496,6 +527,7 @@ export function renderInvasiveSpeciesPage(options: {
   authenticated: boolean;
   displayName?: string | null;
   cspNonce?: string | null;
+  origin?: string;
 }): string | null {
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
   const seed = INVASIVE_SEED_ROWS.find((row) => row[2] === options.slug);
@@ -549,7 +581,9 @@ export function renderInvasiveSpeciesPage(options: {
     ${toggle}
   </div>`;
   const script = options.authenticated ? `${shareScript(options.lang)}\n${alertScript(options.lang)}` : shareScript(options.lang);
+  const spDesc = tr(options.lang, `${name}（${sci}）は外来種です。${categoryText}`, `${name} (${sci}) is an invasive species. ${categoryText}`);
   return shell({
+    seo: { title: tr(options.lang, `${name}（外来種） | ZUKAN`, `${name} (invasive species) | ZUKAN`), description: spDesc, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/invasive/${options.slug}` },
     title: tr(options.lang, `${name}（外来種）`, `${name} (invasive species)`),
     lang: options.lang,
     authenticated: options.authenticated,

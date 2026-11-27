@@ -184,7 +184,7 @@ const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
 const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_INLINE_EDIT_FLAG, v.principalId, v.role); };
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
-import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
+import { INVASIVE_SEED_ROWS, INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
 import { renderZukanShellDocument } from "./zukanShell";
 import { handleSearchSeasonsV2Route } from "./zukanSearchSeasonsV2";
@@ -23652,14 +23652,56 @@ async function listFeaturedPublicPlaces(env: Env, limit = 8): Promise<Array<{ pl
   }
 }
 
+const seoOrigin = (env: Env): string => (env.ENVIRONMENT === "production" ? "https://zukan.earth" : "https://ikimon.life");
+
+let sitemapRegionCache: { at: number; areas: string[] } | null = null;
+
+async function listSitemapRegions(env: Env, limit = 200): Promise<string[]> {
+  if (sitemapRegionCache && Date.now() - sitemapRegionCache.at < 3_600_000) return sitemapRegionCache.areas;
+  try {
+    const result = await env.OBS_DB.prepare(
+      `SELECT r.public_area_label AS area, COUNT(*) AS n
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+        WHERE r.public_area_label IS NOT NULL AND r.taxon_label IS NOT NULL
+          AND o.visibility = 'public' AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active')
+        GROUP BY r.public_area_label ORDER BY n DESC LIMIT ?1`
+    ).bind(limit).all<{ area?: unknown }>();
+    const areas = (result.results ?? [])
+      .map((row) => (typeof row.area === "string" ? row.area : ""))
+      .filter((a) => a !== "" && normalizeSafePublicAreaLabelCandidate(a) === a);
+    sitemapRegionCache = { at: Date.now(), areas };
+    return areas;
+  } catch {
+    return [];
+  }
+}
+
 export async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<string> {
   if (!xml.includes("</urlset>")) return xml;
   const places = await listFeaturedPublicPlaces(env, 50);
-  if (places.length === 0) return xml;
-  const origin = env.ENVIRONMENT === "production" ? "https://zukan.earth" : "https://ikimon.life";
-  const entries = places
-    .map((p) => `${origin}/ja/places/${encodeURIComponent(p.placeId)}`)
-    .filter((loc) => !xml.includes(loc))
+  const origin = seoOrigin(env);
+  const locs: string[] = places.map((p) => `${origin}/ja/places/${encodeURIComponent(p.placeId)}`);
+  if (regionSurfaceV1On(env, null)) {
+    for (const area of await listSitemapRegions(env)) {
+      const base = `${origin}/ja/regions/${encodeURIComponent(area)}`;
+      locs.push(base, `${base}/species`);
+    }
+  }
+  if (invasiveMapV1On(env, null)) {
+    if (regionSurfaceV1On(env, null)) {
+      for (const area of await listSitemapRegions(env)) locs.push(`${origin}/ja/regions/${encodeURIComponent(area)}/invasive`);
+    }
+    for (const row of INVASIVE_SEED_ROWS) locs.push(`${origin}/ja/invasive/${row[2]}`);
+  }
+  if (locs.length === 0) return xml;
+  const entries = [...new Set(locs)]
+    .filter((loc) => !xml.includes(`<loc>${loc}</loc>`))
     .map((loc) => `  <url><loc>${loc}</loc></url>`)
     .join("\n");
   if (!entries) return xml;
@@ -25331,8 +25373,8 @@ async function handleRegionSurfaceRoute(
   const authenticated = Boolean(session && !session.banned);
   const invasiveAvailable = invasiveMapV1On(env, session);
   const page = speciesList
-    ? renderRegionSpeciesListPage({ data, group: parseGroupFilter(url.searchParams.get("group")), lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable })
-    : renderRegionSurfacePage({ data, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable });
+    ? renderRegionSpeciesListPage({ data, group: parseGroupFilter(url.searchParams.get("group")), lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable, origin: seoOrigin(env) })
+    : renderRegionSurfacePage({ data, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable, origin: seoOrigin(env) });
   return new Response(request.method === "HEAD" ? null : page, {
     status: 200,
     headers: {
@@ -25389,8 +25431,8 @@ async function handleInvasiveMapV1Route(
     regionHref = `/${lang}/regions/${encodeURIComponent(area)}`;
   }
   const page = route.kind === "region"
-    ? renderRegionInvasivePage({ area, records: inRegion, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, regionHref })
-    : renderInvasiveSpeciesPage({ slug: slug!, records, lang, authenticated, displayName: session?.displayName ?? null, cspNonce });
+    ? renderRegionInvasivePage({ area, records: inRegion, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, regionHref, origin: seoOrigin(env) })
+    : renderInvasiveSpeciesPage({ slug: slug!, records, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, origin: seoOrigin(env) });
   if (!page) return notFound();
   return new Response(request.method === "HEAD" ? null : page, {
     status: 200,
