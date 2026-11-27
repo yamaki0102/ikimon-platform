@@ -237,8 +237,7 @@ function plotHtml(records: readonly InvasiveRecord[]): string {
   return `<figure class="iv-plot" data-invasive-plot="1"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="外来種が確認されている範囲（大まかな位置）" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="14" fill="#EEF2EC"/>${rects}</svg><figcaption class="iv-note">場所は大まかに表示しています。新しい記録は、名前の確認が済んでから出ます。</figcaption></figure>`;
 }
 
-function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: number): string {
-  const seen = new Set<string>();
+function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: number, seen: Set<string> = new Set<string>()): string {
   const items: string[] = [];
   const sorted = [...records].sort((a, b) => b.observedAt.localeCompare(a.observedAt));
   for (const r of sorted) {
@@ -249,6 +248,26 @@ function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: n
   }
   return items.join("");
 }
+
+const BACK_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 6-6 6 6 6"/></svg>`;
+const SHARE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V4"/><path d="m7.5 8 4.5-4 4.5 4"/><path d="M5 13.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-5.5"/></svg>`;
+
+const headBar = (backHref: string): string => `<div class="iv-bar"><a class="iv-ib" data-iv-back="1" href="${esc(backHref)}" aria-label="戻る">${BACK_ICON}</a><button type="button" class="iv-ib" data-iv-share="1" aria-label="共有">${SHARE_ICON}</button></div><p class="iv-tstate" id="iv-share-state" aria-live="polite" style="margin:0"></p>`;
+
+const watchLink = (prefix: string): string => `<a class="iv-link" data-invasive-biosecurity="1" href="${esc(`${prefix}/biosecurity`)}"><span>外来種の見守りについて</span>${CHEV_ICON}</a>`;
+
+const speciesLinks = (slug: string): string => `<div class="iv-sl"><a href="${esc(`${INVASIVE_LEARN_PATH}/${slug}`)}" data-invasive-about="1">この種について</a><a href="${esc(`${INVASIVE_LEARN_PATH}/${slug}#identify`)}" data-invasive-identify="1">見分けの助け</a></div>`;
+
+const SHARE_SCRIPT = `(function(){
+  var back=document.querySelector('[data-iv-back]');var sh=document.querySelector('[data-iv-share]');var st=document.getElementById('iv-share-state');
+  if(back)back.addEventListener('click',function(e){if(history.length>1&&document.referrer){e.preventDefault();history.back();}});
+  if(sh)sh.addEventListener('click',function(){
+    var url=location.href;var title=document.title;
+    function note(t){if(st){st.textContent=t;setTimeout(function(){st.textContent='';},2500);}}
+    function copy(){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){note('リンクをコピーしました。');}).catch(function(){note('コピーできませんでした。');});}else{note('コピーできませんでした。');}}
+    if(navigator.share){navigator.share({title:title,url:url}).catch(function(e){if(!e||e.name!=='AbortError')copy();});}else{copy();}
+  });
+})();`;
 
 const CAUTION_HTML = (category: InvasiveCategory | null): string => `<section class="iv-caution">
   <h2>${WARN_ICON}見つけたときは</h2>
@@ -263,6 +282,14 @@ const BASE_CSS = `
 ${ZUKAN_SHELL_CSS}
 .iv-col{max-width:760px;margin:0 auto;padding:6px 0 32px}
 .iv-nb{white-space:nowrap}
+.iv-bar{display:flex;align-items:center;justify-content:space-between;min-height:48px}
+.iv-ib{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--ink);padding:0;cursor:pointer;text-decoration:none}
+.iv-thumb,.iv-thumb-ph{width:56px;height:56px;border-radius:12px;object-fit:cover;background:#EEF2EC;flex:none;display:block}
+.iv-sl{display:flex;flex-wrap:wrap;gap:0 20px;padding:0 0 12px}
+.iv-sl a{display:inline-flex;align-items:center;min-height:44px;color:var(--green);font-weight:700;font-size:14.5px;text-decoration:none;white-space:nowrap}
+.iv-sw-row{border-bottom:1px solid #EDF0EC}
+.iv-sw-row .iv-sprow{border-bottom:0;padding-bottom:4px}
+.iv-sw-row .iv-sl{padding-left:68px}
 .iv-crumb{font-size:15px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;min-height:32px}
 .iv-title{margin:6px 0 0;font-size:24px;font-weight:800;line-height:1.35}
 .iv-sci{font-size:14px;color:var(--muted);font-style:italic;margin-top:2px}
@@ -367,15 +394,22 @@ export function renderRegionInvasivePage(options: {
   const mapHref = `${prefix}/map?taxon_group=invasive`;
   let inner: string;
   if (species.length > 0) {
-    const rows = species.map((s) => `<a class="iv-sprow" href="${esc(`${prefix}/invasive/${encodeURIComponent(s.slug)}`)}">
-      <span class="iv-sb"><span class="iv-sname iv-nb">${esc(s.name)}</span><span style="display:block;margin-top:4px">${badge(s.category, s.categoryLabel)}</span><span class="iv-sstate">${s.cells}か所 ・ 記録 <span class="iv-nb">${s.records}件</span> ・ 最初は<span class="iv-nb">${esc(monthLabel(s.first))}</span></span></span>${CHEV_ICON}</a>`).join("");
-    const recent = recentHtml(options.records, prefix, 6);
+    const seen = new Set<string>();
+    const thumbs = new Map<string, string>();
+    for (const s of species) {
+      const p = options.records.filter((r) => r.slug === s.slug && r.photoUrl && !seen.has(r.photoUrl)).sort((a, b) => b.observedAt.localeCompare(a.observedAt))[0]?.photoUrl;
+      if (p) { seen.add(p); thumbs.set(s.slug, p); }
+    }
+    const rows = species.map((s) => `<div class="iv-sw-row" data-invasive-species-row="${esc(s.slug)}"><a class="iv-sprow" href="${esc(`${prefix}/invasive/${encodeURIComponent(s.slug)}`)}">${thumbs.has(s.slug) ? `<img class="iv-thumb" src="${esc(thumbs.get(s.slug)!)}" alt="" loading="lazy" width="56" height="56">` : `<span class="iv-thumb-ph" aria-hidden="true"></span>`}
+      <span class="iv-sb"><span class="iv-sname iv-nb">${esc(s.name)}</span><span style="display:block;margin-top:4px">${badge(s.category, s.categoryLabel)}</span><span class="iv-sstate">${s.cells}か所 ・ 記録 <span class="iv-nb">${s.records}件</span> ・ 最初は<span class="iv-nb">${esc(monthLabel(s.first))}</span></span></span>${CHEV_ICON}</a>${speciesLinks(s.slug)}</div>`).join("");
+    const recent = recentHtml(options.records, prefix, 6, seen);
     inner = `<p class="iv-desc">${area}の生きものを、外来種の印で見た面です。この地域で見つかっている外来種を集めています。名前の確認が済んだ記録だけを表示しています。</p>
     <div class="iv-h"><span>見つかっている種</span><span class="iv-cnt">${species.length}種</span></div>
     <div data-invasive-species-list="1">${rows}</div>
     <div class="iv-h"><span>広がり</span></div>
     ${plotHtml(options.records)}
     <a class="iv-link" href="${esc(mapHref)}"><span>地図で広がりを見る</span>${CHEV_ICON}</a>
+    ${watchLink(prefix)}
     <div class="iv-h"><span>最近の発見</span></div>
     <div class="iv-rgrid">${recent}</div>
     ${CAUTION_HTML(species.some((s) => s.category === "iaspecified") ? "iaspecified" : null)}`;
@@ -386,12 +420,14 @@ export function renderRegionInvasivePage(options: {
     <div class="iv-h"><span>全国で指定されている種</span></div>
     <div>${rows}</div>
     <p class="iv-note" style="margin-top:10px">区分は、環境省のリストに基づく種マスタから表示しています。</p>
+    ${watchLink(prefix)}
     <div class="iv-h"><span>見つけたら</span></div>
     <div class="iv-invite"><p>外来種かもしれない生きものを見かけたら、写真で記録を残してください。名前がわからなくても大丈夫です。写真の記録から、名前の確認が進みます。</p><a class="iv-btn" href="${esc(`${prefix}/record`)}">この地域で記録する</a></div>
     ${CAUTION_HTML(null)}`;
   }
   const sources = `<section class="iv-src"><h2>区分と根拠</h2><p>この面の種と区分は、国のリストに基づく種マスタから表示しています。地域ごとの扱いは、お住まいの自治体の案内に従ってください。</p>${OFFICIAL_SOURCES.map((s) => `<a class="iv-link" href="${esc(s.href)}" target="_blank" rel="noreferrer noopener"><span>${esc(s.label)}</span>${CHEV_ICON}</a>`).join("")}</section>`;
   const body = `<div class="iv-col" data-invasive-region="${area}">
+    ${headBar(mapHref)}
     <div class="iv-crumb">${area}</div>
     <h1 class="iv-title">外来種</h1>
     ${inner}
@@ -405,6 +441,7 @@ export function renderRegionInvasivePage(options: {
     pathname: `${prefix}/regions/${encodeURIComponent(options.area)}/invasive`,
     body,
     cspNonce: options.cspNonce,
+    script: SHARE_SCRIPT,
   });
 }
 
@@ -431,6 +468,7 @@ export function renderInvasiveSpeciesPage(options: {
   const sci = scientificNameFromSlug(options.slug);
   const own = options.records.filter((r) => r.slug === options.slug);
   const hero = own.find((r) => r.photoUrl)?.photoUrl ?? null;
+  const seenPhotos = new Set<string>(hero ? [hero] : []);
   const areas = new Map<string, InvasiveRecord[]>();
   for (const r of own) {
     if (!r.area) continue;
@@ -449,20 +487,22 @@ export function renderInvasiveSpeciesPage(options: {
     ${areaRows ? `<div>${areaRows}</div>` : ""}
     <a class="iv-link" href="${esc(`${prefix}/map?taxon_group=invasive&species=${encodeURIComponent(options.slug)}${own[0] ? `&lat=${own[0].lat}&lng=${own[0].lng}&z=11` : ""}`)}"><span>地図で広がりを見る</span>${CHEV_ICON}</a>
     <div class="iv-h"><span>最近の発見</span></div>
-    <div class="iv-rgrid">${recentHtml(own, prefix, 6)}</div>`
+    <div class="iv-rgrid">${recentHtml(own, prefix, 6, seenPhotos)}</div>`
     : "";
   const sci2 = sci.replaceAll('"', "");
   const toggle = options.authenticated
     ? `<div class="iv-toggle" data-invasive-alert="1" data-sci="${esc(sci2)}"><div class="iv-tt">この種が見つかったら知らせる<span class="iv-ts">新しく確認された記録があるとき、メールでお知らせします</span></div><button type="button" class="iv-sw" role="switch" aria-checked="false" aria-label="この種が見つかったら知らせる" id="iv-alert-sw" disabled></button></div><p class="iv-tstate" id="iv-alert-state" aria-live="polite"></p>`
     : `<div class="iv-toggle"><div class="iv-tt">この種が見つかったら知らせる<span class="iv-ts">ログインすると、メールで知らせを受け取れます</span></div><a class="iv-link" style="border:0;min-height:44px;white-space:nowrap" href="${esc(`${prefix}/login`)}">ログイン</a></div>`;
   const body = `<div class="iv-col" data-invasive-species="${esc(options.slug)}">
+    ${headBar(`${prefix}/map?taxon_group=invasive`)}
     ${hero ? `<div class="iv-hero"><img src="${esc(hero)}" alt="" width="760" height="224"></div>` : ""}
     <div class="iv-crumb" style="margin-top:14px"><a href="${esc(`${prefix}/map?taxon_group=invasive`)}">外来種</a></div>
     <h1 class="iv-title iv-nb" style="white-space:normal">${esc(name)}</h1>
     <div class="iv-sci">${esc(sci)}</div>
     <div style="margin-top:10px">${badge(hit.category, hit.label)}</div>
     <section class="iv-src" style="margin-top:18px"><h2>区分と根拠</h2><p>${esc(CATEGORY_TEXT[hit.category])}</p>${OFFICIAL_SOURCES.map((s) => `<a class="iv-link" href="${esc(s.href)}" target="_blank" rel="noreferrer noopener"><span>${esc(s.label)}</span>${CHEV_ICON}</a>`).join("")}</section>
-    <a class="iv-link" style="margin-top:14px;border-top:0" href="${esc(`${INVASIVE_LEARN_PATH}/${options.slug}`)}"><span>見分け方と注意点を読む</span>${CHEV_ICON}</a>
+    <div style="margin-top:14px">${speciesLinks(options.slug)}</div>
+    ${watchLink(prefix)}
     ${found}
     <div class="iv-h"><span>地域で変わる扱い</span></div>
     <div class="iv-kv"><div class="iv-kk">日本</div><div>${esc(CATEGORY_TEXT[hit.category])}</div></div>
@@ -470,7 +510,7 @@ export function renderInvasiveSpeciesPage(options: {
     ${CAUTION_HTML(hit.category)}
     ${toggle}
   </div>`;
-  const script = options.authenticated ? ALERT_SCRIPT : undefined;
+  const script = options.authenticated ? `${SHARE_SCRIPT}\n${ALERT_SCRIPT}` : SHARE_SCRIPT;
   return shell({
     title: `${name}（外来種）`,
     lang: options.lang,

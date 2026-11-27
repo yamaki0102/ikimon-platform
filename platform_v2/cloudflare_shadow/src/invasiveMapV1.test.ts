@@ -121,7 +121,7 @@ test("species page shows records, blurred plot, area rows and the alert toggle o
   assert.match(member, /iv-alert-sw/);
   assert.match(member, /\/api\/v1\/me\/subscriptions/);
   assert.match(member, /nonce="abc"/);
-  assert.equal((member.match(/\/p\/1\.webp/g) ?? []).length, 2);
+  assert.equal((member.match(/\/p\/1\.webp/g) ?? []).length, 1);
   const guest = renderInvasiveSpeciesPage({ slug: "alternanthera-philoxeroides", records, lang: "ja", authenticated: false })!;
   assert.doesNotMatch(guest, /iv-alert-sw/);
   assert.match(guest, /\/ja\/login/);
@@ -216,4 +216,46 @@ test("species page alert script compiles", () => {
   const m = html.match(/<script[^>]*>([\s\S]*?)<\/script>/);
   assert.ok(m);
   assert.doesNotThrow(() => new Function(m![1]!));
+});
+
+test("invasive faces carry back/share, per-species links, biosecurity link and never repeat a photo", () => {
+  const src = [row("t1", "セイヨウタンポポ"), row("t2", "セイヨウタンポポ", "34.80,137.80"), row("a1", "ナガエツルノゲイトウ"), row("a2", "ナガエツルノゲイトウ", "34.80,137.80")];
+  const photos = new Map([["t1", "/p/t.webp"], ["t2", "/p/t.webp"], ["a1", "/p/a.webp"], ["a2", "/p/a.webp"]]);
+  const records = buildInvasiveRecords(src, { nowMs: NOW, photos });
+  const region = renderRegionInvasivePage({ area: "テスト市", records: recordsForRegion(records, "テスト市"), lang: "ja", authenticated: false });
+  assert.match(region, /data-iv-back/);
+  assert.match(region, /data-iv-share/);
+  assert.match(region, /navigator\.share/);
+  assert.match(region, /clipboard/);
+  assert.equal((region.match(/data-invasive-about="1"/g) ?? []).length, 2);
+  assert.equal((region.match(/data-invasive-identify="1"/g) ?? []).length, 2);
+  assert.match(region, /href="\/ja\/biosecurity"/);
+  assert.match(region, /class="iv-thumb"/);
+  assert.equal((region.match(/\/p\/t\.webp/g) ?? []).length, 1);
+  assert.equal((region.match(/\/p\/a\.webp/g) ?? []).length, 1);
+  const species = renderInvasiveSpeciesPage({ slug: "taraxacum-officinale", records, lang: "ja", authenticated: false })!;
+  assert.match(species, /data-iv-back/);
+  assert.match(species, /data-iv-share/);
+  assert.match(species, /この種について/);
+  assert.match(species, /見分けの助け/);
+  assert.match(species, /href="\/ja\/biosecurity"/);
+  assert.equal((species.match(/\/p\/t\.webp/g) ?? []).length, 1);
+  const zero = renderRegionInvasivePage({ area: "ゼロ町", records: [], lang: "ja", authenticated: false });
+  assert.match(zero, /href="\/ja\/biosecurity"/);
+  for (const html of [region, species, zero]) {
+    const m = html.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+    assert.ok(m);
+    assert.doesNotThrow(() => new Function(m![1]!));
+  }
+});
+
+test("taraxacum-officinale renders map cells on the species page and in the cells payload", () => {
+  const records = buildInvasiveRecords([row("t1", "セイヨウタンポポ"), row("t2", "セイヨウタンポポ", "34.80,137.80")], { nowMs: NOW });
+  const payload = mapCellsPayload(records, "taraxacum-officinale");
+  assert.equal(payload.cells.length, 2);
+  assert.equal(payload.cells[0]!.species[0]!.slug, "taraxacum-officinale");
+  const html = renderInvasiveSpeciesPage({ slug: "taraxacum-officinale", records, lang: "ja", authenticated: false })!;
+  assert.match(html, /data-invasive-plot="1"/);
+  assert.equal((html.match(/<g><rect /g) ?? []).length, 2);
+  assert.match(html, /map\?taxon_group=invasive&amp;species=taraxacum-officinale/);
 });
