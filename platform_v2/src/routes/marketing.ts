@@ -264,6 +264,28 @@ const DOC_TERM_DEFINITIONS: DocTerm[] = [
   { label: "One Health", href: "/learn/terms/one-health", hint: "人、動物、環境の健康をつながったものとして扱う考え方。" },
 ];
 
+const DOC_TERM_LABELS_EN: Record<string, string> = {
+  "/learn/terms/biodiversity": "Biodiversity",
+  "/learn/terms/ecosystem-services": "Ecosystem services",
+  "/learn/terms/nature-positive": "Nature positive",
+  "/learn/terms/nature-symbiosis-site": "Nature Coexistence Sites",
+  "/learn/terms/natural-capital": "Natural capital",
+  "/learn/terms/biodiversity-credits": "Biodiversity credits",
+  "/learn/terms/biodiversity-monitoring": "Biodiversity monitoring",
+  "/learn/terms/nature-connectedness": "Nature connectedness",
+  "/learn/terms/attention-restoration-theory": "Attention restoration theory",
+  "/learn/terms/biophilia-hypothesis": "Biophilia hypothesis",
+  "/learn/terms/sampling-effort": "Sampling effort",
+  "/learn/terms/identification": "Identification",
+  "/learn/terms/ai-candidate": "AI suggestion",
+  "/learn/terms/location-data": "Location data",
+  "/learn/terms/rare-species": "Rare species",
+};
+
+function docTermLabel(term: DocTerm, lang: SiteLang): string {
+  return lang === "ja" ? term.label : DOC_TERM_LABELS_EN[term.href] ?? term.label;
+}
+
 function stripHtmlTags(html: string): string {
   return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
@@ -523,7 +545,7 @@ function renderLearnIndexHub(basePath: string, lang: SiteLang): string {
     ...DOC_TERM_DEFINITIONS,
   ];
   const glossaryTerms = Array.from(new Map(prioritizedTerms.map((term) => [term.href, term])).values()).slice(0, 20)
-    .map((term) => `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, term.href), lang))}">${escapeHtml(term.label)}</a>`)
+    .map((term) => `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, term.href), lang))}">${escapeHtml(docTermLabel(term, lang))}</a>`)
     .join("");
 
   return `<div class="learn-wiki" aria-label="${escapeHtml(copy.ariaLabel)}">
