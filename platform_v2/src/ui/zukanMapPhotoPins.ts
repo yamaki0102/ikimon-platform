@@ -38,6 +38,8 @@ export const ZUKAN_MAP_PHOTO_PINS_STYLES = ZUKAN_MAP_TOP_STYLES + `
 .zk-row .zk-thumb{width:56px;height:56px}
 .zk-latest{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;padding:8px;border-radius:12px;background:#f7f8f4}
 .zk-latest small{font-size:12px;color:#5b655f}
+.zk-empty{margin:0;font-size:14px;line-height:1.7;color:#5b655f}
+.zk-rec{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;border-radius:12px;background:#143F2E;color:#fff;font-weight:700;text-decoration:none;justify-self:start}
 .zk-geo{position:fixed;left:24px;right:24px;top:30vh;z-index:45;max-width:360px;margin:0 auto;background:#fff;border-radius:24px;box-shadow:0 10px 36px rgba(20,63,46,.28);padding:26px 22px;text-align:center;display:grid;gap:12px;justify-items:center;color:#1b1f1c}
 .zk-geo[hidden]{display:none}
 .zk-geo-ic{width:58px;height:58px;border-radius:50%;background:#eef1ed;display:grid;place-items:center}
@@ -57,46 +59,63 @@ export function renderZukanMapPhotoPins(props: { basePath: string; lang: SiteLan
   const api = withBasePath(props.basePath, "/api/v1/map/places");
   const placeHref = appendLangToHref(withBasePath(props.basePath, "/places/__ID__"), props.lang);
   const obsHref = appendLangToHref(withBasePath(props.basePath, "/observations/__ID__"), props.lang);
+  const recordHref = appendLangToHref(withBasePath(props.basePath, "/record"), props.lang);
   const labels = ja
-    ? { sheet: "近くの場所", view: "見る", records: "記録", latest: "最新の記録", unknown: "未同定", geoTitle: "位置情報がオフになっています", geoBody: "オンにすると、近くの場所やいまいる場所が分かります。", geoOpen: "設定を開く", geoName: "名前で探す", geoHelp: "ブラウザの設定で位置情報を許可してください。" }
-    : { sheet: "Nearby places", view: "Open", records: "records", latest: "Latest record", unknown: "Unidentified", geoTitle: "Location is off", geoBody: "Turn it on to find places near you.", geoOpen: "Open settings", geoName: "Search by name", geoHelp: "Allow location in your browser settings." };
-  const cfg = JSON.stringify({ api, placeHref, obsHref, labels }).replace(/</g, "\\u003c");
+    ? { sheet: "近くの場所", view: "見る", records: "記録", latest: "最新の記録", unknown: "未同定", geoTitle: "位置情報がオフになっています", geoBody: "オンにすると、近くの場所やいまいる場所が分かります。", geoOpen: "設定を開く", geoName: "名前で探す", geoHelp: "ブラウザの設定で位置情報を許可してください。", none: "この近くに登録された場所はまだありません", recordHere: "ここで記録する" }
+    : { sheet: "Nearby places", view: "Open", records: "records", latest: "Latest record", unknown: "Unidentified", geoTitle: "Location is off", geoBody: "Turn it on to find places near you.", geoOpen: "Open settings", geoName: "Search by name", geoHelp: "Allow location in your browser settings.", none: "No registered places nearby yet", recordHere: "Record here" };
+  const cfg = JSON.stringify({ api, placeHref, obsHref, recordHref, labels }).replace(/</g, "\\u003c");
   const pinIcon = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#143F2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
   return `<style>${ZUKAN_MAP_PHOTO_PINS_STYLES}</style>
 <aside class="zk-sheet" id="zk-map-sheet" data-zukan-map-sheet hidden aria-label="${labels.sheet}"></aside>
 <section class="zk-geo" id="zk-geo-off" data-zukan-geo-off hidden role="dialog" aria-label="${labels.geoTitle}"><span class="zk-geo-ic">${pinIcon}</span><h2>${labels.geoTitle}</h2><p>${labels.geoBody}</p><button type="button" class="zk-geo-main" id="zk-geo-retry">${labels.geoOpen}</button><button type="button" class="zk-geo-sub" id="zk-geo-name">${labels.geoName}</button></section>
 <script>(function(){
 var C=${cfg},sheet=document.getElementById('zk-map-sheet');if(!sheet||typeof fetch!=='function')return;
-var places=[],markers={},sel=null;
+var places=[],markers={},sel=null,seq=0,mapRef=null,tm=null;
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function href(p){return C.placeHref.replace('__ID__',encodeURIComponent(p.placeId))}
-function thumb(p){return p.photoAssetId?'<span class="zk-thumb"><img src="/thumb/400/'+encodeURIComponent(p.photoAssetId)+'" alt="" loading="lazy" decoding="async"></span>':'<span class="zk-thumb"></span>'}
-function meta(p){return C.labels.records+' '+(p.recordCount||0)+(C.labels.records==='records'?'':'件')}
+function img(p){return p.photoUrl&&String(p.photoUrl).charAt(0)==='/'&&String(p.photoUrl).charAt(1)!=='/'?p.photoUrl:(p.photoAssetId?'/thumb/400/'+encodeURIComponent(p.photoAssetId):'')}
+function thumb(p){var u=img(p);return u?'<span class="zk-thumb"><img src="'+esc(u)+'" alt="" loading="lazy" decoding="async"></span>':'<span class="zk-thumb"></span>'}
+function meta(p){return typeof p.recordCount==='number'?C.labels.records+' '+p.recordCount+(C.labels.records==='records'?'':'件'):''}
+function sub(p){var m=meta(p);return m?'<span>'+esc(m)+'</span>':''}
 function render(){
-  var s=places.filter(function(p){return p.placeId===sel})[0]||places[0];if(!s){sheet.hidden=true;return}
-  var h='<div class="zk-card" data-zk-selected="'+esc(s.placeId)+'">'+thumb(s)+'<div class="zk-card-main"><strong>'+esc(s.name)+'</strong><span>'+esc(meta(s))+'</span></div><a class="zk-go" href="'+esc(href(s))+'">'+esc(C.labels.view)+'</a></div>';
+  var s=places.filter(function(p){return p.placeId===sel})[0];
+  if(!s){sheet.innerHTML='<p class="zk-empty" data-zk-none>'+esc(C.labels.none)+'</p><a class="zk-rec" href="'+esc(C.recordHref)+'">'+esc(C.labels.recordHere)+'</a>';sheet.hidden=false;return}
+  var h='<div class="zk-card" data-zk-selected="'+esc(s.placeId)+'">'+thumb(s)+'<div class="zk-card-main"><strong>'+esc(s.name)+'</strong>'+sub(s)+'</div><a class="zk-go" href="'+esc(href(s))+'">'+esc(C.labels.view)+'</a></div>';
   var L=s.latestRecord;
   if(L){var lab=!L.label||/^unidentified$/i.test(L.label)?C.labels.unknown:L.label,dt=L.observedAt?new Date(L.observedAt):null,ds=dt&&!isNaN(dt)?(dt.getMonth()+1)+'月'+dt.getDate()+'日':'';
-    h+='<a class="zk-latest" data-zk-latest href="'+esc(C.obsHref.replace('__ID__',encodeURIComponent(L.observationId)))+'">'+thumb({photoAssetId:L.photoAssetId})+'<div class="zk-card-main"><small>'+esc(C.labels.latest)+'</small><strong>'+esc(lab)+'</strong><span>'+esc(ds)+'</span></div></a>'}
-  h+='<h2>'+esc(C.labels.sheet)+'</h2><div class="zk-rows">'+places.map(function(p){return '<a class="zk-row" href="'+esc(href(p))+'">'+thumb(p)+'<div class="zk-card-main"><strong>'+esc(p.name)+'</strong><span>'+esc(meta(p))+'</span></div></a>'}).join('')+'</div>';
+    h+='<a class="zk-latest" data-zk-latest href="'+esc(C.obsHref.replace('__ID__',encodeURIComponent(L.observationId)))+'">'+thumb({photoUrl:L.photoUrl,photoAssetId:L.photoAssetId})+'<div class="zk-card-main"><small>'+esc(C.labels.latest)+'</small><strong>'+esc(lab)+'</strong><span>'+esc(ds)+'</span></div></a>'}
+  h+='<h2>'+esc(C.labels.sheet)+'</h2><div class="zk-rows">'+places.map(function(p){return '<a class="zk-row" href="'+esc(href(p))+'">'+thumb(p)+'<div class="zk-card-main"><strong>'+esc(p.name)+'</strong>'+sub(p)+'</div></a>'}).join('')+'</div>';
   sheet.innerHTML=h;sheet.hidden=false;
   Object.keys(markers).forEach(function(id){markers[id].getElement().classList.toggle('is-on',id===s.placeId)});
 }
 function pinEl(p){
   var el=document.createElement('div');el.className='zk-pin';el.setAttribute('data-zk-pin',p.placeId);
-  el.innerHTML='<span class="zk-pin-dot">'+(p.photoAssetId?'<img src="/thumb/400/'+encodeURIComponent(p.photoAssetId)+'" alt="" decoding="async">':'')+'</span><span class="zk-pin-label">'+esc(p.name)+'</span>';
+  el.innerHTML='<span class="zk-pin-dot">'+(img(p)?'<img src="'+esc(img(p))+'" alt="" decoding="async">':'')+'</span><span class="zk-pin-label">'+esc(p.name)+'</span>';
   el.addEventListener('click',function(e){e.stopPropagation();sel=p.placeId;render()});
   return el;
 }
-function addPins(){
-  var b=window.__ikimonMapBoot,m=b&&b.state&&b.state.map;
-  if(!m||!window.maplibregl||typeof m.getCanvas!=='function'){return false}
+function syncPins(m){
+  var keep={};places.forEach(function(p){keep[p.placeId]=1});
+  Object.keys(markers).forEach(function(id){if(!keep[id]){markers[id].remove();delete markers[id]}});
   places.forEach(function(p){if(markers[p.placeId]||typeof p.lat!=='number'||typeof p.lng!=='number')return;markers[p.placeId]=new window.maplibregl.Marker({element:pinEl(p),anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(m)});
-  render();
-  try{var bd=m.getBounds(),mob0=window.innerWidth<960,ch=m.getContainer().clientHeight,vis=places.some(function(p){if(typeof p.lat!=='number'||!bd.contains([p.lng,p.lat]))return false;return !(mob0&&m.project([p.lng,p.lat]).y>ch*0.58)});
-  if(!vis){var bb=new window.maplibregl.LngLatBounds();places.forEach(function(p){if(typeof p.lat==='number')bb.extend([p.lng,p.lat])});var mob=window.innerWidth<960;m.fitBounds(bb,{padding:{top:80,left:40,right:40,bottom:mob?Math.round(window.innerHeight*0.42):60},maxZoom:15,duration:0})}}catch(_){}
-  if(typeof m.resize==='function')setTimeout(function(){m.resize()},60);
-  return true;
+}
+function getMap(){
+  var b=window.__ikimonMapBoot,m=b&&b.state&&b.state.map;
+  return m&&window.maplibregl&&typeof m.getCanvas==='function'&&typeof m.getCenter==='function'?m:null;
+}
+function load(){
+  var m=mapRef;if(!m)return;var c=m.getCenter(),n=++seq;
+  fetch(C.api+'?lat='+encodeURIComponent(c.lat.toFixed(5))+'&lng='+encodeURIComponent(c.lng.toFixed(5)),{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null}).then(function(d){
+    if(n!==seq||!d||!Array.isArray(d.places))return;
+    places=d.places;
+    if(!places.some(function(p){return p.placeId===sel})){var nearest=places[0];sel=nearest?nearest.placeId:null}
+    syncPins(m);render();
+    if(typeof m.resize==='function')setTimeout(function(){m.resize()},60);
+  }).catch(function(){});
+}
+function arm(m){
+  mapRef=m;load();
+  m.on('moveend',function(){clearTimeout(tm);tm=setTimeout(load,600)});
 }
 var geo=document.getElementById('zk-geo-off');
 if(geo){
@@ -104,9 +123,6 @@ if(geo){
   document.getElementById('zk-geo-name').addEventListener('click',function(){geo.hidden=true;var i=document.getElementById('me-search-input');if(i)i.focus()});
   document.getElementById('zk-geo-retry').addEventListener('click',function(){var t=geo.querySelector('p');if(navigator.geolocation)navigator.geolocation.getCurrentPosition(function(){geo.hidden=true},function(){if(t)t.textContent=C.labels.geoHelp})});
 }
-fetch(C.api,{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null}).then(function(d){
-  if(!d||!d.places||!d.places.length)return;places=d.places;sel=places[0].placeId;render();
-  var n=0,t=setInterval(function(){if(addPins()||++n>60)clearInterval(t)},500);
-}).catch(function(){});
+var tries=0,poll=setInterval(function(){var m=getMap();if(m){clearInterval(poll);arm(m)}else if(++tries>120)clearInterval(poll)},500);
 })();</script>`;
 }

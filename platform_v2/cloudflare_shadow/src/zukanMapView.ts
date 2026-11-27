@@ -7,33 +7,50 @@ type PlacePinRow = {
   name: string;
   lat: number | null;
   lng: number | null;
-  record_count?: number | null;
-  photo_asset_id?: string | null;
-  latest_record?: string | null;
 };
 
-const PUBLIC_MEMBERSHIP_FILTER = `m.place_id = p.place_id
-                 AND m.membership_state = 'confirmed'
-                 AND m.public_precision = 'place'
-                 AND m.removed_at IS NULL
-                 AND o.visibility = 'public'
-                 AND COALESCE(o.emergency_hidden, 0) = 0`;
+export type MapPlaceCardExtras = {
+  recordCount: number | null;
+  photoUrl: string | null;
+  latestRecord: { observationId: string; label: string | null; observedAt: string | null; photoUrl: string | null } | null;
+};
 
-const PLACE_CARD_COLUMNS = `,
-            (SELECT COUNT(*) FROM record_place_memberships m
-               JOIN observations o ON o.observation_id = m.record_id
-              WHERE ${PUBLIC_MEMBERSHIP_FILTER}) AS record_count,
-            (SELECT a.asset_id FROM record_place_memberships m
-               JOIN observations o ON o.observation_id = m.record_id
-               JOIN asset_ledger a ON a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed'
-              WHERE ${PUBLIC_MEMBERSHIP_FILTER}
-              ORDER BY o.observed_at DESC LIMIT 1) AS photo_asset_id,
-            (SELECT json_object('id', o.observation_id, 'label', o.taxon_label, 'at', o.observed_at,
-                      'asset', (SELECT a.asset_id FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.exif_scrub_state = 'scrubbed' LIMIT 1))
-               FROM record_place_memberships m
-               JOIN observations o ON o.observation_id = m.record_id
-              WHERE ${PUBLIC_MEMBERSHIP_FILTER}
-              ORDER BY o.observed_at DESC LIMIT 1) AS latest_record`;
+export type MapPlaceCardProfileLike = {
+  summary?: { recordCount?: number | null } | null;
+  recentRecords?: Array<{
+    recordId?: string | null;
+    displayName?: string | null;
+    observedAt?: string | null;
+    mediaUrl?: string | null;
+    mediaKind?: string | null;
+  } | null> | null;
+};
+
+export function mapPlaceCardFromProfile(profile: MapPlaceCardProfileLike): MapPlaceCardExtras {
+  const records = (profile.recentRecords ?? []).filter((r): r is NonNullable<typeof r> & { recordId: string } => Boolean(r && r.recordId));
+  const summaryCount = typeof profile.summary?.recordCount === "number" ? profile.summary.recordCount : 0;
+  const mediaRecords = records.filter((r) => r.mediaUrl && r.mediaKind !== "audio");
+  const latest = records[0] ?? null;
+  const latestIsPhoto = Boolean(latest?.mediaUrl) && latest?.mediaKind !== "audio";
+  return {
+    recordCount: summaryCount > 0 ? summaryCount : records.length,
+    photoUrl: mediaRecords[0]?.mediaUrl ?? null,
+    latestRecord: latest
+      ? {
+          observationId: latest.recordId,
+          label: latest.displayName ?? null,
+          observedAt: latest.observedAt ?? null,
+          photoUrl: latestIsPhoto ? latest.mediaUrl ?? null : null,
+        }
+      : null,
+  };
+}
+
+export const MAP_PLACES_DEFAULT_RADIUS_KM = 10;
+export const MAP_PLACES_NEAREST_LIMIT = 20;
+export const MAP_PLACES_ENRICH_TOP = 3;
+const MAP_PLACES_MAX_RADIUS_KM = 50;
+const KM_PER_DEG_LAT = 111.32;
 
 type SessionLike = {
   userId: string;
@@ -47,16 +64,30 @@ function parseOptionalCoordParam(url: URL, key: string): number | null {
   return finiteNumberOrNull(raw);
 }
 
-async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
+type PublicPlaceRow = { placeId: string; name: string; lat: number | null; lng: number | null };
+
+function parseCenter(url: URL): { lat: number; lng: number; radiusKm: number } | null {
+  const lat = parseOptionalCoordParam(url, "lat");
+  const lng = parseOptionalCoordParam(url, "lng");
+  if (lat === null || lng === null || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  const r = parseOptionalCoordParam(url, "radiusKm");
+  const radiusKm = r !== null && r > 0 ? Math.min(r, MAP_PLACES_MAX_RADIUS_KM) : MAP_PLACES_DEFAULT_RADIUS_KM;
+  return { lat, lng, radiusKm };
+}
+
+async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"], opts: { unboundedFallback?: boolean } = {}): Promise<PublicPlaceRow[]> {
   const minLat = parseOptionalCoordParam(url, "minLat");
   const maxLat = parseOptionalCoordParam(url, "maxLat");
   const minLng = parseOptionalCoordParam(url, "minLng");
   const maxLng = parseOptionalCoordParam(url, "maxLng");
+  const center = parseCenter(url);
+  const hasBounds = minLat !== null && maxLat !== null && minLng !== null && maxLng !== null;
+  if (!center && !hasBounds && !opts.unboundedFallback) return [];
 
-  const buildBase = (cardColumns: string) => `SELECT p.place_id AS place_id,
+  const base = `SELECT p.place_id AS place_id,
             p.canonical_name AS name,
             (b.bbox_south + b.bbox_north) / 2.0 AS lat,
-            (b.bbox_west + b.bbox_east) / 2.0 AS lng${cardColumns}
+            (b.bbox_west + b.bbox_east) / 2.0 AS lng
        FROM places p
        JOIN place_boundaries b
          ON b.boundary_id = (
@@ -71,55 +102,76 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"]) {
                LIMIT 1)
       WHERE p.public_profile_status = 'published'
         AND p.superseded_by_place_id IS NULL`;
-  const run = async (base: string): Promise<PlacePinRow[]> =>
-      minLat !== null && maxLat !== null && minLng !== null && maxLng !== null
-        ? (
-            await db
-              .prepare(
-                `${base}
-                  AND (b.bbox_south + b.bbox_north) / 2.0 BETWEEN ? AND ?
-                  AND (b.bbox_west + b.bbox_east) / 2.0 BETWEEN ? AND ?
-                LIMIT 100`
-              )
-              .bind(minLat, maxLat, minLng, maxLng)
-              .all<PlacePinRow>()
-          ).results ?? []
-        : (await db.prepare(`${base} LIMIT 100`).all<PlacePinRow>()).results ?? [];
+
   let rows: PlacePinRow[] = [];
   try {
-    rows = await run(buildBase(PLACE_CARD_COLUMNS));
-  } catch (cardError) {
-    console.error("map places card query failed; falling back to bare places", cardError);
-    try {
-      rows = await run(buildBase(""));
-    } catch (error) {
-      console.error("map places query failed", error);
-      rows = [];
+    if (center) {
+      const cosLat = Math.max(Math.cos((center.lat * Math.PI) / 180), 0.01);
+      const dLat = center.radiusKm / KM_PER_DEG_LAT;
+      const dLng = center.radiusKm / (KM_PER_DEG_LAT * cosLat);
+      rows =
+        (
+          await db
+            .prepare(
+              `${base}
+                AND (b.bbox_south + b.bbox_north) / 2.0 BETWEEN ? AND ?
+                AND (b.bbox_west + b.bbox_east) / 2.0 BETWEEN ? AND ?
+              ORDER BY (((b.bbox_south + b.bbox_north) / 2.0 - ?) * ((b.bbox_south + b.bbox_north) / 2.0 - ?))
+                     + ((((b.bbox_west + b.bbox_east) / 2.0 - ?) * ?) * (((b.bbox_west + b.bbox_east) / 2.0 - ?) * ?)) ASC
+              LIMIT ${MAP_PLACES_NEAREST_LIMIT}`
+            )
+            .bind(center.lat - dLat, center.lat + dLat, center.lng - dLng, center.lng + dLng, center.lat, center.lat, center.lng, cosLat, center.lng, cosLat)
+            .all<PlacePinRow>()
+        ).results ?? [];
+      rows = rows.filter((row) => {
+        if (typeof row.lat !== "number" || typeof row.lng !== "number") return false;
+        const dy = (row.lat - center.lat) * KM_PER_DEG_LAT;
+        const dx = (row.lng - center.lng) * KM_PER_DEG_LAT * cosLat;
+        return Math.sqrt(dx * dx + dy * dy) <= center.radiusKm;
+      });
+    } else if (hasBounds) {
+      rows =
+        (
+          await db
+            .prepare(
+              `${base}
+                AND (b.bbox_south + b.bbox_north) / 2.0 BETWEEN ? AND ?
+                AND (b.bbox_west + b.bbox_east) / 2.0 BETWEEN ? AND ?
+              LIMIT 100`
+            )
+            .bind(minLat, maxLat, minLng, maxLng)
+            .all<PlacePinRow>()
+        ).results ?? [];
+    } else {
+      rows = (await db.prepare(`${base} LIMIT 100`).all<PlacePinRow>()).results ?? [];
     }
+  } catch (error) {
+    console.error("map places query failed", error);
+    rows = [];
   }
 
-  const parseLatest = (raw: string | null | undefined) => {
-    if (!raw) return null;
-    try {
-      const v = JSON.parse(raw) as { id?: string; label?: string | null; at?: string | null; asset?: string | null };
-      return v.id ? { observationId: v.id, label: v.label ?? null, observedAt: v.at ?? null, photoAssetId: v.asset ?? null } : null;
-    } catch {
-      return null;
-    }
-  };
-  return rows.map((row) => ({
-    placeId: row.place_id,
-    name: row.name,
-    lat: row.lat,
-    lng: row.lng,
-    recordCount: Number(row.record_count ?? 0) || 0,
-    photoAssetId: row.photo_asset_id ?? null,
-    latestRecord: parseLatest(row.latest_record),
-  }));
+  return rows.map((row) => ({ placeId: row.place_id, name: row.name, lat: row.lat, lng: row.lng }));
 }
 
-export async function handleMapPlacesBoundsApi(url: URL, db: Env["OBS_DB"]): Promise<Response> {
-  const places = await queryPublicPlacesInBounds(url, db);
+export type MapPlaceCardLoader = (placeId: string) => Promise<MapPlaceCardExtras | null>;
+
+export async function handleMapPlacesBoundsApi(url: URL, db: Env["OBS_DB"], loadCard?: MapPlaceCardLoader): Promise<Response> {
+  const rows = await queryPublicPlacesInBounds(url, db);
+  const cards = await Promise.all(
+    rows.map((row, index) => (loadCard && index < MAP_PLACES_ENRICH_TOP ? loadCard(row.placeId).catch(() => null) : Promise.resolve(null)))
+  );
+  const places = rows.map((row, index) => {
+    const card = cards[index];
+    return {
+      placeId: row.placeId,
+      name: row.name,
+      lat: row.lat,
+      lng: row.lng,
+      recordCount: card?.recordCount ?? null,
+      photoUrl: card?.photoUrl ?? null,
+      latestRecord: card?.latestRecord ?? null,
+    };
+  });
   return json({ ok: true, places }, 200, { "cache-control": "no-store" });
 }
 
@@ -129,7 +181,7 @@ export async function handleMapExploreRoute(
   session: SessionLike,
   db: Env["OBS_DB"]
 ): Promise<Response> {
-  const places = await queryPublicPlacesInBounds(url, db);
+  const places = await queryPublicPlacesInBounds(url, db, { unboundedFallback: true });
   const selectedId = url.searchParams.get("placeId") ?? places[0]?.placeId ?? null;
   const selected = places.find((p) => p.placeId === selectedId) ?? places[0] ?? null;
 
