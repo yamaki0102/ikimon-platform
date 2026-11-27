@@ -404,6 +404,23 @@ test("MAP_V2 tap selects the nearest dot, pin or cluster and the selected sheet 
   has("ここで最初の記録を");
 });
 
+test("MAP_V2 sheet head supports drag gesture with pointer events, tap fallback and reduced motion", () => {
+  const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-drag-1" });
+  const has = (needle: string) => assert.ok(html.includes(needle), needle);
+  has(".zv2-sheet-head{touch-action:none;");
+  has("sheetHeadEl.addEventListener('pointerdown'");
+  has("sheetHeadEl.addEventListener('pointermove'");
+  has("sheetHeadEl.addEventListener('pointerup'");
+  has("sheetHeadEl.addEventListener('pointercancel'");
+  has("Math.abs(dy) < 8");
+  has("d.dy <= -40 ? 1 : (d.dy >= 40 ? -1 : 0)");
+  has("var order = ['collapsed', 'half', 'full'];");
+  has("state.selectedExpanded = true;");
+  has("Date.now() - (state.dragEndAt || 0) < 400");
+  has("@media (prefers-reduced-motion:reduce){.zv2-sheet{transition:none}}");
+  assert.ok(!html.includes("zv2-mapwrap{touch-action:none"));
+});
+
 test("mapExplorerV2 worker graph has no node imports and asset paths match pinned assets", async () => {
   const { readFileSync } = await import("node:fs");
   for (const f of ["mapExplorerV2.ts", "mapExplorerAssetPaths.ts"]) {

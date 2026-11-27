@@ -159,7 +159,7 @@ a,button{font:inherit;color:inherit}
 .zv2-sheet{position:absolute;left:0;right:0;bottom:calc(70px + env(safe-area-inset-bottom));z-index:30;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -3px 18px rgba(9,25,16,.22);display:flex;flex-direction:column;overflow:hidden;max-height:84px;transition:max-height 240ms cubic-bezier(.2,.8,.2,1)}
 .zv2-sheet[data-sheet-state="half"]{max-height:44vh}
 .zv2-sheet[data-sheet-state="full"]{max-height:calc(100vh - 144px);transition-duration:360ms}
-.zv2-sheet-head{width:100%;border:0;background:#fff;text-align:left;padding:10px 18px 8px;cursor:pointer;display:grid;gap:6px;flex:none}
+.zv2-sheet-head{touch-action:none;user-select:none;-webkit-user-select:none;width:100%;border:0;background:#fff;text-align:left;padding:10px 18px 8px;cursor:pointer;display:grid;gap:6px;flex:none}
 .zv2-grab{width:44px;height:5px;border-radius:3px;background:#DDE2DC;margin:0 auto 2px}
 .zv2-peek{display:flex;align-items:center;gap:10px;min-height:28px}
 .zv2-peek-ttl{font-size:16px;font-weight:800;white-space:nowrap}
@@ -167,6 +167,8 @@ a,button{font:inherit;color:inherit}
 .zv2-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 18px}
 .zv2-sheet[data-sheet-state="collapsed"] .zv2-sheet-body{display:none}
 .zv2-sheet[data-sheet-state="selected-low"]{max-height:280px}
+.zv2-sheet[data-dragging="1"] .zv2-sheet-body{display:block}
+@media (prefers-reduced-motion:reduce){.zv2-sheet{transition:none}}
 .zv2-sheet[data-sheet-state="selected-low"] .zv2-sheet-body{display:block;overflow:hidden;padding:0 18px 14px}
 
 /* Shared list & selected card */
@@ -702,7 +704,53 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   function bindUiEvents() {
     if (sheetHeadEl) {
+      var drag = null;
+      function applySheetStep(step) {
+        if (state.selectedId) {
+          if (step > 0) state.selectedExpanded = true;
+          else if (step < 0) state.selectedExpanded = false;
+        } else if (step !== 0) {
+          var order = ['collapsed', 'half', 'full'];
+          var idx = Math.max(0, order.indexOf(state.sheetState));
+          state.sheetState = order[Math.max(0, Math.min(2, idx + step))];
+        }
+        renderUI();
+      }
+      function finishDrag(cancel) {
+        if (!drag) return;
+        var d = drag;
+        drag = null;
+        try { sheetHeadEl.releasePointerCapture(d.id); } catch (_) {}
+        if (!d.active) return;
+        state.dragEndAt = Date.now();
+        sheetEl.removeAttribute('data-dragging');
+        sheetEl.style.transition = '';
+        sheetEl.style.maxHeight = '';
+        applySheetStep(cancel ? 0 : (d.dy <= -40 ? 1 : (d.dy >= 40 ? -1 : 0)));
+      }
+      sheetHeadEl.addEventListener('pointerdown', function (ev) {
+        if (!sheetEl || (typeof ev.button === 'number' && ev.button > 0)) return;
+        drag = { id: ev.pointerId, y0: ev.clientY, h0: sheetEl.getBoundingClientRect().height, active: false, dy: 0 };
+        try { sheetHeadEl.setPointerCapture(ev.pointerId); } catch (_) {}
+      });
+      sheetHeadEl.addEventListener('pointermove', function (ev) {
+        if (!drag || ev.pointerId !== drag.id) return;
+        var dy = ev.clientY - drag.y0;
+        if (!drag.active) {
+          if (Math.abs(dy) < 8) return;
+          drag.active = true;
+          sheetEl.setAttribute('data-dragging', '1');
+          sheetEl.style.transition = 'none';
+        }
+        drag.dy = dy;
+        var h = Math.max(sheetHeadEl.offsetHeight, Math.min(window.innerHeight - 144, drag.h0 - dy));
+        sheetEl.style.maxHeight = h + 'px';
+        ev.preventDefault();
+      });
+      sheetHeadEl.addEventListener('pointerup', function () { finishDrag(false); });
+      sheetHeadEl.addEventListener('pointercancel', function () { finishDrag(true); });
       sheetHeadEl.addEventListener('click', function () {
+        if (Date.now() - (state.dragEndAt || 0) < 400) return;
         if (state.selectedId) {
           state.selectedExpanded = !state.selectedExpanded;
         } else {
