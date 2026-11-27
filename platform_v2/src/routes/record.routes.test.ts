@@ -186,6 +186,11 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /動画は保存済みです。公開までの状態を下に表示しています。/);
         assert.match(response.body, /動画は保存済みです。公開準備が続いています。画面を閉じても大丈夫です。/);
         assert.match(response.body, /preparePhotoUpload/);
+        assert.match(response.body, /const photoWarmCache = new WeakMap\(\)/);
+        assert.match(response.body, /normalized\.photos\.forEach\(\(photo\) => \{ warmPhotoUpload\(photo\); \}\)/);
+        assert.match(response.body, /selectedPrimaryPhotoFile = file;\s+warmPhotoUpload\(file\)/);
+        assert.match(response.body, /const prepared = await getPreparedPhoto\(item\.file\)/);
+        assert.match(response.body, /return await preparePhotoWithHash\(file\)/);
         assert.match(response.body, /canvasToWebpDataUrl\(canvas, PHOTO_UPLOAD_WEBP_QUALITY\)/);
         assert.match(response.body, /canvasToJpegDataUrl\(canvas, PHOTO_UPLOAD_JPEG_QUALITY\)/);
         assert.match(response.body, /mapWithConcurrency\(preparedPhotoUploads, PHOTO_UPLOAD_CONCURRENCY/);

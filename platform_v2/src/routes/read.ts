@@ -14727,6 +14727,54 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const digest = await window.crypto.subtle.digest('SHA-256', bytes);
           return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
         };
+        const photoWarmCache = new WeakMap();
+        const photoWarmQueue = [];
+        let photoWarmActive = 0;
+        const runPhotoWarmQueue = () => {
+          while (photoWarmActive < PHOTO_UPLOAD_CONCURRENCY && photoWarmQueue.length) {
+            const job = photoWarmQueue.shift();
+            photoWarmActive += 1;
+            job.run().then(job.resolve, job.reject).finally(() => {
+              photoWarmActive -= 1;
+              runPhotoWarmQueue();
+            });
+          }
+        };
+        const preparePhotoWithHash = async (file) => {
+          const upload = await preparePhotoUpload(file);
+          const hash = await sha256Hex(upload.base64Data);
+          return { upload, hash };
+        };
+        const warmPhotoUpload = (file) => {
+          if (!file || typeof file !== 'object') return null;
+          const cached = photoWarmCache.get(file);
+          if (cached) return cached;
+          const promise = new Promise((resolve, reject) => {
+            const start = () => {
+              photoWarmQueue.push({ run: () => preparePhotoWithHash(file), resolve, reject });
+              runPhotoWarmQueue();
+            };
+            if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(start, { timeout: 800 });
+            else window.setTimeout(start, 0);
+          });
+          promise.catch(() => undefined);
+          photoWarmCache.set(file, promise);
+          return promise;
+        };
+        const dropWarmPhotos = (files) => {
+          (files || []).forEach((file) => { if (file && typeof file === 'object') photoWarmCache.delete(file); });
+        };
+        const getPreparedPhoto = async (file) => {
+          const cached = photoWarmCache.get(file);
+          if (cached) {
+            try {
+              return await cached;
+            } catch (_) {
+              photoWarmCache.delete(file);
+            }
+          }
+          return await preparePhotoWithHash(file);
+        };
 
         const RECORD_DRAFT_DB = 'ikimon-record-draft';
         const RECORD_DRAFT_STORE = 'drafts';
@@ -15464,6 +15512,8 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
             mediaAutofillSequence += 1;
             clearMediaInputsExcept(input);
             const normalized = normalizeSelectedFiles(files, kind);
+            dropWarmPhotos(selectedMediaFiles);
+            normalized.photos.forEach((photo) => { warmPhotoUpload(photo); });
             if (normalized.photos.length || normalized.video) {
               sendRecordFunnelStep('media_selected', {
                 captureKind: kind,
@@ -15527,7 +15577,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               setStatus('<div class="row"><div>主役写真には画像ファイルを選んでください。</div></div>');
               return;
             }
+            dropWarmPhotos([selectedPrimaryPhotoFile]);
             selectedPrimaryPhotoFile = file;
+            warmPhotoUpload(file);
             syncVideoPrimaryPhotoUi();
             visualRecordFeedbackSentence = '';
             visualRecordEnvironmentDraft = null;
@@ -15753,8 +15805,9 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
               }
               let preparedPhotoCount = 0;
               const preparedPhotoItems = await mapWithConcurrency(photoUploadList, PHOTO_UPLOAD_CONCURRENCY, async (item) => {
-                const upload = await preparePhotoUpload(item.file);
-                const hash = await sha256Hex(upload.base64Data);
+                const prepared = await getPreparedPhoto(item.file);
+                const upload = prepared.upload;
+                const hash = prepared.hash;
                 preparedPhotoCount += 1;
                 setStatus('<div class="row"><div>写真を記録用に整えています... ' + String(preparedPhotoCount) + '/' + String(photoUploadList.length) + '</div></div>');
                 return {
