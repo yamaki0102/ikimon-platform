@@ -1,7 +1,7 @@
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
-import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
+import { inferTaxonGroupForLabel, resolveTaxonGroups } from "./zukanMapTaxonGroup";
 
 export const REGION_SURFACE_V1_FLAG = "REGION_SURFACE_V1_ENABLED";
 
@@ -138,11 +138,12 @@ export async function loadRegionSurfaceData(
   const ranked = [...byName.entries()].sort((a, b) => b[1].records - a[1].records || a[0].localeCompare(b[0], "ja"));
   const photoIds = ranked.slice(0, 80).flatMap(([, g]) => g.ids);
   const photos = photoIds.length ? await photoLoader(photoIds).catch(() => new Map<string, string>()) : new Map<string, string>();
+  const groups = await resolveTaxonGroups(db, ranked.map(([n]) => n)).catch(() => new Map<string, string>());
   const species: RegionSpecies[] = ranked.map(([name, g]) => {
     const pid = g.ids.find((id) => photos.has(id));
     return {
       name,
-      group: inferTaxonGroupForLabel(name),
+      group: groups.get(name) ?? inferTaxonGroupForLabel(name),
       records: g.records,
       lastObservationId: g.ids[0]!,
       photoUrl: pid ? photos.get(pid)! : null,
@@ -202,19 +203,21 @@ export function regionMapCardHtml(cells: readonly RegionCell[], mapHref: string,
   const minLng = Math.min(...parsed.map((c) => c.p.lng - c.h));
   const maxLng = Math.max(...parsed.map((c) => c.p.lng + c.h));
   const kx = Math.max(Math.cos(((minLat + maxLat) / 2) * Math.PI / 180), 0.1);
-  const spanX = Math.max((maxLng - minLng) * kx, 1e-6);
-  const spanY = Math.max(maxLat - minLat, 1e-6);
+  const sparse = parsed.length <= 2;
+  const minSpan = sparse ? Math.max(...parsed.map((c) => c.h)) * 6 : 1e-6;
+  const spanX = Math.max((maxLng - minLng) * kx, minSpan * kx, 1e-6);
+  const spanY = Math.max(maxLat - minLat, minSpan, 1e-6);
   const scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY, 12000);
   const offX = (W - spanX * scale) / 2;
   const offY = (H - spanY * scale) / 2;
   const rects = parsed.map((c) => {
-    const w = Math.max(c.h * 2 * kx * scale, 22);
-    const h = Math.max(c.h * 2 * scale, 22);
-    const cx = offX + (c.p.lng - minLng) * kx * scale;
-    const cy = offY + (maxLat - c.p.lat) * scale;
+    const w = sparse ? 26 : Math.max(c.h * 2 * kx * scale, 22);
+    const h = sparse ? 26 : Math.max(c.h * 2 * scale, 22);
+    const cx = offX + ((c.p.lng - (minLng + maxLng) / 2) * kx + spanX / 2) * scale;
+    const cy = offY + (spanY / 2 - (c.p.lat - (minLat + maxLat) / 2)) * scale;
     const x = Math.min(Math.max(cx - w / 2, 3), W - w - 3);
     const y = Math.min(Math.max(cy - h / 2, 3), H - h - 3);
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="6" fill="#143F2E" fill-opacity="${(0.14 + Math.min(c.count, 20) / 20 * 0.4).toFixed(2)}" stroke="#143F2E" stroke-opacity=".55" stroke-width="1.5"/>`;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${sparse ? 13 : 6}" fill="#143F2E" fill-opacity="${(0.14 + Math.min(c.count, 20) / 20 * 0.4).toFixed(2)}" stroke="#143F2E" stroke-opacity=".55" stroke-width="1.5"/>`;
   }).join("");
   return `<div class="rs-rc" data-region-map="1"><div class="rs-rh">${tr(lang, copy?.title[0] ?? "この地域の地図", copy?.title[1] ?? "Map of this area")}</div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${tr(lang, copy?.aria[0] ?? "この地域の記録がある範囲（大まかな位置）", copy?.aria[1] ?? "Area with records in this region (approximate location)")}" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="12" fill="#EDEFE7"/>${rects}</svg><p class="rs-rn">${tr(lang, copy?.note[0] ?? "記録がある範囲を、大まかに表示しています。", copy?.note[1] ?? "The area with records is shown roughly.")}</p><a class="rs-all" href="${esc(mapHref)}">${tr(lang, "地図で見る", "View on map")}</a></div>`;
 }
