@@ -89,3 +89,25 @@ test("/api/v1/map/cells and /observations filter by taxon_group after full-set c
   assert.equal(insectObs.items[0]?.taxonGroup, "insect");
   assert.equal(insectObs.items[0]?.publicCellId, "cell:35.52,139.52");
 });
+
+test("resolveTaxonGroups prefers stored snapshot group and falls back to label inference", async () => {
+  const { resolveTaxonGroups } = await import("./zukanMapTaxonGroup");
+  const db = { prepare(sql: string) { return { bind() { return { async all() {
+    if (sql.includes("public_map_snapshot_records_v1")) return { results: [{ name: "テスト種", grp: "bird", n: 3 }, { name: "テスト種", grp: "other", n: 9 }] };
+    throw new Error("no table");
+  } }; } }; } };
+  const m = await resolveTaxonGroups(db as never, ["テスト種", "カワヅザクラ", "不明な名前"]);
+  assert.equal(m.get("テスト種"), "bird");
+  assert.equal(m.get("カワヅザクラ"), "plant");
+  assert.equal(m.get("不明な名前"), "other");
+});
+
+test("regionMapCardHtml draws small markers for sparse cells", async () => {
+  const { regionMapCardHtml } = await import("./regionSurfaceV1");
+  const html = regionMapCardHtml([{ cell: "35.0000,139.0000", count: 1 }], "/ja/map", "ja");
+  const m = /<rect x="[\d.]+" y="[\d.]+" width="(\d+\.\d)" height="(\d+\.\d)"/g;
+  const sizes = [...html.matchAll(/<rect x="[\d.]+" y="[\d.]+" width="([\d.]+)" height="([\d.]+)"/g)];
+  assert.equal(sizes.length, 1);
+  assert.ok(Number(sizes[0]![1]) <= 30 && Number(sizes[0]![2]) <= 30);
+  void m;
+});

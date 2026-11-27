@@ -1,7 +1,7 @@
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, canonicalSpeciesName, headBar, plural, scientificNameFromSlug, shareScript, shell, tr } from "./invasiveMapV1";
 import { INVASIVE_LEARN_PATH, classifyInvasive } from "./mapInvasive";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
-import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
+import { inferTaxonGroupForLabel, resolveTaxonGroups } from "./zukanMapTaxonGroup";
 import { EXTRA_CSS, GROUP_LABELS, isHigherRankName, regionMapCardHtml, type RegionCell } from "./regionSurfaceV1";
 
 export const SPECIES_SURFACE_V1_FLAG = "SPECIES_SURFACE_V1_ENABLED";
@@ -102,7 +102,7 @@ export async function loadSpeciesSurfaceData(
   const latin = /^[A-Z][a-z]+(?: [a-z-]+)*$/.test(name) ? name : null;
   return {
     name,
-    group: inferTaxonGroupForLabel(name),
+    group: (await resolveTaxonGroups(db, [name]).catch(() => new Map<string, string>())).get(name) ?? inferTaxonGroupForLabel(name),
     total: rows.length,
     areas: [...areaMap.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja")).slice(0, 12).map(([area, count]) => ({ area, count })),
     cells: [...cellMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([cell, count]) => ({ cell, count })),
