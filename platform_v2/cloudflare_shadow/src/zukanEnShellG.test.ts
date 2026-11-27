@@ -54,6 +54,16 @@ test("en about and learn have no Japanese chrome, ja about unchanged", async () 
   }
 });
 
+test("es and pt-BR about serve the English body", async () => {
+  for (const lang of ["es", "pt-BR"]) {
+    const about = await get(`/about?lang=${lang}`);
+    assert.equal(about.statusCode, 200, lang);
+    assert.match(about.text, /Growing local records together\./, lang);
+    const headings = (about.text.match(/<h[1-3][^>]*>[\s\S]*?<\/h[1-3]>/g) ?? []).join(" ").replace(/<[^>]+>/g, " ");
+    assert.equal(JA.test(headings), false, lang);
+  }
+});
+
 test("non-ja privacy and terms redirect to ja", async () => {
   for (const lang of ["en", "es", "pt-br"]) {
     for (const page of ["privacy", "terms"]) {

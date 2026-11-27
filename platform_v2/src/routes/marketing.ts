@@ -1358,7 +1358,8 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
   }
   const availableLangs = localizedPageLangs(page);
   const hasLocalizedSeoPage = availableLangs.includes(lang);
-  const meta = getShortCopy<MarketingPageMeta>(lang, "public", `marketing.pages.${pageKey}`);
+  const contentLang: SiteLang = pageKey === "about" && (lang === "es" || lang === "pt-BR") ? "en" : lang;
+  const meta = getShortCopy<MarketingPageMeta>(contentLang, "public", `marketing.pages.${pageKey}`);
   const plainLearnReader = lang === "ja" && page.lane === "learn" && page.layout === "reading";
   const isLearnIndexHub = meta.bodyPageId === "learn-index";
   const isCommunityProductPage = page.path === "/community";
@@ -1367,7 +1368,7 @@ function renderPageDocument(basePath: string, lang: SiteLang, currentPath: strin
     ? (lang === "ja"
       ? renderLearnCatalog(basePath, buildLearnCatalog(), renderLearnIndexHub(basePath, lang))
       : renderLearnIndexHub(basePath, lang))
-    : localizeInternalLinks(renderLongformPage(lang, meta.bodyPageId), basePath, lang);
+    : localizeInternalLinks(renderLongformPage(contentLang, meta.bodyPageId), basePath, lang);
   const headings = headingsFromHtml(rawBodyHtml);
   const articleHtml = isLearnIndexHub
     ? withHeadingIds(rawBodyHtml, headings)
