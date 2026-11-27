@@ -901,6 +901,15 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     syncSelectedMarker(sel);
     syncInvLayers();
     if (!state.map) return;
+    var bndSrc = state.map.getSource('zv2-bnd');
+    if (bndSrc) {
+      bndSrc.setData({
+        type: 'FeatureCollection',
+        features: rec.concat(zero).filter(function (p) { return p && p.boundary; }).map(function (p) {
+          return { type: 'Feature', geometry: p.boundary, properties: { placeId: p.placeId } };
+        })
+      });
+    }
     var recSrc = state.map.getSource('zv2-recorded');
     if (recSrc) {
       recSrc.setData({
@@ -1410,6 +1419,9 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         data: { type: 'FeatureCollection', features: [] },
         cluster: false
       });
+      map.addSource('zv2-bnd', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'zv2-bnd-fill', type: 'fill', source: 'zv2-bnd', paint: { 'fill-color': '#143f2e', 'fill-opacity': 0.08 } });
+      map.addLayer({ id: 'zv2-bnd-line', type: 'line', source: 'zv2-bnd', paint: { 'line-color': '#143f2e', 'line-width': 2 } });
       map.addSource('zv2-inv', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'zv2-inv-fill', type: 'fill', source: 'zv2-inv', paint: { 'fill-color': '#C9731A', 'fill-opacity': 0.3, 'fill-opacity-transition': { duration: 240 } } });
       map.addLayer({ id: 'zv2-inv-line', type: 'line', source: 'zv2-inv', paint: { 'line-color': '#8A4B00', 'line-width': 1.5 } });
