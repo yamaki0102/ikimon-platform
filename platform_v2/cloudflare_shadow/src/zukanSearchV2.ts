@@ -139,6 +139,7 @@ export async function querySearchV2Results(rawQuery: string, type: SearchV2Type,
   const empty: SearchV2Results = { parsed, places: [], events: [], records: [] };
   if (!hasText && !hasTemporal) return empty;
   const fetchLimit = hasTemporal ? 400 : 30;
+  const recordFetchLimit = hasTemporal ? 400 : 200;
 
   const [places, events, records] = await Promise.all([
     (type === "all" || type === "places") && hasText && !hasTemporal
@@ -173,7 +174,7 @@ export async function querySearchV2Results(rawQuery: string, type: SearchV2Type,
               `SELECT o.observation_id AS observation_id, o.taxon_label AS taxon_label, o.observed_at AS observed_at, o.public_area_label AS public_area_label, ${RECORD_THUMB_SQL} AS asset_id
                  FROM observations o
                 WHERE o.visibility = 'public' AND COALESCE(o.emergency_hidden, 0) = 0 AND ${full.sql}
-                ORDER BY o.observed_at DESC LIMIT ${fetchLimit}`,
+                ORDER BY o.observed_at DESC LIMIT ${recordFetchLimit}`,
             )
             .bind(...full.binds)
             .all<Raw>()
@@ -181,7 +182,7 @@ export async function querySearchV2Results(rawQuery: string, type: SearchV2Type,
             .catch(async () => {
               const min = textClause(["taxon_label"], parsed.textTokens);
               return db
-                .prepare(`SELECT observation_id, taxon_label, observed_at FROM observations WHERE visibility = 'public' AND ${min.sql} ORDER BY observed_at DESC LIMIT ${fetchLimit}`)
+                .prepare(`SELECT observation_id, taxon_label, observed_at FROM observations WHERE visibility = 'public' AND ${min.sql} ORDER BY observed_at DESC LIMIT ${recordFetchLimit}`)
                 .bind(...min.binds)
                 .all<Raw>()
                 .then((r) => r.results)
@@ -189,7 +190,7 @@ export async function querySearchV2Results(rawQuery: string, type: SearchV2Type,
             });
           return rows
             .filter((r) => matchesTemporal(parsed, r.observed_at))
-            .slice(0, 30)
+            .slice(0, 150)
             .map((r) => ({ observationId: r.observation_id, label: (r.taxon_label ?? "").trim(), observedAt: r.observed_at, areaLabel: r.public_area_label ?? null, assetId: r.asset_id ?? null }));
         })()
       : Promise.resolve([] as SearchV2Results["records"]),
@@ -325,7 +326,7 @@ export async function handleSearchExploreV2Route(
 
   const [suggest, popular, recentSpecies] = await Promise.all([
     q ? loadSearchV2Suggestions(q, db, lang) : Promise.resolve({ suggestions: [] as SearchV2Suggestion[], seasonLabels: [] as string[] }),
-    q ? Promise.resolve([] as PlaceSearchInfo[]) : loadPopularPlaces(db),
+    q ? Promise.resolve([] as PlaceSearchInfo[]) : loadPopularPlaces(db).then((r) => r.filter((p) => (p.recordCount ?? 0) > 0)),
     q || !authenticated || !session ? Promise.resolve([] as string[]) : loadRecentSpecies(db, session.userId),
   ]);
 
@@ -364,7 +365,7 @@ export async function handleSearchExploreV2Route(
       <div id="zs2-recent" hidden><div class="zs2-recent-head"><h2 class="zs-h2">${isEn ? "Recent searches" : "最近探した言葉"}</h2><button type="button" class="zs2-clear" id="zs2-recent-clear">${isEn ? "Clear" : "消す"}</button></div><div class="zs-chips" id="zs2-recent-list"></div></div>
       ${recentSpecies.length ? `<div data-search-v2="recent-species"><h2 class="zs-h2">${isEn ? "Your recent finds" : "最近記録した生きもの"}</h2><div class="zs-chips">${recentSpecies.map(speciesChipHtml).join("")}</div></div>` : ""}
       ${seasonChips ? `<div data-search-v2="season-words"><h2 class="zs-h2">${isEn ? "By season" : "時期のことばで探す"}</h2><div class="zs-chips">${seasonChips}</div></div>` : ""}
-      ${popularHtml ? `<div><h2 class="zs-h2">${isEn ? "Popular places" : "よく見られている場所"}</h2><ul class="zs-list">${popularHtml}</ul></div>` : ""}
+      ${popularHtml ? `<div><h2 class="zs-h2">${isEn ? "Places with most records" : "記録の多い場所"}</h2><ul class="zs-list">${popularHtml}</ul></div>` : ""}
       <a class="zs-btn" href="${escapeHtml(`${prefix}/search/seasons`)}">${SEARCH_ICON_CALENDAR}${isEn ? "Search by season" : "時期で探す"}</a>
     </div>
   </section>
@@ -373,7 +374,7 @@ export async function handleSearchExploreV2Route(
   const html = renderZukanCommonShell({
     lang,
     title: isEn ? "Explore" : "探す",
-    activeNav: "library",
+    activeNav: "none",
     authenticated,
     displayName: session?.displayName ?? null,
     bodyHtml: body,
@@ -441,22 +442,53 @@ export async function handleSearchResultsV2Route(
       }),
     )
     .join("");
-  const recordRows = data.records
-    .map((r) => {
-      const name = displayRecordName(r.label, isEn) || (isEn ? "Unnamed record" : "名前なしの記録");
-      return renderSearchRow({
-        href: `${prefix}/observations/${encodeURIComponent(r.observationId)}`,
-        title: name,
-        titleHtml: highlightTokens(name, tokens),
-        meta: [formatShortDate(r.observedAt, isEn), r.areaLabel ?? ""].filter(Boolean).join(" ・ "),
+  const isUnnamed = (label: string): boolean => !label || /^unidentified$/i.test(label) || label === "未同定";
+  const RECORD_CAP = 10;
+  const dayOf = (iso: string): string => iso.slice(0, 10);
+  const named = data.records.filter((r) => !isUnnamed(r.label));
+  const unnamed = data.records.filter((r) => isUnnamed(r.label));
+  const groups = new Map<string, { area: string | null; observedAt: string; ids: string[]; assetId: string | null }>();
+  for (const r of unnamed) {
+    const key = `${r.areaLabel ?? ""}|${dayOf(r.observedAt)}`;
+    const g = groups.get(key);
+    if (g) {
+      g.ids.push(r.observationId);
+      g.assetId = g.assetId ?? r.assetId;
+    } else groups.set(key, { area: r.areaLabel, observedAt: r.observedAt, ids: [r.observationId], assetId: r.assetId });
+  }
+  const recordsHref = `${prefix}/records?view=public&amp;q=${encodedQ}`;
+  const namedSorted = [...named.filter((r) => r.assetId), ...named.filter((r) => !r.assetId)];
+  type RecItem = { html: string };
+  const groupList = [...groups.values()].sort((a, b) => b.ids.length - a.ids.length);
+  const groupSlots = Math.min(groupList.length, 2);
+  const items: RecItem[] = namedSorted.slice(0, RECORD_CAP - groupSlots).map((r) => ({
+    html: renderSearchRow({
+      href: `${prefix}/observations/${encodeURIComponent(r.observationId)}`,
+      title: r.label,
+      titleHtml: highlightTokens(displayRecordName(r.label, isEn), tokens),
+      meta: [formatShortDate(r.observedAt, isEn), r.areaLabel ?? ""].filter(Boolean).join(" ・ "),
+      badge: isEn ? "Record" : "記録",
+      thumbUrl: thumbOnce(r.assetId),
+    }),
+  }));
+  for (const g of groupList.slice(0, groupSlots)) {
+    const many = g.ids.length > 1;
+    const title = many ? (isEn ? `${g.ids.length} unidentified records` : `名前が未確定の記録 ${g.ids.length}件`) : isEn ? "Unidentified" : "未同定";
+    items.push({
+      html: renderSearchRow({
+        href: many ? recordsHref : `${prefix}/observations/${encodeURIComponent(g.ids[0] ?? "")}`,
+        title,
+        meta: [formatShortDate(g.observedAt, isEn), g.area ?? ""].filter(Boolean).join(" ・ "),
         badge: isEn ? "Record" : "記録",
-        thumbUrl: thumbOnce(r.assetId),
-      });
-    })
-    .join("");
+        thumbUrl: thumbOnce(g.assetId),
+      }),
+    });
+  }
+  const recordRows = items.slice(0, RECORD_CAP).map((i) => i.html).join("");
+  const recordMore = named.length + groupList.length > RECORD_CAP || data.records.length >= 150 ? `<p class="zs-count"><a href="${recordsHref}">${isEn ? "See more" : "もっと見る"}</a></p>` : "";
   const section = (key: string, label: string, count: number, rows: string) =>
     rows
-      ? `<div data-search-v2-group="${key}">${type === "all" ? `<h2 class="zs-h2">${label}</h2>` : ""}<ul class="zs-list">${rows}</ul><p class="zs-count">${isEn ? `${label} ${count}` : `${label} ${count}件`}</p></div>`
+      ? `<div data-search-v2-group="${key}">${type === "all" ? `<h2 class="zs-h2">${label}</h2>` : ""}<ul class="zs-list">${rows}</ul>${key === "records" ? recordMore : ""}<p class="zs-count">${isEn ? `${label} ${count}` : `${label} ${count}件`}</p></div>`
       : "";
   const hasAny = Boolean(placeRows || eventRows || recordRows);
 
@@ -492,7 +524,7 @@ export async function handleSearchResultsV2Route(
   const html = renderZukanCommonShell({
     title: isEn ? "Search results" : "検索結果",
     lang,
-    activeNav: "library",
+    activeNav: "none",
     authenticated: Boolean(session && !session.banned),
     displayName: session?.displayName ?? null,
     bodyHtml: body,

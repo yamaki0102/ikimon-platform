@@ -125,3 +125,29 @@ test("SEARCH_V2_ENABLED is default off in staging and production", async () => {
   assert.match(src, /searchV2On\(env, session\)\) return handleSearchExploreV2Route/);
   assert.match(src, /searchV2On\(env, session\)\) return handleSearchResultsV2Route/);
 });
+
+test("results collapse unidentified records, cap list, no library nav highlight; explore hides zero-record places", async (t) => {
+  const sqlite = new DatabaseSync(":memory:");
+  t.after(() => sqlite.close());
+  sqlite.exec(`
+    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, public_profile_status TEXT NOT NULL DEFAULT 'draft', superseded_by_place_id TEXT, locality_label TEXT);
+    CREATE TABLE observation_event_sessions (session_id TEXT PRIMARY KEY, title TEXT NOT NULL, started_at TEXT NOT NULL);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, taxon_label TEXT, observed_at TEXT NOT NULL, visibility TEXT NOT NULL DEFAULT 'public', emergency_hidden INTEGER DEFAULT 0, public_area_label TEXT, owner_user_id TEXT, created_at TEXT);
+    CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT, exif_scrub_state TEXT);
+    CREATE TABLE record_place_memberships (record_id TEXT, place_id TEXT, membership_state TEXT, public_precision TEXT, removed_at TEXT);
+  `);
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name, public_profile_status) VALUES ('p-0','あい公園','published')").run();
+  const ins = sqlite.prepare("INSERT INTO observations (observation_id, taxon_label, observed_at, public_area_label) VALUES (?, ?, ?, ?)");
+  for (let i = 0; i < 12; i++) ins.run(`u-${i}`, "未同定", "2026-06-02T01:00:00Z", "掛川");
+  for (let i = 0; i < 12; i++) ins.run(`n-${i}`, `カワ${i}`, "2026-06-03T01:00:00Z", "掛川");
+  const db = sqliteObsDb(sqlite);
+  const html = await (await handleSearchResultsV2Route(new URL("https://zukan.earth/ja/search/results?q=%E6%8E%9B%E5%B7%9D"), "ja", null, db)).text();
+  assert.match(html, /名前が未確定の記録 12件/);
+  assert.equal((html.match(/\/ja\/observations\//g) ?? []).length, 9);
+  assert.match(html, /もっと見る/);
+  assert.match(html, /\/ja\/records\?view=public&amp;q=/);
+  assert.doesNotMatch(html, /zt-nav-item[^>]*is-active/);
+  const explore = await (await handleSearchExploreV2Route(new URL("https://zukan.earth/ja/search/explore"), "ja", null, db)).text();
+  assert.doesNotMatch(explore, /よく見られている場所/);
+  assert.doesNotMatch(explore, /あい公園/);
+});
