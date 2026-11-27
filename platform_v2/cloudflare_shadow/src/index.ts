@@ -38634,6 +38634,9 @@ async function handleOtayoriPageRequest(request: Request, url: URL, env: Env): P
       authenticated: Boolean(session && !session.banned),
       letters,
       fromPath: url.searchParams.get("from") ?? "/",
+      sent: url.searchParams.get("sent") === "1",
+      error: url.searchParams.get("error"),
+      displayName: session && !session.banned ? session.displayName : null,
     }),
     200,
     { "cache-control": "private, no-store" }
@@ -38644,13 +38647,16 @@ async function handleCreateOtayoriRequest(request: Request, env: Env): Promise<R
   const sameOriginError = assertSameOriginRequest(request);
   if (sameOriginError) return sameOriginError;
   const session = await readCompatibleSession(request, env).catch(() => null);
+  const contentType = request.headers.get("content-type") ?? "";
+  const isJsonCall = contentType.includes("application/json");
+  const redirectTo = (location: string) => new Response(null, { status: 303, headers: { location, "cache-control": "no-store" } });
   if (!session || session.banned) {
+    if (!isJsonCall) return redirectTo("/ja/login?redirect=%2Fja%2Fotayori");
     return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
   }
-  const contentType = request.headers.get("content-type") ?? "";
   let rawBody = "";
   let rawPath = "/";
-  if (contentType.includes("application/json")) {
+  if (isJsonCall) {
     const parsed = await readJson<{ body?: unknown; pagePath?: unknown }>(request);
     rawBody = typeof parsed.body === "string" ? parsed.body.trim() : "";
     rawPath = typeof parsed.pagePath === "string" && parsed.pagePath.startsWith("/") ? parsed.pagePath.slice(0, 200) : "/";
@@ -38660,7 +38666,9 @@ async function handleCreateOtayoriRequest(request: Request, env: Env): Promise<R
     const p = typeof form?.get("pagePath") === "string" ? String(form.get("pagePath")) : "/";
     rawPath = p.startsWith("/") ? p.slice(0, 200) : "/";
   }
+  const formLang = /^\/(ja|en|es|pt-br)(?=\/|$)/.exec(rawPath)?.[1] ?? "ja";
   if (!rawBody || rawBody.length > 1000) {
+    if (!isJsonCall) return redirectTo(`/${formLang}/otayori?error=empty`);
     return json({ ok: false, error: "invalid_body" }, 400, { "cache-control": "no-store" });
   }
   await ensureOtayoriTable(env.CORE_DB);
@@ -38672,6 +38680,7 @@ async function handleCreateOtayoriRequest(request: Request, env: Env): Promise<R
       letter_id, user_id, sender_name, body, page_path, status, reply_text, replied_at, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, 'received', NULL, NULL, ?, ?)`
   ).bind(letterId, session.userId, senderName, rawBody, rawPath, now, now).run();
+  if (!isJsonCall) return redirectTo(`/${formLang}/otayori?sent=1`);
   return json({ ok: true, letterId, status: "received", notifyUser: false }, 201, { "cache-control": "no-store" });
 }
 

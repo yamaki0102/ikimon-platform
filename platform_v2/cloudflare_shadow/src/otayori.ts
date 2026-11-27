@@ -1,3 +1,5 @@
+import { ZUKAN_SHELL_CSS, renderZukanChrome } from "./zukanShellChrome";
+
 export const OTAYORI_STATUSES = [
   "received",
   "triaging",
@@ -76,8 +78,24 @@ export function renderOtayoriPage(options: {
   authenticated: boolean;
   letters: OtayoriLetterRow[];
   fromPath?: string;
+  sent?: boolean;
+  error?: string | null;
+  displayName?: string | null;
 }): string {
-  const lang = options.lang === "en" ? "en" : "ja";
+  const lang = options.lang === "ja" ? "ja" : "en";
+  const chromeLang = options.lang === "es" || options.lang === "pt-br" || options.lang === "en" ? options.lang : "ja";
+  const chrome = renderZukanChrome({
+    lang: chromeLang,
+    activeNav: "profile",
+    authenticated: options.authenticated,
+    displayName: options.displayName,
+    pathname: `/${chromeLang}/otayori`,
+  });
+  const statusHtml = options.sent
+    ? `<p class="otayori-status-line" role="status">${lang === "en" ? "Thanks, we received your feedback. We will notify you only when there is a reply." : "ご要望を受け取りました。お返事があるときだけお知らせします。"}</p>`
+    : options.error === "empty"
+      ? `<p class="otayori-status-line otayori-status-error" role="alert">${lang === "en" ? "Please enter your feedback." : "内容を入力してください。"}</p>`
+      : "";
   const lettersHtml = options.letters.length
     ? `<ul class="otayori-list">${options.letters
         .map((row) => {
@@ -110,10 +128,10 @@ export function renderOtayoriPage(options: {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${lang === "en" ? "Feedback" : "改善のご要望"} | ZUKAN</title>
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;background:#f7f7f3;color:#17211b;font-family:"Noto Sans JP",system-ui,sans-serif;line-height:1.6}
-    a,a:visited{color:#245c3a}
-    main{max-width:720px;margin:0 auto;padding:24px 16px 64px;display:grid;gap:18px}
+    ${ZUKAN_SHELL_CSS}
+    .otayori-col{max-width:720px;margin:0 auto;padding:6px 0 32px;display:grid;gap:18px}
+    .otayori-status-line{margin:0;padding:10px 12px;border-radius:10px;background:#eef7f1;color:#245c3a;font-weight:700}
+    .otayori-status-error{background:#fdeeee;color:#8a1f1f}
     .otayori-card{background:#fff;border:1px solid #d7dfd8;border-radius:14px;padding:18px;display:grid;gap:12px}
     .otayori-form{display:grid;gap:10px}
     .otayori-form textarea{width:100%;padding:10px 12px;border:1px solid #c5d1c8;border-radius:10px;font:inherit}
@@ -127,8 +145,13 @@ export function renderOtayoriPage(options: {
   </style>
 </head>
 <body>
-  <main data-zukan-otayori-page="1">
+  <div class="zt-shell">
+  ${chrome.sidebarHtml}
+  <div>
+  ${chrome.topbarHtml}
+  <main class="zt-main" data-zukan-otayori-page="1"><div class="otayori-col">
     <section class="otayori-card">
+      ${statusHtml}
       <h1>${lang === "en" ? "Feedback" : "改善のご要望"}</h1>
       <p class="otayori-note">${lang === "en" ? "Notifications are sent only when there is a reply." : "確認中・対応中などの途中経過では通知せず、お返事があるときだけ通知します。"}</p>
       ${formHtml}
@@ -137,7 +160,10 @@ export function renderOtayoriPage(options: {
       <h2>${lang === "en" ? "Your feedback" : "これまでの改善のご要望"}</h2>
       ${lettersHtml}
     </section>
-  </main>
+  </div></main>
+  </div>
+  </div>
+  ${chrome.bottomNavHtml}
 </body>
 </html>`;
 }
