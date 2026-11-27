@@ -595,6 +595,7 @@ function renderAtlasGaps(profile: Record<string, unknown>, copy: AtlasCopy, lang
     .map(atlasPlainObject)
     .filter((gap): gap is Record<string, unknown> => Boolean(gap))
     .filter((gap) => typeof gap.reason === "string" && gap.reason.trim() !== "")
+    .filter((gap) => String(gap.key) === "access")
     .slice(0, 5);
   if (gaps.length === 0) return "";
   const gapEn: Record<string, string[]> = {

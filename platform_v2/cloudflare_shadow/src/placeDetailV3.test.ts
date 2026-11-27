@@ -157,7 +157,7 @@ test("v3 drops duplicated legacy cards, collapses details, hides unknown save st
   assert.doesNotMatch(html.slice(html.indexOf("<main"), html.indexOf("</main>")), /me-place-atlas-hero|me-place-atlas-summary|me-place-atlas-recent|me-place-atlas-empty/);
   assert.doesNotMatch(html, /class="gpd-primary" href="https:\/\/www\.google\.com\/maps/);
   assert.match(html, /data-pv3-around[\s\S]*google\.com\/maps/);
-  assert.match(tail, /現地で見せる/);
+  assert.doesNotMatch(tail, /現地で見せる/);
   assert.match(tail, /data-area-observations-panel/);
   assert.match(tail, /me-place-atlas-policy/);
   assert.doesNotMatch(html, /保存状態を確認できません/);

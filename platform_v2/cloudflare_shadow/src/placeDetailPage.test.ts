@@ -51,7 +51,8 @@ test("global Place detail keeps local script visible while rendering selected-la
   assert.match(html, /Local name:<\/strong> <span[^>]*>常磐公園/);
   assert.match(html, /Open external map/);
   assert.match(html, /query=%E5%B8%B8%E7%A3%90%E5%85%AC%E5%9C%92%20%E9%9D%99%E5%B2%A1%E7%9C%8C%20%E9%9D%99%E5%B2%A1%E5%B8%82/);
-  assert.match(html, /Latest source check/);
+  assert.match(html, /Last checked: 2026\/10\/02/);
+  assert.doesNotMatch(html, /Latest source check/);
   assert.doesNotMatch(html, /exactLat|exactLng|exact_lat|exact_lng/);
 });
 
@@ -183,7 +184,7 @@ test("coarse public location mode never upgrades itself to a precise map handoff
   const html = renderGlobalPlaceDetailPage({ profile, lang: "ja", viewerAuthenticated: false });
   assert.doesNotMatch(html, /外部地図で開く/);
   assert.doesNotMatch(html, /静岡県 静岡市/);
-  assert.match(html, /現地名/);
+  assert.doesNotMatch(html, /現地名/);
 });
 
 test("detail page scripts bind Atlas themes for click and keyboard and recover failed images", () => {
