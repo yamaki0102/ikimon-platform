@@ -61,7 +61,7 @@ export const ZUKAN_SHELL_CSS = `
     .zt-feedback-foot{justify-self:center}
     .zt-feedback-foot a,.zt-feedback-foot a:visited{min-height:44px;display:inline-flex;align-items:center;color:var(--muted);font-size:14px;font-weight:700;text-decoration:underline}
     .zt-bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;background:#fff;border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-    .zt-nav-item,.zt-nav-item:visited{min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;text-decoration:none;color:var(--muted);font-size:12px;line-height:1.2;text-align:center;padding:4px 2px;font-weight:500}
+    .zt-nav-item,.zt-nav-item:visited{min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;text-decoration:none;color:var(--muted);font-size:12px;line-height:1.2;text-align:center;padding:4px 2px;font-weight:500;white-space:nowrap}
     .zt-nav-item svg{width:26px;height:26px;flex:none}
     .zt-nav-item[aria-current="page"],.zt-nav-item[aria-current="page"]:visited{color:var(--green);font-weight:700}
     .zt-nav-item[aria-current="page"] svg{stroke-width:2.2}
@@ -82,7 +82,7 @@ export const ZUKAN_SHELL_CSS = `
       .zt-sidebar .zt-nav-item[aria-current="page"] svg{color:var(--green)}
       .zt-sidebar .zt-nav-feedback{margin-top:auto;font-size:14px;color:var(--muted)}
       .zt-side-me,.zt-side-me:visited{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px;color:var(--ink);font-weight:700;text-decoration:none;border-top:1px solid var(--line)}
-      .zt-side-me>span:last-child{min-width:0;overflow-wrap:anywhere}
+      .zt-side-me>span:last-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .zt-side-me .zt-avatar{width:36px;height:36px;min-width:36px;min-height:36px;font-size:15px}
       .zt-topbar.zt-topbar-member{display:none}
       .zt-topbar{padding:16px 32px 0}
