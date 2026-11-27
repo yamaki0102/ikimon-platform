@@ -27,8 +27,8 @@ export const ZUKAN_SHELL_CSS = `
     .zt-topbar{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 20px 4px;background:var(--bg)}
     .zt-logo,.zt-logo:visited{display:inline-flex;align-items:center;min-height:44px;text-decoration:none}
     .zt-logo img{display:block;height:26px;width:auto}
-    .zt-login-btn,.zt-login-btn:visited{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 22px;border:2px solid var(--green);border-radius:999px;color:var(--green);font-weight:700;font-size:16px;text-decoration:none;background:#fff}
-    .zt-avatar,.zt-avatar:visited{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--green);color:#fff;font-weight:700;font-size:18px;text-decoration:none;overflow:hidden}
+    .zt-login-btn,.zt-login-btn:visited{min-height:44px;flex:none;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;padding:0 22px;border:2px solid var(--green);border-radius:999px;color:var(--green);font-weight:700;font-size:16px;text-decoration:none;background:#fff}
+    .zt-avatar,.zt-avatar:visited{width:44px;height:44px;min-width:44px;min-height:44px;flex:none;aspect-ratio:1/1;line-height:1;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:var(--green);color:#fff;font-weight:700;font-size:18px;text-decoration:none;overflow:hidden}
     .zt-search{position:relative;display:block;width:100%;max-width:560px}
     .zt-search input{width:100%;min-height:48px;padding:8px 16px 8px 48px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:16px;box-shadow:0 1px 2px rgba(20,63,46,.06)}
     .zt-search input::placeholder{color:#3d4a42;opacity:1}
@@ -82,7 +82,8 @@ export const ZUKAN_SHELL_CSS = `
       .zt-sidebar .zt-nav-item[aria-current="page"] svg{color:var(--green)}
       .zt-sidebar .zt-nav-feedback{margin-top:auto;font-size:14px;color:var(--muted)}
       .zt-side-me,.zt-side-me:visited{display:flex;align-items:center;gap:12px;min-height:56px;padding:8px;color:var(--ink);font-weight:700;text-decoration:none;border-top:1px solid var(--line)}
-      .zt-side-me .zt-avatar{width:36px;height:36px;font-size:15px}
+      .zt-side-me>span:last-child{min-width:0;overflow-wrap:anywhere}
+      .zt-side-me .zt-avatar{width:36px;height:36px;min-width:36px;min-height:36px;font-size:15px}
       .zt-topbar.zt-topbar-member{display:none}
       .zt-topbar{padding:16px 32px 0}
       .zt-main{padding:20px 32px 32px}
