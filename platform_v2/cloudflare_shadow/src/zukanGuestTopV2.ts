@@ -189,4 +189,8 @@ export const GUEST_TOP_V2_CSS = `
       .zg2-ex-body{grid-template-columns:1fr 1.2fr;gap:28px}
       .zg2-join-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
     }
+    @media(min-width:1024px){
+      .zg2 .zg2-hero h1{font-size:44px}
+      .zg2 h2{font-size:30px}
+    }
 `;
