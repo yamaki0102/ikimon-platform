@@ -305,6 +305,9 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-title{margin:0;font-size:24px;font-weight:800;line-height:1.35}
 .zv2l-sub{margin:2px 0 12px;font-size:14.5px;color:var(--muted)}
 .zv2l-add-btn{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--green);background:#fff;color:var(--green);font-size:14px;font-weight:800;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.zv2l-sync{margin:12px 0 0}
+.zv2l-sync[hidden]{display:none}
+.zv2l-sync .zt-status-band{margin-top:8px}
 .zv2l-dsep{display:flex;align-items:center;gap:10px;padding:18px 0 2px}
 .zv2l-dt{font-size:14px;font-weight:800;color:var(--green);white-space:nowrap}
 .zv2l-dl{flex:1;height:1px;background:#E4E9E4}
@@ -314,12 +317,15 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-vmeta{font-size:14.5px;color:#55615A;margin-top:3px;line-height:1.5}
 .zv2l-report{margin-top:10px;background:#F7F7F3;border-radius:10px;padding:12px 14px}
 .zv2l-rb{font-size:14.5px;color:#3C4A41;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.zv2l-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:12px}
-.zv2l-grid.one img,.zv2l-grid.one .zv2l-cellv{grid-column:1 / -1}
-.zv2l-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:block;background:#EFF3EE}
+.zv2l-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:12px;border-radius:12px;overflow:hidden}
+.zv2l-grid.two{grid-template-columns:repeat(2,1fr)}
+.zv2l-grid.one{grid-template-columns:1fr}
+.zv2l-grid.one img,.zv2l-grid.one .zv2l-cellv{aspect-ratio:16/9}
+.zv2l-grid img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#EFF3EE}
+.zv2l-grid.one .zv2l-cellv img{aspect-ratio:16/9}
 .zv2l-cellv{position:relative}
 .zv2l-vbadge{position:absolute;left:8px;bottom:8px;width:32px;height:32px;border-radius:50%;background:rgba(9,25,16,.74);color:#fff;display:flex;align-items:center;justify-content:center}
-.zv2l-more-tile{aspect-ratio:4/3;background:#F7F7F3;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--green);font-size:15px;font-weight:800}
+.zv2l-more-tile{aspect-ratio:1/1;background:#F7F7F3;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--green);font-size:15px;font-weight:800}
 .zv2l-arow{display:flex;align-items:center;gap:12px;background:#F7F7F3;border-radius:12px;padding:12px 14px;margin-top:10px}
 .zv2l-aplay{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
 .zv2l-ainfo{min-width:0}
@@ -343,6 +349,8 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-zbody{max-width:340px;margin:14px auto 0;text-align:left}
 .zv2l-zbody p{font-size:15.5px;line-height:1.75;color:#3C4A41;margin:10px 0 0}
 .zv2l-btn-main{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:22px auto 0;padding:12px 18px;border-radius:999px;background:var(--green);color:#fff!important;font-size:16px;font-weight:800;text-decoration:none;border:0;cursor:pointer}
+.zv2l-btn-sub,.zv2l-btn-sub:visited{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:12px auto 0;padding:12px 18px;border-radius:999px;border:1.5px solid var(--green);background:#fff;color:var(--green);font-weight:700;text-decoration:none;white-space:nowrap}
+.zv2l-btn-main svg{width:20px;height:20px;margin-right:8px}
 .zv2l-zlink{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-height:44px;margin-top:14px;font-size:15px;font-weight:700;color:var(--link)!important;text-decoration:none}
 .zv2l-search-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;padding:6px 12px;border-radius:10px;background:#EFF3EE;font-size:14px;color:#3C4A41}
 .zv2l-search-meta a,.zv2l-search-meta a:visited{min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:var(--green);text-decoration:none}
@@ -383,13 +391,13 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string): string {
   const href = `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
   const mediaAll = [...visit.photos, ...visit.videos];
-  const shown = mediaAll.slice(0, 4);
-  const extraCount = mediaAll.length > 4 ? mediaAll.length - 3 : 0;
+  const shown = mediaAll.slice(0, 3);
+  const extraCount = mediaAll.length > 3 ? mediaAll.length - 2 : 0;
   let gridHtml = "";
   if (shown.length > 0) {
-    const cls = shown.length === 1 ? "zv2l-grid one" : "zv2l-grid";
+    const cls = shown.length === 1 ? "zv2l-grid one" : shown.length === 2 ? "zv2l-grid two" : "zv2l-grid";
     const cells = shown.map((m, idx) => {
-      if (extraCount > 0 && idx === 3) {
+      if (extraCount > 0 && idx === 2) {
         return `<span class="zv2l-more-tile">＋${extraCount}件</span>`;
       }
       if (m.isVideo) {
@@ -432,7 +440,7 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string): string {
   const metaParts = [visit.areaLabel || visit.placeName, visit.timeRangeLabel].filter(Boolean);
   return `<article class="zv2l-visit" data-library-visit="${esc(visit.visitKey)}">
     <a class="zv2l-visit-link" href="${esc(href)}">
-      <h3 class="zv2l-vhead">${esc(visit.headingTitle)}</h3>
+      <h3 class="zv2l-vhead"><span class="nw">${esc(visit.dateLabel)}</span>・${esc(visit.headingTitle)}</h3>
       <div class="zv2l-vmeta">${metaParts.map((m) => `<span class="nw">${esc(m)}</span>`).join(" ・ ")}</div>
       ${reportHtml}
       ${gridHtml}
@@ -479,27 +487,21 @@ export function renderLibraryV2Page(options: {
     </section>`;
     } else {
       listContent = `<section class="zv2l-zero" data-library-empty="1">
-      <div class="zv2l-zicon">${ICONS.pen}</div>
+      <div class="zv2l-zicon">${ICONS.photo}</div>
       <h1>まだ記録がありません</h1>
       <div class="zv2l-zbody">
-        <p>出かけた先で残した記録が、ここに日付ごとに並びます。写真や動画、音、フィールドレポート、どれからでも始められます。</p>
-        <p>公開しなくても、自分だけの記録として残せます。場所の図鑑に載せるかどうかは、後から決められます。</p>
+        <p>出かけた先で撮った写真が、ここに場所と日にちでたまります。</p>
       </div>
-      <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">記録をはじめる</a>
-      <a class="zv2l-zlink" href="${esc(`${prefix}/map`)}"><span>近くの場所を見てみる</span>${ICONS.chev}</a>
+      <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">${ZUKAN_SHELL_ICONS.camera}<span>撮る</span></a>
+      <a class="zv2l-btn-sub" href="${esc(`${prefix}/record?mode=upload`)}">写真を選ぶ</a>
     </section>`;
     }
   } else {
-    let lastDay = "";
     const parts: string[] = [];
     if (trimmedSearch) {
       parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）</span><a href="${esc(`${prefix}/library`)}">検索をリセット</a></div>`);
     }
     for (const v of options.visits) {
-      if (v.dateDay !== lastDay) {
-        lastDay = v.dateDay;
-        parts.push(`<div class="zv2l-dsep"><span class="zv2l-dt"><span class="nw">${esc(v.dateLabel)}</span></span><span class="zv2l-dl"></span></div>`);
-      }
       parts.push(renderVisitCardHtml(v, prefix));
     }
     if (options.nextCursor) {
@@ -528,6 +530,7 @@ export function renderLibraryV2Page(options: {
     </div>
     <p class="zv2l-sub">あなたが残した記録です</p>
     ${chrome.searchHtml}
+    <div class="zv2l-sync" id="zv2l-sync" data-library-sync hidden></div>
     ${listContent}
   </div>${addSheetHtml}`;
 
@@ -550,6 +553,35 @@ export function renderLibraryV2Page(options: {
   ${chrome.bottomNavHtml}
   <script${nonceAttr}>
     (function(){
+      var box = document.getElementById('zv2l-sync');
+      if (box && window.indexedDB) {
+        try {
+          var rq = indexedDB.open('ikimon-app-outbox-v1', 1);
+          rq.onupgradeneeded = function(){ try { rq.transaction.abort(); } catch (e) {} };
+          rq.onsuccess = function(){
+            var db = rq.result;
+            try {
+              if (!db.objectStoreNames.contains('items')) { db.close(); return; }
+              var g = db.transaction('items', 'readonly').objectStore('items').getAll();
+              g.onsuccess = function(){
+                var items = (g.result || []).filter(function(x){ return x && x.source === 'record'; });
+                db.close();
+                var failed = items.filter(function(x){ return x.status === 'failed'; }).length;
+                var queued = items.length - failed;
+                if (!items.length) return;
+                var tone = failed ? 'error' : 'warn';
+                var title = failed ? failed + '件の送信に失敗しました。' : queued + '件の写真が未送信です。';
+                var detail = failed ? '写真はこの端末に残っています。' : '通信が戻ると自動で送られます。';
+                box.innerHTML = '<div class="zt-status-band" data-tone="' + tone + '" role="status"><div class="zt-status-copy"><strong></strong><span></span></div><a class="zt-status-act" href="${esc(`${prefix}/record`)}">記録へ</a></div>';
+                box.querySelector('strong').textContent = title;
+                box.querySelector('span').textContent = detail;
+                box.hidden = false;
+              };
+              g.onerror = function(){ db.close(); };
+            } catch (e) { try { db.close(); } catch (e2) {} }
+          };
+        } catch (e) {}
+      }
       var openBtn = document.querySelector('[data-zv2l-open-add]');
       var scrim = document.getElementById('zv2l-scrim');
       var sheet = document.getElementById('zv2l-add-sheet');

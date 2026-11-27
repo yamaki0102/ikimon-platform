@@ -78,48 +78,48 @@ export async function loadProfileHubData(
 }
 
 const HUB_CSS = `
-.zt-ph{display:grid;gap:20px;max-width:720px;margin:0 auto;width:100%;color:#17251b}
-.zt-ph-cover{position:relative;height:150px;margin:0 -20px;background:linear-gradient(135deg,#143F2E,#3f7a58);overflow:hidden}
-.zt-ph-cover img{display:block;width:100%;height:100%;object-fit:cover}
-.zt-ph-id{display:flex;align-items:flex-start;gap:16px;margin-top:-44px;position:relative}
-.zt-ph svg.zt-sp-chev{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;width:20px;height:20px;color:#8a948d;flex:none}
-.zt-ph-av{flex:none;display:grid;place-items:center;width:84px;height:84px;border-radius:50%;background:#143F2E;color:#fff;font-size:2.25rem;font-weight:700;border:4px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.18)}
-.zt-ph-id div{min-width:0;padding-top:50px}
-.zt-ph-id h1{margin:0;font-size:1.75rem;line-height:1.3;overflow-wrap:anywhere}
-.zt-ph-bio{margin:2px 0 0;color:#55615a;font-size:1rem;line-height:1.6;overflow-wrap:anywhere}
-.zt-ph-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:0;padding:14px 0;border:1px solid #dde2dc;border-radius:22px;background:#fff}
-.zt-ph-stats div{display:grid;justify-items:center;gap:2px;border-left:1px solid #dde2dc}.zt-ph-stats div:first-child{border-left:0}
-.zt-ph-stats dd{margin:0;font-size:1.5rem;font-weight:700;order:1}.zt-ph-stats dt{order:2;font-size:.875rem;color:#55615a}
+.zt-ph{display:grid;gap:24px;max-width:720px;margin:0 auto;width:100%;color:#17211b}
+.zt-ph-main,.zt-ph-side{display:grid;gap:20px;align-content:start;min-width:0}
+.zt-ph svg.zt-sp-chev{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;width:20px;height:20px;color:#68746c;flex:none}
+.zt-ph-id{display:flex;align-items:center;gap:16px}
+.zt-ph-av{flex:none;display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:#143F2E;color:#fff;font-size:1.75rem;font-weight:700}
+.zt-ph-id div{min-width:0}
+.zt-ph-id h1{margin:0;font-size:1.5rem;line-height:1.3;overflow-wrap:anywhere}
+.zt-ph-bio{margin:2px 0 0;color:#55615a;font-size:.9375rem;line-height:1.6;overflow-wrap:anywhere}
+.zt-ph-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0;padding:0}
+.zt-ph-stats div{display:grid;justify-items:center;align-content:center;gap:2px;padding:12px 4px;border-radius:12px;background:#f7f7f3;min-width:0}
+.zt-ph-stats dd{margin:0;font-size:1.5rem;font-weight:700;order:1}.zt-ph-stats dt{order:2;font-size:.8125rem;color:#55615a;white-space:nowrap}
 .zt-ph-sec{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.zt-ph-sec h2{margin:0;font-size:1.375rem}
-.zt-ph-more,.zt-ph-more:visited{color:#0055ad;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:2px}
+.zt-ph-sec h2{margin:0;font-size:1.25rem}
+.zt-ph-side h2{margin:0;font-size:1.125rem}
+.zt-ph-more,.zt-ph-more:visited{min-height:44px;color:#0055ad;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
 .zt-ph-more svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.zt-ph-mosaic{display:grid;grid-template-columns:1.4fr 1fr;grid-template-rows:1fr 1fr;gap:4px;aspect-ratio:16/10;border-radius:22px;overflow:hidden;border:1px solid #dde2dc}
-.zt-ph-mosaic a{display:block;overflow:hidden;background:#eef1ed}.zt-ph-mosaic a:first-child{grid-row:1/3}
+.zt-ph-mosaic{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;aspect-ratio:3/1;border-radius:16px;overflow:hidden;border:1px solid #dde2dc}
+.zt-ph-mosaic a{display:block;overflow:hidden;background:#eef1ed}
 .zt-ph-mosaic img{display:block;width:100%;height:100%;object-fit:cover}
-.zt-ph-mosaic.is-1{grid-template-columns:1fr}.zt-ph-mosaic.is-1 a:first-child{grid-row:auto}
+.zt-ph-mosaic.is-1{grid-template-columns:1fr;aspect-ratio:16/7}.zt-ph-mosaic.is-2{grid-template-columns:repeat(2,1fr);aspect-ratio:2/1}
 .zt-ph-list{margin:0;padding:0;list-style:none}
-.zt-ph-row,.zt-ph-row:visited{display:flex;align-items:center;gap:12px;min-height:72px;padding:16px 0;border-bottom:1px solid #dde2dc;color:#17251b;text-decoration:none}
-.zt-ph-row .zt-sp-body strong{font-size:1.125rem}
-.zt-ph-badge{flex:none;display:inline-grid;place-items:center;min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:#b3261e;color:#fff;font-weight:700;font-size:.875rem}
-.zt-ph-empty{margin:0;padding:24px 16px;border:1px solid #dde2dc;border-radius:20px;text-align:center;color:#55615a;background:#fff;display:grid;gap:12px;justify-items:center}
-@media(min-width:900px){.zt-ph-cover{margin:0;border-radius:22px}}
+.zt-ph-row,.zt-ph-row:visited{display:flex;align-items:center;gap:12px;min-height:64px;padding:12px 0;border-bottom:1px solid #dde2dc;color:#17211b;text-decoration:none}
+.zt-ph-row .zt-sp-body strong{font-size:1rem}
+.zt-ph-badge{flex:none;display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:#b3261e;color:#fff;font-weight:700;font-size:.8125rem}
+.zt-ph-empty{margin:0;padding:24px 16px;border:1px solid #dde2dc;border-radius:16px;text-align:center;color:#55615a;background:#fff;display:grid;gap:12px;justify-items:center}
+@media(min-width:1100px){.zt-ph{max-width:1040px;grid-template-columns:minmax(0,1fr) 280px;gap:32px}.zt-ph-side{padding-left:24px;border-left:1px solid #dde2dc}}
 `;
 
 export function renderProfileHub(lang: Lang, data: ProfileHubData): string {
   const p = pfx(lang);
   const initial = esc1(data.displayName);
-  const withPhoto = data.records.filter((r) => r.assetId);
-  const cover = withPhoto[0] ? `<img src="/thumb/800/${encodeURIComponent(withPhoto[0].assetId!)}" alt="" decoding="async">` : "";
-  const mosaic = withPhoto.slice(0, 3);
+  const href = (id: string) => `${p}/observations/${encodeURIComponent(id)}`;
+  const mosaic = data.records.filter((r) => r.assetId).slice(0, 3);
+  const shown = new Set(mosaic.map((r) => r.id));
   const mosaicHtml = mosaic.length
-    ? `<div class="zt-ph-mosaic is-${mosaic.length === 1 ? 1 : 3}" data-testid="profile-hub-mosaic">${mosaic
-        .map((r) => `<a href="${escapeHtml(`${p}/observations/${encodeURIComponent(r.id)}`)}" aria-label="${escapeHtml(r.title)}"><img src="/thumb/400/${encodeURIComponent(r.assetId!)}" alt="" loading="lazy" decoding="async"></a>`)
+    ? `<div class="zt-ph-mosaic is-${mosaic.length}" data-testid="profile-hub-mosaic">${mosaic
+        .map((r) => `<a href="${escapeHtml(href(r.id))}" aria-label="${escapeHtml(r.title)}"><img src="/thumb/400/${encodeURIComponent(r.assetId!)}" alt="" loading="lazy" decoding="async"></a>`)
         .join("")}</div>`
     : "";
-  const rows = data.records.slice(0, 2).map((r) =>
+  const rows = data.records.filter((r) => !shown.has(r.id)).slice(0, 3).map((r) =>
     renderSubpageRow({
-      href: `${p}/observations/${encodeURIComponent(r.id)}`,
+      href: href(r.id),
       title: r.title,
       meta: [jpDate(r.observedAt), r.area ?? "", r.visibility === "public" ? "公開中" : "自分だけ"].filter(Boolean).join(" ・ "),
       thumbUrl: r.assetId ? `/thumb/400/${encodeURIComponent(r.assetId)}` : null,
@@ -128,26 +128,30 @@ export function renderProfileHub(lang: Lang, data: ProfileHubData): string {
   const recordsBlock = data.recordCount > 0
     ? `${mosaicHtml}${rows ? `<ul class="zt-ph-list">${rows}</ul>` : ""}`
     : `<p class="zt-ph-empty">まだ記録がありません。最初の1件を残してみましょう。<a class="zt-btn-capture" href="${p}/record">記録する</a></p>`;
-  const menu = (href: string, title: string, meta: string, badge = "") =>
-    `<li><a class="zt-ph-row" href="${escapeHtml(href)}"><span class="zt-sp-body"><strong>${escapeHtml(title)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>${badge}${CHEV}</a></li>`;
+  const menu = (to: string, title: string, meta: string, badge = "") =>
+    `<li><a class="zt-ph-row" href="${escapeHtml(to)}"><span class="zt-sp-body"><strong>${escapeHtml(title)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>${badge}${CHEV}</a></li>`;
   const badge = data.unreadCount > 0 ? `<span class="zt-ph-badge" aria-label="未読 ${data.unreadCount}件">${data.unreadCount > 99 ? "99+" : data.unreadCount}</span>` : "";
   const body = `<style>${ZUKAN_SUBPAGE_CSS}${HUB_CSS}</style>
   <section class="zt-ph" data-testid="self-control-hub" data-profile-view="i1">
-    <div class="zt-ph-cover" aria-hidden="true">${cover}</div>
-    <div class="zt-ph-id"><span class="zt-ph-av" aria-hidden="true">${escapeHtml(initial)}</span><div><h1 data-testid="profile-heading">${escapeHtml(data.displayName)}</h1>${data.bio ? `<p class="zt-ph-bio">${escapeHtml(data.bio)}</p>` : ""}</div></div>
-    <dl class="zt-ph-stats">
-      <div><dd>${data.recordCount}</dd><dt>自分の記録</dt></div>
-      <div><dd>${data.savedPlaceCount}</dd><dt>保存した場所</dt></div>
-      <div><dd>${data.joinedEventCount}</dd><dt>参加イベント</dt></div>
-    </dl>
-    <div class="zt-ph-sec"><h2>自分の記録</h2><a class="zt-ph-more" href="${p}/profile/records">すべて見る<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></div>
-    ${recordsBlock}
-    <ul class="zt-ph-list">
-      ${menu(`${p}/profile/public-settings`, "公開先", "図鑑・アルバム・共有リンク。取り消しもここから")}
-      ${menu(`${p}/profile/linked-saved`, "保存した場所・イベント", "")}
-      ${menu(`${p}/profile/notifications`, "通知", "", badge)}
-      ${menu(`${p}/profile/settings`, "設定", "プロフィール・通知・公開範囲")}
-    </ul>
+    <div class="zt-ph-main">
+      <div class="zt-ph-id"><span class="zt-ph-av" aria-hidden="true">${escapeHtml(initial)}</span><div><h1 data-testid="profile-heading">${escapeHtml(data.displayName)}</h1>${data.bio ? `<p class="zt-ph-bio">${escapeHtml(data.bio)}</p>` : ""}</div></div>
+      <dl class="zt-ph-stats">
+        <div><dd>${data.recordCount}</dd><dt>自分の記録</dt></div>
+        <div><dd>${data.savedPlaceCount}</dd><dt>保存した場所</dt></div>
+        <div><dd>${data.joinedEventCount}</dd><dt>参加イベント</dt></div>
+      </dl>
+      <div class="zt-ph-sec"><h2>自分の記録</h2><a class="zt-ph-more" href="${p}/profile/records">すべて見る<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></div>
+      ${recordsBlock}
+    </div>
+    <div class="zt-ph-side">
+      <h2>管理</h2>
+      <ul class="zt-ph-list">
+        ${menu(`${p}/profile/public-settings`, "公開先", "図鑑・アルバム・共有リンク。取り消しもここから")}
+        ${menu(`${p}/profile/linked-saved`, "保存した場所・イベント", "")}
+        ${menu(`${p}/profile/notifications`, "通知", "", badge)}
+        ${menu(`${p}/profile/settings`, "設定", "プロフィール・通知・公開範囲")}
+      </ul>
+    </div>
   </section>`;
   return renderZukanCommonShell({ lang, title: "自分", activeNav: "profile", authenticated: true, displayName: data.displayName, bodyHtml: body, pathname: `${p}/profile` });
 }
