@@ -148,6 +148,7 @@ export function renderGlobalPlaceDetailPage(input: {
   v3?: boolean;
   e2?: boolean;
   e2Events?: PlaceEEvent[];
+  nocosilEventLink?: boolean;
   fieldCardHref?: string;
   v3Extras?: { stewardIntro?: string | null; events?: PlaceV3Event[]; steward?: PlaceV3Steward | null; nearby?: PlaceV3Nearby[] };
   now?: Date;
@@ -277,6 +278,7 @@ export function renderGlobalPlaceDetailPage(input: {
     moreHref: "#gpd-details",
     moreLabel: copy.moreAbout,
     events: input.e2Events ?? [],
+    ...(input.nocosilEventLink === true && (selected || local) ? { nocosilEventHref: "https://nocosil.com/app/start/zukan?place=" + encodeURIComponent(selected || local) } : {}),
     invasive: lang === "ja" ? buildPlaceInvasive(records.map((r) => ({ ...r, href: recordHrefOf(r) }))) : [],
   }) : v3On ? renderPlaceV3({
     lang,

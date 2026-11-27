@@ -27,20 +27,21 @@ export type PlaceEInput = {
   moreHref: string;
   moreLabel: string;
   events: PlaceEEvent[];
+  nocosilEventHref?: string;
   invasive?: PlaceInvasiveItem[];
 };
 
 const COPY = {
   ja: {
     top: "場所", records: "この場所の記録", seeAll: "すべて見る", events: "つながっているイベント", invasive: "この場所で見つかっている外来種", invConfirmed: (n: number, first: string | null) => `この場所の記録${n}件で、名前が確認されています。${first ? `最初に見つかったのは${first}です。` : ""}`, invSee: "見つかった記録を見る", invLearn: "この種について見る", cautionTitle: "見つけたときは", caution1: "持ち帰らないでください。飼うこと・運ぶことが法律で禁止されている種があります。", caution2: "駆除は自治体や専門家が行っています。写真で記録を残すことが、広がりを止める助けになります。",
-    record: "この場所で記録する", first: "この場所で最初の記録を残す",
+    record: "この場所で記録する", hostEvent: "ここで観察会を開く", first: "この場所で最初の記録を残す",
     emptyTitle: "まだ記録がありません", emptyBody: "この場所の最初の記録を残すと、ここから図鑑が始まります。写真1枚から残せます。",
     pendingTitle: "記録が集まり始めています", pendingBody: "公開できる記録がそろうと、ここに表示されます。",
     chipRecords: (n: number) => `記録 ${n}件`, chipLatest: (d: string) => `最新 ${d}`, unnamed: "名前は未確定", confirmed: "確認済み",
   },
   en: {
     top: "Place", records: "Records here", seeAll: "See all", events: "Connected events", invasive: "", invConfirmed: (_n: number, _f: string | null) => "", invSee: "", invLearn: "", cautionTitle: "", caution1: "", caution2: "",
-    record: "Record at this place", first: "Leave the first record here",
+    record: "Record at this place", hostEvent: "Host a nature walk here", first: "Leave the first record here",
     emptyTitle: "No records yet", emptyBody: "Leave the first record here and this place's guide begins. One photo is enough.",
     pendingTitle: "Records are starting to arrive", pendingBody: "They will appear here once enough can be shown.",
     chipRecords: (n: number) => `${n} records`, chipLatest: (d: string) => `Latest ${d}`, unnamed: "Not named yet", confirmed: "Confirmed",
@@ -107,6 +108,7 @@ export const PLACE_E_STYLES = `
 .pe-actions{display:grid;gap:10px;margin:28px 0 0}
 .pe-empty .pe-actions{margin-top:20px}
 .pe-actions .gpd-primary,.pe-actions .gpd-secondary{min-height:52px;border-radius:999px;width:100%;white-space:nowrap}
+.pe-host{display:flex;justify-content:center;margin:6px 0 0}.pe-host a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;color:#143F2E;font-size:14px;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .pe :focus-visible{outline:3px solid currentColor;outline-offset:3px}
 @media(min-width:768px){.pe-hero{height:320px;margin:20px 20px 0;border-radius:20px}.pe-name{font-size:34px}.pe-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.pe-empty .pe-actions{grid-template-columns:minmax(0,360px);justify-content:center}}
 `;
@@ -157,9 +159,10 @@ export function renderPlaceE(input: PlaceEInput): string {
   const primary = (label: string) => `<a class="gpd-primary" href="${e(input.recordHref)}" data-pe-record>${CAMERA}<span>${e(label)}</span></a>`;
   const moreBtn = `<a class="gpd-secondary" href="${e(input.moreHref)}" data-pe-more>${e(input.moreLabel)}</a>`;
 
+  const hostLink = input.nocosilEventHref ? `<p class="pe-host" data-pe-host-event><a href="${e(input.nocosilEventHref)}" rel="noopener">${e(c.hostEvent)}</a></p>` : "";
   let main: string;
   if (!input.hasRecords) {
-    main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section><div class="pe-actions">${moreBtn}</div>`;
+    main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section><div class="pe-actions">${moreBtn}</div>${hostLink}`;
   } else {
     const recordsSec = `<section data-pe-records><div class="pe-h"><h2>${e(c.records)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div>${strip}${rows ? `<div class="pe-rows">${rows}</div>` : ""}</section>`;
     const invList = c.invasive && input.invasive?.length
@@ -171,7 +174,7 @@ export function renderPlaceE(input: PlaceEInput): string {
     const events = input.events.length
       ? `<section data-pe-events><div class="pe-h"><h2>${e(c.events)}</h2></div><div class="pe-rows">${input.events.slice(0, 3).map((ev) => `<a class="pe-row" href="${e(ev.href)}">${ev.thumbUrl && !shown.has(ev.thumbUrl) ? `<span class="pe-thumb"><img src="${e(ev.thumbUrl)}" alt="" loading="lazy"></span>` : ""}<span class="tx"><div class="t">${e(ev.title)}</div><div class="s">${e(ev.whenLabel)}</div></span>${CHEV}</a>`).join("")}</div></section>`
       : "";
-    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>`;
+    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>${hostLink}`;
   }
   return `<div class="pe" data-place-e-v2>${hero}<div class="pe-body">${head}${main}</div></div>`;
 }

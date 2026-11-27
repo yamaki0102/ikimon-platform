@@ -125,3 +125,18 @@ test("loadPlaceLinkedEvents maps rows by field_id and tolerates failure", async 
   const bad = { prepare: () => { throw new Error("x"); } };
   assert.deepEqual(await loadPlaceLinkedEvents(bad as never, "p", "ja", () => ({ whenLabel: "" })), []);
 });
+
+test("NOCOSIL event link hidden when flag off", () => {
+  const html = render(profile(), { e2: true });
+  assert.doesNotMatch(html, /data-pe-host-event|nocosil\.com/);
+});
+
+test("NOCOSIL event link shows encoded place name only when on", () => {
+  const p = profile();
+  p.place.name = "連理の木&下<で>";
+  const main = mainOf(render(p, { e2: true, nocosilEventLink: true } as any));
+  const url = "https://nocosil.com/app/start/zukan?place=" + encodeURIComponent("連理の木&下<で>");
+  assert.ok(main.includes(`<a href="${url}" rel="noopener">ここで観察会を開く</a>`));
+  assert.equal((main.match(/class="gpd-primary"/g) ?? []).length, 1);
+  assert.doesNotMatch(main, /target="_blank"/);
+});
