@@ -247,6 +247,19 @@ test("/api/v1/map/places?v2=1 computes the place-page count for places without m
   assert.equal(failBody.places.find((p) => p.placeId === "plc_adjacent")?.recordCount, 0);
 });
 
+test("map v2 HTML includes Japanese-only symbol label override on load and single-line mobile nav CSS", () => {
+  const html = renderMapExplorerV2Document({
+    basePath: "",
+    lang: "ja",
+    authenticated: true,
+    displayName: "ゆい",
+  });
+  assert.match(html, /\.zv2-tab\{[^}]*font-size:12px[^}]*white-space:nowrap/u);
+  assert.match(html, /\.zv2-tab span\{white-space:nowrap\}/u);
+  assert.match(html, /applyJapaneseMapLabels\(map\)/u);
+  assert.match(html, /\['coalesce',\s*\['get',\s*'name:ja'\],\s*\['get',\s*'name'\]\]/u);
+});
+
 function findChromiumExecutable(): string | null {
   for (const c of [
     process.env.CHROMIUM_PATH,

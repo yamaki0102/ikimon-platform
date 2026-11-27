@@ -298,6 +298,13 @@ test("Worker gates /ja/library and logged-in /ja/ on LIBRARY_V2_ENABLED", async 
   assert.match(html, /川のほとりでカワセミを見た/);
 });
 
+test("library v2 chrome keeps mobile bottom nav single-line and desktop sidebar displayName single-line ellipsis", () => {
+  const html = renderLibraryV2Page({ visits: [], lang: "ja", authenticated: true, displayName: "とても長い利用者表示名テスト浜松花子", nextCursor: null });
+  assert.match(html, /\.zt-nav-item,\.zt-nav-item:visited\{[^}]*white-space:nowrap/u);
+  assert.match(html, /\.zt-side-me>span:last-child\{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis\}/u);
+  assert.doesNotMatch(html, /\.zt-side-me>span:last-child\{[^}]*overflow-wrap:anywhere/u);
+});
+
 test("Playwright verifies library v2 list, add-record sheet, open visit, and zero state at 375px and 1280px", async (t) => {
   const executablePath = findChromiumExecutable();
   if (!executablePath) {
