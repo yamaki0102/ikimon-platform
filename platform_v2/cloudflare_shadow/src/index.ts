@@ -203,7 +203,14 @@ import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
 import { RECORD_READER_MODES_FLAG } from "./recordReaderModes";
+import {
+  SPECIES_READER_LAYER_FLAG,
+  loadSpeciesReaderLayerForRecord,
+  loadSpeciesReaderLayersForPlace,
+  renderPlaceSpeciesReaderLayersHtml,
+} from "./speciesReaderLayer";
 const recordReaderModesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_READER_MODES_FLAG, v.principalId, v.role); };
+const speciesReaderLayerOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SPECIES_READER_LAYER_FLAG, v.principalId, v.role); };
 import { handlePlaceRegisterRequest } from "./zukanPlaceRegister";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
@@ -2607,12 +2614,20 @@ async function getGlobalPlaceDetailPage(
     }
   }
   const lang = publicLangFromPath(url.pathname) ?? "ja";
-  const [placeUsages, paperPages, fp] = await Promise.all([
+  const confirmedPlaceSpecies = lang === "ja" && speciesReaderLayerOn(env, session)
+    ? (profile.recentRecords ?? []).filter((r) => r.identificationStatus === "confirmed" && r.displayName).map((r) => r.displayName!)
+    : [];
+  const [placeUsages, paperPages, fp, speciesLayers] = await Promise.all([
     listNocosilOutcomeUsagesForPlace(env, canonicalPlaceId),
     listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
-    listFixedPointsAndRecordsForPlace(env, canonicalPlaceId)
+    listFixedPointsAndRecordsForPlace(env, canonicalPlaceId),
+    confirmedPlaceSpecies.length > 0 ? loadSpeciesReaderLayersForPlace(env.OBS_DB, confirmedPlaceSpecies).catch(() => []) : Promise.resolve([]),
   ]);
   const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
+  const speciesReaderLayersHtml = renderPlaceSpeciesReaderLayersHtml({
+    enabled: lang === "ja" && speciesReaderLayerOn(env, session),
+    layers: speciesLayers,
+  });
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
@@ -2622,6 +2637,7 @@ async function getGlobalPlaceDetailPage(
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
+    ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
@@ -26520,6 +26536,12 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         savedControlHtml: savedContinuity.controlHtml,
         savedScriptHtml: savedContinuity.scriptHtml,
         recordReaderModes: recordLang === "ja" && recordReaderModesOn(env, session),
+        speciesReaderLayer: recordLang === "ja" && speciesReaderLayerOn(env, session)
+          ? await loadSpeciesReaderLayerForRecord(
+              env.OBS_DB,
+              observationFirst.detail.observations.find((o) => o.state === "active" && o.acceptedIdentification?.proposedName)?.acceptedIdentification?.proposedName ?? null
+            ).catch(() => null)
+          : null,
         publicationReturn: observationFirst.publicationReturn,
       }), sharedArrivalContext), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
