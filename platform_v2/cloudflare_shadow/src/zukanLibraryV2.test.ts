@@ -186,7 +186,7 @@ test("renderLibraryV2Page and renderLibraryV2VisitDetailPage match Muse rules (n
   assert.match(listHtml, /鳥の声/);
   assert.match(listHtml, /自然観察指導員講習会/);
 
-  assert.match(listHtml, /class="zv2l-vhead"><span class="nw">[^<]+<\/span>・/);
+  assert.match(listHtml, /class="zv2l-vhead">池のまわりの観察記録<\/h3>/);
   assert.match(listHtml, /data-library-sync/);
   assert.match(listHtml, /ikimon-app-outbox-v1/);
   assert.match(listHtml, /もう一度送る/);
@@ -213,8 +213,9 @@ test("renderLibraryV2Page and renderLibraryV2VisitDetailPage match Muse rules (n
     nextCursor: null,
   });
   assert.match(zeroHtml, /まだ記録がありません/);
-  assert.match(zeroHtml, /場所と日にちでたまります/);
-  assert.match(zeroHtml, />写真を選ぶ</);
+  assert.match(zeroHtml, /写真や動画、音、フィールドレポート、どれからでも始められます/);
+  assert.match(zeroHtml, />記録をはじめる</);
+  assert.doesNotMatch(zeroHtml, />写真を選ぶ</);
   assert.match(zeroHtml, /data-library-sync/);
   assert.doesNotMatch(zeroHtml, /メモ|ズカン/);
 });
