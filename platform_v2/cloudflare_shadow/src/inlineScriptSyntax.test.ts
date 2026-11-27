@@ -18,6 +18,8 @@ import * as recordInput from "./zukanRecordInput";
 import * as recordMemo from "./zukanRecordMemoOnly";
 import * as recordPlaceTime from "./zukanRecordPlaceAndTime";
 import * as bioScript from "../../src/ui/biosecurity";
+import { renderBiosecurityPage } from "../../src/ui/biosecurity";
+import { BIOSECURITY_PROFILES } from "../../src/services/biosecurityProfiles";
 import * as collab from "../../src/ui/collaborationContext";
 import * as face from "../../src/ui/facePrivacyScript";
 import * as eventStyles from "../../src/ui/observationEventStyles";
@@ -122,6 +124,9 @@ async function renders(lang: L): Promise<Array<[string, string]>> {
     ]);
   }
   out.push(["eventsList", await (await handleEventsV2List(new URL(`https://x.test/${lang}/community/events`), lang, null, failingDb)).text()]);
+  for (const view of ["guide", "chooser", "capture", "receipt", "municipalities", "inbox"] as const) {
+    out.push([`biosecurity[${view}]`, renderBiosecurityPage(view, { lang, profile: BIOSECURITY_PROFILES[2]!, profiles: [...BIOSECURITY_PROFILES], recordId: `br_${"a".repeat(40)}` })]);
+  }
   out.push(["profileHub", renderProfileHub(lang, hubData)]);
   out.push(["profileSettings", renderProfileSettingsHub(lang, { displayName: "Hana", email: "a@b.c", recordCount: 1, flash: null })]);
   const alert = { deliveryId: "d1", occurrenceId: null, triggerKind: "taxon_match", createdAt: "2026-05-01T00:00:00Z", acknowledgedAt: null, payload: {} };

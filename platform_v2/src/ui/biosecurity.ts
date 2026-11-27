@@ -4,6 +4,7 @@ import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "./photoUploadPreparation.js";
 import { BIOSECURITY_PHOTO_METADATA_SCRIPT } from "../services/biosecurityPhotoMetadata.js";
 import { BIOSECURITY_PROFILES, biosecurityCopy, type BiosecurityProfile } from "../services/biosecurityProfiles.js";
 import { ENVIRONMENT_RECORD_FIELDS } from "../services/environmentRecord.js";
+import { translateBiosecurity } from "./biosecurityEn.js";
 
 /** Dependency-free renderer for the active Worker. Private content is loaded by protected APIs. */
 export type { BiosecurityProfile };
@@ -693,6 +694,8 @@ export const BIOSECURITY_SCRIPT = String.raw`
 })();
 `;
 
+export const BIOSECURITY_EN_SCRIPT = translateBiosecurity(BIOSECURITY_SCRIPT, "en");
+
 export function renderBiosecurityPage(view: BiosecurityView, params: BiosecurityPageParams = {}): string {
   const profile = params.profile ?? DEFAULT_PROFILE;
   const lang = params.lang ?? "ja";
@@ -700,10 +703,11 @@ export function renderBiosecurityPage(view: BiosecurityView, params: Biosecurity
   const prefix = `/${lang}`;
   const title = ja ? {guide:profile.title, chooser:"見つけた生きものを残す", capture:"写真を残そう", receipt:"自分の記録", municipalities:"自治体の受信箱を利用する", inbox:"共有された記録"}[view] : {guide:profile.title, chooser:"Save what you found", capture:"Save a photo", receipt:"My records", municipalities:"Use the municipal inbox", inbox:"Shared records"}[view];
   const nonce = params.nonce ? ` nonce="${escape(params.nonce)}"` : "";
-  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#245c3a"><title>${escape(title)} | ZUKAN</title><meta name="description" content="${escape(view === "chooser" ? (ja ? "外来種かもしれない生きものを、写真1枚から残せます。種類が分からなくても大丈夫です。" : "Save a creature that might be an invasive species from a single photo. It is fine if you do not know the species.") : view === "guide" ? profile.summary : (ja ? "外来種の写真と記録を非公開で保存し、選んだ情報を自治体へ共有できます。" : "Save photos and records of invasive species privately, and share the information you choose with your municipality."))}">${view !== "guide" && view !== "chooser" ? '<meta name="robots" content="noindex,nofollow,noarchive">' : ""}<link rel="icon" href="/assets/brand/zukan-favicon-32.png"><style>${BIOSECURITY_STYLES}\n${APP_EXPERIENCE_STYLES}</style></head>
+  const html = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="theme-color" content="#245c3a"><title>${escape(title)} | ZUKAN</title><meta name="description" content="${escape(view === "chooser" ? (ja ? "外来種かもしれない生きものを、写真1枚から残せます。種類が分からなくても大丈夫です。" : "Save a creature that might be an invasive species from a single photo. It is fine if you do not know the species.") : view === "guide" ? profile.summary : (ja ? "外来種の写真と記録を非公開で保存し、選んだ情報を自治体へ共有できます。" : "Save photos and records of invasive species privately, and share the information you choose with your municipality."))}">${view !== "guide" && view !== "chooser" ? '<meta name="robots" content="noindex,nofollow,noarchive">' : ""}<link rel="icon" href="/assets/brand/zukan-favicon-32.png"><style>${BIOSECURITY_STYLES}\n${APP_EXPERIENCE_STYLES}</style></head>
   <body data-zukan-design="v1" data-zukan-app-experience="biosecurity"><a class="bio-skip" href="#bio-main">${ja ? "本文へ" : "Skip to content"}</a><header class="bio-header"><div><a class="bio-brand" href="${prefix}/" aria-label="${ja ? "ZUKANのホーム" : "ZUKAN home"}"><img src="/assets/brand/zukan-app-icon-192.png" alt="" width="32" height="32"><img src="/assets/brand/zukan-wordmark.svg" alt="ZUKAN" width="92" height="29"></a><nav aria-label="${ja ? "外来種の記録" : "Invasive species records"}"><a href="${prefix}/biosecurity">${ja ? "案内" : "Guide"}</a><a href="${prefix}/biosecurity/records">${ja ? "自分の記録" : "My records"}</a></nav></div></header>
   <main id="bio-main" class="bio-main" data-view="${view}">${renderBiosecurityBody(view, {...params, profile, lang})}<noscript><div class="bio-support"><p>${ja ? "写真の保存、記録の閲覧、自治体への共有にはJavaScriptが必要です。ブラウザの設定をご確認ください。" : "JavaScript is required to save photos, view records and share with your municipality. Please check your browser settings."}</p><a href="${escape(officialUrl(profile.guideUrl) || `${prefix}/biosecurity`)}">${ja ? "公式の案内を確認する" : "Check the official guidance"}</a></div></noscript></main>
   <footer class="bio-footer"><span>${ja ? "運営：IKIMON" : "Operated by IKIMON"}</span><a href="${prefix}/privacy">${ja ? "プライバシー" : "Privacy"}</a><a href="${prefix}/terms">${ja ? "利用規約" : "Terms"}</a><a href="${prefix}/biosecurity/municipalities">${ja ? "自治体の担当者の方へ" : "For municipal staff"}</a></footer>
   ${renderAppExperienceNavigation(lang, -1, "bottom", false)}${renderAppExperienceQuickCamera(lang, { nonce: params.nonce })}
   ${view === "guide" || view === "chooser" ? "" : `<script id="bio-config" type="application/json"${nonce}>${scriptJson({view,recordId:params.recordId || null,profile:configProfile(profile),profiles:(params.profiles ?? [profile]).map(configProfile),environmentFields:ENVIRONMENT_UI_FIELDS})}</script><script${nonce}>${BIOSECURITY_SCRIPT}</script>`}</body></html>`;
+  return ja ? html : translateBiosecurity(html, lang);
 }
