@@ -317,6 +317,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   const clientConfig = JSON.stringify({
     placesApi: withBasePath(options.basePath, "/api/v1/map/places"),
+    areaPolygonsApi: withBasePath(options.basePath, "/api/v1/map/area-polygons"),
     placeHrefTemplate: appendLangToHref(withBasePath(options.basePath, "/places/__ID__"), options.lang as SiteLang),
     recordHref,
     invasiveLearnHref: "/ja/learn/invasive-species",
@@ -897,6 +898,28 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       .addTo(state.map);
   }
 
+  function fetchAreaPolygons() {
+    var map = state.map;
+    if (!map || !CFG.areaPolygonsApi) return;
+    var src = map.getSource('zv2-area');
+    if (!src) return;
+    if (state.areaAbort) { try { state.areaAbort.abort(); } catch (_) {} state.areaAbort = null; }
+    var z = map.getZoom();
+    if (z < 13) { src.setData({ type: 'FeatureCollection', features: [] }); return; }
+    var b = map.getBounds();
+    var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(function (n) { return n.toFixed(5); }).join(',');
+    var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    state.areaAbort = ctl;
+    fetch(CFG.areaPolygonsApi + '?bbox=' + encodeURIComponent(bbox) + '&zoom=' + encodeURIComponent(String(Math.floor(z))), ctl ? { signal: ctl.signal } : undefined)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (fc) {
+        if (!fc || fc.type !== 'FeatureCollection' || !state.map) return;
+        var s2 = state.map.getSource('zv2-area');
+        if (s2) s2.setData(fc);
+      })
+      .catch(function () {});
+  }
+
   function syncMapData(rec, zero, sel) {
     syncSelectedMarker(sel);
     syncInvLayers();
@@ -1419,6 +1442,9 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         data: { type: 'FeatureCollection', features: [] },
         cluster: false
       });
+      map.addSource('zv2-area', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'zv2-area-fill', type: 'fill', source: 'zv2-area', paint: { 'fill-color': '#143f2e', 'fill-opacity': 0.06 } });
+      map.addLayer({ id: 'zv2-area-line', type: 'line', source: 'zv2-area', paint: { 'line-color': '#143f2e', 'line-width': 1.5 } });
       map.addSource('zv2-bnd', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'zv2-bnd-fill', type: 'fill', source: 'zv2-bnd', paint: { 'fill-color': '#143f2e', 'fill-opacity': 0.08 } });
       map.addLayer({ id: 'zv2-bnd-line', type: 'line', source: 'zv2-bnd', paint: { 'line-color': '#143f2e', 'line-width': 2 } });
@@ -1543,8 +1569,11 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       });
       fetchPlaces();
       fetchInvCells();
+      fetchAreaPolygons();
     });
     map.on('moveend', function () {
+      clearTimeout(state.areaTimer);
+      state.areaTimer = setTimeout(fetchAreaPolygons, 300);
       clearTimeout(state.moveTimer);
       state.moveTimer = setTimeout(function () {
         var c = map.getCenter();
