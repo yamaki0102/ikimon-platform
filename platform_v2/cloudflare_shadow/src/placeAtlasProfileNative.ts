@@ -187,7 +187,7 @@ type RegisteredPlaceProjection = {
   sourceReferences: NonNullable<PlaceAtlasProfile["provenance"]["sourceReferences"]>;
 };
 
-const SNAPSHOT_KEY = "public-map:v1:global";
+export const SNAPSHOT_KEY = "public-map:v1:global";
 const MAX_SNAPSHOT_ROWS = 500;
 const MAX_EXCLUDED_MEMBERSHIP_RECORDS = 5_000;
 const MAX_SCOPE_CELLS = 256;
@@ -340,7 +340,7 @@ function publicCellFromCoordinates(lat: number, lng: number): string {
   return `${(Math.round(lat * 100) / 100).toFixed(2)},${(Math.round(lng * 100) / 100).toFixed(2)}`;
 }
 
-function publicCellsForBbox(bbox: [number, number, number, number]): string[] | null {
+export function publicCellsForBbox(bbox: [number, number, number, number]): string[] | null {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   const minLatIndex = Math.floor(minLat * 100) - 1;
   const maxLatIndex = Math.ceil(maxLat * 100) + 1;

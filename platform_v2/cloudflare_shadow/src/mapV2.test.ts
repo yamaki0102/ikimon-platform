@@ -5,7 +5,7 @@ import worker from "./index";
 import type { Env } from "./core/env";
 import * as mapV2Flag from "./flags/MAP_V2_ENABLED";
 import { PROTOTYPE_FLAGS } from "./flags/index.generated";
-import { handleMapPlacesBoundsApi } from "./zukanMapView";
+import { handleMapPlacesBoundsApi, mapPlaceCardFromProfile, selectUnknownCountCandidates } from "./zukanMapView";
 
 function sqliteObsDb(sqlite: DatabaseSync): Env["OBS_DB"] {
   return {
@@ -195,4 +195,46 @@ test("/ja/map serves MAP_V2 HTML only when MAP_V2_ENABLED is enabled in rollout"
   const html = await onRes.text();
   assert.match(html, /data-map-v2="1"/);
   assert.match(html, /まだ記録のない場所/);
+});
+
+test("selectUnknownCountCandidates picks only places whose bbox cells hold snapshot records and caps the count", () => {
+  const mk = (placeId: string, lat: number, lng: number) => ({ placeId, lat, lng, bboxSouth: lat - 0.0002, bboxNorth: lat + 0.0002, bboxWest: lng - 0.0002, bboxEast: lng + 0.0002 });
+  const counts = new Map<string, number>([["34.81,137.73", 5]]);
+  const picked = selectUnknownCountCandidates([mk("a", 34.8142, 137.733), mk("b", 34.70, 137.60), mk("c", 34.8139, 137.7331)], counts, 1);
+  assert.deepEqual(picked.candidates, ["a"]);
+  assert.deepEqual(picked.overflow, ["c"]);
+  assert.deepEqual(selectUnknownCountCandidates([mk("b", 34.70, 137.60)], counts).candidates, []);
+});
+
+test("/api/v1/map/places?v2=1 computes the place-page count for places without memberships and returns null (unknown) when the loader fails", async (t) => {
+  const sqlite = new DatabaseSync(":memory:");
+  t.after(() => sqlite.close());
+  sqlite.exec(`
+    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, place_kind TEXT DEFAULT 'park', locality_label TEXT, public_profile_status TEXT NOT NULL DEFAULT 'published', superseded_by_place_id TEXT);
+    CREATE TABLE place_boundaries (boundary_id TEXT PRIMARY KEY, place_id TEXT NOT NULL, is_primary INTEGER NOT NULL DEFAULT 0, boundary_version INTEGER NOT NULL DEFAULT 1, valid_to TEXT, superseded_by_boundary_id TEXT, bbox_west REAL, bbox_south REAL, bbox_east REAL, bbox_north REAL);
+    CREATE TABLE public_map_snapshot_records_v1 (snapshot_key TEXT, visit_id TEXT, cell_1000 TEXT);
+  `);
+  const ins = sqlite.prepare("INSERT INTO places (place_id, canonical_name) VALUES (?, ?)");
+  const bnd = sqlite.prepare("INSERT INTO place_boundaries (boundary_id, place_id, is_primary, bbox_west, bbox_south, bbox_east, bbox_north) VALUES (?, ?, 1, ?, ?, ?, ?)");
+  ins.run("plc_renri", "連理の木の下で");
+  bnd.run("b1", "plc_renri", 137.7328, 34.8140, 137.7331, 34.8143);
+  ins.run("plc_far", "遠い公園");
+  bnd.run("b2", "plc_far", 137.7500, 34.8300, 137.7502, 34.8302);
+  sqlite.prepare("INSERT INTO public_map_snapshot_records_v1 VALUES ('public-map:v1:global', 'v1', '34.81,137.73')").run();
+  const db = sqliteObsDb(sqlite);
+  const url = new URL("https://zukan.earth/api/v1/map/places?lat=34.8142&lng=137.733&radiusKm=10&v2=1&limit=400");
+  const profile = { summary: { recordCount: 4 }, recentRecords: [{ recordId: "r1", displayName: "x", observedAt: "2026-10-01", mediaUrl: "https://e/x.jpg", mediaKind: "image" }] };
+  const loaded: string[] = [];
+  const ok = await handleMapPlacesBoundsApi(url, db, async (id) => { loaded.push(id); return mapPlaceCardFromProfile(profile); });
+  const okBody = (await ok.json()) as { places: Array<{ placeId: string; recordCount: number | null; photoUrl: string | null }> };
+  const renri = okBody.places.find((p) => p.placeId === "plc_renri");
+  assert.equal(renri?.recordCount, mapPlaceCardFromProfile(profile).recordCount);
+  assert.equal(renri?.recordCount, 4);
+  assert.equal(renri?.photoUrl, "https://e/x.jpg");
+  assert.equal(okBody.places.find((p) => p.placeId === "plc_far")?.recordCount, 0);
+  assert.deepEqual(loaded.sort(), ["plc_renri", "plc_far"].filter((id) => id === "plc_renri"));
+  const fail = await handleMapPlacesBoundsApi(url, db, async () => null);
+  const failBody = (await fail.json()) as { places: Array<{ placeId: string; recordCount: number | null }> };
+  assert.equal(failBody.places.find((p) => p.placeId === "plc_renri")?.recordCount, null);
+  assert.equal(failBody.places.find((p) => p.placeId === "plc_far")?.recordCount, 0);
 });

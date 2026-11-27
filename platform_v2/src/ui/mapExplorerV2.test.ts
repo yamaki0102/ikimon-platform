@@ -421,6 +421,33 @@ test("MAP_V2 sheet head supports drag gesture with pointer events, tap fallback 
   assert.ok(!html.includes("zv2-mapwrap{touch-action:none"));
 });
 
+test("MAP_V2 starts at the real location without a visible jump and treats null record count as unknown, not zero", () => {
+  const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-geo-1" });
+  const has = (needle: string) => assert.ok(html.includes(needle), needle);
+  has("現在地を確認中…");
+  has("{ enableHighAccuracy: false, maximumAge: 60000, timeout: 4000 }");
+  has("navigator.geolocation.watchPosition(");
+  has("{ enableHighAccuracy: true, maximumAge: 0, timeout: 8000 }");
+  has("Date.now() - o.t > 86400000");
+  has("zoomParam !== null ? zoomParam : 15");
+  has("setTimeout(function () { build(CFG.defaultCenter");
+  has("}, 1500);");
+  has("distMeters(c.lat, c.lng, lat, lng) > 150");
+  has("m.jumpTo({ center: [lng, lat] })");
+  has("if (hasUrlCenter) {");
+  has("function createMap(startCenter, startZoom)");
+  const initIdx = html.indexOf("function createMap(startCenter, startZoom)");
+  const fetchIdx = html.indexOf("fetchPlaces();", initIdx);
+  assert.ok(initIdx > 0 && fetchIdx > initIdx, "places are fetched only inside createMap after the center is decided");
+  has("function rcOf(p) { return typeof p.recordCount === 'number' ? p.recordCount : null; }");
+  has("return rcOf(p) !== 0; });");
+  has("return rcOf(p) === 0; });");
+  has("recordCount: rcOf(p) === null ? '' : p.recordCount");
+  has("function enrichPlace(sel)");
+  has("if (sel && rcOf(sel) === null && !sel.enrichTried) enrichPlace(sel);");
+  assert.ok(!html.includes("var rc = typeof p.recordCount === 'number' ? p.recordCount : 0;"));
+});
+
 test("mapExplorerV2 worker graph has no node imports and asset paths match pinned assets", async () => {
   const { readFileSync } = await import("node:fs");
   for (const f of ["mapExplorerV2.ts", "mapExplorerAssetPaths.ts"]) {

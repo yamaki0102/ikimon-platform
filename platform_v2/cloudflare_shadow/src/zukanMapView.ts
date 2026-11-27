@@ -3,6 +3,7 @@ import { escapeHtml, finiteNumberOrNull, json } from "./core/http";
 import { classifyInvasive } from "./mapInvasive";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
+import { SNAPSHOT_KEY, publicCellsForBbox } from "./placeAtlasProfileNative";
 
 type PlacePinRow = {
   place_id: string;
@@ -88,6 +89,67 @@ type PublicPlaceRow = {
 const MAP_PLACES_V2_DEFAULT_LIMIT = 400;
 const MAP_PLACES_V2_MAX_LIMIT = 500;
 const MAP_PLACES_V2_ENRICH_TOP = 12;
+export const MAP_PLACES_V2_UNKNOWN_ENRICH_MAX = 12;
+const MAP_PLACES_V2_CELL_QUERY_CHUNK = 80;
+const MAP_PLACES_V2_CELL_QUERY_MAX_CELLS = 640;
+
+type PlaceCellProbe = {
+  placeId: string;
+  lat: number | null;
+  lng: number | null;
+  bboxSouth: number | null;
+  bboxNorth: number | null;
+  bboxWest: number | null;
+  bboxEast: number | null;
+};
+
+export function placeProbeCells(p: PlaceCellProbe): string[] | null {
+  const south = p.bboxSouth ?? p.lat;
+  const north = p.bboxNorth ?? p.lat;
+  const west = p.bboxWest ?? p.lng;
+  const east = p.bboxEast ?? p.lng;
+  if (south === null || north === null || west === null || east === null) return [];
+  return publicCellsForBbox([Math.min(west, east), Math.min(south, north), Math.max(west, east), Math.max(south, north)]);
+}
+
+export function selectUnknownCountCandidates(
+  places: readonly PlaceCellProbe[],
+  cellCounts: ReadonlyMap<string, number>,
+  max: number = MAP_PLACES_V2_UNKNOWN_ENRICH_MAX,
+): { candidates: string[]; overflow: string[] } {
+  const hit: string[] = [];
+  for (const p of places) {
+    const cells = placeProbeCells(p);
+    if (cells === null || cells.some((c) => (cellCounts.get(c) ?? 0) > 0)) hit.push(p.placeId);
+  }
+  return { candidates: hit.slice(0, max), overflow: hit.slice(max) };
+}
+
+async function loadSnapshotCellCounts(db: Env["OBS_DB"], places: readonly PlaceCellProbe[]): Promise<Map<string, number> | null> {
+  const cells = new Set<string>();
+  for (const p of places) {
+    for (const c of placeProbeCells(p) ?? []) {
+      cells.add(c);
+      if (cells.size >= MAP_PLACES_V2_CELL_QUERY_MAX_CELLS) break;
+    }
+    if (cells.size >= MAP_PLACES_V2_CELL_QUERY_MAX_CELLS) break;
+  }
+  const list = [...cells];
+  if (list.length === 0) return new Map();
+  const out = new Map<string, number>();
+  try {
+    const chunks: string[][] = [];
+    for (let i = 0; i < list.length; i += MAP_PLACES_V2_CELL_QUERY_CHUNK) chunks.push(list.slice(i, i + MAP_PLACES_V2_CELL_QUERY_CHUNK));
+    const results = await Promise.all(chunks.map((chunk) => db
+      .prepare(`SELECT cell_1000, COUNT(*) AS n FROM public_map_snapshot_records_v1 WHERE snapshot_key = ? AND cell_1000 IN (${chunk.map(() => "?").join(", ")}) GROUP BY cell_1000`)
+      .bind(SNAPSHOT_KEY, ...chunk)
+      .all<{ cell_1000: string; n: number }>()));
+    for (const r of results) for (const row of r.results ?? []) out.set(String(row.cell_1000), Number(row.n ?? 0));
+    return out;
+  } catch {
+    return null;
+  }
+}
 
 function parseCenter(url: URL): { lat: number; lng: number; radiusKm: number } | null {
   const lat = parseOptionalCoordParam(url, "lat");
@@ -385,14 +447,27 @@ export async function handleMapPlacesBoundsApi(
     .map((x) => x.i);
   const recordedSet = new Set(recordedIndices);
 
+  const unknownIds = new Set<string>();
+  const unknownCardIds = new Set<string>();
+  if (loadCard && !taxonFilter) {
+    const noStats = rows.filter((r) => !statsMap.has(r.placeId) && typeof r.lat === "number" && typeof r.lng === "number");
+    const cellCounts = noStats.length > 0 ? await loadSnapshotCellCounts(db, noStats) : null;
+    if (cellCounts) {
+      const picked = selectUnknownCountCandidates(noStats, cellCounts);
+      picked.candidates.forEach((id) => unknownCardIds.add(id));
+      picked.overflow.forEach((id) => unknownIds.add(id));
+    }
+  }
+
   const cards = await Promise.all(
-    rows.map((row, index) => (loadCard && recordedSet.has(index) ? loadCard(row.placeId).catch(() => null) : Promise.resolve(null))),
+    rows.map((row, index) => (loadCard && (recordedSet.has(index) || unknownCardIds.has(row.placeId)) ? loadCard(row.placeId).catch(() => null) : Promise.resolve(null))),
   );
 
   let places = rows.map((row, index) => {
     const stats = statsMap.get(row.placeId);
     const card = cards[index];
-    const rc = card?.recordCount ?? stats?.recordCount ?? 0;
+    const unknownCount = !stats && (unknownIds.has(row.placeId) || (unknownCardIds.has(row.placeId) && card?.recordCount == null));
+    const rc: number | null = unknownCount ? null : (card?.recordCount ?? stats?.recordCount ?? 0);
     return {
       placeId: row.placeId,
       name: row.name,
