@@ -209,7 +209,7 @@ const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibl
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
-import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
+import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegionIndex, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionIndexPage, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
@@ -3849,6 +3849,11 @@ export const worker = {
         }
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && stripPublicLangPrefix(url.pathname) === "/regions") {
+        const regionIndexSession = await readCompatibleSession(request, env).catch(() => null);
+        if (regionSurfaceV1On(env, regionIndexSession)) return handleRegionIndexRoute(request, url, env, regionIndexSession);
+      }
+
       if (request.method === "GET" || request.method === "HEAD") {
         const regionMatch = stripPublicLangPrefix(url.pathname).match(/^\/regions\/([^/]+)(\/species)?$/u);
         if (regionMatch?.[1]) {
@@ -4403,8 +4408,9 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && searchExploreMatch) {
         const viewLang = (searchExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
-        if (searchV2On(env, session)) return handleSearchExploreV2Route(url, viewLang, session, env.OBS_DB);
-        return handleSearchExploreRoute(url, viewLang, session, env.OBS_DB);
+        const regionsHref = regionSurfaceV1On(env, session) ? `${viewLang === "ja" ? "/ja" : `/${viewLang}`}/regions` : null;
+        if (searchV2On(env, session)) return handleSearchExploreV2Route(url, viewLang, session, env.OBS_DB, regionsHref);
+        return handleSearchExploreRoute(url, viewLang, session, env.OBS_DB, regionsHref);
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/profile/visibility") {
@@ -23694,16 +23700,53 @@ async function listSitemapRegions(env: Env, limit = 200): Promise<string[]> {
   }
 }
 
+let sitemapSpeciesCache: { at: number; names: string[] } | null = null;
+
+async function listSitemapSpecies(env: Env, limit = 500): Promise<string[]> {
+  if (sitemapSpeciesCache && Date.now() - sitemapSpeciesCache.at < 3_600_000) return sitemapSpeciesCache.names;
+  try {
+    const result = await env.OBS_DB.prepare(
+      `SELECT r.taxon_label AS name, COUNT(*) AS n
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+        WHERE r.taxon_label IS NOT NULL
+          AND o.visibility = 'public' AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active')
+        GROUP BY r.taxon_label ORDER BY n DESC LIMIT ?1`
+    ).bind(limit * 3).all<{ name?: unknown }>();
+    const names: string[] = [];
+    for (const row of result.results ?? []) {
+      const name = typeof row.name === "string" ? row.name : "";
+      if (!name || isHigherRankName(name)) continue;
+      const key = resolveSpeciesKey(encodeURIComponent(name));
+      if (key.kind === "ok" && key.name === name) names.push(name);
+      if (names.length >= limit) break;
+    }
+    sitemapSpeciesCache = { at: Date.now(), names };
+    return names;
+  } catch {
+    return [];
+  }
+}
+
 export async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<string> {
   if (!xml.includes("</urlset>")) return xml;
   const places = await listFeaturedPublicPlaces(env, 50);
   const origin = seoOrigin(env);
   const locs: string[] = places.map((p) => `${origin}/ja/places/${encodeURIComponent(p.placeId)}`);
   if (regionSurfaceV1On(env, null)) {
+    locs.push(`${origin}/ja/regions`);
     for (const area of await listSitemapRegions(env)) {
       const base = `${origin}/ja/regions/${encodeURIComponent(area)}`;
       locs.push(base, `${base}/species`);
     }
+  }
+  if (speciesSurfaceV1On(env, null)) {
+    for (const name of await listSitemapSpecies(env)) locs.push(`${origin}/ja/species/${encodeURIComponent(name)}`);
   }
   if (invasiveMapV1On(env, null)) {
     if (regionSurfaceV1On(env, null)) {
@@ -25364,6 +25407,28 @@ async function loadInvasivePublicRecords(env: Env): Promise<InvasiveRecord[]> {
     areas.set(row.observation_id, normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? normalizeSafePublicAreaLabelCandidate(meta.get(row.observation_id)?.publicAreaLabel) ?? null);
   }
   return buildInvasiveRecords(candidates, { areas, photos, nowMs: Date.now() });
+}
+
+async function handleRegionIndexRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+): Promise<Response> {
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const items = await loadRegionIndex(env.OBS_DB, normalizeSafePublicAreaLabelCandidate);
+  const cspNonce = createHtmlCspNonce();
+  const page = renderRegionIndexPage({ items, lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, cspNonce, origin: seoOrigin(env) });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "region-index-v1",
+    },
+  });
 }
 
 async function handleRegionSurfaceRoute(

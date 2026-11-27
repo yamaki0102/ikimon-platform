@@ -88,7 +88,8 @@ export async function handleSearchExploreRoute(
   url: URL,
   lang: "ja" | "en" | "es" | "pt-br",
   session: SessionLike,
-  db: Env["OBS_DB"]
+  db: Env["OBS_DB"],
+  regionsHref: string | null = null
 ): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim();
   const suggestions = await queryPublicSuggestions(q, db);
@@ -136,6 +137,7 @@ export async function handleSearchExploreRoute(
       }
     </div>
     <a class="zs-btn" href="${escapeHtml(`${prefix}/search/seasons`)}">${isEn ? "Search by season" : "時期で探す"}</a>
+    ${regionsHref ? `<a class="zs-chip" data-search-regions-link="1" style="justify-self:start;min-height:44px" href="${escapeHtml(regionsHref)}">${isEn ? "Explore by region" : "地域から探す"}</a>` : ""}
   </section>`;
 
   const html = renderZukanCommonShell({
