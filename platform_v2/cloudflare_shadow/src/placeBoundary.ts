@@ -36,18 +36,37 @@ export async function loadPlaceBoundaries(db: Env["OBS_DB"], placeIds: string[])
   const out = new Map<string, PlaceBoundaryGeometry>();
   const ids = Array.from(new Set(placeIds.filter((id) => typeof id === "string" && id.length > 0))).slice(0, MAX_IDS);
   if (ids.length === 0) return out;
-  const marks = ids.map(() => "?").join(",");
+  try {
+    const marks0 = ids.map(() => "?").join(",");
+    const canon = await db.prepare(
+      `SELECT place_id, boundary_geojson
+         FROM place_boundaries
+        WHERE place_id IN (${marks0}) AND valid_to IS NULL AND superseded_by_boundary_id IS NULL
+          AND geometry_kind IN ('Polygon','MultiPolygon')
+        ORDER BY is_primary DESC, boundary_version DESC`,
+    ).bind(...ids).all<{ place_id: string; boundary_geojson: string }>();
+    for (const row of canon.results ?? []) {
+      if (out.has(row.place_id)) continue;
+      const geometry = parsePlaceBoundaryGeometry(row.boundary_geojson);
+      if (geometry) out.set(row.place_id, geometry);
+    }
+  } catch (error) {
+    if (!/no such table|no such column|place_boundaries/i.test(String(error))) throw error;
+  }
+  const rest = ids.filter((id) => !out.has(id));
+  if (rest.length === 0) return out;
+  const marks = rest.map(() => "?").join(",");
   try {
     const rows = await db.prepare(
       `SELECT field_id, entity_key, geometry_json
          FROM production_import_area_polygon_readmodel
         WHERE entity_key IN (${marks}) OR field_id IN (${marks})`,
-    ).bind(...ids, ...ids).all<{ field_id: string; entity_key: string | null; geometry_json: string }>();
+    ).bind(...rest, ...rest).all<{ field_id: string; entity_key: string | null; geometry_json: string }>();
     for (const row of rows.results ?? []) {
       const geometry = parsePlaceBoundaryGeometry(row.geometry_json);
       if (!geometry) continue;
       for (const key of [row.entity_key, row.field_id]) {
-        if (key && ids.includes(key) && !out.has(key)) out.set(key, geometry);
+        if (key && rest.includes(key) && !out.has(key)) out.set(key, geometry);
       }
     }
   } catch (error) {

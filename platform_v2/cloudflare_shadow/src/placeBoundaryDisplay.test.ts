@@ -34,6 +34,24 @@ test("helper parses the 0062 polygon", async () => {
   assert.equal((await loadPlaceBoundaries(fakeDb([]), [PLACE])).size, 0);
 });
 
+test("canonical place_boundaries row is returned and rendered; readmodel fallback remains", async () => {
+  const db = {
+    prepare(query: string) {
+      const rows = /FROM place_boundaries/.test(query)
+        ? [{ place_id: "plc_x", boundary_geojson: geometryJson }]
+        : /area_polygon_readmodel/.test(query)
+          ? [{ field_id: "f", entity_key: PLACE, geometry_json: geometryJson }]
+          : [];
+      const stmt: any = { bind: () => stmt, all: async () => ({ results: rows }) };
+      return stmt;
+    },
+  } as never;
+  const map = await loadPlaceBoundaries(db, ["plc_x", PLACE]);
+  assert.equal(map.get("plc_x")?.type, "Polygon");
+  assert.equal(map.get(PLACE)?.type, "Polygon");
+  assert.match(renderPlaceBoundarySection(map.get("plc_x"), "ja", "x"), /data-place-boundary/);
+});
+
 test("section renders svg outline only with polygon", () => {
   const g = parsePlaceBoundaryGeometry(geometryJson);
   const html = renderPlaceBoundarySection(g, "ja", "連理の木の下で");
