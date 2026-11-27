@@ -1,6 +1,7 @@
 import type { PlaceAtlasProfile } from "../../src/services/placeAtlasContract";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { sizedImgAttrs } from "./derivedImageUrl";
+import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 import { ZUKAN_SUBPAGE_CSS } from "./zukanSubpageUi";
 
@@ -19,19 +20,22 @@ export type FieldCardRecord = {
 const esc = (value: string): string =>
   value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
-const QUESTION: Record<FieldCardGroup, string> = {
+export const FIELD_CARD_QUESTION: Record<FieldCardGroup, string> = {
   insect: "足は何本見える？もようはある？",
   plant: "葉っぱはどんな形？ふちはギザギザ？",
   bird: "くちばしは長い？短い？どんな色？",
   generic: "どんな色やもようが見える？",
 };
 
-const PROMPT: Record<FieldCardGroup, string> = {
+export const FIELD_CARD_PROMPT: Record<FieldCardGroup, string> = {
   insect: "見つけたら、足やもようを指さしてもらおう",
   plant: "同じ形の葉っぱを探してもらおう",
   bird: "鳴き声が聞こえたら、まねしてもらおう",
   generic: "気づいたところを指さしてもらおう",
 };
+
+const QUESTION = FIELD_CARD_QUESTION;
+const PROMPT = FIELD_CARD_PROMPT;
 
 const CSS = `${ZUKAN_SUBPAGE_CSS}
 .fc{max-width:720px}
@@ -74,18 +78,176 @@ export function pickFieldCardRecords(rows: FieldCardRecord[], limit = 3): FieldC
     .map((x) => x.r);
 }
 
-const GROUPS: Record<string, FieldCardGroup> = { insect: "insect", plant: "plant", bird: "bird" };
+const GROUPS: Record<string, FieldCardGroup> = {
+  insect: "insect",
+  insecta: "insect",
+  "昆虫": "insect",
+  "昆虫類": "insect",
+  "昆虫綱": "insect",
+  plant: "plant",
+  plantae: "plant",
+  viridiplantae: "plant",
+  "植物": "plant",
+  "植物界": "plant",
+  bird: "bird",
+  aves: "bird",
+  "鳥": "bird",
+  "鳥類": "bird",
+  "鳥綱": "bird",
+};
+
+const INSECT_ORDERS = new Set([
+  "lepidoptera", "coleoptera", "odonata", "hemiptera", "hymenoptera", "diptera", "orthoptera",
+  "mantodea", "phasmatodea", "neuroptera", "trichoptera", "ephemeroptera", "plecoptera",
+  "mecoptera", "blattodea", "dermaptera", "thysanoptera", "siphonaptera",
+  "チョウ目", "鱗翅目", "コウチュウ目", "甲虫目", "トンボ目", "蜻蛉目", "カメムシ目",
+  "半翅目", "ハチ目", "膜翅目", "ハエ目", "双翅目", "バッタ目", "直翅目", "カマキリ目",
+  "ナナフシ目", "アミメカゲロウ目", "トビケラ目", "カゲロウ目", "カワゲラ目", "ゴキブリ目", "ハサミムシ目",
+]);
+
+const BIRD_ORDERS = new Set([
+  "passeriformes", "charadriiformes", "anseriformes", "pelecaniformes", "accipitriformes",
+  "columbiformes", "piciformes", "strigiformes", "falconiformes", "galliformes", "apodiformes",
+  "coraciiformes", "cuculiformes", "podicipediformes", "gruiformes", "suliformes",
+  "procellariiformes", "gaviiformes", "ciconiiformes",
+  "スズメ目", "チドリ目", "カモ目", "ペリカン目", "タカ目", "ハト目", "キツツキ目",
+  "フクロウ目", "ハヤブサ目", "キジ目", "アマツバメ目", "ブッポウソウ目", "カッコウ目",
+  "カイツブリ目", "ツル目", "カツオドリ目", "コウノトリ目",
+]);
+
+const PLANT_CLASSES = new Set([
+  "magnoliopsida", "liliopsida", "pinopsida", "polypodiopsida", "bryopsida",
+  "ginkgoopsida", "equisetopsida", "lycopodiopsida", "cycadopsida",
+  "被子植物", "単子葉植物", "双子葉植物", "シダ植物", "コケ植物", "裸子植物",
+]);
+
+const PLANT_ORDERS = new Set([
+  "asterales", "fabales", "poales", "rosales", "lamiales", "fagales", "sapindales", "pinales",
+  "liliales", "asparagales", "ranunculales", "brassicales", "caryophyllales", "malvales",
+  "solanales", "apiales", "ericales", "gentianales", "myrtales", "malpighiales", "polypodiales",
+  "キク目", "マメ目", "イネ目", "バラ目", "シソ目", "ブナ目", "ムクロジ目", "マツ目",
+  "ユリ目", "キジカクシ目", "キンポウゲ目", "アブラナ目", "ナデシコ目", "アオイ目",
+  "ナス目", "セリ目", "ツツジ目", "リンドウ目", "フトモモ目", "キントラノオ目", "ウラボシ目",
+]);
+
+const NON_TARGET_GROUPS = new Set(["mammal", "mammalia", "amphibia", "reptilia", "amphibian_reptile", "fungi", "arachnida"]);
+
+export type FieldCardTaxonInput = {
+  taxonGroup?: string | null;
+  order?: string | null;
+  className?: string | null;
+  kingdom?: string | null;
+  name?: string | null;
+};
+
+const norm = (value: string | null | undefined): string => (value ?? "").trim().toLowerCase();
+
+export function classifyFieldCardGroup(input: FieldCardTaxonInput): FieldCardGroup {
+  const tg = norm(input.taxonGroup);
+  if (tg && GROUPS[tg]) return GROUPS[tg]!;
+  if (tg && NON_TARGET_GROUPS.has(tg)) return "generic";
+
+  const order = norm(input.order) || (tg && (INSECT_ORDERS.has(tg) || BIRD_ORDERS.has(tg) || PLANT_ORDERS.has(tg)) ? tg : "");
+  if (order) {
+    if (INSECT_ORDERS.has(order)) return "insect";
+    if (BIRD_ORDERS.has(order)) return "bird";
+    if (PLANT_ORDERS.has(order)) return "plant";
+  }
+
+  const cls = norm(input.className) || tg;
+  if (cls) {
+    if (GROUPS[cls]) return GROUPS[cls]!;
+    if (PLANT_CLASSES.has(cls)) return "plant";
+    if (NON_TARGET_GROUPS.has(cls)) return "generic";
+  }
+
+  const kingdom = norm(input.kingdom) || tg;
+  if (kingdom === "plantae" || kingdom === "viridiplantae" || kingdom === "植物界") return "plant";
+
+  const name = (input.name ?? "").trim();
+  if (name && !isWeakTaxonLabel(name)) {
+    const inferred = inferTaxonGroupForLabel(name, input.taxonGroup);
+    if (inferred === "insect" || inferred === "plant" || inferred === "bird") return inferred;
+  }
+  return "generic";
+}
+
+type ObsDbLike = {
+  prepare(sql: string): {
+    bind(...values: unknown[]): {
+      first<T = Record<string, unknown>>(): Promise<T | null>;
+      all<T = Record<string, unknown>>(): Promise<{ results?: T[] }>;
+    };
+  };
+};
+
+export async function resolveFieldCardGroupsFromDb(
+  db: ObsDbLike | null | undefined,
+  records: FieldCardRecord[]
+): Promise<Map<string, FieldCardGroup>> {
+  const out = new Map<string, FieldCardGroup>();
+  if (!db) return out;
+  for (const r of records) {
+    if (r.group !== "generic" || !isNamed(r.name)) continue;
+    const key = r.name.trim().toLowerCase();
+    const raw = r.name.trim();
+    const match = await db
+      .prepare(
+        `SELECT kingdom, class_name, order_name
+         FROM gbif_taxon_matches
+         WHERE name_key = ? OR submitted_name = ? OR accepted_name = ?
+         ORDER BY match_version DESC
+         LIMIT 1`
+      )
+      .bind(key, raw, raw)
+      .first<{ kingdom?: string | null; class_name?: string | null; order_name?: string | null }>()
+      .catch(() => null);
+    if (match) {
+      const g = classifyFieldCardGroup({ kingdom: match.kingdom, className: match.class_name, order: match.order_name });
+      if (g !== "generic") { out.set(r.observationId, g); continue; }
+    }
+    const areaTaxon = await db
+      .prepare(
+        `SELECT taxon_group
+         FROM gbif_area_taxa
+         WHERE LOWER(canonical_name) = ? OR LOWER(scientific_name) = ?
+         LIMIT 1`
+      )
+      .bind(key, key)
+      .first<{ taxon_group?: string | null }>()
+      .catch(() => null);
+    if (areaTaxon?.taxon_group) {
+      const g = classifyFieldCardGroup({ taxonGroup: areaTaxon.taxon_group });
+      if (g !== "generic") out.set(r.observationId, g);
+    }
+  }
+  return out;
+}
 
 export function fieldCardRecordsFromProfile(profile: PlaceAtlasProfile): FieldCardRecord[] {
   return (profile.recentRecords ?? [])
     .filter((r) => r && r.recordId && r.mediaUrl && r.mediaKind !== "audio")
-    .map((r) => ({
-      observationId: r.recordId,
-      name: (r.displayName ?? "").trim(),
-      observedAt: r.observedAt,
-      mediaUrl: r.mediaUrl as string,
-      group: GROUPS[(r.taxonGroup ?? "").trim().toLowerCase()] ?? "generic",
-    }));
+    .map((r) => {
+      const extra = r as PlaceAtlasProfile["recentRecords"][number] & {
+        taxonOrder?: string | null;
+        taxonClass?: string | null;
+        taxonKingdom?: string | null;
+      };
+      const name = (r.displayName ?? "").trim();
+      return {
+        observationId: r.recordId,
+        name,
+        observedAt: r.observedAt,
+        mediaUrl: r.mediaUrl as string,
+        group: classifyFieldCardGroup({
+          taxonGroup: r.taxonGroup,
+          order: extra.taxonOrder,
+          className: extra.taxonClass,
+          kingdom: extra.taxonKingdom,
+          name,
+        }),
+      };
+    });
 }
 
 export function renderFieldCardPage(options: {
@@ -127,11 +289,16 @@ ${body}
 
 export function fieldCardResponse(
   profile: PlaceAtlasProfile,
-  session: { userId: string; displayName?: string | null; banned?: boolean } | null
+  session: { userId: string; displayName?: string | null; banned?: boolean } | null,
+  resolvedGroups?: ReadonlyMap<string, FieldCardGroup>
 ): Response {
   const names = (profile.place as { multilingualNames?: Record<string, string> }).multilingualNames ?? {};
   const placeName = (names.ja ?? "").trim() || (profile.place.name ?? "").trim();
-  const records = pickFieldCardRecords(fieldCardRecordsFromProfile(profile));
+  const records = pickFieldCardRecords(fieldCardRecordsFromProfile(profile)).map((r) =>
+    r.group === "generic" && resolvedGroups?.get(r.observationId)
+      ? { ...r, group: resolvedGroups.get(r.observationId)! }
+      : r
+  );
   const authenticated = Boolean(session && !session.banned);
   return new Response(
     renderFieldCardPage({ placeId: (profile.place as { canonicalPlaceId?: string | null }).canonicalPlaceId ?? "", placeName, records, authenticated, displayName: session?.displayName ?? null }),

@@ -201,7 +201,13 @@ import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsS
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
-import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
+import {
+  FIELD_CARD_FLAG,
+  fieldCardRecordsFromProfile,
+  fieldCardResponse,
+  pickFieldCardRecords,
+  resolveFieldCardGroupsFromDb,
+} from "./fieldCard";
 import { handlePlaceRegisterRequest } from "./zukanPlaceRegister";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
@@ -5059,7 +5065,8 @@ export const worker = {
           if (placeFieldCardMatch[1] && placeFieldCardMatch[1] !== "ja") return new Response("Not found", { status: 404 });
           const fieldCardPlace = await loadPublicPlaceProfile(env, decodeURIComponent(placeFieldCardMatch[2]));
           if (fieldCardPlace instanceof Response) return fieldCardPlace;
-          return fieldCardResponse(fieldCardPlace, fieldCardSession);
+          const fieldCardResolved = await resolveFieldCardGroupsFromDb(env.OBS_DB, pickFieldCardRecords(fieldCardRecordsFromProfile(fieldCardPlace)));
+          return fieldCardResponse(fieldCardPlace, fieldCardSession, fieldCardResolved);
         }
       }
 
