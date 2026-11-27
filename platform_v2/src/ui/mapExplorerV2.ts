@@ -528,9 +528,10 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   function renderPlaceTabList(rec, zero) {
     if (!CFG.placeTab || !plistEl) return;
-    if (rec.length === 0) { plistEl.innerHTML = renderListHtml(rec, zero); return; }
+    var all = rec.concat(zero);
+    if (all.length === 0) { plistEl.innerHTML = renderListHtml(rec, zero); return; }
     var ref = state.userCenter || (state.map ? state.map.getCenter() : { lat: CFG.defaultCenter[1], lng: CFG.defaultCenter[0] });
-    var rows = rec.map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
+    var rows = all.map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
     rows.sort(function (a, b) { return a.d - b.d; });
     var used = {};
     var h = '<h2 class="zv2-st">近くの場所</h2>';
@@ -539,7 +540,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       var img = p.photoUrl && !used[p.photoUrl];
       if (img) used[p.photoUrl] = 1;
       var thumb = img ? '<img src="' + esc(p.photoUrl) + '" alt="" loading="lazy" decoding="async" />' : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
-      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : '記録 ' + p.recordCount + '件') + ' ・ ここから ' + fmtDist(r.d);
+      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : (rcOf(p) === 0 ? '記録はまだありません' : '記録 ' + p.recordCount + '件')) + ' ・ ここから ' + fmtDist(r.d);
       return '<a class="zv2-prow" data-zv2-place-row="' + esc(p.placeId) + '" href="' + esc(placeHref(p.placeId)) + '">' + thumb
         + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + meta + '</span></span>'
         + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></a>';
@@ -815,6 +816,18 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
             geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
             properties: { placeId: p.placeId, name: p.name }
           };
+        })
+      });
+    }
+    var nearSrc = CFG.placeTab ? state.map.getSource('zv2-near') : null;
+    if (nearSrc) {
+      var nref = state.userCenter || state.map.getCenter();
+      var nearest = rec.concat(zero).map(function (p) { return { p: p, d: distMeters(nref.lat, nref.lng, p.lat, p.lng) }; })
+        .sort(function (a, b) { return a.d - b.d; }).slice(0, 8);
+      nearSrc.setData({
+        type: 'FeatureCollection',
+        features: nearest.map(function (r, i) {
+          return { type: 'Feature', geometry: { type: 'Point', coordinates: [r.p.lng, r.p.lat] }, properties: { placeId: r.p.placeId, name: r.p.name, sortKey: i } };
         })
       });
     }
@@ -1285,6 +1298,14 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         paint: { 'circle-color': '#ffffff', 'circle-radius': 6, 'circle-stroke-width': 2.5, 'circle-stroke-color': '#9DB4A6' }
       });
       if (CFG.placeTab) {
+        map.addSource('zv2-near', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.addLayer({
+          id: 'zv2-near-label',
+          type: 'symbol',
+          source: 'zv2-near',
+          layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.9], 'text-anchor': 'top', 'symbol-sort-key': ['get', 'sortKey'], 'text-allow-overlap': false, 'text-optional': true },
+          paint: { 'text-color': '#17211B', 'text-halo-color': '#ffffff', 'text-halo-width': 2 }
+        });
         map.addLayer({
           id: 'zv2-zero-label',
           type: 'symbol',

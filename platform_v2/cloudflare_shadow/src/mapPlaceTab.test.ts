@@ -38,6 +38,7 @@ test("place tab markup", () => {
   assert.ok(html.includes('"placeTab":true'));
   assert.ok(html.indexOf('class="zv2-stage"') < html.indexOf('id="zv2-plist"'));
   assert.ok(html.includes("zv2-zero-label"));
+  assert.ok(html.includes("zv2-near-label"));
 });
 
 test("list rows: link, distance order, no duplicate photos, cap", () => {
@@ -50,13 +51,13 @@ test("list rows: link, distance order, no duplicate photos, cap", () => {
     name: `場所${i}`,
     lat: 34.7 + i * 0.001,
     lng: 137.7,
-    recordCount: i + 1,
+    recordCount: i % 5 === 0 ? 0 : i + 1,
     placeKind: "park",
     photoUrl: i % 2 === 0 ? "https://x/same.jpg" : `https://x/${i}.jpg`,
   }));
   const run = new Function(
     "plistEl", "state", "CFG", "esc", "kindLabel", "placeHref", "distMeters", "rcOf", "renderListHtml", "places",
-    `${src}\nrenderPlaceTabList(places.slice().reverse(), []);`,
+    `${src}\nrenderPlaceTabList(places.filter((p) => p.recordCount > 0).reverse(), places.filter((p) => p.recordCount === 0));`,
   );
   const dm = (aLat: number, aLng: number, bLat: number, bLng: number) => Math.hypot((aLat - bLat) * 111320, (aLng - bLng) * 91000);
   run(plistEl, state, { placeTab: true, defaultCenter: [137.7, 34.7] }, (v: unknown) => String(v), () => "公園", (id: string) => `/ja/places/${id}`, dm, (p: { recordCount: number }) => p.recordCount, () => "EMPTY", places);
@@ -67,6 +68,8 @@ test("list rows: link, distance order, no duplicate photos, cap", () => {
   const srcs = [...html.matchAll(/<img src="([^"]+)"/g)].map((m) => m[1]);
   assert.equal(new Set(srcs).size, srcs.length);
   assert.ok(html.includes("ここから 0m"));
+  assert.ok(html.indexOf("記録はまだありません") >= 0 && html.indexOf("記録はまだありません") < html.indexOf("記録 2件"));
+  assert.ok(html.indexOf('href="/ja/places/p0"') >= 0);
   assert.ok(html.includes("zv2-thumb-ph"));
 });
 
