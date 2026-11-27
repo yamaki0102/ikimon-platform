@@ -186,9 +186,12 @@ const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof re
 import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
+import { handleSearchExploreV2Route, handleSearchResultsV2Route, handleSearchSuggestV2Api } from "./zukanSearchV2";
 import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
 const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
+const SEARCH_V2_FLAG = "SEARCH_V2_ENABLED";
+const searchV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SEARCH_V2_FLAG, v.principalId, v.role); };
 const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
 const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
 import { handleIdentifyV3ApiRequest, loadIdentifyV3WorkspaceData, renderIdentifyV3Page, type IdentifyV3View } from "./identifyV3";
@@ -4311,6 +4314,11 @@ export const worker = {
         if (shopRes) return shopRes;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/search/suggest-v2") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (searchV2On(env, session)) return handleSearchSuggestV2Api(url, env.OBS_DB);
+      }
+
       if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
         return handleSearchSuggestApi(url, env.OBS_DB);
       }
@@ -4319,6 +4327,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && searchExploreMatch) {
         const viewLang = (searchExploreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (searchV2On(env, session)) return handleSearchExploreV2Route(url, viewLang, session, env.OBS_DB);
         return handleSearchExploreRoute(url, viewLang, session, env.OBS_DB);
       }
 
@@ -4429,6 +4438,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && searchResultsMatch) {
         const viewLang = (searchResultsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (searchV2On(env, session)) return handleSearchResultsV2Route(url, viewLang, session, env.OBS_DB);
         return handleSearchResultsRoute(url, viewLang, session, env.OBS_DB);
       }
 
