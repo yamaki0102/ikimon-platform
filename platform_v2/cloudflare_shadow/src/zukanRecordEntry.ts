@@ -346,7 +346,7 @@ export const ZUKAN_RECORD_ENTRY_STYLES = `
   .zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn,.zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn:visited{color:#fff}
   .zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn.is-ghost,.zt-cap[data-zukan-capture-stage] .zt-sv-actions a.zt-btn.is-ghost:visited{color:#143f2e}
   .zt-cap[data-zukan-capture-stage] .zt-sv-foot{margin:18px 0 0;font-size:13.5px;line-height:1.7;color:#55615a}
-  .zt-cap[data-zukan-capture-stage] .zt-memo{width:min(92vw,520px);max-width:none;padding:20px;border:0;border-radius:20px;color:#17251b;background:#fff}
+  .zt-cap[data-zukan-capture-stage] .zt-memo{margin:max(16px,env(safe-area-inset-top)) auto auto;max-height:calc(100dvh - 32px);overflow:auto;width:min(92vw,520px);max-width:none;padding:20px;border:0;border-radius:20px;color:#17251b;background:#fff}
   .zt-cap[data-zukan-capture-stage] .zt-memo::backdrop{background:rgba(0,0,0,.6)}
   .zt-cap[data-zukan-capture-stage] .zt-memo h2{margin:0 0 10px;font-size:20px}
   .zt-cap[data-zukan-capture-stage] .zt-memo textarea{width:100%;min-height:140px;padding:12px;border:1px solid #52685a;border-radius:12px;font:inherit;font-size:16px;color:#17251b;background:#fff;resize:vertical}
