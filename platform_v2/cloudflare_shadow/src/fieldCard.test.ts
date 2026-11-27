@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import test from "node:test";
+import { chromium } from "@playwright/test";
 import worker from "./index";
 import type { PlaceAtlasProfile, PlaceAtlasProfileRecord } from "../../src/services/placeAtlasContract";
 import {
@@ -140,4 +143,48 @@ test("recentRecords without taxonGroup infer group from name or gbif_taxon_match
   const dfResolved = await resolveFieldCardGroupsFromDb(fakeDb as any, dfBase);
   const dfHtml = await fieldCardResponse(profile(dragonfly), null, dfResolved).text();
   assert.ok(dfHtml.includes("足は何本見える？もようはある？"));
+});
+
+const findBrowserPath = (): string | null => {
+  const candidates = [process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, chromium.executablePath()].filter((p): p is string => Boolean(p));
+  for (const p of candidates) if (existsSync(p)) return p;
+  const cacheDir = join(process.env.HOME || "", ".cache/ms-playwright");
+  if (!existsSync(cacheDir)) return null;
+  for (const entry of readdirSync(cacheDir)) {
+    const bin = join(cacheDir, entry, "chrome-linux64/chrome");
+    if (existsSync(bin)) return bin;
+  }
+  return null;
+};
+
+test("header avatar stays a square circle at 375px and 1280px even with long display names", async (t) => {
+  const html = renderFieldCardPage({
+    placeId: "plc_1",
+    placeName: "常磐公園",
+    authenticated: true,
+    displayName: "とても長い表示名テストユーザーサンプル名前",
+    records: [pickFieldCardRecords(fieldCardRecordsFromProfile(profile(RECORDS)))[0]!],
+  });
+  assert.match(html, /\.zt-avatar,\.zt-avatar:visited\{[^}]*flex:none[^}]*aspect-ratio:1\/1/);
+
+  const browserPath = findBrowserPath();
+  if (!browserPath) return t.skip("Playwright Chromium is unavailable");
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  try {
+    const mobile = await browser.newPage({ viewport: { width: 375, height: 812 } });
+    await mobile.setContent(html);
+    const mobileAvatar = await mobile.locator(".zt-topbar .zt-avatar").boundingBox();
+    assert.ok(mobileAvatar && Math.round(mobileAvatar.width) === 44 && Math.round(mobileAvatar.height) === 44, JSON.stringify(mobileAvatar));
+    await mobile.close();
+
+    const desktop = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await desktop.setContent(html);
+    const desktopTopbarDisplay = await desktop.locator(".zt-topbar.zt-topbar-member").evaluate((el) => getComputedStyle(el).display);
+    assert.equal(desktopTopbarDisplay, "none");
+    const sideAvatar = await desktop.locator(".zt-side-me .zt-avatar").boundingBox();
+    assert.ok(sideAvatar && Math.round(sideAvatar.width) === 36 && Math.round(sideAvatar.height) === 36, JSON.stringify(sideAvatar));
+    await desktop.close();
+  } finally {
+    await browser.close();
+  }
 });

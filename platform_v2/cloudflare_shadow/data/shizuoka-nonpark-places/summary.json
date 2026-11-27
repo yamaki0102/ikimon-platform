@@ -1,0 +1,18 @@
+{
+  "batch": "shizuoka-nonpark-20261127",
+  "retrievedAt": "2026-11-27T02:33:23Z",
+  "totalInput": 477,
+  "imported": 455,
+  "deduped": 22,
+  "osmMatched": 6,
+  "exactCoord": 0,
+  "municipalityFallbackNeedsReview": 69,
+  "missingCoordinateSkipped": 0,
+  "bySourceKind": {
+    "moe_30by30": 30,
+    "hamamatsu_cultural_property": 205,
+    "shizuoka_cultural_property": 220
+  },
+  "gsiAddressMatched": 380,
+  "sqlBytes": 1647865
+}
