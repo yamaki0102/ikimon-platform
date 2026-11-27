@@ -330,6 +330,7 @@ export function renderRegionSurfacePage(options: {
     ${headBar(`${prefix}/map`, L)}
     <div class="iv-crumb">${PIN_ICON}<span>${esc(data.area)}</span></div>
     <h1 class="iv-title">${esc(data.area)}</h1>
+    <a class="rs-all" data-region-index-link="1" href="${esc(`${prefix}/regions`)}">${tr(L, "地域から探す", "Explore by region")}</a>
     ${stats.length ? `<div class="rs-stats">${stats.join("")}</div>` : ""}
     <div class="rs-cta"><a class="iv-btn" href="${esc(`${prefix}/record`)}">${tr(L, "この地域で記録する", "Record in this area")}</a></div>
     ${shelves.join("")}
@@ -418,5 +419,126 @@ export function renderRegionSpeciesListPage(options: {
     body,
     cspNonce: options.cspNonce,
     script: shareScript(options.lang),
+  });
+}
+
+export type RegionIndexItem = { area: string; prefecture: string | null; records: number; species: number; places: number };
+export type RegionIndexGroup = { prefecture: string | null; items: RegionIndexItem[] };
+
+let regionIndexCache: { at: number; db: unknown; items: RegionIndexItem[] } | null = null;
+
+export async function loadRegionIndex(db: Db, normalize: (v: string) => string | null, limit = 300): Promise<RegionIndexItem[]> {
+  if (regionIndexCache && regionIndexCache.db === db && Date.now() - regionIndexCache.at < 3_600_000) return regionIndexCache.items;
+  const rows = await safeAll(() => db.prepare(
+    `WITH pub AS (
+       SELECT r.public_area_label AS area, r.taxon_label AS label
+         FROM readmodel_public_observations r
+         JOIN observations o ON o.observation_id = r.observation_id
+        WHERE r.public_area_label IS NOT NULL AND r.taxon_label IS NOT NULL
+          AND o.visibility = 'public' AND o.emergency_hidden = 0
+          AND NOT EXISTS (
+            SELECT 1 FROM observation_data_rights rights
+             WHERE rights.visit_id = o.observation_id
+               AND rights.withdrawal_status IS NOT NULL
+               AND rights.withdrawal_status <> 'active')),
+     top AS (SELECT area FROM pub GROUP BY area ORDER BY COUNT(*) DESC LIMIT ?1)
+     SELECT p.area AS area, p.label AS label, COUNT(*) AS n
+       FROM pub p JOIN top t ON t.area = p.area
+      GROUP BY p.area, p.label ORDER BY n DESC LIMIT 30000`,
+  ).bind(limit).all<{ area: string; label: string; n: number }>());
+  if (rows.length === 0) return [];
+  const placeRows = await safeAll(() => db.prepare(
+    `SELECT municipality, prefecture, locality_label FROM places WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 5000`,
+  ).bind().all<{ municipality: string | null; prefecture: string | null; locality_label: string | null }>());
+  const agg = new Map<string, { records: number; names: Set<string>; fine: Set<string> }>();
+  for (const r of rows) {
+    if (typeof r.area !== "string" || normalize(r.area) !== r.area) continue;
+    const g = agg.get(r.area) ?? { records: 0, names: new Set<string>(), fine: new Set<string>() };
+    g.records += Number(r.n) || 0;
+    if (!isWeakTaxonLabel(r.label)) {
+      const name = String(r.label).normalize("NFKC").trim();
+      g.names.add(name);
+      if (!isHigherRankName(name)) g.fine.add(name);
+    }
+    agg.set(r.area, g);
+  }
+  const items: RegionIndexItem[] = [];
+  for (const [area, g] of agg) {
+    let places = 0;
+    let pref: string | null = null;
+    for (const p of placeRows) {
+      if (p.municipality === area || p.prefecture === area || p.locality_label === area) {
+        places += 1;
+        if (!pref && p.municipality === area && p.prefecture) pref = p.prefecture;
+      }
+    }
+    if (g.names.size === 0 && places === 0) continue;
+    if (!pref) pref = area.match(PREFECTURE_PREFIX)?.[0] ?? null;
+    items.push({ area, prefecture: pref, records: g.records, species: g.fine.size, places });
+  }
+  items.sort((a, b) => b.records - a.records || a.area.localeCompare(b.area, "ja"));
+  regionIndexCache = { at: Date.now(), db, items };
+  return items;
+}
+
+export function groupRegionIndex(items: readonly RegionIndexItem[]): RegionIndexGroup[] {
+  const map = new Map<string | null, RegionIndexItem[]>();
+  for (const it of items) {
+    const list = map.get(it.prefecture) ?? [];
+    list.push(it);
+    map.set(it.prefecture, list);
+  }
+  const total = (l: RegionIndexItem[]): number => l.reduce((s, i) => s + i.records, 0);
+  return [...map.entries()]
+    .map(([prefecture, list]) => ({ prefecture, items: list }))
+    .sort((a, b) => (a.prefecture === null ? 1 : 0) - (b.prefecture === null ? 1 : 0) || total(b.items) - total(a.items));
+}
+
+const INDEX_CSS = `
+.rs-find{display:block;width:100%;box-sizing:border-box;min-height:48px;margin:16px 0 0;padding:0 14px;border:1.5px solid var(--line);border-radius:14px;font:inherit;font-size:16px;color:var(--ink);background:#fff}
+.rs-row[hidden],[data-region-group][hidden],.rs-foot[hidden]{display:none}
+.rs-gh{margin:24px 0 0;font-size:15px;font-weight:800;color:var(--muted)}
+`;
+
+const INDEX_SCRIPT = `(function(){var i=document.getElementById("rg-q");if(!i)return;var rows=[].slice.call(document.querySelectorAll("[data-region-row]"));var groups=[].slice.call(document.querySelectorAll("[data-region-group]"));var e=document.getElementById("rg-none");function f(){var q=i.value.normalize("NFKC").trim().toLowerCase();var any=false;rows.forEach(function(r){var m=!q||r.getAttribute("data-region-row").toLowerCase().indexOf(q)>-1;r.hidden=!m;if(m)any=true;});groups.forEach(function(g){g.hidden=!g.querySelector("[data-region-row]:not([hidden])");});if(e)e.hidden=any;}i.addEventListener("input",f);})();`;
+
+export function renderRegionIndexPage(options: {
+  items: readonly RegionIndexItem[];
+  lang: Lang;
+  authenticated: boolean;
+  displayName?: string | null;
+  cspNonce?: string | null;
+  origin?: string;
+}): string {
+  const L = options.lang;
+  const prefix = L === "ja" ? "/ja" : `/${L}`;
+  const groups = groupRegionIndex(options.items);
+  const other = tr(L, "その他の地域", "Other areas");
+  const list = groups.map((g) => `<section data-region-group="${esc(g.prefecture ?? "")}"><h2 class="rs-gh">${esc(g.prefecture ?? other)}</h2>${g.items.map((it) => {
+    const meta = L === "ja"
+      ? [it.species > 0 ? `種 <span class="iv-nb">${it.species}</span>` : "", `記録 <span class="iv-nb">${it.records}件</span>`, it.places > 0 ? `場所 <span class="iv-nb">${it.places}か所</span>` : ""].filter(Boolean).join(" ・ ")
+      : [it.species > 0 ? `<span class="iv-nb">${plural(it.species, "species", "species")}</span>` : "", `<span class="iv-nb">${plural(it.records, "record", "records")}</span>`, it.places > 0 ? `<span class="iv-nb">${plural(it.places, "place", "places")}</span>` : ""].filter(Boolean).join(" · ");
+    return `<a class="rs-row" data-region-row="${esc(`${it.area} ${it.prefecture ?? ""}`.trim())}" href="${esc(`${prefix}/regions/${encodeURIComponent(it.area)}`)}"><span class="rs-b"><span class="rs-n">${esc(it.area)}</span><span class="rs-m">${meta}</span></span>${CHEV_ICON}</a>`;
+  }).join("")}</section>`).join("");
+  const body = `<div class="iv-col rs-col" data-region-index="1">
+    ${headBar(`${prefix}/search/explore`, L)}
+    <h1 class="iv-title">${tr(L, "地域から探す", "Explore by region")}</h1>
+    <p class="iv-desc">${tr(L, "記録や場所が集まっている地域を、記録の多い順に並べています。", "Areas with records and places, sorted by number of records.")}</p>
+    ${options.items.length ? `<input id="rg-q" class="rs-find" type="search" autocomplete="off" aria-label="${tr(L, "地域名で絞り込む", "Filter by area name")}" placeholder="${tr(L, "地域名で絞り込む", "Filter by area name")}" data-region-filter="1">
+    <p class="rs-foot" id="rg-none" hidden>${tr(L, "一致する地域はありません。", "No matching areas.")}</p>
+    ${list}` : `<p class="rs-foot" data-region-index-empty="1">${tr(L, "公開できる地域は、まだ集まっていません。", "No areas are available to show yet.")}</p><div class="rs-cta"><a class="iv-btn" href="${esc(`${prefix}/record`)}">${tr(L, "記録する", "Record")}</a></div>`}
+  </div>`;
+  const description = tr(L, "ZUKANの公開記録がある地域の一覧。地域ごとの生きものと場所を見られます。", "Areas with public records on ZUKAN. Browse wildlife and places by region.");
+  return shell({
+    seo: { title: tr(L, "地域から探す | ZUKAN", "Explore by region | ZUKAN"), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: "/regions", image: null },
+    title: tr(L, "地域から探す", "Explore by region"),
+    extraCss: EXTRA_CSS + INDEX_CSS,
+    lang: L,
+    authenticated: options.authenticated,
+    displayName: options.displayName,
+    pathname: `${prefix}/regions`,
+    body,
+    cspNonce: options.cspNonce,
+    script: shareScript(L) + INDEX_SCRIPT,
   });
 }

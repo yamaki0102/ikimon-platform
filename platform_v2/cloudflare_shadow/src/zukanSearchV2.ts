@@ -320,6 +320,7 @@ export async function handleSearchExploreV2Route(
   lang: SearchV2Lang,
   session: SessionLike,
   db: Db,
+  regionsHref: string | null = null,
 ): Promise<Response> {
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 120);
   const isEn = lang === "en";
@@ -370,6 +371,7 @@ export async function handleSearchExploreV2Route(
       ${seasonChips ? `<div data-search-v2="season-words"><h2 class="zs-h2">${isEn ? "By season" : "時期のことばで探す"}</h2><div class="zs-chips">${seasonChips}</div></div>` : ""}
       ${popularHtml ? `<div><h2 class="zs-h2">${isEn ? "Places with most records" : "記録の多い場所"}</h2><ul class="zs-list">${popularHtml}</ul></div>` : ""}
       <a class="zs-btn" href="${escapeHtml(`${prefix}/search/seasons`)}">${SEARCH_ICON_CALENDAR}${isEn ? "Search by season" : "時期で探す"}</a>
+      ${regionsHref ? `<a class="zs-chip" data-search-regions-link="1" style="justify-self:start;min-height:44px" href="${escapeHtml(regionsHref)}">${isEn ? "Explore by region" : "地域から探す"}</a>` : ""}
     </div>
   </section>
   ${LIVE_SCRIPT(prefix, isEn, lang)}`;
