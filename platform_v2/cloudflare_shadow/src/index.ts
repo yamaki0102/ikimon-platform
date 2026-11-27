@@ -4517,7 +4517,8 @@ export const worker = {
       if (request.method === "GET" && url.pathname === "/api/v1/events/nearby") {
         return handleNearbyEventsApi(url, env.OBS_DB);
       }
-
+      const eventsIndexMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/?$/);
+      if ((request.method === "GET" || request.method === "HEAD") && eventsIndexMatch) return Response.redirect(`${url.origin}/${eventsIndexMatch[1] ?? "ja"}/events/nearby${url.search}`, 302);
       const eventsNearbyPageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/nearby$/);
       if ((request.method === "GET" || request.method === "HEAD") && eventsNearbyPageMatch) {
         const viewLang = (eventsNearbyPageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
