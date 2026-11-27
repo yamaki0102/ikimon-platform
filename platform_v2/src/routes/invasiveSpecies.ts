@@ -331,7 +331,7 @@ function renderDetailPage(basePath: string, lang: SiteLang, item: InvasiveSpecie
   return `<div class="invasive-page invasive-detail">
     <nav class="invasive-breadcrumb"><a href="${escapeHtml(listHref)}">外来種一覧へ戻る</a></nav>
     ${renderCommonSafety()}
-    <section class="invasive-detail-card">
+    <section class="invasive-detail-card" id="identify">
       <div class="invasive-detail-kicker">${escapeHtml(item.groupLabel)} / ${escapeHtml(item.categoryLabel)}</div>
       <h2>${escapeHtml(item.vernacularName)}</h2>
       <p class="invasive-scientific">${escapeHtml(item.scientificName)}</p>
