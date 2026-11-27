@@ -1711,3 +1711,12 @@ test("site shell omits header language switcher, defines shared floating-bottom 
   assert.match(html, /--ikimon-floating-bottom-space:/);
   assert.match(html, /a:where\(:link,:visited\)\{color:inherit;text-decoration:none\}/);
 });
+
+test("capture tray: memo goes into note, voice memo is progressive, done card links the record, offline defers", () => {
+  const engine = globalRecordEntryAsset().content.toString("utf8");
+  assert.ok(engine.includes("note: memoInput ? String(memoInput.value || '').trim().slice(0, 1000) : ''"));
+  assert.ok(engine.includes("window.SpeechRecognition || window.webkitSpeechRecognition"));
+  assert.ok(engine.includes("data-global-record-saved-action=\"view\""));
+  assert.ok(engine.includes("navigator.onLine === false"));
+  assert.ok(engine.includes("window.addEventListener('online'"));
+});
