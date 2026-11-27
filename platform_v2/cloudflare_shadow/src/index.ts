@@ -2616,7 +2616,7 @@ async function getGlobalPlaceDetailPage(
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
-    ...(authenticated && placePageV3On(env, session) ? { v3: true } : {}),
+    ...(placePageV3On(env, session) ? { v3: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
   const response = html(body, 200, {
