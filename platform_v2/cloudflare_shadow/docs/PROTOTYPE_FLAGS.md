@@ -11,4 +11,5 @@
 | PLACE_REGISTER_ENABLED | 場所を登録 | zukan_place_register | /ja/admin/places/new |
 | RECORD_INLINE_EDIT_PROTOTYPE_ENABLED | 記録ページのその場で編集 | zukan_record_page | /ja/observations/<自分の記録> |
 | RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED | 記録ページの写真ごとの読み取り | zukan_record_page | /ja/observations/<記録> |
+| RECORD_READER_MODES_ENABLED | 記録詳細のこども・おや切り替え | zukan_record_reader | /ja/observations |
 <!-- END GENERATED FLAGS -->
