@@ -333,11 +333,12 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-rb{font-size:14.5px;color:#3C4A41;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .zv2l-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:12px}
 .zv2l-grid.one{grid-template-columns:1fr}
+.zv2l-grid.one img{aspect-ratio:auto;height:auto;max-height:360px;object-fit:cover}
 .zv2l-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#EFF3EE;border-radius:8px}
 .zv2l-cellv{position:relative;display:block}
 .zv2l-vbadge{position:absolute;left:8px;bottom:8px;width:30px;height:30px;border-radius:50%;background:rgba(9,25,16,.72);color:#fff;display:flex;align-items:center;justify-content:center}
 .zv2l-vbadge svg{width:15px;height:15px}
-.zv2l-more-tile{aspect-ratio:4/3;background:#F7F7F3;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:3px;color:var(--green);font-size:15px;font-weight:800}
+.zv2l-more-tile{aspect-ratio:4/3;background:#F7F7F3;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;line-height:1.35;color:var(--green);font-size:15px;font-weight:800}
 .zv2l-arow{display:flex;align-items:center;gap:12px;background:#F7F7F3;border-radius:12px;padding:12px 14px;margin-top:8px}
 .zv2l-vmeta+.zv2l-arow,.zv2l-vmeta+.zv2l-visit-link .zv2l-arow{margin-top:12px}
 .zv2l-aplay{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
@@ -346,12 +347,12 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-ameta{font-size:14px;color:#55615A;margin-top:2px}
 .zv2l-wave{margin-left:auto;display:flex;align-items:center;gap:2.5px;height:30px;flex:none}
 .zv2l-wave i{width:3px;border-radius:2px;background:#9DB4A6;display:block}
-.zv2l-types{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:14.5px;color:#3C4A41;margin-top:10px;line-height:1.45}
+.zv2l-types{display:flex;align-items:center;flex-wrap:wrap;gap:4px 16px;font-size:14.5px;color:#3C4A41;margin-top:10px;line-height:1.45}
 .zv2l-types svg.zv2l-ic{width:16px;height:16px;color:#55615A}
 .zv2l-vt{display:inline-flex;align-items:center;gap:5px}
 .zv2l-sep{color:#B9C2B9}
-.zv2l-evlink{color:var(--link);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:2px;min-height:44px}
-.zv2l-status{display:flex;align-items:center;flex-wrap:wrap;gap:4px 7px;font-size:14px;color:#55615A;margin-top:5px;line-height:1.45}
+.zv2l-evlink{color:var(--link);font-weight:400;text-decoration:none;display:inline-flex;align-items:center;gap:2px;min-height:44px}
+.zv2l-status{display:flex;align-items:center;flex-wrap:wrap;gap:4px 16px;font-size:14px;font-weight:400;color:#55615A;margin-top:5px;line-height:1.45}
 .zv2l-status svg.zv2l-ic{width:15px;height:15px}
 .zv2l-st{display:inline-flex;align-items:center;gap:5px}
 .zv2l-st.pub{color:var(--green);font-weight:800}
@@ -413,7 +414,7 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const metaParts = [metaPlace, visit.timeRangeLabel].filter(Boolean);
   const mediaAll = [...visit.photos, ...visit.videos];
   const hasMore = mediaAll.length > 4;
-  const shown = hasMore ? mediaAll.slice(0, 3) : mediaAll;
+  const shown = hasMore ? (visit.videos.length > 0 ? [...visit.photos.slice(0, 2), visit.videos[0]!] : mediaAll.slice(0, 3)) : mediaAll;
   let gridHtml = "";
   if (shown.length > 0) {
     const cells = shown.map((m) =>
@@ -422,8 +423,13 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
         : `<img src="${esc(m.url)}" alt="" loading="lazy">`,
     );
     if (hasMore) {
-      const rest = mediaAll.length - 3;
-      cells.push(`<span class="zv2l-more-tile">${isEn ? `+${rest} more` : `あと${rest}枚`}${ICONS.chev}</span>`);
+      const restItems = mediaAll.filter((m) => !shown.includes(m));
+      const restVideos = restItems.filter((m) => m.isVideo).length;
+      const restPhotos = restItems.length - restVideos;
+      const labels: string[] = [];
+      if (restPhotos > 0) labels.push(isEn ? `${restPhotos} more ${restPhotos === 1 ? "photo" : "photos"}` : `あと写真${restPhotos}枚`);
+      if (restVideos > 0) labels.push(isEn ? `${restVideos} more ${restVideos === 1 ? "video" : "videos"}` : `${restPhotos > 0 ? "" : "あと"}動画${restVideos}本`);
+      cells.push(`<span class="zv2l-more-tile">${labels.map((l) => `<span class="nw">${l}</span>`).join("")}${ICONS.chev}</span>`);
     }
     gridHtml = `<div class="${mediaAll.length === 1 ? "zv2l-grid one" : "zv2l-grid"}">${cells.join("")}</div>`;
   }
@@ -431,12 +437,6 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const reportHtml = visit.report?.body
     ? `<div class="zv2l-report"><div class="zv2l-rb">${esc(visit.report.body)}</div></div>`
     : "";
-
-  const audioHtml = visit.audios.map((a) => `<div class="zv2l-arow">
-    <span class="zv2l-aplay">${ICONS.play}</span>
-    <div class="zv2l-ainfo"><div class="zv2l-atitle">${esc(a.title)}</div><div class="zv2l-ameta"><span class="nw">${esc(a.durationLabel)}</span>${a.timeLabel ? ` ・ <span class="nw">${esc(a.timeLabel)}</span>` : ""}</div></div>
-    <span class="zv2l-wave">${WAVE_BARS}</span>
-  </div>`).join("");
 
   const typeParts: string[] = [];
   const nPhoto = visit.photos.length;
@@ -451,13 +451,13 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
       `<span class="zv2l-vt">${ICONS.event}<span class="nw">${isEn ? "Joined an event" : "イベントに参加"}</span><a class="zv2l-evlink" href="${esc(`${prefix}/community/events`)}"><span>${esc(visit.eventParticipation.title)}</span>${ICONS.chev}</a></span>`,
     );
   }
-  const typesHtml = typeParts.length > 0 ? `<div class="zv2l-types">${typeParts.join('<span class="zv2l-sep">・</span>')}</div>` : "";
+  const typesHtml = typeParts.length > 0 ? `<div class="zv2l-types">${typeParts.join('')}</div>` : "";
 
   const statusParts: string[] = [];
   if (visit.isPublic) statusParts.push(`<span class="zv2l-st pub">${ICONS.pubEye}<span>${isEn ? "Public" : "公開しています"}</span></span>`);
   if (visit.zukanPublished) statusParts.push(`<span class="zv2l-st pub">${ICONS.book}<span>${isEn ? "In the field guide" : "図鑑に載せています"}</span></span>`);
   const statusHtml = statusParts.length > 0
-    ? `<div class="zv2l-status">${statusParts.join('<span class="zv2l-sep">・</span>')}</div>`
+    ? `<div class="zv2l-status">${statusParts.join('')}</div>`
     : `<div class="zv2l-status"><span class="zv2l-st">${ICONS.lock}<span>${isEn ? "Only me" : "自分のみ"}</span></span></div>`;
 
   const headHtml = faceTitle ? `<h3 class="zv2l-vhead">${faceIsReport ? esc(faceTitle) : `<span class="nw">${esc(faceTitle)}</span>`}</h3>` : "";
@@ -470,7 +470,6 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
       ${metaHtml}
       ${gridHtml}
       ${reportHtml}
-      ${audioHtml}
     </a>
     ${typesHtml}
     ${statusHtml}
