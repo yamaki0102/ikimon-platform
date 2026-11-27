@@ -99,7 +99,7 @@ export function renderFieldCardPage(options: {
   const placeHref = `/ja/places/${encodedPlace}`;
   const cards = options.records.map((r) => {
     const named = isNamed(r.name);
-    return `<article class="fc-card" data-fc-card><img class="fc-photo" ${sizedImgAttrs(r.mediaUrl, 680, [360, 680, 1020], "(max-width: 720px) 100vw, 680px", esc)} alt="${named ? esc(r.name) : ""}" loading="lazy" decoding="async"><h2 class="fc-name">${esc(named ? r.name : "名前はこれから")}</h2><p class="fc-month">${esc(monthLabelJst(r.observedAt))}</p><p class="fc-q"><b>こどもに</b>${esc(QUESTION[r.group])}</p><p class="fc-a"><b>おとなから</b>${esc(PROMPT[r.group])}</p></article>`;
+    return `<article class="fc-card" data-fc-card><img class="fc-photo" ${sizedImgAttrs(r.mediaUrl, 680, [360, 680, 1020], "(max-width: 720px) 100vw, 680px", esc)} alt="${named ? esc(r.name) : ""}" loading="lazy" decoding="async">${named ? `<h2 class="fc-name">${esc(r.name)}</h2>` : ""}<p class="fc-month">${esc(monthLabelJst(r.observedAt))}</p><p class="fc-q"><b>こどもに</b>${esc(QUESTION[r.group])}</p><p class="fc-a"><b>おとなから</b>${esc(PROMPT[r.group])}</p></article>`;
   });
   const body = cards.length > 0
     ? `<div class="fc-cards">${cards.join("")}</div>`
