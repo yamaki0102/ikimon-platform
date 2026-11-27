@@ -114,18 +114,27 @@ export function placeProbeCells(p: PlaceCellProbe): string[] | null {
 
 export function selectUnknownCountCandidates(
   places: readonly PlaceCellProbe[],
-  cellCounts: ReadonlyMap<string, number>,
+  points: readonly { lat: number; lng: number }[],
   max: number = MAP_PLACES_V2_UNKNOWN_ENRICH_MAX,
 ): { candidates: string[]; overflow: string[] } {
   const hit: string[] = [];
+  const pad = 0.00005;
   for (const p of places) {
-    const cells = placeProbeCells(p);
-    if (cells === null || cells.some((c) => (cellCounts.get(c) ?? 0) > 0)) hit.push(p.placeId);
+    const south = (p.bboxSouth ?? p.lat);
+    const north = (p.bboxNorth ?? p.lat);
+    const west = (p.bboxWest ?? p.lng);
+    const east = (p.bboxEast ?? p.lng);
+    if (south === null || north === null || west === null || east === null) continue;
+    const minLat = Math.min(south, north) - pad;
+    const maxLat = Math.max(south, north) + pad;
+    const minLng = Math.min(west, east) - pad;
+    const maxLng = Math.max(west, east) + pad;
+    if (points.some((q) => q.lat >= minLat && q.lat <= maxLat && q.lng >= minLng && q.lng <= maxLng)) hit.push(p.placeId);
   }
   return { candidates: hit.slice(0, max), overflow: hit.slice(max) };
 }
 
-async function loadSnapshotCellCounts(db: Env["OBS_DB"], places: readonly PlaceCellProbe[]): Promise<Map<string, number> | null> {
+async function loadSnapshotVisitPoints(db: Env["OBS_DB"], places: readonly PlaceCellProbe[]): Promise<Array<{ lat: number; lng: number }> | null> {
   const cells = new Set<string>();
   for (const p of places) {
     for (const c of placeProbeCells(p) ?? []) {
@@ -135,16 +144,24 @@ async function loadSnapshotCellCounts(db: Env["OBS_DB"], places: readonly PlaceC
     if (cells.size >= MAP_PLACES_V2_CELL_QUERY_MAX_CELLS) break;
   }
   const list = [...cells];
-  if (list.length === 0) return new Map();
-  const out = new Map<string, number>();
+  if (list.length === 0) return [];
+  const out: Array<{ lat: number; lng: number }> = [];
   try {
     const chunks: string[][] = [];
     for (let i = 0; i < list.length; i += MAP_PLACES_V2_CELL_QUERY_CHUNK) chunks.push(list.slice(i, i + MAP_PLACES_V2_CELL_QUERY_CHUNK));
     const results = await Promise.all(chunks.map((chunk) => db
-      .prepare(`SELECT cell_1000, COUNT(*) AS n FROM public_map_snapshot_records_v1 WHERE snapshot_key = ? AND cell_1000 IN (${chunk.map(() => "?").join(", ")}) GROUP BY cell_1000`)
+      .prepare(`SELECT v.exact_lat AS lat, v.exact_lng AS lng
+         FROM public_map_snapshot_records_v1 s
+         JOIN production_import_visits v ON v.visit_id = s.visit_id
+        WHERE s.snapshot_key = ? AND s.cell_1000 IN (${chunk.map(() => "?").join(", ")})
+          AND v.exact_lat IS NOT NULL AND v.exact_lng IS NOT NULL
+          AND COALESCE(v.public_visibility, 'private') = 'public'
+        LIMIT 3000`)
       .bind(SNAPSHOT_KEY, ...chunk)
-      .all<{ cell_1000: string; n: number }>()));
-    for (const r of results) for (const row of r.results ?? []) out.set(String(row.cell_1000), Number(row.n ?? 0));
+      .all<{ lat: number; lng: number }>()));
+    for (const r of results) for (const row of r.results ?? []) {
+      if (typeof row.lat === "number" && typeof row.lng === "number") out.push({ lat: row.lat, lng: row.lng });
+    }
     return out;
   } catch {
     return null;
@@ -451,9 +468,9 @@ export async function handleMapPlacesBoundsApi(
   const unknownCardIds = new Set<string>();
   if (loadCard && !taxonFilter) {
     const noStats = rows.filter((r) => !statsMap.has(r.placeId) && typeof r.lat === "number" && typeof r.lng === "number");
-    const cellCounts = noStats.length > 0 ? await loadSnapshotCellCounts(db, noStats) : null;
-    if (cellCounts) {
-      const picked = selectUnknownCountCandidates(noStats, cellCounts);
+    const visitPoints = noStats.length > 0 ? await loadSnapshotVisitPoints(db, noStats) : null;
+    if (visitPoints) {
+      const picked = selectUnknownCountCandidates(noStats, visitPoints);
       picked.candidates.forEach((id) => unknownCardIds.add(id));
       picked.overflow.forEach((id) => unknownIds.add(id));
     }
