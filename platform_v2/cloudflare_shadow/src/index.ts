@@ -202,6 +202,8 @@ import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from ".
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
+import { RECORD_READER_MODES_FLAG } from "./recordReaderModes";
+const recordReaderModesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_READER_MODES_FLAG, v.principalId, v.role); };
 import { handlePlaceRegisterRequest } from "./zukanPlaceRegister";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
@@ -26517,6 +26519,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         viewerAuthenticated: Boolean(session && !session.banned),
         savedControlHtml: savedContinuity.controlHtml,
         savedScriptHtml: savedContinuity.scriptHtml,
+        recordReaderModes: recordLang === "ja" && recordReaderModesOn(env, session),
         publicationReturn: observationFirst.publicationReturn,
       }), sharedArrivalContext), cspNonce), 200, {
         ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
