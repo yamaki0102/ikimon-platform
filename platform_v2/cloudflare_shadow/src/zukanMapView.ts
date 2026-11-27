@@ -341,7 +341,7 @@ function matchesV2TaxonFilter(filter: string, stats: BulkPlaceStats): boolean {
   return stats.taxonGroups.has(filter);
 }
 
-async function loadBulkV2PlaceStats(
+export async function loadBulkV2PlaceStats(
   db: Env["OBS_DB"],
   placeIds: readonly string[],
   viewerUserId: string | null,
