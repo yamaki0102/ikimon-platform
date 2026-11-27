@@ -52,7 +52,7 @@ import {
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
-import { handleMapExploreRoute, handleMapPlacesBoundsApi } from "./zukanMapView";
+import { handleMapExploreRoute, handleMapPlacesBoundsApi, mapPlaceCardFromProfile, type MapPlaceCardExtras } from "./zukanMapView";
 import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
   handleGetEventGuestPhoto,
@@ -4282,7 +4282,14 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/places") {
-        return handleMapPlacesBoundsApi(url, env.OBS_DB);
+        return handleMapPlacesBoundsApi(url, env.OBS_DB, async (placeId): Promise<MapPlaceCardExtras | null> => {
+          const loaded = await Promise.race([
+            loadPublicPlaceProfile(env, placeId),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+          ]).catch(() => null);
+          if (!loaded || loaded instanceof Response) return null;
+          return mapPlaceCardFromProfile(loaded);
+        });
       }
 
       const mapExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/explore$/);
