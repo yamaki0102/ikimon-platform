@@ -208,6 +208,7 @@ const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
+import { localizePublicLocationLabel } from "./observationDetailLinks";
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
 import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegionIndex, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionIndexPage, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
@@ -26541,7 +26542,13 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
           return Number.isNaN(d.getTime()) ? exact : d.toLocaleDateString(locale, { timeZone: "Asia/Tokyo", year: "numeric", month: "numeric", day: "numeric" });
         })(),
         note: detail.note,
-        publicLocationLabel: detail.publicLocation.label,
+        publicLocationLabel: localizePublicLocationLabel(detail.publicLocation.label, recordLang),
+        detailLinks: {
+          speciesOn: speciesSurfaceV1On(env, session),
+          regionOn: regionSurfaceV1On(env, session),
+          areaLabel: detail.linkableAreaLabel,
+          place: await loadObservationPublicPlace(env, detail.visitId, detail.visibility, detail.publicLocation.label),
+        },
         detectionState,
         media,
         aiCandidateInsights: detail.aiCandidateInsights,
@@ -26607,6 +26614,18 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
     ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
     "cache-control": "no-store",
   });
+}
+
+async function loadObservationPublicPlace(env: Env, observationId: string, visibility: string, locationLabel: string): Promise<{ id: string; name: string } | null> {
+  if (visibility !== "public" || locationLabel === "位置は非公開です" || locationLabel === "場所未設定" || locationLabel === "位置は24時間後に公開されます") return null;
+  try {
+    const link = await env.CORE_DB.prepare("SELECT place_id FROM zukan_observation_publications WHERE observation_id = ?1 AND published = 1 AND place_id IS NOT NULL LIMIT 1").bind(observationId).first<{ place_id: string }>();
+    if (!link?.place_id) return null;
+    const place = await getD1PublicPlaceName({ db: env.OBS_DB, placeId: link.place_id });
+    return place ? { id: place.placeId, name: place.name } : null;
+  } catch {
+    return null;
+  }
 }
 
 function recordCountBandDeps(env: Env): BandDeps {
@@ -27217,7 +27236,8 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     }));
   const environmentRecord = await readLatestPublicObservationEnvironmentRecord(env, visitId);
   const publicRows = await queryPublicMapRows(env);
-  const ownPublicCell = publicRows.find((candidate) => candidate.observation_id === visitId)?.public_cell ?? row.public_cell;
+  const ownPublicRow = publicRows.find((candidate) => candidate.observation_id === visitId);
+  const ownPublicCell = ownPublicRow?.public_cell ?? row.public_cell;
   const relatedRows = publicRows
     .filter((related) => row.public_cell !== "hidden" && !isLocationDelayed24Hours(row.observed_at, Date.now()) && related.public_cell === ownPublicCell && related.observation_id !== visitId && !isLocationDelayed24Hours(related.observed_at, Date.now()))
     .slice(0, 6);
@@ -27303,6 +27323,9 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     observedAtExact: typeof row.observed_at === "string" ? row.observed_at : null,
     note: row.note && containsDiscoveryPersonalInformation(row.note) ? null : row.note,
     placeName: detailLocationLabel,
+    linkableAreaLabel: row.visibility === "public" && ownPublicRow && row.public_cell !== "hidden" && row.public_cell !== "unknown" && !isLocationDelayed24Hours(row.observed_at, Date.now())
+      ? normalizeSafePublicAreaLabelCandidate(ownPublicRow.public_area_label)
+      : null,
     municipality: null,
     publicLocation: {
       label: detailLocationLabel
