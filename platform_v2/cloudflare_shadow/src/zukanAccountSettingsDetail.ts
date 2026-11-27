@@ -62,7 +62,8 @@ async function ensureTable(db: Env["OBS_DB"]) {
 export async function handleSaveAccountSettingsDetail(
   request: Request,
   session: SessionLike,
-  db: Env["OBS_DB"]
+  db: Env["OBS_DB"],
+  coreDb?: Env["CORE_DB"] | null
 ): Promise<Response> {
   if (!session?.userId) {
     return json({ ok: false, error: "unauthorized" }, 401);
@@ -126,6 +127,14 @@ export async function handleSaveAccountSettingsDetail(
     .bind(session.userId, displayName, bio, notifyComments, notifyEvents, new Date().toISOString())
     .run();
 
+  if (coreDb && section === "profile" && typeof payload?.displayName === "string" && displayName) {
+    await coreDb.batch([
+      coreDb.prepare("UPDATE auth_users SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(displayName, session.userId),
+      coreDb.prepare("UPDATE auth_sessions SET display_name = ? WHERE user_id = ?").bind(displayName, session.userId),
+      coreDb.prepare("UPDATE user_profiles SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?").bind(displayName, session.userId),
+    ]);
+  }
+
   return json({ ok: true, section, saved: true });
 }
 
@@ -182,6 +191,7 @@ export async function handleAccountSettingsDetailRoute(
     })
     .join("");
 
+  const isEn = lang !== "ja";
   const initial = (displayName.trim() || "自分").slice(0, 1);
   const chevron = '<svg class="zt-sp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
   const linkRow = (href: string, title: string, meta: string) =>
@@ -191,7 +201,7 @@ export async function handleAccountSettingsDetailRoute(
   let heading = "プロフィール";
   if (section === "edit") {
     panelHtml = `<form class="zt-sp" data-settings-form="profile" style="gap:20px">
-      <div style="display:flex;align-items:center;gap:16px"><span class="zt-sp-avatar" aria-hidden="true">${escapeHtml(initial)}</span></div>
+      <div style="display:flex;align-items:center;gap:16px"><span class="zt-sp-avatar" data-avatar-preview="1" aria-hidden="true">${escapeHtml(initial)}</span><button type="button" class="zt-sp-avatar-pick" data-avatar-pick="1">${isEn ? "Change icon" : "アイコンを変える"}</button><input type="file" accept="image/*" data-avatar-input="1" hidden /><span class="zt-sp-lead" data-avatar-status role="status" aria-live="polite"></span></div>
       <label class="zt-sp-field">
         <span>フィールドネーム</span>
         <input class="zt-sp-input" type="text" name="displayName" maxlength="80" value="${escapeHtml(displayName)}" />
@@ -245,10 +255,13 @@ export async function handleAccountSettingsDetailRoute(
 
   const settingsScript = `<script>(()=>{document.querySelectorAll("[data-settings-form]").forEach((form)=>{form.addEventListener("submit",async(e)=>{e.preventDefault();const kind=form.getAttribute("data-settings-form");const status=form.querySelector("[data-settings-status]");const button=form.querySelector("button[type=submit]");const body=kind==="notifications"?{section:"notifications",notifyComments:form.elements.notifyComments.checked,notifyEvents:form.elements.notifyEvents.checked}:{section:"profile",displayName:form.elements.displayName.value,bio:form.elements.bio.value};if(button)button.disabled=true;try{const res=await fetch("/api/v1/profile/settings-detail",{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",body:JSON.stringify(body)});if(!res.ok)throw new Error("failed");if(status)status.textContent="保存しました。";}catch{if(status)status.textContent="保存できませんでした。もう一度試してください。";}finally{if(button)button.disabled=false;}});});})();</script>`;
 
+  const avatarScript = section === "edit" ? `<script>(()=>{const pick=document.querySelector("[data-avatar-pick]");const input=document.querySelector("[data-avatar-input]");const status=document.querySelector("[data-avatar-status]");if(!pick||!input)return;const say=(m)=>{if(status)status.textContent=m;};pick.addEventListener("click",()=>input.click());input.addEventListener("change",()=>{const file=input.files&&input.files[0];if(!file)return;if(file.type.indexOf("image/")!==0){say(${JSON.stringify(isEn ? "Please choose an image." : "画像を選んでください。")});return;}if(file.size>5*1024*1024){say(${JSON.stringify(isEn ? "Choose an image under 5 MB." : "アイコンは5MB以下の画像にしてください。")});return;}const url=URL.createObjectURL(file);const img=new Image();img.onload=async()=>{try{const side=Math.min(img.naturalWidth,img.naturalHeight);const canvas=document.createElement("canvas");canvas.width=256;canvas.height=256;const ctx=canvas.getContext("2d");ctx.drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,0,0,256,256);const dataUrl=canvas.toDataURL("image/png");const res=await fetch("/api/v1/profile/avatar",{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",body:JSON.stringify({avatar:{mimeType:"image/png",base64Data:dataUrl.split(",")[1]}})});if(!res.ok)throw new Error("failed");const preview=document.querySelector("[data-avatar-preview]");if(preview){preview.style.backgroundImage="url("+dataUrl+")";preview.style.backgroundSize="cover";preview.style.backgroundPosition="center";preview.style.color="transparent";}say(${JSON.stringify(isEn ? "Icon updated." : "アイコンを変えました。")});}catch{say(${JSON.stringify(isEn ? "Could not update the icon." : "アイコンを変えられませんでした。")});}finally{URL.revokeObjectURL(url);input.value="";}};img.onerror=()=>{say(${JSON.stringify(isEn ? "Could not read the image." : "画像を読み込めませんでした。")});URL.revokeObjectURL(url);};img.src=url;});})();</script>` : "";
+
   const body = `<style>${ZUKAN_SUBPAGE_CSS}
     .zt-as-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;scrollbar-width:none}
     .zt-as-tab,.zt-as-tab:visited{flex:none;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #dde2dc;background:#fff;color:#17251b;text-decoration:none;font-weight:700;display:inline-flex;align-items:center;white-space:nowrap}
     .zt-as-tab.is-active,.zt-as-tab.is-active:visited{background:#143F2E;border-color:#143F2E;color:#fff}
+    .zt-sp-avatar-pick{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #143F2E;background:#fff;color:#143F2E;font:inherit;font-weight:700;white-space:nowrap;cursor:pointer}
     .zt-sp-avatar{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:#143F2E;color:#fff;font-size:1.75rem;font-weight:700}
     .zt-sp-toggle{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:72px;padding:14px 0;border-bottom:1px solid #dde2dc}
     .zt-sp-toggle span{display:grid;gap:2px}.zt-sp-toggle small{color:#55615a}
@@ -258,7 +271,7 @@ export async function handleAccountSettingsDetailRoute(
     ${renderSubpageHeader({ title: heading, backHref: `/${lang}/profile`, backLabel: "自分に戻る" })}
     <nav class="zt-as-tabs" aria-label="設定メニュー">${navTabs}</nav>
     ${panelHtml}
-  </section>${settingsScript}`;
+  </section>${settingsScript}${avatarScript}`;
 
   const html = renderZukanCommonShell({
     title: "設定 | ikimon",

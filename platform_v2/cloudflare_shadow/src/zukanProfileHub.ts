@@ -46,7 +46,7 @@ export async function loadProfileHubData(
     env.OBS_DB.prepare("SELECT COUNT(DISTINCT session_id) AS n FROM observation_event_participants WHERE user_id = ?").bind(uid).first<{ n: number }>().catch(() => null),
     env.CORE_DB.prepare("SELECT COUNT(*) AS n FROM user_saved_items WHERE user_id = ? AND state = 'saved' AND object_kind = 'place'").bind(uid).first<{ n: number }>().catch(() => null),
     env.CORE_DB.prepare("SELECT COUNT(*) AS n FROM alert_deliveries WHERE user_id = ? AND acknowledged_at IS NULL").bind(uid).first<{ n: number }>().catch(() => null),
-    env.OBS_DB.prepare("SELECT bio FROM user_account_settings WHERE user_id = ?").bind(uid).first<{ bio: string | null }>().catch(() => null),
+    env.OBS_DB.prepare("SELECT bio, display_name FROM user_account_settings WHERE user_id = ?").bind(uid).first<{ bio: string | null; display_name?: string | null }>().catch(() => null),
     env.CORE_DB.prepare("SELECT profile_bio FROM user_profiles WHERE user_id = ?").bind(uid).first<{ profile_bio: string | null }>().catch(() => null),
     env.OBS_DB
       .prepare(
@@ -61,7 +61,7 @@ export async function loadProfileHubData(
   ]);
   const importNames = await resolveWeakLabels(env.OBS_DB, recs.map((r) => ({ id: r.id, label: r.title })));
   return {
-    displayName: session.displayName || uid,
+    displayName: (bioRow?.display_name || "").trim() || session.displayName || uid,
     bio: (bioRow?.bio || coreBio?.profile_bio || "").trim(),
     recordCount: num(recordCount),
     savedPlaceCount: num(saved),
