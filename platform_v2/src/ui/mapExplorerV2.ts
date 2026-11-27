@@ -793,14 +793,14 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         var snaps = snapTargets();
         var idx = snaps.cur;
         if (!cancel) {
-          var projected = curH - vel * 140;
           var bestD = Infinity;
           snaps.list.forEach(function (sp, i) {
-            var dd = Math.abs(sp.h - projected);
+            var dd = Math.abs(sp.h - curH);
             if (dd < bestD) { bestD = dd; idx = i; }
           });
-          if (idx === snaps.cur && Math.abs(vel) > 0.35 && Math.abs(d.dy) >= 8) {
-            idx = Math.max(0, Math.min(snaps.list.length - 1, snaps.cur + (vel < 0 ? 1 : -1)));
+          if (Math.abs(vel) > 0.35 && Math.abs(d.dy) >= 8) {
+            var dir = vel < 0 ? 1 : -1;
+            if ((idx - snaps.cur) * dir <= 0) idx = Math.max(0, Math.min(snaps.list.length - 1, snaps.cur + dir));
           }
         }
         sheetEl.removeAttribute('data-dragging');

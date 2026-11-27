@@ -416,7 +416,7 @@ test("MAP_V2 sheet drag: head pointer events, body touch drag at scroll top, vel
   has("{ passive: false }");
   has("sheetBodyEl.scrollTop <= 0");
   has("Math.abs(dy) < 8");
-  has("var projected = curH - vel * 140;");
+  has("var dir = vel < 0 ? 1 : -1;");
   has("Math.abs(vel) > 0.35");
   has("{ h: headH, act: 'close' }");
   has("{ h: headH, act: 'collapsed' }");
