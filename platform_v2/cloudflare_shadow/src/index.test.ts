@@ -34766,6 +34766,10 @@ test("map html carries the invasive marker only when the flag is on for the view
   assert.equal(allowlisted, off);
   const everyone = await fetchMap({ ...env, ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ MAP_INVASIVE_LAYER_ENABLED: { state: "all" } }) } as typeof env);
   assert.equal(everyone, on);
+
+  const topChipOn = await fetchMap({ ...env, MAP_INVASIVE_TOP_CHIP_ENABLED: "true" } as typeof env);
+  assert.ok(topChipOn.includes('data-map-invasive-top-chip="1"'));
+  assert.equal(topChipOn.replace(' data-map-invasive-top-chip="1"', ""), off);
 });
 
 test("map html includes the admin place-register button only for admin users when PLACE_REGISTER_ENABLED is on", async () => {

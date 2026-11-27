@@ -3,14 +3,15 @@ import * as flag1 from "./BIOSECURITY_NAGAETSURU_ENABLED";
 import * as flag2 from "./FIELD_CARD_ENABLED";
 import * as flag3 from "./GUEST_TOP_V2_PROTOTYPE_ENABLED";
 import * as flag4 from "./MAP_INVASIVE_LAYER_ENABLED";
-import * as flag5 from "./OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
-import * as flag6 from "./PLACE_PAGE_V3_PROTOTYPE_ENABLED";
-import * as flag7 from "./PLACE_REGISTER_ENABLED";
-import * as flag8 from "./RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
-import * as flag9 from "./RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
-import * as flag10 from "./RECORD_READER_MODES_ENABLED";
-import * as flag11 from "./SHOP_PHOTO_PERK_ENABLED";
-import * as flag12 from "./SPECIES_READER_LAYER_ENABLED";
+import * as flag5 from "./MAP_INVASIVE_TOP_CHIP_ENABLED";
+import * as flag6 from "./OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
+import * as flag7 from "./PLACE_PAGE_V3_PROTOTYPE_ENABLED";
+import * as flag8 from "./PLACE_REGISTER_ENABLED";
+import * as flag9 from "./RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
+import * as flag10 from "./RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
+import * as flag11 from "./RECORD_READER_MODES_ENABLED";
+import * as flag12 from "./SHOP_PHOTO_PERK_ENABLED";
+import * as flag13 from "./SPECIES_READER_LAYER_ENABLED";
 
 export const FLAG_DEFINITIONS = [
   { ...flag0, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
@@ -26,6 +27,7 @@ export const FLAG_DEFINITIONS = [
   { ...flag10, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag11, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag12, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
+  { ...flag13, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
 ] as const;
 
 export const PROTOTYPE_FLAGS = [
@@ -42,4 +44,5 @@ export const PROTOTYPE_FLAGS = [
   { flag: flag10.flag, feature: flag10.feature, lane: flag10.lane, path: flag10.path, stagingEnabled: flag10.staging },
   { flag: flag11.flag, feature: flag11.feature, lane: flag11.lane, path: flag11.path, stagingEnabled: flag11.staging },
   { flag: flag12.flag, feature: flag12.feature, lane: flag12.lane, path: flag12.path, stagingEnabled: flag12.staging },
+  { flag: flag13.flag, feature: flag13.feature, lane: flag13.lane, path: flag13.path, stagingEnabled: flag13.staging },
 ] as const;

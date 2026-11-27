@@ -186,8 +186,14 @@ import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectM
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
+const MAP_INVASIVE_TOP_CHIP_FLAG = "MAP_INVASIVE_TOP_CHIP_ENABLED";
 const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
-const mapInvasiveRequested = async (request: Request, url: URL, env: Env): Promise<boolean> => url.searchParams.get("taxon_group") === INVASIVE_TAXON_GROUP && mapInvasiveOn(env, await readCompatibleSession(request, env).catch(() => null));
+const mapInvasiveTopChipOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_TOP_CHIP_FLAG, v.principalId, v.role); };
+const mapInvasiveRequested = async (request: Request, url: URL, env: Env): Promise<boolean> => {
+  if (url.searchParams.get("taxon_group") !== INVASIVE_TAXON_GROUP) return false;
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  return mapInvasiveOn(env, session) || mapInvasiveTopChipOn(env, session);
+};
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
@@ -22779,7 +22785,7 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
   if (isMapHtmlPath(url.pathname)) {
-    const withInvasive = injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session));
+    const withInvasive = injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session), mapInvasiveTopChipOn(env, session));
     const showPlaceRegister =
       (url.pathname === "/ja/map" || url.pathname === "/ja/map/") &&
       isPlaceRegisterAdmin(session) &&

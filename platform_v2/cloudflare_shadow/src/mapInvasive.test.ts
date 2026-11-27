@@ -122,4 +122,12 @@ test("map html path and body marker", () => {
   assert.equal(injectMapInvasiveMarker("<body>", true), '<body data-map-invasive="1">');
   assert.equal(injectMapInvasiveMarker("<bodyguard>", true), "<bodyguard>");
   assert.equal(injectMapInvasiveMarker("<p>no body</p>", true), "<p>no body</p>");
+  assert.equal(
+    injectMapInvasiveMarker(html, false, true),
+    '<!doctype html><html><head></head><body data-map-invasive-top-chip="1" data-zukan-design="v1" class="x"><main></main></body></html>',
+  );
+  assert.equal(
+    injectMapInvasiveMarker(html, true, true),
+    '<!doctype html><html><head></head><body data-map-invasive="1" data-map-invasive-top-chip="1" data-zukan-design="v1" class="x"><main></main></body></html>',
+  );
 });
