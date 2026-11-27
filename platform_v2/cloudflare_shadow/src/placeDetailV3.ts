@@ -58,7 +58,7 @@ const COPY = {
     emptyTitle: "まだ記録がありません", emptyBody: "最初の記録を残すと、この場所の図鑑が始まります。見つけた鳥や花、まわりのようすを、写真1枚から残せます。",
     pendingTitle: "記録が集まり始めています", pendingBody: "公開できる記録がそろうと、ここに表示されます。",
     season: "いまの季節のようす", seasonTitle: (m: number) => `${m}月の記録`,
-    recent: "最近の記録", seeAll: "すべて見る", unnamed: "名前はこれから", confirmed: "確認済み",
+    recent: "最近の記録", seeAll: "すべて見る", unnamed: "名前は未確定", confirmed: "確認済み",
     events: "ここで開かれる観察会", steward: "場所の担当", stewardNote: "この場所の担当です。観察会や記録の相談ができます。", stewardSuffix: " さん",
     around: "この場所のまわり", openMap: "地図で見る", nearby: "近くの場所",
   },
@@ -244,7 +244,7 @@ export function renderPlaceV3(input: PlaceV3Input): string {
   }
 
   const cards = cardRecs.map((r) => ({ ...r, mediaUrl: r.mediaUrl && !used.has(r.mediaUrl) ? r.mediaUrl : null })).map((r) =>
-    `<a class="pv3-card" href="${e(r.href)}">${r.mediaUrl ? `<div class="rp"><img ${sizedImgAttrs(r.mediaUrl, 680, [360, 680], "(max-width: 899px) 50vw, 360px", e)} alt="${e(named(r.name))}" loading="lazy" decoding="async"></div>` : ""}<div class="rb"><div class="rt">${e(named(r.name) || c.unnamed)}</div><div class="rm">${e([r.dateLabel, r.confirmed ? c.confirmed : ""].filter(Boolean).join(" ・ "))}</div></div></a>`).join("");
+    `<a class="pv3-card" href="${e(r.href)}">${r.mediaUrl ? `<div class="rp"><img ${sizedImgAttrs(r.mediaUrl, 680, [360, 680], "(max-width: 899px) 50vw, 360px", e)} alt="${e(named(r.name))}" loading="lazy" decoding="async"></div>` : ""}<div class="rb">${named(r.name) ? `<div class="rt">${e(named(r.name))}</div>` : ""}<div class="rm">${e([r.dateLabel, named(r.name) ? "" : c.unnamed, r.confirmed ? c.confirmed : ""].filter(Boolean).join(" ・ "))}</div></div></a>`).join("");
   const recent = cards
     ? `<section class="pv3-sec-recent" data-pv3-recent><div class="pv3-h"><h2>${e(c.recent)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div><div class="pv3-cards">${cards}</div></section>`
     : "";

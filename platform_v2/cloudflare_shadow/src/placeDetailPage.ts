@@ -41,7 +41,7 @@ type PlaceProfileWithGlobalNames = PlaceAtlasProfile & {
 
 const DETAIL_COPY = {
   ja: {
-    record: "この場所で記録する", share: "共有する", shareCopy: "リンクをコピーする", shareMail: "メールで送る", shareOther: "ほかのアプリで共有", shareNote: "リンクを知っている人は、このページを見られます。", close: "閉じる", moreAbout: "場所について詳しく見る", aboutHeading: "場所について", recordsHeading: "この場所の記録", seeAll: "すべて見る", statsLabel: "この場所の記録の数", statRecords: "記録", statSince: "記録の始まり", statLatest: "最新の記録", fromYear: "年から", confirmed: "確認済み", unnamed: "名前はこれから",
+    record: "この場所で記録する", share: "共有する", shareCopy: "リンクをコピーする", shareMail: "メールで送る", shareOther: "ほかのアプリで共有", shareNote: "リンクを知っている人は、このページを見られます。", close: "閉じる", moreAbout: "場所について詳しく見る", aboutHeading: "場所について", recordsHeading: "この場所の記録", seeAll: "すべて見る", statsLabel: "この場所の記録の数", statRecords: "記録", statSince: "記録の始まり", statLatest: "最新の記録", fromYear: "年から", confirmed: "確認済み", unnamed: "名前は未確定",
     pendingTitle: "記録が集まり始めています", pendingBody: "公開できる記録がそろうと、ここに表示されます。", emptyTitle: "この場所の記録は、まだありません", emptyBody: "最初に見つけたものを残すと、この場所の図鑑がここから始まります。",
     back: "地図に戻る", showLocally: "現地で見せる", localName: "現地名", localAddress: "場所",
     openMap: "外部地図で開く", saveLogin: "ログインして保存", saveUnavailable: "保存状態を確認できません", sources: "情報の確認",
@@ -216,7 +216,7 @@ export function renderGlobalPlaceDetailPage(input: {
     const thumb = record.mediaUrl && record.mediaKind !== "audio"
       ? `<span class="gpd-row-thumb"><img src="${escapeHtml(sizedImageUrl(record.mediaUrl, 320))}" alt="" loading="lazy" decoding="async"></span>`
       : `<span class="gpd-row-thumb" aria-hidden="true"></span>`;
-    return `<a class="gpd-row" href="${escapeHtml(recordHrefOf(record))}">${thumb}<span class="gpd-row-body"><strong>${escapeHtml(record.displayName || copy.unnamed)}</strong><small>${escapeHtml(meta)}</small></span><svg class="gpd-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>`;
+    return `<a class="gpd-row" href="${escapeHtml(recordHrefOf(record))}">${thumb}<span class="gpd-row-body">${record.displayName ? `<strong>${escapeHtml(record.displayName)}</strong>` : `<small>${escapeHtml(copy.unnamed)}</small>`}<small>${escapeHtml(meta)}</small></span><svg class="gpd-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a>`;
   }).join("");
   const recordsSection = records.length > 0
     ? `<section class="gpd-records" aria-labelledby="gpd-records-title"><div class="gpd-section-head"><h2 id="gpd-records-title">${escapeHtml(copy.recordsHeading)}</h2><a href="${escapeHtml(allRecordsHref)}">${escapeHtml(copy.seeAll)}</a></div>${tiles ? `<div class="gpd-mosaic gpd-mosaic-${Math.min(3, mediaRecords.length)}">${tiles}</div>` : ""}${rows ? `<div class="gpd-rows">${rows}</div>` : ""}</section>`

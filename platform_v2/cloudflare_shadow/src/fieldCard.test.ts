@@ -58,10 +58,10 @@ test("cards come from profile.recentRecords: photo only, distinct, named first, 
   assert.ok(html.includes('href="/ja/places/plc_e3293ec4bb9288a0"'));
 });
 
-test("weak-only record shows 名前はこれから and fewer than 3 shows what exists", async () => {
+test("weak-only record omits the name heading and fewer than 3 shows what exists", async () => {
   const html = await render([RECORDS[1]!]);
   assert.equal((html.match(/data-fc-card/g) ?? []).length, 1);
-  assert.ok(html.includes("名前はこれから") && html.includes("どんな色やもようが見える？") && html.includes("気づいたところを指さしてもらおう"));
+  assert.ok(!html.includes("名前はこれから") && !html.includes(`class="fc-name"`) && html.includes("どんな色やもようが見える？") && html.includes("気づいたところを指さしてもらおう"));
 });
 
 test("0 photo records: empty state with record link", async () => {
