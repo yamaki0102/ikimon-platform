@@ -12,6 +12,7 @@
 | MAP_INVASIVE_LAYER_ENABLED | 地図の外来種フィルター | zukan_biosecurity | /ja/map |
 | MAP_INVASIVE_TOP_CHIP_ENABLED | 地図上部の外来種チップ | zukan_biosecurity | /ja/map |
 | MAP_V2_ENABLED | マップ再設計 v2（Muse見本＋Fable/Astra修正） | zukan_map | /ja/map |
+| NOCOSIL_EVENT_START_LINK_ENABLED | 場所ページの「ここで観察会を開く」リンク（NOCOSIL） | zukan_place_event | /ja/places |
 | OBSERVATION_CORRECTION_PROTOTYPE_ENABLED | 記録の訂正と訂正履歴 | zukan_observation_correction | /ja/observations/<自分の記録> |
 | PLACE_E_V2_ENABLED | 場所ページ再設計 v2（E1/E3/E8） | zukan_place | /ja/places/plc_98aaae2aa4bd02fa |
 | PLACE_PAGE_V3_PROTOTYPE_ENABLED | 場所のページ v3 | zukan_place_page | /ja/places/<場所> |

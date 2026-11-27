@@ -195,6 +195,8 @@ const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
 const SEARCH_V2_FLAG = "SEARCH_V2_ENABLED";
 const searchV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SEARCH_V2_FLAG, v.principalId, v.role); };
+const NOCOSIL_EVENT_START_LINK_FLAG = "NOCOSIL_EVENT_START_LINK_ENABLED";
+const nocosilEventLinkOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, NOCOSIL_EVENT_START_LINK_FLAG, v.principalId, v.role); };
 const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
 const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
 const EVENTS_V2_FLAG = "EVENTS_V2_ENABLED";
@@ -2687,6 +2689,7 @@ async function getGlobalPlaceDetailPage(
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
     ...(placeEV2On(env, session) ? { e2: true, e2Events } : {}),
+    ...(placeEV2On(env, session) && nocosilEventLinkOn(env, session) ? { nocosilEventLink: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
   const response = html(body, 200, {
