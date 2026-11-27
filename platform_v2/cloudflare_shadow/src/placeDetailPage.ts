@@ -3,6 +3,8 @@ import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNa
 import { MAP_PLACE_ATLAS_PROFILE_RUNTIME, MAP_PLACE_ATLAS_PROFILE_STYLES, renderMapPlaceAtlasProfile } from "../../src/ui/mapPlaceAtlasProfile";
 import { escapeHtml } from "../../src/ui/siteShell";
 import type { SavedItem } from "./savedItems";
+import { buildPlaceInvasive } from "./placeInvasive";
+import { PLACE_E_STYLES, renderPlaceE, type PlaceEEvent } from "./placeDetailE";
 import { PLACE_V3_STYLES, renderPlaceV3, type PlaceV3Event, type PlaceV3Nearby, type PlaceV3Steward } from "./placeDetailV3";
 import { QUIET_HOME_STYLES, renderSavedControl, renderSavedItemsScript, type QuietHomeLang } from "./quietHome";
 import { sizedImageUrl, sizedImgAttrs } from "./derivedImageUrl";
@@ -144,6 +146,8 @@ export function renderGlobalPlaceDetailPage(input: {
   shopPhotoPerkHtml?: string;
   speciesReaderLayersHtml?: string;
   v3?: boolean;
+  e2?: boolean;
+  e2Events?: PlaceEEvent[];
   fieldCardHref?: string;
   v3Extras?: { stewardIntro?: string | null; events?: PlaceV3Event[]; steward?: PlaceV3Steward | null; nearby?: PlaceV3Nearby[] };
   now?: Date;
@@ -188,12 +192,12 @@ export function renderGlobalPlaceDetailPage(input: {
           localityLabel: null,
         },
       };
-  const mapProfileRaw = renderMapPlaceAtlasProfile(input.v3 === true ? { ...displayProfile, place: { ...displayProfile.place, description: clean(input.v3Extras?.stewardIntro) || null } } : displayProfile, {
+  const mapProfileRaw = renderMapPlaceAtlasProfile((input.v3 === true || input.e2 === true) ? { ...displayProfile, place: { ...displayProfile.place, description: clean(input.v3Extras?.stewardIntro) || null } } : displayProfile, {
     lang: siteLang,
     recordHref: prefix + "/record",
     recordsHref: prefix + "/records?view=public",
   });
-  const mapProfile = input.v3 === true ? stripV3DuplicateAtlas(mapProfileRaw) : mapProfileRaw;
+  const mapProfile = (input.v3 === true || input.e2 === true) ? stripV3DuplicateAtlas(mapProfileRaw) : mapProfileRaw;
   const atlasScript = `<script>${MAP_PLACE_ATLAS_PROFILE_RUNTIME}\nMapPlaceAtlasProfile.bind(document.getElementById("global-place-detail"));</script>`;
 
   const areaObsHtml = `<section class="gpd-observations" data-area-observations-panel data-place-id="${escapeHtml(canonicalPlaceId)}" aria-labelledby="gpd-obs-title"><h2 id="gpd-obs-title">${escapeHtml(copy.obsHeading)}</h2><div class="gpd-obs-filters" role="group" aria-label="${escapeHtml(copy.obsHeading)}"><button type="button" class="gpd-obs-tab" data-media-kind="all" aria-pressed="true">${escapeHtml(copy.obsAll)}</button><button type="button" class="gpd-obs-tab" data-media-kind="photo" aria-pressed="false">${escapeHtml(copy.obsPhoto)}</button><button type="button" class="gpd-obs-tab" data-media-kind="audio" aria-pressed="false">${escapeHtml(copy.obsAudio)}</button><button type="button" class="gpd-obs-tab" data-media-kind="video" aria-pressed="false">${escapeHtml(copy.obsVideo)}</button><button type="button" class="gpd-obs-tab" data-media-kind="record" aria-pressed="false">${escapeHtml(copy.obsRecord)}</button></div><div class="gpd-obs-period"><label><span>${escapeHtml(copy.obsFrom)}</span><input type="date" data-area-obs-from></label><label><span>${escapeHtml(copy.obsTo)}</span><input type="date" data-area-obs-to></label><button type="button" class="gpd-secondary" data-area-obs-apply>${escapeHtml(copy.obsApply)}</button></div><p class="gpd-obs-meta" data-area-obs-status aria-live="polite">${escapeHtml(copy.obsLoading)}</p><div class="gpd-obs-grid" data-area-obs-list></div></section>`;
@@ -205,7 +209,7 @@ export function renderGlobalPlaceDetailPage(input: {
   const coverUrl = clean(displayProfile.place.representativeMedia?.[0]?.url) || clean(mediaRecords[0]?.mediaUrl);
   const hasRecords = recordCount > 0 || records.length > 0;
   const shownCount = recordCount > 0 ? recordCount : records.length;
-  const recordHref = prefix + "/record?placeId=" + encodeURIComponent(canonicalPlaceId);
+  const recordHref = prefix + "/record?placeId=" + encodeURIComponent(canonicalPlaceId) + (input.e2 === true && (selected || local) ? "&placeName=" + encodeURIComponent((selected || local).slice(0, 80)) : "");
   const allRecordsHref = prefix + "/records?view=public";
   const startYear = clean(profile.summary?.firstRecordedAt).slice(0, 4);
   const latestRaw = clean(profile.summary?.latestRecordedAt);
@@ -238,11 +242,11 @@ export function renderGlobalPlaceDetailPage(input: {
   const linkIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>';
   const mailIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
   const sheetMeta = [locality, hasRecords ? `${copy.statRecords} ${shownCount}` : ""].filter(Boolean).join(" ・ ");
-  const shareCoverUrl = input.v3 === true ? (hasRecords ? clean(mediaRecords[0]?.mediaUrl) : "") : coverUrl;
+  const shareCoverUrl = (input.v3 === true || input.e2 === true) ? (hasRecords ? clean(mediaRecords[0]?.mediaUrl) : "") : coverUrl;
   const shareSheet = `<dialog class="gpd-sheet" id="gpd-share-sheet" aria-labelledby="gpd-share-title"><div class="gpd-sheet-grip" aria-hidden="true"></div><div class="gpd-sheet-place">${shareCoverUrl ? `<img src="${escapeHtml(shareCoverUrl)}" alt="" decoding="async">` : `<span class="gpd-sheet-noimg" aria-hidden="true"></span>`}<div><strong>${escapeHtml(selected || local)}</strong>${sheetMeta ? `<small>${escapeHtml(sheetMeta)}</small>` : ""}</div></div><h2 id="gpd-share-title">${escapeHtml(copy.share)}</h2><button type="button" class="gpd-sheet-row" data-share-copy data-share-copied="${escapeHtml(copy.copied)}">${linkIcon}<span>${escapeHtml(copy.shareCopy)}</span></button><a class="gpd-sheet-row" data-share-mail data-share-title="${escapeHtml(selected || local)}" href="mailto:">${mailIcon}<span>${escapeHtml(copy.shareMail)}</span></a><button type="button" class="gpd-sheet-row" data-share-native data-share-title="${escapeHtml(selected || local)}" hidden>${shareIcon}<span>${escapeHtml(copy.shareOther)}</span></button><p class="gpd-sheet-note">${escapeHtml(copy.shareNote)}</p><button type="button" class="gpd-secondary" data-share-close>${escapeHtml(copy.close)}</button></dialog>`;
   const shareScript = `<script>(()=>{const sheet=document.getElementById('gpd-share-sheet');if(!sheet)return;const url=()=>location.href.split('#')[0];const title=sheet.querySelector('[data-share-mail]')?.getAttribute('data-share-title')||document.title;document.querySelectorAll('[data-gpd-share]').forEach((button)=>button.addEventListener('click',()=>{const mail=sheet.querySelector('[data-share-mail]');if(mail)mail.setAttribute('href','mailto:?subject='+encodeURIComponent(title)+'&body='+encodeURIComponent(title+'\\n'+url()));const nativeButton=sheet.querySelector('[data-share-native]');if(nativeButton&&navigator.share)nativeButton.hidden=false;if(typeof sheet.showModal==='function')sheet.showModal();else sheet.setAttribute('open','');}));sheet.querySelector('[data-share-copy]')?.addEventListener('click',async(event)=>{const button=event.currentTarget;try{await navigator.clipboard.writeText(url());const label=button.querySelector('span');if(label)label.textContent=button.getAttribute('data-share-copied')||'';}catch{}});sheet.querySelector('[data-share-native]')?.addEventListener('click',async()=>{try{await navigator.share({title,url:url()});}catch{}});const close=()=>{if(sheet.close)sheet.close();else sheet.removeAttribute('open');};sheet.querySelector('[data-share-close]')?.addEventListener('click',close);sheet.addEventListener('click',(event)=>{if(event.target===sheet)close();});})();</script>`;
 
-  const v3On = input.v3 === true;
+  const v3On = input.v3 === true || input.e2 === true;
   const v3Records = records.slice(0, 3).map((record) => ({
     id: record.recordId,
     href: recordHrefOf(record),
@@ -252,7 +256,29 @@ export function renderGlobalPlaceDetailPage(input: {
     dateLabel: displayDate(record.observedAt, lang),
     confirmed: record.identificationStatus === "confirmed",
   }));
-  const v3Main = v3On ? renderPlaceV3({
+  const v3Main = input.e2 === true ? renderPlaceE({
+    lang,
+    name: selected || local,
+    localName: showLocalInMeta ? local : null,
+    locality,
+    hasRecords,
+    suppressed: profile.publication?.status === "suppressed",
+    shownCount,
+    latestLabel: latestRecord,
+    records: records.slice(0, 12).map((record) => ({ id: record.recordId, href: recordHrefOf(record), name: clean(record.displayName), mediaUrl: record.mediaUrl && record.mediaKind !== "audio" ? record.mediaUrl : null, dateLabel: displayDate(record.observedAt, lang), confirmed: record.identificationStatus === "confirmed" })),
+    recordHref,
+    allRecordsHref,
+    backHref: prefix + "/map?tab=places",
+    backLabel: copy.back,
+    shareLabel: copy.share,
+    copiedLabel: copy.copied,
+    shareTitle: selected || local,
+    saveHtml: input.viewerAuthenticated && input.savedStateAvailable === false ? "" : save,
+    moreHref: "#gpd-details",
+    moreLabel: copy.moreAbout,
+    events: input.e2Events ?? [],
+    invasive: lang === "ja" ? buildPlaceInvasive(records.map((r) => ({ ...r, href: recordHrefOf(r) }))) : [],
+  }) : v3On ? renderPlaceV3({
     lang,
     prefix,
     canonicalPlaceId,
@@ -286,7 +312,7 @@ export function renderGlobalPlaceDetailPage(input: {
     nearby: input.v3Extras?.nearby ?? [],
     now: input.now ?? new Date(),
   }) : "";
-  const v3Css = v3On ? PLACE_V3_STYLES : "";
+  const v3Css = (v3On ? PLACE_V3_STYLES : "") + (input.e2 === true ? PLACE_E_STYLES : "");
 
   return `<!doctype html><html lang="${escapeHtml(lang)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(selected || local)} | ZUKAN</title><style>
 ${APP_EXPERIENCE_STYLES}

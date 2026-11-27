@@ -3,6 +3,7 @@
 |---|---|---|---|
 | BIOSECURITY_GENERIC_ENABLED | 気になる外来種の見守り | zukan_biosecurity | /ja/biosecurity/gairai |
 | BIOSECURITY_NAGAETSURU_ENABLED | ナガエツルノゲイトウの見守り | zukan_biosecurity | /ja/biosecurity/nagaetsuru |
+| EVENTS_V2_ENABLED | 観察会ページ v2（近くのイベント・詳細・当日・終了後） | zukan_events | /ja/community/events |
 | FIELD_CARD_ENABLED | 出発前カード | zukan_field_card | /ja/places |
 | GUEST_TOP_V2_PROTOTYPE_ENABLED | ログイン前トップv2 | zukan_guest_top | /ja/?as=guest |
 | IDENTIFY_V3_ENABLED | 同定の作業場 identify-v3 | zukan_identify | /ja/identify |
@@ -12,6 +13,7 @@
 | MAP_INVASIVE_TOP_CHIP_ENABLED | 地図上部の外来種チップ | zukan_biosecurity | /ja/map |
 | MAP_V2_ENABLED | マップ再設計 v2（Muse見本＋Fable/Astra修正） | zukan_map | /ja/map |
 | OBSERVATION_CORRECTION_PROTOTYPE_ENABLED | 記録の訂正と訂正履歴 | zukan_observation_correction | /ja/observations/<自分の記録> |
+| PLACE_E_V2_ENABLED | 場所ページ再設計 v2（E1/E3/E8） | zukan_place | /ja/places/plc_98aaae2aa4bd02fa |
 | PLACE_PAGE_V3_PROTOTYPE_ENABLED | 場所のページ v3 | zukan_place_page | /ja/places/<場所> |
 | PLACE_REGISTER_ENABLED | 場所を登録 | zukan_place_register | /ja/admin/places/new |
 | RECORD_INLINE_EDIT_PROTOTYPE_ENABLED | 記録ページのその場で編集 | zukan_record_page | /ja/observations/<自分の記録> |

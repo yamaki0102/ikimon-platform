@@ -176,6 +176,8 @@ import { GUEST_TOP_V2_FLAG } from "./zukanGuestTopV2";
 const OBSERVATION_CORRECTION_FLAG = "OBSERVATION_CORRECTION_PROTOTYPE_ENABLED";
 const RECORD_PAGE_PER_MEDIA_FLAG = "RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED";
 const recordPagePerMediaOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_PAGE_PER_MEDIA_FLAG, v.principalId, v.role); };
+const PLACE_E_V2_FLAG = "PLACE_E_V2_ENABLED";
+const placeEV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_E_V2_FLAG, v.principalId, v.role); };
 const PLACE_PAGE_V3_FLAG = "PLACE_PAGE_V3_PROTOTYPE_ENABLED";
 const placePageV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_PAGE_V3_FLAG, v.principalId, v.role); };
 const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
@@ -186,12 +188,15 @@ import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectM
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
 import { handleSearchExploreV2Route, handleSearchResultsV2Route, handleSearchSuggestV2Api } from "./zukanSearchV2";
 import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
+import { handleEventsV2Detail, handleEventsV2List } from "./zukanEventsV2";
 const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
 const SEARCH_V2_FLAG = "SEARCH_V2_ENABLED";
 const searchV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SEARCH_V2_FLAG, v.principalId, v.role); };
 const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
 const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
+const EVENTS_V2_FLAG = "EVENTS_V2_ENABLED";
+const eventsV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, EVENTS_V2_FLAG, v.principalId, v.role); };
 import { handleIdentifyV3ApiRequest, loadIdentifyV3WorkspaceData, renderIdentifyV3Page, type IdentifyV3View } from "./identifyV3";
 const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
@@ -223,6 +228,8 @@ import {
   recordableFacePrivacy
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
+import { loadPlaceLinkedEvents } from "./placeInvasive";
+import { eventTiming } from "./zukanEventUi";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
@@ -2664,6 +2671,7 @@ async function getGlobalPlaceDetailPage(
     enabled: lang === "ja" && speciesReaderLayerOn(env, session),
     layers: speciesLayers,
   });
+  const e2Events = placeEV2On(env, session) ? await loadPlaceLinkedEvents(env.OBS_DB, canonicalPlaceId, lang, eventTiming) : [];
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
@@ -2676,6 +2684,7 @@ async function getGlobalPlaceDetailPage(
     ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
+    ...(placeEV2On(env, session) ? { e2: true, e2Events } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
   const response = html(body, 200, {
@@ -4298,6 +4307,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && eventPreMatch?.[2]) {
         const viewLang = (eventPreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventPreAndPcRoute(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
       }
 
@@ -4312,6 +4322,7 @@ export const worker = {
         const viewLang = (eventDayAlbumTakeMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (view !== "take" && eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventDayAlbumTakeMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
       }
 
@@ -4494,6 +4505,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && eventsNearbyPageMatch) {
         const viewLang = (eventsNearbyPageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (eventsV2On(env, session)) return handleEventsV2List(url, viewLang, session, env.OBS_DB);
         return handleNearbyEventsPageRoute(url, viewLang, session, env.OBS_DB);
       }
 
@@ -4501,6 +4513,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && eventDetailsMatch?.[2]) {
         const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
       }
 
@@ -23275,6 +23288,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
       ${renderRecordPlaceAndTimeHtml({
         lang,
         initialPlaceId: safeObservationEventContextParam(url, ["placeId"], 128),
+        initialPlaceName: (url.searchParams.get("placeName") ?? "").replace(/[<>\x00-\x1f\x7f]/g, "").trim().slice(0, 80),
         defaultObservedAtLocal: "",
       })}
       <p><button type="button" id="record-use-location">${lang === "ja" ? "現在地を使う" : "Use current location"}</button> <a href="${prefix}/record?draft=1">${lang === "ja" ? "前の下書きを開く" : "Open saved draft"}</a></p>
@@ -23732,6 +23746,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           observationId,
           clientSubmissionId: observationId + "-cloudflare-record-form",
           userId,
+          siteId: String(formData.get("placeId") || "").trim() || null,
           observedAt: recoveryObservedAt,
           latitude,
           longitude,
@@ -23744,6 +23759,7 @@ export function renderCloudflareRecordHtml(session: SessionSnapshot, url: URL, c
           participantRole: eventContext.participantRole || null,
           sourcePayload: {
             source: "cloudflare_record_session_form",
+            place_id_hint: String(formData.get("placeId") || "").trim() || null,
             mediaKind,
             eventCode: eventContext.eventCode || null,
             eventSessionId: eventContext.eventSessionId || null,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { renderZukanTopPage, type ZukanTopPageData } from "./zukanTopPage";
+import { loadZukanTopPageData, renderZukanTopPage, type ZukanTopPageData } from "./zukanTopPage";
 
 const emptyEventsBaseData: ZukanTopPageData = {
   heroPhotos: [
@@ -189,4 +189,45 @@ test("renderZukanTopPage logged-in library shows a more link to older records wh
   assert.match(withMore, /href="\/ja\/library\?before=abc"/);
   const atEnd = renderZukanTopPage({ ...emptyEventsBaseData, libraryGroups: [group], libraryNextCursor: null } as ZukanTopPageData, { lang: "ja", authenticated: true, cspNonce: "n1" });
   assert.doesNotMatch(atEnd, /data-library-more="1"/);
+});
+
+test("renderZukanTopPage distinguishes fetch failure from 0 records with 読み込めませんでした［もう一度］", async () => {
+  const failingEnv = {
+    OBS_DB: {
+      prepare() {
+        return {
+          bind() { return this; },
+          async all() { throw new Error("D1_TIMEOUT"); },
+          async first() { throw new Error("D1_TIMEOUT"); },
+          async run() { throw new Error("D1_TIMEOUT"); },
+        };
+      },
+    },
+    CORE_DB: {
+      prepare() {
+        return {
+          bind() { return this; },
+          async all() { throw new Error("D1_TIMEOUT"); },
+          async first() { throw new Error("D1_TIMEOUT"); },
+          async run() { throw new Error("D1_TIMEOUT"); },
+        };
+      },
+    },
+  } as never;
+
+  const memberFailed = await loadZukanTopPageData(failingEnv, "user-1", "", "ja");
+  assert.equal(memberFailed.libraryLoadError, true);
+  assert.equal(memberFailed.placesLoadError, true);
+
+  const memberHtml = renderZukanTopPage(memberFailed, { lang: "ja", authenticated: true, displayName: "ゆい", cspNonce: "n1" });
+  assert.match(memberHtml, /data-zukan-fetch-error="1"/);
+  assert.match(memberHtml, /読み込めませんでした/);
+  assert.match(memberHtml, />もう一度</);
+  assert.doesNotMatch(memberHtml, /まだ写真がありません|0件/);
+
+  const guestHtml = renderZukanTopPage(memberFailed, { lang: "ja", authenticated: false, cspNonce: "n1" });
+  assert.match(guestHtml, /data-zukan-fetch-error="1"/);
+  assert.match(guestHtml, /読み込めませんでした/);
+  assert.match(guestHtml, />もう一度</);
+  assert.doesNotMatch(guestHtml, /0件/);
 });

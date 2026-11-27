@@ -22,6 +22,8 @@ import { getObservationEventGuestMedia, getObservationEventSessionByEventCode, g
 import { DISCOVERY_CAMPAIGN_VERSION, buildObservationEventOfficialReport, discoveryCampaignConfig, getObservationEventRecap, hasProfessionalReportEntitlement, summarizeObservationEventEffort } from "./sessions";
 import { renderEventGalleryDocument } from "../zukanEventAlbumAndShare";
 import { renderZukanEventListDocument } from "../zukanEventList";
+import { handleEventsV2List } from "../zukanEventsV2";
+import { prototypeEnabledForViewer, viewerFromSession } from "../prototype-flags";
 import { listGuideBadgeDiscoveries, renderGuideBadgeTakeawayPage, renderGuideVoiceConsolePage } from "../guideVoiceEvent";
 
 const SYNTHETIC_RENRI_BROWSER_QA_BASE_PATH = "/__ops/browser-qa/renri";
@@ -635,6 +637,12 @@ const OBSERVATION_EVENT_PUBLIC_SCAN_PAGE_LIMIT = 8;
 async function getObservationEventListPage(request: Request, env: Env): Promise<Response> {
   const auth = await readCompatibleSession(request, env).catch(() => null);
   const publicLang = publicLangFromPath(new URL(request.url).pathname) ?? "ja";
+  {
+    const viewer = viewerFromSession(auth);
+    if (prototypeEnabledForViewer(env, "EVENTS_V2_ENABLED", viewer.principalId, viewer.role)) {
+      return handleEventsV2List(new URL(request.url), publicLang, auth, env.OBS_DB);
+    }
+  }
   const lang = publicLang === "pt-br" ? "pt-BR" : publicLang;
   const pageHtml = (title: string, body: string, marker: string, status = 200) => observationEventPageHtml(title, body, marker, status, publicLang, Boolean(auth && !auth.banned));
   let loadFailed = false;
