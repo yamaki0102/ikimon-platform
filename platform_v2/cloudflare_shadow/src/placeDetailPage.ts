@@ -148,6 +148,7 @@ export function renderGlobalPlaceDetailPage(input: {
   v3?: boolean;
   e2?: boolean;
   e2Events?: PlaceEEvent[];
+  ownerRecords?: { count: number; latestObservationId: string | null } | null;
   nocosilEventLink?: boolean;
   fieldCardHref?: string;
   regionLink?: { href: string; label: string } | null;
@@ -280,6 +281,9 @@ export function renderGlobalPlaceDetailPage(input: {
     moreLabel: copy.moreAbout,
     regionLink: input.regionLink ?? null,
     events: input.e2Events ?? [],
+    ownerRecords: input.ownerRecords && input.ownerRecords.count > 0 && input.ownerRecords.latestObservationId
+      ? { count: input.ownerRecords.count, href: prefix + "/observations/" + encodeURIComponent(input.ownerRecords.latestObservationId) }
+      : null,
     ...(input.nocosilEventLink === true && (selected || local) ? { nocosilEventHref: "https://nocosil.com/app/start/zukan?place=" + encodeURIComponent(selected || local) } : {}),
     invasive: lang === "ja" ? buildPlaceInvasive(records.map((r) => ({ ...r, href: recordHrefOf(r) }))) : [],
   }) : v3On ? renderPlaceV3({

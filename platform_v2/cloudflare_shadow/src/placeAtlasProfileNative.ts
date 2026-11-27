@@ -236,6 +236,10 @@ function safeJsonRecord(value: string | null | undefined): Record<string, unknow
   }
 }
 
+export function parsePlaceAtlasGeometry(value: string | null | undefined): PlaceGeometry | null {
+  return safeGeometry(value);
+}
+
 function safeGeometry(value: string | null | undefined): PlaceGeometry | null {
   const parsed = safeJsonRecord(value);
   if ((parsed.type !== "Polygon" && parsed.type !== "MultiPolygon") || !Array.isArray(parsed.coordinates)) {
@@ -301,6 +305,54 @@ export function pointInPlaceAtlasGeometry(lng: number, lat: number, geometry: Pl
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
   if (geometry.type === "Polygon") return pointInPolygon(lng, lat, geometry.coordinates);
   return geometry.coordinates.some((polygon) => pointInPolygon(lng, lat, polygon));
+}
+
+export const PLACE_ATLAS_GEOMETRY_BUFFER_M = 30;
+export const BUFFER_BBOX_LAT_DEG = 0.0004;
+export const BUFFER_BBOX_LNG_DEG = 0.0005;
+
+function ringEdgeDistanceM(lng: number, lat: number, ring: unknown, limitM: number): number {
+  if (!Array.isArray(ring)) return Infinity;
+  const mLat = 111_320;
+  const mLng = 111_320 * Math.cos(lat * Math.PI / 180);
+  let best = Infinity;
+  for (let index = 1; index < ring.length; index += 1) {
+    const a: unknown = ring[index - 1];
+    const b: unknown = ring[index];
+    if (!Array.isArray(a) || !Array.isArray(b)) continue;
+    const ax = (Number(a[0]) - lng) * mLng;
+    const ay = (Number(a[1]) - lat) * mLat;
+    const bx = (Number(b[0]) - lng) * mLng;
+    const by = (Number(b[1]) - lat) * mLat;
+    if (![ax, ay, bx, by].every(Number.isFinite)) continue;
+    if (Math.min(ax, bx) > limitM || Math.max(ax, bx) < -limitM || Math.min(ay, by) > limitM || Math.max(ay, by) < -limitM) continue;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2));
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best;
+}
+
+export function pointNearPlaceAtlasGeometry(
+  lng: number,
+  lat: number,
+  geometry: PlaceGeometry,
+  bufferM: number = PLACE_ATLAS_GEOMETRY_BUFFER_M,
+): boolean {
+  if (pointInPlaceAtlasGeometry(lng, lat, geometry)) return true;
+  if (!Number.isFinite(lng) || !Number.isFinite(lat) || bufferM <= 0) return false;
+  const polygons = geometry.type === "Polygon"
+    ? [geometry.coordinates as unknown]
+    : (geometry.coordinates as unknown[]);
+  for (const polygon of polygons) {
+    if (!Array.isArray(polygon)) continue;
+    for (const ring of polygon) {
+      if (ringEdgeDistanceM(lng, lat, ring, bufferM) <= bufferM) return true;
+    }
+  }
+  return false;
 }
 
 function walkCoordinates(value: unknown, visit: (lng: number, lat: number) => void): void {
@@ -648,7 +700,85 @@ async function loadVisitLocations(
       throw error;
     }
   }
+  const missing = visitIds.filter((id) => !output.has(id));
+  for (let start = 0; start < missing.length; start += MAX_QUERY_BINDINGS) {
+    const chunk = missing.slice(start, start + MAX_QUERY_BINDINGS);
+    try {
+      const rows = await db.prepare(
+        `SELECT o.observation_id AS visit_id, NULL AS place_id, o.owner_user_id AS user_id,
+                o.exact_lat, o.exact_lng, o.visibility AS public_visibility
+           FROM observations o
+          WHERE o.observation_id IN (${chunk.map(() => "?").join(", ")})
+            AND o.visibility = 'public'
+            AND COALESCE(o.emergency_hidden, 0) = 0
+            AND EXISTS (
+              SELECT 1
+                FROM observation_data_rights rights
+               WHERE rights.visit_id = o.observation_id
+                 AND rights.withdrawal_status = 'active'
+                 AND rights.record_consent IN (
+                   'public_summary',
+                   'external_export'
+                 )
+            )`
+      ).bind(...chunk).all<VisitLocationRow>();
+      rows.results.forEach((row) => output.set(row.visit_id, row));
+    } catch (error) {
+      if (
+        isMissingOptionalTable(error, "observations") ||
+        isMissingOptionalTable(error, "observation_data_rights")
+      ) break;
+      throw error;
+    }
+  }
   return output;
+}
+
+export async function loadOwnerPlaceRecordSummary(
+  db: PlaceAtlasD1Database,
+  placeId: string,
+  ownerUserId: string,
+): Promise<{ count: number; latestObservationId: string | null }> {
+  const empty = { count: 0, latestObservationId: null };
+  try {
+    const boundary = await db.prepare(
+      `SELECT boundary_geojson, bbox_west, bbox_south, bbox_east, bbox_north
+         FROM place_boundaries
+        WHERE place_id = ? AND is_primary = 1 AND valid_to IS NULL AND superseded_by_boundary_id IS NULL
+        LIMIT 1`
+    ).bind(placeId).first<{
+      boundary_geojson: string | null;
+      bbox_west: number | null;
+      bbox_south: number | null;
+      bbox_east: number | null;
+      bbox_north: number | null;
+    }>();
+    const geometry = safeGeometry(boundary?.boundary_geojson);
+    if (!boundary || !geometry || !placeAtlasGeometryWithinRuntimeBudget(geometry)) return empty;
+    const box = [boundary.bbox_west, boundary.bbox_south, boundary.bbox_east, boundary.bbox_north]
+      .every((value) => typeof value === "number" && Number.isFinite(value))
+      ? [boundary.bbox_west!, boundary.bbox_south!, boundary.bbox_east!, boundary.bbox_north!]
+      : geometryBbox(geometry);
+    if (!box) return empty;
+    const result = await db.prepare(
+      `SELECT observation_id, exact_lat, exact_lng
+         FROM observations
+        WHERE owner_user_id = ?
+          AND COALESCE(emergency_hidden, 0) = 0
+          AND exact_lat BETWEEN ? AND ?
+          AND exact_lng BETWEEN ? AND ?
+        ORDER BY observed_at DESC
+        LIMIT 500`
+    ).bind(ownerUserId, box[1] - BUFFER_BBOX_LAT_DEG, box[3] + BUFFER_BBOX_LAT_DEG, box[0] - BUFFER_BBOX_LNG_DEG, box[2] + BUFFER_BBOX_LNG_DEG)
+      .all<{ observation_id: string; exact_lat: number | null; exact_lng: number | null }>();
+    const own = result.results.filter((row) =>
+      row.exact_lat !== null && row.exact_lng !== null &&
+      pointNearPlaceAtlasGeometry(row.exact_lng, row.exact_lat, geometry)
+    );
+    return { count: own.length, latestObservationId: own[0]?.observation_id ?? null };
+  } catch {
+    return empty;
+  }
 }
 
 async function loadPhotoUrls(
@@ -753,7 +883,7 @@ function scopeRowsByGeometry(
     if (!visit || !isPublicVisit(visit)) return false;
     if (directFieldId && visit.place_id === directFieldId) return true;
     return visit.exact_lat !== null && visit.exact_lng !== null &&
-      pointInPlaceAtlasGeometry(visit.exact_lng, visit.exact_lat, geometry);
+      pointNearPlaceAtlasGeometry(visit.exact_lng, visit.exact_lat, geometry);
   });
 }
 
