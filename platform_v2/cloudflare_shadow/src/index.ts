@@ -186,6 +186,7 @@ import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipati
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
 import { getSavedItem, handleSavedItemsRequest, listSavedItems, savedRecordStates, type SavedItem } from "./savedItems";
 import { isBrowserRunEphemeralStagingAccount } from "./browserRunStagingAccountNative";
+import { normalizeSafePublicAreaLabelCandidate, publicSafetyDecisionForContext, publicStreamAllowsLocationPrecision, resolveSafePublicAreaLabel, type PublicSafetyContextRow } from "./publicAreaLabel";
 import { addDisplayRotation, exifCorrectionRotation, normalizeDisplayRotation, planDerivativeOrientation, readJpegDimensions, readJpegExifOrientation, type DisplayRotation } from "./imageOrientation";
 import { backfillRecordHealthGaps, listRecordHealthHistory, runRecordHealthCheck } from "./recordHealthCheck";
 import {
@@ -1128,10 +1129,6 @@ const HOME_RECORD_FEED_MEDIA_ORDER: HomeRecordMediaKind[] = ["photo", "video", "
 const HOME_RECORD_FEED_INITIAL_LIMIT = 36;
 const HOME_RECORD_FEED_MAX_DOM_CARDS = 96;
 const HOME_RECORD_FEED_MEDIA_DIVERSITY_SLOTS = [2, 6, 10, 14, 18];
-const PUBLIC_AREA_LABEL_MAX_LENGTH = 40;
-const PUBLIC_AREA_LABEL_SENSITIVE_PATTERN = /(学校|小学校|中学校|高校|高等学校|幼稚園|保育園|こども園|児童|自宅|住所|番地|丁目|号室|マンション|アパート|寮|private|school|home|residence|address|apartment|condo|nursery|kindergarten)/i;
-const PUBLIC_AREA_LABEL_ADDRESS_PATTERN = /[0-9]|[-.,;:/\\@#]|[!?"$%&'()*+<=>\[\]^_`{|}~]/;
-const PUBLIC_STREAM_ALLOWED_LOCATION_PRECISIONS = new Set(["municipality", "mesh"]);
 interface PublicMapPhotoRow {
   observation_id: string;
   public_derivative_key: string;
@@ -9676,29 +9673,7 @@ async function enqueueD1AreaWatchNotificationsForStoredObservation(
 
 type PersonalUnreadAlertRow = Pick<PersonalAlertRow, "occurrence_id" | "trigger_kind" | "payload_json">;
 
-type PublicSafetyContextRow = {
-  audience_scope: string | null;
-  public_precision: string | null;
-  risk_lane: string | null;
-};
 
-function publicSafetyDecisionForContext(context: PublicSafetyContextRow | null): { blocked: boolean; reason: string | null } {
-  if (!context) return { blocked: false, reason: null };
-  const riskLane = normalizeOptionalText(context.risk_lane) ?? "normal";
-  if (riskLane !== "normal") return { blocked: true, reason: `risk_lane:${riskLane}` };
-  const audienceScope = normalizeOptionalText(context.audience_scope);
-  if (audienceScope && audienceScope !== "public") {
-    return { blocked: true, reason: `audience_scope:${audienceScope}` };
-  }
-  const publicPrecision = normalizeOptionalText(context.public_precision);
-  if (publicPrecision === "hidden" || publicPrecision === "exact_private") {
-    return { blocked: true, reason: `public_precision:${publicPrecision}` };
-  }
-  if (!publicStreamAllowsLocationPrecision(publicPrecision)) {
-    return { blocked: true, reason: `public_stream_precision:${publicPrecision}` };
-  }
-  return { blocked: false, reason: null };
-}
 
 type PublicAreaWatchAssetRow = {
   sha256: string | null;
@@ -29539,35 +29514,6 @@ async function legacyObservationRequestFingerprint(input: LegacyObservationUpser
   return `v2:${await sha256Hex(textToArrayBuffer(stableJson(payload)))}`;
 }
 
-function normalizeSafePublicAreaLabelCandidate(value: unknown): string | null {
-  const text = normalizeOptionalText(value);
-  if (!text) return null;
-  const normalized = text.normalize("NFKC").replace(/\s+/g, "");
-  if (!normalized || normalized.length > PUBLIC_AREA_LABEL_MAX_LENGTH) return null;
-  if (PUBLIC_AREA_LABEL_SENSITIVE_PATTERN.test(normalized)) return null;
-  if (PUBLIC_AREA_LABEL_ADDRESS_PATTERN.test(normalized)) return null;
-  return normalized;
-}
-
-function shouldCoarsenPublicAreaLabel(label: string): boolean {
-  const normalized = label.normalize("NFKC").toLowerCase();
-  return normalized.endsWith("村")
-    || normalized.endsWith("mura")
-    || normalized.endsWith("son")
-    || normalized.endsWith("village");
-}
-
-function resolveSafePublicAreaLabel(input: Pick<LegacyObservationUpsertInput, "municipality" | "prefecture">): string | null {
-  const municipality = normalizeSafePublicAreaLabelCandidate(input.municipality);
-  const prefecture = normalizeSafePublicAreaLabelCandidate(input.prefecture);
-  if (municipality && !shouldCoarsenPublicAreaLabel(municipality)) return municipality;
-  return prefecture;
-}
-
-function publicStreamAllowsLocationPrecision(value: unknown): boolean {
-  const precision = normalizeOptionalText(value);
-  return !precision || PUBLIC_STREAM_ALLOWED_LOCATION_PRECISIONS.has(precision);
-}
 
 function buildLegacyCompatibleObservationResponse(input: {
   visitId: string;
