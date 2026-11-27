@@ -109,6 +109,9 @@ export const PLACE_E_STYLES = `
 .pe-empty .pe-actions{margin-top:20px}
 .pe-actions .gpd-primary,.pe-actions .gpd-secondary{min-height:52px;border-radius:999px;width:100%;white-space:nowrap}
 .pe-host{display:flex;justify-content:center;margin:6px 0 0}.pe-host a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;color:#143F2E;font-size:14px;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.pe-thumb.ph{display:flex;align-items:center;justify-content:center;color:#8a948d}
+.pe-thumb.ph svg{width:24px;height:24px}
+.gpd-attrib{padding:0 20px;font-family:"Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif;color:#55615A}
 .pe :focus-visible{outline:3px solid currentColor;outline-offset:3px}
 @media(min-width:768px){.pe-hero{height:320px;margin:20px 20px 0;border-radius:20px}.pe-name{font-size:34px}.pe-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.pe-empty .pe-actions{grid-template-columns:minmax(0,360px);justify-content:center}}
 `;
@@ -139,7 +142,7 @@ export function renderPlaceE(input: PlaceEInput): string {
   const shown = new Set<string>(heroUrl ? [heroUrl] : []);
   if (showStrip) for (const r of stripRecs) if (r.mediaUrl) shown.add(r.mediaUrl);
   const rows = rowRecs.map((r) => {
-    let thumb = "";
+    let thumb = `<span class="pe-thumb ph" aria-hidden="true">${IMG}</span>`;
     if (r.mediaUrl && !shown.has(r.mediaUrl)) {
       shown.add(r.mediaUrl);
       thumb = `<span class="pe-thumb"><img src="${e(sizedImageUrl(r.mediaUrl, 320))}" alt="" loading="lazy" decoding="async"></span>`;
