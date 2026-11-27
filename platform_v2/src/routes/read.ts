@@ -14316,6 +14316,7 @@ export async function registerReadRoutes(app: FastifyInstance): Promise<void> {
           const normalized = normalizeSelectedFiles(files, kind);
           selectedMediaFiles = normalized.photos;
           selectedVideoFile = normalized.video;
+          try { normalized.photos.forEach((photo) => { warmPhotoUpload(photo); }); } catch (_) {}
           selectedCaptureKind = kind || '';
           resetVisualRecordFeedback();
           const hasMedia = hasSelectedMedia();
