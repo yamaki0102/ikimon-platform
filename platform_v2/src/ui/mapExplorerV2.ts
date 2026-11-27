@@ -189,7 +189,7 @@ a,button{font:inherit;color:inherit}
 .zv2-peek-sub{margin-left:auto;font-size:14px;font-weight:600;color:#55615A;text-align:right}
 .zv2-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 18px}
 .zv2-sheet[data-sheet-state="collapsed"] .zv2-sheet-body{display:none}
-.zv2-sheet[data-sheet-state="selected-low"]{max-height:280px}
+.zv2-sheet[data-sheet-state="selected-low"]{max-height:320px}
 .zv2-sheet[data-dragging="1"] .zv2-sheet-body{display:block}
 @media (prefers-reduced-motion:reduce){.zv2-sheet{transition:none}}
 .zv2-sheet[data-sheet-state="selected-low"] .zv2-sheet-body{display:block;overflow:hidden;padding:0 18px 14px}
@@ -221,9 +221,14 @@ a,button{font:inherit;color:inherit}
 .zv2-pphotos{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:14px}
 .zv2-pphotos img{width:100%;height:88px;object-fit:cover;border-radius:8px;background:#e8efea}
 .zv2-btnrow{display:flex;gap:9px;margin-top:12px;flex-wrap:wrap}
-.zv2-btn-main{flex:1;min-height:46px;padding:10px 14px;border-radius:999px;background:#143F2E;color:#fff;font-size:15px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer}
-.zv2-btn-sub{flex:1;min-height:46px;padding:10px 14px;border-radius:999px;background:#fff;color:#143F2E;border:1.5px solid #143F2E;font-size:15px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.zv2-btn-main{flex:1 1 auto;white-space:nowrap;min-height:46px;padding:10px 14px;border-radius:999px;background:#143F2E;color:#fff;font-size:15px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer}
+.zv2-btn-sub{flex:1 1 auto;white-space:nowrap;min-height:46px;padding:10px 14px;border-radius:999px;background:#fff;color:#143F2E;border:1.5px solid #143F2E;font-size:15px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .zv2-ownrow{display:flex;gap:10px;align-items:center;background:#F7F7F3;border-radius:12px;padding:11px 13px;margin-top:14px;font-size:14px;font-weight:700}
+.zv2-sheet[data-has-detail="1"] .zv2-peek{display:none}
+.zv2-sheet[data-has-detail="1"] .zv2-sheet-head{padding-bottom:0}
+.zv2-panel .zv2-btn-main,.zv2-panel .zv2-btn-sub{flex:1 1 100%}
+.zv2-psec{margin:14px 0 2px;font-size:14px;font-weight:700;color:#55615A}
+.zv2-pcount{font-size:14px;color:#55615A;margin:0 0 4px}
 .zv2-zerobox{background:#F7F7F3;border-radius:14px;padding:14px;margin-top:12px;font-size:14px;line-height:1.65;color:#17211B}
 
 /* Mobile bottom nav */
@@ -554,17 +559,33 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     var rows = all.map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
     rows.sort(function (a, b) { return a.d - b.d; });
     var used = {};
+    var top = rows.slice(0, 20);
+    var recRows = top.filter(function (r) { return rcOf(r.p) !== 0; });
+    var zeroRows = top.filter(function (r) { return rcOf(r.p) === 0; });
+    function dist(r) { return '<span style="white-space:nowrap">' + (EN ? fmtDist(r.d) + ' away' : 'ここから ' + fmtDist(r.d)) + '</span>'; }
+    function href(p) { return esc(placeHref(p.placeId)); }
     var h = '<h2 class="zv2-st">' + t('近くの場所', 'Nearby places') + '</h2>';
-    h += rows.slice(0, 20).map(function (r) {
+    h += '<div class="zv2-pcount">' + t('地図に出ている場所です。近い順に並んでいます。', 'Places shown on the map, nearest first.') + '</div>';
+    h += recRows.map(function (r) {
       var p = r.p;
       var img = p.photoUrl && !used[p.photoUrl];
       if (img) used[p.photoUrl] = 1;
       var thumb = img ? '<img src="' + esc(p.photoUrl) + '" alt="" loading="lazy" decoding="async" />' : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
-      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : (rcOf(p) === 0 ? t('記録はまだありません', 'No records yet') : recLabel(p.recordCount))) + t(' ・ ', ' · ') + '<span style="white-space:nowrap">' + (EN ? fmtDist(r.d) + ' away' : 'ここから ' + fmtDist(r.d)) + '</span>';
-      return '<a class="zv2-prow" data-zv2-place-row="' + esc(p.placeId) + '" href="' + esc(placeHref(p.placeId)) + '">' + thumb
+      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : recLabel(p.recordCount)) + t(' ・ ', ' · ') + dist(r);
+      return '<a class="zv2-prow" data-zv2-place-row="' + esc(p.placeId) + '" href="' + href(p) + '">' + thumb
         + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + meta + '</span></span>'
         + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></a>';
     }).join('');
+    if (zeroRows.length) {
+      h += '<div class="zv2-psec">' + t('まだ記録のない場所', 'Places without records yet') + '</div>';
+      h += zeroRows.map(function (r) {
+        var p = r.p;
+        return '<a class="zv2-prow zv2-zero-nearest" data-zv2-place-row="' + esc(p.placeId) + '" href="' + href(p) + '">'
+          + '<span class="zv2-zmark">' + ${JSON.stringify(ICON_PIN)} + '</span>'
+          + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + esc(kindLabel(p.placeKind)) + t(' ・ ', ' · ') + dist(r) + '</span></span>'
+          + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></a>';
+      }).join('');
+    }
     plistEl.innerHTML = h;
   }
 
@@ -577,9 +598,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     h += '<h2 class="zv2-pname">' + esc(p.name) + '</h2>';
     if (isZero) {
       h += '<div class="zv2-pmeta">' + esc(kindLabel(p.placeKind)) + t(' ・ まだ記録がありません', ' · No records yet') + '</div>';
-      if (!mobileLow) {
-        h += '<div class="zv2-zerobox">' + t('まだ記録がありません。最初の記録を残すと、この場所の図鑑が始まります。', 'No records yet. Add the first one to start this place’s field guide.') + '</div>';
-      }
+      h += '<div class="zv2-zerobox">' + t('まだ記録がありません。最初の記録を残すと、この場所の図鑑が始まります。', 'No records yet. Add the first one to start this place’s field guide.') + '</div>';
       h += '<div class="zv2-btnrow">';
       h += '<a class="zv2-btn-main" href="' + esc(CFG.recordHref + '?placeId=' + encodeURIComponent(p.placeId)) + '">' + t('ここで最初の記録を', 'Add the first record here') + '</a>';
       if (!mobileLow) {
@@ -895,7 +914,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         if (isDesktop()) {
           return pt.x < 396 || pt.x > window.innerWidth - 24 || pt.y < 88 || pt.y > window.innerHeight - 24;
         }
-        var lowTop = sheetRect.bottom - 280;
+        var lowTop = sheetRect.bottom - 320;
         return pt.x < 24 || pt.x > window.innerWidth - 24 || pt.y < topRect.bottom + 24 || pt.y > Math.max(sheetRect.top, lowTop) - 24;
       })();
       if (pan) {
@@ -934,7 +953,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         var headH = sheetHeadEl.offsetHeight;
         var vh = window.innerHeight;
         if (state.selectedId) {
-          var lowH = Math.min(280, headH + sheetBodyEl.scrollHeight);
+          var lowH = Math.min(320, headH + sheetBodyEl.scrollHeight);
           return { cur: state.selectedExpanded ? 2 : 1, list: [{ h: headH, act: 'close' }, { h: lowH, act: 'low' }, { h: Math.max(lowH + 40, vh * 0.44), act: 'expanded' }] };
         }
         return { cur: Math.max(0, ['collapsed', 'half', 'full'].indexOf(state.sheetState)), list: [{ h: headH, act: 'collapsed' }, { h: vh * 0.44, act: 'half' }, { h: vh - 144, act: 'full' }] };
