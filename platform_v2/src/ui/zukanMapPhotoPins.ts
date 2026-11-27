@@ -103,8 +103,9 @@ function getMap(){
   var b=window.__ikimonMapBoot,m=b&&b.state&&b.state.map;
   return m&&window.maplibregl&&typeof m.getCanvas==='function'&&typeof m.getCenter==='function'?m:null;
 }
+var lastKey='';
 function load(){
-  var m=mapRef;if(!m)return;var c=m.getCenter(),n=++seq;
+  var m=mapRef;if(!m)return;var c=m.getCenter(),k=c.lat.toFixed(4)+','+c.lng.toFixed(4);if(k===lastKey)return;lastKey=k;var n=++seq;
   fetch(C.api+'?lat='+encodeURIComponent(c.lat.toFixed(5))+'&lng='+encodeURIComponent(c.lng.toFixed(5)),{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null}).then(function(d){
     if(n!==seq||!d||!Array.isArray(d.places))return;
     places=d.places;
