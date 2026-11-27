@@ -142,6 +142,7 @@ export function renderOtayoriPage(options: {
     .otayori-status{display:inline-flex;padding:2px 8px;border-radius:999px;background:#e8f2ec;color:#245c3a;font-weight:800}
     .otayori-reply{padding:8px 10px;border-radius:8px;background:#eef7f1;font-size:14px}
     .otayori-note{margin:0;font-size:14px;color:#55615a}
+    .otayori-col>*,.otayori-card>*,.otayori-list>*,.otayori-item>*{min-width:0}.otayori-item p{margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
   </style>
 </head>
 <body>
