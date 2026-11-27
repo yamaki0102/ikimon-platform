@@ -32,7 +32,7 @@ export async function handleProfilePublicSettingsRoute(
   session: SessionLike,
   db: Env["OBS_DB"]
 ): Promise<Response> {
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   if (!session || session.banned) {
     return new Response("Unauthorized", {
@@ -117,7 +117,7 @@ export async function handlePublicUserProfileRoute(
   session: SessionLike,
   db: Env["OBS_DB"]
 ): Promise<Response> {
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
   const isPublic = await isUserProfilePublic(db, targetUserId);

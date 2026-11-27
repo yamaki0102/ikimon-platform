@@ -67,7 +67,7 @@ export async function handleNearbyEventsPageRoute(
   db: Env["OBS_DB"]
 ): Promise<Response> {
   const events = await queryNearbyEvents(url, db);
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
 
@@ -122,7 +122,7 @@ export async function handleEventDetailsRoute(
     return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
   }
 
-  const isEn = lang === "en";
+  const isEn = lang !== "ja";
   const prefix = lang === "ja" ? "/ja" : `/${lang}`;
   const authenticated = Boolean(session && !session.banned);
   const encodedEvent = encodeURIComponent(eventId);

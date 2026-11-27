@@ -165,9 +165,11 @@ function esc1(name: string): string {
 
 export function renderProfileSettingsHub(lang: Lang, opts: { displayName: string; email: string | null; recordCount: number; flash: string | null }): string {
   const p = pfx(lang);
+  const en = lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const plain = (href: string, title: string, meta: string) =>
     `<li><a class="zt-sp-row" href="${escapeHtml(href)}" style="min-height:64px"><span class="zt-sp-body"><strong>${escapeHtml(title)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>${CHEV}</a></li>`;
-  const wLines = `退会すると、自分の記録${opts.recordCount}件とアカウントが全部消えます。図鑑に載せた記録も消えます。消したあとは、元に戻せません。`;
+  const wLines = en ? `If you delete your account, your ${opts.recordCount} ${opts.recordCount === 1 ? "record" : "records"} and your account will be removed entirely, including records published to the field guide. This cannot be undone.` : `退会すると、自分の記録${opts.recordCount}件とアカウントが全部消えます。図鑑に載せた記録も消えます。消したあとは、元に戻せません。`;
   const body = `<style>${ZUKAN_SUBPAGE_CSS}
 .zt-ps-id{display:flex;align-items:center;gap:16px;padding:8px 0 16px;border-bottom:1px solid #dde2dc}
 .zt-ps-av{flex:none;display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:#143F2E;color:#fff;font-size:1.75rem;font-weight:700}
@@ -180,31 +182,31 @@ export function renderProfileSettingsHub(lang: Lang, opts: { displayName: string
 .zt-ps-lang{display:flex;gap:10px}.zt-ps-lang select{flex:1}
 </style>
   <section class="zt-sp" data-profile-view="i12" data-testid="profile-settings">
-    ${renderSubpageHeader({ title: "ログアウト・退会", backHref: `${p}/profile`, backLabel: "自分に戻る" })}
+    ${renderSubpageHeader({ title: t("ログアウト・退会", "Log out / Delete account"), backHref: `${p}/profile`, backLabel: t("自分に戻る", "Back to Me") })}
     <div class="zt-ps-id"><span class="zt-ps-av" aria-hidden="true">${escapeHtml(esc1(opts.displayName))}</span><div><strong>${escapeHtml(opts.displayName)}</strong>${opts.email ? `<small>${escapeHtml(opts.email)}</small>` : ""}</div></div>
-    ${opts.flash ? `<p class="zt-sp-lead" role="status">保存しました。</p>` : ""}
+    ${opts.flash ? `<p class="zt-sp-lead" role="status">${t("保存しました。", "Saved.")}</p>` : ""}
     <ul class="zt-sp-list">
-      ${plain(`${p}/profile/settings/edit`, "プロフィール", "名前と自己紹介")}
-      ${plain(`${p}/profile/settings/notifications`, "通知", "コメントや観察会のお知らせ")}
-      ${plain(`${p}/profile/public-settings`, "公開の範囲", "ほかの人に何が見えるかを決めます")}
-      ${plain(`${p}/profile/settings/account`, "連携とアカウント", "")}
+      ${plain(`${p}/profile/settings/edit`, t("プロフィール", "Profile"), t("名前と自己紹介", "Name and bio"))}
+      ${plain(`${p}/profile/settings/notifications`, t("通知", "Notifications"), t("コメントや観察会のお知らせ", "Comments and event updates"))}
+      ${plain(`${p}/profile/public-settings`, t("公開の範囲", "Visibility"), t("ほかの人に何が見えるかを決めます", "Choose what others can see"))}
+      ${plain(`${p}/profile/settings/account`, t("連携とアカウント", "Connections and account"), "")}
     </ul>
     <form class="zt-sp-field" action="/api/v1/profile/language" method="post" data-testid="language-form">
-      <span>表示言語</span>
-      <div class="zt-ps-lang"><select class="zt-sp-input" name="lang" aria-label="表示言語">
+      <span>${t("表示言語", "Display language")}</span>
+      <div class="zt-ps-lang"><select class="zt-sp-input" name="lang" aria-label="${t("表示言語", "Display language")}">
         <option value="ja"${lang === "ja" ? " selected" : ""}>日本語</option><option value="en"${lang === "en" ? " selected" : ""}>English</option><option value="es"${lang === "es" ? " selected" : ""}>Español</option><option value="pt-br"${lang === "pt-br" ? " selected" : ""}>Português</option>
-      </select><button class="zt-sp-secondary" type="submit" style="width:auto">保存</button></div>
+      </select><button class="zt-sp-secondary" type="submit" style="width:auto">${t("保存", "Save")}</button></div>
     </form>
-    <button class="zt-sp-secondary" type="button" data-logout>ログアウト</button>
-    <h2 class="zt-ps-h">退会</h2>
+    <button class="zt-sp-secondary" type="button" data-logout>${t("ログアウト", "Log out")}</button>
+    <h2 class="zt-ps-h">${t("退会", "Delete account")}</h2>
     <p class="zt-ps-warn" data-testid="withdrawal-confirmation">${escapeHtml(wLines)}</p>
     <form method="post" action="/api/v1/account/withdraw" style="display:grid;gap:12px">
-      <label class="zt-ps-ack"><input type="checkbox" name="acknowledged" value="yes" required data-withdrawal-ack><span>消える内容を確認しました</span></label>
-      <button type="submit" class="zt-ps-danger" data-withdrawal-submit>退会する</button>
+      <label class="zt-ps-ack"><input type="checkbox" name="acknowledged" value="yes" required data-withdrawal-ack><span>${t("消える内容を確認しました", "I understand what will be deleted")}</span></label>
+      <button type="submit" class="zt-ps-danger" data-withdrawal-submit>${t("退会する", "Delete my account")}</button>
     </form>
   </section>
   <script>(()=>{const b=document.querySelector("[data-logout]");if(b)b.addEventListener("click",async()=>{b.disabled=true;try{await fetch("/api/v1/auth/session/logout",{method:"POST",credentials:"same-origin"});}catch{}location.href="${p}/";});})();</script>`;
-  return renderZukanCommonShell({ lang, title: "ログアウト・退会", activeNav: "profile", authenticated: true, displayName: opts.displayName, bodyHtml: body, pathname: `${p}/profile/settings` });
+  return renderZukanCommonShell({ lang, title: t("ログアウト・退会", "Log out / Delete account"), activeNav: "profile", authenticated: true, displayName: opts.displayName, bodyHtml: body, pathname: `${p}/profile/settings` });
 }
 
 export type AlertItem = {
@@ -216,6 +218,13 @@ export type AlertItem = {
   payload: Record<string, unknown>;
 };
 
+const KIND_TITLE_EN: Record<string, string> = {
+  record_feedback_ready: "You have an update on your record",
+  subject_proposal: "A suggestion for your record has arrived",
+  taxon_match: "New record of a species you follow",
+  area_watch: "New record in a place you watch",
+  municipality_invasive: "Notice about a possible invasive species record",
+};
 const KIND_TITLE: Record<string, string> = {
   record_feedback_ready: "記録についてのお知らせが届きました",
   subject_proposal: "記録の候補が届きました",
@@ -229,9 +238,9 @@ const KIND_ICON: Record<string, string> = {
 };
 const BELL = '<path d="M6 17h12l-1.5-2v-4.5a4.5 4.5 0 0 0-9 0V15z"/><path d="M10 20a2 2 0 0 0 4 0"/>';
 
-const alertTitle = (a: AlertItem): string => {
+const alertTitle = (a: AlertItem, en = false): string => {
   const t = a.payload?.title;
-  return typeof t === "string" && t.trim() ? t.trim() : (KIND_TITLE[a.triggerKind] ?? "お知らせが届きました");
+  return typeof t === "string" && t.trim() ? t.trim() : ((en ? KIND_TITLE_EN : KIND_TITLE)[a.triggerKind] ?? (en ? "You have a new notice" : "お知らせが届きました"));
 };
 
 const NOTIF_CSS = `
@@ -245,39 +254,43 @@ const NOTIF_CSS = `
 
 export function renderNotificationsList(lang: Lang, displayName: string, alerts: AlertItem[]): string {
   const p = pfx(lang);
+  const en = lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const items = alerts.map((a) => {
     const unread = !a.acknowledgedAt;
-    return `<li><a class="zt-nt-row" href="${escapeHtml(`${p}/profile/notifications/${encodeURIComponent(a.deliveryId)}`)}"><span class="zt-nt-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${KIND_ICON[a.triggerKind] ?? BELL}</svg></span><span class="zt-nt-body"><strong>${escapeHtml(alertTitle(a))}</strong><small>${escapeHtml(jpDate(a.createdAt, true))}</small></span>${unread ? '<span class="zt-nt-dot" aria-label="未読"></span>' : ""}</a></li>`;
+    return `<li><a class="zt-nt-row" href="${escapeHtml(`${p}/profile/notifications/${encodeURIComponent(a.deliveryId)}`)}"><span class="zt-nt-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${KIND_ICON[a.triggerKind] ?? BELL}</svg></span><span class="zt-nt-body"><strong>${escapeHtml(alertTitle(a, en))}</strong><small>${escapeHtml(jpDate(a.createdAt, true, en))}</small></span>${unread ? `<span class="zt-nt-dot" aria-label="${t("未読", "Unread")}"></span>` : ""}</a></li>`;
   }).join("");
   const body = `<style>${ZUKAN_SUBPAGE_CSS}${NOTIF_CSS}</style>
   <section class="zt-sp" data-profile-view="i6" data-testid="notifications-list">
-    ${renderSubpageHeader({ title: "通知", backHref: `${p}/profile`, backLabel: "自分に戻る" })}
-    ${items ? `<ul class="zt-sp-list">${items}</ul>` : `<p class="zt-sp-empty">まだ通知はありません。</p>`}
+    ${renderSubpageHeader({ title: t("通知", "Notifications"), backHref: `${p}/profile`, backLabel: t("自分に戻る", "Back to Me") })}
+    ${items ? `<ul class="zt-sp-list">${items}</ul>` : `<p class="zt-sp-empty">${t("まだ通知はありません。", "No notifications yet.")}</p>`}
   </section>`;
-  return renderZukanCommonShell({ lang, title: "通知", activeNav: "profile", authenticated: true, displayName, bodyHtml: body, pathname: `${p}/profile/notifications` });
+  return renderZukanCommonShell({ lang, title: t("通知", "Notifications"), activeNav: "profile", authenticated: true, displayName, bodyHtml: body, pathname: `${p}/profile/notifications` });
 }
 
 export function renderNotificationDetail(lang: Lang, displayName: string, a: AlertItem, record: { id: string; title: string; observedAt: string; area: string | null; assetId: string | null } | null): string {
   const p = pfx(lang);
+  const en = lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const text = typeof a.payload?.body === "string" ? a.payload.body.trim() : "";
   const recordRow = record
     ? `<ul class="zt-sp-list">${renderSubpageRow({
         href: `${p}/observations/${encodeURIComponent(record.id)}`,
         title: record.title,
-        meta: [jpDate(record.observedAt), record.area ?? ""].filter(Boolean).join(" ・ "),
+        meta: [jpDate(record.observedAt, false, en), record.area ?? ""].filter(Boolean).join(" ・ "),
         thumbUrl: record.assetId ? `/thumb/400/${encodeURIComponent(record.assetId)}` : null,
       })}</ul>`
     : "";
   const body = `<style>${ZUKAN_SUBPAGE_CSS}${NOTIF_CSS}</style>
   <section class="zt-sp" data-profile-view="i7" data-testid="notification-detail">
-    ${renderSubpageHeader({ title: "通知", backHref: `${p}/profile/notifications`, backLabel: "通知に戻る" })}
-    <p class="zt-sp-lead">${escapeHtml(jpDate(a.createdAt, true))}</p>
-    <h2 class="zt-sp-title">${escapeHtml(alertTitle(a))}</h2>
+    ${renderSubpageHeader({ title: t("通知", "Notifications"), backHref: `${p}/profile/notifications`, backLabel: t("通知に戻る", "Back to notifications") })}
+    <p class="zt-sp-lead">${escapeHtml(jpDate(a.createdAt, true, en))}</p>
+    <h2 class="zt-sp-title">${escapeHtml(alertTitle(a, en))}</h2>
     ${text ? `<p class="zt-nt-quote">${escapeHtml(text)}</p>` : ""}
     ${recordRow}
-    ${record ? `<a class="zt-sp-primary" href="${escapeHtml(`${p}/observations/${encodeURIComponent(record.id)}`)}">記録を見る</a>` : ""}
-    <a class="zt-sp-secondary" href="${p}/profile/notifications">通知の一覧へ</a>
+    ${record ? `<a class="zt-sp-primary" href="${escapeHtml(`${p}/observations/${encodeURIComponent(record.id)}`)}">${t("記録を見る", "View the record")}</a>` : ""}
+    <a class="zt-sp-secondary" href="${p}/profile/notifications">${t("通知の一覧へ", "All notifications")}</a>
   </section>
   <script>(()=>{try{fetch("/api/v1/me/alerts/read",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({ids:[${JSON.stringify(a.deliveryId)}]})}).catch(()=>{});}catch{}})();</script>`;
-  return renderZukanCommonShell({ lang, title: "通知", activeNav: "profile", authenticated: true, displayName, bodyHtml: body, pathname: `${p}/profile/notifications/${a.deliveryId}` });
+  return renderZukanCommonShell({ lang, title: t("通知", "Notifications"), activeNav: "profile", authenticated: true, displayName, bodyHtml: body, pathname: `${p}/profile/notifications/${a.deliveryId}` });
 }

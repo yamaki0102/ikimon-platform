@@ -151,3 +151,17 @@ test("detail after: summary counts, place link, rare hidden from outsiders, phot
   assert.match(member, /図鑑に載せる/);
   assert.equal((await handleEventsV2Detail("nope", "ja", null, db)).status, 404);
 });
+
+test("detail en/es/pt-br chrome has no Japanese labels and scripts parse", async (t) => {
+  const db = fixture(t);
+  const cases: Array<[string, { userId: string } | null]> = [["up2", null], ["up2", { userId: "u1" }], ["td", { userId: "u1" }], ["td", { userId: "u9" }], ["pa", { userId: "u2" }], ["pa", { userId: "u9" }]];
+  for (const lang of ["en", "es", "pt-br"] as const) {
+    for (const [id, who] of cases) {
+      const html = await (await handleEventsV2Detail(id, lang, who, db)).text();
+      assert.doesNotMatch(html.replace(/<style[\s\S]*?<\/style>/g, ""), /参加する|当日の|チェックイン|共有する|イベント一覧|あなたの記録|みんなの記録|この日に集まった|図鑑に載せる|集合場所|最寄り駅|参加予定|企画の記録/, `${lang}/${id}`);
+      for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) assert.doesNotThrow(() => new Function(m[1] ?? ""), `${lang}/${id}`);
+    }
+  }
+  const ja = await (await handleEventsV2Detail("td", "ja", { userId: "u1" }, db)).text();
+  assert.match(ja, /チェックインする/);
+});

@@ -7,7 +7,7 @@ import { recordCaptureCameraCopy } from "../../src/ui/siteShell";
 import { renderLibraryV2Page } from "./zukanLibraryV2";
 import { renderIdentifyV3Page } from "./identifyV3";
 import { handleEventsV2List } from "./zukanEventsV2";
-import { renderProfileHub, renderProfileSettingsHub } from "./zukanProfileHub";
+import { renderNotificationDetail, renderNotificationsList, renderProfileHub, renderProfileSettingsHub } from "./zukanProfileHub";
 import { recordCaptureCopy, renderRecordEntryStageHtml } from "./zukanRecordEntry";
 import { renderRegionSurfacePage } from "./regionSurfaceV1";
 import { renderRegionInvasivePage, renderInvasiveSpeciesPage } from "./invasiveMapV1";
@@ -124,6 +124,9 @@ async function renders(lang: L): Promise<Array<[string, string]>> {
   out.push(["eventsList", await (await handleEventsV2List(new URL(`https://x.test/${lang}/community/events`), lang, null, failingDb)).text()]);
   out.push(["profileHub", renderProfileHub(lang, hubData)]);
   out.push(["profileSettings", renderProfileSettingsHub(lang, { displayName: "Hana", email: "a@b.c", recordCount: 1, flash: null })]);
+  const alert = { deliveryId: "d1", occurrenceId: null, triggerKind: "taxon_match", createdAt: "2026-05-01T00:00:00Z", acknowledgedAt: null, payload: {} };
+  out.push(["notifList", renderNotificationsList(lang, "Hana", [alert])]);
+  out.push(["notifDetail", renderNotificationDetail(lang, "Hana", alert, null)]);
   for (const startMode of ["photo", "video"] as const) {
     out.push([
       `recordEntry[${startMode}]`,

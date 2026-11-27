@@ -150,14 +150,14 @@ export function renderZukanStatusBand(options: {
   </div>`;
 }
 
-export function renderZukanSkeleton(options: { count?: number; variant?: "cards" | "rows"; ariaLabel?: string } = {}): string {
+export function renderZukanSkeleton(options: { count?: number; variant?: "cards" | "rows"; ariaLabel?: string; lang?: ZukanLang } = {}): string {
   const count = Math.max(1, Math.min(options.count ?? 3, 8));
   const items = Array.from({ length: count }, () =>
     options.variant === "rows"
       ? `<div class="zt-skeleton-card"><div class="zt-skeleton-line"></div><div class="zt-skeleton-line is-short"></div></div>`
       : `<div class="zt-skeleton-card"><div class="zt-skeleton-thumb"></div><div class="zt-skeleton-line"></div><div class="zt-skeleton-line is-short"></div></div>`
   ).join("");
-  return `<div class="zt-skeleton-list" aria-busy="true" aria-label="${esc(options.ariaLabel ?? "読み込み中")}">${items}</div>`;
+  return `<div class="zt-skeleton-list" aria-busy="true" aria-label="${esc(options.ariaLabel ?? (options.lang && options.lang !== "ja" ? "Loading" : "読み込み中"))}">${items}</div>`;
 }
 
 export function renderZukanEmptyState(options: {
@@ -182,11 +182,13 @@ export function renderZukanErrorState(options: {
   retryHref?: string;
   retryLabel?: string;
   secondaryHtml?: string;
+  lang?: ZukanLang;
 }): string {
-  const title = options.title ?? "読み込めませんでした";
-  const message = options.message ?? "通信に失敗しました。場所を変えて、もう一度お試しください。";
-  const retryHref = safeInternalHref(options.retryHref, "/ja/");
-  const retryLabel = options.retryLabel ?? "もう一度";
+  const en = Boolean(options.lang && options.lang !== "ja");
+  const title = options.title ?? (en ? "Could not load" : "読み込めませんでした");
+  const message = options.message ?? (en ? "The connection failed. Please try again from a better signal." : "通信に失敗しました。場所を変えて、もう一度お試しください。");
+  const retryHref = safeInternalHref(options.retryHref, en ? `/${options.lang}/` : "/ja/");
+  const retryLabel = options.retryLabel ?? (en ? "Try again" : "もう一度");
   const warnIcon = `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 21.5 20h-19z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>`;
   return `<section class="zt-state-card" data-zukan-fetch-error="1" role="status" aria-live="polite">
     <span class="zt-state-ic is-error" aria-hidden="true">${warnIcon}</span>
@@ -199,9 +201,9 @@ export function renderZukanErrorState(options: {
   </section>`;
 }
 
-export function renderZukanOfflineBanner(nonce?: string): string {
+export function renderZukanOfflineBanner(nonce?: string, lang?: ZukanLang): string {
   const nonceAttr = nonce ? ` nonce="${esc(nonce)}"` : "";
-  return `<div class="zt-offline-banner" data-zukan-offline-banner="1" role="status" aria-live="polite" hidden>オフラインです。つながると自動で送ります</div>
+  return `<div class="zt-offline-banner" data-zukan-offline-banner="1" role="status" aria-live="polite" hidden>${lang && lang !== "ja" ? "You are offline. Records will be sent automatically once you reconnect." : "オフラインです。つながると自動で送ります"}</div>
 <script${nonceAttr}>(function(){var b=document.querySelector("[data-zukan-offline-banner]");if(!b)return;function u(){b.hidden=navigator.onLine!==false}u();window.addEventListener("online",u);window.addEventListener("offline",u)})();</script>`;
 }
 
@@ -258,7 +260,7 @@ export function renderZukanShellDocument(options: {
   </div>
   ${options.authenticated ? chrome.bottomNavHtml : ""}
   ${options.afterShellHtml ?? ""}
-  ${renderZukanOfflineBanner(options.cspNonce)}
+  ${renderZukanOfflineBanner(options.cspNonce, options.lang)}
 </body>
 </html>`;
 }
