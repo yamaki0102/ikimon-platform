@@ -397,7 +397,7 @@ export function renderShopPlacePerkSectionHtml(data: ShopPlacePerkSectionData | 
     return `<section class="spp-sec-setup" data-shop-photo-perks="setup">
     <style>
       .spp-sec-setup{margin:16px auto 0;max-width:1120px;padding:0 18px}
-      .spp-setup>summary{min-height:44px;display:flex;align-items:center;font-size:14px;color:#485a4e;cursor:pointer}
+      .spp-setup>summary{min-height:44px;display:flex;align-items:center;justify-content:space-between;font-size:14px;color:#485a4e;cursor:pointer;list-style:none}.spp-setup>summary::-webkit-details-marker{display:none}.spp-setup>summary::after{content:"";width:8px;height:8px;border-right:2px solid #485a4e;border-bottom:2px solid #485a4e;transform:rotate(45deg);margin-right:4px}.spp-setup[open]>summary::after{transform:rotate(-135deg)}
       .spp-setup .spp-config-form{display:grid;gap:8px;max-width:480px;padding:8px 0 12px}
       .spp-setup .spp-config-form input[type="text"]{min-height:44px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
       .spp-setup .spp-save-btn{min-height:44px;padding:8px 14px;border:0;border-radius:8px;background:#143f2e;color:#fff;font-weight:700;cursor:pointer;justify-self:start;white-space:nowrap}

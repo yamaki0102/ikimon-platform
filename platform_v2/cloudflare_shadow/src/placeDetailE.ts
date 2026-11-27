@@ -110,7 +110,7 @@ export const PLACE_E_STYLES = `
 .pe-actions{display:grid;gap:10px;margin:28px 0 0}
 .pe-empty .pe-actions{margin-top:20px}
 .pe-actions .gpd-primary,.pe-actions .gpd-secondary{min-height:52px;border-radius:999px;width:100%;white-space:nowrap}
-.pe-host{display:flex;justify-content:center;margin:6px 0 0}.pe-host a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;color:#143F2E;font-size:14px;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.pe-host{display:flex;justify-content:center;margin:6px 0 0}.pe-host a,.pe-host a:visited{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;color:#143F2E;font-size:14px;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .pe-thumb.ph{display:flex;align-items:center;justify-content:center;color:#8a948d}
 .pe-thumb.ph svg{width:24px;height:24px}
 .gpd-attrib{padding:0 20px;font-family:"Zen Kaku Gothic New","Inter","Noto Sans JP",sans-serif;color:#55615A}
@@ -162,13 +162,12 @@ export function renderPlaceE(input: PlaceEInput): string {
   const head = `<div class="pe-head"><div><h1 id="gpd-title" class="pe-name">${e(input.name)}</h1>${meta ? `<p class="pe-meta">${e(meta)}</p>` : ""}</div>${input.saveHtml}</div><ul class="pe-chips" data-pe-chips>${chips.map((x) => `<li>${e(x)}</li>`).join("")}</ul>`;
 
   const primary = (label: string) => `<a class="gpd-primary" href="${e(input.recordHref)}" data-pe-record>${CAMERA}<span>${e(label)}</span></a>`;
-  const moreBtn = `<a class="gpd-secondary" href="${e(input.moreHref)}" data-pe-more>${e(input.moreLabel)}</a>`;
 
   const hostLink = input.nocosilEventHref ? `<p class="pe-host" data-pe-host-event><a href="${e(input.nocosilEventHref)}" rel="noopener">${e(c.hostEvent)}</a></p>` : "";
   const regionHtml = input.regionLink ? `<p class="pe-host" data-pe-region><a href="${e(input.regionLink.href)}">${e(input.regionLink.label)}</a></p>` : "";
   let main: string;
   if (!input.hasRecords) {
-    main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section><div class="pe-actions">${moreBtn}</div>${hostLink}${regionHtml}`;
+    main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section>${hostLink}${regionHtml}`;
   } else {
     const recordsSec = `<section data-pe-records><div class="pe-h"><h2>${e(c.records)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div>${strip}${rows ? `<div class="pe-rows">${rows}</div>` : ""}</section>`;
     const invList = c.invasive && input.invasive?.length
@@ -180,7 +179,7 @@ export function renderPlaceE(input: PlaceEInput): string {
     const events = input.events.length
       ? `<section data-pe-events><div class="pe-h"><h2>${e(c.events)}</h2></div><div class="pe-rows">${input.events.slice(0, 3).map((ev) => `<a class="pe-row" href="${e(ev.href)}">${ev.thumbUrl && !shown.has(ev.thumbUrl) ? `<span class="pe-thumb"><img src="${e(ev.thumbUrl)}" alt="" loading="lazy"></span>` : ""}<span class="tx"><div class="t">${e(ev.title)}</div><div class="s">${e(ev.whenLabel)}</div></span>${CHEV}</a>`).join("")}</div></section>`
       : "";
-    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>${hostLink}${regionHtml}`;
+    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}</div>${hostLink}${regionHtml}`;
   }
   const ownerHtml = input.ownerRecords && input.ownerRecords.count > 0
     ? `<p class="pe-host" data-pe-own><a href="${e(input.ownerRecords.href)}">${e(input.lang === "ja" ? `あなたの記録 ${input.ownerRecords.count}件` : `Your records: ${input.ownerRecords.count}`)}</a></p>`
