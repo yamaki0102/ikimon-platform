@@ -22,6 +22,7 @@ import * as flag20 from "./REGION_SURFACE_V1_ENABLED";
 import * as flag21 from "./SEARCH_V2_ENABLED";
 import * as flag22 from "./SHOP_PHOTO_PERK_ENABLED";
 import * as flag23 from "./SPECIES_READER_LAYER_ENABLED";
+import * as flag24 from "./SPECIES_SURFACE_V1_ENABLED";
 
 export const FLAG_DEFINITIONS = [
   { ...flag0, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
@@ -48,6 +49,7 @@ export const FLAG_DEFINITIONS = [
   { ...flag21, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag22, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
   { ...flag23, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
+  { ...flag24, scopes: ["wrangler.jsonc:vars","wrangler.jsonc:env.shadow.vars","wrangler.jsonc:env.staging.vars","wrangler.jsonc:env.production.vars"] },
 ] as const;
 
 export const PROTOTYPE_FLAGS = [
@@ -75,4 +77,5 @@ export const PROTOTYPE_FLAGS = [
   { flag: flag21.flag, feature: flag21.feature, lane: flag21.lane, path: flag21.path, stagingEnabled: flag21.staging },
   { flag: flag22.flag, feature: flag22.feature, lane: flag22.lane, path: flag22.path, stagingEnabled: flag22.staging },
   { flag: flag23.flag, feature: flag23.feature, lane: flag23.lane, path: flag23.path, stagingEnabled: flag23.staging },
+  { flag: flag24.flag, feature: flag24.feature, lane: flag24.lane, path: flag24.path, stagingEnabled: flag24.staging },
 ] as const;

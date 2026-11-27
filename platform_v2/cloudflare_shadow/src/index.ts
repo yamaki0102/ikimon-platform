@@ -208,10 +208,12 @@ const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
+import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
 import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
+const speciesSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SPECIES_SURFACE_V1_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
 const MAP_INVASIVE_TOP_CHIP_FLAG = "MAP_INVASIVE_TOP_CHIP_ENABLED";
 const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
@@ -3853,6 +3855,16 @@ export const worker = {
           const regionSession = await readCompatibleSession(request, env).catch(() => null);
           if (regionSurfaceV1On(env, regionSession)) {
             return handleRegionSurfaceRoute(request, url, env, regionSession, regionMatch[1], Boolean(regionMatch[2]));
+          }
+        }
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const speciesMatch = stripPublicLangPrefix(url.pathname).match(/^\/species\/([^/]+)$/u);
+        if (speciesMatch?.[1]) {
+          const speciesSession = await readCompatibleSession(request, env).catch(() => null);
+          if (speciesSurfaceV1On(env, speciesSession)) {
+            return handleSpeciesSurfaceRoute(request, url, env, speciesSession, speciesMatch[1]);
           }
         }
       }
@@ -25372,9 +25384,10 @@ async function handleRegionSurfaceRoute(
   const cspNonce = createHtmlCspNonce();
   const authenticated = Boolean(session && !session.banned);
   const invasiveAvailable = invasiveMapV1On(env, session);
+  const speciesSurface = speciesSurfaceV1On(env, session);
   const page = speciesList
-    ? renderRegionSpeciesListPage({ data, group: parseGroupFilter(url.searchParams.get("group")), lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable, origin: seoOrigin(env) })
-    : renderRegionSurfacePage({ data, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable, origin: seoOrigin(env) });
+    ? renderRegionSpeciesListPage({ data, group: parseGroupFilter(url.searchParams.get("group")), lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable, speciesSurface, origin: seoOrigin(env) })
+    : renderRegionSurfacePage({ data, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, invasiveAvailable, speciesSurface, origin: seoOrigin(env) });
   return new Response(request.method === "HEAD" ? null : page, {
     status: 200,
     headers: {
@@ -25383,6 +25396,45 @@ async function handleRegionSurfaceRoute(
       "cache-control": "private, max-age=120",
       "vary": "cookie, authorization",
       "x-ikimon-cloudflare-native": speciesList ? "region-species-v1" : "region-surface-v1",
+    },
+  });
+}
+
+async function handleSpeciesSurfaceRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+  rawKey: string,
+): Promise<Response> {
+  const notFound = () => json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const key = resolveSpeciesKey(rawKey);
+  if (key.kind === "invalid") return notFound();
+  if (key.kind === "redirect") {
+    return new Response(null, { status: 301, headers: { location: `/${lang}/species/${encodeURIComponent(key.name)}`, "cache-control": "public, max-age=300" } });
+  }
+  const data = await loadSpeciesSurfaceData(env.OBS_DB, key.name, (ids) => queryPublicMapPhotoUrls(env, ids), normalizeSafePublicAreaLabelCandidate);
+  if (!data) return notFound();
+  const cspNonce = createHtmlCspNonce();
+  const page = renderSpeciesSurfacePage({
+    data,
+    lang,
+    authenticated: Boolean(session && !session.banned),
+    displayName: session?.displayName ?? null,
+    cspNonce,
+    invasiveAvailable: invasiveMapV1On(env, session),
+    regionAvailable: regionSurfaceV1On(env, session),
+    origin: seoOrigin(env),
+  });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "species-surface-v1",
     },
   });
 }
