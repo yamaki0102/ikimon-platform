@@ -2575,7 +2575,7 @@ async function loadPublicPlaceProfile(env: Env, canonicalPlaceId: string): Promi
       "retry-after": "60",
     });
   }
-  const registeredCircle = Boolean(result && !result.osmSourceId && (result.source?.sourceType === "owner_registered" || result.source?.sourceType === "osm_node"));
+  const registeredCircle = Boolean(result && !result.osmSourceId && ["owner_registered", "osm_node", "moe_30by30", "hamamatsu_cultural_property", "shizuoka_cultural_property"].includes(result.source?.sourceType ?? ""));
   if (!result || (!result.osmSourceId && !registeredCircle)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
