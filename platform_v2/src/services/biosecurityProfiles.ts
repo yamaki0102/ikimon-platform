@@ -101,7 +101,7 @@ export const BIOSECURITY_PROFILES: readonly BiosecurityProfile[] = [{
   ],
   copy: {
     notePlaceholder: "見た目や数、いた場所など、わかることだけ",
-    stepLead: "外来種かもしれない生きものを、写真で残せます。今ある写真でも大丈夫です。",
+    stepLead: "外来種かもしれない生きものを、写真で残せます。",
     photoGuide: [
       { heading: "生きものを見つけたら", body: "全体と、色や形など気になるところ。近づきすぎず撮りましょう。" },
       { heading: "増えている場所を見つけたら", body: "広がりの全体と、まわりのようす。水辺や道ばたなど、どこにいたかが分かると役立ちます。" },

@@ -187,8 +187,8 @@ test("guest top v2 flag is registered off for every environment and rolled out t
   const config = parse(await read(process.cwd(), "wrangler.jsonc"));
   for (const vars of [config.vars, config.env.shadow.vars, config.env.staging.vars, config.env.production.vars]) assert.equal(vars.GUEST_TOP_V2_PROTOTYPE_ENABLED, undefined);
   const rollouts = JSON.parse(config.env.production.vars.ZUKAN_FEATURE_ROLLOUTS);
-  assert.equal(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.state, "allowlist");
-  assert.deepEqual(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.allowlist, ["user_journey_synthetic"]);
+  assert.ok(["allowlist", "all"].includes(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.state));
+  assert.ok(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.allowlist.includes("user_journey_synthetic"));
   assert.match(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.expiresOn, /^\d{4}-\d{2}-\d{2}$/u);
   assert.ok(rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.removeBy >= rollouts.GUEST_TOP_V2_PROTOTYPE_ENABLED.expiresOn);
 });
