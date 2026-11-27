@@ -4937,6 +4937,8 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/waitlist/status") {
+        const wlSession = await readCompatibleSession(request, env).catch(() => null);
+        if (!wlSession || (wlSession.roleName ?? "").trim().toLowerCase() !== "admin") return json({ ok: false, error: "not_found" }, 404, { "cache-control": "no-store" });
         const result = await getWaitlistStatusForEmail(env.CORE_DB, url.searchParams.get("email"));
         return json(result, result.ok ? 200 : 400, { "cache-control": "no-store" });
       }
