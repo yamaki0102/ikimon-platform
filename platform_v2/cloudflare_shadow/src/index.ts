@@ -88,7 +88,7 @@ import {
   handleSaveAccountSettingsDetail,
   type SettingsDetailSection,
 } from "./zukanAccountSettingsDetail";
-import { handleProfileAvatarGet, handleProfileAvatarUpload } from "./zukanProfileAvatar";
+import { handleProfileAvatarGet, handleProfileAvatarUpload, PROFILE_AVATAR_LOADER_JS } from "./zukanProfileAvatar";
 import {
   handleMyRecordsApi,
   handleMyRecordsRoute,
@@ -4564,6 +4564,7 @@ export const worker = {
         return handleProfileAvatarUpload(request, session, env.CORE_DB, (userId, input) => storeProfileAvatarIfPresent(env, userId, input));
       }
 
+      if (request.method === "GET" && url.pathname === "/api/v1/profile/avatar/loader.js") return new Response(PROFILE_AVATAR_LOADER_JS, { status: 200, headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=300" } });
       if (request.method === "GET" && url.pathname === "/api/v1/profile/avatar/me") {
         const session = await readCompatibleSession(request, env, false).catch(() => null);
         return handleProfileAvatarGet(request, session, env.CORE_DB, env.ASSET_BUCKET);

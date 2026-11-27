@@ -52,3 +52,5 @@ export async function handleProfileAvatarGet(
   if (!object) return notFound();
   return new Response(object.body, { status: 200, headers: { ...headers, "content-type": "image/png" } });
 }
+
+export const PROFILE_AVATAR_LOADER_JS = "(()=>{const els=document.querySelectorAll(\".zt-avatar,.zt-ph-av,.zt-ps-av\");if(!els.length)return;const src=\"/api/v1/profile/avatar/me\";fetch(src,{credentials:\"same-origin\"}).then((r)=>r.status===200?r.blob():null).then((b)=>{if(!b)return;const u=URL.createObjectURL(b);els.forEach((e)=>{e.style.backgroundImage=\"url(\"+u+\")\";e.style.backgroundSize=\"cover\";e.style.backgroundPosition=\"center\";e.style.color=\"transparent\";});}).catch(()=>{});})();";
