@@ -57,6 +57,7 @@ export function mapPlaceCardFromProfile(profile: MapPlaceCardProfileLike): MapPl
 
 export const MAP_PLACES_DEFAULT_RADIUS_KM = 10;
 export const MAP_PLACES_NEAREST_LIMIT = 20;
+export const MAP_PLACES_NAME_SEARCH_LIMIT = 50;
 export const MAP_PLACES_ENRICH_TOP = 3;
 const MAP_PLACES_MAX_RADIUS_KM = 50;
 const KM_PER_DEG_LAT = 111.32;
@@ -196,6 +197,7 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"], opts: { un
   const isV2 = url.searchParams.get("v2") === "1";
   const limit = parseQueryLimit(url, isV2);
   const qText = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const qLike = qText ? `%${qText.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
 
   const runSelect = async (withExtendedCols: boolean): Promise<PlacePinRow[]> => {
     const ext = withExtendedCols
@@ -218,8 +220,24 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"], opts: { un
                  ORDER BY b2.is_primary DESC, b2.boundary_version DESC
                  LIMIT 1)
         WHERE p.public_profile_status = 'published'
-          AND p.superseded_by_place_id IS NULL`;
+          AND p.superseded_by_place_id IS NULL${qLike ? " AND LOWER(p.canonical_name) LIKE ? ESCAPE '\\'" : ""}`;
 
+    if (center && qLike) {
+      const cosLat = Math.max(Math.cos((center.lat * Math.PI) / 180), 0.01);
+      return (
+        (
+          await db
+            .prepare(
+              `${base}
+              ORDER BY (((b.bbox_south + b.bbox_north) / 2.0 - ?) * ((b.bbox_south + b.bbox_north) / 2.0 - ?))
+                     + ((((b.bbox_west + b.bbox_east) / 2.0 - ?) * ?) * (((b.bbox_west + b.bbox_east) / 2.0 - ?) * ?)) ASC
+              LIMIT ${Math.min(limit, MAP_PLACES_NAME_SEARCH_LIMIT)}`
+            )
+            .bind(qLike, center.lat, center.lat, center.lng, cosLat, center.lng, cosLat)
+            .all<PlacePinRow>()
+        ).results ?? []
+      );
+    }
     if (center) {
       const cosLat = Math.max(Math.cos((center.lat * Math.PI) / 180), 0.01);
       const dLat = center.radiusKm / KM_PER_DEG_LAT;
@@ -256,12 +274,12 @@ async function queryPublicPlacesInBounds(url: URL, db: Env["OBS_DB"], opts: { un
                 AND (b.bbox_west + b.bbox_east) / 2.0 BETWEEN ? AND ?
               LIMIT ${limit}`
             )
-            .bind(minLat, maxLat, minLng, maxLng)
+            .bind(...(qLike ? [qLike] : []), minLat, maxLat, minLng, maxLng)
             .all<PlacePinRow>()
         ).results ?? []
       );
     }
-    return (await db.prepare(`${base} LIMIT ${limit}`).all<PlacePinRow>()).results ?? [];
+    return (await (qLike ? db.prepare(`${base} LIMIT ${limit}`).bind(qLike) : db.prepare(`${base} LIMIT ${limit}`)).all<PlacePinRow>()).results ?? [];
   };
 
   let rows: PlacePinRow[] = [];
