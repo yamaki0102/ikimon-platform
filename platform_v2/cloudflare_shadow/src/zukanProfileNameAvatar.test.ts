@@ -96,8 +96,8 @@ test("avatar upload stores columns, get serves image with etag and 404 without a
 
 test("shell loads the avatar image for members with the initial as fallback", () => {
   const member = renderZukanChrome({ lang: "ja", activeNav: "profile", authenticated: true, displayName: "はまっこ" });
-  assert.ok(member.bottomNavHtml.includes("/api/v1/profile/avatar/me"));
+  assert.ok(member.bottomNavHtml.includes("/api/v1/profile/avatar/loader.js"));
   assert.ok(member.topbarHtml.includes(">は</a>"));
   const guest = renderZukanChrome({ lang: "ja", activeNav: "library", authenticated: false });
-  assert.ok(!guest.bottomNavHtml.includes("/api/v1/profile/avatar/me"));
+  assert.ok(!guest.bottomNavHtml.includes("/api/v1/profile/avatar/loader.js"));
 });
