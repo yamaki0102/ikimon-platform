@@ -123,6 +123,8 @@ a,button{font:inherit;color:inherit}
 /* Full-bleed Map Canvas */
 .zv2-mapwrap{position:absolute;top:0;left:0;right:0;bottom:calc(70px + env(safe-area-inset-bottom));z-index:1;background:#eff2ea}
 #zv2-map-canvas{position:absolute;inset:0;width:100%;height:100%}
+.zv2-locating{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;color:#55615A;font-size:15px;font-weight:600;pointer-events:none}
+.zv2-locating[hidden]{display:none}
 .zv2-pin-photo{display:flex;flex-direction:column;align-items:center;pointer-events:auto;cursor:pointer}
 .zv2-pin-photo img{width:52px;height:52px;border-radius:50%;border:3px solid #143F2E;object-fit:cover;background:#e8efea;box-shadow:0 2px 8px rgba(9,25,16,.4)}
 .zv2-pin-photo::after{content:"";border:7px solid transparent;border-top:9px solid #143F2E;margin-top:-2px}
@@ -311,6 +313,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   <div class="zv2-mapwrap" id="zv2-mapwrap">
     <div id="zv2-map-canvas" aria-label="生きものマップ"></div>
+    <div class="zv2-locating" id="zv2-locating" hidden>現在地を確認中…</div>
     <div class="zv2-inv-legend" id="zv2-inv-legend" hidden>
       <div>特定外来生物を含む記録（持ち帰らない・動かさない）</div>
       <a href="/ja/learn/invasive-species">外来種の見分け方と注意点</a>
@@ -364,6 +367,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   var appEl = document.querySelector('.zv2-app');
   var sheetEl = document.getElementById('zv2-sheet');
+  var locatingEl = document.getElementById('zv2-locating');
   var sheetHeadEl = document.getElementById('zv2-sheet-head');
   var peekTtlEl = document.getElementById('zv2-peek-ttl');
   var peekSubEl = document.getElementById('zv2-peek-sub');
@@ -421,13 +425,15 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     return dLat * dLat + dLng * dLng;
   }
 
+  function rcOf(p) { return typeof p.recordCount === 'number' ? p.recordCount : null; }
+
   function filteredPlaces() {
     var q = (state.searchQuery || '').trim().toLowerCase();
     return state.places.filter(function (p) {
-      var rc = typeof p.recordCount === 'number' ? p.recordCount : 0;
+      var rc = rcOf(p);
       if (state.placeKindFilter && p.placeKind !== state.placeKindFilter) return false;
       if (state.onlyRecordedFilter && rc === 0) return false;
-      if (state.taxonGroup && rc === 0 && !q) return false;
+      if (state.taxonGroup && !rc && !q) return false;
       if (q && String(p.name || '').toLowerCase().indexOf(q) < 0) return false;
       return true;
     });
@@ -467,8 +473,9 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   }
 
   function renderSelectedHtml(p, mobileLow) {
-    var rc = typeof p.recordCount === 'number' ? p.recordCount : 0;
+    var rc = rcOf(p);
     var isZero = rc === 0;
+    var isUnk = rc === null;
     var own = CFG.authenticated && typeof p.ownCount === 'number' && p.ownCount > 0 ? p.ownCount : 0;
     var h = '<button type="button" class="zv2-backrow" data-zv2-back="1">' + ${JSON.stringify(ICON_BACK)} + '<span>近くの場所へ戻る</span></button>';
     h += '<h2 class="zv2-pname">' + esc(p.name) + '</h2>';
@@ -487,7 +494,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     }
 
     var spText = typeof p.speciesCount === 'number' && p.speciesCount > 0 ? ' ・ ' + p.speciesCount + '種類' : '';
-    h += '<div class="zv2-pmeta">記録 ' + rc + '件' + esc(spText) + '</div>';
+    h += '<div class="zv2-pmeta">' + (isUnk ? esc(kindLabel(p.placeKind)) : '記録 ' + rc + '件' + esc(spText)) + '</div>';
     if (!mobileLow) {
       var photos = Array.isArray(p.photos) && p.photos.length ? p.photos.slice(0, 3) : (p.photoUrl ? [p.photoUrl] : []);
       if (photos.length) {
@@ -535,7 +542,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
       return '<button type="button" class="zv2-prow" data-zv2-select-place="' + esc(p.placeId) + '">'
         + imgHtml
-        + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">記録 ' + p.recordCount + '件</span></span>'
+        + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : '記録 ' + p.recordCount + '件') + '</span></span>'
         + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></button>';
     }).join('');
 
@@ -570,8 +577,8 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   function renderUI() {
     var list = filteredPlaces();
-    var rec = list.filter(function (p) { return (p.recordCount || 0) > 0; });
-    var zero = list.filter(function (p) { return (p.recordCount || 0) === 0; });
+    var rec = list.filter(function (p) { return rcOf(p) !== 0; });
+    var zero = list.filter(function (p) { return rcOf(p) === 0; });
     var sel = state.selectedId ? state.places.find(function (p) { return p.placeId === state.selectedId; }) || null : null;
 
     if (invLegendEl) invLegendEl.hidden = state.taxonGroup !== 'invasive';
@@ -632,7 +639,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
             properties: {
               placeId: p.placeId,
               name: p.name,
-              recordCount: p.recordCount || 0,
+              recordCount: rcOf(p) === null ? '' : p.recordCount,
               sortKey: -(p.recordCount || 0)
             }
           };
@@ -657,11 +664,37 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     if (state.map.getLayer('zv2-sel-label')) state.map.setFilter('zv2-sel-label', ['==', ['get', 'placeId'], selId]);
   }
 
+  function enrichPlace(sel) {
+    sel.enrichTried = true;
+    var params = new URLSearchParams();
+    params.set('v2', '1');
+    params.set('limit', '3');
+    params.set('radiusKm', '0.05');
+    params.set('lat', Number(sel.lat).toFixed(6));
+    params.set('lng', Number(sel.lng).toFixed(6));
+    fetch(CFG.placesApi + '?' + params.toString(), { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !Array.isArray(d.places)) return;
+        var got = d.places.find(function (p) { return p.placeId === sel.placeId; });
+        if (!got || typeof got.recordCount !== 'number') return;
+        var cur = state.places.find(function (p) { return p.placeId === sel.placeId; });
+        if (!cur) return;
+        cur.recordCount = got.recordCount;
+        cur.photoUrl = got.photoUrl || cur.photoUrl || null;
+        cur.photos = got.photos && got.photos.length ? got.photos : (cur.photos || []);
+        cur.latestRecord = got.latestRecord || cur.latestRecord || null;
+        renderUI();
+      })
+      .catch(function () {});
+  }
+
   function selectPlace(placeId) {
     state.selectedId = placeId;
     state.selectedExpanded = false;
     var sel = state.places.find(function (p) { return p.placeId === placeId; });
     renderUI();
+    if (sel && rcOf(sel) === null && !sel.enrichTried) enrichPlace(sel);
     if (sel && state.map && typeof state.map.project === 'function') {
       var pt = state.map.project([sel.lng, sel.lat]);
       var sheetRect = sheetEl ? sheetEl.getBoundingClientRect() : { top: window.innerHeight };
@@ -832,16 +865,81 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     }
   }
 
+  var GEO_KEY = 'zv2-last-fix';
+  function readStoredFix() {
+    try {
+      var o = JSON.parse(window.localStorage.getItem(GEO_KEY) || 'null');
+      if (!o || !isFinite(o.lat) || !isFinite(o.lng) || !o.t || Date.now() - o.t > 86400000) return null;
+      return o;
+    } catch (_) { return null; }
+  }
+  function storeFix(lat, lng) {
+    try { window.localStorage.setItem(GEO_KEY, JSON.stringify({ lat: lat, lng: lng, t: Date.now() })); } catch (_) {}
+  }
+  function distMeters(aLat, aLng, bLat, bLng) {
+    var dy = (aLat - bLat) * 111320;
+    var dx = (aLng - bLng) * 111320 * Math.cos(aLat * Math.PI / 180);
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   function initMap() {
     if (!window.maplibregl) return;
     var sp = new URLSearchParams(window.location.search);
     var qLat = parseFloat(sp.get('lat') || '');
     var qLng = parseFloat(sp.get('lng') || '');
     var qZoom = parseFloat(sp.get('z') || '');
-    var startCenter = (isFinite(qLat) && isFinite(qLng) && Math.abs(qLat) <= 90 && Math.abs(qLng) <= 180)
-      ? [qLng, qLat]
-      : CFG.defaultCenter;
-    var startZoom = isFinite(qZoom) && qZoom >= 0 && qZoom <= 22 ? qZoom : CFG.defaultZoom;
+    var hasUrlCenter = isFinite(qLat) && isFinite(qLng) && Math.abs(qLat) <= 90 && Math.abs(qLng) <= 180;
+    var zoomParam = isFinite(qZoom) && qZoom >= 0 && qZoom <= 22 ? qZoom : null;
+    var created = false;
+    function build(center, zoom) {
+      if (created) return;
+      created = true;
+      if (locatingEl) locatingEl.hidden = true;
+      createMap(center, zoom);
+    }
+    if (hasUrlCenter) {
+      build([qLng, qLat], zoomParam !== null ? zoomParam : CFG.defaultZoom);
+      return;
+    }
+    function applyFix(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      if (!isFinite(lat) || !isFinite(lng)) return;
+      storeFix(lat, lng);
+      state.userCenter = { lat: lat, lng: lng };
+      if (!created) {
+        build([lng, lat], zoomParam !== null ? zoomParam : 15);
+        return;
+      }
+      var m = state.map;
+      if (!m || state.userMoved) return;
+      var c = m.getCenter();
+      if (distMeters(c.lat, c.lng, lat, lng) > 150) m.jumpTo({ center: [lng, lat] });
+    }
+    var stored = readStoredFix();
+    if (stored) {
+      state.userCenter = { lat: stored.lat, lng: stored.lng };
+      build([stored.lng, stored.lat], zoomParam !== null ? zoomParam : 15);
+    } else if (navigator.geolocation) {
+      if (locatingEl) locatingEl.hidden = false;
+      setTimeout(function () { build(CFG.defaultCenter, zoomParam !== null ? zoomParam : CFG.defaultZoom); }, 1500);
+    } else {
+      build(CFG.defaultCenter, zoomParam !== null ? zoomParam : CFG.defaultZoom);
+    }
+    if (navigator.geolocation) {
+      var onErr = function () { if (!created) build(CFG.defaultCenter, zoomParam !== null ? zoomParam : CFG.defaultZoom); };
+      navigator.geolocation.getCurrentPosition(applyFix, onErr, { enableHighAccuracy: false, maximumAge: 60000, timeout: 4000 });
+      try {
+        var wid = navigator.geolocation.watchPosition(function (pos) {
+          navigator.geolocation.clearWatch(wid);
+          applyFix(pos);
+        }, function () {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 });
+        setTimeout(function () { navigator.geolocation.clearWatch(wid); }, 9000);
+      } catch (_) {}
+    }
+  }
+
+  function createMap(startCenter, startZoom) {
     var map = new window.maplibregl.Map({
       container: 'zv2-map-canvas',
       style: CFG.styleUrl,
@@ -850,6 +948,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       attributionControl: false
     });
     state.map = map;
+    map.on('dragstart', function () { state.userMoved = true; });
     map.on('load', function () {
       try {
         var cv = document.createElement('canvas');
