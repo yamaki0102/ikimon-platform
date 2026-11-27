@@ -61,17 +61,17 @@ const COPY = {
     season: "いまの季節のようす", seasonTitle: (m: number) => `${m}月の記録`,
     recent: "最近の記録", seeAll: "すべて見る", unnamed: "名前は未確定", confirmed: "確認済み",
     events: "ここで開かれる観察会", steward: "場所の担当", stewardNote: "この場所の担当です。観察会や記録の相談ができます。", stewardSuffix: " さん",
-    around: "この場所のまわり", openMap: "地図で見る", nearby: "近くの場所",
+    around: "この場所のまわり", openMap: "地図で見る", nearby: "近くの場所", fieldCard: "出発前カード",
   },
   en: {
     top: "Place", mark: "Place guide", stat: "Records here", since: "First record", latest: "Latest record",
     record: "Record at this place", first: "Record the first one",
     emptyTitle: "No records yet", emptyBody: "Leave the first record and this place's guide begins. A single photo of a bird, a flower or the surroundings is enough.",
     pendingTitle: "Records are starting to arrive", pendingBody: "They will appear here once enough can be shown.",
-    season: "This season here", seasonTitle: (m: number) => `Record from month ${m}`,
+    season: "This season here", seasonTitle: (m: number) => `Records from ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1] ?? m}`,
     recent: "Recent records", seeAll: "See all", unnamed: "Not named yet", confirmed: "Confirmed",
     events: "Events held here", steward: "Place steward", stewardNote: "Steward of this place. Ask about events and records.", stewardSuffix: "",
-    around: "Around this place", openMap: "View on map", nearby: "Nearby places",
+    around: "Around this place", openMap: "View on map", nearby: "Nearby places", fieldCard: "Pre-trip card",
   },
 } as const;
 
@@ -229,7 +229,7 @@ export function renderPlaceV3(input: PlaceV3Input): string {
     ? `<div class="pv3-cta">${primary(c.record)}${input.saveHtml}</div>`
     : `<div class="pv3-invite" data-pv3-invite><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pv3-cta">${primary(input.suppressed ? c.record : c.first)}</div></div>`;
 
-  const fieldCardLink = input.fieldCardHref ? `<a class="pv3-fc" data-pv3-field-card href="${e(input.fieldCardHref)}">出発前カード</a>` : "";
+  const fieldCardLink = input.fieldCardHref ? `<a class="pv3-fc" data-pv3-field-card href="${e(input.fieldCardHref)}">${e(c.fieldCard)}</a>` : "";
   let season = "";
   if (input.hasRecords && nowJst) {
     const pick = input.records.find((r) => {

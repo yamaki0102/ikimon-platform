@@ -42,7 +42,7 @@ function fixture(overrides: Partial<PlaceAtlasProfile> = {}): PlaceAtlasProfile 
       kind: "recent_activity",
       text: "最近も新しい記録が追加されています",
       evidenceCount: 1,
-      sourceLabel: "公開Record",
+      sourceLabel: "公開記録",
       confidence: "derived",
     }],
     recentRecords: [{
@@ -202,7 +202,7 @@ test("place atlas renderer leads with place, representative media, safe summary,
   assert.match(html, /data-place-atlas-profile/);
   assert.match(html, /常磐公園/);
   assert.match(html, /\/derived-transform\/w680\/derived\/tokiwa\/display\.webp/);
-  assert.match(html, /公開Record/);
+  assert.match(html, /公開記録/);
   assert.match(html, />3<\/strong>/);
   assert.match(html, /この場所で見えてきたこと/);
   assert.match(html, /自然・生きもの/);
@@ -304,7 +304,7 @@ test("place atlas renderer never turns unknown counts into zero or a false empty
   });
   const html = renderMapPlaceAtlasProfile(profile, options);
 
-  assert.doesNotMatch(html, /公開Record<\/span><strong>0/);
+  assert.doesNotMatch(html, /公開記録<\/span><strong>0/);
   assert.doesNotMatch(html, /記録はありません/);
   assert.match(html, /未確認/);
 });
@@ -479,4 +479,30 @@ test("Place detail action is omitted without a registry-backed canonical identit
   assert.doesNotMatch(renderMapPlaceAtlasProfile(fixture(), options), /map:place_atlas:open_detail/);
   const profile = fixture({ place: { ...fixture().place, canonicalPlaceId: "plc_e3293ec4bb9288a0" } });
   assert.doesNotMatch(renderMapPlaceAtlasProfile(profile, { ...options, placeHrefPrefix: undefined }), /map:place_atlas:open_detail/);
+});
+
+test("English atlas localizes generated highlights, gaps and policy link", () => {
+  const profile = {
+    ...fixture(),
+    highlights: [
+      { kind: "recent_activity", text: "最近も新しい記録が追加されています", evidenceCount: 4, sourceLabel: "公開記録", confidence: "derived" },
+      { kind: "seasonal_pattern", text: "春の記録が多く残っています", evidenceCount: 23, sourceLabel: "公開記録の観察月", confidence: "derived" },
+      { kind: "dominant_theme", text: "自然・生きものの記録が多い場所です", evidenceCount: 5, sourceLabel: "地域図鑑theme", confidence: "derived" },
+    ],
+    dataGaps: [
+      { key: "contributors", label: "記録した人の広がり", reason: "個人を特定せず安全に集計できる条件がそろっていないため表示していません。" },
+      { key: "public_threshold", label: "公開記録", reason: "少数記録から場所や投稿者が推測されないよう、公開閾値を満たすまで詳細を控えています。" },
+    ],
+    policy: { placeVisibility: "public", recordingPolicy: "allowed", publicLocationMode: "place", contributionCtaMode: "record", ruleUrl: "https://example.test/rules", ruleSource: "default" },
+  } as unknown as PlaceAtlasProfile;
+  const html = renderMapPlaceAtlasProfile(profile, { ...options, lang: "en" });
+  assert.match(html, /Many records from spring remain/);
+  assert.match(html, /New records are still being added/);
+  assert.match(html, /Public records by month observed/);
+  assert.match(html, /Spread of contributors/);
+  assert.match(html, /Official rules/);
+  assert.doesNotMatch(html, /公開Record|公開記録|春の記録|記録した人の広がり|公式ルール/);
+  const ja = renderMapPlaceAtlasProfile(profile, options);
+  assert.match(ja, /春の記録が多く残っています/);
+  assert.match(ja, /公式ルール/);
 });

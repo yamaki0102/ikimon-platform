@@ -5,10 +5,25 @@ import { ZUKAN_SHELL_CSS, renderZukanChrome } from "./zukanShellChrome";
 
 export const INVASIVE_MAP_V1_FLAG = "INVASIVE_MAP_V1_ENABLED";
 
-const OFFICIAL_SOURCES: readonly { label: string; href: string }[] = [
-  { label: "環境省「特定外来生物等一覧」", href: "https://www.env.go.jp/nature/intro/2outline/list.html" },
-  { label: "環境省「生態系被害防止外来種リスト」", href: "https://www.env.go.jp/nature/intro/2outline/iaslist.html" },
+type SiteLang = "ja" | "en" | "es" | "pt-br";
+export const tr = (lang: SiteLang, ja: string, en: string): string => (lang === "ja" ? ja : en);
+const EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+export const learnPathFor = (lang: SiteLang): string => (lang === "ja" ? INVASIVE_LEARN_PATH : `/${lang}/learn/invasive-species`);
+
+const OFFICIAL_SOURCES: readonly { label: string; labelEn: string; href: string }[] = [
+  { label: "環境省「特定外来生物等一覧」", labelEn: "Ministry of the Environment, List of Designated Invasive Alien Species (特定外来生物等一覧)", href: "https://www.env.go.jp/nature/intro/2outline/list.html" },
+  { label: "環境省「生態系被害防止外来種リスト」", labelEn: "Ministry of the Environment, List of Invasive Alien Species Threatening Ecosystems (生態系被害防止外来種リスト)", href: "https://www.env.go.jp/nature/intro/2outline/iaslist.html" },
 ];
+const sourceLabel = (s: { label: string; labelEn: string }, lang: SiteLang): string => tr(lang, s.label, s.labelEn);
+
+const CATEGORY_LABELS_EN: Readonly<Record<InvasiveCategory, string>> = {
+  iaspecified: "Invasive Alien Species (designated)",
+  conditional: "Conditional Invasive Alien Species",
+  priority: "Priority countermeasure invasive species",
+  prevention: "Invasive species requiring ecosystem damage prevention",
+};
+const categoryLabelFor = (category: InvasiveCategory, ja: string, lang: SiteLang): string => (lang === "ja" ? ja : CATEGORY_LABELS_EN[category]);
 
 const esc = (v: unknown): string =>
   String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
@@ -114,14 +129,16 @@ export function canonicalSpeciesName(slug: string): string | null {
   return hit ? hit[0] : null;
 }
 
-function monthLabel(iso: string): string {
+function monthLabel(iso: string, lang: SiteLang = "ja"): string {
   const m = /^(\d{4})-(\d{2})/.exec(iso);
-  return m ? `${m[1]}年${Number(m[2])}月` : "";
+  if (!m) return "";
+  return lang === "ja" ? `${m[1]}年${Number(m[2])}月` : `${EN_MONTHS[Number(m[2]) - 1] ?? ""} ${m[1]}`;
 }
 
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, lang: SiteLang = "ja"): string {
   const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso);
-  return m ? `${Number(m[1])}月${Number(m[2])}日` : "";
+  if (!m) return "";
+  return lang === "ja" ? `${Number(m[1])}月${Number(m[2])}日` : `${EN_MONTHS[Number(m[1]) - 1] ?? ""} ${Number(m[2])}`;
 }
 
 export function summarizeSpecies(records: readonly InvasiveRecord[]): InvasiveSpeciesSummary[] {
@@ -209,7 +226,7 @@ export const CHEV_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="
 const badge = (category: InvasiveCategory, label: string): string =>
   `<span class="${badgeClass(category)}">${category === "iaspecified" || category === "conditional" ? WARN_ICON : ""}<span class="iv-nb">${esc(label)}</span></span>`;
 
-function plotHtml(records: readonly InvasiveRecord[]): string {
+function plotHtml(records: readonly InvasiveRecord[], lang: SiteLang = "ja"): string {
   const cells = summarizeCells(records);
   if (cells.length === 0) return "";
   const W = 320;
@@ -232,19 +249,19 @@ function plotHtml(records: readonly InvasiveRecord[]): string {
     const cy = offY + (maxLat - c.lat) * scale;
     const x = Math.min(Math.max(cx - w / 2, 4), W - w - 4);
     const y = Math.min(Math.max(cy - h / 2, 4), H - h - 4);
-    return `<g><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="8" fill="#F3E3CF" fill-opacity=".82" stroke="#8A4B00" stroke-width="2"/><text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2 + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#6B3A00">${c.count}件</text></g>`;
+    return `<g><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="8" fill="#F3E3CF" fill-opacity=".82" stroke="#8A4B00" stroke-width="2"/><text x="${(x + w / 2).toFixed(1)}" y="${(y + h / 2 + 5).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="#6B3A00">${lang === "ja" ? `${c.count}件` : c.count}</text></g>`;
   }).join("");
-  return `<figure class="iv-plot" data-invasive-plot="1"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="外来種が確認されている範囲（大まかな位置）" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="14" fill="#EEF2EC"/>${rects}</svg><figcaption class="iv-note">場所は大まかに表示しています。新しい記録は、名前の確認が済んでから出ます。</figcaption></figure>`;
+  return `<figure class="iv-plot" data-invasive-plot="1"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${tr(lang, "外来種が確認されている範囲（大まかな位置）", "Area where invasive species have been confirmed (approximate location)")}" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="14" fill="#EEF2EC"/>${rects}</svg><figcaption class="iv-note">${tr(lang, "場所は大まかに表示しています。新しい記録は、名前の確認が済んでから出ます。", "Locations are shown roughly. New records appear after the name has been confirmed.")}</figcaption></figure>`;
 }
 
-function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: number, seen: Set<string> = new Set<string>()): string {
+function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: number, seen: Set<string> = new Set<string>(), lang: SiteLang = "ja"): string {
   const items: string[] = [];
   const sorted = [...records].sort((a, b) => b.observedAt.localeCompare(a.observedAt));
   for (const r of sorted) {
     if (items.length >= limit) break;
     const photo = r.photoUrl && !seen.has(r.photoUrl) ? r.photoUrl : null;
     if (photo) seen.add(photo);
-    items.push(`<a class="iv-rcard" href="${esc(`${prefix}/observations/${encodeURIComponent(r.visitId)}`)}">${photo ? `<img src="${esc(photo)}" alt="" loading="lazy" width="96" height="96">` : `<span class="iv-rph" aria-hidden="true"></span>`}<span class="iv-rb"><span class="iv-rt">${esc(r.name)}</span><span class="iv-rm">${esc(dayLabel(r.observedAt))}${r.area ? ` ・ ${esc(r.area)}` : ""}</span></span></a>`);
+    items.push(`<a class="iv-rcard" href="${esc(`${prefix}/observations/${encodeURIComponent(r.visitId)}`)}">${photo ? `<img src="${esc(photo)}" alt="" loading="lazy" width="96" height="96">` : `<span class="iv-rph" aria-hidden="true"></span>`}<span class="iv-rb"><span class="iv-rt">${esc(r.name)}</span><span class="iv-rm">${esc(dayLabel(r.observedAt, lang))}${r.area ? ` ${lang === "ja" ? "・" : "·"} ${esc(r.area)}` : ""}</span></span></a>`);
   }
   return items.join("");
 }
@@ -252,24 +269,32 @@ function recentHtml(records: readonly InvasiveRecord[], prefix: string, limit: n
 const BACK_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 6-6 6 6 6"/></svg>`;
 const SHARE_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V4"/><path d="m7.5 8 4.5-4 4.5 4"/><path d="M5 13.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-5.5"/></svg>`;
 
-export const headBar = (backHref: string): string => `<div class="iv-bar"><a class="iv-ib" data-iv-back="1" href="${esc(backHref)}" aria-label="戻る">${BACK_ICON}</a><button type="button" class="iv-ib" data-iv-share="1" aria-label="共有">${SHARE_ICON}</button></div><p class="iv-tstate" id="iv-share-state" aria-live="polite" style="margin:0"></p>`;
+export const headBar = (backHref: string, lang: SiteLang = "ja"): string => `<div class="iv-bar"><a class="iv-ib" data-iv-back="1" href="${esc(backHref)}" aria-label="${tr(lang, "戻る", "Back")}">${BACK_ICON}</a><button type="button" class="iv-ib" data-iv-share="1" aria-label="${tr(lang, "共有", "Share")}">${SHARE_ICON}</button></div><p class="iv-tstate" id="iv-share-state" aria-live="polite" style="margin:0"></p>`;
 
-const watchLink = (prefix: string): string => `<a class="iv-link" data-invasive-biosecurity="1" href="${esc(`${prefix}/biosecurity`)}"><span>外来種の見守りについて</span>${CHEV_ICON}</a>`;
+const watchLink = (prefix: string, lang: SiteLang = "ja"): string => `<a class="iv-link" data-invasive-biosecurity="1" href="${esc(`${prefix}/biosecurity`)}"><span>${tr(lang, "外来種の見守りについて", "About watching for invasive species")}</span>${CHEV_ICON}</a>`;
 
-const speciesLinks = (slug: string): string => `<div class="iv-sl"><a href="${esc(`${INVASIVE_LEARN_PATH}/${slug}`)}" data-invasive-about="1">この種について</a><a href="${esc(`${INVASIVE_LEARN_PATH}/${slug}#identify`)}" data-invasive-identify="1">見分けの助け</a></div>`;
+const speciesLinks = (slug: string, lang: SiteLang = "ja"): string => `<div class="iv-sl"><a href="${esc(`${learnPathFor(lang)}/${slug}`)}" data-invasive-about="1">${tr(lang, "この種について", "About this species")}</a><a href="${esc(`${learnPathFor(lang)}/${slug}#identify`)}" data-invasive-identify="1">${tr(lang, "見分けの助け", "How to identify it")}</a></div>`;
 
-export const SHARE_SCRIPT = `(function(){
+export const shareScript = (lang: SiteLang): string => `(function(){
   var back=document.querySelector('[data-iv-back]');var sh=document.querySelector('[data-iv-share]');var st=document.getElementById('iv-share-state');
   if(back)back.addEventListener('click',function(e){if(history.length>1&&document.referrer){e.preventDefault();history.back();}});
   if(sh)sh.addEventListener('click',function(){
     var url=location.href;var title=document.title;
     function note(t){if(st){st.textContent=t;setTimeout(function(){st.textContent='';},2500);}}
-    function copy(){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){note('リンクをコピーしました。');}).catch(function(){note('コピーできませんでした。');});}else{note('コピーできませんでした。');}}
+    function copy(){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(url).then(function(){note('${tr(lang, "リンクをコピーしました。", "Link copied.")}');}).catch(function(){note('${tr(lang, "コピーできませんでした。", "Could not copy.")}');});}else{note('${tr(lang, "コピーできませんでした。", "Could not copy.")}');}}
     if(navigator.share){navigator.share({title:title,url:url}).catch(function(e){if(!e||e.name!=='AbortError')copy();});}else{copy();}
   });
 })();`;
+export const SHARE_SCRIPT = shareScript("ja");
 
-const CAUTION_HTML = (category: InvasiveCategory | null): string => `<section class="iv-caution">
+const CAUTION_HTML = (category: InvasiveCategory | null, lang: SiteLang = "ja"): string => lang !== "ja" ? `<section class="iv-caution">
+  <h2>${WARN_ICON}If you find one</h2>
+  <ul>
+    <li>Please do not take it home. ${category === "iaspecified" ? "Keeping or moving a <span class=\"iv-nb\">designated invasive alien species</span> is prohibited by law." : "Keeping or moving it may be restricted."}</li>
+    <li>Please do not touch it carelessly. Some are poisonous, and some can spread from a piece of the body.</li>
+    <li>Please leave a record with a photo. Records help us understand how far it has spread.</li>
+  </ul>
+</section>` : `<section class="iv-caution">
   <h2>${WARN_ICON}見つけたときは</h2>
   <ul>
     <li>持ち帰らないでください。${category === "iaspecified" ? "<span class=\"iv-nb\">特定外来生物</span>は、飼うこと・運ぶことが法律で禁止されています。" : "飼うことや運ぶことが制限されている場合があります。"}</li>
@@ -403,50 +428,59 @@ export function renderRegionInvasivePage(options: {
       if (p) { seen.add(p); thumbs.set(s.slug, p); }
     }
     const rows = species.map((s) => `<div class="iv-sw-row" data-invasive-species-row="${esc(s.slug)}"><a class="iv-sprow" href="${esc(`${prefix}/invasive/${encodeURIComponent(s.slug)}`)}">${thumbs.has(s.slug) ? `<img class="iv-thumb" src="${esc(thumbs.get(s.slug)!)}" alt="" loading="lazy" width="56" height="56">` : `<span class="iv-thumb-ph" aria-hidden="true"></span>`}
-      <span class="iv-sb"><span class="iv-sname iv-nb">${esc(s.name)}</span><span style="display:block;margin-top:4px">${badge(s.category, s.categoryLabel)}</span><span class="iv-sstate">${s.cells}か所 ・ 記録 <span class="iv-nb">${s.records}件</span> ・ 最初は<span class="iv-nb">${esc(monthLabel(s.first))}</span></span></span>${CHEV_ICON}</a>${speciesLinks(s.slug)}</div>`).join("");
-    const recent = recentHtml(options.records, prefix, 6, seen);
-    inner = `<p class="iv-desc">${area}の生きものを、外来種の印で見た面です。この地域で見つかっている外来種を集めています。名前の確認が済んだ記録だけを表示しています。</p>
-    <div class="iv-h"><span>見つかっている種</span><span class="iv-cnt">${species.length}種</span></div>
+      <span class="iv-sb"><span class="iv-sname iv-nb">${esc(s.name)}</span><span style="display:block;margin-top:4px">${badge(s.category, categoryLabelFor(s.category, s.categoryLabel, options.lang))}</span><span class="iv-sstate">${options.lang === "ja" ? `${s.cells}か所 ・ 記録 <span class="iv-nb">${s.records}件</span> ・ 最初は<span class="iv-nb">${esc(monthLabel(s.first))}</span>` : `${plural(s.cells, "place", "places")} · <span class="iv-nb">${plural(s.records, "record", "records")}</span> · first in <span class="iv-nb">${esc(monthLabel(s.first, options.lang))}</span>`}</span></span>${CHEV_ICON}</a>${speciesLinks(s.slug, options.lang)}</div>`).join("");
+    const recent = recentHtml(options.records, prefix, 6, seen, options.lang);
+    const L = options.lang;
+    inner = `<p class="iv-desc">${tr(L, `${area}の生きものを、外来種の印で見た面です。この地域で見つかっている外来種を集めています。名前の確認が済んだ記録だけを表示しています。`, `Wildlife in ${area} seen through the invasive-species lens. This gathers the invasive species found in this area, and shows only records whose names have been confirmed.`)}</p>
+    <div class="iv-h"><span>${tr(L, "見つかっている種", "Species found")}</span><span class="iv-cnt">${tr(L, `${species.length}種`, `${species.length} species`)}</span></div>
     <div data-invasive-species-list="1">${rows}</div>
-    <div class="iv-h"><span>広がり</span></div>
-    ${plotHtml(options.records)}
-    <a class="iv-link" href="${esc(mapHref)}"><span>地図で広がりを見る</span>${CHEV_ICON}</a>
-    ${watchLink(prefix)}
-    <div class="iv-h"><span>最近の発見</span></div>
+    <div class="iv-h"><span>${tr(L, "広がり", "Spread")}</span></div>
+    ${plotHtml(options.records, L)}
+    <a class="iv-link" href="${esc(mapHref)}"><span>${tr(L, "地図で広がりを見る", "See the spread on the map")}</span>${CHEV_ICON}</a>
+    ${watchLink(prefix, L)}
+    <div class="iv-h"><span>${tr(L, "最近の発見", "Recent finds")}</span></div>
     <div class="iv-rgrid">${recent}</div>
-    ${CAUTION_HTML(species.some((s) => s.category === "iaspecified") ? "iaspecified" : null)}`;
+    ${CAUTION_HTML(species.some((s) => s.category === "iaspecified") ? "iaspecified" : null, L)}`;
   } else {
     const nationwide = INVASIVE_SEED_ROWS.filter((row) => classifyInvasive(row[0])?.category === "iaspecified").slice(0, 6);
-    const rows = nationwide.map((row) => `<a class="iv-sprow" href="${esc(`${INVASIVE_LEARN_PATH}/${row[2]}`)}"><span class="iv-sb"><span class="iv-sname iv-nb">${esc(row[0])}</span><span style="display:block;margin-top:4px">${badge("iaspecified", "特定外来生物")}</span></span>${CHEV_ICON}</a>`).join("");
-    inner = `<p class="iv-desc">${area}の生きものを、外来種の印で見た面です。この地域では、名前の確認が済んだ外来種の記録は、まだ集まっていません。</p>
-    <div class="iv-h"><span>全国で指定されている種</span></div>
+    const rows = nationwide.map((row) => `<a class="iv-sprow" href="${esc(`${learnPathFor(options.lang)}/${row[2]}`)}"><span class="iv-sb"><span class="iv-sname iv-nb">${esc(row[0])}</span><span style="display:block;margin-top:4px">${badge("iaspecified", categoryLabelFor("iaspecified", "特定外来生物", options.lang))}</span></span>${CHEV_ICON}</a>`).join("");
+    const L = options.lang;
+    inner = `<p class="iv-desc">${tr(L, `${area}の生きものを、外来種の印で見た面です。この地域では、名前の確認が済んだ外来種の記録は、まだ集まっていません。`, `Wildlife in ${area} seen through the invasive-species lens. No invasive-species records with confirmed names have been gathered in this area yet.`)}</p>
+    <div class="iv-h"><span>${tr(L, "全国で指定されている種", "Species designated nationwide")}</span></div>
     <div>${rows}</div>
-    <p class="iv-note" style="margin-top:10px">区分は、環境省のリストに基づく種マスタから表示しています。</p>
-    ${watchLink(prefix)}
-    <div class="iv-h"><span>見つけたら</span></div>
-    <div class="iv-invite"><p>外来種かもしれない生きものを見かけたら、写真で記録を残してください。名前がわからなくても大丈夫です。写真の記録から、名前の確認が進みます。</p><a class="iv-btn" href="${esc(`${prefix}/record`)}">この地域で記録する</a></div>
-    ${CAUTION_HTML(null)}`;
+    <p class="iv-note" style="margin-top:10px">${tr(L, "区分は、環境省のリストに基づく種マスタから表示しています。", "Categories come from a species master based on the Ministry of the Environment lists.")}</p>
+    ${watchLink(prefix, L)}
+    <div class="iv-h"><span>${tr(L, "見つけたら", "If you find one")}</span></div>
+    <div class="iv-invite"><p>${tr(L, "外来種かもしれない生きものを見かけたら、写真で記録を残してください。名前がわからなくても大丈夫です。写真の記録から、名前の確認が進みます。", "If you see a creature that might be an invasive species, please record it with a photo. It is fine if you do not know its name. Photo records help confirm the name.")}</p><a class="iv-btn" href="${esc(`${prefix}/record`)}">${tr(L, "この地域で記録する", "Record in this area")}</a></div>
+    ${CAUTION_HTML(null, L)}`;
   }
-  const sources = `<section class="iv-src"><h2>区分と根拠</h2><p>この面の種と区分は、国のリストに基づく種マスタから表示しています。地域ごとの扱いは、お住まいの自治体の案内に従ってください。</p>${OFFICIAL_SOURCES.map((s) => `<a class="iv-link" href="${esc(s.href)}" target="_blank" rel="noreferrer noopener"><span>${esc(s.label)}</span>${CHEV_ICON}</a>`).join("")}</section>`;
+  const sources = `<section class="iv-src"><h2>${tr(options.lang, "区分と根拠", "Classification and sources")}</h2><p>${tr(options.lang, "この面の種と区分は、国のリストに基づく種マスタから表示しています。地域ごとの扱いは、お住まいの自治体の案内に従ってください。", "Species and categories on this page come from a species master based on national lists. For how it is handled locally, follow your municipality's guidance.")}</p>${OFFICIAL_SOURCES.map((s) => `<a class="iv-link" href="${esc(s.href)}" target="_blank" rel="noreferrer noopener"><span>${esc(sourceLabel(s, options.lang))}</span>${CHEV_ICON}</a>`).join("")}</section>`;
   const body = `<div class="iv-col" data-invasive-region="${area}">
-    ${headBar(mapHref)}
+    ${headBar(mapHref, options.lang)}
     <div class="iv-crumb">${area}</div>
-    <h1 class="iv-title">外来種</h1>
-    ${options.regionHref ? `<a class="iv-link" data-region-back="1" href="${esc(options.regionHref)}"><span>${area}の地域ページ</span>${CHEV_ICON}</a>` : ""}
+    <h1 class="iv-title">${tr(options.lang, "外来種", "Invasive species")}</h1>
+    ${options.regionHref ? `<a class="iv-link" data-region-back="1" href="${esc(options.regionHref)}"><span>${tr(options.lang, `${area}の地域ページ`, `${area} area page`)}</span>${CHEV_ICON}</a>` : ""}
     ${inner}
     ${sources}
   </div>`;
   return shell({
-    title: `${options.area}の外来種`,
+    title: tr(options.lang, `${options.area}の外来種`, `Invasive species in ${options.area}`),
     lang: options.lang,
     authenticated: options.authenticated,
     displayName: options.displayName,
     pathname: `${prefix}/regions/${encodeURIComponent(options.area)}/invasive`,
     body,
     cspNonce: options.cspNonce,
-    script: SHARE_SCRIPT,
+    script: shareScript(options.lang),
   });
 }
+
+const CATEGORY_TEXT_EN: Readonly<Record<InvasiveCategory, string>> = {
+  iaspecified: "Designated as an Invasive Alien Species under Japan's Invasive Alien Species Act. Keeping, transporting and releasing it into the wild are prohibited by law.",
+  conditional: "Designated as a Conditional Invasive Alien Species under Japan's Invasive Alien Species Act. Sale and release, among other things, are restricted.",
+  priority: "Classified as a priority countermeasure invasive species on Japan's List of Invasive Alien Species Threatening Ecosystems (Ministry of the Environment).",
+  prevention: "Classified as an invasive species requiring ecosystem damage prevention on Japan's List of Invasive Alien Species Threatening Ecosystems (Ministry of the Environment).",
+};
 
 const CATEGORY_TEXT: Readonly<Record<InvasiveCategory, string>> = {
   iaspecified: "日本の「外来生物法」で、特定外来生物に指定されています。飼うこと・運ぶこと・野外に放すことが、法律で禁止されています。",
@@ -481,41 +515,42 @@ export function renderInvasiveSpeciesPage(options: {
   }
   const areaRows = [...areas.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).slice(0, 12).map(([area, list]) => {
     const first = [...list].sort((a, b) => a.observedAt.localeCompare(b.observedAt))[0]!;
-    return `<a class="iv-sprow" href="${esc(`${prefix}/regions/${encodeURIComponent(area)}/invasive`)}"><span class="iv-sb"><span class="iv-sname">${esc(area)}</span><span class="iv-sstate">記録 <span class="iv-nb">${list.length}件</span> ・ ${esc(monthLabel(first.observedAt))}から</span></span>${CHEV_ICON}</a>`;
+    return `<a class="iv-sprow" href="${esc(`${prefix}/regions/${encodeURIComponent(area)}/invasive`)}"><span class="iv-sb"><span class="iv-sname">${esc(area)}</span><span class="iv-sstate">${options.lang === "ja" ? `記録 <span class="iv-nb">${list.length}件</span> ・ ${esc(monthLabel(first.observedAt))}から` : `<span class="iv-nb">${plural(list.length, "record", "records")}</span> · since ${esc(monthLabel(first.observedAt, options.lang))}`}</span></span>${CHEV_ICON}</a>`;
   }).join("");
   const cellCount = new Set(own.map((r) => r.cell)).size;
   const found = own.length > 0
-    ? `<div class="iv-h"><span>見つかっている場所</span><span class="iv-cnt">${cellCount}か所</span></div>
-    ${plotHtml(own)}
+    ? `<div class="iv-h"><span>${tr(options.lang, "見つかっている場所", "Where it has been found")}</span><span class="iv-cnt">${tr(options.lang, `${cellCount}か所`, plural(cellCount, "place", "places"))}</span></div>
+    ${plotHtml(own, options.lang)}
     ${areaRows ? `<div>${areaRows}</div>` : ""}
-    <a class="iv-link" href="${esc(`${prefix}/map?taxon_group=invasive&species=${encodeURIComponent(options.slug)}${own[0] ? `&lat=${own[0].lat}&lng=${own[0].lng}&z=11` : ""}`)}"><span>地図で広がりを見る</span>${CHEV_ICON}</a>
-    <div class="iv-h"><span>最近の発見</span></div>
-    <div class="iv-rgrid">${recentHtml(own, prefix, 6, seenPhotos)}</div>`
+    <a class="iv-link" href="${esc(`${prefix}/map?taxon_group=invasive&species=${encodeURIComponent(options.slug)}${own[0] ? `&lat=${own[0].lat}&lng=${own[0].lng}&z=11` : ""}`)}"><span>${tr(options.lang, "地図で広がりを見る", "See the spread on the map")}</span>${CHEV_ICON}</a>
+    <div class="iv-h"><span>${tr(options.lang, "最近の発見", "Recent finds")}</span></div>
+    <div class="iv-rgrid">${recentHtml(own, prefix, 6, seenPhotos, options.lang)}</div>`
     : "";
   const sci2 = sci.replaceAll('"', "");
+  const categoryText = options.lang === "ja" ? CATEGORY_TEXT[hit.category] : CATEGORY_TEXT_EN[hit.category];
   const toggle = options.authenticated
-    ? `<div class="iv-toggle" data-invasive-alert="1" data-sci="${esc(sci2)}"><div class="iv-tt">この種が見つかったら知らせる<span class="iv-ts">新しく確認された記録があるとき、メールでお知らせします</span></div><button type="button" class="iv-sw" role="switch" aria-checked="false" aria-label="この種が見つかったら知らせる" id="iv-alert-sw" disabled></button></div><p class="iv-tstate" id="iv-alert-state" aria-live="polite"></p>`
-    : `<div class="iv-toggle"><div class="iv-tt">この種が見つかったら知らせる<span class="iv-ts">ログインすると、メールで知らせを受け取れます</span></div><a class="iv-link" style="border:0;min-height:44px;white-space:nowrap" href="${esc(`${prefix}/login`)}">ログイン</a></div>`;
+    ? `<div class="iv-toggle" data-invasive-alert="1" data-sci="${esc(sci2)}"><div class="iv-tt">${tr(options.lang, "この種が見つかったら知らせる", "Notify me when this species is found")}<span class="iv-ts">${tr(options.lang, "新しく確認された記録があるとき、メールでお知らせします", "We will email you when a newly confirmed record appears")}</span></div><button type="button" class="iv-sw" role="switch" aria-checked="false" aria-label="${tr(options.lang, "この種が見つかったら知らせる", "Notify me when this species is found")}" id="iv-alert-sw" disabled></button></div><p class="iv-tstate" id="iv-alert-state" aria-live="polite"></p>`
+    : `<div class="iv-toggle"><div class="iv-tt">${tr(options.lang, "この種が見つかったら知らせる", "Notify me when this species is found")}<span class="iv-ts">${tr(options.lang, "ログインすると、メールで知らせを受け取れます", "Log in to receive email notifications")}</span></div><a class="iv-link" style="border:0;min-height:44px;white-space:nowrap" href="${esc(`${prefix}/login`)}">${tr(options.lang, "ログイン", "Log in")}</a></div>`;
   const body = `<div class="iv-col" data-invasive-species="${esc(options.slug)}">
-    ${headBar(`${prefix}/map?taxon_group=invasive`)}
+    ${headBar(`${prefix}/map?taxon_group=invasive`, options.lang)}
     ${hero ? `<div class="iv-hero"><img src="${esc(hero)}" alt="" width="760" height="224"></div>` : ""}
-    <div class="iv-crumb" style="margin-top:14px"><a href="${esc(`${prefix}/map?taxon_group=invasive`)}">外来種</a></div>
+    <div class="iv-crumb" style="margin-top:14px"><a href="${esc(`${prefix}/map?taxon_group=invasive`)}">${tr(options.lang, "外来種", "Invasive species")}</a></div>
     <h1 class="iv-title iv-nb" style="white-space:normal">${esc(name)}</h1>
     <div class="iv-sci">${esc(sci)}</div>
-    <div style="margin-top:10px">${badge(hit.category, hit.label)}</div>
-    <section class="iv-src" style="margin-top:18px"><h2>区分と根拠</h2><p>${esc(CATEGORY_TEXT[hit.category])}</p>${OFFICIAL_SOURCES.map((s) => `<a class="iv-link" href="${esc(s.href)}" target="_blank" rel="noreferrer noopener"><span>${esc(s.label)}</span>${CHEV_ICON}</a>`).join("")}</section>
-    <div style="margin-top:14px">${speciesLinks(options.slug)}</div>
-    ${watchLink(prefix)}
+    <div style="margin-top:10px">${badge(hit.category, categoryLabelFor(hit.category, hit.label, options.lang))}</div>
+    <section class="iv-src" style="margin-top:18px"><h2>${tr(options.lang, "区分と根拠", "Classification and sources")}</h2><p>${esc(categoryText)}</p>${OFFICIAL_SOURCES.map((s) => `<a class="iv-link" href="${esc(s.href)}" target="_blank" rel="noreferrer noopener"><span>${esc(sourceLabel(s, options.lang))}</span>${CHEV_ICON}</a>`).join("")}</section>
+    <div style="margin-top:14px">${speciesLinks(options.slug, options.lang)}</div>
+    ${watchLink(prefix, options.lang)}
     ${found}
-    <div class="iv-h"><span>地域で変わる扱い</span></div>
-    <div class="iv-kv"><div class="iv-kk">日本</div><div>${esc(CATEGORY_TEXT[hit.category])}</div></div>
-    <p class="iv-note" style="margin-top:10px">同じ種でも、場所が変われば外来種かどうかが変わります。地域ごとの扱いは、その場所の自治体の案内に従ってください。</p>
-    ${CAUTION_HTML(hit.category)}
+    <div class="iv-h"><span>${tr(options.lang, "地域で変わる扱い", "Rules differ by region")}</span></div>
+    <div class="iv-kv"><div class="iv-kk">${tr(options.lang, "日本", "Japan")}</div><div>${esc(categoryText)}</div></div>
+    <p class="iv-note" style="margin-top:10px">${tr(options.lang, "同じ種でも、場所が変われば外来種かどうかが変わります。地域ごとの扱いは、その場所の自治体の案内に従ってください。", "Even for the same species, whether it counts as invasive changes with the place. For how it is handled locally, follow the guidance of the local municipality.")}</p>
+    ${CAUTION_HTML(hit.category, options.lang)}
     ${toggle}
   </div>`;
-  const script = options.authenticated ? `${SHARE_SCRIPT}\n${ALERT_SCRIPT}` : SHARE_SCRIPT;
+  const script = options.authenticated ? `${shareScript(options.lang)}\n${alertScript(options.lang)}` : shareScript(options.lang);
   return shell({
-    title: `${name}（外来種）`,
+    title: tr(options.lang, `${name}（外来種）`, `${name} (invasive species)`),
     lang: options.lang,
     authenticated: options.authenticated,
     displayName: options.displayName,
@@ -526,22 +561,23 @@ export function renderInvasiveSpeciesPage(options: {
   });
 }
 
-const ALERT_SCRIPT = `(function(){
+const alertScript = (lang: SiteLang): string => `(function(){
   var box=document.querySelector('[data-invasive-alert]');var sw=document.getElementById('iv-alert-sw');var st=document.getElementById('iv-alert-state');
   if(!box||!sw)return;var sci=box.getAttribute('data-sci')||'';var subId=null;
-  function paint(on){sw.setAttribute('aria-checked',on?'true':'false');if(st)st.textContent=on?'知らせを入れています。':'';}
+  function paint(on){sw.setAttribute('aria-checked',on?'true':'false');if(st)st.textContent=on?'${tr(lang, "知らせを入れています。", "Notifications are on.")}':'';}
   function same(s){return String(s.scientificName||'').toLowerCase()===sci.toLowerCase()&&s.triggerInvasiveOnly;}
   fetch('/api/v1/me/subscriptions',{credentials:'same-origin',headers:{accept:'application/json'}}).then(function(r){return r.ok?r.json():null}).then(function(d){
-    if(!d){if(st)st.textContent='いまは切り替えできません。';return;}
+    if(!d){if(st)st.textContent='${tr(lang, "いまは切り替えできません。", "Cannot switch right now.")}';return;}
     var list=(d.subscriptions||[]).filter(same);if(list.length){subId=list[0].subscriptionId;}
     paint(Boolean(subId));sw.disabled=false;
-  }).catch(function(){if(st)st.textContent='いまは切り替えできません。';});
+  }).catch(function(){if(st)st.textContent='${tr(lang, "いまは切り替えできません。", "Cannot switch right now.")}';});
   sw.addEventListener('click',function(){
     sw.disabled=true;
-    if(subId){fetch('/api/v1/me/subscriptions/'+encodeURIComponent(subId),{method:'DELETE',credentials:'same-origin'}).then(function(r){if(r.ok){subId=null;paint(false);}else if(st){st.textContent='うまく切り替えられませんでした。';}}).catch(function(){if(st)st.textContent='うまく切り替えられませんでした。';}).then(function(){sw.disabled=false;});return;}
-    fetch('/api/v1/me/subscriptions',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({scientificName:sci,matchField:'scientific_name',triggerInvasiveOnly:true,channel:'email',label:document.title})}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.subscriptionId){subId=d.subscriptionId;paint(true);}else if(st){st.textContent='うまく切り替えられませんでした。';}}).catch(function(){if(st)st.textContent='うまく切り替えられませんでした。';}).then(function(){sw.disabled=false;});
+    if(subId){fetch('/api/v1/me/subscriptions/'+encodeURIComponent(subId),{method:'DELETE',credentials:'same-origin'}).then(function(r){if(r.ok){subId=null;paint(false);}else if(st){st.textContent='${tr(lang, "うまく切り替えられませんでした。", "Could not switch it.")}';}}).catch(function(){if(st)st.textContent='${tr(lang, "うまく切り替えられませんでした。", "Could not switch it.")}';}).then(function(){sw.disabled=false;});return;}
+    fetch('/api/v1/me/subscriptions',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({scientificName:sci,matchField:'scientific_name',triggerInvasiveOnly:true,channel:'email',label:document.title})}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.subscriptionId){subId=d.subscriptionId;paint(true);}else if(st){st.textContent='${tr(lang, "うまく切り替えられませんでした。", "Could not switch it.")}';}}).catch(function(){if(st)st.textContent='${tr(lang, "うまく切り替えられませんでした。", "Could not switch it.")}';}).then(function(){sw.disabled=false;});
   });
 })();`;
+export const ALERT_SCRIPT = alertScript("ja");
 
 export function parseInvasiveSlug(raw: string): string | null {
   const slug = decodeURIComponent(raw).trim().toLowerCase();

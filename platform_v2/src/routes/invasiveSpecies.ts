@@ -8,6 +8,9 @@ import {
   invasiveSpeciesDetailPath,
   INVASIVE_SPECIES_LIST_PATH,
   INVASIVE_SPECIES_OFFICIAL_SOURCES,
+  invasiveActionLabelEn,
+  invasiveCategoryLabelEn,
+  invasiveGroupLabelEn,
   listInvasiveSpecies,
   type InvasiveSpeciesCatalogItem,
 } from "../services/invasiveSpeciesCatalog.js";
@@ -33,15 +36,17 @@ function requestCurrentPath(request: { headers: Record<string, unknown>; url?: s
   return withBasePath(requestBasePath(request), requestUrl(request));
 }
 
+const tr = (lang: SiteLang, ja: string, en: string): string => (lang === "ja" ? ja : en);
+
 function speciesHref(basePath: string, lang: SiteLang, item: InvasiveSpeciesCatalogItem): string {
   return appendLangToHref(withBasePath(basePath, invasiveSpeciesDetailPath(item)), lang);
 }
 
-function renderOfficialSources(): string {
+function renderOfficialSources(lang: SiteLang): string {
   return `<div class="invasive-official-sources">
-    <strong>公式情報</strong>
+    <strong>${tr(lang, "公式情報", "Official information")}</strong>
     ${INVASIVE_SPECIES_OFFICIAL_SOURCES.map((source) =>
-      `<a href="${escapeHtml(source.href)}" target="_blank" rel="noreferrer">${escapeHtml(source.label)}</a>`,
+      `<a href="${escapeHtml(source.href)}" target="_blank" rel="noreferrer">${escapeHtml(tr(lang, source.label, source.labelEn))}</a>`,
     ).join("")}
   </div>`;
 }
@@ -50,7 +55,14 @@ function scriptJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
-function renderCommonSafety(): string {
+function renderCommonSafety(lang: SiteLang): string {
+  if (lang !== "ja") {
+    return `<section class="invasive-safety">
+    <span>For people who found one</span>
+    <h2>Do not touch it. Leave a photo and the location.</h2>
+    <p>If you find a creature that might be an invasive species, do not get too close. Record a photo, the location and the date and time. Do not carry living animals, eggs, seeds or plant fragments, and follow the guidance of your municipality or the land manager for capture or removal.</p>
+  </section>`;
+  }
   return `<section class="invasive-safety">
     <span>見つけた人向け</span>
     <h2>触らず、写真と場所を残す。</h2>
@@ -58,7 +70,8 @@ function renderCommonSafety(): string {
   </section>`;
 }
 
-function renderActionSources(item: InvasiveSpeciesCatalogItem): string {
+function renderActionSources(item: InvasiveSpeciesCatalogItem, lang: SiteLang): string {
+  if (lang !== "ja") return renderActionSourcesEn(item, lang);
   const actionSources = [
     {
       source: "国のルール",
@@ -96,7 +109,39 @@ function renderActionSources(item: InvasiveSpeciesCatalogItem): string {
   </section>`;
 }
 
-function renderReportingVisibility(basePath: string, item: InvasiveSpeciesCatalogItem): string {
+function renderActionSourcesEn(item: InvasiveSpeciesCatalogItem, lang: SiteLang): string {
+  const actionSources = [
+    { source: "National rules", action: legalWarningEn(item), status: invasiveCategoryLabelEn(item.category) },
+    { source: "Local contacts", action: "Municipalities and land managers guide what to do and whom to ask, depending on local conditions.", status: "Municipality / manager" },
+    { source: "ZUKAN", action: "Information reaches an organization only when a post becomes an invasive-species candidate and an organization matching the area has agreed to receive it. It is never sent to unrelated organizations.", status: "Conditional" },
+  ];
+  return `<section class="invasive-action-sources" aria-label="Who recommends the action">
+    <div class="invasive-section-head">
+      <span>Whom to follow</span>
+      <h2>First check national rules and local guidance</h2>
+      <p>For the same invasive species, what the law prohibits and what a region asks you to report can differ. If in doubt, do not touch or move it, and consult your municipality or the land manager.</p>
+    </div>
+    <div class="invasive-action-source-grid">
+      ${actionSources.map((entry) => `<article class="invasive-action-source">
+        <div>
+          <strong>${escapeHtml(entry.source)}</strong>
+          <span>${escapeHtml(entry.status)}</span>
+        </div>
+        <p>${escapeHtml(entry.action)}</p>
+      </article>`).join("")}
+    </div>
+    <a class="invasive-source-link" href="#invasive-partner-form">Contact us as a municipality or organization</a>
+  </section>`;
+}
+
+function legalWarningEn(item: InvasiveSpeciesCatalogItem): string {
+  return item.category === "iaspecified"
+    ? "Keeping, transporting, releasing and handing over are generally prohibited under the Invasive Alien Species Act. Do not handle it on your own judgment."
+    : "Keeping or moving living individuals or plant fragments may be restricted. Do not carry them, and check the legal handling.";
+}
+
+function renderReportingVisibility(basePath: string, item: InvasiveSpeciesCatalogItem, lang: SiteLang): string {
+  if (lang !== "ja") return renderReportingVisibilityEn(basePath, item, lang);
   const apiPath = withBasePath(basePath, "/api/v1/invasive-reporting/recipients");
   const submitEndpoint = withBasePath(basePath, "/api/v1/contact/submit");
   return `<section class="invasive-reporting-visibility" aria-label="自動通報連携団体">
@@ -165,7 +210,73 @@ function renderReportingVisibility(basePath: string, item: InvasiveSpeciesCatalo
   </section>`;
 }
 
-function renderReportingVisibilityScript(): string {
+function renderReportingVisibilityEn(basePath: string, item: InvasiveSpeciesCatalogItem, lang: SiteLang): string {
+  const apiPath = withBasePath(basePath, "/api/v1/invasive-reporting/recipients");
+  const submitEndpoint = withBasePath(basePath, "/api/v1/contact/submit");
+  const speciesData = escapeHtml(scriptJson({
+    scientificName: item.scientificName,
+    vernacularName: item.vernacularName,
+    invasiveStatus: item.category,
+  }));
+  return `<section class="invasive-reporting-visibility" aria-label="Organizations linked to automatic reporting">
+    <div class="invasive-section-head">
+      <span>After you post</span>
+      <h2>Where does this post go?</h2>
+      <p>ZUKAN automatically passes on posts about invasive-species candidates only in areas where a municipality, research institute or management organization has agreed to receive them. Where there is no linked organization, nothing is sent automatically.</p>
+    </div>
+    <div class="invasive-reporting-board">
+      <article class="invasive-reporting-slot is-active">
+        <span>This species</span>
+        <strong>${escapeHtml(item.vernacularName)}</strong>
+        <p>${escapeHtml(invasiveCategoryLabelEn(item.category))} / ${escapeHtml(invasiveActionLabelEn(item.recommendedAction))}</p>
+      </article>
+      <article class="invasive-reporting-slot">
+        <span>Organizations that may receive it</span>
+        <strong>Enter an area to check</strong>
+        <p>Photos, location, date and time are shared only when an organization that has agreed to receive them matches the location of the post.</p>
+      </article>
+      <article class="invasive-reporting-slot is-empty">
+        <span>If none apply</span>
+        <strong>Nothing is sent automatically</strong>
+        <p>Where there is no linked organization, nothing is sent, and we point you to the official contact where needed.</p>
+      </article>
+    </div>
+    <div class="invasive-region-check" data-inv-reporting-check data-api-path="${escapeHtml(apiPath)}" data-species='${speciesData}'>
+      <div>
+        <strong>Check by post location</strong>
+        <p>Enter the prefecture and city to see whether any organization receives automatic reports in this area.</p>
+      </div>
+      <form class="invasive-region-form">
+        <label>Prefecture<input name="prefecture" autocomplete="address-level1" placeholder="e.g. Shizuoka"></label>
+        <label>City<input name="municipality" autocomplete="address-level2" placeholder="e.g. Hamamatsu"></label>
+        <button type="submit">Check</button>
+      </form>
+      <div class="invasive-region-result" aria-live="polite">Enter an area and any organization that receives reports automatically will be shown here.</div>
+    </div>
+    <div class="invasive-partner-cta" id="invasive-partner-form">
+      <div>
+        <strong>For municipalities, research institutes and management organizations</strong>
+        <p>Send the target area, target species and the information you want to receive right here. After review, we will work out how to deliver it and when to stop.</p>
+      </div>
+      <form class="invasive-partner-form" data-inv-partner-form data-submit-path="${escapeHtml(submitEndpoint)}" data-species='${speciesData}'>
+        <label>Organization<input name="organization" autocomplete="organization" required maxlength="200" placeholder="e.g. City Environmental Policy Division"></label>
+        <label>Contact person<input name="name" autocomplete="name" maxlength="200" placeholder="e.g. Taro Yamada"></label>
+        <label>Email address<input name="email" type="email" autocomplete="email" required maxlength="200" placeholder="example@example.jp"></label>
+        <label>Target area<input name="area" required maxlength="300" placeholder="e.g. Hamamatsu, Shizuoka, or the name of a park you manage"></label>
+        <label class="is-wide">Information you want to receive<textarea name="request" required minlength="5" maxlength="3000" placeholder="e.g. We want photos, locations and dates of nutria within the city."></textarea></label>
+        <label class="is-wide">Notes<textarea name="note" maxlength="3000" placeholder="Official contact URL, target species, conditions for stopping, whether phone contact is fine, and so on"></textarea></label>
+        <label class="invasive-partner-trap" aria-hidden="true">Website<input name="website" autocomplete="off" tabindex="-1"></label>
+        <div class="invasive-partner-form-actions">
+          <button type="submit">Send this inquiry</button>
+          <span class="invasive-partner-form-status" aria-live="polite"></span>
+        </div>
+        <noscript><p class="invasive-partner-form-status is-error">JavaScript is required to send.</p></noscript>
+      </form>
+    </div>
+  </section>`;
+}
+
+function renderReportingVisibilityScript(lang: SiteLang): string {
   return `<script>
 (function(){
   var root = document.querySelector("[data-inv-reporting-check]");
@@ -183,30 +294,30 @@ function renderReportingVisibilityScript(): string {
     var species = {};
     try { species = JSON.parse(root.getAttribute("data-species") || "{}"); } catch (_) { species = {}; }
     function statusLabel(status, enabled) {
-      if (enabled) return "自動共有あり";
-      if (status === "external_only") return "公式フォーム案内";
-      if (status === "pending") return "確認中";
-      if (status === "approved") return "条件不足";
-      if (status === "denied" || status === "revoked") return "停止中";
-      return "自動送信なし";
+      if (enabled) return "${tr(lang, "自動共有あり", "Automatic sharing on")}";
+      if (status === "external_only") return "${tr(lang, "公式フォーム案内", "Official form guidance")}";
+      if (status === "pending") return "${tr(lang, "確認中", "Under review")}";
+      if (status === "approved") return "${tr(lang, "条件不足", "Conditions not met")}";
+      if (status === "denied" || status === "revoked") return "${tr(lang, "停止中", "Suspended")}";
+      return "${tr(lang, "自動送信なし", "No automatic sending")}";
     }
     function render(data) {
       if (!data || data.available === false) {
-        result.innerHTML = "<strong>連携情報を確認できません</strong><p>現在は公式窓口の案内だけを表示します。</p>";
+        result.innerHTML = "${tr(lang, "<strong>連携情報を確認できません</strong><p>現在は公式窓口の案内だけを表示します。</p>", "<strong>Cannot check linked organizations</strong><p>Only official contact guidance is shown for now.</p>")}";
         return;
       }
       if (!data.contacts || data.contacts.length === 0) {
-        var copy = data.reason === "location_required" ? "都道府県または市区町村を入力してください。" : "一致する連携先はまだ登録されていません。";
-        result.innerHTML = "<strong>この地域で自動送信される団体はまだありません</strong><p>" + esc(copy) + " 自治体・研究機関・管理団体の方は、下の相談窓口から受信連携を相談できます。</p>";
+        var copy = data.reason === "location_required" ? "${tr(lang, "都道府県または市区町村を入力してください。", "Please enter a prefecture or city.")}" : "${tr(lang, "一致する連携先はまだ登録されていません。", "No matching linked organization is registered yet.")}";
+        result.innerHTML = "<strong>${tr(lang, "この地域で自動送信される団体はまだありません", "No organization in this area receives reports automatically yet")}</strong><p>" + esc(copy) + " ${tr(lang, "自治体・研究機関・管理団体の方は、下の相談窓口から受信連携を相談できます。", "Municipalities, research institutes and management organizations can ask about receiving reports through the contact form below.")}</p>";
         return;
       }
       var cards = data.contacts.map(function(contact) {
         var label = statusLabel(contact.sendPermissionStatus, contact.autoDeliveryEnabled);
         var locality = contact.jurisdiction && contact.jurisdiction.localityLabel ? contact.jurisdiction.localityLabel : "";
         var fields = (contact.requiredFields || []).slice(0, 4).join(" / ");
-        return '<article><span>' + esc(label) + '</span><strong>' + esc(contact.organizationName) + '</strong><p>' + esc([contact.departmentName, locality].filter(Boolean).join(" / ")) + '</p><p>' + esc(contact.userGuidanceJa || fields || "写真・場所・日時が判断材料になります。") + '</p></article>';
+        return '<article><span>' + esc(label) + '</span><strong>' + esc(contact.organizationName) + '</strong><p>' + esc([contact.departmentName, locality].filter(Boolean).join(" / ")) + '</p><p>' + esc(contact.userGuidanceJa || fields || "${tr(lang, "写真・場所・日時が判断材料になります。", "Photo, location, date and time are used to judge.")}") + '</p></article>';
       }).join("");
-      result.innerHTML = '<strong>' + esc(String(data.autoDeliveryCount || 0)) + '件へ自動送信されます</strong><div class="invasive-region-result-grid">' + cards + '</div>';
+      result.innerHTML = '<strong>' + esc(String(data.autoDeliveryCount || 0)) + '${tr(lang, "件へ自動送信されます", " organization(s) will receive it automatically")}</strong><div class="invasive-region-result-grid">' + cards + '</div>';
     }
     form && form.addEventListener("submit", function(event) {
       event.preventDefault();
@@ -216,7 +327,7 @@ function renderReportingVisibilityScript(): string {
       var municipality = String(new FormData(form).get("municipality") || "").trim();
       if (prefecture) params.set("prefecture", prefecture);
       if (municipality) params.set("municipality", municipality);
-      result.textContent = "確認しています。";
+      result.textContent = "${tr(lang, "確認しています。", "Checking.")}";
       fetch(apiPath + "?" + params.toString(), { headers: { "Accept": "application/json" } })
         .then(function(response) { return response.ok ? response.json() : Promise.reject(new Error("request_failed")); })
         .then(render)
@@ -255,7 +366,7 @@ function renderReportingVisibilityScript(): string {
         note || "なし"
       ];
       partnerStatus.className = "invasive-partner-form-status";
-      partnerStatus.textContent = "送信しています。";
+      partnerStatus.textContent = "${tr(lang, "送信しています。", "Sending.")}";
       partnerButton.disabled = true;
       fetch(partnerForm.getAttribute("data-submit-path") || "/api/v1/contact/submit", {
         method: "POST",
@@ -275,12 +386,12 @@ function renderReportingVisibilityScript(): string {
         return response.json().catch(function(){ return {}; }).then(function(data) {
           if (!response.ok || !data.ok) throw new Error(data && data.error ? data.error : "send_failed");
           partnerStatus.className = "invasive-partner-form-status is-ok";
-          partnerStatus.textContent = "送信しました。内容を確認して連絡します。";
+          partnerStatus.textContent = "${tr(lang, "送信しました。内容を確認して連絡します。", "Sent. We will review it and get back to you.")}";
           partnerForm.reset();
         });
       }).catch(function(error) {
         partnerStatus.className = "invasive-partner-form-status is-error";
-        partnerStatus.textContent = "送信できませんでした。入力内容を確認して、時間をおいてもう一度お試しください。";
+        partnerStatus.textContent = "${tr(lang, "送信できませんでした。入力内容を確認して、時間をおいてもう一度お試しください。", "Could not send. Please check your entries and try again later.")}";
       }).finally(function() {
         partnerButton.disabled = false;
       });
@@ -301,25 +412,25 @@ function renderListPage(basePath: string, lang: SiteLang): string {
 
   const groupHtml = Array.from(groups.entries()).map(([groupLabel, items]) => `<section class="invasive-group">
     <div class="invasive-group-head">
-      <span>${escapeHtml(groupLabel)}</span>
-      <strong>${escapeHtml(String(items.length))}件</strong>
+      <span>${escapeHtml(lang === "ja" ? groupLabel : invasiveGroupLabelEn(groupLabel))}</span>
+      <strong>${escapeHtml(tr(lang, `${items.length}件`, String(items.length)))}</strong>
     </div>
     <div class="invasive-grid">
       ${items.map((item) => `<a class="invasive-card" href="${escapeHtml(speciesHref(basePath, lang, item))}">
-        <span>${escapeHtml(item.categoryLabel)}</span>
+        <span>${escapeHtml(lang === "ja" ? item.categoryLabel : invasiveCategoryLabelEn(item.category))}</span>
         <h2>${escapeHtml(item.vernacularName)}</h2>
         <i>${escapeHtml(item.scientificName)}</i>
-        <p>${escapeHtml(item.actionLabel)}</p>
+        <p>${escapeHtml(lang === "ja" ? item.actionLabel : invasiveActionLabelEn(item.recommendedAction))}</p>
       </a>`).join("")}
     </div>
   </section>`).join("");
 
   return `<div class="invasive-page">
-    ${renderCommonSafety()}
+    ${renderCommonSafety(lang)}
     <section class="invasive-summary">
-      <strong class="invasive-total">全${escapeHtml(String(species.length))}件</strong>
-      <p>この一覧は ZUKAN の外来種 seed を正本に、観察時の安全行動と公式情報への導線をまとめたものです。外来種かどうか、地域で何を求められるかは状況で変わるため、最終判断は公式情報と自治体・管理者の案内で確認してください。</p>
-      ${renderOfficialSources()}
+      <strong class="invasive-total">${escapeHtml(tr(lang, `全${species.length}件`, `${species.length} species in total`))}</strong>
+      <p>${tr(lang, "この一覧は ZUKAN の外来種 seed を正本に、観察時の安全行動と公式情報への導線をまとめたものです。外来種かどうか、地域で何を求められるかは状況で変わるため、最終判断は公式情報と自治体・管理者の案内で確認してください。", "This list is based on the ZUKAN invasive-species master and gathers safe behavior when observing and links to official information. Whether something counts as invasive, and what is expected locally, depends on the situation, so confirm the final decision with official information and the guidance of your municipality or manager.")}</p>
+      ${renderOfficialSources(lang)}
     </section>
     ${groupHtml}
   </div>`;
@@ -329,24 +440,24 @@ function renderDetailPage(basePath: string, lang: SiteLang, item: InvasiveSpecie
   const listHref = appendLangToHref(withBasePath(basePath, INVASIVE_SPECIES_LIST_PATH), lang);
   const sourceHref = item.sourceUrl || INVASIVE_SPECIES_OFFICIAL_SOURCES[0].href;
   return `<div class="invasive-page invasive-detail">
-    <nav class="invasive-breadcrumb"><a href="${escapeHtml(listHref)}">外来種一覧へ戻る</a></nav>
-    ${renderCommonSafety()}
+    <nav class="invasive-breadcrumb"><a href="${escapeHtml(listHref)}">${tr(lang, "外来種一覧へ戻る", "Back to the invasive species list")}</a></nav>
+    ${renderCommonSafety(lang)}
     <section class="invasive-detail-card" id="identify">
-      <div class="invasive-detail-kicker">${escapeHtml(item.groupLabel)} / ${escapeHtml(item.categoryLabel)}</div>
+      <div class="invasive-detail-kicker">${escapeHtml(lang === "ja" ? item.groupLabel : invasiveGroupLabelEn(item.groupLabel))} / ${escapeHtml(lang === "ja" ? item.categoryLabel : invasiveCategoryLabelEn(item.category))}</div>
       <h2>${escapeHtml(item.vernacularName)}</h2>
       <p class="invasive-scientific">${escapeHtml(item.scientificName)}</p>
-      <div class="invasive-action-pill">${escapeHtml(item.actionLabel)}</div>
+      <div class="invasive-action-pill">${escapeHtml(lang === "ja" ? item.actionLabel : invasiveActionLabelEn(item.recommendedAction))}</div>
       <dl>
-        <div><dt>記録時の注意</dt><dd>${escapeHtml(item.legalWarning || "触らず、運ばず、自治体や土地管理者に確認してください。")}</dd></div>
-        <div><dt>なぜ注意するか</dt><dd>${escapeHtml(item.actionBasis)}</dd></div>
-        <div><dt>地域差</dt><dd>${escapeHtml(item.regionalCaveat || "地域の分布や対応方針は自治体の案内で確認してください。")}</dd></div>
+        <div><dt>${tr(lang, "記録時の注意", "Care when recording")}</dt><dd>${escapeHtml(lang === "ja" ? (item.legalWarning || "触らず、運ばず、自治体や土地管理者に確認してください。") : legalWarningEn(item))}</dd></div>
+        <div><dt>${tr(lang, "なぜ注意するか", "Why be careful")}</dt><dd>${escapeHtml(lang === "ja" ? item.actionBasis : `Classified as: ${invasiveCategoryLabelEn(item.category)}. Recommended action: ${invasiveActionLabelEn(item.recommendedAction)}.`)}</dd></div>
+        <div><dt>${tr(lang, "地域差", "Regional differences")}</dt><dd>${escapeHtml(lang === "ja" ? (item.regionalCaveat || "地域の分布や対応方針は自治体の案内で確認してください。") : "Distribution and response policy differ by region. Check the guidance of your municipality.")}</dd></div>
       </dl>
-      <a class="invasive-source-link" href="${escapeHtml(sourceHref)}" target="_blank" rel="noreferrer">出典を開く</a>
+      <a class="invasive-source-link" href="${escapeHtml(sourceHref)}" target="_blank" rel="noreferrer">${tr(lang, "出典を開く", "Open the source")}</a>
     </section>
-    ${renderActionSources(item)}
-    ${renderReportingVisibility(basePath, item)}
-    ${renderOfficialSources()}
-    ${renderReportingVisibilityScript()}
+    ${renderActionSources(item, lang)}
+    ${renderReportingVisibility(basePath, item, lang)}
+    ${renderOfficialSources(lang)}
+    ${renderReportingVisibilityScript(lang)}
   </div>`;
 }
 
@@ -459,13 +570,13 @@ function renderNotFound(basePath: string, lang: SiteLang, currentPath: string): 
     basePath,
     lang,
     activeNav: "学ぶ",
-    title: "外来種ページが見つかりません | ZUKAN",
-    description: "指定された外来種ページは見つかりませんでした。",
+    title: tr(lang, "外来種ページが見つかりません | ZUKAN", "Invasive species page not found | ZUKAN"),
+    description: tr(lang, "指定された外来種ページは見つかりませんでした。", "The invasive species page you asked for was not found."),
     currentPath,
     canonicalPath: INVASIVE_SPECIES_LIST_PATH,
     noindex: true,
     extraStyles: INVASIVE_SPECIES_STYLES,
-    body: `<div class="invasive-page"><section class="invasive-summary"><p>指定された外来種ページは見つかりませんでした。</p><a class="invasive-source-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, INVASIVE_SPECIES_LIST_PATH), lang))}">外来種一覧を見る</a></section></div>`,
+    body: `<div class="invasive-page"><section class="invasive-summary"><p>${tr(lang, "指定された外来種ページは見つかりませんでした。", "The invasive species page you asked for was not found.")}</p><a class="invasive-source-link" href="${escapeHtml(appendLangToHref(withBasePath(basePath, INVASIVE_SPECIES_LIST_PATH), lang))}">${tr(lang, "外来種一覧を見る", "View the invasive species list")}</a></section></div>`,
   });
 }
 
@@ -515,16 +626,16 @@ export async function registerInvasiveSpeciesRoutes(app: FastifyInstance): Promi
       basePath,
       lang,
       activeNav: "学ぶ",
-    title: "外来種一覧 | ZUKAN",
-      description: "外来種候補を見つけたときの安全行動と、公式情報への導線をまとめます。",
+    title: tr(lang, "外来種一覧 | ZUKAN", "Invasive species list | ZUKAN"),
+      description: tr(lang, "外来種候補を見つけたときの安全行動と、公式情報への導線をまとめます。", "Safe behavior when you find a possible invasive species, with links to official information."),
       currentPath: requestCurrentPath(request as unknown as { headers: Record<string, unknown>; url?: string; raw?: { url?: string; originalUrl?: string } }),
       canonicalPath: INVASIVE_SPECIES_LIST_PATH,
       alternateLangs: ["ja"],
       extraStyles: INVASIVE_SPECIES_STYLES,
       hero: {
         eyebrow: "INVASIVE SPECIES",
-        heading: "外来種を見つけたときの安全メモ",
-        lead: "触らず、運ばず、捕獲せず、写真・場所・日時を残して公式情報と地域の案内を確認するための一覧です。",
+        heading: tr(lang, "外来種を見つけたときの安全メモ", "Safety notes for finding an invasive species"),
+        lead: tr(lang, "触らず、運ばず、捕獲せず、写真・場所・日時を残して公式情報と地域の案内を確認するための一覧です。", "A list for when you find one: do not touch, carry or capture it, leave a photo, location and time, and check official information and local guidance."),
         tone: "light",
         align: "center",
       },
@@ -547,16 +658,16 @@ export async function registerInvasiveSpeciesRoutes(app: FastifyInstance): Promi
       basePath,
       lang,
       activeNav: "学ぶ",
-    title: `${item.vernacularName} | 外来種メモ | ZUKAN`,
-      description: `${item.vernacularName}を見つけたときの安全行動、法的注意、公式情報への導線をまとめます。`,
+    title: tr(lang, `${item.vernacularName} | 外来種メモ | ZUKAN`, `${item.vernacularName} | Invasive species note | ZUKAN`),
+      description: tr(lang, `${item.vernacularName}を見つけたときの安全行動、法的注意、公式情報への導線をまとめます。`, `Safe behavior, legal cautions and links to official information for when you find ${item.vernacularName}.`),
       currentPath,
       canonicalPath,
       alternateLangs: ["ja"],
       extraStyles: INVASIVE_SPECIES_STYLES,
       hero: {
-        eyebrow: item.categoryLabel,
+        eyebrow: lang === "ja" ? item.categoryLabel : invasiveCategoryLabelEn(item.category),
         heading: item.vernacularName,
-        lead: `${item.scientificName}。${item.actionLabel}を基本に、触らず、運ばず、自治体や管理者の案内を確認します。`,
+        lead: lang === "ja" ? `${item.scientificName}。${item.actionLabel}を基本に、触らず、運ばず、自治体や管理者の案内を確認します。` : `${item.scientificName}. Basic action: ${invasiveActionLabelEn(item.recommendedAction)}. Do not touch or carry it, and check the guidance of your municipality or manager.`,
         tone: "light",
         align: "center",
       },

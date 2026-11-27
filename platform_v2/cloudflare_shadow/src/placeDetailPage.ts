@@ -176,7 +176,7 @@ export function renderGlobalPlaceDetailPage(input: {
     ? `<p class="gpd-attrib" data-osm-attribution style="margin:16px 0 0;font-size:.75rem;line-height:1.5"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a></p>`
     : "";
   const srcTypes = (profile.provenance.sourceReferences ?? []).map((source) => clean(source.sourceType));
-  const openDataCredit = [srcTypes.includes("hamamatsu_cultural_property") ? "出典：浜松市オープンデータ（CC BY 4.0）" : "", srcTypes.includes("shizuoka_cultural_property") ? "出典：静岡県オープンデータ（CC BY 4.0）" : "", srcTypes.includes("moe_30by30") ? "出典：環境省 自然共生サイト認定一覧" : ""].filter(Boolean);
+  const openDataCredit = [srcTypes.includes("hamamatsu_cultural_property") ? (lang === "ja" ? "出典：浜松市オープンデータ（CC BY 4.0）" : "Source: Hamamatsu City open data (CC BY 4.0)") : "", srcTypes.includes("shizuoka_cultural_property") ? (lang === "ja" ? "出典：静岡県オープンデータ（CC BY 4.0）" : "Source: Shizuoka Prefecture open data (CC BY 4.0)") : "", srcTypes.includes("moe_30by30") ? (lang === "ja" ? "出典：環境省 自然共生サイト認定一覧" : "Source: Ministry of the Environment, list of certified Nature Symbiosis Sites") : ""].filter(Boolean);
   const sourceCredit = osmAttribution + (openDataCredit.length ? `<p class="gpd-attrib" data-open-data-credit style="margin:8px 0 0;font-size:.75rem;line-height:1.5">${escapeHtml(openDataCredit.join(" / "))}</p>` : "");
   const generated = displayDate(clean(profile.provenance.generatedAt), lang);
   const save = input.viewerAuthenticated
