@@ -350,7 +350,7 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-zicon{width:84px;height:84px;border-radius:50%;background:#EFF3EE;color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
 .zv2l-zicon svg{width:36px;height:36px}
 .zv2l-zero h1{margin:0;font-size:22px;font-weight:800;line-height:1.45}
-.zv2l-zbody{max-width:340px;margin:14px auto 0;text-align:left}
+.zv2l-zbody{max-width:340px;margin:14px auto 0;text-align:center;text-wrap:balance}
 .zv2l-zbody p{font-size:15.5px;line-height:1.75;color:#3C4A41;margin:10px 0 0}
 .zv2l-btn-main{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:22px auto 0;padding:12px 18px;border-radius:999px;background:var(--green);color:#fff!important;font-size:16px;font-weight:800;text-decoration:none;border:0;cursor:pointer}
 .zv2l-btn-sub,.zv2l-btn-sub:visited{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:12px auto 0;padding:12px 18px;border-radius:999px;border:1.5px solid var(--green);background:#fff;color:var(--green);font-weight:700;text-decoration:none;white-space:nowrap}

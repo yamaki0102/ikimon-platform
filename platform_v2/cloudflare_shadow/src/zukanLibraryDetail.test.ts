@@ -15,3 +15,11 @@ test("B6 group detail shows info table and actions", () => {
   assert.match(html, /図鑑に載せる/);
   assert.match(html, /共有する/);
 });
+
+test("year-ago empty state is a single centered note with a capture action", async () => {
+  const { renderLibraryYearAgoListPage } = await import("./zukanLibraryDetail");
+  const html = renderLibraryYearAgoListPage([], { lang: "ja" });
+  assert.match(html, /data-year-ago-empty="1"/);
+  assert.match(html, /href="\/ja\/record"[^>]*>撮る</);
+  assert.doesNotMatch(html, /class="zd-lead"/);
+});
