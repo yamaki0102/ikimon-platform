@@ -422,6 +422,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       var on = btn.getAttribute('data-taxon') === state.taxonGroup;
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on && state.taxonGroup === 'invasive' && btn.scrollIntoView) { try { btn.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) {} }
     });
   }
 

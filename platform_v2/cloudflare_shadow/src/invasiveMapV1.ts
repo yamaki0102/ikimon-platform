@@ -263,7 +263,7 @@ const BASE_CSS = `
 ${ZUKAN_SHELL_CSS}
 .iv-col{max-width:760px;margin:0 auto;padding:6px 0 32px}
 .iv-nb{white-space:nowrap}
-.iv-crumb{font-size:14px;color:var(--muted);display:flex;gap:6px;align-items:center;min-height:32px}
+.iv-crumb{font-size:15px;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:center;min-height:32px}
 .iv-title{margin:6px 0 0;font-size:24px;font-weight:800;line-height:1.35}
 .iv-sci{font-size:14px;color:var(--muted);font-style:italic;margin-top:2px}
 .iv-desc{margin:10px 0 0;font-size:15.5px;line-height:1.75;color:var(--ink)}
