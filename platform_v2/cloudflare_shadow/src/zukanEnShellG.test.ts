@@ -48,6 +48,9 @@ test("en about and learn have no Japanese chrome, ja about unchanged", async () 
     assert.equal(learn.statusCode, 200);
     assert.equal(JA.test(visible(learn.text) + attrs(learn.text)), false);
     assert.match(learn.text, /Nature connectedness/);
+    assert.match(learn.text, /Nature connectedness <small class="learn-term-ja-only">\(Japanese\)<\/small>/);
+    const jaLearn = await get("/learn?lang=ja");
+    assert.doesNotMatch(jaLearn.text, /learn-term-ja-only/);
     const ja = await get("/about?lang=ja");
     assert.match(ja.text, /地域の記録を、みんなで育てる。/);
   } finally {
