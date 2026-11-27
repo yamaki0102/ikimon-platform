@@ -5,6 +5,7 @@
 | BIOSECURITY_NAGAETSURU_ENABLED | ナガエツルノゲイトウの見守り | zukan_biosecurity | /ja/biosecurity/nagaetsuru |
 | FIELD_CARD_ENABLED | 出発前カード | zukan_field_card | /ja/places |
 | GUEST_TOP_V2_PROTOTYPE_ENABLED | ログイン前トップv2 | zukan_guest_top | /ja/?as=guest |
+| LIBRARY_V2_ENABLED | ライブラリ（ログイン後トップ）再設計 v2 | zukan_library | /ja/library |
 | MAP_INVASIVE_LAYER_ENABLED | 地図の外来種フィルター | zukan_biosecurity | /ja/map |
 | MAP_INVASIVE_TOP_CHIP_ENABLED | 地図上部の外来種チップ | zukan_biosecurity | /ja/map |
 | MAP_V2_ENABLED | マップ再設計 v2（Muse見本＋Fable/Astra修正） | zukan_map | /ja/map |

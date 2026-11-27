@@ -184,8 +184,11 @@ const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof re
 import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
+import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
 const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
+const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
+const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
@@ -3949,6 +3952,31 @@ export const worker = {
         const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
         const searchQuery = url.searchParams.get("q") ?? "";
         const before = decodePageCursor(url.searchParams.get("before")) ? url.searchParams.get("before") : null;
+        if (session && !session.banned && libraryV2On(env, session)) {
+          const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery, { before });
+          const cspNonce = createHtmlCspNonce();
+          const body = request.method === "HEAD"
+            ? null
+            : renderLibraryV2Page({
+                visits: v2.visits,
+                lang,
+                authenticated: true,
+                displayName: session.displayName,
+                searchQuery,
+                nextCursor: v2.nextCursor,
+                cspNonce,
+              });
+          return new Response(body, {
+            status: 200,
+            headers: {
+              ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+              "content-type": "text/html; charset=utf-8",
+              "cache-control": "private, no-store",
+              "vary": "cookie, authorization",
+              "x-ikimon-cloudflare-native": "zukan-library-v2",
+            },
+          });
+        }
         const data = await loadZukanTopPageData(env, session && !session.banned ? session.userId : null, searchQuery, lang === "en" ? "en" : "ja", { before });
         const noticeHtml = before ? "" : await loadLibraryNoticeHtml(request, env, session, `/${lang}`).catch(() => "");
         return html(renderZukanLibraryPage(data, { lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, searchQuery, noticeHtml, continuation: Boolean(before) }), 200, { "cache-control": "private, no-store" });
@@ -3957,6 +3985,25 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && (nativePathname === "/library/group" || nativePathname === "/library/year-ago")) {
         const session = await readCompatibleSession(request, env).catch(() => null);
         const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        const groupKey = url.searchParams.get("group") ?? "";
+        if (nativePathname === "/library/group" && groupKey && session && !session.banned && libraryV2On(env, session)) {
+          const v2 = await loadUserLibraryV2Data(env, session.userId, "", { limit: 200 });
+          const visit = v2.visits.find((v) => v.visitKey === groupKey) ?? null;
+          if (visit) {
+            const cspNonce = createHtmlCspNonce();
+            const body = request.method === "HEAD" ? null : renderLibraryV2VisitDetailPage(visit, { lang, displayName: session.displayName, cspNonce });
+            return new Response(body, {
+              status: 200,
+              headers: {
+                ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+                "content-type": "text/html; charset=utf-8",
+                "cache-control": "private, no-store",
+                "vary": "cookie, authorization",
+                "x-ikimon-cloudflare-native": "zukan-library-v2-detail",
+              },
+            });
+          }
+        }
         const detail = await handleLibraryDetailRoute(env, session, lang, nativePathname, url.searchParams);
         if (detail) return detail;
       }
@@ -22706,6 +22753,13 @@ function publicDerivativeContentType(key: string, mime: string | null): string {
 }
 
 async function getOriginalUiHtml(request: Request, url: URL, env: Env, knownSession?: SessionSnapshot | null): Promise<Response> {
+  if (isHomeHtmlPath(url.pathname)) {
+    const homeSession = knownSession !== undefined ? knownSession : await readCompatibleSession(request, env).catch(() => null);
+    if (homeSession && !homeSession.banned && libraryV2On(env, homeSession)) {
+      const nativeLibraryV2Top = await getNativeZukanTopHtmlIfAvailable(request, url, env, homeSession);
+      if (nativeLibraryV2Top) return nativeLibraryV2Top;
+    }
+  }
   if (env.ENVIRONMENT === "production" && (url.hostname === "zukan.earth" || url.hostname === "www.zukan.earth")) {
     const productionZukanTop = await getNativeZukanTopHtmlIfAvailable(request, url, env, knownSession);
     if (productionZukanTop) {
@@ -22774,6 +22828,31 @@ async function getNativeZukanTopHtmlIfAvailable(
   const guestViewer = viewerFromSession(session);
   const guestTopV2 = lang === "ja" && !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
+  if (authenticated && session && libraryV2On(env, session)) {
+    const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery);
+    const cspNonce = createHtmlCspNonce();
+    const body = request.method === "HEAD"
+      ? null
+      : renderLibraryV2Page({
+          visits: v2.visits,
+          lang,
+          authenticated: true,
+          displayName: session.displayName,
+          searchQuery,
+          nextCursor: v2.nextCursor,
+          cspNonce,
+        });
+    return new Response(body, {
+      status: 200,
+      headers: {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "private, no-store",
+        "vary": "cookie, authorization",
+        "x-ikimon-cloudflare-native": "zukan-library-v2",
+      },
+    });
+  }
   const data = await loadZukanTopPageData(env, authenticated && session ? session.userId : null, searchQuery, lang);
   const cspNonce = createHtmlCspNonce();
   const body = renderZukanTopPage(data, {
