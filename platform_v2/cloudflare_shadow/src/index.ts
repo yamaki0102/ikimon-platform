@@ -44,6 +44,11 @@ import {
 } from "./guestObservationPost";
 import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
+  handleShopPhotoPerkRequest,
+  loadShopPlacePerkSectionData,
+  renderShopPlacePerkSectionHtml,
+} from "./shopPhotoPerk";
+import {
   handleConfirmEventParticipation,
   handleEventConfirmOrJoinedRoute,
 } from "./zukanEventConfirmAndJoined";
@@ -2623,13 +2628,15 @@ async function getGlobalPlaceDetailPage(
   const confirmedPlaceSpecies = lang === "ja" && speciesReaderLayerOn(env, session)
     ? (profile.recentRecords ?? []).filter((r) => r.identificationStatus === "confirmed" && r.displayName).map((r) => r.displayName!)
     : [];
-  const [placeUsages, paperPages, fp, speciesLayers] = await Promise.all([
+  const [placeUsages, paperPages, fp, speciesLayers, shopPerkData] = await Promise.all([
     listNocosilOutcomeUsagesForPlace(env, canonicalPlaceId),
     listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
     listFixedPointsAndRecordsForPlace(env, canonicalPlaceId),
     confirmedPlaceSpecies.length > 0 ? loadSpeciesReaderLayersForPlace(env.OBS_DB, confirmedPlaceSpecies).catch(() => []) : Promise.resolve([]),
+    loadShopPlacePerkSectionData(env, canonicalPlaceId, session).catch(() => null),
   ]);
   const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
+  const shopPhotoPerkHtml = renderShopPlacePerkSectionHtml(shopPerkData);
   const speciesReaderLayersHtml = renderPlaceSpeciesReaderLayersHtml({
     enabled: lang === "ja" && speciesReaderLayerOn(env, session),
     layers: speciesLayers,
@@ -2643,6 +2650,7 @@ async function getGlobalPlaceDetailPage(
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
+    ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
@@ -4149,6 +4157,12 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (url.pathname.includes("/shops/")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const shopRes = await handleShopPhotoPerkRequest(request, url, env, session);
+        if (shopRes) return shopRes;
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
