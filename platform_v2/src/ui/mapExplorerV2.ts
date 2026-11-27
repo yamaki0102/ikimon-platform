@@ -146,6 +146,12 @@ a,button{font:inherit;color:inherit}
 .zv2-sfield{display:flex;align-items:center;gap:8px;min-height:48px;background:#fff;border-radius:999px;padding:6px 14px;box-shadow:0 2px 10px rgba(9,25,16,.22)}
 .zv2-sfield svg{color:#55615A}
 .zv2-sinput{flex:1;min-width:0;border:0;outline:none;background:transparent;color:#17211B;font:inherit;font-size:16px}
+.zv2-sdrop{position:absolute;left:12px;right:12px;top:64px;z-index:25;background:#fff;border-radius:16px;box-shadow:0 4px 18px rgba(9,25,16,.28);overflow-y:auto;overscroll-behavior:contain;max-height:40vh}
+.zv2-sdrop[hidden]{display:none}
+.zv2-sdrop-row{display:flex;flex-direction:column;justify-content:center;gap:2px;width:100%;min-height:48px;padding:6px 16px;border:0;border-bottom:1px solid #EEF0EC;background:#fff;text-align:left;font:inherit;color:#17211B;cursor:pointer}
+.zv2-sdrop-row b{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zv2-sdrop-row span{font-size:12px;color:#55615A}
+.zv2-sdrop-empty{padding:14px 16px;font-size:14px;color:#55615A}
 .zv2-sinput::placeholder{color:#55615A;opacity:1}
 .zv2-chips{display:flex;gap:7px;margin-top:9px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .zv2-chips::-webkit-scrollbar{display:none}
@@ -372,6 +378,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       <input id="zv2-search-m" class="zv2-sinput" type="search" placeholder="${isEn ? "Search places or records" : "場所や記録を探す"}" aria-label="${isEn ? "Search places or records" : "場所や記録を探す"}" />
     </label>
     <div class="zv2-chips" role="group" aria-label="${isEn ? "Filter by type" : "分類で絞る"}">${chipsHtml}</div>
+    <div class="zv2-sdrop" id="zv2-sdrop" role="listbox" hidden></div>
   </div>
 
   <div class="zv2-mapbtns" id="zv2-mapbtns">
@@ -431,6 +438,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   var invLegendEl = document.getElementById('zv2-inv-legend');
   var searchM = document.getElementById('zv2-search-m');
   var searchPc = document.getElementById('zv2-search-pc');
+  var sdropEl = document.getElementById('zv2-sdrop');
   var zoomInBtn = document.getElementById('zv2-zoom-in');
   var zoomOutBtn = document.getElementById('zv2-zoom-out');
   var geoBtn = document.getElementById('zv2-geoloc-btn');
@@ -942,6 +950,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         state.nearestRecorded = d.nearestRecorded || null;
         if (appEl) appEl.setAttribute('data-zv2-loaded', '1');
         renderUI();
+        if (state.renderSearchDrop) state.renderSearchDrop();
       })
       .catch(function () {});
   }
@@ -1129,8 +1138,61 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       }
     });
 
+    function renderSearchDrop() {
+      if (!sdropEl || !searchM) return;
+      var q = (state.searchQuery || '').trim();
+      if (isDesktop() || !q || document.activeElement !== searchM) { sdropEl.hidden = true; return; }
+      var ref = state.userCenter || (state.map ? state.map.getCenter() : { lat: CFG.defaultCenter[1], lng: CFG.defaultCenter[0] });
+      var rows = filteredPlaces().map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
+      rows.sort(function (a, b) { return a.d - b.d; });
+      rows = rows.slice(0, 8);
+      sdropEl.innerHTML = rows.length === 0
+        ? '<div class="zv2-sdrop-empty">' + t('見つかりません', 'No matches') + '</div>'
+        : rows.map(function (r) {
+            return '<button type="button" class="zv2-sdrop-row" role="option" data-zv2-drop-place="' + esc(r.p.placeId) + '"><b>' + esc(r.p.name) + '</b><span>' + esc(kindLabel(r.p.placeKind)) + ' ・ ' + fmtDist(r.d) + '</span></button>';
+          }).join('');
+      sdropEl.hidden = false;
+      var vv = window.visualViewport;
+      var vh = vv ? vv.height : window.innerHeight;
+      var vt = vv ? vv.offsetTop : 0;
+      var top = sdropEl.getBoundingClientRect().top;
+      sdropEl.style.maxHeight = Math.max(96, Math.floor(vh + vt - top - 8)) + 'px';
+    }
+    state.renderSearchDrop = renderSearchDrop;
+    if (sdropEl) {
+      sdropEl.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+      sdropEl.addEventListener('touchstart', function () { state.dropTouchAt = Date.now(); }, { passive: true });
+      sdropEl.addEventListener('click', function (ev) {
+        var b = ev.target && ev.target.closest ? ev.target.closest('[data-zv2-drop-place]') : null;
+        if (!b) return;
+        ev.stopPropagation();
+        var id = b.getAttribute('data-zv2-drop-place');
+        var pl = state.places.find(function (p) { return p.placeId === id; });
+        if (searchM) searchM.blur();
+        sdropEl.hidden = true;
+        selectPlace(id);
+        if (pl && state.map) state.map.easeTo({ center: [pl.lng, pl.lat], zoom: Math.max(state.map.getZoom(), 15) });
+      });
+    }
+    if (searchM) {
+      searchM.addEventListener('focus', renderSearchDrop);
+      searchM.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== searchM && sdropEl) sdropEl.hidden = true; }, 0); });
+      searchM.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter') return;
+        ev.preventDefault();
+        searchM.blur();
+        if (sdropEl) sdropEl.hidden = true;
+        state.selectedId = null;
+        state.selectedExpanded = false;
+        state.sheetState = 'half';
+        renderUI();
+      });
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', renderSearchDrop);
+    }
+
     function onSearch(val) {
       state.searchQuery = val;
+      renderSearchDrop();
       if (searchM && searchM.value !== val) searchM.value = val;
       if (searchPc && searchPc.value !== val) searchPc.value = val;
       clearTimeout(state.moveTimer);

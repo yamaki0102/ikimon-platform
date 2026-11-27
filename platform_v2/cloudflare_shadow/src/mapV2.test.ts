@@ -96,6 +96,8 @@ function setupHamamatsuDb(t: test.TestContext) {
     ins.run(id, i === 0 ? "都田総合公園" : `浜松の公園 ${i + 1}`, "park");
     bnd.run(`b-z-${i + 1}`, id, lng - 0.0005, lat - 0.0005, lng + 0.0005, lat + 0.0005);
   }
+  ins.run("p-renri", "連理の木の下で", "nature_area");
+  bnd.run("b-renri", "p-renri", 138.4995, 35.4995, 138.5005, 35.5005);
   return sqliteObsDb(sqlite);
 }
 
@@ -369,4 +371,35 @@ test("Playwright verifies map v2 applies Japanese-only symbol labels on load and
     { id: "place_city", prop: "text-field", val: ["coalesce", ["get", "name:ja"], ["get", "name"]] },
   ]);
   await ctx.close();
+});
+
+test("map places q searches names beyond the radius via SQL LIKE and escapes wildcards", async (t) => {
+  const db = setupHamamatsuDb(t);
+  const res = await handleMapPlacesBoundsApi(
+    new URL("https://zukan.earth/api/v1/map/places?lat=34.705&lng=137.72&radiusKm=15&v2=1&limit=400&q=" + encodeURIComponent("連理の木")),
+    db,
+  );
+  const body = (await res.json()) as { places: Array<{ placeId: string; name: string }> };
+  assert.deepEqual(body.places.map((p) => p.placeId), ["p-renri"]);
+  const wild = await handleMapPlacesBoundsApi(
+    new URL("https://zukan.earth/api/v1/map/places?lat=34.705&lng=137.72&v2=1&q=" + encodeURIComponent("%")),
+    db,
+  );
+  assert.equal(((await wild.json()) as { places: unknown[] }).places.length, 0);
+  const near = await handleMapPlacesBoundsApi(
+    new URL("https://zukan.earth/api/v1/map/places?lat=34.705&lng=137.72&v2=1&q=" + encodeURIComponent("浜松の公園 2")),
+    db,
+  );
+  assert.ok(((await near.json()) as { places: unknown[] }).places.length > 1);
+});
+
+test("map v2 mobile search renders results dropdown under the search bar with keyboard-safe height, Enter and tap handlers", () => {
+  for (const lang of ["ja", "en"] as const) {
+    const html = renderMapExplorerV2Document({ lang, authenticated: false, basePath: "", cspNonce: "n" });
+    assert.match(html, /id="zv2-sdrop"/);
+    assert.match(html, /visualViewport/);
+    assert.match(html, /data-zv2-drop-place/);
+    assert.match(html, /ev\.key !== 'Enter'/);
+    assert.match(html, lang === "ja" ? /見つかりません/ : /No matches/);
+  }
 });
