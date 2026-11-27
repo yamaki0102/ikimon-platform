@@ -57,6 +57,7 @@ import {
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
+import { loadPlaceBoundaries } from "./placeBoundary";
 import { handleMapPlaceSummaryApi } from "./zukanMapPlaceSummary";
 import { handleMapExploreRoute, handleMapPlacesBoundsApi, mapPlaceCardFromProfile, type MapPlaceCardExtras } from "./zukanMapView";
 import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
@@ -2694,9 +2695,11 @@ async function getGlobalPlaceDetailPage(
   const ownerRecords = authenticated && session && placeEV2On(env, session)
     ? await loadOwnerPlaceRecordSummary(env.OBS_DB, canonicalPlaceId, session.userId)
     : null;
+  const boundary = (await loadPlaceBoundaries(env.OBS_DB, [canonicalPlaceId]).catch(() => new Map())).get(canonicalPlaceId) ?? null;
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
+    boundary,
     savedItem,
     ...(ownerRecords && ownerRecords.count > 0 ? { ownerRecords } : {}),
     savedStateAvailable,

@@ -1,6 +1,7 @@
 import type { Env } from "./core/env";
 import { escapeHtml, finiteNumberOrNull, json } from "./core/http";
 import { classifyInvasive } from "./mapInvasive";
+import { loadPlaceBoundaries } from "./placeBoundary";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
 import {
@@ -602,7 +603,11 @@ export async function handleMapPlacesBoundsApi(
     places = places.filter((p) => (p.recordCount ?? 0) > 0 && p._stats && matchesV2TaxonFilter(taxonFilter, p._stats));
   }
 
-  const cleanPlaces = places.map(({ _stats, ...rest }) => rest);
+  const boundaries = await loadPlaceBoundaries(db, places.map((p) => p.placeId)).catch(() => new Map());
+  const cleanPlaces = places.map(({ _stats, ...rest }) => {
+    const boundary = boundaries.get(rest.placeId);
+    return boundary ? { ...rest, boundary } : rest;
+  });
   const recordedCount = cleanPlaces.filter((p) => (p.recordCount ?? 0) > 0).length;
   const nearestRecorded =
     recordedCount === 0 && !hasSearchQuery ? await findNearestRecordedPlace(db, parseCenter(url)) : null;
