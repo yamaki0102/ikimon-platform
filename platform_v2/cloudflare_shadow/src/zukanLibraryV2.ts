@@ -719,7 +719,7 @@ const SEASON_MONTHS: Readonly<Record<string, ReadonlySet<number>>> = {
   冬: new Set([12, 1, 2]),
 };
 
-function jstYearFromMs(nowMs: number): number {
+export function jstYearFromMs(nowMs: number): number {
   const isoDate = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
@@ -735,12 +735,12 @@ function jstYearMonthFromDateDay(dateDay: string): { year: number; month: number
   return { year: Number(m[1]), month: Number(m[2]) };
 }
 
-type SearchTokenSpec = {
+export type SearchTokenSpec = {
   textToken: string;
   temporalMatch: ((obs: { year: number; month: number } | null) => boolean) | null;
 };
 
-function parseLibraryV2SearchToken(rawToken: string, currentYear: number): SearchTokenSpec {
+export function parseLibraryV2SearchToken(rawToken: string, currentYear: number): SearchTokenSpec {
   const normalized = rawToken.normalize("NFKC").trim();
   const textToken = normalized.toLocaleLowerCase("ja-JP");
   const match = normalized.match(
