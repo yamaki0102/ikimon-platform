@@ -308,6 +308,10 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-sync{margin:12px 0 0}
 .zv2l-sync[hidden]{display:none}
 .zv2l-sync .zt-status-band{margin-top:8px}
+.zv2l-sync-bar{display:block;height:4px;border-radius:2px;background:#eadfb8;overflow:hidden;margin-top:6px;width:160px;max-width:100%}
+.zv2l-sync-bar b{display:block;height:100%;width:40%;background:var(--green);animation:zv2l-sync-slide 1.4s ease-in-out infinite}
+@keyframes zv2l-sync-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+@media (prefers-reduced-motion:reduce){.zv2l-sync-bar b{animation:none;width:60%}}
 .zv2l-dsep{display:flex;align-items:center;gap:10px;padding:18px 0 2px}
 .zv2l-dt{font-size:14px;font-weight:800;color:var(--green);white-space:nowrap}
 .zv2l-dl{flex:1;height:1px;background:#E4E9E4}
@@ -523,6 +527,12 @@ export function renderLibraryV2Page(options: {
     <button type="button" class="zv2l-add-btn" id="zv2l-sheet-close" style="width:100%;justify-content:center;margin-top:12px;">閉じる</button>
   </section>`;
 
+  const recentCutoff = Date.now() - 48 * 3600 * 1000;
+  const recentIds = options.visits
+    .filter((v) => Date.parse(v.endedAt) >= recentCutoff)
+    .flatMap((v) => v.observationIds)
+    .slice(0, 6);
+
   const body = `<div class="zv2l-col" data-library-v2="1">
     <div class="zv2l-headbar">
       <h1 class="zv2l-title">ライブラリ</h1>
@@ -554,33 +564,66 @@ export function renderLibraryV2Page(options: {
   <script${nonceAttr}>
     (function(){
       var box = document.getElementById('zv2l-sync');
-      if (box && window.indexedDB) {
+      var retryHref = ${JSON.stringify(`${prefix}/record?draft=1`).replace(/</g, "\u003c")};
+      var recentIds = ${JSON.stringify(recentIds).replace(/</g, "\u003c")};
+      function readOutbox(cb){
+        var done = false;
+        function fin(v){ if (!done) { done = true; cb(v); } }
+        if (!window.indexedDB) return fin([]);
         try {
           var rq = indexedDB.open('ikimon-app-outbox-v1', 1);
           rq.onupgradeneeded = function(){ try { rq.transaction.abort(); } catch (e) {} };
+          rq.onerror = function(){ fin([]); };
           rq.onsuccess = function(){
             var db = rq.result;
             try {
-              if (!db.objectStoreNames.contains('items')) { db.close(); return; }
+              if (!db.objectStoreNames.contains('items')) { db.close(); return fin([]); }
               var g = db.transaction('items', 'readonly').objectStore('items').getAll();
-              g.onsuccess = function(){
-                var items = (g.result || []).filter(function(x){ return x && x.source === 'record'; });
-                db.close();
-                var failed = items.filter(function(x){ return x.status === 'failed'; }).length;
-                var queued = items.length - failed;
-                if (!items.length) return;
-                var tone = failed ? 'error' : 'warn';
-                var title = failed ? failed + '件の送信に失敗しました。' : queued + '件の写真が未送信です。';
-                var detail = failed ? '写真はこの端末に残っています。' : '通信が戻ると自動で送られます。';
-                box.innerHTML = '<div class="zt-status-band" data-tone="' + tone + '" role="status"><div class="zt-status-copy"><strong></strong><span></span></div><a class="zt-status-act" href="${esc(`${prefix}/record`)}">記録へ</a></div>';
-                box.querySelector('strong').textContent = title;
-                box.querySelector('span').textContent = detail;
-                box.hidden = false;
-              };
-              g.onerror = function(){ db.close(); };
-            } catch (e) { try { db.close(); } catch (e2) {} }
+              g.onsuccess = function(){ var r = (g.result || []).filter(function(x){ return x && x.source === 'record'; }); db.close(); fin(r); };
+              g.onerror = function(){ db.close(); fin([]); };
+            } catch (e) { try { db.close(); } catch (e2) {} fin([]); }
           };
-        } catch (e) {}
+        } catch (e) { fin([]); }
+      }
+      function readServer(cb){
+        if (!recentIds.length || !window.fetch) return cb({ sending: 0, failed: 0 });
+        Promise.all(recentIds.map(function(id){
+          return fetch('/api/v1/observations/' + encodeURIComponent(id) + '/processing-status', { credentials: 'same-origin', cache: 'no-store' })
+            .then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+        })).then(function(rs){
+          var sending = 0, failed = 0;
+          rs.forEach(function(r){
+            var m = r && r.status && r.status.mediaState;
+            if (m === 'processing') sending++; else if (m === 'retry_required') failed++;
+          });
+          cb({ sending: sending, failed: failed });
+        }).catch(function(){ cb({ sending: 0, failed: 0 }); });
+      }
+      function render(items, srv){
+        if (!box) return;
+        var dFailed = items.filter(function(x){ return x.status === 'failed'; });
+        var dQueued = items.length - dFailed.length;
+        var failed = dFailed.length + srv.failed;
+        var sending = dQueued + srv.sending;
+        if (!failed && !sending) { box.hidden = true; box.innerHTML = ''; return; }
+        var html;
+        if (failed) {
+          html = '<div class="zt-status-band" data-tone="error" data-sync-state="failed" role="status"><div class="zt-status-copy"><strong></strong><span></span></div><a class="zt-status-act" data-sync-retry="1" href="' + retryHref + '">もう一度送る</a></div>';
+        } else {
+          html = '<div class="zt-status-band" data-tone="warn" data-sync-state="sending" role="status"><div class="zt-status-copy"><strong></strong><span></span><i class="zv2l-sync-bar"><b></b></i></div></div>';
+        }
+        box.innerHTML = html;
+        box.querySelector('strong').textContent = failed ? failed + '件を送れませんでした' : sending + '件を送っています';
+        box.querySelector('span').textContent = failed ? '写真はこの端末に残っています。' : '通信が戻ると自動で送られます。';
+        box.hidden = false;
+      }
+      function refresh(){
+        readOutbox(function(items){ readServer(function(srv){ render(items, srv); }); });
+      }
+      if (box) {
+        refresh();
+        window.addEventListener('ikimon-app-outbox-change', refresh);
+        window.addEventListener('online', refresh);
       }
       var openBtn = document.querySelector('[data-zv2l-open-add]');
       var scrim = document.getElementById('zv2l-scrim');
