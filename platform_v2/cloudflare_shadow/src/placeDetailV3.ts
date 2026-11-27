@@ -138,7 +138,7 @@ export const PLACE_V3_STYLES = `
 .pv3-card .rb{padding:11px 13px 13px}
 .pv3-card .rt{font-size:15.5px;font-weight:700;line-height:1.5;overflow-wrap:anywhere}
 .pv3-card .rm{margin-top:7px;font-size:13.5px;color:#55615A;font-weight:600;line-height:1.55}
-.pv3-details{margin:12px auto 0;max-width:1120px;min-width:0}.pv3-details>summary{display:flex;align-items:center;justify-content:center;min-height:52px;color:#143F2E;font-weight:700;font-size:1.0625rem;text-decoration:underline;text-underline-offset:4px;cursor:pointer;list-style:none}.pv3-details>summary::-webkit-details-marker{display:none}.pv3-details[open]>summary{margin-bottom:8px}
+.pv3-details{margin:12px auto 0;max-width:1120px;min-width:0}.pv3-details>summary{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-height:44px;padding:0 18px;border:2px solid #143F2E;border-radius:999px;color:#143F2E;font-weight:700;font-size:1.0625rem;text-decoration:none;white-space:nowrap;cursor:pointer;list-style:none}.pv3-details>summary::marker{content:""}.pv3-details>summary::-webkit-details-marker{display:none}.gpd a:visited{color:#143F2E}.pv3-details[open]>summary{margin-bottom:8px}
 .pv3-rail{display:flex;flex-direction:column;gap:16px;margin-top:36px;min-width:0}
 .pv3-rc{background:#F7F7F3;border-radius:16px;padding:18px}
 .pv3-rc h2{margin:0 0 12px;font-size:16px;font-weight:800;letter-spacing:-.01em}

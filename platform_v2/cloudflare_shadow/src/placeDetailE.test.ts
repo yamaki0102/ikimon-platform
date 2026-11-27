@@ -51,7 +51,7 @@ test("E1: hero, name, chips, strip, rows, one primary, more button", () => {
   assert.equal((main.match(/class="pe-row"/g) ?? []).length, 2);
   assert.equal((main.match(/data-pe-record[ >]/g) ?? []).length, 1);
   assert.match(main, /この場所で記録する/);
-  assert.match(main, /data-pe-more[^>]*>[^<]*詳しく/);
+  assert.doesNotMatch(main, /data-pe-more/);
   assert.match(main, /placeId=plc_etest&amp;placeName=/);
   assert.doesNotMatch(main, /rep\.jpg/);
 });
