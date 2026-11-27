@@ -357,7 +357,7 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-zero{padding:36px 12px 48px;text-align:center}
 .zv2l-zicon{width:84px;height:84px;border-radius:50%;background:#EFF3EE;color:var(--green);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
 .zv2l-zicon svg{width:36px;height:36px}
-.zv2l-zero h1{margin:0;font-size:22px;font-weight:800;line-height:1.45}
+.zv2l-zero h2{margin:0;font-size:22px;font-weight:800;line-height:1.45}
 .zv2l-zbody{max-width:340px;margin:14px auto 0;text-align:center;text-wrap:balance}
 .zv2l-zbody p{font-size:15.5px;line-height:1.75;color:#3C4A41;margin:10px 0 0}
 .zv2l-btn-main{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:22px auto 0;padding:12px 18px;border-radius:999px;background:var(--green);color:#fff!important;font-size:16px;font-weight:800;text-decoration:none;border:0;cursor:pointer}
@@ -495,7 +495,7 @@ export function renderLibraryV2Page(options: {
     if (trimmedSearch) {
       listContent = `<section class="zv2l-zero" data-library-search-empty="1">
       <div class="zv2l-zicon">${ZUKAN_SHELL_ICONS.search}</div>
-      <h1>${t("条件に合う記録がありません", "No matching records")}</h1>
+      <h2>${t("条件に合う記録がありません", "No matching records")}</h2>
       <div class="zv2l-zbody">
         <p>${isEn ? `No records of yours match "${esc(trimmedSearch)}". Try a species name, place, note, or season (like "last autumn").` : `「${esc(trimmedSearch)}」に一致する自分の記録が見つかりませんでした。生きものの名前・場所・メモ・季節（「去年の秋」など）でお試しください。`}</p>
       </div>
@@ -504,7 +504,7 @@ export function renderLibraryV2Page(options: {
     } else {
       listContent = `<section class="zv2l-zero" data-library-empty="1">
       <div class="zv2l-zicon">${ICONS.photo}</div>
-      <h1>${t("まだ記録がありません", "No records yet")}</h1>
+      <h2>${t("まだ記録がありません", "No records yet")}</h2>
       <div class="zv2l-zbody">
         <p>${t("出かけた先で撮った写真が、ここに場所と日にちでたまります。", "Photos you take while out will collect here by place and date.")}</p>
       </div>

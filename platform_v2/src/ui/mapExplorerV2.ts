@@ -237,12 +237,12 @@ a,button{font:inherit;color:inherit}
 /* Desktop (>= 960px): single 372px left panel + full remaining canvas */
 @media(min-width:960px){
   .zv2-pchead{position:absolute;top:0;left:0;right:0;height:64px;z-index:40;background:#fff;border-bottom:1px solid #E4E9E4;display:flex;align-items:center;gap:22px;padding:0 22px}
-  .zv2-logo{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:800;color:#143F2E;text-decoration:none}
+  .zv2-logo{display:flex;align-items:center;gap:8px;min-height:44px;font-size:20px;font-weight:800;color:#143F2E;text-decoration:none}
   .zv2-pcnav{display:flex;gap:6px;margin-left:8px}
-  .zv2-pcnav a{font-size:15px;font-weight:700;color:#55615A;padding:8px 14px;border-radius:999px;text-decoration:none}
+  .zv2-pcnav a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:700;color:#55615A;padding:0 14px;border-radius:999px;text-decoration:none}
   .zv2-pcnav a[aria-current="page"]{background:#EFF3EE;color:#143F2E}
   .zv2-grow{flex:1}
-  .zv2-login{font-size:15px;font-weight:700;color:#143F2E;text-decoration:none;padding:8px 14px;border-radius:999px}
+  .zv2-login{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:700;color:#143F2E;text-decoration:none;padding:0 14px;border-radius:999px}
   .zv2-shoot{background:#143F2E;color:#fff;font-size:15px;font-weight:800;border-radius:999px;padding:10px 20px;text-decoration:none}
   .zv2-panel{display:flex;flex-direction:column;position:absolute;top:64px;left:0;bottom:0;width:372px;z-index:30;background:#fff;border-right:1px solid #E4E9E4;padding:18px 20px;overflow-y:auto}
   .zv2-pc-search{margin-bottom:12px}
@@ -325,7 +325,8 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   <style${nonceAttr}>${MAP_V2_CSS}</style>
 </head>
 <body>
-<div class="zv2-app${options.placeTab ? " zv2-pt" : ""}" data-map-v2="1"${options.placeTab ? ' data-place-tab="1"' : ""}>
+<div class="zv2-app${options.placeTab ? " zv2-pt" : ""}" role="main" data-map-v2="1"${options.placeTab ? ' data-place-tab="1"' : ""}>
+  <h1 style="position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">${escapeHtml(placesLabel)}</h1>
   <header class="zv2-pchead">
     <a class="zv2-logo" href="${escapeHtml(`${prefix}/`)}">${ICON_LOGO}<span>ZUKAN</span></a>
     <nav class="zv2-pcnav" aria-label="${isEn ? "Primary" : "メインナビ"}">
