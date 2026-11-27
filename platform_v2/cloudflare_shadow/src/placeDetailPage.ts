@@ -3,6 +3,7 @@ import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNa
 import { MAP_PLACE_ATLAS_PROFILE_RUNTIME, MAP_PLACE_ATLAS_PROFILE_STYLES, renderMapPlaceAtlasProfile } from "../../src/ui/mapPlaceAtlasProfile";
 import { escapeHtml } from "../../src/ui/siteShell";
 import type { SavedItem } from "./savedItems";
+import { buildPlaceInvasive } from "./placeInvasive";
 import { PLACE_E_STYLES, renderPlaceE, type PlaceEEvent } from "./placeDetailE";
 import { PLACE_V3_STYLES, renderPlaceV3, type PlaceV3Event, type PlaceV3Nearby, type PlaceV3Steward } from "./placeDetailV3";
 import { QUIET_HOME_STYLES, renderSavedControl, renderSavedItemsScript, type QuietHomeLang } from "./quietHome";
@@ -276,6 +277,7 @@ export function renderGlobalPlaceDetailPage(input: {
     moreHref: "#gpd-details",
     moreLabel: copy.moreAbout,
     events: input.e2Events ?? [],
+    invasive: lang === "ja" ? buildPlaceInvasive(records.map((r) => ({ ...r, href: recordHrefOf(r) }))) : [],
   }) : v3On ? renderPlaceV3({
     lang,
     prefix,

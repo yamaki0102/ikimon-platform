@@ -226,6 +226,8 @@ import {
   recordableFacePrivacy
 } from "./publicMediaRepair";
 import { renderQuietHome, renderSavedPage, renderSavedControl, renderSavedItemsScript, QUIET_HOME_STYLES, quietHomeCopy } from "./quietHome";
+import { loadPlaceLinkedEvents } from "./placeInvasive";
+import { eventTiming } from "./zukanEventUi";
 import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from "./placeDetailPage";
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
@@ -2667,6 +2669,7 @@ async function getGlobalPlaceDetailPage(
     enabled: lang === "ja" && speciesReaderLayerOn(env, session),
     layers: speciesLayers,
   });
+  const e2Events = placeEV2On(env, session) ? await loadPlaceLinkedEvents(env.OBS_DB, canonicalPlaceId, lang, eventTiming) : [];
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
@@ -2679,7 +2682,7 @@ async function getGlobalPlaceDetailPage(
     ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
-    ...(placeEV2On(env, session) ? { e2: true } : {}),
+    ...(placeEV2On(env, session) ? { e2: true, e2Events } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
   });
   const response = html(body, 200, {
