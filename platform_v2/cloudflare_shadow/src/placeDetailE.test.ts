@@ -140,3 +140,14 @@ test("NOCOSIL event link shows encoded place name only when on", () => {
   assert.equal((main.match(/class="gpd-primary"/g) ?? []).length, 1);
   assert.doesNotMatch(main, /target="_blank"/);
 });
+
+test("region link shows only when regionLink given", () => {
+  const link = { href: "/ja/regions/%E6%B5%9C%E6%9D%BE", label: "浜松の地域ページ" };
+  const on = mainOf(render(profile(), { e2: true, regionLink: link }));
+  assert.ok(on.includes(`<a href="${link.href}">${link.label}</a>`));
+  assert.equal((on.match(/data-pe-region/g) ?? []).length, 1);
+  const off = mainOf(render(profile(), { e2: true }));
+  assert.doesNotMatch(off, /data-pe-region/);
+  const emptyOn = mainOf(render(empty(), { e2: true, regionLink: link }));
+  assert.ok(emptyOn.includes(link.label));
+});

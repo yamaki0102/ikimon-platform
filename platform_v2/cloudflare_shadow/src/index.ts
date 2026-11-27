@@ -2682,7 +2682,7 @@ async function getGlobalPlaceDetailPage(
     layers: speciesLayers,
   });
   const e2Events = placeEV2On(env, session) ? await loadPlaceLinkedEvents(env.OBS_DB, canonicalPlaceId, lang, eventTiming) : [];
-  const regionArea = placePageV3On(env, session) && regionSurfaceV1On(env, session) ? await loadPlaceRegionArea(env.OBS_DB, canonicalPlaceId, normalizeSafePublicAreaLabelCandidate) : null;
+  const regionArea = (placePageV3On(env, session) || placeEV2On(env, session)) && regionSurfaceV1On(env, session) ? await loadPlaceRegionArea(env.OBS_DB, canonicalPlaceId, normalizeSafePublicAreaLabelCandidate) : null;
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
@@ -2695,7 +2695,7 @@ async function getGlobalPlaceDetailPage(
     ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
-    ...(regionArea ? { regionLink: { href: `/${lang}/regions/${encodeURIComponent(regionArea)}`, label: lang === "ja" ? `${regionArea}の地域ページ` : regionArea } } : {}),
+    ...(regionArea ? { regionLink: { href: `/${lang}/regions/${encodeURIComponent(regionArea)}`, label: lang === "ja" ? `${regionArea}の地域ページ` : `Region: ${regionArea}` } } : {}),
     ...(placeEV2On(env, session) ? { e2: true, e2Events } : {}),
     ...(placeEV2On(env, session) && nocosilEventLinkOn(env, session) ? { nocosilEventLink: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})

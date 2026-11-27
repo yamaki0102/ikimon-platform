@@ -278,6 +278,7 @@ export function renderGlobalPlaceDetailPage(input: {
     saveHtml: input.viewerAuthenticated && input.savedStateAvailable === false ? "" : save,
     moreHref: "#gpd-details",
     moreLabel: copy.moreAbout,
+    regionLink: input.regionLink ?? null,
     events: input.e2Events ?? [],
     ...(input.nocosilEventLink === true && (selected || local) ? { nocosilEventHref: "https://nocosil.com/app/start/zukan?place=" + encodeURIComponent(selected || local) } : {}),
     invasive: lang === "ja" ? buildPlaceInvasive(records.map((r) => ({ ...r, href: recordHrefOf(r) }))) : [],

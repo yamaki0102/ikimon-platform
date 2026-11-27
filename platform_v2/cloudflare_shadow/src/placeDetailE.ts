@@ -28,6 +28,7 @@ export type PlaceEInput = {
   moreLabel: string;
   events: PlaceEEvent[];
   nocosilEventHref?: string;
+  regionLink?: { href: string; label: string } | null;
   invasive?: PlaceInvasiveItem[];
 };
 
@@ -163,9 +164,10 @@ export function renderPlaceE(input: PlaceEInput): string {
   const moreBtn = `<a class="gpd-secondary" href="${e(input.moreHref)}" data-pe-more>${e(input.moreLabel)}</a>`;
 
   const hostLink = input.nocosilEventHref ? `<p class="pe-host" data-pe-host-event><a href="${e(input.nocosilEventHref)}" rel="noopener">${e(c.hostEvent)}</a></p>` : "";
+  const regionHtml = input.regionLink ? `<p class="pe-host" data-pe-region><a href="${e(input.regionLink.href)}">${e(input.regionLink.label)}</a></p>` : "";
   let main: string;
   if (!input.hasRecords) {
-    main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section><div class="pe-actions">${moreBtn}</div>${hostLink}`;
+    main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section><div class="pe-actions">${moreBtn}</div>${hostLink}${regionHtml}`;
   } else {
     const recordsSec = `<section data-pe-records><div class="pe-h"><h2>${e(c.records)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div>${strip}${rows ? `<div class="pe-rows">${rows}</div>` : ""}</section>`;
     const invList = c.invasive && input.invasive?.length
@@ -177,7 +179,7 @@ export function renderPlaceE(input: PlaceEInput): string {
     const events = input.events.length
       ? `<section data-pe-events><div class="pe-h"><h2>${e(c.events)}</h2></div><div class="pe-rows">${input.events.slice(0, 3).map((ev) => `<a class="pe-row" href="${e(ev.href)}">${ev.thumbUrl && !shown.has(ev.thumbUrl) ? `<span class="pe-thumb"><img src="${e(ev.thumbUrl)}" alt="" loading="lazy"></span>` : ""}<span class="tx"><div class="t">${e(ev.title)}</div><div class="s">${e(ev.whenLabel)}</div></span>${CHEV}</a>`).join("")}</div></section>`
       : "";
-    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>${hostLink}`;
+    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>${hostLink}${regionHtml}`;
   }
   return `<div class="pe" data-place-e-v2>${hero}<div class="pe-body">${head}${main}</div></div>`;
 }
