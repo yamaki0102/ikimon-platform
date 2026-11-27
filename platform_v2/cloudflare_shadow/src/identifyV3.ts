@@ -46,6 +46,8 @@ export type IdentifyV3SavedItem = {
   savedAtLabel: string;
   settledByActorName: string | null;
   settledReason: string | null;
+  savedAtIso: string;
+  settledAtIso: string | null;
   taxonNodeKey: string;
   stateSummary: string;
 };
@@ -67,6 +69,7 @@ export type IdentifyV3WorkspaceData = {
 };
 
 const FEED_PAGE_SIZE = 10;
+const SETTLED_VISIBLE_MS = 30 * 24 * 60 * 60 * 1000;
 
 const esc = (v: string): string =>
   v.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
@@ -301,19 +304,21 @@ export async function loadIdentifyV3WorkspaceData(
 
   const occIds = obsRows.results.map((r) => r.observation_id);
   const votesByOcc = new Map<string, Array<{ actorUserId: string; proposedName: string; actorName?: string }>>();
+  const lastVoteAtByOcc = new Map<string, string>();
   const disputesByOcc = new Map<string, { openCount: number; hasInsufficientEvidence: boolean }>();
 
   if (occIds.length > 0) {
     const placeholders = occIds.map(() => "?").join(",");
     const voteRows = await env.OBS_DB.prepare(
-      `SELECT occurrence_id, actor_user_id, proposed_name
+      `SELECT occurrence_id, actor_user_id, proposed_name, updated_at
          FROM observation_identifications
         WHERE occurrence_id IN (${placeholders}) AND is_current = 1`
-    ).bind(...occIds).all<{ occurrence_id: string; actor_user_id: string; proposed_name: string }>().catch(() => ({ results: [] }));
+    ).bind(...occIds).all<{ occurrence_id: string; actor_user_id: string; proposed_name: string; updated_at: string | null }>().catch(() => ({ results: [] }));
     for (const v of voteRows.results) {
       const list = votesByOcc.get(v.occurrence_id) ?? [];
       list.push({ actorUserId: v.actor_user_id, proposedName: v.proposed_name });
       votesByOcc.set(v.occurrence_id, list);
+      if (v.updated_at && v.updated_at > (lastVoteAtByOcc.get(v.occurrence_id) ?? "")) lastVoteAtByOcc.set(v.occurrence_id, v.updated_at);
     }
 
     const dispRows = await env.OBS_DB.prepare(
@@ -446,12 +451,16 @@ export async function loadIdentifyV3WorkspaceData(
         savedCandidateName: holdMeta.savedCandidateName ?? aiCandidates[0]?.name ?? null,
         savedAtLabel: jstMonthDayLabel(holdMeta.savedAt ?? hold.updated_at, en),
         settledByActorName: null,
+        savedAtIso: holdMeta.savedAt ?? hold.updated_at,
+        settledAtIso: consensus.statusWord === "確認済み" ? (lastVoteAtByOcc.get(row.observation_id) ?? null) : null,
         settledReason: consensus.statusWord === "確認済み" ? (en ? "Settled by another person's proposal with evidence." : "ほかの人の根拠つきの提案で決まりました。") : null,
         taxonNodeKey: node?.key ?? majorGroup,
         stateSummary: consensus.summaryText,
       };
       if (consensus.statusWord === "確認済み") {
-        if (!holdMeta.settledDismissed) settledSavedItems.push(savedCard);
+        const settledMs = savedCard.settledAtIso ? Date.parse(savedCard.settledAtIso.includes("T") ? savedCard.settledAtIso : `${savedCard.settledAtIso.replace(" ", "T")}Z`) : NaN;
+        const expired = Number.isFinite(settledMs) && nowMs - settledMs > SETTLED_VISIBLE_MS;
+        if (!holdMeta.settledDismissed && !expired) settledSavedItems.push(savedCard);
       } else {
         savedItems.push(savedCard);
       }
@@ -465,7 +474,8 @@ export async function loadIdentifyV3WorkspaceData(
   savedItems.sort((a, b) => {
     const freqA = confirmedCountsByNode[a.taxonNodeKey] ?? 0;
     const freqB = confirmedCountsByNode[b.taxonNodeKey] ?? 0;
-    return freqB - freqA;
+    if (freqA !== freqB) return freqB - freqA;
+    return b.savedAtIso.localeCompare(a.savedAtIso);
   });
 
   const effectiveSkills: IdentifySkillDeclaration[] = skills.length > 0 ? skills : autoGrown.map((g) => ({ taxonNodeKey: g.taxonNodeKey, level: "general" as const, source: "auto_grown" as const }));
@@ -609,8 +619,8 @@ export function renderFeedCardsHtml(items: readonly RankedIdentifyFeedItem[], la
 
       const expertBoxHtml = obs.canConfirmScoped
         ? `<div class="id3-expert" data-id3-expert="${esc(obs.observationId)}">
-            <div class="id3-et">${en ? `You can confirm within the ${esc(topCandName)} range` : `あなたは、${esc(topCandName)}の範囲を確認できます`}</div>
-            <div class="id3-eb">${t("形質・写真の場所・見える／見えないの根拠を添えると、1人で確認済みにできます。", "Add the trait, the part of the photo, and whether it is visible, and you can confirm this on your own.")}</div>
+            <div class="id3-et">${en ? `A confirm entry with evidence is open for the ${esc(topCandName)} range` : `${esc(topCandName)}の範囲で、根拠を添えて確定する入口があります`}</div>
+            <div class="id3-eb">${t("形質・写真の場所・見える／見えないの根拠を添えます。", "Add the trait, the part of the photo, and whether it is visible.")}</div>
             <button type="button" class="id3-ebtn" data-id3-expert-confirm-open="${esc(obs.observationId)}">${t("根拠を添えて確定する", "Confirm with evidence")}</button>
           </div>`
         : "";

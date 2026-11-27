@@ -861,3 +861,22 @@ test("worker API enforces scoped reviewer authorization and structured evidence 
   assert.equal(objJson.confirmedWithObjection, true);
   assert.equal(objJson.tier3ExportAllowed, false);
 });
+
+test("saved view: quiet count lead, folded filter, settled section, no confirm promise copy", () => {
+  const item = (id: string, settled: boolean) => ({
+    occurrenceId: id, photoUrl: null, currentTitle: "文鳥", statusWord: (settled ? "確認済み" : "人の提案") as "確認済み" | "人の提案",
+    ownerDisplayName: "記録者", locationText: "浜松市中央区", observedDateLabel: "11月1日", savedCandidateName: "文鳥", savedAtLabel: "11月2日",
+    settledByActorName: null, settledReason: settled ? "ほかの人の根拠つきの提案で決まりました。" : null, savedAtIso: "2026-11-02T00:00:00Z",
+    settledAtIso: settled ? "2026-11-20T00:00:00Z" : null, taxonNodeKey: "buncho", stateSummary: "x",
+  });
+  const base = { lang: "ja" as const, displayName: "a", skills: [], autoGrown: [], promotionSuggestions: [], confirmedCountsByNode: {}, feedItems: [], nextCursor: null };
+  const ja = renderIdentifyV3Page({ ...base, view: "saved", savedItems: [item("o1", false)], settledSavedItems: [item("o2", true)], savedCount: 1 });
+  assert.match(ja, /いま <b>1件<\/b> あります/);
+  assert.match(ja, /<details[^>]*>\s*<summary[^>]*>分類や時期で絞る/);
+  assert.match(ja, /決まったもの/);
+  assert.equal(/確定できます|あと\d+件/.test(ja), false);
+  const en = renderIdentifyV3Page({ ...base, lang: "en", view: "saved", savedItems: [item("o1", false)], settledSavedItems: [], savedCount: 1 });
+  assert.match(en, /You have <b>1<\/b> now/);
+  const skills = renderIdentifyV3Page({ ...base, view: "skills", savedItems: [], settledSavedItems: [], savedCount: 0 });
+  for (const w of ["くわしい", "全般わかる", "わかるものもある", "流さない"]) assert.ok(skills.includes(w));
+});
