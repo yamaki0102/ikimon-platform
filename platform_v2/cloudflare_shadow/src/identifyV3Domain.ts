@@ -4,13 +4,13 @@ import { disclosePublicLocation, type LocationProtection } from "./recordPublicL
 export type TaxonTreeLevel = "major" | "group" | "species";
 export type SkillDeclarationLevel = "expert" | "general" | "some" | "none";
 export type IdentifyStatusWord = "AIの読み取り" | "人の提案" | "確認済み";
-export type IdentifyDecisionKind = "identify" | "save" | "delegate" | "read" | "undetermined";
+export type IdentifyDecisionKind = "identify" | "confirm" | "object" | "save" | "delegate" | "read" | "undetermined";
 
-// Pending U1-U6 decisions (waiting for Makki confirmation — UI intentionally omitted).
-export type PendingExpertRequirementStub = {
-  readonly decisionPending: "U1_U6";
-  readonly expertEligibilityResolved: false;
-  readonly expertConfirmationUiEnabled: false;
+export type StructuredJustification = {
+  traits: readonly string[];
+  photoPart: string;
+  visibility: "見える" | "見えない";
+  textNote?: string | null;
 };
 
 export type TaxonNode = {
@@ -132,6 +132,12 @@ export type IdentifyFeedCandidateInput = {
   areaNote?: string | null;
   splitReasonTag?: "分類の変更" | null;
   splitProvenanceNote?: string | null;
+  canConfirmScoped?: boolean;
+  confirmedWithObjection?: boolean;
+  tier3ExportAllowed?: boolean;
+  needsInquiry?: boolean;
+  outlierReasons?: string[];
+  escalatedOneRankUp?: boolean;
 };
 
 export type RankedIdentifyFeedItem = {
@@ -489,5 +495,213 @@ export function recomputeUnitStatsAfterSplit(
   return {
     countsByTaxon: next,
     overturnedCount: input.baselineOverturnedCount,
+  };
+}
+
+const TAXONOMY_OVERTURN_EXEMPT_REASONS = new Set(["分類の変更", "taxon_split", "taxon_rename", "taxon_merge", "taxonomy_revision"]);
+
+export function computeVoterOverturnRate(
+  history: readonly { overturned: boolean; reasonTag?: string | null }[],
+): number {
+  const evaluated = history.filter((item) => !item.reasonTag || !TAXONOMY_OVERTURN_EXEMPT_REASONS.has(item.reasonTag));
+  if (evaluated.length === 0) return 0;
+  const overturnedCount = evaluated.filter((item) => item.overturned).length;
+  return overturnedCount / evaluated.length;
+}
+
+export function isVoterEligible(input: { activeDays: number; overturnRate: number }): boolean {
+  return input.activeDays >= 7 && input.overturnRate < 0.2;
+}
+
+export function validateStructuredJustification(input: Partial<StructuredJustification> | null | undefined): {
+  ok: boolean;
+  reason?: string;
+  normalized?: StructuredJustification;
+} {
+  if (!input) return { ok: false, reason: "justification_required" };
+  const traits = Array.isArray(input.traits)
+    ? input.traits.map((t) => String(t ?? "").trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const photoPart = String(input.photoPart ?? "").trim();
+  const visibility = input.visibility === "見える" || input.visibility === "見えない" ? input.visibility : null;
+  if (traits.length === 0 || !photoPart || !visibility) {
+    return { ok: false, reason: "structured_justification_incomplete" };
+  }
+  const textNote = input.textNote ? formatSpokenJustificationJa(input.textNote) : null;
+  return { ok: true, normalized: { traits, photoPart, visibility, textNote } };
+}
+
+const TAXON_SEASON_MONTHS: Record<string, readonly number[]> = {
+  cicada: [6, 7, 8, 9, 10],
+  abura: [7, 8, 9],
+  minmin: [7, 8, 9],
+};
+
+export function checkSeasonAndDistributionOutlier(input: {
+  taxonKeyOrName: string;
+  observedAt: string;
+  lat?: number | null;
+  lng?: number | null;
+}): {
+  needsInquiry: boolean;
+  outOfSeason: boolean;
+  outOfDistribution: boolean;
+  reasons: string[];
+} {
+  const reasons: string[] = [];
+  let outOfSeason = false;
+  let outOfDistribution = false;
+
+  const node = findTaxonNode(input.taxonKeyOrName);
+  const seasonMonths = node ? (TAXON_SEASON_MONTHS[node.key] ?? (node.parentKey ? TAXON_SEASON_MONTHS[node.parentKey] : undefined)) : undefined;
+  const ms = Date.parse(input.observedAt);
+  if (seasonMonths && Number.isFinite(ms)) {
+    const jstMonth = new Date(ms + 9 * 60 * 60 * 1000).getUTCMonth() + 1;
+    if (!seasonMonths.includes(jstMonth)) {
+      outOfSeason = true;
+      reasons.push(`時期外れのため要照会（${jstMonth}月）`);
+    }
+  }
+
+  if (input.lat !== null && input.lat !== undefined && input.lng !== null && input.lng !== undefined) {
+    if (input.lat < 20 || input.lat > 46 || input.lng < 122 || input.lng > 154) {
+      outOfDistribution = true;
+      reasons.push("分布外れのため要照会");
+    }
+  }
+
+  return {
+    needsInquiry: outOfSeason || outOfDistribution,
+    outOfSeason,
+    outOfDistribution,
+    reasons,
+  };
+}
+
+const RANK_LADDER = ["subspecies", "species", "genus", "family", "order", "class", "lifeform"] as const;
+const ONE_DAY_MS = 86_400_000;
+
+function stepRankUpOnce(rank: string | null | undefined): string {
+  const cur = String(rank ?? "species").toLowerCase();
+  const idx = RANK_LADDER.indexOf(cur as (typeof RANK_LADDER)[number]);
+  if (idx < 0 || idx >= RANK_LADDER.length - 1) return "genus";
+  return RANK_LADDER[idx + 1]!;
+}
+
+export type ConfirmationVoteInput = {
+  actorUserId: string;
+  proposedName: string;
+  proposedRank?: string | null;
+  activeDays: number;
+  overturnRate: number;
+  hasScopedAuthority: boolean;
+  structuredJustification?: Partial<StructuredJustification> | null;
+};
+
+export type ConfirmationObjectionInput = {
+  actorUserId: string;
+  proposedName?: string | null;
+  structuredJustification?: Partial<StructuredJustification> | null;
+};
+
+export function evaluateConfirmationRules(input: {
+  targetTaxon: string;
+  targetRank?: string | null;
+  observedAt: string;
+  nowMs?: number;
+  votes: readonly ConfirmationVoteInput[];
+  objections: readonly ConfirmationObjectionInput[];
+  lat?: number | null;
+  lng?: number | null;
+}): {
+  statusWord: IdentifyStatusWord;
+  confirmedWithObjection: boolean;
+  tier3ExportAllowed: boolean;
+  confirmedBasis: "scoped_reviewer" | "community_consensus" | null;
+  escalatedOneRankUp: boolean;
+  recommendedRank: string;
+  needsInquiry: boolean;
+  outlierReasons: string[];
+  eligibleVoterCount: number;
+} {
+  const nowMs = input.nowMs ?? Date.now();
+  const obsMs = Date.parse(input.observedAt);
+  const ageDays = Number.isFinite(obsMs) ? Math.max(0, (nowMs - obsMs) / ONE_DAY_MS) : 0;
+  const outlier = checkSeasonAndDistributionOutlier({
+    taxonKeyOrName: input.targetTaxon,
+    observedAt: input.observedAt,
+    lat: input.lat,
+    lng: input.lng,
+  });
+
+  const validObjections = input.objections.filter((obj) => validateStructuredJustification(obj.structuredJustification).ok);
+  const scopedConfirmers = input.votes.filter(
+    (v) => v.hasScopedAuthority && validateStructuredJustification(v.structuredJustification).ok,
+  );
+  const eligibleVotes = input.votes.filter((v) => isVoterEligible({ activeDays: v.activeDays, overturnRate: v.overturnRate }));
+
+  let statusWord: IdentifyStatusWord = input.votes.length > 0 ? "人の提案" : "AIの読み取り";
+  let confirmedBasis: "scoped_reviewer" | "community_consensus" | null = null;
+
+  if (scopedConfirmers.length >= 1) {
+    statusWord = "確認済み";
+    confirmedBasis = "scoped_reviewer";
+  } else if (!outlier.needsInquiry && eligibleVotes.length >= 2) {
+    const counts = new Map<string, number>();
+    for (const v of eligibleVotes) counts.set(v.proposedName, (counts.get(v.proposedName) ?? 0) + 1);
+    const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= 2 && best[1] * 3 >= eligibleVotes.length * 2) {
+      statusWord = "確認済み";
+      confirmedBasis = "community_consensus";
+    }
+  }
+
+  const confirmedWithObjection = statusWord === "確認済み" && validObjections.length > 0;
+  const tier3ExportAllowed = statusWord === "確認済み" && validObjections.length === 0 && !outlier.needsInquiry;
+  const escalatedOneRankUp = statusWord !== "確認済み" && ageDays >= 14;
+  const recommendedRank = escalatedOneRankUp ? stepRankUpOnce(input.targetRank) : String(input.targetRank ?? "species");
+
+  return {
+    statusWord,
+    confirmedWithObjection,
+    tier3ExportAllowed,
+    confirmedBasis,
+    escalatedOneRankUp,
+    recommendedRank,
+    needsInquiry: outlier.needsInquiry,
+    outlierReasons: outlier.reasons,
+    eligibleVoterCount: eligibleVotes.length,
+  };
+}
+
+/** Rename & Merge apply automatically; non-geographic Split widens into reconfirmation shelf (U7/U9). */
+export function applyTaxonomyChange(input: {
+  kind: "rename" | "merge" | "split";
+  currentTaxon: string;
+  newTaxon?: string;
+  broadenedTaxon?: string;
+  statusWord: IdentifyStatusWord;
+}): {
+  nextTaxon: string;
+  nextStatusWord: IdentifyStatusWord;
+  reconfirmationShelf: boolean;
+  reasonTag: "分類の変更" | null;
+  countsAsOverturn: false;
+} {
+  if (input.kind === "rename" || input.kind === "merge") {
+    return {
+      nextTaxon: String(input.newTaxon ?? input.currentTaxon),
+      nextStatusWord: input.statusWord,
+      reconfirmationShelf: false,
+      reasonTag: null,
+      countsAsOverturn: false,
+    };
+  }
+  return {
+    nextTaxon: String(input.broadenedTaxon ?? input.currentTaxon),
+    nextStatusWord: input.statusWord === "確認済み" ? "人の提案" : input.statusWord,
+    reconfirmationShelf: true,
+    reasonTag: "分類の変更",
+    countsAsOverturn: false,
   };
 }
