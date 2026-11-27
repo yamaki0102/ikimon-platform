@@ -195,7 +195,7 @@ a,button{font:inherit;color:inherit}
 .zv2-peek-sub{margin-left:auto;font-size:14px;font-weight:600;color:#55615A;text-align:right}
 .zv2-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 18px}
 .zv2-sheet[data-sheet-state="collapsed"] .zv2-sheet-body{display:none}
-.zv2-sheet[data-sheet-state="selected-low"]{max-height:320px}
+.zv2-sheet[data-sheet-state="selected-low"]{max-height:380px}
 .zv2-sheet[data-dragging="1"] .zv2-sheet-body{display:block}
 @media (prefers-reduced-motion:reduce){.zv2-sheet{transition:none}}
 .zv2-sheet[data-sheet-state="selected-low"] .zv2-sheet-body{display:block;overflow:hidden;padding:0 18px 14px}
@@ -224,6 +224,12 @@ a,button{font:inherit;color:inherit}
 .zv2-backrow{display:inline-flex;align-items:center;gap:5px;min-height:44px;border:0;background:transparent;padding:0;font-size:14px;font-weight:700;color:#143F2E;cursor:pointer}
 .zv2-pname{margin:2px 0 0;font-size:21px;font-weight:800;line-height:1.35}
 .zv2-pmeta{font-size:14px;color:#55615A;margin-top:4px;line-height:1.5}
+.zv2-sstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px}
+.zv2-sstrip a{display:block;border-radius:8px;overflow:hidden;background:#e8efea;aspect-ratio:1/1}
+.zv2-sstrip img{width:100%;height:100%;object-fit:cover;display:block}
+.zv2-schips{display:flex;gap:6px;margin-top:10px;overflow:hidden;flex-wrap:wrap;max-height:34px}
+.zv2-schip{white-space:nowrap;font-size:13px;font-weight:700;color:#143F2E;background:#F7F7F3;border:1px solid #dfe5dd;border-radius:999px;padding:4px 10px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.zv2-skel{display:block;background:#eef1ec;border-radius:8px;height:56px;margin-top:10px}
 .zv2-pphotos{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:14px}
 .zv2-pphotos img{width:100%;height:88px;object-fit:cover;border-radius:8px;background:#e8efea}
 .zv2-btnrow{display:flex;gap:9px;margin-top:12px;flex-wrap:wrap}
@@ -322,6 +328,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     lang: options.lang,
     initialPlaceId: options.initialPlaceId ?? null,
     placeTab: Boolean(options.placeTab),
+    placeSummaryApi: withBasePath(options.basePath, "/api/v1/map/places/__ID__/summary"),
     defaultCenter: [137.7347, 34.7038],
     defaultZoom: 13,
   }).replace(/</g, "\\u003c");
@@ -460,6 +467,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     invSeq: 0,
     searchQuery: '',
     userCenter: null,
+    summaries: {},
     map: null,
     selectedMarker: null,
     moveTimer: null,
@@ -616,15 +624,47 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       return h;
     }
 
-    var spText = typeof p.speciesCount === 'number' && p.speciesCount > 0 ? t(' ・ ', ' · ') + p.speciesCount + t('種類', ' species') : '';
-    h += '<div class="zv2-pmeta">' + (isUnk ? esc(kindLabel(p.placeKind)) : recLabel(rc) + esc(spText)) + '</div>';
-    if (!mobileLow && !noPhotos) {
+    var sum = state.summaries[p.placeId] || null;
+    var sumOk = sum && sum !== 'loading' && sum !== 'error' ? sum : null;
+    var sumLoading = sum === 'loading';
+    var spN = sumOk && typeof sumOk.speciesCount === 'number' ? sumOk.speciesCount : (typeof p.speciesCount === 'number' ? p.speciesCount : null);
+    var loc = sumOk && sumOk.locality ? String(sumOk.locality) : '';
+    var kd = sumOk && sumOk.kind ? sumOk.kind : p.placeKind;
+    var dm = '';
+    if (state.userCenter && typeof p.lat === 'number' && typeof p.lng === 'number') {
+      dm = fmtDist(distMeters(state.userCenter.lat, state.userCenter.lng, p.lat, p.lng));
+    }
+    var metaParts = [esc(kindLabel(kd))];
+    if (loc) metaParts.push(esc(loc));
+    if (dm) metaParts.push(EN ? esc(dm) + ' away' : 'ここから ' + esc(dm));
+    h += '<div class="zv2-pmeta">' + metaParts.join(t(' ・ ', ' · ')) + '</div>';
+    if (!isUnk) {
+      var cp = [recLabel(rc)];
+      if (spN && spN > 0) cp.push(EN ? 'Species ' + spN : '見つけた種類 ' + spN);
+      var lastTxt = sumOk && sumOk.lastObservedAt ? relDays(sumOk.lastObservedAt) : '';
+      if (lastTxt) cp.push(EN ? 'Last record ' + lastTxt : '最後の記録 ' + lastTxt);
+      h += '<div class="zv2-pmeta">' + cp.join(t(' ・ ', ' · ')) + '</div>';
+    }
+    var sp = sumOk && Array.isArray(sumOk.recentPhotos) ? sumOk.recentPhotos.slice(0, 4) : [];
+    if (sp.length) {
+      h += '<div class="zv2-sstrip" data-zv2-strip="1">' + sp.map(function (ph) {
+        return '<a href="' + esc(LP + '/observations/' + encodeURIComponent(ph.observationId)) + '"><img src="' + esc(ph.photoUrl) + '" alt="' + esc(ph.label || '') + '" loading="lazy" decoding="async" /></a>';
+      }).join('') + '</div>';
+    } else if (sumLoading && !isUnk) {
+      h += '<span class="zv2-skel" data-zv2-skel="1"></span>';
+    } else if (!mobileLow && !noPhotos) {
       var photos = Array.isArray(p.photos) && p.photos.length ? p.photos.slice(0, 3) : (p.photoUrl ? [p.photoUrl] : []);
       if (photos.length) {
         h += '<div class="zv2-pphotos">' + photos.map(function (u) {
           return '<img src="' + esc(u) + '" alt="" loading="lazy" decoding="async" />';
         }).join('') + '</div>';
       }
+    }
+    var st = sumOk && Array.isArray(sumOk.recentTaxa) ? sumOk.recentTaxa.slice(0, 5) : [];
+    if (st.length) {
+      h += '<div class="zv2-schips" data-zv2-chips="1" aria-label="' + t('最近見つかったもの', 'Recently found') + '">' + st.map(function (n) {
+        return '<span class="zv2-schip">' + esc(n) + '</span>';
+      }).join('') + '</div>';
     }
     h += '<div class="zv2-btnrow">';
     h += '<a class="zv2-btn-main" href="' + esc(placeHref(p.placeId)) + '">' + t('この場所を見る', 'View this place') + '</a>';
@@ -636,6 +676,32 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       h += '<div class="zv2-ownrow">' + (EN ? 'Your captures: ' + own + ' (only visible to you)' : 'あなたの撮影 ' + own + '件（自分だけに表示）') + '</div>';
     }
     return h;
+  }
+
+  function relDays(iso) {
+    var ts = Date.parse(String(iso || '').replace(' ', 'T'));
+    if (!isFinite(ts)) return '';
+    var d = Math.floor((Date.now() - ts) / 86400000);
+    if (d < 1) return t('今日', 'today');
+    if (d < 31) return EN ? d + (d === 1 ? ' day ago' : ' days ago') : d + '日前';
+    if (d < 365) { var m = Math.floor(d / 30); return EN ? m + (m === 1 ? ' month ago' : ' months ago') : m + 'か月前'; }
+    var y = Math.floor(d / 365);
+    return EN ? y + (y === 1 ? ' year ago' : ' years ago') : y + '年前';
+  }
+
+  function loadPlaceSummary(placeId) {
+    if (!CFG.placeSummaryApi || !placeId || state.summaries[placeId]) return;
+    state.summaries[placeId] = 'loading';
+    fetch(CFG.placeSummaryApi.replace('__ID__', encodeURIComponent(placeId)), { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        state.summaries[placeId] = j && j.ok && j.summary ? j.summary : 'error';
+        if (state.selectedId === placeId) renderUI();
+      })
+      .catch(function () {
+        state.summaries[placeId] = 'error';
+        if (state.selectedId === placeId) renderUI();
+      });
   }
 
   function renderListHtml(rec, zero) {
@@ -913,6 +979,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     state.selectedExpanded = false;
     var sel = state.places.find(function (p) { return p.placeId === placeId; });
     renderUI();
+    loadPlaceSummary(placeId);
     if (sel && rcOf(sel) === null && !sel.enrichTried) enrichPlace(sel);
     if (sel && state.map && typeof state.map.project === 'function') {
       var pt = state.map.project([sel.lng, sel.lat]);
@@ -922,7 +989,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         if (isDesktop()) {
           return pt.x < 396 || pt.x > window.innerWidth - 24 || pt.y < 88 || pt.y > window.innerHeight - 24;
         }
-        var lowTop = sheetRect.bottom - 320;
+        var lowTop = sheetRect.bottom - 380;
         return pt.x < 24 || pt.x > window.innerWidth - 24 || pt.y < topRect.bottom + 24 || pt.y > Math.max(sheetRect.top, lowTop) - 24;
       })();
       if (pan) {
