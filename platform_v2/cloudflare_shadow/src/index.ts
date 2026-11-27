@@ -189,6 +189,9 @@ const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
 const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
 const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
+import { handleIdentifyV3ApiRequest, loadIdentifyV3WorkspaceData, renderIdentifyV3Page, type IdentifyV3View } from "./identifyV3";
+const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
+const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
@@ -4008,6 +4011,41 @@ export const worker = {
         if (detail) return detail;
       }
 
+      if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/identify") {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const lang = (publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+        if (identifyV3On(env, session)) {
+          if (!session || session.banned) {
+            return new Response(null, {
+              status: 302,
+              headers: { location: `/${lang}/login?redirect=${encodeURIComponent(url.pathname + url.search)}`, "cache-control": "no-store" },
+            });
+          }
+          const rawView = url.searchParams.get("view");
+          const view: IdentifyV3View = rawView === "skills" ? "skills" : rawView === "saved" ? "saved" : "feed";
+          const cspNonce = createHtmlCspNonce();
+          const ws = await loadIdentifyV3WorkspaceData(env, session.userId, {
+            view,
+            lang,
+            displayName: session.displayName,
+            cursor: url.searchParams.get("cursor"),
+            q: url.searchParams.get("q"),
+            cspNonce,
+          });
+          const body = request.method === "HEAD" ? null : renderIdentifyV3Page(ws);
+          return new Response(body, {
+            status: 200,
+            headers: {
+              ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+              "content-type": "text/html; charset=utf-8",
+              "cache-control": "private, no-store",
+              "vary": "cookie, authorization",
+              "x-ikimon-cloudflare-native": "zukan-identify-v3",
+            },
+          });
+        }
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && nativePathname === "/welcome") {
         const session = await readCompatibleSession(request, env).catch(() => null);
         const lang = publicLangFromPath(url.pathname) === "en" ? "en" : "ja";
@@ -4484,6 +4522,18 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (url.pathname.startsWith("/api/v1/identify-v3/")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const handled = await handleIdentifyV3ApiRequest(
+          request,
+          url,
+          env,
+          session ? { userId: session.userId, displayName: session.displayName, roleName: session.roleName, banned: session.banned } : null,
+          identifyV3On(env, session),
+        );
+        if (handled) return handled;
       }
 
       const identificationHoldMatch = url.pathname.match(/^\/api\/v1\/observations\/([^/]+)\/identification-workbench-hold$/);
