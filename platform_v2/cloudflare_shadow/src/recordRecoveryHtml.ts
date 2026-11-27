@@ -610,6 +610,57 @@ export function renderCloudflareRecordRecoverySignedHtml(
         }
       } catch (_) {}
     }
+    async function clearOrphanOutbox() {
+      try {
+        let draftKeys = [];
+        try {
+          const draftDb = await openRecordDraftDb();
+          try {
+            draftKeys = await new Promise((resolve, reject) => {
+              const request = draftDb.transaction("drafts", "readonly").objectStore("drafts").getAllKeys();
+              request.onsuccess = () => resolve(Array.from(request.result || []).map(String));
+              request.onerror = () => reject(request.error || new Error("draft_keys_failed"));
+            });
+          } finally {
+            draftDb.close();
+          }
+        } catch (_) {}
+        const request = indexedDB.open("ikimon-app-outbox-v1", 1);
+        const db = await new Promise((resolve, reject) => {
+          request.onupgradeneeded = () => {
+            if (!request.result.objectStoreNames.contains("items")) request.result.createObjectStore("items", { keyPath: "id" });
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error("outbox_open_failed"));
+        });
+        try {
+          const items = await new Promise((resolve, reject) => {
+            const req = db.transaction("items", "readonly").objectStore("items").getAll();
+            req.onsuccess = () => resolve(Array.from(req.result || []));
+            req.onerror = () => reject(req.error || new Error("outbox_read_failed"));
+          });
+          const stale = items.filter((item) => {
+            if (!item || item.source !== "record") return false;
+            if (item.status === "failed") return true;
+            const id = String(item.id || "");
+            return id.startsWith("record:") && !draftKeys.includes(id.slice(7));
+          });
+          if (stale.length === 0) return 0;
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction("items", "readwrite");
+            const store = tx.objectStore("items");
+            stale.forEach((item) => store.delete(item.id));
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => reject(tx.error || new Error("outbox_delete_failed"));
+          });
+          return stale.length;
+        } finally {
+          db.close();
+        }
+      } catch (_) {
+        return 0;
+      }
+    }
     async function deleteDraft() {
       if (!currentDraft || currentDraft.ownerKey !== recoveryOwnerKey) return;
       const db = await openRecordDraftDb();
@@ -813,6 +864,7 @@ export function renderCloudflareRecordRecoverySignedHtml(
       discardButton.disabled = true;
       try {
         await deleteDraft();
+        await clearOrphanOutbox();
         recoveredFiles = [];
         setPanelState("discarded", copy.discarded, copy.discarded);
         setStatus(copy.discarded, false);
