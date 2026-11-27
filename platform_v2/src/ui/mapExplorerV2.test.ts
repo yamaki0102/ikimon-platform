@@ -394,13 +394,13 @@ test("Playwright renders Hamamatsu Station and Miyakoda with 310 zero-record pla
 test("MAP_V2 tap selects the nearest dot, pin or cluster and the selected sheet is tall enough to show the card", () => {
   const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-tap-1" });
   const has = (needle: string) => assert.ok(html.includes(needle), needle);
-  has('.zv2-sheet[data-sheet-state="selected-low"]{max-height:280px}');
+  has('.zv2-sheet[data-sheet-state="selected-low"]{max-height:320px}');
   has("map.on('click', function (e) {");
   has("queryRenderedFeatures([[e.point.x - rad, e.point.y - rad], [e.point.x + rad, e.point.y + rad]], { layers: ['zv2-clusters', 'zv2-rec-pin', 'zv2-zero-hit'] })");
   assert.ok(!html.includes("map.on('click', 'zv2-"));
   has("selectPlace(best.properties.placeId)");
   has("getClusterExpansionZoom");
-  has("sheetRect.bottom - 280");
+  has("sheetRect.bottom - 320");
   has("ここで最初の記録を");
 });
 
@@ -464,4 +464,15 @@ test("mapExplorerV2 worker graph has no node imports and asset paths match pinne
   const p = await import("./mapExplorerAssetPaths.js");
   assert.equal(p.MAPLIBRE_SELF_HOSTED_JS_PATH, a.MAPLIBRE_SELF_HOSTED_JS.path);
   assert.equal(p.MAPLIBRE_SELF_HOSTED_CSS_PATH, a.MAPLIBRE_SELF_HOSTED_CSS.path);
+});
+
+test("MAP_V2 design parity: no duplicate name in selected sheet, nowrap buttons, zero box always, recorded-first mobile list", () => {
+  const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-par-1", placeTab: true });
+  const has = (needle: string) => assert.ok(html.includes(needle), needle);
+  has('.zv2-sheet[data-has-detail="1"] .zv2-peek{display:none}');
+  has(".zv2-panel .zv2-btn-main,.zv2-panel .zv2-btn-sub{flex:1 1 100%}");
+  has(".zv2-btn-main{flex:1 1 auto;white-space:nowrap;");
+  has("まだ記録のない場所");
+  has("zv2-psec");
+  assert.ok(!html.includes("if (!mobileLow) {\n        h += '<div class=\"zv2-zerobox\">"));
 });
