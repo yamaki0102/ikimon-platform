@@ -207,7 +207,8 @@ a,button{font:inherit;color:inherit}
 
 /* Mobile bottom nav */
 .zv2-tabbar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid #E4E9E4;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:end;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-.zv2-tab{min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;text-decoration:none;color:#55615A;font-size:14px;line-height:1.2;font-weight:600;padding:4px 2px}
+.zv2-tab{min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;text-decoration:none;color:#55615A;font-size:12px;line-height:1.2;font-weight:600;padding:4px 1px;white-space:nowrap}
+.zv2-tab span{white-space:nowrap}
 .zv2-tab svg{width:24px;height:24px}
 .zv2-tab[aria-current="page"]{color:#143F2E;font-weight:800}
 .zv2-tab-cap .zv2-shutter{width:46px;height:46px;border-radius:50%;background:#143F2E;color:#fff;display:flex;align-items:center;justify-content:center;margin-top:-18px;border:3px solid #fff;box-shadow:0 2px 8px rgba(9,25,16,.28)}
@@ -1011,6 +1012,21 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     }
   }
 
+  function applyJapaneseMapLabels(targetMap) {
+    if (!targetMap || typeof targetMap.getStyle !== 'function' || typeof targetMap.setLayoutProperty !== 'function') return;
+    var style = targetMap.getStyle();
+    var layers = style && Array.isArray(style.layers) ? style.layers : [];
+    for (var i = 0; i < layers.length; i++) {
+      var layer = layers[i];
+      if (!layer || !layer.id || layer.id.indexOf('zv2-') === 0) continue;
+      if (layer.type !== 'symbol') continue;
+      if (!layer.layout || !layer.layout['text-field']) continue;
+      try {
+        targetMap.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:ja'], ['get', 'name']]);
+      } catch (_) {}
+    }
+  }
+
   function createMap(startCenter, startZoom) {
     var map = new window.maplibregl.Map({
       container: 'zv2-map-canvas',
@@ -1022,6 +1038,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     state.map = map;
     map.on('dragstart', function () { state.userMoved = true; });
     map.on('load', function () {
+      applyJapaneseMapLabels(map);
       try {
         var cv = document.createElement('canvas');
         cv.width = 58; cv.height = 34;

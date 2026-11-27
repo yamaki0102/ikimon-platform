@@ -298,6 +298,13 @@ test("Worker gates /ja/library and logged-in /ja/ on LIBRARY_V2_ENABLED", async 
   assert.match(html, /川のほとりでカワセミを見た/);
 });
 
+test("library v2 chrome keeps mobile bottom nav single-line and desktop sidebar displayName single-line ellipsis", () => {
+  const html = renderLibraryV2Page({ visits: [], lang: "ja", authenticated: true, displayName: "とても長い利用者表示名テスト浜松花子", nextCursor: null });
+  assert.match(html, /\.zt-nav-item,\.zt-nav-item:visited\{[^}]*white-space:nowrap/u);
+  assert.match(html, /\.zt-side-me>span:last-child\{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis\}/u);
+  assert.doesNotMatch(html, /\.zt-side-me>span:last-child\{[^}]*overflow-wrap:anywhere/u);
+});
+
 test("Playwright verifies library v2 list, add-record sheet, open visit, and zero state at 375px and 1280px", async (t) => {
   const executablePath = findChromiumExecutable();
   if (!executablePath) {
@@ -332,8 +339,8 @@ test("Playwright verifies library v2 list, add-record sheet, open visit, and zer
     },
   ]);
 
-  const listHtml = renderLibraryV2Page({ visits, lang: "ja", authenticated: true, displayName: "ゆい", nextCursor: null });
-  const openHtml = renderLibraryV2VisitDetailPage(visits[0]!, { lang: "ja", displayName: "ゆい" });
+  const listHtml = renderLibraryV2Page({ visits, lang: "ja", authenticated: true, displayName: "とても長い利用者表示名テスト浜松花子", nextCursor: null });
+  const openHtml = renderLibraryV2VisitDetailPage(visits[0]!, { lang: "ja", displayName: "とても長い利用者表示名テスト浜松花子" });
 
   for (const vp of [{ width: 375, height: 812 }, { width: 1280, height: 800 }]) {
     const ctx = await browser.newContext({ viewport: vp });
@@ -347,12 +354,44 @@ test("Playwright verifies library v2 list, add-record sheet, open visit, and zer
       await route.fulfill({ status: 204, body: "" });
     });
     await page.setContent(listHtml);
-    const listCheck = await page.evaluate(() => ({
-      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      addBtnHeight: (document.querySelector("[data-zv2l-open-add]") as HTMLElement)?.getBoundingClientRect().height ?? 0,
-    }));
+    const listCheck = await page.evaluate(() => {
+      const navItems = Array.from(document.querySelectorAll(".zt-bottom-nav .zt-nav-item"));
+      const libNav = navItems.find((el) => (el.textContent ?? "").includes("ライブラリ"));
+      const libSpan = libNav?.querySelector("span");
+      let navLineCount = 0;
+      if (libSpan) {
+        const range = document.createRange();
+        range.selectNodeContents(libSpan);
+        navLineCount = range.getClientRects().length;
+      }
+      const sideName = document.querySelector(".zt-side-me > span:last-child") as HTMLElement | null;
+      let sideNameLineCount = 0;
+      if (sideName) {
+        const range = document.createRange();
+        range.selectNodeContents(sideName);
+        sideNameLineCount = new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size;
+      }
+      const sideStyle = sideName ? getComputedStyle(sideName) : null;
+      return {
+        overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        addBtnHeight: (document.querySelector("[data-zv2l-open-add]") as HTMLElement)?.getBoundingClientRect().height ?? 0,
+        navLineCount,
+        sideNameLineCount,
+        sideNameHeight: sideName?.getBoundingClientRect().height ?? 0,
+        sideWhiteSpace: sideStyle?.whiteSpace ?? "",
+        sideTextOverflow: sideStyle?.textOverflow ?? "",
+      };
+    });
     assert.equal(listCheck.overflowX, 0);
     assert.ok(listCheck.addBtnHeight >= 44, `add button height ${listCheck.addBtnHeight} < 44`);
+    if (vp.width < 960) {
+      assert.equal(listCheck.navLineCount, 1, `expected mobile bottom nav ライブラリ on 1 line, got ${listCheck.navLineCount}`);
+    } else {
+      assert.equal(listCheck.sideNameLineCount, 1, `expected desktop sidebar user name on 1 line, got ${listCheck.sideNameLineCount}`);
+      assert.ok(listCheck.sideNameHeight > 0 && listCheck.sideNameHeight <= 28, `expected 1-line height <= 28px, got ${listCheck.sideNameHeight}`);
+      assert.equal(listCheck.sideWhiteSpace, "nowrap");
+      assert.equal(listCheck.sideTextOverflow, "ellipsis");
+    }
 
     // Open Add-Record sheet
     await page.click("[data-zv2l-open-add]");

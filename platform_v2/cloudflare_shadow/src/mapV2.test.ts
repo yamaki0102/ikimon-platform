@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import worker from "./index";
 import type { Env } from "./core/env";
 import * as mapV2Flag from "./flags/MAP_V2_ENABLED";
 import { PROTOTYPE_FLAGS } from "./flags/index.generated";
+import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
 import { handleMapPlacesBoundsApi, mapPlaceCardFromProfile, selectUnknownCountCandidates } from "./zukanMapView";
 
 function sqliteObsDb(sqlite: DatabaseSync): Env["OBS_DB"] {
@@ -243,4 +245,128 @@ test("/api/v1/map/places?v2=1 computes the place-page count for places without m
   assert.equal(failBody.places.find((p) => p.placeId === "plc_renri")?.recordCount, null);
   assert.equal(failBody.places.find((p) => p.placeId === "plc_far")?.recordCount, 0);
   assert.equal(failBody.places.find((p) => p.placeId === "plc_adjacent")?.recordCount, 0);
+});
+
+test("map v2 HTML includes Japanese-only symbol label override on load and single-line mobile nav CSS", () => {
+  const html = renderMapExplorerV2Document({
+    basePath: "",
+    lang: "ja",
+    authenticated: true,
+    displayName: "ゆい",
+  });
+  assert.match(html, /\.zv2-tab\{[^}]*font-size:12px[^}]*white-space:nowrap/u);
+  assert.match(html, /\.zv2-tab span\{white-space:nowrap\}/u);
+  assert.match(html, /applyJapaneseMapLabels\(map\)/u);
+  assert.match(html, /\['coalesce',\s*\['get',\s*'name:ja'\],\s*\['get',\s*'name'\]\]/u);
+});
+
+function findChromiumExecutable(): string | null {
+  for (const c of [
+    process.env.CHROMIUM_PATH,
+    "/home/nexus/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/google-chrome",
+  ]) {
+    if (c && existsSync(c)) return c;
+  }
+  return null;
+}
+
+test("Playwright verifies map v2 applies Japanese-only symbol labels on load and keeps ライブラリ single-line at 375px", async (t) => {
+  const executablePath = findChromiumExecutable();
+  if (!executablePath) {
+    t.skip("No Chromium binary available");
+    return;
+  }
+  const { chromium } = await import("playwright-core");
+  const browser = await chromium.launch({
+    executablePath,
+    headless: true,
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  });
+  t.after(() => browser.close());
+
+  const mapUrl = "https://zukan.earth/ja/map?lat=34.81&lng=137.73&zoom=13";
+  const html = renderMapExplorerV2Document({
+    basePath: "",
+    lang: "ja",
+    authenticated: true,
+    displayName: "ゆい",
+  });
+
+  const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  const page = await ctx.newPage();
+  await page.route("**/*", async (route) => {
+    const u = route.request().url();
+    if (u === mapUrl) {
+      await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: html });
+      return;
+    }
+    if (u.endsWith(".css")) {
+      await route.fulfill({ status: 200, contentType: "text/css", body: "" });
+      return;
+    }
+    if (u.includes("maplibre") && u.endsWith(".js")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: `window.__mapUpdates = []; window.maplibregl = { Map: function () {
+          var handlers = {};
+          var layers = [
+            { id: 'place_city', type: 'symbol', layout: { 'text-field': ['concat', ['get', 'name:en'], ' ', ['get', 'name:ja']] } },
+            { id: 'waterway', type: 'line', layout: {} },
+            { id: 'zv2-clusters', type: 'symbol', layout: { 'text-field': ['get', 'point_count'] } }
+          ];
+          this.on = function (ev, fn) { handlers[ev] = fn; if (ev === 'load') setTimeout(fn, 10); };
+          this.once = function (ev, fn) { this.on(ev, fn); };
+          this.getStyle = function () { return { layers: layers }; };
+          this.setLayoutProperty = function (id, prop, val) { window.__mapUpdates.push({ id: id, prop: prop, val: val }); };
+          this.addSource = function () {};
+          this.addLayer = function () {};
+          this.addImage = function () {};
+          this.getSource = function () { return null; };
+          this.getBounds = function () { return { getSouth: function () { return 34.7; }, getWest: function () { return 137.7; }, getNorth: function () { return 34.9; }, getEast: function () { return 137.8; } }; };
+          this.getCenter = function () { return { lat: 34.81, lng: 137.73 }; };
+          this.getZoom = function () { return 13; };
+          this.getCanvas = function () { return { style: {} }; };
+        } };`,
+      });
+      return;
+    }
+    if (u.includes("/api/v1/map/places")) {
+      await route.fulfill({ status: 200, contentType: "application/json", body: '{"places":[]}' });
+      return;
+    }
+    await route.fulfill({ status: 204, body: "" });
+  });
+
+  await page.goto(mapUrl, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => Array.isArray((window as unknown as { __mapUpdates?: unknown[] }).__mapUpdates) && ((window as unknown as { __mapUpdates: unknown[] }).__mapUpdates.length > 0), { timeout: 5000 });
+
+  const result = await page.evaluate(() => {
+    const updates = (window as unknown as { __mapUpdates?: Array<{ id: string; prop: string; val: unknown }> }).__mapUpdates ?? [];
+    const tabs = Array.from(document.querySelectorAll(".zv2-tab"));
+    const libTab = tabs.find((el) => (el.textContent ?? "").includes("ライブラリ"));
+    const libSpan = libTab?.querySelector("span");
+    let lineCount = 0;
+    if (libSpan) {
+      const range = document.createRange();
+      range.selectNodeContents(libSpan);
+      lineCount = range.getClientRects().length;
+    }
+    return {
+      overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      libText: libSpan?.textContent ?? "",
+      libLineCount: lineCount,
+      updates,
+    };
+  });
+
+  assert.equal(result.overflowX, 0);
+  assert.equal(result.libText, "ライブラリ");
+  assert.equal(result.libLineCount, 1, `expected ライブラリ to fit on 1 line at 375px, got ${result.libLineCount} lines`);
+  assert.deepEqual(result.updates, [
+    { id: "place_city", prop: "text-field", val: ["coalesce", ["get", "name:ja"], ["get", "name"]] },
+  ]);
+  await ctx.close();
 });
