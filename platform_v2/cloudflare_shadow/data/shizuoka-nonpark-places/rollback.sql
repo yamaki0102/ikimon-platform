@@ -1,0 +1,1 @@
+UPDATE places SET public_profile_status = 'private', updated_at = CURRENT_TIMESTAMP WHERE json_extract(metadata_json, '$.importBatch') = 'shizuoka-nonpark-20261127' AND public_profile_status = 'published';
