@@ -33,6 +33,25 @@ export const PLACE_REGISTER_KINDS: Record<PlaceRegisterKind, { label: string; pl
 };
 
 const KIND_KEYS = Object.keys(PLACE_REGISTER_KINDS) as PlaceRegisterKind[];
+
+export const PLACE_GUESS_RULES: ReadonlyArray<{ kind: PlaceRegisterKind; radiusM: number; words: readonly string[] }> = [
+  { kind: "org", radiusM: 100, words: ["株式会社", "有限会社", "(株)", "（株）", "協会", "組合", "法人", "学校", "大学"] },
+  { kind: "shop", radiusM: 50, words: ["店", "カフェ", "食堂", "亭", "屋", "レストラン", "ベーカリー"] },
+  { kind: "park", radiusM: 300, words: ["公園", "緑地", "広場"] },
+  { kind: "facility", radiusM: 100, words: ["神社", "寺", "院", "城", "跡", "遺跡", "古墳", "史跡"] },
+  { kind: "park", radiusM: 300, words: ["森", "山", "川", "池", "湖", "湿地", "海岸", "浜", "自然"] },
+];
+export const PLACE_GUESS_WIDE_WORDS = ["山", "森", "湖", "湿地"] as const;
+
+export function guessPlaceKindFromName(name: string): { kind: PlaceRegisterKind; radiusM: number } {
+  for (const rule of PLACE_GUESS_RULES) {
+    if (rule.words.some((word) => name.includes(word))) {
+      const wide = rule.kind === "park" && PLACE_GUESS_WIDE_WORDS.some((word) => name.includes(word));
+      return { kind: rule.kind, radiusM: wide ? 1000 : rule.radiusM };
+    }
+  }
+  return { kind: "other", radiusM: 100 };
+}
 const EARTH_RADIUS_M = 6_371_008.8;
 
 export type PlaceRegisterInput = {
@@ -68,7 +87,9 @@ export function validatePlaceRegisterInput(body: unknown): PlaceRegisterValidati
   const name = cleanLabel(record.name);
   const nameLength = [...name].length;
   if (nameLength < 1 || nameLength > 80 || CONTROL_CHARS.test(name)) return { ok: false, error: "invalid_name" };
-  const kind = record.kind;
+  const kindOmitted = record.kind === undefined || record.kind === null || record.kind === "";
+  const guess = guessPlaceKindFromName(name);
+  const kind = kindOmitted ? guess.kind : record.kind;
   if (typeof kind !== "string" || !KIND_KEYS.includes(kind as PlaceRegisterKind)) return { ok: false, error: "invalid_kind" };
   const lat = finiteCoordinate(record.lat);
   const lng = finiteCoordinate(record.lng);
@@ -77,7 +98,7 @@ export function validatePlaceRegisterInput(body: unknown): PlaceRegisterValidati
     return { ok: false, error: "invalid_location" };
   }
   const requestedRadius = record.radiusM === undefined || record.radiusM === null || record.radiusM === ""
-    ? PLACE_REGISTER_KINDS[kind as PlaceRegisterKind].defaultRadiusM
+    ? (kindOmitted ? guess.radiusM : PLACE_REGISTER_KINDS[kind as PlaceRegisterKind].defaultRadiusM)
     : finiteCoordinate(record.radiusM);
   if (requestedRadius === null || !(PLACE_REGISTER_RADII as readonly number[]).includes(requestedRadius)) {
     return { ok: false, error: "invalid_radius" };
@@ -369,6 +390,11 @@ const PAGE_CSS = `
 .pr-item-main a{color:#17251b;font-weight:700;overflow-wrap:anywhere}
 .pr-item-main small{display:block;color:#55615a}
 .pr-item .pr-btn{min-height:44px;flex:none}
+.pr-loc{margin:0;font-size:.875rem;color:#55615a}
+.pr-more{border-top:1px solid #dde2dc;padding-top:8px}
+.pr-more summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:#143F2E;font-weight:700}
+.pr-more[open] summary{margin-bottom:8px}
+.pr-more-body{display:grid;gap:16px}
 `;
 
 function renderRecentItem(place: RecentRegisteredPlace): string {
@@ -381,28 +407,41 @@ function renderRecentItem(place: RecentRegisteredPlace): string {
 }
 
 const PAGE_SCRIPT = `(() => {
-  const kinds = ${JSON.stringify(Object.fromEntries(KIND_KEYS.map((key) => [key, PLACE_REGISTER_KINDS[key].defaultRadiusM])))};
+  const rules = ${JSON.stringify(PLACE_GUESS_RULES)}, wide = ${JSON.stringify(PLACE_GUESS_WIDE_WORDS)};
+  const kindRadius = ${JSON.stringify(Object.fromEntries(KIND_KEYS.map((key) => [key, PLACE_REGISTER_KINDS[key].defaultRadiusM])))};
   const $ = (id) => document.getElementById(id);
-  const form = $("pr-form"), msg = $("pr-msg"), done = $("pr-done"), list = $("pr-list");
-  let radiusTouched = false;
+  const form = $("pr-form"), msg = $("pr-msg"), loc = $("pr-loc"), done = $("pr-done"), list = $("pr-list"), nameEl = $("pr-name");
+  let kindTouched = false, radiusTouched = false, fixed = false;
   const say = (text, tone) => { msg.textContent = text; msg.dataset.tone = tone || ""; };
-  const locate = () => {
-    if (!navigator.geolocation) { say("この端末では位置情報を使えません。緯度と経度を入力してください。", "error"); return; }
-    say("位置を取得しています…");
-    navigator.geolocation.getCurrentPosition((pos) => {
-      $("pr-lat").value = pos.coords.latitude.toFixed(6);
-      $("pr-lng").value = pos.coords.longitude.toFixed(6);
-      say("いまいる場所を入れました。");
-    }, () => say("位置を取得できませんでした。緯度と経度を入力してください。", "error"), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  const guess = (name) => {
+    for (const r of rules) if (r.words.some((w) => name.includes(w))) return { kind: r.kind, radiusM: r.kind === "park" && wide.some((w) => name.includes(w)) ? 1000 : r.radiusM };
+    return { kind: "other", radiusM: 100 };
   };
-  $("pr-locate").addEventListener("click", locate);
+  const setPos = (lat, lng, text) => { $("pr-lat").value = Number(lat).toFixed(6); $("pr-lng").value = Number(lng).toFixed(6); fixed = true; loc.textContent = text; };
+  const locate = () => {
+    if (!navigator.geolocation) { loc.textContent = "位置が取れません。詳しく から入力"; return; }
+    loc.textContent = "現在地を取得中…";
+    navigator.geolocation.watchPosition(
+      (pos) => setPos(pos.coords.latitude, pos.coords.longitude, "現在地：取得済み（±" + Math.round(pos.coords.accuracy || 0) + "m）"),
+      () => { if (!fixed) loc.textContent = "位置が取れません。詳しく から入力"; },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
+    );
+  };
+  const q = new URLSearchParams(location.search);
+  if (q.get("lat") && q.get("lng") && Number.isFinite(Number(q.get("lat"))) && Number.isFinite(Number(q.get("lng")))) setPos(q.get("lat"), q.get("lng"), "現在地：指定済み");
+  else locate();
   $("pr-radius").addEventListener("change", () => { radiusTouched = true; });
-  $("pr-kind").addEventListener("change", () => { if (!radiusTouched) $("pr-radius").value = String(kinds[$("pr-kind").value]); });
+  $("pr-kind").addEventListener("change", () => { kindTouched = true; if (!radiusTouched) $("pr-radius").value = String(kindRadius[$("pr-kind").value]); });
+  nameEl.addEventListener("input", () => {
+    const g = guess(nameEl.value.trim());
+    if (!kindTouched) $("pr-kind").value = g.kind;
+    if (!radiusTouched) $("pr-radius").value = String(g.radiusM);
+  });
   const post = async (url, body) => {
     const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify(body || {}) });
     return { res, data: await res.json().catch(() => ({})) };
   };
-  const errorText = { invalid_name: "名前は1〜80文字で入れてください。", invalid_kind: "種類を選んでください。", invalid_location: "位置が日本の範囲に入っていません。", invalid_radius: "範囲を選び直してください。", invalid_locality: "地区名は80文字までです。", duplicate_place: "近くに同じ名前の場所がすでにあります。", not_found: "見つかりませんでした。" };
+  const errorText = { invalid_name: "名前を入れてください。", invalid_kind: "種類を選んでください。", invalid_location: "位置が取れていません。詳しく から入力してください。", invalid_radius: "範囲を選び直してください。", invalid_locality: "地区名は80文字までです。", not_found: "見つかりませんでした。" };
   const addItem = (place) => {
     const li = document.createElement("li"); li.className = "pr-item"; li.dataset.prItem = place.placeId;
     const main = document.createElement("div"); main.className = "pr-item-main";
@@ -413,26 +452,27 @@ const PAGE_SCRIPT = `(() => {
     li.append(main, b); list.prepend(li);
     while (list.children.length > ${PLACE_REGISTER_RECENT_LIMIT}) list.lastElementChild.remove();
   };
+  const showDone = (label, url) => { const l = $("pr-done-link"); l.textContent = label; l.href = url; done.hidden = false; };
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const name = nameEl.value.trim();
+    if (!name) { nameEl.focus(); return; }
     const btn = $("pr-submit"); btn.disabled = true; done.hidden = true; say("登録しています…");
+    const body = { name, lat: $("pr-lat").value, lng: $("pr-lng").value, locality: $("pr-locality").value };
+    if (kindTouched) body.kind = $("pr-kind").value;
+    if (radiusTouched) body.radiusM = Number($("pr-radius").value);
     try {
-      const { res, data } = await post("/api/v1/admin/places", { name: $("pr-name").value, kind: $("pr-kind").value, lat: $("pr-lat").value, lng: $("pr-lng").value, radiusM: Number($("pr-radius").value), locality: $("pr-locality").value });
+      const { res, data } = await post("/api/v1/admin/places", body);
       if (res.ok && data.ok) {
-        say("");
-        $("pr-done-link").href = data.place.url; $("pr-done-link").textContent = data.place.name + " のページを見る";
-        done.hidden = false; addItem(data.place);
+        say(""); showDone("登録しました：" + data.place.name + "（開く）", data.place.url); addItem(data.place);
+        nameEl.value = ""; $("pr-locality").value = ""; kindTouched = false; radiusTouched = false; $("pr-kind").value = "other"; $("pr-radius").value = "100";
       } else if (data && data.error === "duplicate_place") {
-        say(errorText.duplicate_place, "error");
-        $("pr-done-link").href = data.url; $("pr-done-link").textContent = "すでにある場所のページを見る"; done.hidden = false;
+        say(""); showDone("近くに同じ名前があります（開く）", data.url);
       } else {
         say(errorText[data && data.error] || "登録できませんでした。もう一度試してください。", "error");
       }
     } catch (e) { say("通信できませんでした。もう一度試してください。", "error"); }
-    btn.disabled = false;
-  });
-  $("pr-again").addEventListener("click", () => {
-    $("pr-name").value = ""; $("pr-locality").value = ""; done.hidden = true; say(""); locate(); $("pr-name").focus();
+    btn.disabled = false; nameEl.focus();
   });
   list.addEventListener("click", async (event) => {
     const btn = event.target.closest("[data-pr-private]");
@@ -442,29 +482,28 @@ const PAGE_SCRIPT = `(() => {
     if (res.ok && data.ok) { const s = document.createElement("span"); s.className = "pr-state"; s.textContent = "非公開"; btn.replaceWith(s); say(""); }
     else { btn.disabled = false; say("非公開に戻せませんでした。", "error"); }
   });
-  locate();
 })();`;
 
 export function renderPlaceRegisterPage(session: SessionSnapshot, recent: RecentRegisteredPlace[]): string {
-  const kindOptions = KIND_KEYS.map((key) => `<option value="${key}">${escapeHtml(PLACE_REGISTER_KINDS[key].label)}</option>`).join("");
-  const radiusOptions = PLACE_REGISTER_RADII.map((m) => `<option value="${m}"${m === 300 ? " selected" : ""}>${m >= 1000 ? `${m / 1000}km` : `${m}m`}</option>`).join("");
+  const kindOptions = KIND_KEYS.map((key) => `<option value="${key}"${key === "other" ? " selected" : ""}>${escapeHtml(PLACE_REGISTER_KINDS[key].label)}</option>`).join("");
+  const radiusOptions = PLACE_REGISTER_RADII.map((m) => `<option value="${m}"${m === 100 ? " selected" : ""}>${m >= 1000 ? `${m / 1000}km` : `${m}m`}</option>`).join("");
   const items = recent.map(renderRecentItem).join("");
   const bodyHtml = `<section class="zt-sp" data-place-register>
 <style>${ZUKAN_SUBPAGE_CSS}${PAGE_CSS}</style>
 <h1 class="zt-sp-title">場所を登録</h1>
-<p class="zt-sp-lead">公開の場所を、いまいる位置から登録します。</p>
 <form id="pr-form" class="pr-form" novalidate>
-<label class="zt-sp-field"><span>名前</span><input id="pr-name" class="zt-sp-input" type="text" name="name" maxlength="80" required autocomplete="off"></label>
-<label class="zt-sp-field"><span>種類</span><select id="pr-kind" class="zt-sp-input" name="kind">${kindOptions}</select></label>
-<div class="zt-sp-field"><span>位置</span>
-<button type="button" id="pr-locate" class="pr-btn">いまいる場所を使う</button>
-<div class="pr-row"><label class="zt-sp-field"><span>緯度</span><input id="pr-lat" class="zt-sp-input" type="text" inputmode="decimal" name="lat" autocomplete="off"></label><label class="zt-sp-field"><span>経度</span><input id="pr-lng" class="zt-sp-input" type="text" inputmode="decimal" name="lng" autocomplete="off"></label></div></div>
-<label class="zt-sp-field"><span>範囲</span><select id="pr-radius" class="zt-sp-input" name="radiusM">${radiusOptions}</select></label>
-<label class="zt-sp-field"><span>地区名（なくてもよい）</span><input id="pr-locality" class="zt-sp-input" type="text" name="locality" maxlength="80" autocomplete="off"></label>
-<button type="submit" id="pr-submit" class="zt-sp-primary" style="min-height:52px">登録する</button>
+<label class="zt-sp-field"><span>名前</span><input id="pr-name" class="zt-sp-input" type="text" name="name" maxlength="80" required autocomplete="off" autofocus enterkeyhint="done"></label>
+<button type="submit" id="pr-submit" class="zt-sp-primary" style="min-height:52px">ここを登録</button>
+<p id="pr-loc" class="pr-loc" role="status" aria-live="polite">現在地を取得中…</p>
 <p id="pr-msg" class="pr-msg" role="status" aria-live="polite"></p>
+<div id="pr-done" class="pr-done" hidden><a id="pr-done-link" class="zt-sp-secondary" href="#">開く</a></div>
+<details class="pr-more"><summary>詳しく</summary><div class="pr-more-body">
+<label class="zt-sp-field"><span>種類</span><select id="pr-kind" class="zt-sp-input" name="kind">${kindOptions}</select></label>
+<label class="zt-sp-field"><span>範囲</span><select id="pr-radius" class="zt-sp-input" name="radiusM">${radiusOptions}</select></label>
+<div class="pr-row"><label class="zt-sp-field"><span>緯度</span><input id="pr-lat" class="zt-sp-input" type="text" inputmode="decimal" name="lat" autocomplete="off"></label><label class="zt-sp-field"><span>経度</span><input id="pr-lng" class="zt-sp-input" type="text" inputmode="decimal" name="lng" autocomplete="off"></label></div>
+<label class="zt-sp-field"><span>地区名（なくてもよい）</span><input id="pr-locality" class="zt-sp-input" type="text" name="locality" maxlength="80" autocomplete="off"></label>
+</div></details>
 </form>
-<div id="pr-done" class="pr-done" hidden><a id="pr-done-link" class="zt-sp-secondary" href="#">ページを見る</a><button type="button" id="pr-again" class="zt-sp-primary" style="min-height:52px">続けて登録</button></div>
 <h2 class="zt-sp-title" style="font-size:1.125rem">最近登録した場所</h2>
 <ul id="pr-list" class="pr-list">${items}</ul>
 <script>${PAGE_SCRIPT}</script>
