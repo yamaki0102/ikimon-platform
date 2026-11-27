@@ -431,7 +431,7 @@ for (const profile of PLACE_ATLAS_VIEWPORTS) {
     const page = await openTokiwaPlaceAtlas(browser, profile);
     const atlas = page.locator("[data-place-atlas-profile]");
     await expect(atlas.getByRole("heading", { name: "常磐公園" })).toBeVisible();
-    await expect(atlas).toContainText("公開Record");
+    await expect(atlas).toContainText("公開記録");
     await expect(atlas).toContainText("3");
     await expect(atlas).not.toContainText("まだ記録はありません");
     await expect(atlas.locator("[data-place-atlas-image]").first()).toBeVisible();

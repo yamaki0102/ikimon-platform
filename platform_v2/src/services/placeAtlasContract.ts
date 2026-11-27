@@ -464,7 +464,7 @@ function buildHighlights(
         const timestamp = recordTimestamp(record.observedAt);
         return Number.isFinite(timestamp) && nowMs - timestamp <= recentWindowMs;
       }).length,
-      sourceLabel: "公開Record",
+      sourceLabel: "公開記録",
       confidence: "derived",
     });
   }
@@ -481,7 +481,7 @@ function buildHighlights(
       kind: "seasonal_pattern",
       text: `${SEASON_LABELS[dominantSeason[0]]}の記録が多く残っています`,
       evidenceCount: dominantSeason[1],
-      sourceLabel: "公開Recordの観察月",
+      sourceLabel: "公開記録の観察月",
       confidence: "derived",
     });
   }
@@ -561,7 +561,7 @@ export function buildPlaceAtlasProfile(input: PlaceAtlasBuildInput): PlaceAtlasP
   if (belowThreshold) {
     dataGaps.push({
       key: "public_threshold",
-      label: "公開Record",
+      label: "公開記録",
       reason: "少数記録から場所や投稿者が推測されないよう、公開閾値を満たすまで詳細を控えています。",
     });
   }

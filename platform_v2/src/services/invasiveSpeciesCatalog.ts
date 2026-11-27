@@ -53,14 +53,17 @@ export const INVASIVE_SPECIES_LIST_PATH = "/learn/invasive-species";
 export const INVASIVE_SPECIES_OFFICIAL_SOURCES = [
   {
     label: "環境省 特定外来生物等一覧",
+    labelEn: "Ministry of the Environment, List of Designated Invasive Alien Species (特定外来生物等一覧)",
     href: "https://www.env.go.jp/nature/intro/2outline/list.html",
   },
   {
     label: "環境省 生態系被害防止外来種リスト",
+    labelEn: "Ministry of the Environment, List of Invasive Alien Species Threatening Ecosystems (生態系被害防止外来種リスト)",
     href: "https://www.env.go.jp/nature/intro/2outline/iaslist.html",
   },
   {
     label: "環境省 外来生物法の説明",
+    labelEn: "Ministry of the Environment, Overview of the Invasive Alien Species Act (外来生物法の説明)",
     href: "https://www.env.go.jp/nature/intro/1law/outline.html",
   },
 ] as const;
@@ -110,6 +113,45 @@ function actionLabel(action: InvasiveSpeciesAction): string {
     default:
       return "自治体や管理者に確認";
   }
+}
+
+export function invasiveCategoryLabelEn(category: InvasiveSpeciesCategory): string {
+  switch (category) {
+    case "iaspecified": return "Invasive Alien Species (designated)";
+    case "priority": return "Priority countermeasure invasive species";
+    case "industrial": return "Industrially managed alien species";
+    case "prevention": return "Invasive species requiring ecosystem damage prevention";
+    case "native": return "Treated as native";
+    default: return "Invasive species";
+  }
+}
+
+export function invasiveActionLabelEn(action: InvasiveSpeciesAction): string {
+  switch (action) {
+    case "do_not_handle": return "Do not touch";
+    case "report_only": return "Report or consult if found";
+    case "observe_and_report": return "Observe and share information";
+    case "observe_only": return "Leave an observation record";
+    default: return "Check with your municipality or manager";
+  }
+}
+
+const GROUP_LABELS_EN: Readonly<Record<string, string>> = {
+  "哺乳類": "Mammals",
+  "鳥類": "Birds",
+  "爬虫類": "Reptiles",
+  "両生類": "Amphibians",
+  "魚類": "Fish",
+  "甲殻類": "Crustaceans",
+  "クモ類": "Spiders",
+  "昆虫": "Insects",
+  "水草・水辺の植物": "Aquatic and waterside plants",
+  "植物": "Plants",
+  "その他": "Other",
+};
+
+export function invasiveGroupLabelEn(label: string): string {
+  return GROUP_LABELS_EN[label] ?? "Other";
 }
 
 function groupLabel(record: SeedRecord): string {

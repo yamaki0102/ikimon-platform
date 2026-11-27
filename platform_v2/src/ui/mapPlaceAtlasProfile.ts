@@ -56,7 +56,7 @@ type AtlasCopy = {
 const ATLAS_COPY: Record<SiteLang, AtlasCopy> = {
   ja: {
     eyebrow: "場所からひらく地域図鑑",
-    summaryRecords: "公開Record",
+    summaryRecords: "公開記録",
     summaryPeriod: "記録期間",
     summaryContributors: "記録した人",
     highlights: "この場所で見えてきたこと",
@@ -359,16 +359,32 @@ function renderAtlasSummary(profile: Record<string, unknown>, copy: AtlasCopy): 
     : "";
 }
 
-function renderAtlasHighlights(profile: Record<string, unknown>, copy: AtlasCopy): string {
+function renderAtlasHighlights(profile: Record<string, unknown>, copy: AtlasCopy, lang: string = "ja"): string {
   const items = atlasArray(profile.highlights)
     .map(atlasPlainObject)
     .filter((item): item is Record<string, unknown> => Boolean(item))
     .filter((item) => typeof item.text === "string" && item.text.trim() !== "")
     .slice(0, 3);
   if (items.length === 0) return "";
-  return `<section class="me-place-atlas-section me-place-atlas-highlights"><h3>${atlasEscapeHtml(copy.highlights)}</h3><ul>${items.map((item) =>
-    `<li><span aria-hidden="true">✦</span><strong>${atlasEscapeHtml(item.text)}</strong><small>${atlasEscapeHtml(item.sourceLabel)}${typeof item.evidenceCount === "number" ? ` · ${item.evidenceCount}` : ""}</small></li>`
-  ).join("")}</ul></section>`;
+  return `<section class="me-place-atlas-section me-place-atlas-highlights"><h3>${atlasEscapeHtml(copy.highlights)}</h3><ul>${items.map((item) => {
+    let text = String(item.text);
+    let source = String(item.sourceLabel ?? "");
+    if (lang !== "ja") {
+      const seasons: Record<string, string> = { "春": "spring", "夏": "summer", "秋": "autumn", "冬": "winter" };
+      const themes: Record<string, string> = { scenery: "scenery and seasons", daily_life: "ways to spend time", facility: "place and facilities", activity: "events and activity", history: "history and stories", insight: "insights" };
+      const sources: Record<string, string> = { "公開Record": "Public records", "公開記録": "Public records", "公開Recordの観察月": "Public records by month observed", "公開記録の観察月": "Public records by month observed", "地域図鑑theme": "Atlas themes" };
+      const seasonMatch = /^(春|夏|秋|冬)の記録が多く残っています$/.exec(text);
+      const themeMatch = /^(.+)の記録が多い場所です$/.exec(text);
+      const facet = themeMatch ? atlasArray(profile.facets).map(atlasPlainObject).find((f) => f && f.label === themeMatch[1]) : null;
+      if (item.kind === "recent_activity") text = "New records are still being added";
+      else if (seasonMatch) text = "Many records from " + seasons[seasonMatch[1] ?? ""] + " remain";
+      else if (text === "自然・生きものの記録が多い場所です") text = "A place with many nature and wildlife records";
+      else if (text === "音や映像の記録が多い場所です") text = "A place with many audio and video records";
+      else if (facet && themes[String(facet.key)]) text = "A place with many records about " + themes[String(facet.key)];
+      source = sources[source] ?? source;
+    }
+    return `<li><span aria-hidden="true">✦</span><strong>${atlasEscapeHtml(text)}</strong><small>${atlasEscapeHtml(source)}${typeof item.evidenceCount === "number" ? ` · ${item.evidenceCount}` : ""}</small></li>`;
+  }).join("")}</ul></section>`;
 }
 
 function atlasTimelineStatusLabel(value: unknown, copy: AtlasCopy): string {
@@ -574,15 +590,23 @@ function renderAtlasRelated(profile: Record<string, unknown>, copy: AtlasCopy): 
     : "";
 }
 
-function renderAtlasGaps(profile: Record<string, unknown>, copy: AtlasCopy): string {
+function renderAtlasGaps(profile: Record<string, unknown>, copy: AtlasCopy, lang: string = "ja"): string {
   const gaps = atlasArray(profile.dataGaps)
     .map(atlasPlainObject)
     .filter((gap): gap is Record<string, unknown> => Boolean(gap))
     .filter((gap) => typeof gap.reason === "string" && gap.reason.trim() !== "")
     .slice(0, 5);
   if (gaps.length === 0) return "";
-  return `<section class="me-place-atlas-section me-place-atlas-gaps"><h3>${atlasEscapeHtml(copy.next)}</h3><ul>${gaps.map((gap) =>
-    `<li><strong>${atlasEscapeHtml(gap.label)}</strong><span>${atlasEscapeHtml(gap.reason)}</span></li>`
+  const gapEn: Record<string, string[]> = {
+    contributors: ["Spread of contributors", "Not shown because the conditions for safe aggregation without identifying individuals are not met."],
+    public_threshold: ["Public records", "Details are withheld until the public threshold is met, so that places and contributors cannot be inferred from a few records."],
+    access: ["Access and recording", "This place has access conditions, so please put on-site rules and permissions first."],
+    field_public_profile: ["Detailed place analysis", "Analysis text is not shown until the existing place-profile publication criteria are met."],
+  };
+  return `<section class="me-place-atlas-section me-place-atlas-gaps"><h3>${atlasEscapeHtml(copy.next)}</h3><ul>${gaps.map((gap) => {
+    const en = lang !== "ja" ? gapEn[String(gap.key)] : undefined;
+    return `<li><strong>${atlasEscapeHtml(en ? en[0] : gap.label)}</strong><span>${atlasEscapeHtml(en ? en[1] : gap.reason)}</span></li>`;
+  }
   ).join("")}</ul></section>`;
 }
 
@@ -629,6 +653,7 @@ function renderAtlasPolicy(
   profile: Record<string, unknown>,
   place: Record<string, unknown>,
   copy: AtlasCopy,
+  lang: string = "ja",
 ): string {
   const policy = atlasPlainObject(profile.policy) ?? {};
   const verification = String(place.verificationStatus ?? "unverified");
@@ -639,7 +664,7 @@ function renderAtlasPolicy(
   const source = String(policy.ruleSource ?? "default");
   const status = official ? copy.official : copy.unverified;
   return `<section class="me-place-atlas-policy"><h3>${atlasEscapeHtml(copy.policy)}</h3><p><strong>${atlasEscapeHtml(status)}</strong><span>${atlasEscapeHtml(source)}</span></p>${ruleUrl
-    ? `<a href="${atlasEscapeHtml(ruleUrl)}" target="_blank" rel="noopener noreferrer">公式ルール ↗</a>`
+    ? `<a href="${atlasEscapeHtml(ruleUrl)}" target="_blank" rel="noopener noreferrer">${lang === "ja" ? "公式ルール" : "Official rules"} ↗</a>`
     : ""}</section>`;
 }
 
@@ -669,7 +694,7 @@ export function renderMapPlaceAtlasProfile(
   const stateNotice = suppressed || empty
     ? `<section class="me-place-atlas-empty" data-place-atlas-state="${suppressed ? "suppressed" : "empty"}"><strong>${atlasEscapeHtml(copy.emptyTitle)}</strong><p>${atlasEscapeHtml(copy.emptyBody)}</p></section>`
     : "";
-  return `<article class="me-place-atlas" data-place-atlas-profile data-place-atlas-status="${atlasEscapeHtml(publication.status || "partial")}"><header class="me-place-atlas-hero"><div class="me-place-atlas-hero-copy"><span>${atlasEscapeHtml(copy.eyebrow)}</span><h2>${atlasEscapeHtml(name)}</h2>${description ? `<p>${atlasEscapeHtml(description)}</p>` : ""}<small>${atlasEscapeHtml([locality, type].filter(Boolean).join(" · "))}</small></div>${heroImage}</header>${renderAtlasSummary(profile, copy)}${stateNotice}${renderAtlasCurrentSeason(profile, copy)}${renderAtlasHierarchy(profile, copy)}${renderAtlasTimeline(profile, options, copy)}${renderAtlasHighlights(profile, copy)}${renderAtlasFacets(profile, options.lang, copy)}${renderAtlasRecent(profile, copy)}${renderAtlasRelated(profile, copy)}${renderAtlasGaps(profile, copy)}${renderAtlasActions(profile, options, copy)}${renderAtlasPolicy(profile, place, copy)}<p class="me-place-atlas-privacy">${atlasEscapeHtml(suppressed ? copy.privacySuppressed : copy.privacy)}</p></article>`;
+  return `<article class="me-place-atlas" data-place-atlas-profile data-place-atlas-status="${atlasEscapeHtml(publication.status || "partial")}"><header class="me-place-atlas-hero"><div class="me-place-atlas-hero-copy"><span>${atlasEscapeHtml(copy.eyebrow)}</span><h2>${atlasEscapeHtml(name)}</h2>${description ? `<p>${atlasEscapeHtml(description)}</p>` : ""}<small>${atlasEscapeHtml([locality, type].filter(Boolean).join(" · "))}</small></div>${heroImage}</header>${renderAtlasSummary(profile, copy)}${stateNotice}${renderAtlasCurrentSeason(profile, copy)}${renderAtlasHierarchy(profile, copy)}${renderAtlasTimeline(profile, options, copy)}${renderAtlasHighlights(profile, copy, options.lang)}${renderAtlasFacets(profile, options.lang, copy)}${renderAtlasRecent(profile, copy)}${renderAtlasRelated(profile, copy)}${renderAtlasGaps(profile, copy, options.lang)}${renderAtlasActions(profile, options, copy)}${renderAtlasPolicy(profile, place, copy, options.lang)}<p class="me-place-atlas-privacy">${atlasEscapeHtml(suppressed ? copy.privacySuppressed : copy.privacy)}</p></article>`;
 }
 
 export function renderMapPlaceAtlasLoading(lang: SiteLang, name = ""): string {
