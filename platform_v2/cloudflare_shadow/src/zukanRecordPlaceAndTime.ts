@@ -62,6 +62,7 @@ export const ZUKAN_RECORD_PLACE_TIME_STYLES = `
 export function renderRecordPlaceAndTimeHtml(options: {
   lang: "ja" | "en" | "es" | "pt-br";
   initialPlaceId: string;
+  initialPlaceName?: string | null;
   defaultObservedAtLocal: string;
 }): string {
   const isEn = options.lang === "en";
@@ -70,7 +71,7 @@ export function renderRecordPlaceAndTimeHtml(options: {
     <input type="hidden" name="placeId" id="record-place-id" value="${escapeHtml(options.initialPlaceId)}">
     <p id="record-selected-place-label" class="zt-voice-status">${
       options.initialPlaceId
-        ? `${isEn ? "Selected place" : "選んだ場所"}: ${escapeHtml(options.initialPlaceId)}`
+        ? `${isEn ? "Selected place" : "選んだ場所"}: ${escapeHtml(options.initialPlaceName || options.initialPlaceId)}`
         : isEn
           ? "No place selected yet."
           : "まだ場所を選んでいません。"
