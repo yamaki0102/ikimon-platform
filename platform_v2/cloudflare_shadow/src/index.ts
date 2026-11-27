@@ -187,6 +187,7 @@ import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, v
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
 import { renderZukanShellDocument } from "./zukanShell";
+import { handleSearchSeasonsV2Route } from "./zukanSearchSeasonsV2";
 import { handleSearchExploreV2Route, handleSearchResultsV2Route, handleSearchSuggestV2Api } from "./zukanSearchV2";
 import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
 import { handleEventsV2Detail, handleEventsV2List } from "./zukanEventsV2";
@@ -4413,6 +4414,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && searchSeasonsMatch) {
         const viewLang = (searchSeasonsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (searchV2On(env, session)) return handleSearchSeasonsV2Route(url, viewLang, session, env.OBS_DB);
         return handleSearchSeasonsRoute(url, viewLang, session, env.OBS_DB);
       }
 
