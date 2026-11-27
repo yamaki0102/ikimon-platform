@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import test from "node:test";
 import vm from "node:vm";
+import { chromium } from "playwright";
 import {
   MAP_GLYPH_SUBSET_ASSETS,
   MAP_GLYPH_SUBSET_ASSET_LIST,
@@ -1187,8 +1190,8 @@ test("walk map candidates render as compact map markers from area-level hints", 
   assert.match(script, /refreshWalkMapCandidateMarkers\(summaries\)/);
   assert.match(styles, /\.me-walk-map-marker/);
   assert.match(styles, /\.me-walk-map-marker strong/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker \{[\s\S]*max-width: 132px;/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker strong \{[\s\S]*max-width: 70px;[\s\S]*display: -webkit-box;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker \{[\s\S]*max-width: 180px;/);
+  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.me-walk-map-marker strong \{[\s\S]*max-width: 112px;/);
   assert.doesNotMatch(styles, /\.me-walk-map-marker::after/);
 });
 
@@ -2684,4 +2687,58 @@ test("admin place-register button styles meet font floor and deferred script upd
   new vm.Script(fnMatch[0]).runInContext(ctx);
   link.listeners.get("click")!();
   assert.equal(link.href, "/ja/admin/places/new?lat=34.975612&lng=138.382746");
+});
+
+test("walk candidate map markers stay single-line horizontal pills at 375px and 1280px", async (t) => {
+  assert.match(MAP_EXPLORER_STYLES, /\.me-walk-map-marker\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-walk-map-marker span\s*\{[^}]*flex:\s*none[^}]*white-space:\s*nowrap/);
+
+  const candidates = [process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, chromium.executablePath()].filter((p): p is string => Boolean(p));
+  let browserPath: string | null = candidates.find((p) => existsSync(p)) ?? null;
+  if (!browserPath) {
+    const cacheDir = join(process.env.HOME || "", ".cache/ms-playwright");
+    if (existsSync(cacheDir)) {
+      for (const entry of readdirSync(cacheDir)) {
+        const bin = join(cacheDir, entry, "chrome-linux64/chrome");
+        if (existsSync(bin)) { browserPath = bin; break; }
+      }
+    }
+  }
+  if (!browserPath) return t.skip("Playwright Chromium is unavailable");
+
+  const fragment = renderMapExplorer({ basePath: "/ja", lang: "ja", years: [2026] });
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${MAP_EXPLORER_STYLES}</style></head><body>${fragment}<script>
+    const root = document.getElementById("map-explorer");
+    for (const label of ["谷津山周辺", "麻機の水辺"]) {
+      const a = document.createElement("a");
+      a.className = "me-walk-map-marker";
+      a.href = "/ja/walk-maps/sample";
+      a.innerHTML = "<span>散策</span><strong>" + label + "</strong>";
+      root.appendChild(a);
+    }
+  </script></body></html>`;
+
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  try {
+    for (const vp of [{ width: 375, height: 812 }, { width: 1280, height: 800 }]) {
+      const page = await browser.newPage({ viewport: vp });
+      await page.setContent(html);
+      const metrics = await page.evaluate(() =>
+        [...document.querySelectorAll(".me-walk-map-marker")].map((el) => {
+          const box = el.getBoundingClientRect();
+          const badge = el.querySelector("span")!.getBoundingClientRect();
+          const title = el.querySelector("strong")!.getBoundingClientRect();
+          return { w: box.width, h: box.height, badgeH: badge.height, titleH: title.height, sameRow: Math.abs(badge.top - title.top) < 8 };
+        })
+      );
+      assert.equal(metrics.length, 2);
+      for (const m of metrics) {
+        assert.ok(m.w > m.h && m.w >= 135, JSON.stringify({ vp, m }));
+        assert.ok(m.h <= 46 && m.badgeH <= 24 && m.sameRow, JSON.stringify({ vp, m }));
+      }
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
 });

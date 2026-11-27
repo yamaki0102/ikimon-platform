@@ -12940,18 +12940,21 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .me-nearby-area-marker.is-school { border-style: dashed; border-color: #d97706; }
   .me-nearby-area-marker.is-school span { background: rgba(254,243,199,.9); color: #92400e; }
   .me-walk-map-marker {
-    max-width: 120px;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: 220px;
     min-width: 74px;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 8px;
+    gap: 6px;
+    padding: 6px 12px;
     border: 1px solid rgba(15,118,110,.22);
     border-radius: 999px;
     background: rgba(255,255,255,.96);
     color: #0f172a;
     box-shadow: 0 10px 22px rgba(15,118,110,.14);
     text-decoration: none;
+    white-space: nowrap;
     cursor: pointer;
     transform-origin: center;
     transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
@@ -12962,6 +12965,7 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     border-color: rgba(15,118,110,.36);
   }
   .me-walk-map-marker span {
+    flex: none;
     min-height: 18px;
     display: inline-flex;
     align-items: center;
@@ -12972,12 +12976,13 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
     font-size: 14px;
     line-height: 1.1;
     font-weight: 950;
+    white-space: nowrap;
   }
   .me-walk-map-marker strong {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
+    min-width: 0;
     overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 14px;
     line-height: 1.2;
     font-weight: 950;
@@ -12986,13 +12991,12 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   @media (max-width: 700px) {
     .me-walk-map-marker {
       min-width: 44px;
-      max-width: 132px;
+      max-width: 180px;
       min-height: 34px;
-      padding: 6px 7px;
+      padding: 6px 10px;
     }
     .me-walk-map-marker strong {
-      max-width: 70px;
-      display: -webkit-box;
+      max-width: 112px;
     }
   }
   .me-guide-spot-marker.is-pin .me-guide-spot-main {

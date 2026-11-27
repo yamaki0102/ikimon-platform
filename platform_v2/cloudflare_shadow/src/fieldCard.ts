@@ -19,19 +19,22 @@ export type FieldCardRecord = {
 const esc = (value: string): string =>
   value.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
-const QUESTION: Record<FieldCardGroup, string> = {
+export const FIELD_CARD_QUESTION: Record<FieldCardGroup, string> = {
   insect: "足は何本見える？もようはある？",
   plant: "葉っぱはどんな形？ふちはギザギザ？",
   bird: "くちばしは長い？短い？どんな色？",
   generic: "どんな色やもようが見える？",
 };
 
-const PROMPT: Record<FieldCardGroup, string> = {
+export const FIELD_CARD_PROMPT: Record<FieldCardGroup, string> = {
   insect: "見つけたら、足やもようを指さしてもらおう",
   plant: "同じ形の葉っぱを探してもらおう",
   bird: "鳴き声が聞こえたら、まねしてもらおう",
   generic: "気づいたところを指さしてもらおう",
 };
+
+const QUESTION = FIELD_CARD_QUESTION;
+const PROMPT = FIELD_CARD_PROMPT;
 
 const CSS = `${ZUKAN_SUBPAGE_CSS}
 .fc{max-width:720px}
