@@ -1,7 +1,7 @@
 import type { Env } from "./core/env";
 import { renderOtayoriFloatingButton } from "./otayori";
 import { OWNER_AREA_LABEL_NO_LOCATION, loadOwnerAreaLabels } from "./ownerAreaLabel";
-import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
+import { renderZukanErrorState, renderZukanSheet, renderZukanShellDocument } from "./zukanShell";
 import { dayBoundsFromGroupKey, decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
 import { ZUKAN_LIBRARY_CSS, renderLibraryEmpty, renderLibraryGroups, renderLibraryMore, renderYearPairCard } from "./zukanLibraryBlocks";
 import { GUEST_TOP_V2_CSS, renderGuestTopV2Main } from "./zukanGuestTopV2";
@@ -225,6 +225,8 @@ export type ZukanTopPageData = {
   libraryGroups: TopLibraryGroup[];
   libraryNextCursor?: string | null;
   oneYearPair: TopOneYearPair | null;
+  libraryLoadError?: boolean;
+  placesLoadError?: boolean;
 };
 
 export const ZUKAN_BOOK_PUBLICATIONS_CREATE_SQL = `
@@ -363,6 +365,14 @@ export async function loadOwnerHeroPhotos(env: Env, limit = 5, lang: ZukanTopLan
 }
 
 export async function loadPublicPlacesStrip(env: Env, limit = 6, lang: ZukanTopLang = "ja"): Promise<TopPlaceCard[]> {
+  return (await loadPublicPlacesStripWithStatus(env, limit, lang)).cards;
+}
+
+async function loadPublicPlacesStripWithStatus(
+  env: Env,
+  limit = 6,
+  lang: ZukanTopLang = "ja"
+): Promise<{ cards: TopPlaceCard[]; loadError: boolean }> {
   const prefix = `/${lang === "ja" ? "ja" : lang}`;
   try {
     const res = await env.OBS_DB.prepare(
@@ -381,7 +391,7 @@ export async function loadPublicPlacesStrip(env: Env, limit = 6, lang: ZukanTopL
       href: `${prefix}/places/${encodeURIComponent(row.place_id)}`,
       recordCount: null
     }));
-    if (cards.length === 0) return cards;
+    if (cards.length === 0) return { cards, loadError: false };
     try {
       const ids = cards.map((c) => c.placeId);
       const ph = ids.map((_, i) => `?${i + 1}`).join(", ");
@@ -414,9 +424,9 @@ export async function loadPublicPlacesStrip(env: Env, limit = 6, lang: ZukanTopL
     } catch {
       // Place photos and counts are best-effort; the list still renders without them.
     }
-    return cards;
+    return { cards, loadError: false };
   } catch {
-    return [];
+    return { cards: [], loadError: true };
   }
 }
 
@@ -537,7 +547,14 @@ type UserLibraryRow = {
   derivative_key: string | null;
 };
 
-function buildUserLibraryQuery(userId: string, like: string | null, limit: number, options: UserLibraryPageOptions, withPlaceSearch: boolean): { sql: string; params: Array<string | number> } {
+function buildUserLibraryQuery(
+  userId: string,
+  like: string | null,
+  limit: number,
+  options: UserLibraryPageOptions,
+  withPlaceSearch: boolean,
+  withLocCols = true
+): { sql: string; params: Array<string | number> } {
   const params: Array<string | number> = [];
   const p = (value: string | number): string => {
     params.push(value);
@@ -567,8 +584,9 @@ function buildUserLibraryQuery(userId: string, like: string | null, limit: numbe
   }
   const bounds = options.day ? dayBoundsFromGroupKey(options.day) : null;
   if (bounds) where.push(`o.observed_at >= ${p(bounds.from)} AND o.observed_at < ${p(bounds.to)}`);
+  const locExpr = withLocCols ? "CASE WHEN o.exact_lat IS NOT NULL AND o.exact_lng IS NOT NULL THEN 1 ELSE 0 END AS has_loc" : "0 AS has_loc";
   const sql = `SELECT o.observation_id, o.observed_at, o.taxon_label, o.public_area_label,
-              CASE WHEN o.exact_lat IS NOT NULL AND o.exact_lng IS NOT NULL THEN 1 ELSE 0 END AS has_loc,
+              ${locExpr},
               ${ASSET_LEDGER_PUBLIC_PHOTO_SUBQUERY} AS derivative_key
        FROM observations o
        WHERE ${where.join(" AND ")}
@@ -577,7 +595,7 @@ function buildUserLibraryQuery(userId: string, like: string | null, limit: numbe
   return { sql, params };
 }
 
-type UserLibraryResult = { groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[]; nextCursor: string | null };
+type UserLibraryResult = { groups: TopLibraryGroup[]; oneYearPair: TopOneYearPair | null; yearPairs: TopOneYearPair[]; nextCursor: string | null; loadError?: boolean };
 
 export async function loadUserLibraryData(
   env: Env,
@@ -586,8 +604,10 @@ export async function loadUserLibraryData(
   options: UserLibraryPageOptions = {}
 ): Promise<UserLibraryResult> {
   let result = await loadUserLibraryPage(env, userId, searchQuery, options);
+  if (result.loadError) return result;
   for (let guard = 0; guard < 4 && result.groups.length === 0 && result.nextCursor; guard += 1) {
     result = await loadUserLibraryPage(env, userId, searchQuery, { ...options, before: result.nextCursor });
+    if (result.loadError) return result;
   }
   return result;
 }
@@ -603,12 +623,17 @@ async function loadUserLibraryPage(
     const like = likePatternFromQuery(searchQuery);
     let found: { results?: UserLibraryRow[] };
     try {
-      const q = buildUserLibraryQuery(userId, like, limit, options, true);
+      const q = buildUserLibraryQuery(userId, like, limit, options, true, true);
       found = await env.OBS_DB.prepare(q.sql).bind(...q.params).all<UserLibraryRow>();
     } catch (error) {
-      if (!like || !(error instanceof Error) || !/no such (table|column)/i.test(error.message)) throw error;
-      const q = buildUserLibraryQuery(userId, like, limit, options, false);
-      found = await env.OBS_DB.prepare(q.sql).bind(...q.params).all<UserLibraryRow>();
+      if (!(error instanceof Error) || !/no such (table|column)/i.test(error.message)) throw error;
+      if (like && /exact_l/i.test(error.message)) {
+        const q = buildUserLibraryQuery(userId, like, limit, options, true, false);
+        found = await env.OBS_DB.prepare(q.sql).bind(...q.params).all<UserLibraryRow>();
+      } else {
+        const q = buildUserLibraryQuery(userId, like, limit, options, false, false);
+        found = await env.OBS_DB.prepare(q.sql).bind(...q.params).all<UserLibraryRow>();
+      }
     }
     const fetched = found.results ?? [];
     const filtered = fetched.slice(0, limit);
@@ -754,7 +779,7 @@ async function loadUserLibraryPage(
     }
     return { groups, oneYearPair, yearPairs, nextCursor };
   } catch {
-    return { groups: [], oneYearPair: null, yearPairs: [], nextCursor: null };
+    return { groups: [], oneYearPair: null, yearPairs: [], nextCursor: null, loadError: true };
   }
 }
 
@@ -771,11 +796,11 @@ export async function loadZukanTopPageData(
   lang: ZukanTopLang = "ja",
   libraryOptions: UserLibraryPageOptions = {}
 ): Promise<ZukanTopPageData> {
-  const [heroPhotos, placesStrip, recentPublicRecords, library] = await Promise.all([
+  const [heroPhotos, placesResult, recentPublicRecords, library] = await Promise.all([
     loadOwnerHeroPhotos(env, 5, lang),
-    loadPublicPlacesStrip(env, 6, lang),
+    loadPublicPlacesStripWithStatus(env, 6, lang),
     loadRecentPublicRecords(env, 6, lang),
-    userId ? loadUserLibraryData(env, userId, searchQuery, libraryOptions) : Promise.resolve({ groups: [], oneYearPair: null, yearPairs: [] as TopOneYearPair[], nextCursor: null as string | null })
+    userId ? loadUserLibraryData(env, userId, searchQuery, libraryOptions) : Promise.resolve({ groups: [], oneYearPair: null, yearPairs: [] as TopOneYearPair[], nextCursor: null as string | null, loadError: false })
   ]);
 
   const eventSection = await loadEventSectionWithFallback(env, heroPhotos, recentPublicRecords, new Date().toISOString(), lang);
@@ -787,10 +812,12 @@ export async function loadZukanTopPageData(
     upcomingEvents: eventSection.upcomingEvents,
     pastEventCards: eventSection.pastEventCards,
     recentPublicRecords,
-    placesStrip,
+    placesStrip: placesResult.cards,
     libraryGroups: library.groups,
     libraryNextCursor: library.nextCursor,
-    oneYearPair: library.oneYearPair
+    oneYearPair: library.oneYearPair,
+    ...(library.loadError ? { libraryLoadError: true } : {}),
+    ...(placesResult.loadError ? { placesLoadError: true } : {})
   };
 }
 
@@ -843,16 +870,26 @@ export function renderZukanTopPage(
     </a>`).join("")}</div>`;
   }
 
-  const placeRows = data.placesStrip.length > 0
+  const placeRows = data.placesLoadError
     ? `<section class="zk-places" aria-labelledby="zt-places-heading">
         <div class="zk-sec-head"><h2 id="zt-places-heading">${isEn ? "Public place ZUKANs" : "公開されている場所の図鑑"}</h2></div>
-        <ul class="zk-place-list">${data.placesStrip.map((pl) => `<li><a class="zk-place-row" href="${escapeHtml(pl.href)}">
-          ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>`}
-          <span class="zk-place-text"><strong>${escapeHtml(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>${isEn ? `${pl.recordCount} records` : `記録 ${pl.recordCount}件`}</span>` : ""}</span>
-          <span class="zk-chev" aria-hidden="true">›</span>
-        </a></li>`).join("")}</ul>
+        ${renderZukanErrorState({
+          title: isEn ? "Could not load" : "読み込めませんでした",
+          message: isEn ? "Could not load public places. Please try again." : "公開されている場所の読み込みに失敗しました。もう一度お試しください。",
+          retryHref: `${prefix}/`,
+          retryLabel: isEn ? "Try again" : "もう一度"
+        })}
       </section>`
-    : "";
+    : data.placesStrip.length > 0
+      ? `<section class="zk-places" aria-labelledby="zt-places-heading">
+          <div class="zk-sec-head"><h2 id="zt-places-heading">${isEn ? "Public place ZUKANs" : "公開されている場所の図鑑"}</h2></div>
+          <ul class="zk-place-list">${data.placesStrip.map((pl) => `<li><a class="zk-place-row" href="${escapeHtml(pl.href)}">
+            ${pl.photoUrl ? `<img src="${escapeHtml(pl.photoUrl)}" alt="" loading="lazy" width="76" height="76">` : `<span class="zk-place-ph" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#143F2E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 1 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span>`}
+            <span class="zk-place-text"><strong>${escapeHtml(pl.name)}</strong>${typeof pl.recordCount === "number" && pl.recordCount > 0 ? `<span>${isEn ? `${pl.recordCount} records` : `記録 ${pl.recordCount}件`}</span>` : ""}</span>
+            <span class="zk-chev" aria-hidden="true">›</span>
+          </a></li>`).join("")}</ul>
+        </section>`
+      : "";
 
   const loggedOutMain = `
     <section class="zk-hero" data-zk-hero="designed" aria-labelledby="zk-hero-title">
@@ -880,37 +917,37 @@ export function renderZukanTopPage(
 
   const oneYearHtml = data.oneYearPair ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
 
-  const libraryBodyHtml = data.libraryGroups.length > 0
-    ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "top" })
-      + (data.libraryNextCursor ? `${renderLibraryMore({ href: `${prefix}/library?before=${encodeURIComponent(data.libraryNextCursor)}`, isEn })}${loadMoreScript({ list: ".zk-groups", more: "[data-library-more]", loading: isEn ? "Loading..." : "読み込み中…" })}` : "")
-    : renderLibraryEmpty({ prefix, isEn });
+  const libraryBodyHtml = data.libraryLoadError
+    ? renderZukanErrorState({
+        title: isEn ? "Could not load" : "読み込めませんでした",
+        message: isEn ? "Failed to load your library. Please try again." : "通信に失敗しました。場所や電波を確かめて、もう一度お試しください。",
+        retryHref: `${prefix}/`,
+        retryLabel: isEn ? "Try again" : "もう一度"
+      })
+    : data.libraryGroups.length > 0
+      ? renderLibraryGroups(data.libraryGroups, { prefix, isEn, mode: "top" })
+        + (data.libraryNextCursor ? `${renderLibraryMore({ href: `${prefix}/library?before=${encodeURIComponent(data.libraryNextCursor)}`, isEn })}${loadMoreScript({ list: ".zk-groups", more: "[data-library-more]", loading: isEn ? "Loading..." : "読み込み中…" })}` : "")
+      : renderLibraryEmpty({ prefix, isEn });
+
+  const publishSheetHtml = renderZukanSheet({
+    id: "zt-publish-dialog",
+    titleId: "zt-popover-title",
+    title: isEn ? "Add to ZUKAN" : "図鑑に載せる",
+    formId: "zt-publish-form",
+    className: "zt-popover",
+    bodyHtml: '<div class="zt-popover-thumbs" id="zt-popover-thumbs"></div>',
+    actionsHtml: `<div class="zt-popover-actions">
+      <button type="submit" class="zt-btn-primary" id="zt-publish-submit">${isEn ? "Add" : "載せる"}</button>
+      <button type="button" class="zt-btn-text" id="zt-publish-cancel">${isEn ? "Cancel" : "やめる"}</button>
+    </div>`
+  });
 
   const loggedInMain = `
     <h1 class="zt-sr-only">${isEn ? "ZUKAN library" : "ZUKAN ライブラリ"}</h1>
     ${oneYearHtml}
     ${libraryBodyHtml}
-    <dialog class="zt-popover" id="zt-publish-dialog" aria-labelledby="zt-popover-title">
-      <form method="dialog" id="zt-publish-form">
-        <h2 id="zt-popover-title">${isEn ? "Add to ZUKAN" : "図鑑に載せる"}</h2>
-        <div class="zt-popover-thumbs" id="zt-popover-thumbs"></div>
-        <div class="zt-popover-actions">
-          <button type="submit" class="zt-btn-primary" id="zt-publish-submit">${isEn ? "Add" : "載せる"}</button>
-          <button type="button" class="zt-btn-text" id="zt-publish-cancel">${isEn ? "Cancel" : "やめる"}</button>
-        </div>
-      </form>
-    </dialog>
+    ${publishSheetHtml}
   `;
-
-  const chrome = renderZukanChrome({
-    lang: options.lang,
-    activeNav: "library",
-    authenticated: options.authenticated,
-    displayName: options.displayName,
-    searchAction: options.authenticated ? `${prefix}/` : undefined,
-    searchQuery: options.searchQuery,
-    pathname: `${prefix}/`,
-    homeHref: `${prefix}/`,
-  });
 
   const popTitleJs = isEn ? `"Add " + currentPlaceName + " to ZUKAN"` : `currentPlaceName + "の図鑑に載せる"`;
   const publishScript = options.authenticated
@@ -976,31 +1013,23 @@ export function renderZukanTopPage(
     </script>`
     : "";
 
-  return `<!doctype html>
-<html lang="${escapeHtml(options.lang === "pt-br" ? "pt-BR" : options.lang)}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ZUKAN</title>
-  <style${nonceAttr}>${ZUKAN_SHELL_CSS}${ZUKAN_LIBRARY_CSS}${TOP_PAGE_CSS}${guestTopV2 ? GUEST_TOP_V2_CSS : ""}</style>
-</head>
-<body>
-  <div class="zt-shell${options.authenticated ? "" : " zt-landing"}">
-    ${options.authenticated ? chrome.sidebarHtml : ""}
-    <div>
-      ${chrome.topbarHtml}
-      <main class="zt-main">
-        ${options.authenticated ? chrome.searchHtml : ""}
-        ${options.authenticated ? loggedInMain : guestTopV2 ? guestTopV2Main : loggedOutMain}
-        ${options.authenticated ? chrome.feedbackFootHtml : ""}
-      </main>
-    </div>
-  </div>
-  ${options.authenticated ? chrome.bottomNavHtml : ""}
-  ${publishScript}
-  ${renderOtayoriFloatingButton({ lang: options.lang, pathname: `${prefix}/` })}
-</body>
-</html>`;
+  return renderZukanShellDocument({
+    lang: options.lang,
+    activeNav: "library",
+    authenticated: options.authenticated,
+    displayName: options.displayName,
+    searchAction: options.authenticated ? `${prefix}/` : undefined,
+    searchQuery: options.searchQuery,
+    pathname: `${prefix}/`,
+    homeHref: `${prefix}/`,
+    cspNonce: options.cspNonce,
+    extraCss: `${ZUKAN_LIBRARY_CSS}${TOP_PAGE_CSS}${guestTopV2 ? GUEST_TOP_V2_CSS : ""}`,
+    bodyHtml: options.authenticated ? loggedInMain : guestTopV2 ? guestTopV2Main : loggedOutMain,
+    afterShellHtml: `${publishScript}${renderOtayoriFloatingButton({ lang: options.lang, pathname: `${prefix}/` })}`,
+    landing: !options.authenticated,
+    showSearch: options.authenticated,
+    showFeedbackFoot: options.authenticated,
+  });
 }
 
 const TOP_PAGE_CSS = `
