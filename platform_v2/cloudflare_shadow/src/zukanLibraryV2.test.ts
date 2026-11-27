@@ -189,6 +189,11 @@ test("renderLibraryV2Page and renderLibraryV2VisitDetailPage match Muse rules (n
   assert.match(listHtml, /class="zv2l-vhead"><span class="nw">[^<]+<\/span>・/);
   assert.match(listHtml, /data-library-sync/);
   assert.match(listHtml, /ikimon-app-outbox-v1/);
+  assert.match(listHtml, /もう一度送る/);
+  assert.match(listHtml, /を送っています/);
+  assert.match(listHtml, /件を送れませんでした/);
+  assert.match(listHtml, /processing-status/);
+  assert.match(listHtml, /\/ja\/record\?draft=1/);
 
   const detailHtml = renderLibraryV2VisitDetailPage(visits[0]!, {
     lang: "ja",
