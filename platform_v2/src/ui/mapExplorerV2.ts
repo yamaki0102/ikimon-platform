@@ -738,50 +738,122 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   function bindUiEvents() {
     if (sheetHeadEl) {
       var drag = null;
-      function applySheetStep(step) {
+      function snapTargets() {
+        var headH = sheetHeadEl.offsetHeight;
+        var vh = window.innerHeight;
         if (state.selectedId) {
-          if (step > 0) state.selectedExpanded = true;
-          else if (step < 0) state.selectedExpanded = false;
-        } else if (step !== 0) {
-          var order = ['collapsed', 'half', 'full'];
-          var idx = Math.max(0, order.indexOf(state.sheetState));
-          state.sheetState = order[Math.max(0, Math.min(2, idx + step))];
+          var lowH = Math.min(280, headH + sheetBodyEl.scrollHeight);
+          return { cur: state.selectedExpanded ? 2 : 1, list: [{ h: headH, act: 'close' }, { h: lowH, act: 'low' }, { h: Math.max(lowH + 40, vh * 0.44), act: 'expanded' }] };
+        }
+        return { cur: Math.max(0, ['collapsed', 'half', 'full'].indexOf(state.sheetState)), list: [{ h: headH, act: 'collapsed' }, { h: vh * 0.44, act: 'half' }, { h: vh - 144, act: 'full' }] };
+      }
+      function applySnap(act) {
+        if (act === 'close') {
+          state.selectedId = null;
+          state.selectedExpanded = false;
+          state.sheetState = 'collapsed';
+        } else if (act === 'low') {
+          state.selectedExpanded = false;
+        } else if (act === 'expanded') {
+          state.selectedExpanded = true;
+        } else {
+          state.sheetState = act;
         }
         renderUI();
       }
-      function finishDrag(cancel) {
-        if (!drag) return;
-        var d = drag;
-        drag = null;
-        try { sheetHeadEl.releasePointerCapture(d.id); } catch (_) {}
-        if (!d.active) return;
-        state.dragEndAt = Date.now();
-        sheetEl.removeAttribute('data-dragging');
-        sheetEl.style.transition = '';
-        sheetEl.style.maxHeight = '';
-        applySheetStep(cancel ? 0 : (d.dy <= -40 ? 1 : (d.dy >= 40 ? -1 : 0)));
+      function beginDrag(y) {
+        drag = { y0: y, h0: sheetEl.getBoundingClientRect().height, active: false, dy: 0, last: [{ t: Date.now(), y: y }] };
       }
-      sheetHeadEl.addEventListener('pointerdown', function (ev) {
-        if (!sheetEl || (typeof ev.button === 'number' && ev.button > 0)) return;
-        drag = { id: ev.pointerId, y0: ev.clientY, h0: sheetEl.getBoundingClientRect().height, active: false, dy: 0 };
-        try { sheetHeadEl.setPointerCapture(ev.pointerId); } catch (_) {}
-      });
-      sheetHeadEl.addEventListener('pointermove', function (ev) {
-        if (!drag || ev.pointerId !== drag.id) return;
-        var dy = ev.clientY - drag.y0;
+      function moveDrag(y) {
+        if (!drag) return false;
+        var dy = y - drag.y0;
         if (!drag.active) {
-          if (Math.abs(dy) < 8) return;
+          if (Math.abs(dy) < 8) return false;
           drag.active = true;
           sheetEl.setAttribute('data-dragging', '1');
           sheetEl.style.transition = 'none';
         }
         drag.dy = dy;
+        drag.last.push({ t: Date.now(), y: y });
+        if (drag.last.length > 6) drag.last.shift();
         var h = Math.max(sheetHeadEl.offsetHeight, Math.min(window.innerHeight - 144, drag.h0 - dy));
         sheetEl.style.maxHeight = h + 'px';
-        ev.preventDefault();
+        return true;
+      }
+      function finishDrag(cancel) {
+        if (!drag) return;
+        var d = drag;
+        drag = null;
+        if (!d.active) return;
+        state.dragEndAt = Date.now();
+        var curH = sheetEl.getBoundingClientRect().height;
+        var first = d.last[0];
+        var lastS = d.last[d.last.length - 1];
+        var vel = lastS.t > first.t ? (lastS.y - first.y) / (lastS.t - first.t) : 0;
+        var snaps = snapTargets();
+        var idx = snaps.cur;
+        if (!cancel) {
+          var projected = curH - vel * 140;
+          var bestD = Infinity;
+          snaps.list.forEach(function (sp, i) {
+            var dd = Math.abs(sp.h - projected);
+            if (dd < bestD) { bestD = dd; idx = i; }
+          });
+          if (idx === snaps.cur && Math.abs(vel) > 0.35 && Math.abs(d.dy) >= 8) {
+            idx = Math.max(0, Math.min(snaps.list.length - 1, snaps.cur + (vel < 0 ? 1 : -1)));
+          }
+        }
+        sheetEl.removeAttribute('data-dragging');
+        sheetEl.style.transition = '';
+        sheetEl.style.maxHeight = '';
+        applySnap(snaps.list[idx].act);
+      }
+      sheetHeadEl.addEventListener('pointerdown', function (ev) {
+        if (!sheetEl || (typeof ev.button === 'number' && ev.button > 0)) return;
+        beginDrag(ev.clientY);
+        drag.id = ev.pointerId;
+        try { sheetHeadEl.setPointerCapture(ev.pointerId); } catch (_) {}
       });
-      sheetHeadEl.addEventListener('pointerup', function () { finishDrag(false); });
-      sheetHeadEl.addEventListener('pointercancel', function () { finishDrag(true); });
+      sheetHeadEl.addEventListener('pointermove', function (ev) {
+        if (!drag || ev.pointerId !== drag.id) return;
+        if (moveDrag(ev.clientY)) ev.preventDefault();
+      });
+      function endPointer(ev, cancel) {
+        if (drag && drag.id === ev.pointerId) {
+          try { sheetHeadEl.releasePointerCapture(ev.pointerId); } catch (_) {}
+          finishDrag(cancel);
+        }
+      }
+      sheetHeadEl.addEventListener('pointerup', function (ev) { endPointer(ev, false); });
+      sheetHeadEl.addEventListener('pointercancel', function (ev) { endPointer(ev, true); });
+      if (sheetBodyEl) {
+        var bodyTouch = false;
+        sheetBodyEl.addEventListener('touchstart', function (ev) {
+          if (!ev.touches || ev.touches.length !== 1) { bodyTouch = false; return; }
+          bodyTouch = true;
+          beginDrag(ev.touches[0].clientY);
+          drag.id = 'body';
+        }, { passive: true });
+        sheetBodyEl.addEventListener('touchmove', function (ev) {
+          if (!bodyTouch || !drag || drag.id !== 'body' || !ev.touches || !ev.touches.length) return;
+          var y = ev.touches[0].clientY;
+          if (!drag.active) {
+            var dy0 = y - drag.y0;
+            if (Math.abs(dy0) < 8) return;
+            var snaps0 = snapTargets();
+            var downAtTop = dy0 > 0 && sheetBodyEl.scrollTop <= 0;
+            var upToExpand = dy0 < 0 && snaps0.cur < snaps0.list.length - 1;
+            if (!downAtTop && !upToExpand) { drag = null; bodyTouch = false; return; }
+          }
+          if (moveDrag(y) && ev.cancelable) ev.preventDefault();
+        }, { passive: false });
+        var endBody = function (cancel) {
+          if (bodyTouch && drag && drag.id === 'body') finishDrag(cancel);
+          bodyTouch = false;
+        };
+        sheetBodyEl.addEventListener('touchend', function () { endBody(false); });
+        sheetBodyEl.addEventListener('touchcancel', function () { endBody(true); });
+      }
       sheetHeadEl.addEventListener('click', function () {
         if (Date.now() - (state.dragEndAt || 0) < 400) return;
         if (state.selectedId) {

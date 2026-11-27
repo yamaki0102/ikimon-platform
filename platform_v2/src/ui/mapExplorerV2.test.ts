@@ -404,7 +404,7 @@ test("MAP_V2 tap selects the nearest dot, pin or cluster and the selected sheet 
   has("ここで最初の記録を");
 });
 
-test("MAP_V2 sheet head supports drag gesture with pointer events, tap fallback and reduced motion", () => {
+test("MAP_V2 sheet drag: head pointer events, body touch drag at scroll top, velocity snap to true collapsed, selected can close", () => {
   const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-drag-1" });
   const has = (needle: string) => assert.ok(html.includes(needle), needle);
   has(".zv2-sheet-head{touch-action:none;");
@@ -412,13 +412,18 @@ test("MAP_V2 sheet head supports drag gesture with pointer events, tap fallback 
   has("sheetHeadEl.addEventListener('pointermove'");
   has("sheetHeadEl.addEventListener('pointerup'");
   has("sheetHeadEl.addEventListener('pointercancel'");
+  has("sheetBodyEl.addEventListener('touchmove'");
+  has("{ passive: false }");
+  has("sheetBodyEl.scrollTop <= 0");
   has("Math.abs(dy) < 8");
-  has("d.dy <= -40 ? 1 : (d.dy >= 40 ? -1 : 0)");
-  has("var order = ['collapsed', 'half', 'full'];");
-  has("state.selectedExpanded = true;");
+  has("var projected = curH - vel * 140;");
+  has("Math.abs(vel) > 0.35");
+  has("{ h: headH, act: 'close' }");
+  has("{ h: headH, act: 'collapsed' }");
+  has("state.selectedId = null;");
+  has("Math.max(sheetHeadEl.offsetHeight, Math.min(window.innerHeight - 144, drag.h0 - dy))");
   has("Date.now() - (state.dragEndAt || 0) < 400");
   has("@media (prefers-reduced-motion:reduce){.zv2-sheet{transition:none}}");
-  assert.ok(!html.includes("zv2-mapwrap{touch-action:none"));
 });
 
 test("MAP_V2 starts at the real location without a visible jump and treats null record count as unknown, not zero", () => {
