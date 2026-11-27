@@ -912,8 +912,8 @@ export function renderZukanTopPage(
     </nav>
   `;
 
-  const guestTopV2 = options.guestTopV2 === true && !options.authenticated && options.lang === "ja";
-  const guestTopV2Main = guestTopV2 ? renderGuestTopV2Main({ prefix, places: data.placesStrip }) : "";
+  const guestTopV2 = options.guestTopV2 === true && !options.authenticated;
+  const guestTopV2Main = guestTopV2 ? renderGuestTopV2Main({ prefix, places: data.placesStrip, lang: options.lang === "ja" ? "ja" : "en" }) : "";
 
   const oneYearHtml = data.oneYearPair ? renderYearPairCard(data.oneYearPair, isEn, prefix) : "";
 
