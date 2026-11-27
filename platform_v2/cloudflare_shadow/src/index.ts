@@ -202,6 +202,8 @@ const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
+import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
+const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
 const MAP_INVASIVE_TOP_CHIP_FLAG = "MAP_INVASIVE_TOP_CHIP_ENABLED";
 const mapInvasiveOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_INVASIVE_FLAG, v.principalId, v.role); };
@@ -209,7 +211,7 @@ const mapInvasiveTopChipOn = (env: Env, session: Awaited<ReturnType<typeof readC
 const mapInvasiveRequested = async (request: Request, url: URL, env: Env): Promise<boolean> => {
   if (url.searchParams.get("taxon_group") !== INVASIVE_TAXON_GROUP) return false;
   const session = await readCompatibleSession(request, env).catch(() => null);
-  return mapInvasiveOn(env, session) || mapInvasiveTopChipOn(env, session);
+  return mapInvasiveOn(env, session) || mapInvasiveTopChipOn(env, session) || invasiveMapV1On(env, session);
 };
 import { handleZukanPublicParticipationReceiver } from "./zukanPublicParticipationReceiver";
 import { handleJourneySession, journeyReadOnlyGuard, JOURNEY_PATH, JOURNEY_USER_ID, withJourneyPrivacy } from "./journeyAuth";
@@ -3813,6 +3815,25 @@ export const worker = {
         return json({ ok: true, published: false, groupKey, observationIds }, 200, { "cache-control": "no-store" });
       }
 
+      if (request.method === "GET" || request.method === "HEAD") {
+        const invasiveV1Native = stripPublicLangPrefix(url.pathname);
+        const invasiveV1Route = url.pathname === "/api/v1/map/invasive-cells"
+          ? { kind: "cells" as const, value: "" }
+          : (() => {
+              const region = invasiveV1Native.match(/^\/regions\/([^/]+)\/invasive$/u);
+              if (region?.[1]) return { kind: "region" as const, value: region[1] };
+              const species = invasiveV1Native.match(/^\/invasive\/([^/]+)$/u);
+              if (species?.[1]) return { kind: "species" as const, value: species[1] };
+              return null;
+            })();
+        if (invasiveV1Route) {
+          const invasiveSession = await readCompatibleSession(request, env).catch(() => null);
+          if (invasiveMapV1On(env, invasiveSession)) {
+            return handleInvasiveMapV1Route(request, url, env, invasiveSession, invasiveV1Route);
+          }
+        }
+      }
+
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
         if (isMapHtmlPath(url.pathname)) {
           const session = await readCompatibleSession(request, env).catch(() => null);
@@ -3828,6 +3849,7 @@ export const worker = {
                   basePath: "",
                   cspNonce,
                   initialPlaceId: url.searchParams.get("placeId"),
+                  invasiveCellsApi: invasiveMapV1On(env, session) ? "/api/v1/map/invasive-cells" : null,
                 });
             return new Response(body, {
               status: 200,
@@ -25774,6 +25796,76 @@ async function getShadowVideoThumbnail(uid: string, env: Env): Promise<Response>
       "content-type": "image/jpeg",
       "cache-control": "no-store"
     }
+  });
+}
+
+async function loadInvasivePublicRecords(env: Env): Promise<InvasiveRecord[]> {
+  const rows = await queryPublicMapRows(env);
+  const candidates = filterInvasiveRows(rows).filter((row) => !isWeakTaxonLabel(row.taxon_label)).slice(0, 1500);
+  const ids = candidates.map((row) => row.observation_id);
+  const [photos, meta] = await Promise.all([
+    queryPublicMapPhotoUrls(env, ids).catch(() => new Map<string, string>()),
+    queryPublicMapCardMeta(env, ids).catch(() => new Map<string, PublicMapCardMeta>()),
+  ]);
+  const areas = new Map<string, string | null>();
+  for (const row of candidates) {
+    areas.set(row.observation_id, normalizeSafePublicAreaLabelCandidate(row.public_area_label) ?? normalizeSafePublicAreaLabelCandidate(meta.get(row.observation_id)?.publicAreaLabel) ?? null);
+  }
+  return buildInvasiveRecords(candidates, { areas, photos, nowMs: Date.now() });
+}
+
+async function invasiveRegionHasPublicRecords(env: Env, area: string): Promise<boolean> {
+  try {
+    const row = await env.OBS_DB.prepare("SELECT 1 AS present FROM readmodel_public_observations WHERE public_area_label = ? LIMIT 1").bind(area).first();
+    return Boolean(row);
+  } catch {
+    return false;
+  }
+}
+
+async function handleInvasiveMapV1Route(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+  route: { kind: "cells" | "region" | "species"; value: string },
+): Promise<Response> {
+  const notFound = () => json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  if (route.kind === "cells") {
+    const species = url.searchParams.get("species");
+    const slug = species ? parseInvasiveSlug(species) : null;
+    if (species && !slug) return notFound();
+    const records = await loadInvasivePublicRecords(env);
+    return json(mapCellsPayload(records, slug), 200, { "cache-control": "public, max-age=120" });
+  }
+  let area = "";
+  let slug: string | null = null;
+  if (route.kind === "region") {
+    try { area = decodeURIComponent(route.value); } catch { return notFound(); }
+    if (!area || normalizeSafePublicAreaLabelCandidate(area) !== area) return notFound();
+  } else {
+    try { slug = parseInvasiveSlug(route.value); } catch { return notFound(); }
+    if (!slug) return notFound();
+  }
+  const records = await loadInvasivePublicRecords(env);
+  const inRegion = route.kind === "region" ? recordsForRegion(records, area) : [];
+  if (route.kind === "region" && inRegion.length === 0 && !(await invasiveRegionHasPublicRecords(env, area))) return notFound();
+  const cspNonce = createHtmlCspNonce();
+  const authenticated = Boolean(session && !session.banned);
+  const page = route.kind === "region"
+    ? renderRegionInvasivePage({ area, records: inRegion, lang, authenticated, displayName: session?.displayName ?? null, cspNonce })
+    : renderInvasiveSpeciesPage({ slug: slug!, records, lang, authenticated, displayName: session?.displayName ?? null, cspNonce });
+  if (!page) return notFound();
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": route.kind === "region" ? "invasive-region-v1" : "invasive-species-v1",
+    },
   });
 }
 

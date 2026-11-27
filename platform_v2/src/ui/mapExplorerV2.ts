@@ -86,6 +86,7 @@ export type MapExplorerV2Options = {
   basePath: string;
   cspNonce?: string | null;
   initialPlaceId?: string | null;
+  invasiveCellsApi?: string | null;
 };
 
 const ICON_SEARCH =
@@ -151,6 +152,16 @@ a,button{font:inherit;color:inherit}
 .zv2-zb+.zv2-zb{border-top:1px solid #E4E9E4}
 .zv2-inv-legend{position:absolute;left:12px;top:116px;z-index:18;background:rgba(255,255,255,.96);color:#8A4B00;border:1px solid #e6c9a8;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;box-shadow:0 2px 8px rgba(9,25,16,.18)}
 .zv2-inv-legend[hidden]{display:none}
+.zv2-inv-sheet{padding:4px 16px 20px}
+.zv2-inv-h{font-size:13px;font-weight:800;letter-spacing:.08em;color:#8A4B00;margin:4px 0 10px}
+.zv2-inv-sp{padding:12px 0;border-top:1px solid #E4E9E4}
+.zv2-inv-sp:first-of-type{border-top:0}
+.zv2-inv-n{font-size:17px;font-weight:800;color:#17211B}
+.zv2-inv-b{display:inline-flex;align-items:center;min-height:26px;padding:0 10px;margin-top:6px;border-radius:999px;background:#FBEBD6;color:#6B3A00;border:1px solid #E6C9A8;font-size:13px;font-weight:800;white-space:nowrap}
+.zv2-inv-p{margin:8px 0 0;font-size:15px;line-height:1.7;color:#17211B}
+.zv2-inv-a{display:flex;align-items:center;min-height:44px;margin-top:6px;color:#143F2E;font-weight:700;font-size:15px;text-decoration:none;border-top:1px solid #E4E9E4;padding-top:2px}
+.zv2-inv-note{margin:10px 0 0;font-size:13.5px;color:#55615A;line-height:1.6}
+.zv2-inv-close{min-height:44px;padding:0 20px;margin-top:12px;border-radius:999px;border:1.5px solid #143F2E;background:#fff;color:#143F2E;font-weight:800;font-size:15px;white-space:nowrap;cursor:pointer}
 .zv2-inv-legend a{display:block;margin-top:2px;font-size:14px;color:#143F2E;text-decoration:underline}
 .zv2-attrib{position:absolute;left:10px;bottom:calc(168px + env(safe-area-inset-bottom));z-index:15;font-size:12px;color:#3d4a42;background:rgba(255,255,255,.88);border-radius:6px;padding:2px 8px;pointer-events:none}
 
@@ -267,6 +278,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     placeHrefTemplate: appendLangToHref(withBasePath(options.basePath, "/places/__ID__"), options.lang as SiteLang),
     recordHref,
     invasiveLearnHref: "/ja/learn/invasive-species",
+    invasiveCellsApi: options.invasiveCellsApi ?? null,
     maplibreCss: withBasePath(options.basePath, MAPLIBRE_SELF_HOSTED_CSS_PATH),
     maplibreJs: withBasePath(options.basePath, MAPLIBRE_SELF_HOSTED_JS_PATH),
     styleUrl: MAP_STANDARD_STYLE_URL,
@@ -392,6 +404,10 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     placeKindFilter: '',
     onlyRecordedFilter: false,
     taxonGroup: '',
+    invCells: [],
+    invSel: null,
+    invSpecies: '',
+    invSeq: 0,
     searchQuery: '',
     userCenter: null,
     map: null,
@@ -400,6 +416,14 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     fetchSeq: 0,
     lazyObserver: null
   };
+
+  function syncChipUi() {
+    document.querySelectorAll('[data-taxon]').forEach(function (btn) {
+      var on = btn.getAttribute('data-taxon') === state.taxonGroup;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
 
   function esc(v) {
     return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
@@ -576,6 +600,73 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     return h;
   }
 
+  function invActive() { return Boolean(CFG.invasiveCellsApi) && state.taxonGroup === 'invasive'; }
+
+  function invCellById(id) {
+    for (var i = 0; i < state.invCells.length; i++) { if (state.invCells[i].cellId === id) return state.invCells[i]; }
+    return null;
+  }
+
+  function renderInvCellHtml(cell) {
+    var h = '<div class="zv2-inv-sheet" data-zv2-inv-sheet="1"><div class="zv2-inv-h">この範囲で見つかっている外来種</div>';
+    cell.species.forEach(function (sp) {
+      var range = sp.first && sp.last ? (sp.first === sp.last ? sp.first : sp.first + '〜' + sp.last) : '';
+      h += '<div class="zv2-inv-sp"><div class="zv2-inv-n">' + esc(sp.name) + '</div><span class="zv2-inv-b">' + esc(sp.categoryLabel) + '</span>'
+        + '<p class="zv2-inv-p">この範囲の記録 ' + sp.records + '件で確認されています' + (range ? '（' + esc(range) + '）' : '') + '。</p>'
+        + '<a class="zv2-inv-a" href="' + esc('/ja/invasive/' + encodeURIComponent(sp.slug)) + '">この種について見る</a></div>';
+    });
+    h += '<p class="zv2-inv-note">場所は大まかに表示しています。新しい記録は、名前の確認が済んでから出ます。</p>'
+      + '<button type="button" class="zv2-inv-close" data-zv2-inv-close="1">閉じる</button></div>';
+    return h;
+  }
+
+  function invCellPolygon(c) {
+    var d = c.halfStep;
+    return [[c.lng - d, c.lat - d], [c.lng + d, c.lat - d], [c.lng + d, c.lat + d], [c.lng - d, c.lat + d], [c.lng - d, c.lat - d]];
+  }
+
+  function syncInvLayers() {
+    var m = state.map;
+    if (!m || typeof m.getSource !== 'function') return;
+    var src = m.getSource('zv2-inv');
+    if (!src) return;
+    var cells = invActive() ? state.invCells : [];
+    src.setData({
+      type: 'FeatureCollection',
+      features: cells.map(function (c) {
+        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [invCellPolygon(c)] }, properties: { cellId: c.cellId, count: c.count, label: '外来種 ' + c.count + '件' } };
+      })
+    });
+    if (m.getLayer('zv2-inv-sel')) m.setFilter('zv2-inv-sel', ['==', ['get', 'cellId'], state.invSel || '']);
+  }
+
+  function fetchInvCells() {
+    if (!invActive()) {
+      state.invCells = [];
+      state.invSel = null;
+      syncInvLayers();
+      return;
+    }
+    var seq = ++state.invSeq;
+    var q = state.invSpecies ? '?species=' + encodeURIComponent(state.invSpecies) : '';
+    fetch(CFG.invasiveCellsApi + q, { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (seq !== state.invSeq || !d || !Array.isArray(d.cells)) return;
+        state.invCells = d.cells;
+        if (state.invSel && !invCellById(state.invSel)) state.invSel = null;
+        renderUI();
+      })
+      .catch(function () {});
+  }
+
+  function selectInvCell(id) {
+    state.invSel = id;
+    state.selectedId = null;
+    state.selectedExpanded = false;
+    renderUI();
+  }
+
   function renderUI() {
     var list = filteredPlaces();
     var rec = list.filter(function (p) { return rcOf(p) !== 0; });
@@ -583,6 +674,20 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     var sel = state.selectedId ? state.places.find(function (p) { return p.placeId === state.selectedId; }) || null : null;
 
     if (invLegendEl) invLegendEl.hidden = state.taxonGroup !== 'invasive';
+
+    var invCell = invActive() && state.invSel && !sel ? invCellById(state.invSel) : null;
+    if (invCell) {
+      var invState = state.sheetState === 'collapsed' ? 'half' : state.sheetState;
+      if (sheetEl) sheetEl.setAttribute('data-sheet-state', invState);
+      if (peekTtlEl) peekTtlEl.textContent = '外来種 ' + invCell.count + '件';
+      if (peekSubEl) peekSubEl.textContent = 'この範囲で見つかっている外来種';
+      if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', 'true');
+      var invHtml = renderInvCellHtml(invCell);
+      if (sheetBodyEl) sheetBodyEl.innerHTML = invHtml;
+      if (panelContentEl) panelContentEl.innerHTML = invHtml;
+      syncMapData(rec, zero, null);
+      return;
+    }
 
     if (sel) {
       var mobileLow = !state.selectedExpanded;
@@ -628,6 +733,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   function syncMapData(rec, zero, sel) {
     syncSelectedMarker(sel);
+    syncInvLayers();
     if (!state.map) return;
     var recSrc = state.map.getSource('zv2-recorded');
     if (recSrc) {
@@ -869,6 +975,11 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     document.addEventListener('click', function (ev) {
       var t = ev.target && ev.target.closest ? ev.target.closest('button') : null;
       if (!t) return;
+      if (t.hasAttribute('data-zv2-inv-close')) {
+        state.invSel = null;
+        renderUI();
+        return;
+      }
       if (t.hasAttribute('data-zv2-back')) {
         state.selectedId = null;
         state.selectedExpanded = false;
@@ -906,12 +1017,11 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       if (t.hasAttribute('data-taxon')) {
         var next = t.getAttribute('data-taxon') || '';
         state.taxonGroup = next;
-        document.querySelectorAll('[data-taxon]').forEach(function (btn) {
-          var on = btn.getAttribute('data-taxon') === next;
-          btn.classList.toggle('on', on);
-          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-        });
+        state.invSel = null;
+        state.invSpecies = '';
+        syncChipUi();
         fetchPlaces();
+        fetchInvCells();
       }
     });
 
@@ -1067,6 +1177,11 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         data: { type: 'FeatureCollection', features: [] },
         cluster: false
       });
+      map.addSource('zv2-inv', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({ id: 'zv2-inv-fill', type: 'fill', source: 'zv2-inv', paint: { 'fill-color': '#C9731A', 'fill-opacity': 0.3, 'fill-opacity-transition': { duration: 240 } } });
+      map.addLayer({ id: 'zv2-inv-line', type: 'line', source: 'zv2-inv', paint: { 'line-color': '#8A4B00', 'line-width': 1.5 } });
+      map.addLayer({ id: 'zv2-inv-sel', type: 'line', source: 'zv2-inv', filter: ['==', ['get', 'cellId'], ''], paint: { 'line-color': '#8A4B00', 'line-width': 4 } });
+      map.addLayer({ id: 'zv2-inv-label', type: 'symbol', source: 'zv2-inv', layout: { 'text-field': ['get', 'label'], 'text-size': 13, 'text-allow-overlap': true }, paint: { 'text-color': '#6B3A00', 'text-halo-color': '#ffffff', 'text-halo-width': 2 } });
       map.addLayer({
         id: 'zv2-clusters',
         type: 'symbol',
@@ -1144,7 +1259,13 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
           var w = f.layer.id === 'zv2-zero-hit' ? d + 6 : d;
           if (w < bestD) { bestD = w; best = f; }
         });
-        if (!best || !best.properties) return;
+        if (!best || !best.properties) {
+          if (invActive()) {
+            var invHits = map.queryRenderedFeatures(e.point, { layers: ['zv2-inv-fill'] });
+            if (invHits.length > 0 && invHits[0].properties && invHits[0].properties.cellId) selectInvCell(invHits[0].properties.cellId);
+          }
+          return;
+        }
         if (best.layer.id === 'zv2-clusters') {
           var cid = best.properties.cluster_id;
           var src = map.getSource('zv2-recorded');
@@ -1158,11 +1279,22 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         if (best.properties.placeId) selectPlace(best.properties.placeId);
       });
       fetchPlaces();
+      fetchInvCells();
     });
     map.on('moveend', function () {
       clearTimeout(state.moveTimer);
       state.moveTimer = setTimeout(fetchPlaces, 300);
     });
+  }
+
+  if (CFG.invasiveCellsApi) {
+    var initParams = new URLSearchParams(window.location.search);
+    if (initParams.get('taxon_group') === 'invasive') {
+      state.taxonGroup = 'invasive';
+      var initSp = initParams.get('species') || '';
+      state.invSpecies = /^[a-z-]{3,60}$/.test(initSp) ? initSp : '';
+      syncChipUi();
+    }
   }
 
   bindUiEvents();
