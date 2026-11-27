@@ -183,6 +183,9 @@ const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCom
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
 import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
+import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
+const MAP_V2_FLAG = "MAP_V2_ENABLED";
+const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
@@ -3772,6 +3775,34 @@ export const worker = {
       }
 
       if ((request.method === "GET" || request.method === "HEAD") && isOriginalUiHtmlPath(url.pathname)) {
+        if (isMapHtmlPath(url.pathname)) {
+          const session = await readCompatibleSession(request, env).catch(() => null);
+          if (mapV2On(env, session)) {
+            const cspNonce = createHtmlCspNonce();
+            const mapLang = publicLangFromPath(url.pathname) ?? langQueryToUrlSegment(url.searchParams.get("lang")) ?? "ja";
+            const body = request.method === "HEAD"
+              ? null
+              : renderMapExplorerV2Document({
+                  lang: mapLang,
+                  authenticated: Boolean(session && !session.banned),
+                  displayName: session?.displayName ?? null,
+                  basePath: "",
+                  cspNonce,
+                  initialPlaceId: url.searchParams.get("placeId"),
+                });
+            return new Response(body, {
+              status: 200,
+              headers: {
+                ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+                "content-type": "text/html; charset=utf-8",
+                "cache-control": "private, no-store",
+                "vary": "cookie, authorization",
+                "x-ikimon-cloudflare-native": "zukan-map-v2",
+                ...releaseIdentityHeaders(env),
+              },
+            });
+          }
+        }
         return getOriginalUiHtml(request, url, env);
       }
 
@@ -4336,14 +4367,24 @@ export const worker = {
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/places") {
-        return handleMapPlacesBoundsApi(url, env.OBS_DB, async (placeId): Promise<MapPlaceCardExtras | null> => {
-          const loaded = await Promise.race([
-            loadPublicPlaceProfile(env, placeId),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
-          ]).catch(() => null);
-          if (!loaded || loaded instanceof Response) return null;
-          return mapPlaceCardFromProfile(loaded);
-        });
+        const hasCredential = Boolean(
+          readSessionTokenFromCookie(request.headers.get("cookie"))
+          || bearerToken(request.headers.get("authorization"))
+        );
+        const session = hasCredential ? await readCompatibleSession(request, env).catch(() => null) : null;
+        return handleMapPlacesBoundsApi(
+          url,
+          env.OBS_DB,
+          async (placeId): Promise<MapPlaceCardExtras | null> => {
+            const loaded = await Promise.race([
+              loadPublicPlaceProfile(env, placeId),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+            ]).catch(() => null);
+            if (!loaded || loaded instanceof Response) return null;
+            return mapPlaceCardFromProfile(loaded);
+          },
+          { viewerUserId: session && !session.banned ? session.userId : null },
+        );
       }
 
       const mapExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/map\/explore$/);
