@@ -188,12 +188,15 @@ import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectM
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
 import { handleSearchExploreV2Route, handleSearchResultsV2Route, handleSearchSuggestV2Api } from "./zukanSearchV2";
 import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
+import { handleEventsV2Detail, handleEventsV2List } from "./zukanEventsV2";
 const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
 const SEARCH_V2_FLAG = "SEARCH_V2_ENABLED";
 const searchV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SEARCH_V2_FLAG, v.principalId, v.role); };
 const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
 const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
+const EVENTS_V2_FLAG = "EVENTS_V2_ENABLED";
+const eventsV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, EVENTS_V2_FLAG, v.principalId, v.role); };
 import { handleIdentifyV3ApiRequest, loadIdentifyV3WorkspaceData, renderIdentifyV3Page, type IdentifyV3View } from "./identifyV3";
 const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
@@ -4279,6 +4282,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && eventPreMatch?.[2]) {
         const viewLang = (eventPreMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventPreAndPcRoute(decodeURIComponent(eventPreMatch[2]), viewLang, session, env.OBS_DB);
       }
 
@@ -4293,6 +4297,7 @@ export const worker = {
         const viewLang = (eventDayAlbumTakeMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const view = eventDayAlbumTakeMatch[3] as "day" | "album" | "take";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (view !== "take" && eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventDayAlbumTakeMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventDayAlbumTakeRoute(decodeURIComponent(eventDayAlbumTakeMatch[2]), view, viewLang, session, env.OBS_DB);
       }
 
@@ -4475,6 +4480,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && eventsNearbyPageMatch) {
         const viewLang = (eventsNearbyPageMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (eventsV2On(env, session)) return handleEventsV2List(url, viewLang, session, env.OBS_DB);
         return handleNearbyEventsPageRoute(url, viewLang, session, env.OBS_DB);
       }
 
@@ -4482,6 +4488,7 @@ export const worker = {
       if ((request.method === "GET" || request.method === "HEAD") && eventDetailsMatch?.[2]) {
         const viewLang = (eventDetailsMatch[1] as "ja" | "en" | "es" | "pt-br" | undefined) ?? "ja";
         const session = await readCompatibleSession(request, env).catch(() => null);
+        if (eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
       }
 
