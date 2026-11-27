@@ -403,3 +403,40 @@ test("map v2 mobile search renders results dropdown under the search bar with ke
     assert.match(html, lang === "ja" ? /見つかりません/ : /No matches/);
   }
 });
+
+test("map v2 place stats count records posted after the import using the place polygon with a 30 m buffer", async (t) => {
+  const sqlite = new DatabaseSync(":memory:");
+  t.after(() => sqlite.close());
+  sqlite.exec(`
+    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, place_kind TEXT DEFAULT 'park', locality_label TEXT, public_profile_status TEXT NOT NULL DEFAULT 'published', superseded_by_place_id TEXT);
+    CREATE TABLE place_boundaries (boundary_id TEXT PRIMARY KEY, place_id TEXT NOT NULL, is_primary INTEGER NOT NULL DEFAULT 0, boundary_version INTEGER NOT NULL DEFAULT 1, valid_to TEXT, superseded_by_boundary_id TEXT, boundary_geojson TEXT, bbox_west REAL, bbox_south REAL, bbox_east REAL, bbox_north REAL);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, taxon_label TEXT, exact_lat REAL, exact_lng REAL, visibility TEXT, emergency_hidden INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE production_import_visits (visit_id TEXT PRIMARY KEY);
+    CREATE TABLE observation_data_rights (visit_id TEXT PRIMARY KEY, withdrawal_status TEXT, record_consent TEXT);
+  `);
+  const w = 137.7;
+  const s0 = 34.7;
+  const dLat = 0.0007;
+  const dLng = 0.0009;
+  const geo = JSON.stringify({ type: "Polygon", coordinates: [[[w, s0], [w + dLng, s0], [w + dLng, s0 + dLat], [w, s0 + dLat], [w, s0]]] });
+  sqlite.prepare("INSERT INTO places (place_id, canonical_name) VALUES ('plc_small', '西伊場一条公園')").run();
+  sqlite.prepare("INSERT INTO place_boundaries (boundary_id, place_id, is_primary, boundary_geojson, bbox_west, bbox_south, bbox_east, bbox_north) VALUES ('b1', 'plc_small', 1, ?, ?, ?, ?, ?)").run(geo, w, s0, w + dLng, s0 + dLat);
+  const m = (meters: number) => meters / 111_320;
+  const insObs = sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id, taxon_label, exact_lat, exact_lng, visibility) VALUES (?, ?, 'スズメ', ?, ?, ?)");
+  const insRights = sqlite.prepare("INSERT INTO observation_data_rights VALUES (?, 'active', 'public_summary')");
+  const add = (id: string, lat: number, lng: number, vis = "public", owner = "u1") => { insObs.run(id, owner, lat, lng, vis); insRights.run(id); };
+  add("o-in", s0 + dLat / 2, w + dLng / 2);
+  add("o-near", s0 + dLat + m(20), w + dLng / 2, "public", "viewer");
+  add("o-far", s0 + dLat + m(60), w + dLng / 2);
+  add("o-private", s0 + dLat / 2, w + dLng / 3, "private");
+  const db = sqliteObsDb(sqlite);
+  const url = new URL(`https://zukan.earth/api/v1/map/places?lat=${s0}&lng=${w}&radiusKm=5&v2=1`);
+  const anon = await handleMapPlacesBoundsApi(url, db);
+  const anonBody = (await anon.json()) as { places: Array<{ placeId: string; recordCount: number | null; ownCount?: number }> };
+  const anonPlace = anonBody.places.find((p) => p.placeId === "plc_small");
+  assert.equal(anonPlace?.recordCount, 2);
+  assert.equal(anonPlace?.ownCount, undefined);
+  const mine = await handleMapPlacesBoundsApi(url, db, undefined, { viewerUserId: "viewer" });
+  const mineBody = (await mine.json()) as { places: Array<{ placeId: string; recordCount: number | null; ownCount?: number }> };
+  assert.equal(mineBody.places.find((p) => p.placeId === "plc_small")?.ownCount, 1);
+});

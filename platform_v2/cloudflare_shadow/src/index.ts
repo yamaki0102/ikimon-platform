@@ -487,6 +487,7 @@ import {
 } from "./areaEncyclopediaNative";
 import {
   loadCloudflarePlaceAtlasProfile,
+  loadOwnerPlaceRecordSummary,
 } from "./placeAtlasProfileNative";
 import { handlePublicationFeedNativeRequest } from "./publicationFeedNative";
 import {
@@ -2688,10 +2689,14 @@ async function getGlobalPlaceDetailPage(
   });
   const e2Events = placeEV2On(env, session) ? await loadPlaceLinkedEvents(env.OBS_DB, canonicalPlaceId, lang, eventTiming) : [];
   const regionArea = (placePageV3On(env, session) || placeEV2On(env, session)) && regionSurfaceV1On(env, session) ? await loadPlaceRegionArea(env.OBS_DB, canonicalPlaceId, normalizeSafePublicAreaLabelCandidate) : null;
+  const ownerRecords = authenticated && session && placeEV2On(env, session)
+    ? await loadOwnerPlaceRecordSummary(env.OBS_DB, canonicalPlaceId, session.userId)
+    : null;
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
     savedItem,
+    ...(ownerRecords && ownerRecords.count > 0 ? { ownerRecords } : {}),
     savedStateAvailable,
     viewerAuthenticated: authenticated,
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),

@@ -30,6 +30,7 @@ export type PlaceEInput = {
   nocosilEventHref?: string;
   regionLink?: { href: string; label: string } | null;
   invasive?: PlaceInvasiveItem[];
+  ownerRecords?: { count: number; href: string } | null;
 };
 
 const COPY = {
@@ -181,5 +182,8 @@ export function renderPlaceE(input: PlaceEInput): string {
       : "";
     main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>${hostLink}${regionHtml}`;
   }
-  return `<div class="pe" data-place-e-v2>${hero}<div class="pe-body">${head}${main}</div></div>`;
+  const ownerHtml = input.ownerRecords && input.ownerRecords.count > 0
+    ? `<p class="pe-host" data-pe-own><a href="${e(input.ownerRecords.href)}">${e(input.lang === "ja" ? `あなたの記録 ${input.ownerRecords.count}件` : `Your records: ${input.ownerRecords.count}`)}</a></p>`
+    : "";
+  return `<div class="pe" data-place-e-v2>${hero}<div class="pe-body">${head}${ownerHtml}${main}</div></div>`;
 }

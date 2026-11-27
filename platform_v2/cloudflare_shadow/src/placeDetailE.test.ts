@@ -151,3 +151,14 @@ test("region link shows only when regionLink given", () => {
   const emptyOn = mainOf(render(empty(), { e2: true, regionLink: link }));
   assert.ok(emptyOn.includes(link.label));
 });
+
+test("owner line shows only when ownerRecords is given and links to the latest own observation", () => {
+  const on = mainOf(render(profile(), { e2: true, ownerRecords: { count: 3, latestObservationId: "obs_mine" } }));
+  assert.equal((on.match(/data-pe-own/g) ?? []).length, 1);
+  assert.ok(on.includes('href="/ja/observations/obs_mine"'));
+  assert.ok(on.includes("あなたの記録 3件"));
+  const off = mainOf(render(profile(), { e2: true }));
+  assert.doesNotMatch(off, /data-pe-own/);
+  const zero = mainOf(render(profile(), { e2: true, ownerRecords: { count: 0, latestObservationId: null } }));
+  assert.doesNotMatch(zero, /data-pe-own/);
+});

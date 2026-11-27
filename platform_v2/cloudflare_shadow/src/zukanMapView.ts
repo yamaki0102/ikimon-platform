@@ -3,7 +3,16 @@ import { escapeHtml, finiteNumberOrNull, json } from "./core/http";
 import { classifyInvasive } from "./mapInvasive";
 import { renderZukanCommonShell } from "./zukanLibraryAndProfile";
 import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
-import { SNAPSHOT_KEY, publicCellsForBbox } from "./placeAtlasProfileNative";
+import {
+  BUFFER_BBOX_LAT_DEG,
+  BUFFER_BBOX_LNG_DEG,
+  PLACE_ATLAS_GEOMETRY_BUFFER_M,
+  SNAPSHOT_KEY,
+  parsePlaceAtlasGeometry,
+  placeAtlasGeometryWithinRuntimeBudget,
+  pointNearPlaceAtlasGeometry,
+  publicCellsForBbox,
+} from "./placeAtlasProfileNative";
 
 type PlacePinRow = {
   place_id: string;
@@ -394,7 +403,75 @@ async function loadBulkV2PlaceStats(
   } catch {
     // Graceful degradation for DBs/tests without import membership tables
   }
+  try {
+    await addNewRecordPlaceStats(db, placeIds, viewerUserId, ensure);
+  } catch {
+    // observations / boundary tables may be absent
+  }
   return out;
+}
+
+const NEW_RECORD_PAIR_LIMIT = 4000;
+
+async function addNewRecordPlaceStats(
+  db: Env["OBS_DB"],
+  placeIds: readonly string[],
+  viewerUserId: string | null,
+  ensure: (id: string) => BulkPlaceStats,
+): Promise<void> {
+  for (let i = 0; i < placeIds.length; i += 80) {
+    const chunk = placeIds.slice(i, i + 80);
+    const placeholders = chunk.map(() => "?").join(", ");
+    const pairs = (
+      await db
+        .prepare(
+          `SELECT b.place_id AS place_id, o.observation_id AS record_id, o.exact_lat AS lat, o.exact_lng AS lng,
+                  o.owner_user_id AS owner_user_id, o.taxon_label AS label, b.boundary_geojson AS geojson
+             FROM place_boundaries b
+             JOIN observations o
+               ON o.exact_lat BETWEEN b.bbox_south - ? AND b.bbox_north + ?
+              AND o.exact_lng BETWEEN b.bbox_west - ? AND b.bbox_east + ?
+            WHERE b.place_id IN (${placeholders})
+              AND b.is_primary = 1
+              AND b.valid_to IS NULL
+              AND b.superseded_by_boundary_id IS NULL
+              AND o.visibility = 'public'
+              AND COALESCE(o.emergency_hidden, 0) = 0
+              AND NOT EXISTS (SELECT 1 FROM production_import_visits pv WHERE pv.visit_id = o.observation_id)
+              AND EXISTS (
+                SELECT 1 FROM observation_data_rights rights
+                 WHERE rights.visit_id = o.observation_id
+                   AND rights.withdrawal_status = 'active'
+                   AND rights.record_consent IN ('public_summary', 'external_export')
+              )
+            LIMIT ${NEW_RECORD_PAIR_LIMIT}`,
+        )
+        .bind(BUFFER_BBOX_LAT_DEG, BUFFER_BBOX_LAT_DEG, BUFFER_BBOX_LNG_DEG, BUFFER_BBOX_LNG_DEG, ...chunk)
+        .all<{ place_id: string; record_id: string; lat: number; lng: number; owner_user_id: string | null; label: string | null; geojson: string | null }>()
+    ).results ?? [];
+    const geometries = new Map<string, ReturnType<typeof parsePlaceAtlasGeometry>>();
+    const seen = new Set<string>();
+    for (const pair of pairs) {
+      const key = `${pair.place_id}|${pair.record_id}`;
+      if (seen.has(key)) continue;
+      let geometry = geometries.get(pair.place_id);
+      if (geometry === undefined) {
+        geometry = parsePlaceAtlasGeometry(pair.geojson);
+        if (geometry && !placeAtlasGeometryWithinRuntimeBudget(geometry)) geometry = null;
+        geometries.set(pair.place_id, geometry);
+      }
+      if (geometry && !pointNearPlaceAtlasGeometry(Number(pair.lng), Number(pair.lat), geometry, PLACE_ATLAS_GEOMETRY_BUFFER_M)) continue;
+      seen.add(key);
+      const s = ensure(pair.place_id);
+      s.recordCount += 1;
+      if (viewerUserId && pair.owner_user_id === viewerUserId) s.ownCount += 1;
+      const lbl = String(pair.label ?? "");
+      if (lbl && classifyInvasive(lbl)) s.invasive = true;
+      const inferred = inferTaxonGroupForLabel(lbl || null, null);
+      if (inferred && inferred !== "other") s.taxonGroups.add(inferred);
+      if (/(?:魚|エビ|カニ|カメ|蛙|カエル|オタマジャクシ|水|メダカ|ザリガニ|コイ|フナ|カワニナ)/iu.test(lbl)) s.taxonGroups.add("water");
+    }
+  }
 }
 
 async function findNearestRecordedPlace(

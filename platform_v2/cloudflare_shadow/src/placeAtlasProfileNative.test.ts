@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   loadCloudflarePlaceAtlasProfile,
+  loadOwnerPlaceRecordSummary,
+  pointNearPlaceAtlasGeometry,
   placeAtlasGeometryWithinRuntimeBudget,
   pointInPlaceAtlasGeometry,
   type PlaceAtlasD1Database,
@@ -26,6 +28,8 @@ type FixtureData = {
   placeContent?: Array<Record<string, unknown>>;
   memories?: Array<Record<string, unknown>>;
   snapshotBindCounts?: number[];
+  observations?: Array<Record<string, unknown>>;
+  queryLog?: string[];
 };
 
 class FixtureStatement implements PlaceAtlasD1PreparedStatement {
@@ -61,6 +65,35 @@ class FixtureStatement implements PlaceAtlasD1PreparedStatement {
   }
 
   async all<T>(): Promise<{ results: T[] }> {
+    this.data.queryLog?.push(this.query);
+    if (this.query.includes("FROM observations") && this.query.includes("o.observation_id IN")) {
+      assert.match(this.query, /o\.visibility = 'public'/);
+      assert.match(this.query, /observation_data_rights/);
+      assert.match(this.query, /withdrawal_status = 'active'/);
+      const requested = new Set(this.values.map(String));
+      return {
+        results: (this.data.observations ?? [])
+          .filter((row) =>
+            requested.has(String(row.observation_id)) &&
+            row.visibility === "public" &&
+            row.rights !== "withdrawn"
+          )
+          .map((row) => ({
+            visit_id: row.observation_id,
+            place_id: null,
+            user_id: row.owner_user_id,
+            exact_lat: row.exact_lat,
+            exact_lng: row.exact_lng,
+            public_visibility: row.visibility,
+          })) as T[],
+      };
+    }
+    if (this.query.includes("FROM observations") && this.query.includes("owner_user_id = ?")) {
+      const owner = String(this.values[0]);
+      return {
+        results: (this.data.observations ?? []).filter((row) => row.owner_user_id === owner) as T[],
+      };
+    }
     if (this.query.includes("SELECT DISTINCT m.record_id") && this.query.includes("record_place_memberships")) {
       assert.match(this.query, /membership_state <> 'confirmed'/);
       assert.match(this.query, /removed_at IS NOT NULL/);
@@ -1330,4 +1363,97 @@ test("polygon holes stay excluded from exact internal scope checks", () => {
   assert.equal(pointInPlaceAtlasGeometry(2, 2, geometry), true);
   assert.equal(pointInPlaceAtlasGeometry(5, 5, geometry), false);
   assert.equal(pointInPlaceAtlasGeometry(12, 5, geometry), false);
+});
+
+function snapRow(id: string, name: string): Record<string, unknown> {
+  return {
+    occurrence_id: `occ:${id}:0`,
+    visit_id: id,
+    observed_at: "2026-08-01T09:00:00.000Z",
+    taxon_group: "plant",
+    display_name: name,
+    is_ai_candidate: 0,
+    is_awaiting_id: 0,
+    photo_url: null,
+    cell_1000: "34.97,138.38",
+    asset_count: 0,
+  };
+}
+
+function newRecordFixtures(): FixtureData {
+  const fixtures = tokiwaFixtures(null);
+  const metersLat = (m: number) => m / 111_320;
+  const edge = 34.975;
+  const obs = (id: string, lat: number, lng: number, extra: Record<string, unknown> = {}) => ({
+    observation_id: id,
+    owner_user_id: "new-user",
+    exact_lat: lat,
+    exact_lng: lng,
+    visibility: "public",
+    ...extra,
+  });
+  fixtures.snapshots = [
+    ...(fixtures.snapshots ?? []),
+    snapRow("new-in", "新規内"),
+    snapRow("new-near", "新規20m"),
+    snapRow("new-far", "新規60m"),
+    snapRow("new-private", "新規非公開"),
+    snapRow("new-withdrawn", "新規撤回"),
+  ];
+  fixtures.observations = [
+    obs("new-in", 34.9705, 138.3805),
+    obs("new-near", edge + metersLat(20), 138.38),
+    obs("new-far", edge + metersLat(60), 138.38),
+    obs("new-private", 34.9706, 138.3806, { visibility: "private" }),
+    obs("new-withdrawn", 34.9707, 138.3807, { rights: "withdrawn" }),
+  ];
+  return fixtures;
+}
+
+test("place atlas counts records posted after the import and keeps 30 m buffer, privacy and rights", async () => {
+  const queryLog: string[] = [];
+  const fixtures = newRecordFixtures();
+  fixtures.queryLog = queryLog;
+  const profile = await loadCloudflarePlaceAtlasProfile({
+    db: new FixtureDb(fixtures),
+    placeRef: { kind: "field", fieldId: TOKIWA_FIELD_ID },
+  });
+  assert.ok(profile);
+  const ids = profile.recentRecords.map((record) => record.recordId).sort();
+  assert.deepEqual(ids, ["new-in", "new-near", "record-1", "record-2", "record-3"]);
+  assert.equal(profile.summary.recordCount, 5);
+  assert.equal(queryLog.filter((q) => q.includes("FROM observations")).length, 1);
+});
+
+test("polygon buffer includes 20 m and excludes 60 m for a small park", () => {
+  const lat = 34.7;
+  const lng = 137.7;
+  const dLat = 0.0007;
+  const dLng = 0.0009;
+  const small = {
+    type: "Polygon" as const,
+    coordinates: [[[lng, lat], [lng + dLng, lat], [lng + dLng, lat + dLat], [lng, lat + dLat], [lng, lat]]],
+  };
+  const m = (meters: number) => meters / 111_320;
+  assert.equal(pointNearPlaceAtlasGeometry(lng + dLng / 2, lat + dLat / 2, small), true);
+  assert.equal(pointNearPlaceAtlasGeometry(lng + dLng / 2, lat + dLat + m(20), small), true);
+  assert.equal(pointNearPlaceAtlasGeometry(lng + dLng / 2, lat + dLat + m(60), small), false);
+});
+
+test("owner record summary counts the viewer's own records of any visibility inside the place", async () => {
+  const fixtures = newRecordFixtures();
+  fixtures.placeBoundary = {
+    boundary_geojson: JSON.stringify(TOKIWA_GEOMETRY),
+    bbox_west: 138.376,
+    bbox_south: 34.966,
+    bbox_east: 138.385,
+    bbox_north: 34.975,
+  };
+  const db = new FixtureDb(fixtures);
+  const own = await loadOwnerPlaceRecordSummary(db, "plc_x", "new-user");
+  assert.equal(own.count, 5 - 1);
+  assert.ok(own.latestObservationId);
+  const other = await loadOwnerPlaceRecordSummary(db, "plc_x", "someone-else");
+  assert.equal(other.count, 0);
+  assert.equal(other.latestObservationId, null);
 });
