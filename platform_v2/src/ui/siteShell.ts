@@ -1371,6 +1371,14 @@ export const GLOBAL_RECORD_SHEET_STYLES = `
       line-height: 1.5;
       font-weight: 850;
     }
+    .global-record-memo { display: grid; gap: 4px; color: #55615A; font-size: 13px; font-weight: 850; }
+    .global-record-memo textarea { box-sizing: border-box; width: 100%; min-height: 64px; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(15,23,42,.16); background: #fff; color: #17211B; font: inherit; font-size: 16px; font-weight: 600; resize: vertical; }
+    .global-record-memo-voice { justify-self: start; min-height: 44px; padding: 7px 14px; border-radius: 999px; border: 1px solid #143F2E; background: #fff; color: #143F2E; font-size: 14px; font-weight: 950; white-space: nowrap; cursor: pointer; }
+    .global-record-memo-voice[hidden] { display: none; }
+    .global-record-memo-voice[aria-pressed="true"] { background: #143F2E; color: #fff; }
+    .global-record-saved-card { display: grid; gap: 4px; }
+    .global-record-saved-card strong { color: #143F2E; font-size: 16px; font-weight: 950; }
+    .global-record-saved-actions a.is-primary { background: #143F2E; border-color: #143F2E; color: #fff; }
     .global-record-saved-actions {
       display: flex;
       flex-wrap: wrap;
@@ -2118,6 +2126,11 @@ function globalRecordSheetMarkup(lang: SiteLang): string {
         <span>${escapeHtml(copy.trayHelp)}</span>
       </div>
       <div class="global-record-photo-grid" data-global-record-photo-grid></div>
+      <label class="global-record-memo">
+        <span>メモ（任意）</span>
+        <textarea data-global-record-memo rows="2" maxlength="1000" placeholder="気づいたことを書いておく"></textarea>
+      </label>
+      <button type="button" class="global-record-memo-voice" data-global-record-memo-voice hidden aria-pressed="false">声で入れる</button>
     </div>
     <div class="global-record-camera-actions" aria-label="${escapeHtml(copy.actionLabel)}">
       <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera>${escapeHtml(sourceChoiceCopy(lang).native)}</button>
@@ -2343,6 +2356,40 @@ ${configPrelude}
   const photoGrid = document.querySelector('[data-global-record-photo-grid]');
   const startButton = document.querySelector('[data-global-record-camera-start]');
   const captureButton = document.querySelector('[data-global-record-camera-capture]');
+  const memoInput = document.querySelector('[data-global-record-memo]');
+  const memoVoice = document.querySelector('[data-global-record-memo-voice]');
+  const SpeechCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (memoVoice && memoInput && SpeechCtor) {
+    memoVoice.hidden = false;
+    let recognizer = null;
+    const stopVoice = () => {
+      if (recognizer) { try { recognizer.stop(); } catch (_) {} }
+      recognizer = null;
+      memoVoice.setAttribute('aria-pressed', 'false');
+      memoVoice.textContent = '声で入れる';
+    };
+    memoVoice.addEventListener('click', () => {
+      if (recognizer) { stopVoice(); return; }
+      try {
+        recognizer = new SpeechCtor();
+        recognizer.lang = document.documentElement.lang === 'ja' || !document.documentElement.lang ? 'ja-JP' : document.documentElement.lang;
+        recognizer.interimResults = false;
+        recognizer.continuous = true;
+        recognizer.onresult = (event) => {
+          let text = '';
+          for (let i = event.resultIndex; i < event.results.length; i += 1) {
+            if (event.results[i].isFinal) text += event.results[i][0].transcript;
+          }
+          if (text) memoInput.value = (memoInput.value ? memoInput.value + ' ' : '') + text.trim();
+        };
+        recognizer.onend = stopVoice;
+        recognizer.onerror = stopVoice;
+        recognizer.start();
+        memoVoice.setAttribute('aria-pressed', 'true');
+        memoVoice.textContent = '止める';
+      } catch (_) { stopVoice(); }
+    });
+  }
   const cameraError = document.querySelector('[data-global-record-camera-error]');
   const cameraErrorBody = document.querySelector('[data-global-record-camera-error-body]');
   const cameraRetryButton = document.querySelector('[data-global-record-camera-retry]');
@@ -2786,6 +2833,7 @@ ${configPrelude}
   const setStatusHtml = (html) => {
     if (status) status.innerHTML = html || '';
   };
+  let lastSavedDetailId = '';
   const savedRecordActionsHtml = (message) => {
     const lang = document.documentElement && document.documentElement.lang ? document.documentElement.lang : 'ja';
     const langPrefix = lang && lang !== 'ja' ? '/' + encodeURIComponent(lang) : '';
@@ -2799,8 +2847,10 @@ ${configPrelude}
     const recordsHref = BASE_PATH + langPrefix + '/records?view=mine&source=record_saved';
     const profileHref = BASE_PATH + langPrefix + '/profile?source=record_saved';
     const mapHref = BASE_PATH + langPrefix + '/map?tab=places&source=record_saved';
-    return '<span class="global-record-saved-text">' + escapeStatusHtml(message || '') + '</span>'
+    const viewHref = lastSavedDetailId ? BASE_PATH + langPrefix + '/observations/' + encodeURIComponent(lastSavedDetailId) + '?source=record_saved' : '';
+    return '<span class="global-record-saved-card"><strong>記録しました</strong><span class="global-record-saved-text">' + escapeStatusHtml(message || '') + '</span></span>'
       + '<span class="global-record-saved-actions">'
+      + (viewHref ? '<a class="is-primary" href="' + viewHref + '" data-global-record-saved-action="view">記録を見る</a>' : '')
       + '<a href="' + recordsHref + '" data-global-record-saved-action="records">' + escapeStatusHtml(copy.records) + '</a>'
       + '<a href="' + profileHref + '" data-global-record-saved-action="profile">' + escapeStatusHtml(copy.profile) + '</a>'
       + '<a href="' + mapHref + '" data-global-record-saved-action="map">' + escapeStatusHtml(copy.map) + '</a>'
@@ -3429,6 +3479,7 @@ ${configPrelude}
     photoPreviewOwnerContextPromise = null;
     photoPreviewPagePath = '';
     capturedReviewMeta = null;
+    if (memoInput) memoInput.value = '';
     renderPhotoTray();
     setPhotoDraftLayout(false);
     if (cameraImage) {
@@ -3453,6 +3504,13 @@ ${configPrelude}
     setFooterActionMode('start');
     setStatusHtml(savedRecordActionsHtml(message));
   };
+  let offlinePending = false;
+  window.addEventListener('online', () => {
+    if (offlinePending && selectedPhotoDraftFiles().length > 0) {
+      offlinePending = false;
+      void directPostPhotoDraft().catch(() => {});
+    }
+  });
   const directPostPhotoDraft = async () => {
     if (photoPreviewCloseInFlight || directPostInFlight) return;
     const files = selectedPhotoDraftFiles();
@@ -3467,6 +3525,12 @@ ${configPrelude}
       }
       return;
     }
+    if (navigator.onLine === false) {
+      offlinePending = true;
+      setStatus('オフラインのため端末に保存しています。通信が戻ると自動で送ります。アプリを閉じても写真は残ります。');
+      return;
+    }
+    offlinePending = false;
     const directPostStartedAt = nowMs();
     directPostInFlight = true;
     if (captureButton) {
@@ -3559,7 +3623,7 @@ ${configPrelude}
             prefecture: '',
             municipality: '',
             localityNote: '',
-            note: '',
+            note: memoInput ? String(memoInput.value || '').trim().slice(0, 1000) : '',
             visitMode: 'manual',
             completeChecklistFlag: false,
             sourcePayload: {
@@ -3671,7 +3735,8 @@ ${configPrelude}
       photoPreviewPostComplete = true;
       await queuePhotoPreviewWrite('complete');
       await queuePhotoPreviewWrite('discard');
-      resetPhotoDraftAfterDirectPost('投稿しました。続けて撮れます。');
+      lastSavedDetailId = String(detailId || '');
+      resetPhotoDraftAfterDirectPost('ライブラリに入りました。今は自分だけに見えています。');
       sendGlobalRecordEvent('capture_saved', 'capture_saved', { mediaType: 'photo', fileCount: uploads.length });
       sendGlobalRecordKpi('direct_post_total_ms', durationSince(directPostStartedAt), {
         fileCount: uploads.length,
