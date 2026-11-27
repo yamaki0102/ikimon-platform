@@ -81,6 +81,7 @@ export type ShopPlacePerkSectionData = {
   perkText: string;
   active: boolean;
   canManage: boolean;
+  isShop: boolean;
   photos: Array<{
     perkPostId: string;
     imageUrl: string;
@@ -344,6 +345,7 @@ export async function loadShopPlacePerkSectionData(
     perkText: shop.config?.perk_text ?? "",
     active: shop.config?.active === 1,
     canManage,
+    isShop: shop.config !== null || rows.length > 0,
     photos: rows.map((row) => ({
       perkPostId: row.perk_post_id,
       imageUrl: `/api/v1/shops/${encodeURIComponent(placeId)}/photo-perk/${encodeURIComponent(row.perk_post_id)}/image`,
@@ -369,16 +371,17 @@ export function renderShopPlacePerkSectionHtml(data: ShopPlacePerkSectionData | 
         .join("")}</div>`
     : `<p class="spp-empty">まだ公開された投稿写真はありません。</p>`;
 
-  const manageHtml = data.canManage
-    ? `<div class="spp-manage" data-shop-perk-manage="1">
-        <form class="spp-config-form" id="shop-perk-config-form">
+  const configFormHtml = `<form class="spp-config-form" id="shop-perk-config-form">
           <label for="spp-perk-text">特典の文言</label>
           <input id="spp-perk-text" name="perkText" type="text" maxlength="200" value="${e(data.perkText)}" placeholder="例：写真投稿でドリンク50円引き">
           <label class="spp-check"><input type="checkbox" name="active" ${data.active ? "checked" : ""}> 受付中（店頭QRを有効）</label>
           <button type="submit" class="spp-save-btn">特典設定を保存</button>
           <p class="spp-status" id="shop-perk-config-status" aria-live="polite"></p>
-        </form>
-        ${data.metrics ? `<dl class="spp-metrics" data-shop-perk-metrics="1">
+        </form>`;
+  const manageHtml = data.canManage
+    ? `<div class="spp-manage" data-shop-perk-manage="1">
+        ${configFormHtml}
+        ${data.metrics ?`<dl class="spp-metrics" data-shop-perk-metrics="1">
           <div><dt>投稿率</dt><dd>${data.metrics.submissionRate === null ? "-" : `${Math.round(data.metrics.submissionRate * 100)}%`}</dd></div>
           <div><dt>引換数</dt><dd>${data.metrics.redemptionCount}</dd></div>
           <div><dt>はじいた率</dt><dd>${data.metrics.rejectionRate === null ? "-" : `${Math.round(data.metrics.rejectionRate * 100)}%`}</dd></div>
@@ -388,6 +391,25 @@ export function renderShopPlacePerkSectionHtml(data: ShopPlacePerkSectionData | 
       </div>
       <script>(()=>{const placeId=${JSON.stringify(data.placeId).replace(/</g, "\\u003c")};const form=document.getElementById("shop-perk-config-form");if(form){form.addEventListener("submit",async(ev)=>{ev.preventDefault();const fd=new FormData(form);const res=await fetch("/api/v1/shops/"+encodeURIComponent(placeId)+"/perk-config",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({perkText:String(fd.get("perkText")||""),active:Boolean(fd.get("active"))})});document.getElementById("shop-perk-config-status").textContent=res.ok?"保存しました":"保存に失敗しました";});}document.querySelectorAll("[data-shop-takedown-btn]").forEach(btn=>btn.addEventListener("click",async()=>{const id=btn.getAttribute("data-shop-takedown-btn");if(!id)return;const res=await fetch("/api/v1/shops/"+encodeURIComponent(placeId)+"/photo-perk/"+encodeURIComponent(id)+"/takedown",{method:"POST"});if(res.ok){btn.closest("[data-shop-perk-post]")?.remove();}}));})();</script>`
     : "";
+
+  if (!data.isShop && data.canManage) {
+    const setupScript = manageHtml.match(/<script>[\s\S]*<\/script>/)?.[0] ?? "";
+    return `<section class="spp-sec-setup" data-shop-photo-perks="setup">
+    <style>
+      .spp-sec-setup{margin:16px auto 0;max-width:1120px;padding:0 18px}
+      .spp-setup>summary{min-height:44px;display:flex;align-items:center;font-size:14px;color:#485a4e;cursor:pointer}
+      .spp-setup .spp-config-form{display:grid;gap:8px;max-width:480px;padding:8px 0 12px}
+      .spp-setup .spp-config-form input[type="text"]{min-height:44px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+      .spp-setup .spp-save-btn{min-height:44px;padding:8px 14px;border:0;border-radius:8px;background:#143f2e;color:#fff;font-weight:700;cursor:pointer;justify-self:start;white-space:nowrap}
+      .spp-setup .spp-status{margin:0;font-size:14px;color:#485a4e}
+    </style>
+    <details class="spp-setup" data-shop-perk-manage="1">
+      <summary>この場所を店として登録する（管理者のみ）</summary>
+      ${configFormHtml}
+    </details>
+    ${setupScript}
+  </section>`;
+  }
 
   return `<section class="spp-sec" data-shop-photo-perks="1" aria-labelledby="spp-title">
     <style>
