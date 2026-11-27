@@ -197,6 +197,8 @@ const SEARCH_V2_FLAG = "SEARCH_V2_ENABLED";
 const searchV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SEARCH_V2_FLAG, v.principalId, v.role); };
 const NOCOSIL_EVENT_START_LINK_FLAG = "NOCOSIL_EVENT_START_LINK_ENABLED";
 const nocosilEventLinkOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, NOCOSIL_EVENT_START_LINK_FLAG, v.principalId, v.role); };
+const MAP_PLACE_TAB_FLAG = "MAP_PLACE_TAB_ENABLED";
+const mapPlaceTabOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_PLACE_TAB_FLAG, v.principalId, v.role); };
 const LIBRARY_V2_FLAG = "LIBRARY_V2_ENABLED";
 const libraryV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, LIBRARY_V2_FLAG, v.principalId, v.role); };
 const EVENTS_V2_FLAG = "EVENTS_V2_ENABLED";
@@ -3867,6 +3869,7 @@ export const worker = {
                   basePath: "",
                   cspNonce,
                   initialPlaceId: url.searchParams.get("placeId"),
+                  placeTab: mapPlaceTabOn(env, session),
                   invasiveCellsApi: invasiveMapV1On(env, session) ? "/api/v1/map/invasive-cells" : null,
                 });
             return new Response(body, {

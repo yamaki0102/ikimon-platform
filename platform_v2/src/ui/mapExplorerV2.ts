@@ -87,6 +87,7 @@ export type MapExplorerV2Options = {
   cspNonce?: string | null;
   initialPlaceId?: string | null;
   invasiveCellsApi?: string | null;
+  placeTab?: boolean;
 };
 
 const ICON_SEARCH =
@@ -247,6 +248,21 @@ a,button{font:inherit;color:inherit}
   .zv2-attrib{left:384px;bottom:14px}
   .zv2-inv-legend{top:16px;left:16px}
 }
+
+/* Place tab (G1): map then nearby-places list */
+.zv2-plist{display:none}
+a.zv2-prow{text-decoration:none;color:inherit}
+@media(max-width:959px){
+  .zv2-pt{display:flex;flex-direction:column}
+  .zv2-pt .zv2-stage{display:block;position:relative;flex:none;height:52vh;height:52dvh;min-height:300px;overflow:hidden}
+  .zv2-pt .zv2-mapwrap{top:0;bottom:0}
+  .zv2-pt .zv2-mapbtns{bottom:12px}
+  .zv2-pt .zv2-attrib{bottom:4px}
+  .zv2-pt .zv2-plist{display:block;flex:1;min-height:0;overflow-y:auto;background:#fff;padding:12px 16px calc(84px + env(safe-area-inset-bottom))}
+  .zv2-pt .zv2-sheet{position:fixed}
+  .zv2-pt .zv2-sheet:not([data-has-detail="1"]){display:none}
+}
+.zv2-stage{display:contents}
 `;
 
 export function renderMapExplorerV2Document(options: MapExplorerV2Options): string {
@@ -285,6 +301,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     authenticated: options.authenticated,
     lang: options.lang,
     initialPlaceId: options.initialPlaceId ?? null,
+    placeTab: Boolean(options.placeTab),
     defaultCenter: [137.7347, 34.7038],
     defaultZoom: 13,
   }).replace(/</g, "\\u003c");
@@ -299,7 +316,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   <style${nonceAttr}>${MAP_V2_CSS}</style>
 </head>
 <body>
-<div class="zv2-app" data-map-v2="1">
+<div class="zv2-app${options.placeTab ? " zv2-pt" : ""}" data-map-v2="1"${options.placeTab ? ' data-place-tab="1"' : ""}>
   <header class="zv2-pchead">
     <a class="zv2-logo" href="${escapeHtml(`${prefix}/`)}">${ICON_LOGO}<span>ZUKAN</span></a>
     <nav class="zv2-pcnav" aria-label="${isEn ? "Primary" : "メインナビ"}">
@@ -324,6 +341,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     <div id="zv2-panel-content"></div>
   </aside>
 
+  <div class="zv2-stage">
   <div class="zv2-mapwrap" id="zv2-mapwrap">
     <div id="zv2-map-canvas" aria-label="生きものマップ"></div>
     <div class="zv2-locating" id="zv2-locating" hidden>現在地を確認中…</div>
@@ -350,6 +368,9 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   </div>
 
   <div class="zv2-attrib">OpenFreeMap © OpenStreetMap contributors</div>
+  </div>
+
+  <section class="zv2-plist" id="zv2-plist" aria-label="${isEn ? "Nearby places" : "近くの場所"}"></section>
 
   <section class="zv2-sheet" id="zv2-sheet" data-sheet-state="collapsed" aria-label="近くの場所">
     <button type="button" class="zv2-sheet-head" id="zv2-sheet-head" aria-expanded="false">
@@ -386,6 +407,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   var peekSubEl = document.getElementById('zv2-peek-sub');
   var sheetBodyEl = document.getElementById('zv2-sheet-body');
   var panelContentEl = document.getElementById('zv2-panel-content');
+  var plistEl = document.getElementById('zv2-plist');
   var invLegendEl = document.getElementById('zv2-inv-legend');
   var searchM = document.getElementById('zv2-search-m');
   var searchPc = document.getElementById('zv2-search-pc');
@@ -498,7 +520,34 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     imgs.forEach(function (img) { state.lazyObserver.observe(img); });
   }
 
-  function renderSelectedHtml(p, mobileLow) {
+  function fmtDist(m) {
+    if (!isFinite(m)) return '';
+    if (m < 1000) return Math.max(0, Math.round(m / 10) * 10) + 'm';
+    return (Math.round(m / 100) / 10).toFixed(1) + 'km';
+  }
+
+  function renderPlaceTabList(rec, zero) {
+    if (!CFG.placeTab || !plistEl) return;
+    if (rec.length === 0) { plistEl.innerHTML = renderListHtml(rec, zero); return; }
+    var ref = state.userCenter || (state.map ? state.map.getCenter() : { lat: CFG.defaultCenter[1], lng: CFG.defaultCenter[0] });
+    var rows = rec.map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
+    rows.sort(function (a, b) { return a.d - b.d; });
+    var used = {};
+    var h = '<h2 class="zv2-st">近くの場所</h2>';
+    h += rows.slice(0, 20).map(function (r) {
+      var p = r.p;
+      var img = p.photoUrl && !used[p.photoUrl];
+      if (img) used[p.photoUrl] = 1;
+      var thumb = img ? '<img src="' + esc(p.photoUrl) + '" alt="" loading="lazy" decoding="async" />' : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
+      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : '記録 ' + p.recordCount + '件') + ' ・ ここから ' + fmtDist(r.d);
+      return '<a class="zv2-prow" data-zv2-place-row="' + esc(p.placeId) + '" href="' + esc(placeHref(p.placeId)) + '">' + thumb
+        + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + meta + '</span></span>'
+        + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></a>';
+    }).join('');
+    plistEl.innerHTML = h;
+  }
+
+  function renderSelectedHtml(p, mobileLow, noPhotos) {
     var rc = rcOf(p);
     var isZero = rc === 0;
     var isUnk = rc === null;
@@ -521,7 +570,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
     var spText = typeof p.speciesCount === 'number' && p.speciesCount > 0 ? ' ・ ' + p.speciesCount + '種類' : '';
     h += '<div class="zv2-pmeta">' + (isUnk ? esc(kindLabel(p.placeKind)) : '記録 ' + rc + '件' + esc(spText)) + '</div>';
-    if (!mobileLow) {
+    if (!mobileLow && !noPhotos) {
       var photos = Array.isArray(p.photos) && p.photos.length ? p.photos.slice(0, 3) : (p.photoUrl ? [p.photoUrl] : []);
       if (photos.length) {
         h += '<div class="zv2-pphotos">' + photos.map(function (u) {
@@ -675,11 +724,12 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     var sel = state.selectedId ? state.places.find(function (p) { return p.placeId === state.selectedId; }) || null : null;
 
     if (invLegendEl) invLegendEl.hidden = state.taxonGroup !== 'invasive';
+    renderPlaceTabList(rec, zero);
 
     var invCell = invActive() && state.invSel && !sel ? invCellById(state.invSel) : null;
     if (invCell) {
       var invState = state.sheetState === 'collapsed' ? 'half' : state.sheetState;
-      if (sheetEl) sheetEl.setAttribute('data-sheet-state', invState);
+      if (sheetEl) { sheetEl.setAttribute('data-sheet-state', invState); sheetEl.setAttribute('data-has-detail', '1'); }
       if (peekTtlEl) peekTtlEl.textContent = '外来種 ' + invCell.count + '件';
       if (peekSubEl) peekSubEl.textContent = 'この範囲で見つかっている外来種';
       if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', 'true');
@@ -694,14 +744,15 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       var mobileLow = !state.selectedExpanded;
       if (sheetEl) {
         sheetEl.setAttribute('data-sheet-state', mobileLow ? 'selected-low' : 'half');
+        sheetEl.setAttribute('data-has-detail', '1');
       }
       if (peekTtlEl) peekTtlEl.textContent = sel.name;
       if (peekSubEl) peekSubEl.textContent = mobileLow ? '引き上げて詳しく見る' : '閉じて一覧へ';
       if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', mobileLow ? 'false' : 'true');
-      if (sheetBodyEl) sheetBodyEl.innerHTML = renderSelectedHtml(sel, mobileLow);
+      if (sheetBodyEl) sheetBodyEl.innerHTML = renderSelectedHtml(sel, mobileLow, CFG.placeTab);
       if (panelContentEl) panelContentEl.innerHTML = renderSelectedHtml(sel, false);
     } else {
-      if (sheetEl) sheetEl.setAttribute('data-sheet-state', state.sheetState);
+      if (sheetEl) { sheetEl.setAttribute('data-sheet-state', state.sheetState); sheetEl.setAttribute('data-has-detail', '0'); }
       if (peekTtlEl) peekTtlEl.textContent = '近くの場所';
       if (peekSubEl) peekSubEl.textContent = summaryCopy(rec.length, zero.length);
       if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', state.sheetState === 'collapsed' ? 'false' : 'true');
@@ -719,7 +770,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       state.selectedMarker.remove();
       state.selectedMarker = null;
     }
-    if (!sel || !sel.photoUrl || !state.map || !window.maplibregl) return;
+    if (CFG.placeTab || !sel || !sel.photoUrl || !state.map || !window.maplibregl) return;
     var el = document.createElement('div');
     el.className = 'zv2-pin-photo';
     el.setAttribute('data-zv2-photo-pin', sel.placeId);
@@ -1233,6 +1284,16 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         minzoom: 12,
         paint: { 'circle-color': '#ffffff', 'circle-radius': 6, 'circle-stroke-width': 2.5, 'circle-stroke-color': '#9DB4A6' }
       });
+      if (CFG.placeTab) {
+        map.addLayer({
+          id: 'zv2-zero-label',
+          type: 'symbol',
+          source: 'zv2-zero',
+          minzoom: 14,
+          layout: { 'text-field': ['get', 'name'], 'text-size': 12, 'text-offset': [0, 1.2], 'text-allow-overlap': false, 'text-optional': true },
+          paint: { 'text-color': '#55615A', 'text-halo-color': '#ffffff', 'text-halo-width': 2 }
+        });
+      }
       map.addLayer({
         id: 'zv2-zero-sel',
         type: 'circle',

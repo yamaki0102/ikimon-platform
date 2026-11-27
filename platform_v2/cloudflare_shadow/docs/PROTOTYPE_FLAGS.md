@@ -11,6 +11,7 @@
 | LIBRARY_V2_ENABLED | ライブラリ（ログイン後トップ）再設計 v2 | zukan_library | /ja/library |
 | MAP_INVASIVE_LAYER_ENABLED | 地図の外来種フィルター | zukan_biosecurity | /ja/map |
 | MAP_INVASIVE_TOP_CHIP_ENABLED | 地図上部の外来種チップ | zukan_biosecurity | /ja/map |
+| MAP_PLACE_TAB_ENABLED | 地図の場所タブ（地図＋近くの場所リスト） | zukan_map | /ja/map |
 | MAP_V2_ENABLED | マップ再設計 v2（Muse見本＋Fable/Astra修正） | zukan_map | /ja/map |
 | NOCOSIL_EVENT_START_LINK_ENABLED | 場所ページの「ここで観察会を開く」リンク（NOCOSIL） | zukan_place_event | /ja/places |
 | OBSERVATION_CORRECTION_PROTOTYPE_ENABLED | 記録の訂正と訂正履歴 | zukan_observation_correction | /ja/observations/<自分の記録> |
