@@ -201,6 +201,7 @@ import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from ".
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
+import { handlePlaceRegisterRequest } from "./zukanPlaceRegister";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   handleCreatePlaceProposal,
@@ -2542,12 +2543,13 @@ async function loadPublicPlaceProfile(env: Env, canonicalPlaceId: string): Promi
       "retry-after": "60",
     });
   }
-  if (!result?.osmSourceId) {
+  const registeredCircle = Boolean(result && !result.osmSourceId && result.source?.sourceType === "owner_registered");
+  if (!result || (!result.osmSourceId && !registeredCircle)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
 
-  const sourceMatch = result.osmSourceId.match(/^(way|relation):(\d+)$/u);
-  if (!sourceMatch?.[1] || !sourceMatch[2]) {
+  const sourceMatch = registeredCircle ? null : result.osmSourceId?.match(/^(way|relation):(\d+)$/u);
+  if (!registeredCircle && (!sourceMatch?.[1] || !sourceMatch[2])) {
     return html("<!doctype html><html><body><main><h1>Place information is unavailable</h1></main></body></html>", 503, { "cache-control": "no-store" });
   }
 
@@ -2555,12 +2557,14 @@ async function loadPublicPlaceProfile(env: Env, canonicalPlaceId: string): Promi
   try {
     profile = await loadCloudflarePlaceAtlasProfile({
       db: env.OBS_DB,
-      placeRef: {
-        kind: "osm_area",
-        entityKey: `osm:${sourceMatch[1]}:${sourceMatch[2]}`,
-        osmType: sourceMatch[1] as "way" | "relation",
-        osmId: Number(sourceMatch[2]),
-      },
+      placeRef: registeredCircle
+        ? { kind: "registered_place", placeId: canonicalPlaceId }
+        : {
+            kind: "osm_area",
+            entityKey: `osm:${sourceMatch![1]}:${sourceMatch![2]}`,
+            osmType: sourceMatch![1] as "way" | "relation",
+            osmId: Number(sourceMatch![2]),
+          },
       fetchFn: fetch,
     });
   } catch {
@@ -2733,6 +2737,9 @@ export const worker = {
       const biosecurityViewer = viewerFromSession(biosecuritySession);
       const biosecurityResponse = await handleBiosecurityRequest(request, env, flag => prototypeEnabledForViewer(env, flag, biosecurityViewer.principalId, biosecurityViewer.role));
       if (biosecurityResponse) return biosecurityResponse;
+
+      const placeRegisterResponse = await handlePlaceRegisterRequest(request, env);
+      if (placeRegisterResponse) return placeRegisterResponse;
 
       if (request.method === "GET" && (
         nativePathname === "/api/v1/weather/jma-nowcast/times"
