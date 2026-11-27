@@ -189,6 +189,7 @@ test("record route exposes quick revisit fields in staging mode", async () => {
         assert.match(response.body, /const photoWarmCache = new WeakMap\(\)/);
         assert.match(response.body, /normalized\.photos\.forEach\(\(photo\) => \{ warmPhotoUpload\(photo\); \}\)/);
         assert.match(response.body, /selectedPrimaryPhotoFile = file;\s+warmPhotoUpload\(file\)/);
+        assert.match(response.body, /selectedMediaFiles = normalized\.photos;\s+selectedVideoFile = normalized\.video;\s+try \{ normalized\.photos\.forEach/);
         assert.match(response.body, /const prepared = await getPreparedPhoto\(item\.file\)/);
         assert.match(response.body, /return await preparePhotoWithHash\(file\)/);
         assert.match(response.body, /canvasToWebpDataUrl\(canvas, PHOTO_UPLOAD_WEBP_QUALITY\)/);
