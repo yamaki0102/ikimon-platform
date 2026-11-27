@@ -1283,7 +1283,13 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     });
     map.on('moveend', function () {
       clearTimeout(state.moveTimer);
-      state.moveTimer = setTimeout(fetchPlaces, 300);
+      state.moveTimer = setTimeout(function () {
+        var c = map.getCenter();
+        var k = c.lat.toFixed(4) + ',' + c.lng.toFixed(4) + '|' + state.taxonGroup + '|' + state.searchQuery;
+        if (k === state.lastMoveFetchKey) return;
+        state.lastMoveFetchKey = k;
+        fetchPlaces();
+      }, 300);
     });
   }
 

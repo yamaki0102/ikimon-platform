@@ -186,6 +186,7 @@ const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof re
 import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
+import { renderZukanShellDocument } from "./zukanShell";
 import { handleSearchExploreV2Route, handleSearchResultsV2Route, handleSearchSuggestV2Api } from "./zukanSearchV2";
 import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
 import { handleEventsV2Detail, handleEventsV2List } from "./zukanEventsV2";
@@ -4351,6 +4352,16 @@ export const worker = {
 
       if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
         return handleSearchSuggestApi(url, env.OBS_DB);
+      }
+
+      const searchRootMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/?$/);
+      if ((request.method === "GET" || request.method === "HEAD") && searchRootMatch) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (searchV2On(env, session)) {
+          const rootLang = searchRootMatch[1] ?? "ja";
+          const q = (url.searchParams.get("q") ?? "").trim();
+          return redirect303(q ? `/${rootLang}/search/results?q=${encodeURIComponent(q)}` : `/${rootLang}/search/explore`, { "cache-control": "no-store" });
+        }
       }
 
       const searchExploreMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/search\/explore$/);
@@ -14528,40 +14539,24 @@ function getNativeNotFoundPage(request: Request, env: Env): Response {
     },
   }[lang];
   const cspNonce = createHtmlCspNonce();
-  const body = `<!doctype html>
-<html lang="${lang}">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(copy.title)} - ZUKAN</title>
-<style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#17211d;background:#f8fafc}
-.nf{max-width:720px;margin:0 auto;padding:24px 16px 72px;display:grid;gap:14px}
-.nf-brand{color:#176b45;font-size:16px;font-weight:900;letter-spacing:.04em;text-decoration:none}
-.nf h1{margin:12px 0 0;font-size:28px;line-height:1.2;color:#0f172a;letter-spacing:0}
-.nf p{margin:0;color:#475569;line-height:1.75}
-.nf-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.nf-actions a{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 13px;border-radius:8px;border:1px solid #b7d8d0;background:#fff;color:#0f766e;text-decoration:none;font-weight:900}
-.nf-actions a:first-child{background:#0f766e;color:#fff;border-color:#0f766e}
-body[data-zukan-design] .nf-actions a:not([class]):is(:link,:visited){color:#0f766e}
-body[data-zukan-design] .nf-actions a:first-child:not([class]):is(:link,:visited){color:#fff}
-.nf-actions a:focus-visible{outline:3px solid #d8a51d;outline-offset:3px}
-@media(max-width:760px){.nf{padding:24px 16px 56px}.nf h1{font-size:24px}.nf-actions a{width:100%}}
-</style>
-</head>
-<body>
-<main class="nf">
-  <a class="nf-brand" href="${localizedPath}/" aria-label="ZUKAN">ZUKAN</a>
-  <h1>${escapeHtml(copy.title)}</h1>
-  <p>${escapeHtml(copy.message)}</p>
-  <nav class="nf-actions" aria-label="${lang === "ja" ? "移動先" : "Navigation"}">
-    <a href="${localizedPath}/map">${escapeHtml(copy.map)}</a>
-    <a href="${localizedPath}/walk-maps">${escapeHtml(copy.walks)}</a>
-    <a href="${localizedPath}/">${escapeHtml(copy.home)}</a>
-  </nav>
-</main>
-</body>
-</html>`;
+  const nav = ({
+    ja: { library: "ライブラリ", places: "場所", search: "探す" },
+    en: { library: "Library", places: "Places", search: "Search" },
+    es: { library: "Biblioteca", places: "Lugares", search: "Buscar" },
+    "pt-br": { library: "Biblioteca", places: "Locais", search: "Buscar" },
+  } as const)[lang];
+  const prefix = pathLang ? `/${lang}` : "/ja";
+  const body = renderZukanShellDocument({
+    lang,
+    activeNav: "none",
+    authenticated: Boolean(readSessionTokenFromCookie(request.headers.get("cookie"))),
+    pathname: `${prefix}/`,
+    homeHref: `${prefix}/library`,
+    title: `${copy.title} - ZUKAN`,
+    cspNonce,
+    extraCss: ".zt-nf{max-width:560px;margin:0 auto;padding:40px 0 56px;display:grid;gap:14px}.zt-nf h1{margin:0;font-size:24px;line-height:1.3;color:#17211B}.zt-nf p{margin:0;color:#55615A;line-height:1.7}.zt-nf-links{display:flex;flex-wrap:wrap;gap:8px}.zt-nf-links a,.zt-nf-links a:is(:link,:visited){box-sizing:border-box;min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 18px;border:1px solid #143F2E;border-radius:999px;color:#143F2E;font-weight:700;text-decoration:none;white-space:nowrap}.zt-nf-links a:first-child,.zt-nf-links a:first-child:is(:link,:visited){background:#143F2E;color:#fff}",
+    bodyHtml: `<section class="zt-nf"><h1>${escapeHtml(copy.title)}</h1><p>${escapeHtml(copy.message)}</p><nav class="zt-nf-links" aria-label="${lang === "ja" ? "移動先" : "Navigation"}"><a href="${prefix}/library">${escapeHtml(nav.library)}</a><a href="${prefix}/map">${escapeHtml(nav.places)}</a><a href="${prefix}/search/explore">${escapeHtml(nav.search)}</a></nav></section>`,
+  });
   return new Response(request.method === "HEAD" ? null : body, {
     status: 404,
     headers: {
@@ -24255,11 +24250,13 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     return redirect303(`${prefix}/login?redirect=${encodeURIComponent(continuation)}`, { "cache-control": "no-store" });
   }
   let object: MaterializedR2ObjectBody | null = null;
-  for (const key of originalUiHtmlKeysForRequest(new URL(`${url.origin}${prefix}/records`))) {
-    object = await getVersionedOriginalUiObject(env, key);
-    if (object?.body) break;
+  if (requestedMode !== "public") {
+    for (const key of originalUiHtmlKeysForRequest(new URL(`${url.origin}${prefix}/records`))) {
+      object = await getVersionedOriginalUiObject(env, key);
+      if (object?.body) break;
+    }
+    if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   }
-  if (!object?.body) return json({ ok: false, error: "html_not_materialized" }, 404, { "cache-control": "no-store" });
   const query = recordsProductText(recordsSearchQuery(url.searchParams.get("q")));
   const beforeParam = url.searchParams.get("before");
   const mineBefore = decodePageCursor(beforeParam) ? beforeParam : null;
@@ -24274,6 +24271,32 @@ async function getNativeRecordsProductHtml(request: Request, url: URL, env: Env)
     ? recordsMoreHref(prefix, recordsSearchQuery(url.searchParams.get("q")), minePage.nextCursor)
     : null;
   const cspNonce = createHtmlCspNonce();
+  if (!object?.body) {
+    const publicSection = renderRecordsProductSection(items, url, "public", session, sourceItems === null,
+      session && !session.banned ? await savedRecordStates(env.CORE_DB, session.userId, items.map(item => item.visitId)).catch(() => null) : null,
+      await listFeaturedPublicPlaces(env, 8), moreHref);
+    const shellHtml = renderZukanShellDocument({
+      lang,
+      activeNav: "library",
+      authenticated: Boolean(session && !session.banned),
+      displayName: session?.displayName,
+      pathname: `${prefix}/records`,
+      homeHref: `${prefix}/library`,
+      title: lang === "ja" ? "みんなの記録 - ZUKAN" : "Public records - ZUKAN",
+      cspNonce,
+      bodyHtml: publicSection,
+    });
+    return new Response(request.method === "HEAD" ? null : applyCspNonceToHtmlScripts(shellHtml, cspNonce), {
+      headers: {
+        ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "private, no-store",
+        "vary": "cookie, authorization",
+        "x-ikimon-cloudflare-native": "records-product",
+        ...releaseIdentityHeaders(env)
+      }
+    });
+  }
   let html = rewriteCanonicalPublicOrigins(await new Response(object.body).text(), env);
   html = html.replace(/<form class="site-search\b[^"]*"[\s\S]*?<\/form>/gi, "");
   const publicPlaces = requestedMode === "public" ? await listFeaturedPublicPlaces(env, 8) : [];

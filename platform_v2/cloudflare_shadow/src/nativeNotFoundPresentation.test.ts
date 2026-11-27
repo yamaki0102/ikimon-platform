@@ -3,11 +3,11 @@ import test from "node:test";
 import publicPresentationEntry from "./publicPresentationEntry";
 
 const paths = [
-  { prefix: "", lang: "ja", title: "ページが見つかりません", home: "/", map: "/map", walks: "/walk-maps" },
-  { prefix: "/ja", lang: "ja", title: "ページが見つかりません", home: "/ja/", map: "/ja/map", walks: "/ja/walk-maps" },
-  { prefix: "/en", lang: "en", title: "Page not found", home: "/en/", map: "/en/map", walks: "/en/walk-maps" },
-  { prefix: "/es", lang: "es", title: "Página no encontrada", home: "/es/", map: "/es/map", walks: "/es/walk-maps" },
-  { prefix: "/pt-br", lang: "pt-br", title: "Página não encontrada", home: "/pt-br/", map: "/pt-br/map", walks: "/pt-br/walk-maps" },
+  { prefix: "", lang: "ja", title: "ページが見つかりません", library: "/ja/library", map: "/ja/map", search: "/ja/search/explore" },
+  { prefix: "/ja", lang: "ja", title: "ページが見つかりません", library: "/ja/library", map: "/ja/map", search: "/ja/search/explore" },
+  { prefix: "/en", lang: "en", title: "Page not found", library: "/en/library", map: "/en/map", search: "/en/search/explore" },
+  { prefix: "/es", lang: "es", title: "Página no encontrada", library: "/es/library", map: "/es/map", search: "/es/search/explore" },
+  { prefix: "/pt-br", lang: "pt-BR", title: "Página não encontrada", library: "/pt-br/library", map: "/pt-br/map", search: "/pt-br/search/explore" },
 ] as const;
 
 test("unknown public pages keep a branded, localized 404 at the final Worker entry", async () => {
@@ -41,8 +41,8 @@ test("unknown public pages keep a branded, localized 404 at the final Worker ent
       assert.match(html, new RegExp(`<html lang="${page.lang}">`), path);
       assert.match(html, new RegExp(`<title>${page.title} - ZUKAN</title>`), path);
       assert.match(html, new RegExp(`href="${page.map}"`), path);
-      assert.match(html, new RegExp(`href="${page.walks}"`), path);
-      assert.match(html, new RegExp(`href="${page.home}"`), path);
+      assert.match(html, new RegExp(`href="${page.search}"`), path);
+      assert.match(html, new RegExp(`href="${page.library}"`), path);
       assert.match(csp, /script-src[^;]*'nonce-[^']+'/u, path);
       assert.match(csp, /style-src[^;]*'unsafe-inline'/u, path);
       assert.match(csp, /frame-ancestors 'none'/u, path);
