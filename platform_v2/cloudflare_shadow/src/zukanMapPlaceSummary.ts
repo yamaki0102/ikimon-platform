@@ -9,6 +9,7 @@ import {
   placeAtlasGeometryWithinRuntimeBudget,
   pointNearPlaceAtlasGeometry,
 } from "./placeAtlasProfileNative";
+import { loadBulkV2PlaceStats } from "./zukanMapView";
 import { PLACE_ATLAS_DEFAULT_MIN_PUBLIC_RECORDS } from "../../src/services/placeAtlasContract";
 
 export const MAP_PLACE_SUMMARY_RECORD_LIMIT = 60;
@@ -68,7 +69,7 @@ export function summarizeMapPlaceCandidates(
   return {
     recordCount,
     hidden: false,
-    speciesCount: allTaxa.size,
+    speciesCount: allTaxa.size > 0 ? allTaxa.size : null,
     lastObservedAt: sorted[0]?.observedAt || null,
     recentPhotos,
     recentTaxa: taxa,
@@ -183,7 +184,8 @@ export async function loadMapPlaceSummary(db: Env["OBS_DB"], placeId: string): P
   }
   if (!meta) return null;
   const [imp, fresh] = await Promise.all([loadImportCandidates(db, placeId), loadNewCandidates(db, placeId)]);
-  const recordCount = imp.count + fresh.length;
+  const listCount = (await loadBulkV2PlaceStats(db, [placeId], null)).get(placeId)?.recordCount;
+  const recordCount = listCount ?? imp.count + fresh.length;
   const cands = [...imp.cands, ...fresh].sort((a, b) => b.observedAt.localeCompare(a.observedAt)).slice(0, 40);
   let photos = new Map<string, string>();
   if (recordCount >= PLACE_ATLAS_DEFAULT_MIN_PUBLIC_RECORDS && cands.length > 0) {

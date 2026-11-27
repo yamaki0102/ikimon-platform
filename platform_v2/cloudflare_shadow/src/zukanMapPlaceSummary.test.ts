@@ -30,18 +30,18 @@ function setup(t: test.TestContext, importRows: number) {
     CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, place_kind TEXT, locality_label TEXT);
     CREATE TABLE place_boundaries (boundary_id TEXT, place_id TEXT, is_primary INTEGER, valid_to TEXT, superseded_by_boundary_id TEXT, bbox_west REAL, bbox_south REAL, bbox_east REAL, bbox_north REAL, boundary_geojson TEXT);
     CREATE TABLE record_place_memberships (record_id TEXT, place_id TEXT, membership_state TEXT, public_precision TEXT, removed_at TEXT);
-    CREATE TABLE production_import_visits (visit_id TEXT PRIMARY KEY, observed_at TEXT, public_visibility TEXT);
-    CREATE TABLE production_import_occurrences (occurrence_id TEXT PRIMARY KEY, visit_id TEXT, scientific_name TEXT, vernacular_name TEXT, created_at TEXT);
+    CREATE TABLE production_import_visits (visit_id TEXT PRIMARY KEY, observed_at TEXT, public_visibility TEXT, owner_user_id TEXT);
+    CREATE TABLE production_import_occurrences (occurrence_id TEXT PRIMARY KEY, visit_id TEXT, scientific_name TEXT, vernacular_name TEXT, created_at TEXT, taxon_rank TEXT);
     CREATE TABLE observation_data_rights (visit_id TEXT, withdrawal_status TEXT, record_consent TEXT);
-    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, observed_at TEXT, taxon_label TEXT, exact_lat REAL, exact_lng REAL, visibility TEXT, emergency_hidden INTEGER DEFAULT 0);
+    CREATE TABLE observations (observation_id TEXT PRIMARY KEY, observed_at TEXT, taxon_label TEXT, exact_lat REAL, exact_lng REAL, visibility TEXT, emergency_hidden INTEGER DEFAULT 0, owner_user_id TEXT);
     CREATE TABLE asset_ledger (observation_id TEXT, public_derivative_key TEXT, processing_state TEXT, public_derivative_verified_at TEXT, public_derivative_metadata_json TEXT, exif_scrub_state TEXT, public_ready_at TEXT, mime TEXT, width INTEGER, height INTEGER, bytes INTEGER);
     INSERT INTO places VALUES ('p1','連理の木','published',NULL,'park','浜松市中央区');
     INSERT INTO places VALUES ('p-draft','x','draft',NULL,'park',NULL);
     INSERT INTO place_boundaries VALUES ('b1','p1',1,NULL,NULL,137.0,34.0,137.1,34.1,NULL);
   `);
   const mem = sqlite.prepare("INSERT INTO record_place_memberships VALUES (?, 'p1', 'confirmed', 'place', NULL)");
-  const vis = sqlite.prepare("INSERT INTO production_import_visits VALUES (?, ?, ?)");
-  const occ = sqlite.prepare("INSERT INTO production_import_occurrences VALUES (?, ?, NULL, ?, ?)");
+  const vis = sqlite.prepare("INSERT INTO production_import_visits (visit_id, observed_at, public_visibility) VALUES (?, ?, ?)");
+  const occ = sqlite.prepare("INSERT INTO production_import_occurrences (occurrence_id, visit_id, scientific_name, vernacular_name, created_at) VALUES (?, ?, NULL, ?, ?)");
   const rights = sqlite.prepare("INSERT INTO observation_data_rights VALUES (?, ?, 'public_summary')");
   const asset = sqlite.prepare("INSERT INTO asset_ledger VALUES (?, ?, 'uploaded', '2026-01-01', '{}', 'scrubbed', '2026-01-01', 'image/jpeg', 800, 600, 90000)");
   const names = ["スズメ", "メジロ", "名前待ち", "スズメ", "ヒヨドリ", "ツバメ", "カワセミ"];
@@ -63,8 +63,8 @@ function setup(t: test.TestContext, importRows: number) {
   occ.run("o-wd", "v-wd", "撤回の鳥", "2026-04-29");
   rights.run("v-wd", "withdrawn");
   sqlite.exec(`
-    INSERT INTO observations VALUES ('n1','2026-05-01T00:00:00Z','オオルリ',34.05,137.05,'public',0);
-    INSERT INTO observations VALUES ('n2','2026-05-02T00:00:00Z','隠し',34.05,137.05,'private',0);
+    INSERT INTO observations (observation_id, observed_at, taxon_label, exact_lat, exact_lng, visibility, emergency_hidden) VALUES ('n1','2026-05-01T00:00:00Z','オオルリ',34.05,137.05,'public',0);
+    INSERT INTO observations (observation_id, observed_at, taxon_label, exact_lat, exact_lng, visibility, emergency_hidden) VALUES ('n2','2026-05-02T00:00:00Z','隠し',34.05,137.05,'private',0);
     INSERT INTO observation_data_rights VALUES ('n1','active','public_summary');
     INSERT INTO observation_data_rights VALUES ('n2','active','public_summary');
     INSERT INTO asset_ledger VALUES ('n1','obs/n1.jpg','uploaded','2026-01-01','{}','scrubbed','2026-01-01','image/jpeg',800,600,90000);
@@ -140,4 +140,20 @@ test("map card markup carries summary sections for both languages", () => {
     for (const k of ["zv2-sstrip", "zv2-schips", "zv2-skel", "loadPlaceSummary", "relDays"]) assert.ok(html.includes(k), k);
   }
   assert.ok(renderMapExplorerV2Document({ lang: "ja", authenticated: false, displayName: "", basePath: "", placeTab: false }).includes("最後の記録"));
+});
+
+test("summary count equals list count and zero species is null", async (t) => {
+  const db = setup(t, 6);
+  const { summary } = (await (await handleMapPlaceSummaryApi(db, "p1")).json()) as Body;
+  const { loadBulkV2PlaceStats } = await import("./zukanMapView");
+  const stats = await loadBulkV2PlaceStats(db, ["p1"], null);
+  assert.equal(summary.recordCount, stats.get("p1")?.recordCount);
+  const s0 = summarizeMapPlaceCandidates([{ id: "a", ids: ["a"], label: "名前なし", observedAt: "1" }], new Map(), 3);
+  assert.equal(s0.speciesCount, null);
+});
+
+test("card renders kind as words and omits zero species", () => {
+  const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, displayName: "", basePath: "", placeTab: false });
+  assert.ok(html.includes("nature_area: '自然エリア'"));
+  assert.ok(html.includes("spN && spN > 0"));
 });
