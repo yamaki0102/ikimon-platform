@@ -500,7 +500,7 @@ ${ZUKAN_SHELL_CSS}
 .id3-topbar .id3-sp{width:44px;flex:none}
 .id3-ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .id3-mychips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.id3-chip{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;border-radius:999px;padding:7px 14px;background:#e9f0eb;color:#143f2e;text-decoration:none;min-height:36px}
+.id3-chip{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:700;border-radius:999px;padding:7px 14px;background:#e9f0eb;color:#143f2e;text-decoration:none;min-height:44px}
 .id3-chip.sub{background:#f7f7f3;color:#454f47}
 .id3-lead{font-size:14.5px;line-height:1.7;color:#3c4a41;margin-top:10px}
 .id3-note{background:#f7f7f3;border-radius:12px;padding:13px 15px;font-size:14px;line-height:1.7;color:#454f47;margin-top:14px}
@@ -822,8 +822,8 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
 
     innerHtml = `
       <div style="display:flex;align-items:baseline;gap:8px;margin-top:8px">
-        <h2 style="margin:0;font-size:17px;font-weight:800">${t("あなたの得意", "Your strengths")}</h2>
-        <a href="${prefix}/identify?view=skills" style="margin-left:auto;font-size:13.5px;font-weight:700;color:#0055ad;text-decoration:none">${t("変える", "Change")}</a>
+        <h1 style="margin:0;font-size:17px;font-weight:800">${t("あなたの得意", "Your strengths")}</h1>
+        <a href="${prefix}/identify?view=skills" style="margin-left:auto;font-size:13.5px;font-weight:700;color:#0055ad;text-decoration:none;display:inline-flex;align-items:center;min-height:44px;padding:0 6px">${t("変える", "Change")}</a>
       </div>
       <div class="id3-mychips">
         ${myChips || `<a class="id3-chip" href="${prefix}/identify?view=skills">${t("得意を選ぶ", "Choose strengths")}</a>`}
