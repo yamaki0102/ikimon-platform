@@ -731,6 +731,9 @@ test("site shell renders a global record footer nav outside the record flow", ()
   assert.match(html, /server_async_face_privacy/);
   assert.match(html, /facePrivacy: upload\.facePrivacy \|\| null/);
   assert.match(html, /preparePhotoUpload/);
+  assert.match(html, /accepted\.forEach\(\(file\) => \{ warmPhotoUpload\(file\); \}\)/);
+  assert.match(html, /const prepared = await getPreparedPhoto\(file\)/);
+  assert.match(html, /return await preparePhotoWithHash\(file\)/);
   assert.match(html, /canvasToImage\(canvas, 'image\/webp'\)/);
   assert.match(html, /image\/webp/);
   assert.match(html, /mapWithConcurrency\(files, PHOTO_UPLOAD_CONCURRENCY/);

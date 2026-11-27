@@ -3052,6 +3052,51 @@ ${configPrelude}
     }));
     return results;
   };
+  const photoWarmCache = new WeakMap();
+  const photoWarmQueue = [];
+  let photoWarmActive = 0;
+  const runPhotoWarmQueue = () => {
+    while (photoWarmActive < PHOTO_UPLOAD_CONCURRENCY && photoWarmQueue.length) {
+      const job = photoWarmQueue.shift();
+      photoWarmActive += 1;
+      job.run().then(job.resolve, job.reject).finally(() => {
+        photoWarmActive -= 1;
+        runPhotoWarmQueue();
+      });
+    }
+  };
+  const preparePhotoWithHash = async (file) => {
+    const upload = await preparePhotoUpload(file);
+    const hash = await sha256Hex(upload.base64Data);
+    return { upload, hash };
+  };
+  const warmPhotoUpload = (file) => {
+    if (!file || typeof file !== 'object') return null;
+    const cached = photoWarmCache.get(file);
+    if (cached) return cached;
+    const promise = new Promise((resolve, reject) => {
+      const start = () => {
+        photoWarmQueue.push({ run: () => preparePhotoWithHash(file), resolve, reject });
+        runPhotoWarmQueue();
+      };
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(start, { timeout: 800 });
+      else window.setTimeout(start, 0);
+    });
+    promise.catch(() => undefined);
+    photoWarmCache.set(file, promise);
+    return promise;
+  };
+  const getPreparedPhoto = async (file) => {
+    const cached = photoWarmCache.get(file);
+    if (cached) {
+      try {
+        return await cached;
+      } catch (_) {
+        photoWarmCache.delete(file);
+      }
+    }
+    return await preparePhotoWithHash(file);
+  };
   const getCurrentSessionUserId = async () => {
     const response = await fetch(apiPath('/api/v1/auth/session'), {
       method: 'GET',
@@ -3457,12 +3502,13 @@ ${configPrelude}
       const totalInputBytes = files.reduce((sum, file) => sum + Number(file && file.size || 0), 0);
       const preparedUploads = await mapWithConcurrency(files, PHOTO_UPLOAD_CONCURRENCY, async (file) => {
         const filePrepareStartedAt = nowMs();
-        const upload = await preparePhotoUpload(file);
+        const prepared = await getPreparedPhoto(file);
+        const upload = prepared.upload;
         sendGlobalRecordKpi('photo_prepare_file_ms', durationSince(filePrepareStartedAt), {
           fileSizeBytes: Number(file && file.size || 0),
           outputBytesApprox: String(upload.base64Data || '').length,
         });
-        const hash = await sha256Hex(upload.base64Data);
+        const hash = prepared.hash;
         preparedCount += 1;
         setStatus('写真を記録用に整えています... ' + String(preparedCount) + '/' + String(files.length));
         return {
@@ -3677,7 +3723,7 @@ ${configPrelude}
     if (cameraVideo) cameraVideo.hidden = true;
     if (empty) empty.hidden = true;
     syncPhotoDraftControls();
-    if (typeof FileReader === 'function') accepted.forEach((file) => { void preparePhotoUpload(file).catch(() => undefined); });
+    if (typeof FileReader === 'function') accepted.forEach((file) => { warmPhotoUpload(file); });
     const dropped = incoming.length - accepted.length;
     setStatus((metadata && metadata.location ? '撮影地点も保存しました。' : '位置を確認しています。') + ' 写真' + String(capturedPhotoFiles.length) + '枚。右で投稿、左でもう1枚撮れます。' + (dropped > 0 ? ' 上限を超えた分は外しました。' : ''));
     schedulePhotoPreviewWrite();
