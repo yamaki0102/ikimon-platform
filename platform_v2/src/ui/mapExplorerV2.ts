@@ -540,7 +540,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       var img = p.photoUrl && !used[p.photoUrl];
       if (img) used[p.photoUrl] = 1;
       var thumb = img ? '<img src="' + esc(p.photoUrl) + '" alt="" loading="lazy" decoding="async" />' : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
-      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : (rcOf(p) === 0 ? '記録はまだありません' : '記録 ' + p.recordCount + '件')) + ' ・ ここから ' + fmtDist(r.d);
+      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : (rcOf(p) === 0 ? '記録はまだありません' : '記録 ' + p.recordCount + '件')) + ' ・ <span style="white-space:nowrap">ここから ' + fmtDist(r.d) + '</span>';
       return '<a class="zv2-prow" data-zv2-place-row="' + esc(p.placeId) + '" href="' + esc(placeHref(p.placeId)) + '">' + thumb
         + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + meta + '</span></span>'
         + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></a>';
