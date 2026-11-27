@@ -158,7 +158,7 @@ export function renderZukanChrome(options: ZukanChromeOptions): {
     <a class="zt-nav-item" href="${esc(items[3]![1])}"${cur("profile")}>${items[3]![3]}<span>${esc(items[3]![2])}</span></a>
   </nav>`;
   const avatarScriptHtml = options.authenticated
-    ? `<script>(()=>{const els=document.querySelectorAll(".zt-avatar,.zt-ph-av,.zt-ps-av");if(!els.length)return;const src="/api/v1/profile/avatar/me";const img=new Image();img.onload=()=>{els.forEach((e)=>{e.style.backgroundImage="url("+src+")";e.style.backgroundSize="cover";e.style.backgroundPosition="center";e.style.color="transparent";});};img.src=src;})();</script>`
+    ? `<script>(()=>{const els=document.querySelectorAll(".zt-avatar,.zt-ph-av,.zt-ps-av");if(!els.length)return;const src="/api/v1/profile/avatar/me";fetch(src,{credentials:"same-origin"}).then((r)=>r.status===200?r.blob():null).then((b)=>{if(!b)return;const u=URL.createObjectURL(b);els.forEach((e)=>{e.style.backgroundImage="url("+u+")";e.style.backgroundSize="cover";e.style.backgroundPosition="center";e.style.color="transparent";});}).catch(()=>{});})();</script>`
     : "";
   const feedbackFootHtml = `<p class="zt-feedback-foot"><a data-zukan-otayori-menu="1" href="${feedbackHref}">${feedbackLabel}</a></p>`;
   return { sidebarHtml, topbarHtml, searchHtml, bottomNavHtml: `${bottomNavHtml}${avatarScriptHtml}`, feedbackFootHtml };

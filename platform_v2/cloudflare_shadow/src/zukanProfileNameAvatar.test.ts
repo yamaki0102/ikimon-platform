@@ -77,7 +77,7 @@ test("avatar upload stores columns, get serves image with etag and 404 without a
   const session = { userId: "u1", displayName: "はまっこ" };
   const bucket = { async get(key: string) { return key === "k1" ? { body: new Uint8Array([1, 2, 3]) } : null; } } as unknown as Pick<R2Bucket, "get">;
   const miss = await handleProfileAvatarGet(new Request("https://x/api/v1/profile/avatar/me"), session, coreDb, bucket);
-  assert.equal(miss.status, 404);
+  assert.equal(miss.status, 204);
   const anon = await handleProfileAvatarUpload(new Request("https://x", { method: "POST", body: "{}" }), null, coreDb, async () => null);
   assert.equal(anon.status, 401);
   const bad = await handleProfileAvatarUpload(new Request("https://x", { method: "POST", body: "{}" }), session, coreDb, async () => null);
@@ -91,7 +91,7 @@ test("avatar upload stores columns, get serves image with etag and 404 without a
   const cached = await handleProfileAvatarGet(new Request("https://x", { headers: { "if-none-match": '"abc"' } }), session, coreDb, bucket);
   assert.equal(cached.status, 304);
   const other = await handleProfileAvatarGet(new Request("https://x"), { userId: "u2" }, coreDb, bucket);
-  assert.equal(other.status, 404);
+  assert.equal(other.status, 204);
 });
 
 test("shell loads the avatar image for members with the initial as fallback", () => {

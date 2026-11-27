@@ -37,7 +37,7 @@ export async function handleProfileAvatarGet(
   coreDb: Env["CORE_DB"],
   bucket: Pick<R2Bucket, "get">
 ): Promise<Response> {
-  const notFound = () => new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
+  const notFound = () => new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
   if (!session?.userId || session.banned) return notFound();
   const row = await coreDb
     .prepare("SELECT avatar_object_key, avatar_sha256 FROM user_profiles WHERE user_id = ?")
