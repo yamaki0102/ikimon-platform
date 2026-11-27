@@ -564,8 +564,8 @@ export function renderLibraryV2Page(options: {
   <script${nonceAttr}>
     (function(){
       var box = document.getElementById('zv2l-sync');
-      var retryHref = ${JSON.stringify(`${prefix}/record?draft=1`).replace(/</g, "\u003c")};
-      var recentIds = ${JSON.stringify(recentIds).replace(/</g, "\u003c")};
+      var retryHref = ${JSON.stringify(`${prefix}/record?draft=1`).replace(/</g, "\\u003c")};
+      var recentIds = ${JSON.stringify(recentIds).replace(/</g, "\\u003c")};
       function readOutbox(cb){
         var done = false;
         function fin(v){ if (!done) { done = true; cb(v); } }
