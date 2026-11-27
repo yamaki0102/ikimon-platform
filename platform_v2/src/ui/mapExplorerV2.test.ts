@@ -391,6 +391,19 @@ test("Playwright renders Hamamatsu Station and Miyakoda with 310 zero-record pla
   await d1.context.close();
 });
 
+test("MAP_V2 tap selects the nearest dot, pin or cluster and the selected sheet is tall enough to show the card", () => {
+  const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-tap-1" });
+  const has = (needle: string) => assert.ok(html.includes(needle), needle);
+  has('.zv2-sheet[data-sheet-state="selected-low"]{max-height:280px}');
+  has("map.on('click', function (e) {");
+  has("queryRenderedFeatures([[e.point.x - rad, e.point.y - rad], [e.point.x + rad, e.point.y + rad]], { layers: ['zv2-clusters', 'zv2-rec-pin', 'zv2-zero-hit'] })");
+  assert.ok(!html.includes("map.on('click', 'zv2-"));
+  has("selectPlace(best.properties.placeId)");
+  has("getClusterExpansionZoom");
+  has("sheetRect.bottom - 280");
+  has("ここで最初の記録を");
+});
+
 test("mapExplorerV2 worker graph has no node imports and asset paths match pinned assets", async () => {
   const { readFileSync } = await import("node:fs");
   for (const f of ["mapExplorerV2.ts", "mapExplorerAssetPaths.ts"]) {
