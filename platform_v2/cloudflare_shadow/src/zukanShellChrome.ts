@@ -1,4 +1,4 @@
-export type ZukanShellNavKey = "library" | "events" | "places" | "profile";
+export type ZukanShellNavKey = "library" | "events" | "places" | "profile" | "none";
 type Lang = "ja" | "en" | "es" | "pt-br";
 
 const esc = (value: string): string =>

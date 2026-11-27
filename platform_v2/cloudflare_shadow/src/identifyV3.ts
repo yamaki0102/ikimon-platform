@@ -1055,7 +1055,7 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
 
   const chrome = renderZukanChrome({
     lang: data.lang,
-    activeNav: "library",
+    activeNav: "none",
     authenticated: true,
     displayName: data.displayName,
     pathname: `${prefix}/identify`,
