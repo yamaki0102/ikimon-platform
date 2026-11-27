@@ -103,6 +103,18 @@ test("region zero state omits the found section, never says nobody is there, and
   assert.equal(buttons.length, 1);
 });
 
+test("region zero state is noindex, links the nationwide list and catalog species, and found state stays indexable", () => {
+  const html = renderRegionInvasivePage({ area: "ゼロ町", records: [], lang: "ja", authenticated: false, regionHref: "/ja/regions/ゼロ町" });
+  assert.match(html, /<meta name="robots" content="noindex,follow"/);
+  assert.match(html, /data-invasive-learn="1" href="\/ja\/learn\/invasive-species"/);
+  assert.match(html, /href="\/ja\/invasive\/[a-z-]+"/);
+  assert.match(html, /href="\/ja\/record"/);
+  assert.match(html, /data-region-back="1"/);
+  const en = renderRegionInvasivePage({ area: "Zero", records: [], lang: "en", authenticated: false });
+  assert.match(en, /nationwide list/);
+  assert.match(en, /href="\/en\/invasive\//);
+});
+
 test("region page escapes the area name", () => {
   const html = renderRegionInvasivePage({ area: "<script>alert(1)</script>", records: [], lang: "ja", authenticated: false });
   assert.doesNotMatch(html, /<script>alert/);

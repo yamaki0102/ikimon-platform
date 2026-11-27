@@ -25541,11 +25541,13 @@ async function handleInvasiveMapV1Route(
   }
   const records = await loadInvasivePublicRecords(env);
   const inRegion = route.kind === "region" ? recordsForRegion(records, area) : [];
-  if (route.kind === "region" && inRegion.length === 0 && !(await invasiveRegionHasPublicRecords(env, area))) return notFound();
+  let regionHasContent: boolean | null = null;
+  const regionContent = async (): Promise<boolean> => (regionHasContent ??= regionSurfaceHasContent(await loadRegionSurfaceData(env.OBS_DB, area, async () => new Map<string, string>())));
+  if (route.kind === "region" && inRegion.length === 0 && !(await invasiveRegionHasPublicRecords(env, area)) && !(await regionContent().catch(() => false))) return notFound();
   const cspNonce = createHtmlCspNonce();
   const authenticated = Boolean(session && !session.banned);
   let regionHref: string | null = null;
-  if (route.kind === "region" && regionSurfaceV1On(env, session) && (inRegion.length > 0 || regionSurfaceHasContent(await loadRegionSurfaceData(env.OBS_DB, area, async () => new Map<string, string>())))) {
+  if (route.kind === "region" && regionSurfaceV1On(env, session) && (inRegion.length > 0 || await regionContent())) {
     regionHref = `/${lang}/regions/${encodeURIComponent(area)}`;
   }
   const page = route.kind === "region"

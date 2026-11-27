@@ -364,7 +364,7 @@ ${ZUKAN_SHELL_CSS}
 .iv-tstate{margin:8px 2px 0;font-size:13.5px;color:var(--muted);min-height:20px}
 `;
 
-export type SeoMeta = { title: string; description: string; origin: string; suffix: string; image?: string | null; ogType?: string };
+export type SeoMeta = { title: string; description: string; origin: string; suffix: string; image?: string | null; ogType?: string; noindex?: boolean };
 
 export const SEO_DEFAULT_ORIGIN = "https://zukan.earth";
 
@@ -374,6 +374,7 @@ export function seoHeadHtml(seo: SeoMeta, lang: SiteLang): string {
   const image = seo.image ? (/^https?:\/\//.test(seo.image) ? seo.image : seo.image.startsWith("/") ? `${origin}${seo.image}` : "") : "";
   const m = (k: string, v: string, attr = "name"): string => `<meta ${attr}="${k}" content="${esc(v)}" />`;
   return [
+    ...(seo.noindex ? [m("robots", "noindex,follow")] : []),
     m("description", seo.description),
     `<link rel="canonical" href="${esc(url(lang))}" />`,
     `<link rel="alternate" hreflang="ja" href="${esc(url("ja"))}" />`,
@@ -470,11 +471,12 @@ export function renderRegionInvasivePage(options: {
     ${CAUTION_HTML(species.some((s) => s.category === "iaspecified") ? "iaspecified" : null, L)}`;
   } else {
     const nationwide = INVASIVE_SEED_ROWS.filter((row) => classifyInvasive(row[0])?.category === "iaspecified").slice(0, 6);
-    const rows = nationwide.map((row) => `<a class="iv-sprow" href="${esc(`${learnPathFor(options.lang)}/${row[2]}`)}"><span class="iv-sb"><span class="iv-sname iv-nb">${esc(row[0])}</span><span style="display:block;margin-top:4px">${badge("iaspecified", categoryLabelFor("iaspecified", "特定外来生物", options.lang))}</span></span>${CHEV_ICON}</a>`).join("");
+    const rows = nationwide.map((row) => `<a class="iv-sprow" href="${esc(`${prefix}/invasive/${row[2]}`)}"><span class="iv-sb"><span class="iv-sname iv-nb">${esc(row[0])}</span><span style="display:block;margin-top:4px">${badge("iaspecified", categoryLabelFor("iaspecified", "特定外来生物", options.lang))}</span></span>${CHEV_ICON}</a>`).join("");
     const L = options.lang;
     inner = `<p class="iv-desc">${tr(L, `${area}の生きものを、外来種の印で見た面です。この地域では、名前の確認が済んだ外来種の記録は、まだ集まっていません。`, `Wildlife in ${area} seen through the invasive-species lens. No invasive-species records with confirmed names have been gathered in this area yet.`)}</p>
     <div class="iv-h"><span>${tr(L, "全国で指定されている種", "Species designated nationwide")}</span></div>
     <div>${rows}</div>
+    <a class="iv-link" data-invasive-learn="1" href="${esc(learnPathFor(L))}"><span>${tr(L, "全国の外来種の一覧を見る", "See the nationwide list of invasive species")}</span>${CHEV_ICON}</a>
     <p class="iv-note" style="margin-top:10px">${tr(L, "区分は、環境省のリストに基づく種マスタから表示しています。", "Categories come from a species master based on the Ministry of the Environment lists.")}</p>
     ${watchLink(prefix, L)}
     <div class="iv-h"><span>${tr(L, "見つけたら", "If you find one")}</span></div>
@@ -494,7 +496,7 @@ export function renderRegionInvasivePage(options: {
     ? tr(options.lang, `${options.area}で見つかっている外来種${species.length}種。種ごとの区分と見つかった場所を、国のリストに基づいて表示しています。`, `${plural(species.length, "invasive species", "invasive species")} found in ${options.area}, with categories based on national lists.`)
     : tr(options.lang, `${options.area}の外来種の記録。国のリストに基づく区分と、公式の案内を表示しています。`, `Invasive species records in ${options.area}, with categories based on national lists and official guidance.`);
   return shell({
-    seo: { title: tr(options.lang, `${options.area}の外来種 | ZUKAN`, `Invasive species in ${options.area} | ZUKAN`), description: ivDesc, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(options.area)}/invasive` },
+    seo: { title: tr(options.lang, `${options.area}の外来種 | ZUKAN`, `Invasive species in ${options.area} | ZUKAN`), description: ivDesc, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(options.area)}/invasive`, noindex: species.length === 0 },
     title: tr(options.lang, `${options.area}の外来種`, `Invasive species in ${options.area}`),
     lang: options.lang,
     authenticated: options.authenticated,
