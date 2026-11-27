@@ -5,7 +5,9 @@ import worker from "./index";
 import type { Env } from "./core/env";
 import { PROTOTYPE_FLAGS } from "./flags/index.generated";
 import * as regionFlag from "./flags/REGION_SURFACE_V1_ENABLED";
-import { loadRegionSurfaceData, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage, type RegionSurfaceData } from "./regionSurfaceV1";
+import { renderRegionInvasivePage } from "./invasiveMapV1";
+import { renderPlaceV3 } from "./placeDetailV3";
+import { loadPlaceRegionArea, loadRegionSurfaceData, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage, type RegionSurfaceData } from "./regionSurfaceV1";
 
 const sample = (over: Partial<RegionSurfaceData> = {}): RegionSurfaceData => ({
   area: "テスト市",
@@ -147,4 +149,42 @@ test("loader tolerates missing places and events tables", async () => {
   const data = await loadRegionSurfaceData(db, "どこか", async () => new Map());
   assert.equal(regionSurfaceHasContent(data), false);
   sqlite.close();
+});
+
+test("region map card only when cells exist; photo never repeats", () => {
+  const withCells = renderRegionSurfacePage({ data: sample({ cells: [{ cell: "34.70,137.70", count: 3 }, { cell: "34.71,137.72", count: 1 }] }), lang: "ja", authenticated: false });
+  assert.match(withCells, /data-region-map="1"/);
+  assert.match(withCells, /class="iv-col rs-col rs-wide"/);
+  assert.equal((withCells.match(/\/p\/1\.webp/g) ?? []).length, 1);
+  const without = renderRegionSurfacePage({ data: sample(), lang: "ja", authenticated: false });
+  assert.doesNotMatch(without, /data-region-map|class="iv-col rs-col rs-wide"/);
+});
+
+test("species list links back to the region", () => {
+  const html = renderRegionSpeciesListPage({ data: sample(), group: null, lang: "ja", authenticated: false });
+  assert.match(html, /href="\/ja\/regions\/%E3%83%86%E3%82%B9%E3%83%88%E5%B8%82"/);
+});
+
+test("invasive region page links to region only when regionHref given", () => {
+  const on = renderRegionInvasivePage({ area: "テスト市", records: [], lang: "ja", authenticated: false, regionHref: "/ja/regions/x" });
+  assert.match(on, /data-region-back="1" href="\/ja\/regions\/x"/);
+  const off = renderRegionInvasivePage({ area: "テスト市", records: [], lang: "ja", authenticated: false });
+  assert.doesNotMatch(off, /data-region-back/);
+});
+
+test("place region lookup: published only, empty municipality yields null; place v3 link by input", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE places (place_id TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, municipality TEXT)");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?)").run("a", "published", null, "テスト市");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?)").run("b", "draft", null, "テスト市");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?)").run("c", "published", null, "");
+  const db = { prepare(q: string) { let v: unknown[] = []; const st = { bind(...a: unknown[]) { v = a; return st; }, async first<T>() { return (sqlite.prepare(q).get(...(v as never[])) as T | undefined) ?? null; }, async all<T>() { return { results: [] as T[] }; } }; return st; } };
+  const norm = (x: string) => x;
+  assert.equal(await loadPlaceRegionArea(db as never, "a", norm), "テスト市");
+  assert.equal(await loadPlaceRegionArea(db as never, "b", norm), null);
+  assert.equal(await loadPlaceRegionArea(db as never, "c", norm), null);
+  assert.equal(await loadPlaceRegionArea(db as never, "zz", norm), null);
+  const base = { lang: "ja", prefix: "/ja", canonicalPlaceId: "a", name: "n", localName: null, locality: "", hasRecords: false, suppressed: false, shownCount: 0, startYear: "", latestLabel: null, records: [], photoUrls: [], recordHref: "/r", allRecordsHref: "/a", backHref: "/b", backLabel: "b", shareLabel: "s", copiedLabel: "c", shareTitle: "t", saveHtml: "", moreLabel: "m", moreHref: "#", mapHref: "/ja/map", externalMapHref: "", externalMapLabel: "", stewardIntro: null, events: [], steward: null, nearby: [], now: new Date() };
+  assert.match(renderPlaceV3({ ...base, regionLink: { href: "/ja/regions/x", label: "xの地域ページ" } }), /data-pv3-region href="\/ja\/regions\/x"/);
+  assert.doesNotMatch(renderPlaceV3(base), /data-pv3-region/);
 });

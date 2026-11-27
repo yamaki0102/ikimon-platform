@@ -206,7 +206,7 @@ const IDENTIFY_V3_FLAG = "IDENTIFY_V3_ENABLED";
 const identifyV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, IDENTIFY_V3_FLAG, v.principalId, v.role); };
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
-import { REGION_SURFACE_V1_FLAG, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
+import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
@@ -2679,6 +2679,7 @@ async function getGlobalPlaceDetailPage(
     layers: speciesLayers,
   });
   const e2Events = placeEV2On(env, session) ? await loadPlaceLinkedEvents(env.OBS_DB, canonicalPlaceId, lang, eventTiming) : [];
+  const regionArea = placePageV3On(env, session) && regionSurfaceV1On(env, session) ? await loadPlaceRegionArea(env.OBS_DB, canonicalPlaceId, normalizeSafePublicAreaLabelCandidate) : null;
   const body = renderGlobalPlaceDetailPage({
     profile,
     lang,
@@ -2691,6 +2692,7 @@ async function getGlobalPlaceDetailPage(
     ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
+    ...(regionArea ? { regionLink: { href: `/${lang}/regions/${encodeURIComponent(regionArea)}`, label: lang === "ja" ? `${regionArea}の地域ページ` : regionArea } } : {}),
     ...(placeEV2On(env, session) ? { e2: true, e2Events } : {}),
     ...(placeEV2On(env, session) && nocosilEventLinkOn(env, session) ? { nocosilEventLink: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
@@ -25931,8 +25933,12 @@ async function handleInvasiveMapV1Route(
   if (route.kind === "region" && inRegion.length === 0 && !(await invasiveRegionHasPublicRecords(env, area))) return notFound();
   const cspNonce = createHtmlCspNonce();
   const authenticated = Boolean(session && !session.banned);
+  let regionHref: string | null = null;
+  if (route.kind === "region" && regionSurfaceV1On(env, session) && (inRegion.length > 0 || regionSurfaceHasContent(await loadRegionSurfaceData(env.OBS_DB, area, async () => new Map<string, string>())))) {
+    regionHref = `/${lang}/regions/${encodeURIComponent(area)}`;
+  }
   const page = route.kind === "region"
-    ? renderRegionInvasivePage({ area, records: inRegion, lang, authenticated, displayName: session?.displayName ?? null, cspNonce })
+    ? renderRegionInvasivePage({ area, records: inRegion, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, regionHref })
     : renderInvasiveSpeciesPage({ slug: slug!, records, lang, authenticated, displayName: session?.displayName ?? null, cspNonce });
   if (!page) return notFound();
   return new Response(request.method === "HEAD" ? null : page, {

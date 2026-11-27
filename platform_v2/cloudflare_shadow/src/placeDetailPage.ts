@@ -150,6 +150,7 @@ export function renderGlobalPlaceDetailPage(input: {
   e2Events?: PlaceEEvent[];
   nocosilEventLink?: boolean;
   fieldCardHref?: string;
+  regionLink?: { href: string; label: string } | null;
   v3Extras?: { stewardIntro?: string | null; events?: PlaceV3Event[]; steward?: PlaceV3Steward | null; nearby?: PlaceV3Nearby[] };
   now?: Date;
 }): string {
@@ -306,6 +307,7 @@ export function renderGlobalPlaceDetailPage(input: {
     moreLabel: copy.moreAbout,
     moreHref: "#gpd-details",
     mapHref: canExposePlaceLocation ? prefix + "/map?tab=places" : "",
+    regionLink: input.regionLink ?? null,
     externalMapHref: externalMap,
     externalMapLabel: copy.openMap,
     stewardIntro: clean(input.v3Extras?.stewardIntro) || null,
