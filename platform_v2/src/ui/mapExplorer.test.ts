@@ -2714,6 +2714,29 @@ test("top invasive chip renders hidden for ja, activates via body marker, and pr
   }
 });
 
+test("admin place-register button styles meet font floor and deferred script updates href with map center lat/lng", () => {
+  assert.match(MAP_EXPLORER_STYLES, /\.me-admin-place-register,\s*\.me-admin-place-register:visited\s*\{[^}]*font-size:\s*14px/);
+  const script = mapExplorerBootScriptSource();
+  assert.ok(!script.includes("ここを場所に登録") && !script.includes("/ja/admin/places/new"));
+  assert.match(script, /data-map-place-register/);
+  const link = {
+    href: "/ja/admin/places/new",
+    listeners: new Map<string, () => void>(),
+    getAttribute(name: string) { return name === "href" ? this.href : null; },
+    setAttribute(name: string, value: string) { if (name === "href") this.href = value; },
+    addEventListener(type: string, fn: () => void) { this.listeners.set(type, fn); },
+  };
+  const fnMatch = script.match(/var placeRegisterLink = document\.querySelector\('\[data-map-place-register\]'\);[\s\S]*?placeRegisterLink\.addEventListener\('pointerdown', updatePlaceRegisterHref\);\s*\}/);
+  assert.ok(fnMatch);
+  const ctx = vm.createContext({
+    document: { querySelector: (sel: string) => (sel === "[data-map-place-register]" ? link : null) },
+    state: { map: { getCenter: () => ({ lat: 34.9756123, lng: 138.3827456 }) } },
+  });
+  new vm.Script(fnMatch[0]).runInContext(ctx);
+  link.listeners.get("click")!();
+  assert.equal(link.href, "/ja/admin/places/new?lat=34.975612&lng=138.382746");
+});
+
 test("walk candidate map markers stay single-line horizontal pills at 375px and 1280px", async (t) => {
   assert.match(MAP_EXPLORER_STYLES, /\.me-walk-map-marker\s*\{[^}]*white-space:\s*nowrap/);
   assert.match(MAP_EXPLORER_STYLES, /\.me-walk-map-marker span\s*\{[^}]*flex:\s*none[^}]*white-space:\s*nowrap/);

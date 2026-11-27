@@ -34771,3 +34771,37 @@ test("map html carries the invasive marker only when the flag is on for the view
   assert.ok(topChipOn.includes('data-map-invasive-top-chip="1"'));
   assert.equal(topChipOn.replace(' data-map-invasive-top-chip="1"', ""), off);
 });
+
+test("map html includes the admin place-register button only for admin users when PLACE_REGISTER_ENABLED is on", async () => {
+  const { env } = createEnv();
+  const mapHtml = '<!doctype html><html><head><title>materialized ja map</title></head><body data-zukan-design="v1"><header><div class="site-header-actions"></div></header><div class="me-map-wrap"><div id="map-explorer"></div><button type="button" class="me-search-area-btn"></button></div></body></html>';
+  await env.ASSET_BUCKET.put("original-ui/html/ja/map.html", mapHtml, { httpMetadata: { contentType: "text/html; charset=utf-8" } });
+
+  const issueCookie = async (userId: string, roleName: string) => {
+    const res = await worker.fetch(new Request("https://shadow.test/api/v1/auth/session/issue", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId, displayName: userId, roleName, ttlHours: 1 }),
+    }), env);
+    return (res.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  };
+  const adminCookie = await issueCookie("admin-place-user", "admin");
+  const memberCookie = await issueCookie("member-place-user", "Observer");
+  const flagOnEnv = { ...env, PLACE_REGISTER_ENABLED: "true" } as typeof env;
+
+  const fetchJaMap = (useEnv: typeof env, cookie?: string) =>
+    worker.fetch(new Request("https://zukan.earth/ja/map", cookie ? { headers: { cookie } } : undefined), useEnv).then((r) => r.text());
+
+  for (const html of [
+    await fetchJaMap(flagOnEnv),
+    await fetchJaMap(flagOnEnv, memberCookie),
+    await fetchJaMap(env, adminCookie),
+  ]) {
+    assert.ok(!html.includes("ここを場所に登録"));
+    assert.ok(!html.includes("data-map-place-register"));
+    assert.ok(!html.includes("/ja/admin/places/new"));
+  }
+
+  const adminHtml = await fetchJaMap(flagOnEnv, adminCookie);
+  assert.match(adminHtml, /<a class="me-admin-place-register" data-map-place-register href="\/ja\/admin\/places\/new">ここを場所に登録<\/a>/);
+});

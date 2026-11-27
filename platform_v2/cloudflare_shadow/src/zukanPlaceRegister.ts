@@ -149,6 +149,18 @@ export function isPlaceRegisterAdmin(session: SessionSnapshot | null | undefined
   return Boolean(session && !session.banned && session.userId && (session.roleName ?? "").trim().toLowerCase() === "admin");
 }
 
+const MAP_PLACE_REGISTER_BTN =
+  '<a class="me-admin-place-register" data-map-place-register href="/ja/admin/places/new">ここを場所に登録</a>';
+
+export function injectMapAdminPlaceRegisterButton(html: string, enabled: boolean): string {
+  if (!enabled) return html;
+  const searchBtnIdx = html.search(/<button\b[^>]*\bclass="[^"]*\bme-search-area-btn\b/u);
+  if (searchBtnIdx >= 0) return `${html.slice(0, searchBtnIdx)}${MAP_PLACE_REGISTER_BTN}${html.slice(searchBtnIdx)}`;
+  const mainCloseIdx = html.indexOf("</main>");
+  if (mainCloseIdx >= 0) return `${html.slice(0, mainCloseIdx)}${MAP_PLACE_REGISTER_BTN}${html.slice(mainCloseIdx)}`;
+  return html;
+}
+
 type Db = Env["OBS_DB"];
 
 type RegisteredPlaceRow = {

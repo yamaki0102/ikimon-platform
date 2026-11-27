@@ -44,6 +44,11 @@ import {
 } from "./guestObservationPost";
 import { handleGuestEntryPageRoute } from "./guestEntryPage";
 import {
+  handleShopPhotoPerkRequest,
+  loadShopPlacePerkSectionData,
+  renderShopPlacePerkSectionHtml,
+} from "./shopPhotoPerk";
+import {
   handleConfirmEventParticipation,
   handleEventConfirmOrJoinedRoute,
 } from "./zukanEventConfirmAndJoined";
@@ -176,7 +181,7 @@ const placePageV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatib
 const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
 const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_INLINE_EDIT_FLAG, v.principalId, v.role); };
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
-import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
+import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
@@ -223,7 +228,7 @@ import {
 } from "./speciesReaderLayer";
 const recordReaderModesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_READER_MODES_FLAG, v.principalId, v.role); };
 const speciesReaderLayerOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SPECIES_READER_LAYER_FLAG, v.principalId, v.role); };
-import { handlePlaceRegisterRequest } from "./zukanPlaceRegister";
+import { PLACE_REGISTER_FLAG, handlePlaceRegisterRequest, injectMapAdminPlaceRegisterButton, isPlaceRegisterAdmin } from "./zukanPlaceRegister";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   handleCreatePlaceProposal,
@@ -2629,13 +2634,15 @@ async function getGlobalPlaceDetailPage(
   const confirmedPlaceSpecies = lang === "ja" && speciesReaderLayerOn(env, session)
     ? (profile.recentRecords ?? []).filter((r) => r.identificationStatus === "confirmed" && r.displayName).map((r) => r.displayName!)
     : [];
-  const [placeUsages, paperPages, fp, speciesLayers] = await Promise.all([
+  const [placeUsages, paperPages, fp, speciesLayers, shopPerkData] = await Promise.all([
     listNocosilOutcomeUsagesForPlace(env, canonicalPlaceId),
     listPublishedPaperArchivesForPlace(env, canonicalPlaceId),
     listFixedPointsAndRecordsForPlace(env, canonicalPlaceId),
     confirmedPlaceSpecies.length > 0 ? loadSpeciesReaderLayersForPlace(env.OBS_DB, confirmedPlaceSpecies).catch(() => []) : Promise.resolve([]),
+    loadShopPlacePerkSectionData(env, canonicalPlaceId, session).catch(() => null),
   ]);
   const fixedPointTimelineHtml = renderFixedPointTimelineHtml(fp.stations, fp.records, lang, canonicalPlaceId);
+  const shopPhotoPerkHtml = renderShopPlacePerkSectionHtml(shopPerkData);
   const speciesReaderLayersHtml = renderPlaceSpeciesReaderLayersHtml({
     enabled: lang === "ja" && speciesReaderLayerOn(env, session),
     layers: speciesLayers,
@@ -2649,6 +2656,7 @@ async function getGlobalPlaceDetailPage(
     nocosilUsageHtml: renderNocosilOutcomeUsageHtml(placeUsages),
     fixedPointTimelineHtml,
     paperArchiveTimelineHtml: renderPaperArchiveTimelineHtml(paperPages),
+    ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
@@ -4155,6 +4163,12 @@ export const worker = {
           request,
           env
         );
+      }
+
+      if (url.pathname.includes("/shops/")) {
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        const shopRes = await handleShopPhotoPerkRequest(request, url, env, session);
+        if (shopRes) return shopRes;
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/search/suggest") {
@@ -22770,7 +22784,14 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
     return originalUiHtmlQueryVariant(url) ? withHeaderMenu : injectRecentObservationRecords(withHeaderMenu, url, env);
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
-  if (isMapHtmlPath(url.pathname)) return injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session), mapInvasiveTopChipOn(env, session));
+  if (isMapHtmlPath(url.pathname)) {
+    const withInvasive = injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session), mapInvasiveTopChipOn(env, session));
+    const showPlaceRegister =
+      (url.pathname === "/ja/map" || url.pathname === "/ja/map/") &&
+      isPlaceRegisterAdmin(session) &&
+      prototypeEnabledForPrincipal(env, PLACE_REGISTER_FLAG, session.userId, session.roleName);
+    return injectMapAdminPlaceRegisterButton(withInvasive, showPlaceRegister);
+  }
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
   return injectOAuthEmailConflictNotice(personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect"))), url);
 }
