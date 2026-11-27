@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getForwardedBasePath, withBasePath } from "../httpBasePath.js";
 import { appendLangToHref, detectLangFromUrl, langFromPathPrefix, type SiteLang } from "../i18n.js";
-import { getShortCopy, renderLongformPage } from "../content/index.js";
+import { getShortCopy, hasLocalizedLongform, renderLongformPage } from "../content/index.js";
 import { buildLearnCatalog } from "../learn/catalog.js";
 import { LEARN_CATALOG_STYLES, renderLearnCatalog } from "../learn/view.js";
 import { createContactProof } from "../services/contactSubmit.js";
@@ -286,6 +286,12 @@ function docTermLabel(term: DocTerm, lang: SiteLang): string {
   return lang === "ja" ? term.label : DOC_TERM_LABELS_EN[term.href] ?? term.label;
 }
 
+function docTermJaOnlyNote(term: DocTerm, lang: SiteLang): string {
+  if (lang === "ja") return "";
+  const slug = term.href.split("/").pop() ?? "";
+  return hasLocalizedLongform(lang, `term-${slug}`) ? "" : ` <small class="learn-term-ja-only">(Japanese)</small>`;
+}
+
 function stripHtmlTags(html: string): string {
   return html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 }
@@ -545,7 +551,7 @@ function renderLearnIndexHub(basePath: string, lang: SiteLang): string {
     ...DOC_TERM_DEFINITIONS,
   ];
   const glossaryTerms = Array.from(new Map(prioritizedTerms.map((term) => [term.href, term])).values()).slice(0, 20)
-    .map((term) => `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, term.href), lang))}">${escapeHtml(docTermLabel(term, lang))}</a>`)
+    .map((term) => `<a href="${escapeHtml(appendLangToHref(withBasePath(basePath, term.href), lang))}">${escapeHtml(docTermLabel(term, lang))}${docTermJaOnlyNote(term, lang)}</a>`)
     .join("");
 
   return `<div class="learn-wiki" aria-label="${escapeHtml(copy.ariaLabel)}">
