@@ -878,7 +878,11 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
   return `<header class="site-header">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
+<<<<<<< HEAD
         <button class="desktop-side-nav-toggle" type="button" aria-label="${lang === "ja" ? "左メニューを切り替える" : "Toggle the side menu"}" aria-pressed="false" data-desktop-side-nav-toggle>
+=======
+        <button class="desktop-side-nav-toggle" type="button" aria-label="${escapeHtml(shellAria(lang)?.toggle ?? "左メニューを切り替える")}" aria-pressed="false" data-desktop-side-nav-toggle${shellAria(lang) ? ` data-title-open="${escapeHtml(shellAria(lang)!.open)}" data-title-close="${escapeHtml(shellAria(lang)!.close)}"` : ""}>
+>>>>>>> origin/main
           <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
         </button>
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
@@ -1863,6 +1867,16 @@ const SOURCE_CHOICE_COPY: Record<SiteLang, SourceChoiceCopy> = {
   },
 };
 
+const SHELL_ARIA_COPY: Record<Exclude<SiteLang, "ja">, { toggle: string; open: string; close: string; focusNear: string; focusFar: string; memoPlaceholder: string; zoom: string; zoomMax: string; manualFocus: string; memo: string; voice: string; dismiss: string }> = {
+  en: { toggle: "Toggle left menu", open: "Expand left menu", close: "Collapse left menu", focusNear: "Focus nearer", focusFar: "Focus farther", memoPlaceholder: "Jot down what you noticed", zoom: "Zoom", zoomMax: "Max", manualFocus: "Manual focus", memo: "Note (optional)", voice: "Dictate", dismiss: "Close" },
+  es: { toggle: "Alternar menú izquierdo", open: "Expandir menú izquierdo", close: "Contraer menú izquierdo", focusNear: "Enfocar más cerca", focusFar: "Enfocar más lejos", memoPlaceholder: "Anota lo que notaste", zoom: "Zoom", zoomMax: "Máx.", manualFocus: "Enfoque manual", memo: "Nota (opcional)", voice: "Dictar", dismiss: "Cerrar" },
+  "pt-BR": { toggle: "Alternar menu esquerdo", open: "Expandir menu esquerdo", close: "Recolher menu esquerdo", focusNear: "Focar mais perto", focusFar: "Focar mais longe", memoPlaceholder: "Anote o que você percebeu", zoom: "Zoom", zoomMax: "Máx.", manualFocus: "Foco manual", memo: "Nota (opcional)", voice: "Ditar", dismiss: "Fechar" }
+};
+
+function shellAria(lang: SiteLang) {
+  return lang === "ja" ? null : SHELL_ARIA_COPY[lang];
+}
+
 function sourceChoiceCopy(lang: SiteLang): SourceChoiceCopy {
   return SOURCE_CHOICE_COPY[lang];
 }
@@ -2086,6 +2100,7 @@ export function recordCaptureCameraCopy(lang: SiteLang): {
 
 function globalRecordSheetMarkup(lang: SiteLang): string {
   const copy = globalRecordEntryCopy(lang);
+  const sa = shellAria(lang);
   return `
     <input class="global-record-input" data-global-record-input="gallery" type="file" accept="image/*" multiple hidden />
     <input class="global-record-input" data-global-record-input="photo" type="file" accept="image/*" capture="environment" hidden />
@@ -2108,16 +2123,16 @@ function globalRecordSheetMarkup(lang: SiteLang): string {
       <div class="global-record-camera-empty" data-global-record-camera-empty>${escapeHtml(copy.empty)}</div>
       <div class="global-record-camera-zoom" data-global-record-camera-zoom hidden>
         <label>
-          <span>ズーム <output data-global-record-camera-zoom-value>1.0x</output></span>
+          <span>${escapeHtml(sa?.zoom ?? "ズーム")} <output data-global-record-camera-zoom-value>1.0x</output></span>
           <input data-global-record-camera-zoom-range type="range" min="1" max="1" step="0.1" value="1" />
         </label>
-        <button type="button" data-global-record-camera-zoom-max>最大</button>
+        <button type="button" data-global-record-camera-zoom-max>${escapeHtml(sa?.zoomMax ?? "最大")}</button>
         <label class="global-record-camera-focus" data-global-record-camera-focus hidden>
-          <span>手動ピント <output data-global-record-camera-focus-value>--</output></span>
+          <span>${escapeHtml(sa?.manualFocus ?? "手動ピント")} <output data-global-record-camera-focus-value>--</output></span>
           <input data-global-record-camera-focus-range type="range" min="0" max="1" step="0.01" value="0" />
         </label>
-        <button type="button" data-global-record-camera-focus-minus hidden aria-label="ピントを近くへ">−</button>
-        <button type="button" data-global-record-camera-focus-plus hidden aria-label="ピントを遠くへ">＋</button>
+        <button type="button" data-global-record-camera-focus-minus hidden aria-label="${escapeHtml(sa?.focusNear ?? "ピントを近くへ")}">−</button>
+        <button type="button" data-global-record-camera-focus-plus hidden aria-label="${escapeHtml(sa?.focusFar ?? "ピントを遠くへ")}">＋</button>
         <button type="button" data-global-record-camera-focus-auto hidden>AF</button>
       </div>
     </div>
@@ -2128,10 +2143,10 @@ function globalRecordSheetMarkup(lang: SiteLang): string {
       </div>
       <div class="global-record-photo-grid" data-global-record-photo-grid></div>
       <label class="global-record-memo">
-        <span>メモ（任意）</span>
-        <textarea data-global-record-memo rows="2" maxlength="1000" placeholder="気づいたことを書いておく"></textarea>
+        <span>${escapeHtml(sa?.memo ?? "メモ（任意）")}</span>
+        <textarea data-global-record-memo rows="2" maxlength="1000" placeholder="${escapeHtml(sa?.memoPlaceholder ?? "気づいたことを書いておく")}"></textarea>
       </label>
-      <button type="button" class="global-record-memo-voice" data-global-record-memo-voice hidden aria-pressed="false">声で入れる</button>
+      <button type="button" class="global-record-memo-voice" data-global-record-memo-voice hidden aria-pressed="false">${escapeHtml(sa?.voice ?? "声で入れる")}</button>
     </div>
     <div class="global-record-camera-actions" aria-label="${escapeHtml(copy.actionLabel)}">
       <button type="button" class="global-record-camera-action is-primary" data-global-record-os-camera>${escapeHtml(sourceChoiceCopy(lang).native)}</button>
@@ -2157,15 +2172,15 @@ function globalRecordSheetMarkup(lang: SiteLang): string {
     <div class="global-record-video-trim" data-global-record-video-trim hidden>
       <div class="global-record-video-trim-head">
         <strong>${escapeHtml(copy.trimTitle)}</strong>
-        <span data-global-record-video-trim-duration>0.0秒</span>
+        <span data-global-record-video-trim-duration>0.0${sa ? "s" : "秒"}</span>
       </div>
       <div class="global-record-video-trim-controls">
         <label>
-          <span>${escapeHtml(copy.trimStart)} <output data-global-record-video-trim-start-label>0.0秒</output></span>
+          <span>${escapeHtml(copy.trimStart)} <output data-global-record-video-trim-start-label>0.0${sa ? "s" : "秒"}</output></span>
           <input data-global-record-video-trim-start type="range" min="0" max="0" step="0.1" value="0" />
         </label>
         <label>
-          <span>${escapeHtml(copy.trimEnd)} <output data-global-record-video-trim-end-label>0.0秒</output></span>
+          <span>${escapeHtml(copy.trimEnd)} <output data-global-record-video-trim-end-label>0.0${sa ? "s" : "秒"}</output></span>
           <input data-global-record-video-trim-end type="range" min="0" max="0" step="0.1" value="0" />
         </label>
       </div>
@@ -2363,11 +2378,12 @@ ${configPrelude}
   if (memoVoice && memoInput && SpeechCtor) {
     memoVoice.hidden = false;
     let recognizer = null;
+    const voiceIdleLabel = memoVoice.textContent;
     const stopVoice = () => {
       if (recognizer) { try { recognizer.stop(); } catch (_) {} }
       recognizer = null;
       memoVoice.setAttribute('aria-pressed', 'false');
-      memoVoice.textContent = '声で入れる';
+      memoVoice.textContent = voiceIdleLabel;
     };
     memoVoice.addEventListener('click', () => {
       if (recognizer) { stopVoice(); return; }
@@ -3181,10 +3197,11 @@ ${configPrelude}
     if (recordingTimer) window.clearInterval(recordingTimer);
     recordingTimer = null;
   };
+  const secondsUnit = (document.documentElement.lang || 'ja').indexOf('ja') === 0 ? '秒' : 's';
   const formatVideoSeconds = (seconds) => {
     const value = Number(seconds);
-    if (!Number.isFinite(value) || value < 0) return '0.0秒';
-    return value.toFixed(1) + '秒';
+    if (!Number.isFinite(value) || value < 0) return '0.0' + secondsUnit;
+    return value.toFixed(1) + secondsUnit;
   };
   const resetSheetVideoTrim = () => {
     sheetVideoTrimState = null;
@@ -3197,9 +3214,9 @@ ${configPrelude}
       trimEnd.max = '0';
       trimEnd.value = '0';
     }
-    if (trimStartLabel) trimStartLabel.textContent = '0.0秒';
-    if (trimEndLabel) trimEndLabel.textContent = '0.0秒';
-    if (trimDurationLabel) trimDurationLabel.textContent = '0.0秒';
+    if (trimStartLabel) trimStartLabel.textContent = '0.0' + secondsUnit;
+    if (trimEndLabel) trimEndLabel.textContent = '0.0' + secondsUnit;
+    if (trimDurationLabel) trimDurationLabel.textContent = '0.0' + secondsUnit;
   };
   const syncSheetVideoTrim = (changed) => {
     if (!sheetVideoTrimState || !trimStart || !trimEnd) return;
@@ -5259,7 +5276,11 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     </div>
     <div class="language-suggestion-actions">
       <a class="language-suggestion-primary" data-language-suggestion-action href="/en/"></a>
+<<<<<<< HEAD
       <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss aria-label="${lang === "ja" ? "閉じる" : "Close"}"></button>
+=======
+      <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss aria-label="${escapeHtml(shellAria(lang)?.dismiss ?? "閉じる")}"></button>
+>>>>>>> origin/main
     </div>
   </div>`;
   const shellClassName = options.shellClassName ?? "";
@@ -5598,7 +5619,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     document.body.classList.toggle('is-desktop-side-nav-collapsed', collapsed);
     if (desktopSideNavToggle) {
       desktopSideNavToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
-      desktopSideNavToggle.setAttribute('title', collapsed ? '左メニューを広げる' : '左メニューを畳む');
+      desktopSideNavToggle.setAttribute('title', collapsed ? (desktopSideNavToggle.dataset.titleOpen || '左メニューを広げる') : (desktopSideNavToggle.dataset.titleClose || '左メニューを畳む'));
     }
   }
   try {

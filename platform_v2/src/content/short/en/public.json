@@ -163,6 +163,18 @@
           { "href": "/contact", "label": "Plan a program" }
         ]
       },
+      "about": {
+        "title": "How ZUKAN thinks | ZUKAN",
+        "eyebrow": "Approach",
+        "heading": "Growing local records together.",
+        "lead": "A place to find, keep, and check local records of nature, culture, history, work, daily life, and activities, together with place, time, and evidence.",
+        "activeNav": "learn",
+        "bodyPageId": "about",
+        "afterActions": [
+          { "href": "/records?view=public", "label": "Browse public records" },
+          { "href": "/learn/methodology", "label": "How records are kept reliable" }
+        ]
+      },
       "learnIndex": {
         "title": "Reading index | ZUKAN",
         "eyebrow": "Read",
