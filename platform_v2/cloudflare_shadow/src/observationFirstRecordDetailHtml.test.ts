@@ -2132,3 +2132,52 @@ test("environment multi: switch off and non-owner output stay free of the editor
     renderObservationFirstRecordDetailHtml(guest, { ...inlineEditRound2, environment: env, inlineEdit: false, inlineEditCorrection: false, inlineEditEnvironment: null }),
   );
 });
+
+test("coarse AI stop displays AIの見立て：落葉広葉樹類（ここまで） and photo guidance without showing 未同定", () => {
+  const coarseDetail: ObservationFirstRecordDetail = {
+    schema: "ikimon.observation-first-record-detail/v1",
+    recordId: "record-1795764955164-0bd3ee",
+    owner: true,
+    visibility: "private",
+    observationCount: 1,
+    proposalPolicy: { identification: true, media: true, disabledReason: null },
+    observations: [{
+      observationId: "obs-coarse-1",
+      state: "active",
+      subjectType: "organism",
+      subjectLabel: "未同定",
+      assertionStatus: "provisional",
+      verificationStatus: "unreviewed",
+      acceptedIdentification: null,
+      communityIdentifications: [],
+      aiSuggestions: [{
+        suggestionId: "sug-coarse-1",
+        proposedName: "落葉広葉樹類",
+        proposedScientificName: null,
+        proposedRank: "class",
+        visualEvidence: [],
+        shootingAdvice: [],
+        provisional: true,
+      }],
+      media: [{ mediaId: "m1", mediaKind: "photo", displayOrder: 0 }],
+      provenance: { owner: true, ai: true, community: false, curator: false, imported: false },
+    }],
+    privacy: { exactLocationExposed: false, publicLocationLabel: "位置情報は公開範囲に合わせて保護されています" },
+  };
+  const html = renderObservationFirstRecordDetailHtml(coarseDetail, {
+    lang: "ja",
+    title: "落葉広葉樹類",
+    titleIsFallback: true,
+    observedLabel: "2026年11月25日",
+    note: null,
+    media: [{ mediaId: "m1", mediaKind: "photo", url: "https://cdn.example.invalid/m1.webp" }],
+    aiCandidateLabel: "落葉広葉樹類",
+    aiCandidateRank: "class",
+    aiGenericCandidateOnly: true,
+    aiNote: [],
+    actionNonce: "nonce-coarse",
+  });
+  assert.match(html, /AIの見立て：落葉広葉樹類（ここまで）/u);
+  assert.match(html, /葉の表裏.*枝.*花や実/u);
+  assert.doesNotMatch(html, /未同定/u);
+});

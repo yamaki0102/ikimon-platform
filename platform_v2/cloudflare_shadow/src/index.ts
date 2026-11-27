@@ -414,9 +414,12 @@ import { handleZukanNoticesAndConsentRoute, loadLibraryNoticeHtml } from "./zuka
 import { renderZukanStateDocument, type ZukanStateKind } from "../../src/ui/zukanStateScreens";
 import { handleSharedAlbumView, handleZukanOrgLinkRoute } from "./zukanOrgLinkAndAlbum";
 import {
+  decisivePhotoGuidanceForCoarseLabel,
+  isCoarseAiClassification,
   isPublicObservationAiSubjectEligible,
   publicObservationAiCandidateInsights,
   publicObservationAiFeedback,
+  publicObservationAiGenericCandidateOnly,
   publicObservationAiPersonPrimaryNames,
   publicObservationAiRecordClass,
 } from "./publicObservationAiPresentation";
@@ -3674,6 +3677,24 @@ export const worker = {
         });
         const report = await runRecordHealthCheck(env);
         return json({ ok: true, ...result, report }, 200, { "cache-control": "no-store" });
+      }
+
+      const adminAiNoteRefreshMatch = request.method === "POST"
+        ? url.pathname.match(/^\/api\/v1\/admin\/records\/([^/]+)\/ai-note\/refresh$/u)
+        : null;
+      if (adminAiNoteRefreshMatch) {
+        const sameOriginError = assertSameOriginRequest(request);
+        if (sameOriginError) return sameOriginError;
+        const session = await readCompatibleSession(request, env).catch(() => null);
+        if (!session?.userId || session.banned) return json({ ok: false, error: "login_required" }, 401, { "cache-control": "no-store" });
+        if (!isMunicipalWalkMapAdminRole(session)) return json({ ok: false, error: "forbidden" }, 403, { "cache-control": "no-store" });
+        const targetRecordId = decodeURIComponent(adminAiNoteRefreshMatch[1]!);
+        const obsRow = await env.OBS_DB.prepare(
+          "SELECT owner_user_id FROM observations WHERE observation_id = ? LIMIT 1",
+        ).bind(targetRecordId).first<{ owner_user_id: string }>();
+        if (!obsRow) return json({ ok: false, error: "record_not_found" }, 404, { "cache-control": "no-store" });
+        const result = await refreshRecordAiNote(env, targetRecordId, obsRow.owner_user_id);
+        return json({ recordId: targetRecordId, ...result }, result.ok ? 200 : 500, { "cache-control": "no-store" });
       }
 
       if (request.method === "POST" && url.pathname === "/api/v1/zukan-top/publish") {
@@ -26713,6 +26734,9 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         media,
         aiCandidateInsights: detail.aiCandidateInsights,
         aiPersonPrimaryNames: detail.aiPersonPrimaryNames,
+        aiCandidateLabel: detail.aiCandidateLabel,
+        aiCandidateRank: detail.aiCandidateRank,
+        aiGenericCandidateOnly: detail.aiGenericCandidateOnly,
         mediaDedup: detail.mediaDedup,
         environment: detail.environmentRecord,
         nocosilUsageHtml,
@@ -26742,7 +26766,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         customTitle,
         signboardTitle,
         aiNextPhoto: detail.nextPhoto,
-        aiNote: recordLang === "ja" ? await loadRecordAiNoteForPage(env, detail.visitId, observationFirst.detail.owner, ctx) : [],
+        aiNote: recordLang === "ja" ? await loadRecordAiNoteForPage(env, detail.visitId, observationFirst.detail.owner, ctx, observationFirst.ownerUserId) : [],
         notice: url.searchParams.get("action") === "updated" ? copy.updatedNotice : null,
         viewerAuthenticated: Boolean(session && !session.banned),
         savedControlHtml: savedContinuity.controlHtml,
@@ -26782,33 +26806,97 @@ function recordCountBandDeps(env: Env): BandDeps {
   };
 }
 
-async function refreshRecordAiNote(env: Env, recordId: string, ownerUserId: string): Promise<void> {
-  const apiKey = env.GEMINI_API_KEY;
-  if (!apiKey) return;
-  const gate = await publicSafetyGateForObservation(recordId, env);
-  await generateAndStoreAiNote({
-    db: env.OBS_DB,
+async function recordAiNoteFailure(
+  env: Env,
+  recordId: string,
+  reason: string,
+  detail: Record<string, unknown> = {},
+): Promise<void> {
+  const payload = {
+    message: "record_ai_note_failed",
     recordId,
-    ownerUserId,
-    model: GEMINI_SUMMARY_MODEL,
-    protectedRecord: gate.blocked,
-    counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
-    generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
-  });
+    reason,
+    ...detail,
+  };
+  console.error(JSON.stringify(payload));
+  try {
+    await env.OBS_DB.prepare(
+      `INSERT INTO outbox (outbox_id, topic, target_id, payload_json, dispatch_state, attempts, last_error)
+       VALUES (?, 'record_ai_note.failed', ?, ?, 'failed', 1, ?)`,
+    ).bind(
+      `outbox_ainote_err_${crypto.randomUUID()}`,
+      recordId,
+      JSON.stringify(payload),
+      `${reason}${typeof detail.error === "string" && detail.error ? `: ${detail.error}` : ""}`.slice(0, 500),
+    ).run();
+  } catch (outboxError) {
+    console.error(JSON.stringify({
+      message: "record_ai_note_failure_outbox_write_failed",
+      recordId,
+      reason,
+      error: outboxError instanceof Error ? outboxError.message : String(outboxError),
+    }));
+  }
 }
 
-async function loadRecordAiNoteForPage(env: Env, recordId: string, isOwner: boolean, ctx?: ExecutionContext) {
+async function refreshRecordAiNote(
+  env: Env,
+  recordId: string,
+  ownerUserId: string,
+): Promise<{ ok: boolean; called: boolean; stored: number[]; droppedCount: number; skipped?: string; error?: string }> {
+  const apiKey = env.GEMINI_API_KEY;
+  if (!apiKey) return { ok: true, called: false, stored: [], droppedCount: 0, skipped: "missing_api_key" };
+  try {
+    const gate = await publicSafetyGateForObservation(recordId, env);
+    const result = await generateAndStoreAiNote({
+      db: env.OBS_DB,
+      recordId,
+      ownerUserId,
+      model: GEMINI_SUMMARY_MODEL,
+      protectedRecord: gate.blocked,
+      counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
+      generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
+    });
+    if (result.called && result.stored.length === 0) {
+      await recordAiNoteFailure(env, recordId, "all_slots_rejected", {
+        dropped: result.dropped.map((entry) => ({ slot: entry.slot, failures: entry.failures })),
+      });
+    }
+    return {
+      ok: true,
+      called: result.called,
+      stored: result.stored,
+      droppedCount: result.dropped.length,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordAiNoteFailure(env, recordId, "generation_error", { error: message });
+    return { ok: false, called: true, stored: [], droppedCount: 0, error: message };
+  }
+}
+
+async function loadRecordAiNoteForPage(env: Env, recordId: string, isOwner: boolean, ctx?: ExecutionContext, ownerUserId?: string | null) {
   try {
     const result = await loadVisibleAiNote(env.OBS_DB, recordId, {
       isOwner,
+      ownerUserId,
       protectedRecord: async () => (await publicSafetyGateForObservation(recordId, env)).blocked,
       counts: () => readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
     });
     if (result.claimedStale.length > 0 && result.ownerUserId) {
-      ctx?.waitUntil(refreshRecordAiNote(env, recordId, result.ownerUserId).catch(() => undefined));
+      ctx?.waitUntil(
+        refreshRecordAiNote(env, recordId, result.ownerUserId).catch((error) =>
+          recordAiNoteFailure(env, recordId, "waituntil_refresh_error", { error: error instanceof Error ? error.message : String(error) }),
+        ),
+      );
     }
     return result.slots;
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({
+      message: "record_ai_note_load_failed",
+      recordId,
+      error: error instanceof Error ? error.message : String(error),
+    }));
     return [];
   }
 }
@@ -26922,7 +27010,7 @@ async function loadObservationFirstRecordDetail(recordId: string, viewerUserId: 
       })
     : null;
   return detail
-    ? { state: "ready" as const, detail, publicationReturn }
+    ? { state: "ready" as const, detail, publicationReturn, ownerUserId: container.owner_user_id }
     : { state: "forbidden" as const, detail: null };
 }
 
@@ -27393,6 +27481,7 @@ async function buildObservationDetail(rawId: string, env: Env, ownerUserId: stri
     aiPersonPrimaryNames,
     aiCandidateLabel,
     aiCandidateRank,
+    aiGenericCandidateOnly: publicObservationAiGenericCandidateOnly(row.ai_source_payload_json),
     aiCandidateInsights: publicObservationAiCandidateInsights(row.ai_source_payload_json),
     ...publicObservationAiFeedback(row.ai_source_payload_json),
     aiAssessmentStatus: row.ai_assessment_status,
@@ -33127,7 +33216,7 @@ async function finalizeGeminiObservationReassessment(
   }
   await env.OBS_DB.batch(statements);
   if (observationDualWriteEnabled(env) && !["person", "document", "object", "food"].includes(merged.recordClass)) {
-    await refreshRecordAiNote(env, observationId, prepared.record.owner_user_id).catch(() => undefined);
+    await refreshRecordAiNote(env, observationId, prepared.record.owner_user_id);
   }
 }
 
@@ -36447,9 +36536,16 @@ function renderPublicObservationDetailHtml(
   const observedLabel = polish?.observedLabel ?? formatPublicObservationDate(detail.observedAt);
   const placeLabel = polish?.placeLabel ?? detail.publicLocation.label;
   const hasAiCandidate = detail.isAwaitingId && Boolean(detail.aiCandidateLabel);
-  const stateLabel = hasAiCandidate
-    ? "AI候補 / 人の確認待ち"
-    : (polish?.stateLabel ?? (detail.isAwaitingId ? "名前待ち" : "名前あり"));
+  const isCoarseAi = hasAiCandidate && isCoarseAiClassification({
+    rank: detail.aiCandidateRank,
+    genericCandidateOnly: detail.aiGenericCandidateOnly,
+    label: detail.aiCandidateLabel,
+  });
+  const stateLabel = isCoarseAi
+    ? `AIの見立て：${detail.aiCandidateLabel}（ここまで）`
+    : hasAiCandidate
+      ? "AI候補 / 人の確認待ち"
+      : (polish?.stateLabel ?? (detail.isAwaitingId ? "名前待ち" : "名前あり"));
   const relatedForDisplay = typeof polish?.relatedLimit === "number" ? related.slice(0, polish.relatedLimit) : related;
   const relatedCards = polish?.relatedCards ?? (relatedForDisplay.length > 0
     ? relatedForDisplay.map((item) => `<a class="obs-nearby-card" href="/observations/${encodeURIComponent(item.visitId)}">
@@ -36485,9 +36581,11 @@ function renderPublicObservationDetailHtml(
         <h2>同定</h2>
         <p>${escapeHtml(detail.isAwaitingId ? "この記録は名前の確認待ちです。" : `${displayName} として表示しています。`)}</p>
       </section>`;
-  const aiCandidateDisclosure = hasAiCandidate
-    ? `<section class="obs-ai-candidate-disclosure"><span>AI候補</span><strong>${escapeHtml(detail.aiCandidateLabel)}</strong><p>写真から自動で作った候補です。確定名ではなく、人の確認で更新できます。</p></section>`
-    : "";
+  const aiCandidateDisclosure = isCoarseAi
+    ? `<section class="obs-ai-candidate-disclosure"><span>AIの見立て</span><strong>AIの見立て：${escapeHtml(detail.aiCandidateLabel)}（ここまで）</strong><p>${escapeHtml(decisivePhotoGuidanceForCoarseLabel(detail.aiCandidateLabel ?? "", detail.nextPhoto))}</p></section>`
+    : hasAiCandidate
+      ? `<section class="obs-ai-candidate-disclosure"><span>AI候補</span><strong>${escapeHtml(detail.aiCandidateLabel)}</strong><p>写真から自動で作った候補です。確定名ではなく、人の確認で更新できます。</p></section>`
+      : "";
   const qualityBlock = polish?.qualityBlock ?? `<section class="obs-local-quality-card">
         <h2>${isPrivateRecord ? "保存データ" : "公開データ"}</h2>
         <p>${isPrivateRecord ? "写真、ぼかした場所、日時を本人ページに表示します。精密座標と元画像URLは表示しません。" : "公開写真、ぼかした場所、日時だけを使います。投稿者ID、精密座標、元画像URLは表示しません。"}</p>

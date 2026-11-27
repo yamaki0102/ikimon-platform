@@ -2,7 +2,11 @@ import { recordsDiscoveryDetailHref, recordsDiscoveryListHref, type RecordsDisco
 import { renderObservationOwnerDeletePanel, renderObservationOwnerDeleteScript } from "../../src/ui/observationOwnerDelete";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import type { ObservationFirstCard, ObservationFirstRecordDetail } from "./cloudflareObservationReadModel";
-import { isPublicObservationAiSubjectEligible } from "./publicObservationAiPresentation";
+import {
+  decisivePhotoGuidanceForCoarseLabel,
+  isCoarseAiClassification,
+  isPublicObservationAiSubjectEligible,
+} from "./publicObservationAiPresentation";
 import { finalizeVisibleAiNoteSlots } from "./recordAiNote";
 import { compatibleEnvironmentRecordRawValues, isCompatibleEnvironmentRecordMultiField } from "./environmentRecordMulti";
 import { buildRecordPageSections, type RecordPageFoundItem, type RecordPageMediaSection, type RecordPagePlaceField } from "./recordPageSections";
@@ -94,6 +98,9 @@ export type ObservationFirstRecordPresentation = {
   aiCandidateInsights?: ObservationFirstAiCandidateInsight[];
   /** Server-only primary identity mapping, never serialized into this page. */
   aiPersonPrimaryNames?: readonly string[];
+  aiCandidateLabel?: string | null;
+  aiCandidateRank?: string | null;
+  aiGenericCandidateOnly?: boolean;
   aiFeedback?: string | null;
   customTitle?: string | null;
   signboardTitle?: string | null;
@@ -139,7 +146,7 @@ const forbiddenEmptyCopy = /対象はまだ分けられていません|人から
 const template = (value: string, name: string): string => value.replace("{name}", name);
 const mediaLabel = (kind: ObservationFirstMediaPresentation["mediaKind"], copy: ObservationFirstRecordDetailCopy): string => kind === "photo" ? copy.photo : kind === "video" ? copy.video : copy.audio;
 const langPrefix = (lang: ObservationRecordLang): string => `/${lang}`;
-const internalSubjectPlaceholder = /^(?:unidentified|unknown(?:[_ -]subject)?|unclassified|unspecified)$/iu;
+const internalSubjectPlaceholder = /^(?:unidentified|unknown(?:[_ -]subject)?|unclassified|unspecified|未同定|同定待ち|名前待ち|不明)$/iu;
 
 const publicSubjectName = (value: string | null | undefined): string | null => {
   const normalized = value?.trim();
@@ -431,6 +438,47 @@ function nonBiotaKindLabel(recordClass: string | null | undefined, lang: Observa
     default:
       return null;
   }
+}
+
+function resolveCoarseAiAssessment(
+  detail: ObservationFirstRecordDetail,
+  presentation: ObservationFirstRecordPresentation,
+  confirmedSummaryName: string | null,
+  signboard: boolean,
+): { label: string; guidance: string } | null {
+  if (signboard || confirmedSummaryName || presentation.titleStatus === "proposed") return null;
+  if (presentation.recordClass && NON_BIOTA_RECORD_CLASSES.has(presentation.recordClass)) return null;
+  const activeCards = detail.observations.filter((card) => card.state === "active");
+  if (activeCards.some((card) => card.acceptedIdentification || card.communityIdentifications.some((claim) => !claim.accepted && publicSubjectName(claim.proposedName)))) {
+    return null;
+  }
+  const primaryNames = presentation.aiPersonPrimaryNames;
+  const cardCandidate = activeCards
+    .flatMap((card) => displayAiSuggestions(card, primaryNames))
+    .map((suggestion) => ({
+      name: publicSubjectName(suggestion.proposedName) ?? publicSubjectName(suggestion.proposedScientificName),
+      rank: suggestion.proposedRank ?? null,
+      advice: suggestion.shootingAdvice.find((text) => Boolean(aiProseForLang(text, presentation.lang ?? "ja"))) ?? null,
+    }))
+    .find((entry) => entry.name !== null);
+  const label = publicSubjectName(presentation.aiCandidateLabel) ?? cardCandidate?.name ?? null;
+  if (!label || !isPublicObservationAiSubjectEligible(label, primaryNames)) return null;
+  const rank = presentation.aiCandidateRank ?? cardCandidate?.rank ?? null;
+  if (!isCoarseAiClassification({ rank, genericCandidateOnly: Boolean(presentation.aiGenericCandidateOnly), label })) {
+    return null;
+  }
+  return {
+    label,
+    guidance: decisivePhotoGuidanceForCoarseLabel(label, presentation.aiNextPhoto ?? cardCandidate?.advice ?? null),
+  };
+}
+
+function renderAiCoarseAssessment(
+  coarse: { label: string; guidance: string } | null,
+  lang: ObservationRecordLang,
+): string {
+  if (!coarse || lang !== "ja") return "";
+  return `<section class="of-note of-ai-coarse" data-ai-coarse-assessment aria-label="AIの見立て"><p class="of-ai-coarse-head"><strong>AIの見立て：${escapeHtml(coarse.label)}（ここまで）</strong></p><p class="of-ai-coarse-advice">${escapeHtml(coarse.guidance)}</p></section>`;
 }
 
 function renderAiFeedback(
@@ -1375,6 +1423,8 @@ export function renderObservationFirstRecordDetailHtml(
     : null;
   const readerModesEnabled = Boolean(presentation.recordReaderModes && lang === "ja" && !signboard);
   const confirmedSummaryName = summary.rows.find((row) => row.tone === "confirmed")?.name ?? (presentation.titleStatus !== "proposed" ? identifiedName : null);
+  const coarseAiAssessment = resolveCoarseAiAssessment(detail, presentation, confirmedSummaryName, signboard);
+  const aiCoarseBlock = renderAiCoarseAssessment(coarseAiAssessment, lang);
   const readerModesGroup = resolveRecordReaderGroup({ taxonName: confirmedSummaryName });
   const readerModesHtml = renderRecordReaderModesHtml({
     enabled: readerModesEnabled,
@@ -1453,5 +1503,5 @@ export function renderObservationFirstRecordDetailHtml(
   .of-media-slide a{cursor:zoom-in}.of-lightbox[hidden]{display:none}.of-lightbox{position:fixed;inset:0;z-index:120;background:rgba(8,12,20,.94);overflow:auto;padding:72px 16px 56px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.of-lightbox-inner{min-height:100%;width:100%;display:flex;align-items:center;justify-content:center}.of-lightbox-img{display:block;border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,.6);user-select:none;cursor:zoom-in}.of-lightbox-img.is-fit{max-width:calc(100vw - 32px);max-height:calc(100vh - 140px);width:auto;height:auto}.of-lightbox-img.is-actual{max-width:none;max-height:none;cursor:zoom-out}.of-lightbox-img.is-dragging{cursor:grabbing}.of-lightbox-toggle,.of-lightbox-close{position:fixed;top:16px;z-index:130;display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:999px;border:0;font-weight:800;font-size:14px;cursor:pointer}.of-lightbox-toggle{left:16px;background:rgba(15,23,42,.82);color:#fff;border:1px solid rgba(255,255,255,.22)}.of-lightbox-close{right:16px;background:#fff;color:#0f172a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
   .of-ai-note{margin:8px 0 0;font-size:13px;line-height:1.45;color:#55635b;text-align:left}.of-title-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px}.of-title-edit{display:inline-block}.of-title-edit summary{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:750;color:var(--green);cursor:pointer;list-style:none}.of-title-edit summary::-webkit-details-marker{display:none}.of-title-edit form{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.of-title-edit input{flex:1 1 220px;min-height:44px;padding:8px 12px;border:1px solid #aebfb5;border-radius:10px;background:#fff}.of-title-edit button{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:800;cursor:pointer}
   ${RECORD_PAGE_STYLES}${recordPageSections ? PER_MEDIA_STYLES : ""}${ie ? INLINE_EDIT_STYLES : ""}${(readerModesEnabled || speciesLayerActive) ? RECORD_READER_MODES_STYLES : ""}
-  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta">${observedBlock}${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${visibilityEdit}${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${readerModesHtml}${speciesReaderLayerHtml}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript(Boolean(recordPageSections), ie !== null)}${readerModesScript}</body></html>`;
+  </style></head><body data-zukan-app-experience="v1" data-record-owner="${detail.owner ? "1" : "0"}"${mediaStage ? ' class="of-has-hero"' : ""}>${renderAppExperienceHeader(lang, 1, Boolean(presentation.viewerAuthenticated), "record-detail")}<header class="of-header"><a class="of-back" href="${escapeHtml(recordsDiscoveryListHref(lang, presentation.recordsDiscoveryContext ?? null))}" aria-label="${escapeHtml(copy.back)}">← <span>${escapeHtml(copy.back)}</span></a>${menu}</header><main id="record-detail" tabindex="-1" class="of-page" data-observation-first-record-detail="1"><div class="of-layout${mediaStage ? "" : " has-no-media"}"><div class="of-media-column">${mediaStage}</div><aside class="of-panel"><section class="of-record-info">${presentation.notice ? `<p class="of-status" role="status">${escapeHtml(presentation.notice)}</p>` : ""}${titleBlock}<div class="of-meta">${observedBlock}${placeIsBlurNotice ? "" : `<p class="of-meta-place">${escapeHtml(publicLocation)}</p>`}${mediaStage ? "" : `<p class="of-location-protection">${escapeHtml(locationProtection)}</p>`}</div>${visibilityEdit}${mediaSwitcher}${savedBlock}${cleanStatus ? `<p class="of-status" role="status" aria-live="polite">${escapeHtml(cleanStatus)}</p>` : ""}${processingStatusPanel}${duplicateNotice ? `<p class="of-status" data-media-dedup-notice>${escapeHtml(duplicateNotice)}</p>` : ""}</section>${note}${found}${readerModesHtml}${speciesReaderLayerHtml}${aiCoarseBlock}${aiFeedback}${presentation.humanExpertCommentsHtml ?? ""}${renderCountBand(presentation.countBand)}${environment}${related}${actionsBlock}${reading}${management}<p class="of-ai-footer-note">${escapeHtml(copy.aiPageFooterNote)}</p>${languageFooter}</aside></div></main>${photoLightbox}${renderAppExperienceNavigation(lang, 1, "bottom", Boolean(presentation.viewerAuthenticated))}${renderAppExperienceQuickCamera(lang)}${detail.owner ? "" : presentation.savedScriptHtml ?? ""}${renderObservationOwnerDeleteScript(detail.owner, lang === "pt-br" ? "pt-BR" : lang)}${photoLightboxScript}${renderRecordPageScript(Boolean(recordPageSections), ie !== null)}${readerModesScript}</body></html>`;
 }

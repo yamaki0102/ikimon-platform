@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import worker from "./index.js";
+import type { Env } from "./core/env.js";
+import { SESSION_COOKIE_NAME } from "./core/shared.js";
 import type { ObservationAiCandidate, ObservationAiSubjectCandidate } from "./cloudflareObservationAi.js";
 import { buildObservationAiDualWritePlan, guardObservationAiMutation } from "./cloudflareObservationAiDualWrite.js";
 import { generateAndStoreAiNote, loadVisibleAiNote, loadStoredAiNote } from "./recordAiNoteService.js";
@@ -222,4 +226,89 @@ test("the table rejects an invitation without a kind and a kind on a non-invitat
   insert(3, "sound");
   insert(1, null);
   db.close();
+});
+
+test("when record_ai_notes has 0 rows for an analyzed record, loadVisibleAiNote claims regeneration once and debounces within retry window", async () => {
+  const db = openDb();
+  await seed(db);
+  const first = await loadVisibleAiNote(d1(db), RECORD, {
+    isOwner: true,
+    protectedRecord: false,
+    ownerUserId: "owner-1",
+  });
+  assert.deepEqual(first.slots, []);
+  assert.ok(first.claimedStale.includes(1), `expected claimedStale to include 1, got ${JSON.stringify(first.claimedStale)}`);
+  assert.equal(first.ownerUserId, "owner-1");
+
+  const second = await loadVisibleAiNote(d1(db), RECORD, {
+    isOwner: true,
+    protectedRecord: false,
+    ownerUserId: "owner-1",
+  });
+  assert.deepEqual(second.slots, []);
+  assert.deepEqual(second.claimedStale, []);
+  db.close();
+});
+
+test("admin ai-note refresh endpoint enforces 401/403 and records all-slot rejection failure to console.error and outbox", async () => {
+  const db = openDb();
+  db.exec(migration("0001_observation_write_contract.sql"));
+  await seed(db);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS auth_sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, display_name TEXT NOT NULL, role_name TEXT NOT NULL, rank_label TEXT, banned INTEGER NOT NULL DEFAULT 0, expires_at TEXT NOT NULL, last_used_at TEXT);
+    CREATE TABLE IF NOT EXISTS observation_data_rights (visit_id TEXT PRIMARY KEY, withdrawal_status TEXT);
+  `);
+  db.prepare("INSERT INTO observations (observation_id, draft_id, owner_user_id, observed_at, public_cell, taxon_label, visibility) VALUES (?,?,?,?,?,?,?)").run(
+    RECORD, "draft-1", "owner-1", "2026-11-25T10:00:00+09:00", "34.7,137.7", "未同定", "private"
+  );
+  const addSession = (token: string, userId: string, roleName: string) => {
+    const sha = createHash("sha256").update(token).digest("hex");
+    db.prepare("INSERT INTO auth_sessions VALUES (?,?,?,?,?,?,?,?)").run(sha, userId, userId, roleName, null, 0, new Date(Date.now() + 86_400_000).toISOString(), null);
+  };
+  addSession("tok-member", "member-1", "member");
+  addSession("tok-admin", "admin-1", "admin");
+
+  const origFetch = globalThis.fetch;
+  const origConsoleError = console.error;
+  const loggedErrors: string[] = [];
+  console.error = (...args: unknown[]) => { loggedErrors.push(args.map((a) => String(a)).join(" ")); };
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({ slots: [{ slot: 1, text: "素敵に写っています。", evidence: [], invite_kind: "none" }] }) }] } }],
+  }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+
+  try {
+    const wrappedDb = d1(db);
+    const env = { ENVIRONMENT: "staging", GEMINI_API_KEY: "test-key", CORE_DB: wrappedDb, OBS_DB: wrappedDb } as unknown as Env;
+    const url = `https://zukan.earth/api/v1/admin/records/${RECORD}/ai-note/refresh`;
+
+    const unauth = await worker.fetch(new Request(url, { method: "POST", headers: { origin: "https://zukan.earth" } }), env);
+    assert.equal(unauth.status, 401);
+
+    const nonAdmin = await worker.fetch(new Request(url, {
+      method: "POST",
+      headers: { origin: "https://zukan.earth", cookie: `${SESSION_COOKIE_NAME}=tok-member` },
+    }), env);
+    assert.equal(nonAdmin.status, 403);
+
+    const adminRes = await worker.fetch(new Request(url, {
+      method: "POST",
+      headers: { origin: "https://zukan.earth", cookie: `${SESSION_COOKIE_NAME}=tok-admin` },
+    }), env);
+    assert.equal(adminRes.status, 200);
+    const body = await adminRes.json() as { ok: boolean; called: boolean; stored: number[] };
+    assert.equal(body.ok, true);
+    assert.equal(body.called, true);
+    assert.deepEqual(body.stored, []);
+
+    const outboxRow = db.prepare("SELECT topic, target_id, dispatch_state, last_error FROM outbox WHERE target_id = ?").get(RECORD) as { topic: string; target_id: string; dispatch_state: string; last_error: string } | undefined;
+    assert.ok(outboxRow, "expected failure outbox record when all AI note slots were rejected");
+    assert.equal(outboxRow.topic, "record_ai_note.failed");
+    assert.equal(outboxRow.dispatch_state, "failed");
+    assert.match(outboxRow.last_error, /all_slots_rejected/);
+    assert.ok(loggedErrors.some((line) => line.includes("record_ai_note_failed") && line.includes(RECORD)));
+  } finally {
+    globalThis.fetch = origFetch;
+    console.error = origConsoleError;
+    db.close();
+  }
 });

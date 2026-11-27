@@ -146,6 +146,50 @@ export function publicObservationAiRecordClass(sourcePayloadJson: string | null 
   return typeof payload?.recordClass === "string" && payload.recordClass.trim() ? payload.recordClass.trim() : null;
 }
 
+const COARSE_AI_RANKS = new Set(["kingdom", "phylum", "division", "class", "order", "family", "lifeform"]);
+
+export function publicObservationAiGenericCandidateOnly(sourcePayloadJson: string | null | undefined): boolean {
+  const payload = parseAiPayload(sourcePayloadJson);
+  return payload?.genericCandidateOnly === true;
+}
+
+export function isCoarseAiClassification(input: {
+  rank?: string | null;
+  genericCandidateOnly?: boolean | null;
+  label?: string | null;
+}): boolean {
+  const normalizedRank = typeof input.rank === "string" ? input.rank.trim().toLowerCase() : "";
+  if (input.genericCandidateOnly === true) return true;
+  if (normalizedRank && COARSE_AI_RANKS.has(normalizedRank)) return true;
+  const label = typeof input.label === "string" ? input.label.trim() : "";
+  return Boolean(label) && genericCandidate.test(label);
+}
+
+export function decisivePhotoGuidanceForCoarseLabel(label: string, nextPhoto?: string | null): string {
+  const existing = safeText(nextPhoto);
+  if (existing) return existing;
+  const normalized = label.normalize("NFKC");
+  if (/樹|木|広葉|針葉|常緑|落葉/u.test(normalized)) {
+    return "種まで見分けるには、葉の表裏・枝・花や実などの決め手になる部分の写真があると比べやすくなります。";
+  }
+  if (/草|植物|花|シダ|コケ/u.test(normalized)) {
+    return "種まで見分けるには、葉の表裏・茎のつき方・花や実などの決め手になる部分の写真があると比べやすくなります。";
+  }
+  if (/虫|昆虫|チョウ|ガ|甲虫|トンボ|ハチ|クモ/u.test(normalized)) {
+    return "種まで見分けるには、翅や背中の模様・触角・横からの全身などの決め手になる部分の写真があると比べやすくなります。";
+  }
+  if (/鳥|野鳥/u.test(normalized)) {
+    return "種まで見分けるには、くちばし・翼や尾の模様・全身がわかる写真があると比べやすくなります。";
+  }
+  if (/菌|キノコ/u.test(normalized)) {
+    return "種まで見分けるには、傘の表裏（ひだ）・柄の根元・生えている場所の写真があると比べやすくなります。";
+  }
+  if (/魚|両生|爬虫|カエル|カメ|貝|エビ|カニ/u.test(normalized)) {
+    return "種まで見分けるには、ヒレや体の模様・側面からの全身など決め手になる部分の写真があると比べやすくなります。";
+  }
+  return "種まで見分けるには、模様・葉や花・体のつくりなど特徴のわかる部分のアップと全体の写真があると比べやすくなります。";
+}
+
 export function publicObservationAiFeedback(
   sourcePayloadJson: string | null | undefined,
 ): PublicObservationAiFeedback {
