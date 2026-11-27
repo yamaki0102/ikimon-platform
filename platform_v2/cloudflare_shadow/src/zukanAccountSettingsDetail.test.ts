@@ -94,6 +94,14 @@ test("I8-I9-I11 settings pages render edit, notifications, and account views in 
   }
 });
 
+test("edit settings page shows avatar upload hint in ja and en", async (t) => {
+  const db = setupDb(t);
+  const ja = await (await handleAccountSettingsDetailRoute("edit", "ja", { userId: "user-1", displayName: "ユイ" }, db)).text();
+  assert.ok(ja.includes("PNG・JPEG、5MBまで。正方形に切り抜かれます。"));
+  const en = await (await handleAccountSettingsDetailRoute("edit", "en", { userId: "user-1", displayName: "Yui" }, db)).text();
+  assert.ok(en.includes("PNG or JPEG, up to 5 MB. Cropped to a square."));
+});
+
 test("I11 account section shows masked email and login methods read-only", async (t) => {
   const db = setupDb(t);
   const core = {
