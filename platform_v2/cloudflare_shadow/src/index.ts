@@ -2543,7 +2543,7 @@ async function loadPublicPlaceProfile(env: Env, canonicalPlaceId: string): Promi
       "retry-after": "60",
     });
   }
-  const registeredCircle = Boolean(result && !result.osmSourceId && result.source?.sourceType === "owner_registered");
+  const registeredCircle = Boolean(result && !result.osmSourceId && (result.source?.sourceType === "owner_registered" || result.source?.sourceType === "osm_node"));
   if (!result || (!result.osmSourceId && !registeredCircle)) {
     return html("<!doctype html><html><body><main><h1>Place not found</h1></main></body></html>", 404, { "cache-control": "no-store" });
   }
