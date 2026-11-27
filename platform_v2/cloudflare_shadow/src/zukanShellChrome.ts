@@ -113,7 +113,7 @@ export function renderZukanChrome(options: ZukanChromeOptions): {
   bottomNavHtml: string;
   feedbackFootHtml: string;
 } {
-  const isEn = options.lang === "en";
+  const isEn = options.lang !== "ja";
   const prefix = zukanChromePrefix(options.lang);
   const homeHref = options.homeHref ?? `${prefix}/library`;
   const homeLabel = options.authenticated ? (isEn ? "Library" : "ライブラリ") : (isEn ? "Home" : "ホーム");

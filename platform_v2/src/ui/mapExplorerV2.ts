@@ -27,6 +27,15 @@ export const MAP_V2_CHIP_ITEMS: readonly MapV2TaxonChip[] = [
   { value: "invasive", label: "外来種" },
 ] as const;
 
+export const MAP_V2_CHIP_LABELS_EN: Record<MapV2TaxonChip["value"], string> = {
+  "": "All",
+  plant: "Plants",
+  bird: "Birds",
+  insect: "Insects",
+  water: "Aquatic life",
+  invasive: "Invasive species",
+};
+
 export type MapV2SummaryCopyInput = {
   recordedCount: number;
   zeroCount: number;
@@ -35,7 +44,7 @@ export type MapV2SummaryCopyInput = {
 };
 
 export function buildMapV2PlaceSummaryCopy(input: MapV2SummaryCopyInput): string {
-  const isEn = input.lang === "en";
+  const isEn = Boolean(input.lang) && input.lang !== "ja";
   if (input.taxonGroup) {
     return isEn ? `${input.recordedCount} matches` : `該当 ${input.recordedCount}件`;
   }
@@ -267,10 +276,10 @@ a.zv2-prow{text-decoration:none;color:inherit}
 
 export function renderMapExplorerV2Document(options: MapExplorerV2Options): string {
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
-  const isEn = options.lang === "en";
+  const isEn = options.lang !== "ja";
   const nonceAttr = options.cspNonce ? ` nonce="${escapeHtml(options.cspNonce)}"` : "";
   const homeHref = options.authenticated ? `${prefix}/library` : `${prefix}/`;
-  const homeLabel = options.authenticated ? (isEn ? "Library" : "ライブラリ") : (isEn ? "ホーム" : "ホーム");
+  const homeLabel = options.authenticated ? (isEn ? "Library" : "ライブラリ") : (isEn ? "Home" : "ホーム");
   const meHref = `${prefix}/profile`;
   const meLabel = isEn ? "Me" : "自分";
   const eventsHref = `${prefix}/community/events`;
@@ -282,7 +291,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   const chipsHtml = MAP_V2_CHIP_ITEMS.map(
     (c, idx) =>
-      `<button type="button" class="zv2-fchip${idx === 0 ? " on" : ""}" data-taxon="${escapeHtml(c.value)}" aria-pressed="${idx === 0 ? "true" : "false"}">${escapeHtml(c.label)}</button>`,
+      `<button type="button" class="zv2-fchip${idx === 0 ? " on" : ""}" data-taxon="${escapeHtml(c.value)}" aria-pressed="${idx === 0 ? "true" : "false"}">${escapeHtml(isEn ? MAP_V2_CHIP_LABELS_EN[c.value] : c.label)}</button>`,
   ).join("");
 
   const authControl = options.authenticated
@@ -334,37 +343,37 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     <div class="zv2-pc-search">
       <label class="zv2-sfield">
         ${ICON_SEARCH}
-        <input id="zv2-search-pc" class="zv2-sinput" type="search" placeholder="場所や記録を探す" aria-label="場所や記録を探す" />
+        <input id="zv2-search-pc" class="zv2-sinput" type="search" placeholder="${isEn ? "Search places or records" : "場所や記録を探す"}" aria-label="${isEn ? "Search places or records" : "場所や記録を探す"}" />
       </label>
     </div>
-    <div class="zv2-pc-chips" role="group" aria-label="分類で絞る">${chipsHtml}</div>
+    <div class="zv2-pc-chips" role="group" aria-label="${isEn ? "Filter by type" : "分類で絞る"}">${chipsHtml}</div>
     <div id="zv2-panel-content"></div>
   </aside>
 
   <div class="zv2-stage">
   <div class="zv2-mapwrap" id="zv2-mapwrap">
-    <div id="zv2-map-canvas" aria-label="生きものマップ"></div>
-    <div class="zv2-locating" id="zv2-locating" hidden>現在地を確認中…</div>
+    <div id="zv2-map-canvas" aria-label="${isEn ? "Wildlife map" : "生きものマップ"}"></div>
+    <div class="zv2-locating" id="zv2-locating" hidden>${isEn ? "Finding your location…" : "現在地を確認中…"}</div>
     <div class="zv2-inv-legend" id="zv2-inv-legend" hidden>
-      <div>特定外来生物を含む記録（持ち帰らない・動かさない）</div>
-      <a href="/ja/learn/invasive-species">外来種の見分け方と注意点</a>
+      <div>${isEn ? "Records that include designated invasive species (do not take them home or move them)" : "特定外来生物を含む記録（持ち帰らない・動かさない）"}</div>
+      <a href="${options.lang === "en" ? "/en" : "/ja"}/learn/invasive-species">${isEn ? "How to identify invasive species and what to watch for" : "外来種の見分け方と注意点"}</a>
     </div>
   </div>
 
   <div class="zv2-topbar" id="zv2-topbar">
     <label class="zv2-sfield">
       ${ICON_SEARCH}
-      <input id="zv2-search-m" class="zv2-sinput" type="search" placeholder="場所や記録を探す" aria-label="場所や記録を探す" />
+      <input id="zv2-search-m" class="zv2-sinput" type="search" placeholder="${isEn ? "Search places or records" : "場所や記録を探す"}" aria-label="${isEn ? "Search places or records" : "場所や記録を探す"}" />
     </label>
-    <div class="zv2-chips" role="group" aria-label="分類で絞る">${chipsHtml}</div>
+    <div class="zv2-chips" role="group" aria-label="${isEn ? "Filter by type" : "分類で絞る"}">${chipsHtml}</div>
   </div>
 
   <div class="zv2-mapbtns" id="zv2-mapbtns">
     <div class="zv2-zoombox">
-      <button type="button" class="zv2-zb" id="zv2-zoom-in" aria-label="拡大">＋</button>
-      <button type="button" class="zv2-zb" id="zv2-zoom-out" aria-label="縮小">−</button>
+      <button type="button" class="zv2-zb" id="zv2-zoom-in" aria-label="${isEn ? "Zoom in" : "拡大"}">＋</button>
+      <button type="button" class="zv2-zb" id="zv2-zoom-out" aria-label="${isEn ? "Zoom out" : "縮小"}">−</button>
     </div>
-    <button type="button" class="zv2-mbtn" id="zv2-geoloc-btn" aria-label="現在地へ移動">${ICON_LOCATE}</button>
+    <button type="button" class="zv2-mbtn" id="zv2-geoloc-btn" aria-label="${isEn ? "Go to my location" : "現在地へ移動"}">${ICON_LOCATE}</button>
   </div>
 
   <div class="zv2-attrib">OpenFreeMap © OpenStreetMap contributors</div>
@@ -372,18 +381,18 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
 
   <section class="zv2-plist" id="zv2-plist" aria-label="${isEn ? "Nearby places" : "近くの場所"}"></section>
 
-  <section class="zv2-sheet" id="zv2-sheet" data-sheet-state="collapsed" aria-label="近くの場所">
+  <section class="zv2-sheet" id="zv2-sheet" data-sheet-state="collapsed" aria-label="${isEn ? "Nearby places" : "近くの場所"}">
     <button type="button" class="zv2-sheet-head" id="zv2-sheet-head" aria-expanded="false">
       <span class="zv2-grab" aria-hidden="true"></span>
       <span class="zv2-peek">
-        <span class="zv2-peek-ttl" id="zv2-peek-ttl">近くの場所</span>
-        <span class="zv2-peek-sub" id="zv2-peek-sub">読み込み中…</span>
+        <span class="zv2-peek-ttl" id="zv2-peek-ttl">${isEn ? "Nearby places" : "近くの場所"}</span>
+        <span class="zv2-peek-sub" id="zv2-peek-sub">${isEn ? "Loading…" : "読み込み中…"}</span>
       </span>
     </button>
     <div class="zv2-sheet-body" id="zv2-sheet-body"></div>
   </section>
 
-  <nav class="zv2-tabbar" aria-label="メニュー">
+  <nav class="zv2-tabbar" aria-label="${isEn ? "Menu" : "メニュー"}">
     <a class="zv2-tab" href="${escapeHtml(homeHref)}">${TAB_ICONS.home}<span>${escapeHtml(homeLabel)}</span></a>
     <a class="zv2-tab" href="${escapeHtml(eventsHref)}">${TAB_ICONS.events}<span>${escapeHtml(eventsLabel)}</span></a>
     <a class="zv2-tab zv2-tab-cap" href="${escapeHtml(recordHref)}"><span class="zv2-shutter">${TAB_ICONS.camera}</span><span>${escapeHtml(recordLabel)}</span></a>
@@ -398,6 +407,11 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   var cfgEl = document.getElementById('zv2-config');
   var CFG = {};
   try { CFG = cfgEl ? JSON.parse(cfgEl.textContent || '{}') : {}; } catch (_) {}
+
+  var EN = CFG.lang !== 'ja';
+  var LP = CFG.lang === 'en' ? '/en' : '/ja';
+  function t(a, b) { return EN ? b : a; }
+  function recLabel(n) { return EN ? n + (n === 1 ? ' record' : ' records') : '記録 ' + n + '件'; }
 
   var appEl = document.querySelector('.zv2-app');
   var sheetEl = document.getElementById('zv2-sheet');
@@ -463,8 +477,8 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   }
 
   function kindLabel(k) {
-    var labels = { park: '公園', school: '学校', temple_shrine: '神社・お寺', nature_area: '自然エリア', museum: '博物館' };
-    return labels[k] || 'スポット';
+    var labels = EN ? { park: 'Park', school: 'School', temple_shrine: 'Shrine or temple', nature_area: 'Nature area', museum: 'Museum' } : { park: '公園', school: '学校', temple_shrine: '神社・お寺', nature_area: '自然エリア', museum: '博物館' };
+    return labels[k] || t('スポット', 'Spot');
   }
 
   function haversineSq(aLat, aLng, bLat, bLng) {
@@ -488,6 +502,11 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   }
 
   function summaryCopy(recLen, zeroLen) {
+    if (EN) {
+      if (state.taxonGroup) return recLen + ' matches';
+      if (recLen === 0) return zeroLen + ' places with no records yet';
+      return recLen + ' recorded · ' + zeroLen + ' unrecorded';
+    }
     if (state.taxonGroup) return '該当 ' + recLen + '件';
     if (recLen === 0) return 'まだ記録のない場所 ' + zeroLen + '件';
     return '記録あり ' + recLen + '件 ・ まだ ' + zeroLen + '件';
@@ -534,13 +553,13 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     var rows = all.map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
     rows.sort(function (a, b) { return a.d - b.d; });
     var used = {};
-    var h = '<h2 class="zv2-st">近くの場所</h2>';
+    var h = '<h2 class="zv2-st">' + t('近くの場所', 'Nearby places') + '</h2>';
     h += rows.slice(0, 20).map(function (r) {
       var p = r.p;
       var img = p.photoUrl && !used[p.photoUrl];
       if (img) used[p.photoUrl] = 1;
       var thumb = img ? '<img src="' + esc(p.photoUrl) + '" alt="" loading="lazy" decoding="async" />' : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
-      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : (rcOf(p) === 0 ? '記録はまだありません' : '記録 ' + p.recordCount + '件')) + ' ・ <span style="white-space:nowrap">ここから ' + fmtDist(r.d) + '</span>';
+      var meta = (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : (rcOf(p) === 0 ? t('記録はまだありません', 'No records yet') : recLabel(p.recordCount))) + t(' ・ ', ' · ') + '<span style="white-space:nowrap">' + (EN ? fmtDist(r.d) + ' away' : 'ここから ' + fmtDist(r.d)) + '</span>';
       return '<a class="zv2-prow" data-zv2-place-row="' + esc(p.placeId) + '" href="' + esc(placeHref(p.placeId)) + '">' + thumb
         + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + meta + '</span></span>'
         + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></a>';
@@ -553,24 +572,24 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     var isZero = rc === 0;
     var isUnk = rc === null;
     var own = CFG.authenticated && typeof p.ownCount === 'number' && p.ownCount > 0 ? p.ownCount : 0;
-    var h = '<button type="button" class="zv2-backrow" data-zv2-back="1">' + ${JSON.stringify(ICON_BACK)} + '<span>近くの場所へ戻る</span></button>';
+    var h = '<button type="button" class="zv2-backrow" data-zv2-back="1">' + ${JSON.stringify(ICON_BACK)} + '<span>' + t('近くの場所へ戻る', 'Back to nearby places') + '</span></button>';
     h += '<h2 class="zv2-pname">' + esc(p.name) + '</h2>';
     if (isZero) {
-      h += '<div class="zv2-pmeta">' + esc(kindLabel(p.placeKind)) + ' ・ まだ記録がありません</div>';
+      h += '<div class="zv2-pmeta">' + esc(kindLabel(p.placeKind)) + t(' ・ まだ記録がありません', ' · No records yet') + '</div>';
       if (!mobileLow) {
-        h += '<div class="zv2-zerobox">まだ記録がありません。最初の記録を残すと、この場所の図鑑が始まります。</div>';
+        h += '<div class="zv2-zerobox">' + t('まだ記録がありません。最初の記録を残すと、この場所の図鑑が始まります。', 'No records yet. Add the first one to start this place\'s field guide.') + '</div>';
       }
       h += '<div class="zv2-btnrow">';
-      h += '<a class="zv2-btn-main" href="' + esc(CFG.recordHref + '?placeId=' + encodeURIComponent(p.placeId)) + '">ここで最初の記録を</a>';
+      h += '<a class="zv2-btn-main" href="' + esc(CFG.recordHref + '?placeId=' + encodeURIComponent(p.placeId)) + '">' + t('ここで最初の記録を', 'Add the first record here') + '</a>';
       if (!mobileLow) {
-        h += '<a class="zv2-btn-sub" href="' + esc(placeHref(p.placeId)) + '">この場所を見る</a>';
+        h += '<a class="zv2-btn-sub" href="' + esc(placeHref(p.placeId)) + '">' + t('この場所を見る', 'View this place') + '</a>';
       }
       h += '</div>';
       return h;
     }
 
-    var spText = typeof p.speciesCount === 'number' && p.speciesCount > 0 ? ' ・ ' + p.speciesCount + '種類' : '';
-    h += '<div class="zv2-pmeta">' + (isUnk ? esc(kindLabel(p.placeKind)) : '記録 ' + rc + '件' + esc(spText)) + '</div>';
+    var spText = typeof p.speciesCount === 'number' && p.speciesCount > 0 ? t(' ・ ', ' · ') + p.speciesCount + t('種類', ' species') : '';
+    h += '<div class="zv2-pmeta">' + (isUnk ? esc(kindLabel(p.placeKind)) : recLabel(rc) + esc(spText)) + '</div>';
     if (!mobileLow && !noPhotos) {
       var photos = Array.isArray(p.photos) && p.photos.length ? p.photos.slice(0, 3) : (p.photoUrl ? [p.photoUrl] : []);
       if (photos.length) {
@@ -580,23 +599,23 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       }
     }
     h += '<div class="zv2-btnrow">';
-    h += '<a class="zv2-btn-main" href="' + esc(placeHref(p.placeId)) + '">この場所を見る</a>';
+    h += '<a class="zv2-btn-main" href="' + esc(placeHref(p.placeId)) + '">' + t('この場所を見る', 'View this place') + '</a>';
     if (!mobileLow) {
-      h += '<a class="zv2-btn-sub" href="' + esc(CFG.recordHref + '?placeId=' + encodeURIComponent(p.placeId)) + '">ここで記録する</a>';
+      h += '<a class="zv2-btn-sub" href="' + esc(CFG.recordHref + '?placeId=' + encodeURIComponent(p.placeId)) + '">' + t('ここで記録する', 'Record here') + '</a>';
     }
     h += '</div>';
     if (!mobileLow && own > 0) {
-      h += '<div class="zv2-ownrow">あなたの撮影 ' + own + '件（自分だけに表示）</div>';
+      h += '<div class="zv2-ownrow">' + (EN ? 'Your captures: ' + own + ' (only visible to you)' : 'あなたの撮影 ' + own + '件（自分だけに表示）') + '</div>';
     }
     return h;
   }
 
   function renderListHtml(rec, zero) {
-    var h = '<h2 class="zv2-st">近くの場所</h2>';
+    var h = '<h2 class="zv2-st">' + t('近くの場所', 'Nearby places') + '</h2>';
     if (rec.length === 0) {
-      h += '<div class="zv2-note">この範囲にはまだ記録のある場所がありません。</div>';
+      h += '<div class="zv2-note">' + t('この範囲にはまだ記録のある場所がありません。', 'No places with records in this area yet.') + '</div>';
       if (state.nearestRecorded) {
-        h += '<div class="zv2-btnrow" style="margin:6px 0 12px;"><button type="button" class="zv2-btn-main" data-zv2-nearest-recorded="1">記録のある最寄りへ</button></div>';
+        h += '<div class="zv2-btnrow" style="margin:6px 0 12px;"><button type="button" class="zv2-btn-main" data-zv2-nearest-recorded="1">' + t('記録のある最寄りへ', 'Go to nearest recorded place') + '</button></div>';
       }
       var refCenter = state.userCenter || (state.map ? state.map.getCenter() : { lat: CFG.defaultCenter[1], lng: CFG.defaultCenter[0] });
       var nearZeros = zero.slice().sort(function (a, b) {
@@ -605,47 +624,47 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
       h += nearZeros.map(function (p) {
         return '<button type="button" class="zv2-prow zv2-zero-nearest" data-zv2-select-place="' + esc(p.placeId) + '">'
           + '<span class="zv2-zmark">' + ${JSON.stringify(ICON_PIN)} + '</span>'
-          + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + esc(kindLabel(p.placeKind)) + ' ・ まだ記録がありません</span></span>'
+          + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + esc(kindLabel(p.placeKind)) + t(' ・ まだ記録がありません', ' · No records yet') + '</span></span>'
           + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></button>';
       }).join('');
       return h;
     }
 
-    h += '<div class="zv2-note">地図に出ている場所です。近い順に並んでいます。</div>';
+    h += '<div class="zv2-note">' + t('地図に出ている場所です。近い順に並んでいます。', 'Places shown on the map, nearest first.') + '</div>';
     h += rec.map(function (p) {
       var imgHtml = p.photoUrl
         ? '<img data-src="' + esc(p.photoUrl) + '" alt="" loading="lazy" decoding="async" />'
         : '<span class="zv2-thumb-ph" aria-hidden="true"></span>';
       return '<button type="button" class="zv2-prow" data-zv2-select-place="' + esc(p.placeId) + '">'
         + imgHtml
-        + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : '記録 ' + p.recordCount + '件') + '</span></span>'
+        + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + (rcOf(p) === null ? esc(kindLabel(p.placeKind)) : recLabel(p.recordCount)) + '</span></span>'
         + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></button>';
     }).join('');
 
     if (zero.length > 0 && !state.taxonGroup) {
       h += '<button type="button" class="zv2-zero-toggle" data-zv2-zero-toggle="1" aria-expanded="' + (state.showZeroRows ? 'true' : 'false') + '">'
-        + '<span>まだ記録のない場所 ' + zero.length + 'か所</span>'
-        + '<span>' + (state.showZeroRows ? '閉じる' : '開く') + '</span></button>';
+        + '<span>' + (EN ? zero.length + ' places with no records yet' : 'まだ記録のない場所 ' + zero.length + 'か所') + '</span>'
+        + '<span>' + (state.showZeroRows ? t('閉じる', 'Hide') : t('開く', 'Show')) + '</span></button>';
       if (state.showZeroRows) {
         h += zero.slice(0, 30).map(function (p) {
           return '<button type="button" class="zv2-prow zv2-zero-nearest" data-zv2-select-place="' + esc(p.placeId) + '">'
             + '<span class="zv2-zmark">' + ${JSON.stringify(ICON_PIN)} + '</span>'
-            + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + esc(kindLabel(p.placeKind)) + ' ・ まだ記録がありません</span></span>'
+            + '<span class="zv2-pmain"><span class="zv2-pn">' + esc(p.name) + '</span><br><span class="zv2-pm">' + esc(kindLabel(p.placeKind)) + t(' ・ まだ記録がありません', ' · No records yet') + '</span></span>'
             + '<span class="zv2-chev">' + ${JSON.stringify(ICON_CHEV)} + '</span></button>';
         }).join('');
       }
     }
 
     if (state.sheetState === 'full' || isDesktop()) {
-      h += '<div class="zv2-refine"><button type="button" class="zv2-refine-btn" data-zv2-refine-toggle="1" aria-expanded="' + (state.refineOpen ? 'true' : 'false') + '"><span>詳しく絞り込む</span><span>' + (state.refineOpen ? '−' : '＋') + '</span></button>'
+      h += '<div class="zv2-refine"><button type="button" class="zv2-refine-btn" data-zv2-refine-toggle="1" aria-expanded="' + (state.refineOpen ? 'true' : 'false') + '"><span>' + t('詳しく絞り込む', 'More filters') + '</span><span>' + (state.refineOpen ? '−' : '＋') + '</span></button>'
         + '<div class="zv2-refine-panel"' + (state.refineOpen ? '' : ' hidden') + '>'
         + '<div class="zv2-refine-row">'
-        + '<button type="button" class="zv2-fchip' + (state.placeKindFilter === '' ? ' on' : '') + '" data-zv2-kind="">すべて</button>'
-        + '<button type="button" class="zv2-fchip' + (state.placeKindFilter === 'park' ? ' on' : '') + '" data-zv2-kind="park">公園</button>'
-        + '<button type="button" class="zv2-fchip' + (state.placeKindFilter === 'temple_shrine' ? ' on' : '') + '" data-zv2-kind="temple_shrine">神社・お寺</button>'
+        + '<button type="button" class="zv2-fchip' + (state.placeKindFilter === '' ? ' on' : '') + '" data-zv2-kind="">' + t('すべて', 'All') + '</button>'
+        + '<button type="button" class="zv2-fchip' + (state.placeKindFilter === 'park' ? ' on' : '') + '" data-zv2-kind="park">' + t('公園', 'Parks') + '</button>'
+        + '<button type="button" class="zv2-fchip' + (state.placeKindFilter === 'temple_shrine' ? ' on' : '') + '" data-zv2-kind="temple_shrine">' + t('神社・お寺', 'Shrines and temples') + '</button>'
         + '</div>'
         + '<div class="zv2-refine-row">'
-        + '<button type="button" class="zv2-fchip' + (state.onlyRecordedFilter ? ' on' : '') + '" data-zv2-only-recorded="1">記録ありのみ</button>'
+        + '<button type="button" class="zv2-fchip' + (state.onlyRecordedFilter ? ' on' : '') + '" data-zv2-only-recorded="1">' + t('記録ありのみ', 'With records only') + '</button>'
         + '</div></div></div>';
     }
     return h;
@@ -659,15 +678,15 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
   }
 
   function renderInvCellHtml(cell) {
-    var h = '<div class="zv2-inv-sheet" data-zv2-inv-sheet="1"><div class="zv2-inv-h">この範囲で見つかっている外来種</div>';
+    var h = '<div class="zv2-inv-sheet" data-zv2-inv-sheet="1"><div class="zv2-inv-h">' + t('この範囲で見つかっている外来種', 'Invasive species found in this area') + '</div>';
     cell.species.forEach(function (sp) {
-      var range = sp.first && sp.last ? (sp.first === sp.last ? sp.first : sp.first + '〜' + sp.last) : '';
+      var range = sp.first && sp.last ? (sp.first === sp.last ? sp.first : sp.first + t('〜', ' – ') + sp.last) : '';
       h += '<div class="zv2-inv-sp"><div class="zv2-inv-n">' + esc(sp.name) + '</div><span class="zv2-inv-b">' + esc(sp.categoryLabel) + '</span>'
-        + '<p class="zv2-inv-p">この範囲の記録 ' + sp.records + '件で確認されています' + (range ? '（' + esc(range) + '）' : '') + '。</p>'
-        + '<a class="zv2-inv-a" href="' + esc('/ja/invasive/' + encodeURIComponent(sp.slug)) + '">この種について見る</a></div>';
+        + '<p class="zv2-inv-p">' + (EN ? 'Confirmed in ' + sp.records + (sp.records === 1 ? ' record' : ' records') + ' in this area' + (range ? ' (' + esc(range) + ')' : '') + '.' : 'この範囲の記録 ' + sp.records + '件で確認されています' + (range ? '（' + esc(range) + '）' : '') + '。') + '</p>'
+        + '<a class="zv2-inv-a" href="' + esc(LP + '/invasive/' + encodeURIComponent(sp.slug)) + '">' + t('この種について見る', 'About this species') + '</a></div>';
     });
-    h += '<p class="zv2-inv-note">場所は大まかに表示しています。新しい記録は、名前の確認が済んでから出ます。</p>'
-      + '<button type="button" class="zv2-inv-close" data-zv2-inv-close="1">閉じる</button></div>';
+    h += '<p class="zv2-inv-note">' + t('場所は大まかに表示しています。新しい記録は、名前の確認が済んでから出ます。', 'Locations are approximate. New records appear after the name is confirmed.') + '</p>'
+      + '<button type="button" class="zv2-inv-close" data-zv2-inv-close="1">' + t('閉じる', 'Close') + '</button></div>';
     return h;
   }
 
@@ -685,7 +704,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     src.setData({
       type: 'FeatureCollection',
       features: cells.map(function (c) {
-        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [invCellPolygon(c)] }, properties: { cellId: c.cellId, count: c.count, label: '外来種 ' + c.count + '件' } };
+        return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [invCellPolygon(c)] }, properties: { cellId: c.cellId, count: c.count, label: EN ? 'Invasive species: ' + c.count : '外来種 ' + c.count + '件' } };
       })
     });
     if (m.getLayer('zv2-inv-sel')) m.setFilter('zv2-inv-sel', ['==', ['get', 'cellId'], state.invSel || '']);
@@ -731,8 +750,8 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
     if (invCell) {
       var invState = state.sheetState === 'collapsed' ? 'half' : state.sheetState;
       if (sheetEl) { sheetEl.setAttribute('data-sheet-state', invState); sheetEl.setAttribute('data-has-detail', '1'); }
-      if (peekTtlEl) peekTtlEl.textContent = '外来種 ' + invCell.count + '件';
-      if (peekSubEl) peekSubEl.textContent = 'この範囲で見つかっている外来種';
+      if (peekTtlEl) peekTtlEl.textContent = EN ? 'Invasive species: ' + invCell.count : '外来種 ' + invCell.count + '件';
+      if (peekSubEl) peekSubEl.textContent = t('この範囲で見つかっている外来種', 'Invasive species found in this area');
       if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', 'true');
       var invHtml = renderInvCellHtml(invCell);
       if (sheetBodyEl) sheetBodyEl.innerHTML = invHtml;
@@ -748,13 +767,13 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         sheetEl.setAttribute('data-has-detail', '1');
       }
       if (peekTtlEl) peekTtlEl.textContent = sel.name;
-      if (peekSubEl) peekSubEl.textContent = mobileLow ? '引き上げて詳しく見る' : '閉じて一覧へ';
+      if (peekSubEl) peekSubEl.textContent = mobileLow ? t('引き上げて詳しく見る', 'Pull up for details') : t('閉じて一覧へ', 'Close and return to list');
       if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', mobileLow ? 'false' : 'true');
       if (sheetBodyEl) sheetBodyEl.innerHTML = renderSelectedHtml(sel, mobileLow, CFG.placeTab);
       if (panelContentEl) panelContentEl.innerHTML = renderSelectedHtml(sel, false);
     } else {
       if (sheetEl) { sheetEl.setAttribute('data-sheet-state', state.sheetState); sheetEl.setAttribute('data-has-detail', '0'); }
-      if (peekTtlEl) peekTtlEl.textContent = '近くの場所';
+      if (peekTtlEl) peekTtlEl.textContent = t('近くの場所', 'Nearby places');
       if (peekSubEl) peekSubEl.textContent = summaryCopy(rec.length, zero.length);
       if (sheetHeadEl) sheetHeadEl.setAttribute('aria-expanded', state.sheetState === 'collapsed' ? 'false' : 'true');
       var listHtml = renderListHtml(rec, zero);
@@ -1255,7 +1274,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         layout: {
           'icon-image': 'zv2-cluster-badge',
           'icon-allow-overlap': true,
-          'text-field': ['concat', ['to-string', ['get', 'point_count']], 'か所'],
+          'text-field': ['concat', ['to-string', ['get', 'point_count']], EN ? '' : 'か所'],
           'text-size': 13,
           'text-allow-overlap': true
         },

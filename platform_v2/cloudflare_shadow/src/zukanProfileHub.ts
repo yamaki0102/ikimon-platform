@@ -9,12 +9,13 @@ type Lang = "ja" | "en" | "es" | "pt-br";
 const pfx = (lang: Lang): string => (lang === "ja" ? "/ja" : `/${lang}`);
 const CHEV = '<svg class="zt-sp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 
-const jpDate = (value: string | null | undefined, withTime = false): string => {
+const jpDate = (value: string | null | undefined, withTime = false, en = false): string => {
   const time = Date.parse(value ?? "");
   if (!Number.isFinite(time)) return "";
   const opt: Intl.DateTimeFormatOptions = withTime
     ? { month: "long", day: "numeric", hour: "numeric", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" }
     : { month: "long", day: "numeric", timeZone: "Asia/Tokyo" };
+  if (en) return new Intl.DateTimeFormat("en", { ...opt, month: "short" }).format(new Date(time));
   const parts = new Intl.DateTimeFormat("ja", opt).formatToParts(new Date(time));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return withTime ? `${get("month")}月${get("day")}日 ${get("hour")}:${get("minute")}` : `${get("month")}月${get("day")}日`;
@@ -108,6 +109,8 @@ const HUB_CSS = `
 
 export function renderProfileHub(lang: Lang, data: ProfileHubData): string {
   const p = pfx(lang);
+  const en = lang !== "ja";
+  const t = (ja: string, e: string): string => (en ? e : ja);
   const initial = esc1(data.displayName);
   const href = (id: string) => `${p}/observations/${encodeURIComponent(id)}`;
   const mosaic = data.records.filter((r) => r.assetId).slice(0, 3);
@@ -120,40 +123,40 @@ export function renderProfileHub(lang: Lang, data: ProfileHubData): string {
   const rows = data.records.filter((r) => !shown.has(r.id)).slice(0, 3).map((r) =>
     renderSubpageRow({
       href: href(r.id),
-      title: r.title,
-      meta: [jpDate(r.observedAt), r.area ?? "", r.visibility === "public" ? "公開中" : "自分だけ"].filter(Boolean).join(" ・ "),
+      title: en && r.title === "名前なしの記録" ? "Untitled record" : r.title,
+      meta: [jpDate(r.observedAt, false, en), r.area ?? "", r.visibility === "public" ? t("公開中", "Public") : t("自分だけ", "Only me")].filter(Boolean).join(t(" ・ ", " · ")),
       thumbUrl: r.assetId ? `/thumb/400/${encodeURIComponent(r.assetId)}` : null,
     })
   ).join("");
   const recordsBlock = data.recordCount > 0
     ? `${mosaicHtml}${rows ? `<ul class="zt-ph-list">${rows}</ul>` : ""}`
-    : `<p class="zt-ph-empty">まだ記録がありません。最初の1件を残してみましょう。<a class="zt-btn-capture" href="${p}/record">記録する</a></p>`;
+    : `<p class="zt-ph-empty">${t("まだ記録がありません。最初の1件を残してみましょう。", "No records yet. Add your first one.")}<a class="zt-btn-capture" href="${p}/record">${t("記録する", "Record")}</a></p>`;
   const menu = (to: string, title: string, meta: string, badge = "") =>
     `<li><a class="zt-ph-row" href="${escapeHtml(to)}"><span class="zt-sp-body"><strong>${escapeHtml(title)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ""}</span>${badge}${CHEV}</a></li>`;
-  const badge = data.unreadCount > 0 ? `<span class="zt-ph-badge" aria-label="未読 ${data.unreadCount}件">${data.unreadCount > 99 ? "99+" : data.unreadCount}</span>` : "";
+  const badge = data.unreadCount > 0 ? `<span class="zt-ph-badge" aria-label="${en ? `${data.unreadCount} unread` : `未読 ${data.unreadCount}件`}">${data.unreadCount > 99 ? "99+" : data.unreadCount}</span>` : "";
   const body = `<style>${ZUKAN_SUBPAGE_CSS}${HUB_CSS}</style>
   <section class="zt-ph" data-testid="self-control-hub" data-profile-view="i1">
     <div class="zt-ph-main">
       <div class="zt-ph-id"><span class="zt-ph-av" aria-hidden="true">${escapeHtml(initial)}</span><div><h1 data-testid="profile-heading">${escapeHtml(data.displayName)}</h1>${data.bio ? `<p class="zt-ph-bio">${escapeHtml(data.bio)}</p>` : ""}</div></div>
       <dl class="zt-ph-stats">
-        <div><dd>${data.recordCount}</dd><dt>自分の記録</dt></div>
-        <div><dd>${data.savedPlaceCount}</dd><dt>保存した場所</dt></div>
-        <div><dd>${data.joinedEventCount}</dd><dt>参加イベント</dt></div>
+        <div><dd>${data.recordCount}</dd><dt>${t("自分の記録", "My records")}</dt></div>
+        <div><dd>${data.savedPlaceCount}</dd><dt>${t("保存した場所", "Saved places")}</dt></div>
+        <div><dd>${data.joinedEventCount}</dd><dt>${t("参加イベント", "Events joined")}</dt></div>
       </dl>
-      <div class="zt-ph-sec"><h2>自分の記録</h2><a class="zt-ph-more" href="${p}/profile/records">すべて見る<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></div>
+      <div class="zt-ph-sec"><h2>${t("自分の記録", "My records")}</h2><a class="zt-ph-more" href="${p}/profile/records">${t("すべて見る", "See all")}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></a></div>
       ${recordsBlock}
     </div>
     <div class="zt-ph-side">
-      <h2>管理</h2>
+      <h2>${t("管理", "Manage")}</h2>
       <ul class="zt-ph-list">
-        ${menu(`${p}/profile/public-settings`, "公開先", "図鑑・アルバム・共有リンク。取り消しもここから")}
-        ${menu(`${p}/profile/linked-saved`, "保存した場所・イベント", "")}
-        ${menu(`${p}/profile/notifications`, "通知", "", badge)}
-        ${menu(`${p}/profile/settings`, "設定", "プロフィール・通知・公開範囲")}
+        ${menu(`${p}/profile/public-settings`, t("公開先", "Sharing"), t("図鑑・アルバム・共有リンク。取り消しもここから", "Field guide, albums, and share links. Revoke them here too."))}
+        ${menu(`${p}/profile/linked-saved`, t("保存した場所・イベント", "Saved places and events"), "")}
+        ${menu(`${p}/profile/notifications`, t("通知", "Notifications"), "", badge)}
+        ${menu(`${p}/profile/settings`, t("設定", "Settings"), t("プロフィール・通知・公開範囲", "Profile, notifications, and visibility"))}
       </ul>
     </div>
   </section>`;
-  return renderZukanCommonShell({ lang, title: "自分", activeNav: "profile", authenticated: true, displayName: data.displayName, bodyHtml: body, pathname: `${p}/profile` });
+  return renderZukanCommonShell({ lang, title: t("自分", "Me"), activeNav: "profile", authenticated: true, displayName: data.displayName, bodyHtml: body, pathname: `${p}/profile` });
 }
 
 function esc1(name: string): string {
