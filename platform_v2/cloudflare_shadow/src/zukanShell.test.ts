@@ -86,3 +86,10 @@ test("zukanShell renders 5-item bottom nav order, PC left sidebar, topbar, sheet
   assert.match(err, />もう一度</);
   assert.match(err, /href="\/ja\/"/);
 });
+
+test("zukanShell document carries the offline banner wired to online/offline events", () => {
+  const doc = renderZukanShellDocument({ lang: "ja", activeNav: "library", authenticated: false, bodyHtml: "<p>x</p>", cspNonce: "abc" });
+  assert.match(doc, /data-zukan-offline-banner="1"[^>]*hidden/);
+  assert.match(doc, /オフラインです。つながると自動で送ります/);
+  assert.match(doc, /<script nonce="abc">[^<]*addEventListener\("offline"/);
+});
