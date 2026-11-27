@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import test from "node:test";
 import vm from "node:vm";
+import { chromium } from "playwright";
 import {
   MAP_GLYPH_SUBSET_ASSETS,
   MAP_GLYPH_SUBSET_ASSET_LIST,
@@ -2661,4 +2664,52 @@ test("map explorer invasive empty state and record notice render the required co
     bootSection("function renderResultsEmptyState()", "function renderResultsLoadingState()"),
   ].join("\n").replace("function renderResultsEmptyState() {", "function renderResultsEmptyState() { var COPY = { emptyTitle: 'e', recordingGapLabel: 'g', emptyLead: 'l', emptyActionAreas: 'a', emptyActionWiden: 'w', emptyActionRecord: 'r', empty: 'n' }; var RECORD_HREF = '/record';")).runInContext(plain);
   assert.ok(!(plain.renderResultsEmptyState() as string).includes("この範囲に外来種の公開記録"));
+});
+
+test("top invasive chip renders hidden for ja, activates via body marker, and preserves 375px map height", async (t) => {
+  const ja = renderMapExplorer({ basePath: "", lang: "ja", years: [2026] });
+  const topChip = ja.match(/<button[^>]*data-map-invasive-top-chip[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+  assert.ok(topChip, "top invasive chip rendered");
+  assert.match(topChip, /\shidden[\s>]/);
+  assert.match(topChip, /外来種/);
+  for (const lang of ["en", "es", "pt-BR"] as const) {
+    assert.doesNotMatch(renderMapExplorer({ basePath: "", lang, years: [2026] }), /data-map-invasive-top-chip/);
+  }
+  const script = bootCombined({ basePath: "", lang: "ja" });
+  assert.match(script, /document\.body\.dataset\.mapInvasiveTopChip === '1'/);
+  assert.match(MAP_EXPLORER_STYLES, /\.me-top-invasive-chip\[hidden\]\s*\{\s*display:\s*none;\s*\}/);
+
+  const candidates = [process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, chromium.executablePath()].filter((p): p is string => Boolean(p));
+  let browserPath: string | null = candidates.find((p) => existsSync(p)) ?? null;
+  if (!browserPath) {
+    const cacheDir = join(process.env.HOME || "", ".cache/ms-playwright");
+    if (existsSync(cacheDir)) {
+      for (const entry of readdirSync(cacheDir)) {
+        const bin = join(cacheDir, entry, "chrome-linux64/chrome");
+        if (existsSync(bin)) { browserPath = bin; break; }
+      }
+    }
+  }
+  if (!browserPath) return t.skip("Playwright Chromium is unavailable");
+
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${MAP_EXPLORER_STYLES}</style></head><body data-map-invasive-top-chip="1">${ja}<script>document.querySelectorAll('button[data-map-invasive-top-chip]').forEach(el => { el.hidden = false; });</script></body></html>`;
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+  try {
+    for (const vp of [{ width: 375, height: 812 }, { width: 1280, height: 800 }]) {
+      const page = await browser.newPage({ viewport: vp });
+      await page.setContent(html);
+      const layout = await page.evaluate(() => {
+        const search = document.getElementById("me-search-input")!.getBoundingClientRect();
+        const chip = document.querySelector("button[data-map-invasive-top-chip]")!.getBoundingClientRect();
+        const map = document.getElementById("map-explorer")!.getBoundingClientRect();
+        return { searchBottom: search.bottom, chipTop: chip.top, chipHeight: chip.height, chipWidth: chip.width, mapTop: map.top, mapHeight: map.height };
+      });
+      assert.ok(layout.chipHeight >= 34 && layout.chipHeight <= 48 && layout.chipWidth > 0, JSON.stringify({ vp, layout }));
+      assert.ok(layout.chipTop >= layout.searchBottom - 4, JSON.stringify({ vp, layout }));
+      assert.ok(layout.mapHeight >= vp.height * 0.65, JSON.stringify({ vp, layout }));
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
 });

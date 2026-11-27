@@ -96,9 +96,10 @@ export function isMapHtmlPath(pathname: string): boolean {
   return MAP_HTML_PATH.test(pathname);
 }
 
-export function injectMapInvasiveMarker(html: string, enabled: boolean): string {
-  if (!enabled) return html;
+export function injectMapInvasiveMarker(html: string, enabled: boolean, topChipEnabled = false): string {
+  if (!enabled && !topChipEnabled) return html;
   const index = html.search(/<body(?=[\s>])/u);
   if (index < 0) return html;
-  return `${html.slice(0, index)}<body data-map-invasive="1"${html.slice(index + 5)}`;
+  const attrs = `${enabled ? ' data-map-invasive="1"' : ""}${topChipEnabled ? ' data-map-invasive-top-chip="1"' : ""}`;
+  return `${html.slice(0, index)}<body${attrs}${html.slice(index + 5)}`;
 }

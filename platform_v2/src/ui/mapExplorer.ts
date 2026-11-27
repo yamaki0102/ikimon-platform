@@ -1683,6 +1683,10 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           ? "Veja de agora até seis horas à frente."
           : "View now through six hours ahead.",
   };
+  const topInvasiveChipHtml = lang === "ja"
+    ? '<button type="button" class="me-chip me-top-invasive-chip" data-map-invasive-top-chip aria-pressed="false" hidden><span class="me-chip-icon" aria-hidden="true">⚠️</span><span>外来種</span></button>'
+    : "";
+  const topbarSecondarySuffix = topInvasiveChipHtml ? `<div class="me-top-quick-chips">${topInvasiveChipHtml}</div>` : "";
   const mapRegionLabel = lang === "ja"
     ? "地図で場所を探す"
     : lang === "es"
@@ -1797,6 +1801,7 @@ export function renderMapExplorer(props: MapExplorerProps): string {
           </div>
         </details>
       </div>
+      ${topbarSecondarySuffix}
     </div>
 
     <div class="me-map-role-strip" aria-label="${escapeHtml(copy.enjoyTitle)}">
@@ -3290,7 +3295,8 @@ export function mapExplorerDeferredScriptSource(): string {
     YEAR_VALUES = JSON.parse((yearRangeEl && yearRangeEl.getAttribute('data-year-values')) || '[]');
   } catch (_) { YEAR_VALUES = []; }
   var OBSERVATION_HREF_TPL = CFG.observationHrefTpl || '/observations/__ID__';
-  var INVASIVE_ON = typeof document !== 'undefined' && !!document.body && !!document.body.dataset && document.body.dataset.mapInvasive === '1';
+  var INVASIVE_TOP_CHIP_ON = typeof document !== 'undefined' && !!document.body && !!document.body.dataset && document.body.dataset.mapInvasiveTopChip === '1';
+  var INVASIVE_ON = (typeof document !== 'undefined' && !!document.body && !!document.body.dataset && document.body.dataset.mapInvasive === '1') || INVASIVE_TOP_CHIP_ON;
   var INVASIVE_CAPTURE_HREF = '/ja/biosecurity/gairai/capture';
   var INVASIVE_LEARN_PREFIX = '/ja/learn/invasive-species';
   var RECORD_HREF = CFG.recordHref || '/record';
@@ -10458,6 +10464,28 @@ export function mapExplorerDeferredScriptSource(): string {
 
   // Bind UI events.
   if (INVASIVE_ON) document.querySelectorAll('[data-map-invasive-chip]').forEach(function (el) { el.hidden = false; });
+  if (INVASIVE_TOP_CHIP_ON) document.querySelectorAll('button[data-map-invasive-top-chip]').forEach(function (el) { el.hidden = false; });
+  function syncTaxonFilterUi() {
+    document.querySelectorAll('.me-taxon-chip').forEach(function (b) {
+      var active = (b.getAttribute('data-taxon-group') || '') === state.taxonGroup;
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('button[data-map-invasive-top-chip]').forEach(function (b) {
+      var active = state.taxonGroup === 'invasive';
+      b.classList.toggle('is-active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+  syncTaxonFilterUi();
+  document.querySelectorAll('button[data-map-invasive-top-chip]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.taxonGroup = state.taxonGroup === 'invasive' ? '' : 'invasive';
+      syncTaxonFilterUi();
+      refreshMapData();
+      saveMapState();
+    });
+  });
   document.querySelectorAll('.me-taxon-chip').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var value = btn.getAttribute('data-taxon-group') || '';
@@ -10466,6 +10494,7 @@ export function mapExplorerDeferredScriptSource(): string {
         b.classList.toggle('is-active', b === btn);
         b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
       });
+      syncTaxonFilterUi();
       refreshMapData();
       saveMapState();
     });
@@ -14776,6 +14805,17 @@ export const MAP_EXPLORER_CRITICAL_STYLES = `
   .me-result-ai { background: rgba(14,165,233,.14); color: #075985; }
   .me-result-awaiting { background: rgba(234,179,8,.18); color: #713f12; }
   .me-taxon-chip[hidden] { display: none; }
+  .me-top-invasive-chip[hidden] { display: none; }
+  .me-top-quick-chips { display: none; }
+  body[data-map-invasive-top-chip="1"] .me-topbar { height: auto; min-height: var(--me-topbar-h); }
+  body[data-map-invasive-top-chip="1"] .me-top-quick-chips { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; gap: 6px; padding-left: 76px; }
+  .me-top-invasive-chip { min-height: 36px; padding: 4px 12px; border-color: rgba(217,72,15,.45); color: #9a3412; font-size: 14px; white-space: nowrap; }
+  .me-top-invasive-chip.is-active { background: rgba(217,72,15,.12); border-color: #d9480f; color: #9a3412; }
+  @media (max-width: 720px) {
+    body[data-map-invasive-top-chip="1"] .me-tabs { grid-column: 1; }
+    body[data-map-invasive-top-chip="1"] .me-top-quick-chips { grid-column: 2; grid-row: 2; justify-self: end; padding-left: 0; }
+    body[data-map-invasive-top-chip="1"] .me-rain-mode .me-top-quick-chips { display: none; }
+  }
   .me-taxon-chip[data-map-invasive-chip] { min-height: 44px; border-color: rgba(217,72,15,.45); color: #9a3412; }
   .me-taxon-chip[data-map-invasive-chip].is-active { background: rgba(217,72,15,.12); border-color: #d9480f; color: #9a3412; }
   .me-result-invasive { background: rgba(217,72,15,.14); color: #9a3412; }
