@@ -27,7 +27,7 @@ test("profile hub (I1) shows stats, record mosaic and the four menu rows in the 
     CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT, exif_scrub_state TEXT);
     CREATE TABLE observation_event_participants (participant_id TEXT, session_id TEXT, user_id TEXT);
     CREATE TABLE user_account_settings (user_id TEXT, bio TEXT);
-    INSERT INTO observations VALUES ('o1','u1','2026-11-15T01:00:00Z','カワセミ','private','東川の河川敷'),('o2','u1','2026-11-24T01:00:00Z','クスノキ','public',NULL),('x','u2','2026-11-24T01:00:00Z','他人','public',NULL);
+    INSERT INTO observations VALUES ('o1','u1','2026-11-15T01:00:00Z','カワセミ','private','東川の河川敷'),('o2','u1','2026-11-24T01:00:00Z','クスノキ','public',NULL),('x','u2','2026-11-24T01:00:00Z','他人','public',NULL),('o3','u1','2026-11-10T01:00:00Z','ツバメ','public',NULL),('o4','u1','2026-11-09T01:00:00Z','ハクセキレイ','private',NULL);
     INSERT INTO asset_ledger VALUES ('a1','o1','scrubbed'),('a2','o2','scrubbed');
     INSERT INTO observation_event_participants VALUES ('p1','s1','u1'),('p2','s1','u1'),('p3','s2','u1');
     INSERT INTO user_account_settings VALUES ('u1','浜松の里山と川辺を記録しています。');
@@ -40,13 +40,16 @@ test("profile hub (I1) shows stats, record mosaic and the four menu rows in the 
     INSERT INTO alert_deliveries VALUES ('d1','u1',NULL),('d2','u1','2026-11-24');
   `);
   const data = await loadProfileHubData({ OBS_DB: sqliteDb(obs), CORE_DB: sqliteDb(core) }, { userId: "u1", displayName: "はまっこ" });
-  assert.deepEqual([data.recordCount, data.savedPlaceCount, data.joinedEventCount, data.unreadCount], [2, 2, 2, 1]);
+  assert.deepEqual([data.recordCount, data.savedPlaceCount, data.joinedEventCount, data.unreadCount], [4, 2, 2, 1]);
   const html = renderProfileHub("ja", data);
   for (const text of ["はまっこ", "浜松の里山と川辺を記録しています。", "自分の記録", "保存した場所", "参加イベント", "すべて見る", "公開先", "保存した場所・イベント", "通知", "設定", "プロフィール・通知・公開範囲", "公開中", "自分だけ"]) assert.ok(html.includes(text), text);
   assert.match(html, /data-testid="profile-hub-mosaic"/);
   assert.match(html, /zt-bottom-nav/);
   assert.match(html, /href="\/ja\/profile\/notifications"/);
   assert.doesNotMatch(html, /他人/);
+  assert.match(html, /<h2>管理<\/h2>/);
+  assert.doesNotMatch(html, /zt-ph-cover"/);
+  for (const a of ["a1", "a2"]) assert.equal(html.split(`/thumb/400/${a}`).length - 1, 1, `${a} shown once`);
 });
 
 test("notifications list (I6) and detail (I7)", () => {
