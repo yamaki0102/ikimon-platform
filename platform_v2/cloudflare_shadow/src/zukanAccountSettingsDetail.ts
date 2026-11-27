@@ -201,7 +201,7 @@ export async function handleAccountSettingsDetailRoute(
   let heading = "プロフィール";
   if (section === "edit") {
     panelHtml = `<form class="zt-sp" data-settings-form="profile" style="gap:20px">
-      <div style="display:flex;align-items:center;gap:16px"><span class="zt-sp-avatar" data-avatar-preview="1" aria-hidden="true">${escapeHtml(initial)}</span><button type="button" class="zt-sp-avatar-pick" data-avatar-pick="1">${isEn ? "Change icon" : "アイコンを変える"}</button><input type="file" accept="image/*" data-avatar-input="1" hidden /><span class="zt-sp-lead" data-avatar-status role="status" aria-live="polite"></span></div>
+      <div style="display:flex;align-items:center;gap:16px"><span class="zt-sp-avatar" data-avatar-preview="1" aria-hidden="true">${escapeHtml(initial)}</span><button type="button" class="zt-sp-avatar-pick" data-avatar-pick="1">${isEn ? "Change icon" : "アイコンを変える"}</button><input type="file" accept="image/*" data-avatar-input="1" hidden /><span class="zt-sp-lead" data-avatar-status role="status" aria-live="polite"></span></div><p data-avatar-hint="1" style="margin:8px 0 0;color:#55615a;font-size:14px;line-height:1.6">${isEn ? "PNG or JPEG, up to 5 MB. Cropped to a square." : "PNG・JPEG、5MBまで。正方形に切り抜かれます。"}</p>
       <label class="zt-sp-field">
         <span>フィールドネーム</span>
         <input class="zt-sp-input" type="text" name="displayName" maxlength="80" value="${escapeHtml(displayName)}" />
