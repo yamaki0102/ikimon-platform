@@ -27,6 +27,13 @@ export type EventsV2Event = {
   summary: string | null;
   bring: string | null;
   schedule: EventsV2ScheduleItem[];
+  station: string | null;
+  parking: string | null;
+  caution: string | null;
+  rain: string | null;
+  cost: string | null;
+  kind: string | null;
+  capacity: number | null;
 };
 
 export type EventsV2ListItem = EventsV2Event & { phase: EventPhase; distanceKm: number | null };
@@ -46,6 +53,12 @@ const MEETING_KEYS = ["meetingPoint", "meetingPlace", "assemblyPoint", "gatherPl
 const ORGANIZER_KEYS = ["organizerName", "hostName", "host", "issuerName", "issuer"];
 const SUMMARY_KEYS = ["summary", "description", "overview", "lead"];
 const BRING_KEYS = ["bring", "whatToBring", "belongings"];
+const STATION_KEYS = ["nearestStation", "station", "access"];
+const PARKING_KEYS = ["parking", "parkingInfo"];
+const CAUTION_KEYS = ["cautions", "caution", "notes", "precautions", "safety"];
+const RAIN_KEYS = ["rain", "rainPolicy", "weatherPolicy", "ifRain"];
+const COST_KEYS = ["cost", "fee", "price"];
+const KIND_KEYS = ["eventKind", "eventType", "category", "kind"];
 const SCHEDULE_KEYS = ["schedule", "program", "flow", "agenda", "timeline"];
 
 function configSources(config: Record<string, unknown>): Array<Record<string, unknown>> {
@@ -97,6 +110,12 @@ export function parseEventsV2Schedule(config: Record<string, unknown>): EventsV2
     }
   }
   return [];
+}
+
+function configCapacity(config: Record<string, unknown>): number | null {
+  const pub = config.public_page;
+  const raw = (pub && typeof pub === "object" && !Array.isArray(pub) ? (pub as Record<string, unknown>).capacity : undefined) ?? config.capacity;
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 1 ? raw : null;
 }
 
 function parseConfig(raw: unknown): Record<string, unknown> {
@@ -169,6 +188,13 @@ function mapRow(row: Record<string, unknown>, participants: number, placeNames: 
     summary: configText(config, SUMMARY_KEYS, 600),
     bring: configText(config, BRING_KEYS),
     schedule: parseEventsV2Schedule(config),
+    station: configText(config, STATION_KEYS),
+    parking: configText(config, PARKING_KEYS),
+    caution: configText(config, CAUTION_KEYS, 600),
+    rain: configText(config, RAIN_KEYS),
+    cost: configText(config, COST_KEYS, 80),
+    kind: configText(config, KIND_KEYS, 12),
+    capacity: configCapacity(config),
   };
 }
 
@@ -315,10 +341,6 @@ const V2_CSS = `
 .zev .ze-btn{white-space:nowrap}
 .zev .ze-row-body small{overflow-wrap:anywhere}
 .zev-chip{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#e8f0ea;color:#143F2E;font-size:.8125rem;font-weight:700;white-space:nowrap}
-.zev-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
-.zev-stats div{padding:14px 8px;border-radius:16px;background:#f7f7f3;text-align:center}
-.zev-stats dt{font-size:.8125rem;color:#55615a}
-.zev-stats dd{margin:2px 0 0;font-size:1.375rem;font-weight:700;color:#143F2E}
 .zev-flow{margin:0;padding:0;list-style:none;display:grid}
 .zev-flow li{display:grid;grid-template-columns:4.5em minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid #dde2dc}
 .zev-flow time{font-weight:700;color:#143F2E}
@@ -330,6 +352,20 @@ a.zev-rec,a.zev-rec:visited{text-decoration:none}
 .zev-rec.is-text{background:#e8f0ea}.zev-rec.is-text span{color:#143F2E;background:none;white-space:normal;align-self:center;text-align:center;padding:8px}
 .zev-names{margin:0;color:#55615a;line-height:1.8}
 .zev-geo{background:none;border:0;padding:0;font:inherit;color:#143F2E;text-decoration:underline;min-height:44px;cursor:pointer}
+.zev-search{display:flex;gap:8px;align-items:center}
+.zev-search input{flex:1;min-width:0;min-height:44px;padding:8px 14px;border:1.5px solid #dde2dc;border-radius:14px;font:inherit;color:#17211B;background:#fff}
+.zev-search button{min-height:44px;padding:8px 16px;border:1.5px solid #143F2E;border-radius:14px;background:#fff;color:#143F2E;font:inherit;font-weight:700;white-space:nowrap;cursor:pointer}
+.zev-day{margin:8px 0 0;font-size:.9375rem;font-weight:700;color:#143F2E;padding-bottom:6px;border-bottom:2px solid #143F2E}
+.zev-pending{color:#55615a;font-weight:500}
+.zev-meet{padding:18px;border-radius:18px;background:#e8f0ea;color:#143F2E}
+.zev-meet small{display:block;font-weight:700;font-size:.875rem}
+.zev-meet strong{display:block;margin-top:4px;font-size:1.375rem;line-height:1.4;overflow-wrap:anywhere}
+.zev-meet p{margin:6px 0 0;color:#17211B;line-height:1.7}
+.zev-checkin{padding:16px 18px;border:1px solid #dde2dc;border-radius:18px;background:#fff;display:grid;gap:10px}
+.zev-checkin h2{margin:0;font-size:1.0625rem}
+.zev-checkin p{margin:0;color:#55615a;line-height:1.7}
+.zev-checkin p.ze-status{color:#143F2E}
+.zev-msg{color:#b42318;min-height:0}
 @media(min-width:960px){.zev-recs{grid-template-columns:repeat(4,minmax(0,1fr))}}
 `;
 
@@ -350,15 +386,46 @@ function shell(options: { lang: Lang; title: string; session: SessionLike; bodyH
 }
 
 const CHEV = '<svg class="ze-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+const PENDING = "まだ決まっていません。決まりしだい、このページで知らせます";
+const FOOTNOTE = "行事は、ノコシルで企画されています。主催の人への連絡は、ノコシルからできます。";
+
+function peopleText(ev: Pick<EventsV2Event, "participants" | "capacity">, phase: EventPhase): string {
+  if (phase === "past") return ev.participants > 0 ? `${ev.participants}人が参加しました` : "";
+  if (ev.participants <= 0) return "参加はまだいません。最初の一人として参加できます";
+  return `${ev.participants}人が参加します${ev.capacity ? `（定員${ev.capacity}人）` : ""}`;
+}
+
+function jstYear(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric" }).format(d);
+}
 
 function listRow(prefix: string, ev: EventsV2ListItem, lang: Lang): string {
   const timing = eventTiming(ev, lang);
-  const line1 = [ev.phase === "today" ? "本日" : "", timing.timeLabel, ev.placeName ?? ""].filter(Boolean).join(" ・ ");
-  const line2 = [ev.participants > 0 ? `${ev.phase === "past" ? "参加" : "参加予定"} ${ev.participants}人` : "", ev.distanceKm !== null ? (ev.distanceKm < 1 ? "1km未満" : `約${ev.distanceKm}km`) : ""].filter(Boolean).join(" ・ ");
+  const line1 = [ev.kind ?? "", timing.timeLabel].filter(Boolean).join(" ");
+  const lines = [ev.placeName ?? "", ev.distanceKm !== null ? (ev.distanceKm < 1 ? "ここから1km未満" : `ここから約${ev.distanceKm}km`) : "", peopleText(ev, ev.phase)].filter(Boolean);
   return `<li><a class="ze-row" data-event-row="${escapeHtml(ev.sessionId)}" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(ev.sessionId)}/preview`)}">
     <span class="ze-date" aria-hidden="true"><small>${escapeHtml(timing.shortMonth)}</small><b>${escapeHtml(timing.shortDay)}</b></span>
-    <span class="ze-row-body"><strong>${escapeHtml(ev.title)}${ev.phase === "today" ? '<span class="zev-chip">本日開催</span>' : ""}</strong>${line1 ? `<small>${escapeHtml(line1)}</small>` : ""}${line2 ? `<small>${escapeHtml(line2)}</small>` : ""}</span>${CHEV}
+    <span class="ze-row-body"><strong>${escapeHtml(ev.title)}${ev.phase === "today" ? '<span class="zev-chip">本日開催</span>' : ""}</strong>${line1 ? `<small>${escapeHtml(line1)}</small>` : ""}${lines.map((l) => `<small>${escapeHtml(l)}</small>`).join("")}</span>${CHEV}
   </a></li>`;
+}
+
+function groupedRows(prefix: string, items: EventsV2ListItem[], lang: Lang): string {
+  const thisYear = jstYear(new Date().toISOString());
+  const groups: Array<{ label: string; items: EventsV2ListItem[] }> = [];
+  for (const ev of items) {
+    const y = jstYear(ev.startedAt);
+    const label = `${y && y !== thisYear ? `${y}年` : ""}${eventTiming(ev, lang).dateLabel}`;
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(ev);
+    else groups.push({ label, items: [ev] });
+  }
+  return groups.map((g) => `<h3 class="zev-day">${escapeHtml(g.label)}</h3><ul class="ze-list">${g.items.map((e) => listRow(prefix, e, lang)).join("")}</ul>`).join("");
+}
+
+function matchesQuery(ev: EventsV2ListItem, q: string): boolean {
+  const hay = [ev.title, ev.placeName ?? "", ev.kind ?? ""].join(" ").toLowerCase();
+  return q.toLowerCase().split(/\s+/u).filter(Boolean).every((w) => hay.includes(w));
 }
 
 export async function handleEventsV2List(url: URL, lang: Lang, session: SessionLike, db: Env["OBS_DB"]): Promise<Response> {
@@ -368,26 +435,39 @@ export async function handleEventsV2List(url: URL, lang: Lang, session: SessionL
   const lat = latRaw !== null && latRaw !== "" && Number.isFinite(Number(latRaw)) && Math.abs(Number(latRaw)) <= 90 ? Number(latRaw) : null;
   const lng = lngRaw !== null && lngRaw !== "" && Number.isFinite(Number(lngRaw)) && Math.abs(Number(lngRaw)) <= 180 ? Number(lngRaw) : null;
   const known = lat !== null && lng !== null;
+  const q = (url.searchParams.get("q") ?? "").trim().slice(0, 60);
   const data = await loadEventsV2List(db, { lat: known ? lat : null, lng: known ? lng : null, viewerUserId: session && !session.banned ? session.userId : null, lang });
+  const upcoming = q ? data.upcoming.filter((e) => matchesQuery(e, q)) : data.upcoming;
+  const recent = q ? data.recent.filter((e) => matchesQuery(e, q)) : data.recent;
 
   const upcomingHtml = data.failed
     ? `<p class="ze-empty">イベントを読み込めませんでした。少し待ってからもう一度開いてください。</p>`
-    : data.upcoming.length > 0
-      ? `<ul class="ze-list" data-events-upcoming="1">${data.upcoming.map((e) => listRow(prefix, e, lang)).join("")}</ul>`
-      : `<p class="ze-empty" data-events-empty="1">いま参加できる観察会はまだありません。それまで、みんなの記録を見てみましょう。</p>
+    : upcoming.length > 0
+      ? `<div data-events-upcoming="1">${groupedRows(prefix, upcoming, lang)}</div>`
+      : q
+        ? `<p class="ze-empty" data-events-empty="1">「${escapeHtml(q)}」に合う行事は見つかりませんでした。ことばを変えて探してみてください。</p>`
+        : `<p class="ze-empty" data-events-empty="1">近くでは、まだ行事が開かれていません。行事が開かれたら、ここに出ます。それまで、みんなの記録を見てみましょう。</p>
          <a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/library`)}">みんなの記録を見る</a>`;
-  const recentHtml = data.recent.length > 0
-    ? `<section class="zev-sec"><h2>最近の観察会</h2><ul class="ze-list" data-events-recent="1">${data.recent.map((e) => listRow(prefix, e, lang)).join("")}</ul></section>`
+  const recentHtml = recent.length > 0
+    ? `<section class="zev-sec"><h2>最近の観察会</h2><ul class="ze-list" data-events-recent="1">${recent.map((e) => listRow(prefix, e, lang)).join("")}</ul></section>`
     : "";
   const geo = known
-    ? `<p class="ze-note">現在地から近い順の距離を表示しています。</p>`
+    ? `<p class="ze-note">距離は、いまいる場所からの目安です。</p>`
     : `<button type="button" class="zev-geo" id="zev-geo">現在地からの距離を表示する</button>
        <script>(()=>{const b=document.getElementById("zev-geo");if(!b||!navigator.geolocation)return;b.addEventListener("click",()=>{navigator.geolocation.getCurrentPosition(p=>{const u=new URL(location.href);u.searchParams.set("lat",p.coords.latitude.toFixed(3));u.searchParams.set("lng",p.coords.longitude.toFixed(3));location.href=u.toString();},()=>{b.textContent="現在地を取得できませんでした";});});})();</script>`;
+  const search = `<form class="zev-search" role="search" method="get" action="${escapeHtml(`${prefix}/community/events`)}" data-events-search="1">
+      ${known ? `<input type="hidden" name="lat" value="${lat}"><input type="hidden" name="lng" value="${lng}">` : ""}
+      <input type="search" name="q" value="${escapeHtml(q)}" placeholder="行事の名前・場所で探す" aria-label="行事を探す" maxlength="60">
+      <button type="submit">探す</button>
+    </form>`;
   const bodyHtml = `<div class="ze zev" data-event-view="v2-list">
     <h1 class="zev-title">近くのイベント</h1>
+    <p class="ze-note">日付の近い順に並んでいます。</p>
+    ${search}
     ${geo}
-    <section class="zev-sec">${data.upcoming.length > 0 ? "<h2>これからの観察会</h2>" : ""}${upcomingHtml}</section>
+    <section class="zev-sec">${upcomingHtml}</section>
     ${recentHtml}
+    <p class="ze-note">${FOOTNOTE}</p>
   </div>`;
   return shell({ lang, title: "近くのイベント", session, bodyHtml, pathname: `${prefix}/community/events` });
 }
@@ -407,6 +487,36 @@ function recordsGrid(records: EventsV2Record[], prefix: string): string {
   return `<ul class="zev-recs" data-event-records="1">${items.join("")}</ul>`;
 }
 
+function guideHtml(ev: EventsV2Event): string {
+  const rows: Array<[string, string | null]> = [
+    ["集合場所", ev.meetingPoint],
+    ["最寄り駅", ev.station],
+    ["駐車場", ev.parking],
+    ["持ち物", ev.bring],
+    ["注意事項", ev.caution],
+  ];
+  if (ev.rain) rows.push(["雨のとき", ev.rain]);
+  return `<section class="zev-sec" data-event-guide="1"><h2>当日の案内</h2><dl class="ze-facts">${rows
+    .map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${v ? escapeHtml(v) : `<span class="zev-pending">${PENDING}</span>`}</dd></div>`)
+    .join("")}</dl></section>`;
+}
+
+async function loadNextEvent(db: Env["OBS_DB"], ev: EventsV2Event): Promise<{ sessionId: string; title: string; startedAt: string; endedAt: string | null } | null> {
+  if (!ev.fieldId) return null;
+  try {
+    return await db
+      .prepare(
+        `SELECT session_id AS sessionId, title, started_at AS startedAt, ended_at AS endedAt FROM observation_event_sessions
+          WHERE field_id = ? AND session_id <> ? AND started_at > ? AND event_code IS NOT NULL AND trim(event_code) <> ''
+          ORDER BY started_at ASC LIMIT 1`
+      )
+      .bind(ev.fieldId, ev.sessionId, new Date().toISOString())
+      .first<{ sessionId: string; title: string; startedAt: string; endedAt: string | null }>();
+  } catch {
+    return null;
+  }
+}
+
 export async function handleEventsV2Detail(eventId: string, lang: Lang, session: SessionLike, db: Env["OBS_DB"]): Promise<Response> {
   const ev = await loadEventsV2Event(db, eventId);
   if (!ev) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
@@ -417,10 +527,17 @@ export async function handleEventsV2Detail(eventId: string, lang: Lang, session:
   const timing = eventTiming(ev, lang);
   const phase = timing.phase;
   let joined = false;
+  let checkedIn = false;
+  let myName = "";
   if (userId) {
     try {
-      const p = await db.prepare("SELECT 1 AS ok FROM observation_event_participants WHERE session_id = ? AND user_id = ? LIMIT 1").bind(eventId, userId).first();
+      const p = await db
+        .prepare("SELECT status, checked_in_at, display_name FROM observation_event_participants WHERE session_id = ? AND user_id = ? LIMIT 1")
+        .bind(eventId, userId)
+        .first<{ status: string | null; checked_in_at: string | null; display_name: string | null }>();
       joined = Boolean(p);
+      checkedIn = Boolean(p && (p.checked_in_at || p.status === "checked_in"));
+      myName = p?.display_name ?? "";
     } catch { /* optional */ }
   }
   const isOrganizer = Boolean(userId && userId === ev.organizerUserId);
@@ -429,51 +546,87 @@ export async function handleEventsV2Detail(eventId: string, lang: Lang, session:
   const placeHref = ev.fieldId ? `${prefix}/places/${encodeURIComponent(ev.fieldId)}` : null;
 
   const facts: Array<[string, string]> = [["日時", timing.whenLabel]];
-  if (ev.meetingPoint) facts.push(["集合場所", ev.meetingPoint]);
-  if (ev.placeName && ev.placeName !== ev.meetingPoint) facts.push(["場所", ev.placeName]);
+  if (ev.placeName) facts.push(["場所", ev.placeName]);
+  if (ev.cost) facts.push(["費用", ev.cost]);
+  const ppl = peopleText(ev, phase);
+  if (ppl && ev.participants > 0) facts.push(["参加", ppl]);
   if (ev.organizerLabel) facts.push(["主催", ev.organizerLabel]);
-  facts.push(["持ち物", ev.bring ?? "動きやすい靴・飲み物・充電したスマートフォン"]);
   const factsHtml = `<dl class="ze-facts" data-event-facts="1">${facts.map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join("")}</dl>`;
   const flowHtml = ev.schedule.length > 0
     ? `<section class="zev-sec" data-event-flow="1"><h2>当日の流れ</h2><ol class="zev-flow">${ev.schedule.map((s) => `<li>${s.time ? `<time>${escapeHtml(s.time)}</time>` : "<span></span>"}<span>${escapeHtml(s.title)}</span></li>`).join("")}</ol></section>`
     : "";
-  const summaryHtml = ev.summary ? `<p class="ze-text">${escapeHtml(ev.summary)}</p>` : "";
+  const summaryHtml = ev.summary ? `<section class="zev-sec"><h2>内容</h2><p class="ze-text">${escapeHtml(ev.summary)}</p></section>` : "";
 
   let primary = "";
+  let secondaryExtra = "";
   const loginHref = `${prefix}/login?redirect=${encodeURIComponent(`${prefix}/events/${eventId}/confirm`)}`;
   const joinBtn = `<a class="ze-btn" data-event-cta="join" href="${escapeHtml(authed ? `${prefix}/events/${enc}/confirm` : loginHref)}">参加する</a>`;
-  const statusHtml = joined ? `<p class="ze-status" data-event-joined="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>参加予定です</p>` : "";
+  const recordHref = `${prefix}/record?eventSessionId=${enc}`;
+  const statusHtml = joined && phase !== "today" ? `<p class="ze-status" data-event-joined="1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>参加予定です</p>` : "";
   let sectionsHtml = "";
+  let footNote = joined || phase === "past" ? "" : "主催者に伝わるのはフィールドネームまでです。";
 
   if (phase === "upcoming") {
     primary = member ? "" : joinBtn;
-    sectionsHtml = `<section class="zev-sec">${factsHtml}</section>${flowHtml}${summaryHtml}`;
+    sectionsHtml = `<section class="zev-sec">${factsHtml}</section>${guideHtml(ev)}${flowHtml}${summaryHtml}`;
   } else if (phase === "today") {
-    primary = member ? `<a class="ze-btn" data-event-cta="capture" href="${escapeHtml(`${prefix}/record?eventSessionId=${enc}`)}">${EVENT_ICON_CAMERA}写真を加える</a>` : joinBtn;
+    const startMs = Date.parse(ev.startedAt);
+    const endMs = ev.endedAt ? Date.parse(ev.endedAt) : NaN;
+    const now = Date.now();
+    const opensAt = Number.isFinite(startMs) ? startMs - 3600000 : now;
+    const windowOpen = now >= opensAt && (!Number.isFinite(endMs) || now <= endMs);
+    const fmt = (ms: number) => new Intl.DateTimeFormat("ja", { timeZone: "Asia/Tokyo", hour: "numeric", minute: "2-digit", hourCycle: "h23" }).format(new Date(ms));
     const r = recs!;
-    sectionsHtml = `<section class="zev-sec" data-event-day="1"><h2>今日の記録</h2>${r.recordCount > 0 ? `<p class="ze-note">記録 ${r.recordCount}件・${r.speciesCount}種</p>${recordsGrid(r.records, prefix)}` : `<p class="ze-empty">まだ記録はありません。最初の1枚を加えてみましょう。</p>`}</section>
+    const meetNotes = [`${timing.timeLabel}に歩きます`, ev.station ? `最寄り駅は${ev.station}` : "", ev.parking ? `駐車場：${ev.parking}` : ""].filter(Boolean).join(" ／ ");
+    const meetHtml = `<section class="zev-meet" data-event-meet="1"><small>集合場所</small><strong>${ev.meetingPoint ? escapeHtml(ev.meetingPoint) : `<span class="zev-pending">${PENDING}</span>`}</strong><p>${escapeHtml(meetNotes)}</p></section>`;
+    let checkHtml = "";
+    if (member && checkedIn) {
+      checkHtml = `<section class="zev-checkin" data-event-checkin="done"><p class="ze-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>チェックインしました</p><p>来たことが記録されています。見つけた生きものは、この企画の記録に残せます。</p></section>`;
+      primary = `<a class="ze-btn" data-event-cta="capture" href="${escapeHtml(recordHref)}">${EVENT_ICON_CAMERA}この企画の記録を残す</a>`;
+    } else if (member) {
+      if (windowOpen) {
+        checkHtml = `<section class="zev-checkin" data-event-checkin="open"><h2>チェックイン</h2><p>集合場所についたら、チェックインしてください。来たことが記録されて、あなたの「訪問」が始まります。今日の${escapeHtml(fmt(opensAt))}〜${Number.isFinite(endMs) ? escapeHtml(fmt(endMs)) : "終わり"}にできます。</p><p class="zev-msg" id="zev-checkin-msg" role="status"></p><p>チェックインしなくても、後からこの日の記録を足せます。</p></section>
+          <script>(()=>{const b=document.getElementById("zev-checkin-btn");const m=document.getElementById("zev-checkin-msg");if(!b)return;b.addEventListener("click",async()=>{b.disabled=true;try{const r=await fetch(${JSON.stringify(`/api/v1/observation-events/${eventId}/checkin`)},{method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",body:JSON.stringify({display_name:b.dataset.name||""})});if(r.ok){location.reload();return;}m.textContent="チェックインできませんでした。もう一度お試しください。";}catch(e){m.textContent="通信できませんでした。電波のよいところでもう一度お試しください。";}b.disabled=false;});})();</script>`;
+        primary = `<button type="button" class="ze-btn" id="zev-checkin-btn" data-event-cta="checkin" data-name="${escapeHtml(myName)}">チェックインする</button>`;
+        secondaryExtra = `<a class="ze-btn is-outline" data-event-cta="capture" href="${escapeHtml(recordHref)}">${EVENT_ICON_CAMERA}この企画の記録を残す</a>`;
+      } else {
+        checkHtml = `<section class="zev-checkin" data-event-checkin="later"><h2>チェックイン</h2><p>今日の${escapeHtml(fmt(opensAt))}からチェックインできます。チェックインしなくても、後からこの日の記録を足せます。</p></section>`;
+        primary = `<a class="ze-btn" data-event-cta="capture" href="${escapeHtml(recordHref)}">${EVENT_ICON_CAMERA}この企画の記録を残す</a>`;
+      }
+    } else {
+      primary = joinBtn;
+    }
+    sectionsHtml = `${meetHtml}${checkHtml}${guideHtml(ev)}
+      <section class="zev-sec" data-event-day="1"><h2>みんなの記録</h2>${r.recordCount > 0 ? `<p class="ze-note">記録 ${r.recordCount}件・${r.speciesCount}種</p>${recordsGrid(r.records, prefix)}` : `<p class="ze-empty">まだ記録はありません。最初の1枚を加えてみましょう。</p>`}</section>
       <section class="zev-sec">${factsHtml}</section>${flowHtml}${summaryHtml}`;
+    footNote = "";
   } else {
     const r = recs!;
-    primary = placeHref ? `<a class="ze-btn" data-event-cta="place" href="${escapeHtml(placeHref)}">この場所の記録を見る</a>` : "";
-    sectionsHtml = `<section class="zev-sec" data-event-after="1"><h2>観察会のまとめ</h2>
-        <dl class="zev-stats"><div><dt>見つけた種</dt><dd>${r.speciesCount}</dd></div><div><dt>記録</dt><dd>${r.recordCount}</dd></div><div><dt>参加</dt><dd>${ev.participants}</dd></div></dl>
-        ${r.speciesNames.length > 0 ? `<p class="zev-names" style="margin-top:12px">${r.speciesNames.map(escapeHtml).join("・")}</p>` : ""}
+    const mine = r.records.filter((x) => x.mine);
+    primary = placeHref ? `<a class="ze-btn" data-event-cta="place" href="${escapeHtml(placeHref)}">${escapeHtml(ev.placeName ?? "この場所")}の記録を見る</a>` : "";
+    const next = await loadNextEvent(db, ev);
+    const nextTiming = next ? eventTiming(next, lang) : null;
+    sectionsHtml = `<section class="zev-sec" data-event-after="1"><h2>この日に集まった記録</h2>
+        ${r.recordCount > 0 ? `${recordsGrid(r.records, prefix)}<p class="ze-note" style="margin-top:10px">公開された記録 ${r.recordCount}件 ・ 見つかった生きもの ${r.speciesCount}種が、この日の記録として残っています。</p>${r.speciesNames.length > 0 ? `<p class="zev-names">${r.speciesNames.map(escapeHtml).join("・")}</p>` : ""}` : `<p class="ze-empty">この日の公開された記録は、まだありません。</p>`}
       </section>
-      ${r.recordCount > 0 ? `<section class="zev-sec"><h2>この日の記録</h2>${recordsGrid(r.records, prefix)}</section>` : ""}
-      <section class="zev-sec">${factsHtml}</section>${summaryHtml}`;
+      ${member && mine.length > 0 ? `<section class="zev-sec" data-event-mine="1"><h2>あなたの記録</h2><a class="ze-row" href="${escapeHtml(`${prefix}/library`)}"><span class="ze-row-body"><strong>${escapeHtml(timing.dateLabel)}の記録 ${mine.length}件</strong><small>参加の記録と、あなたが残した記録は、ライブラリに入っています</small></span>${CHEV}</a></section>` : ""}
+      <section class="zev-sec">${factsHtml}</section>${summaryHtml}
+      ${next && nextTiming ? `<section class="zev-sec" data-event-next="1"><h2>次の行事</h2><a class="ze-row" href="${escapeHtml(`${prefix}/events/${encodeURIComponent(next.sessionId)}/preview`)}"><span class="ze-row-body"><strong>${escapeHtml(next.title)}</strong><small>${escapeHtml(nextTiming.whenLabel)}</small></span>${CHEV}</a></section>` : ""}`;
   }
 
   const secondary = [
+    secondaryExtra,
     phase === "past" && member ? `<a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/events/${enc}/take`)}">図鑑に載せる</a>` : "",
     `<a class="ze-btn is-outline" href="${escapeHtml(`${prefix}/events/${enc}/share`)}">${EVENT_ICON_SHARE}共有する</a>`,
   ].join("");
-  const people = ev.participants > 0 ? `${phase === "past" ? "参加" : "参加予定"} ${ev.participants}人` : "";
+  const heroChip = phase === "today" ? "今日です" : phase === "past" ? `終わりました ${timing.dateLabel}` : "参加を受け付けています";
+  const heroSub = phase === "upcoming" ? [timing.whenLabel, ev.placeName ?? ""].filter(Boolean).join(" ・ ") : ev.placeName ?? "";
   const bodyHtml = `<div class="ze zev" data-event-view="v2-detail" data-event-phase="${phase}">
     <div class="ze-main">
-      ${renderEventHero({ title: ev.title, chip: phaseChip(phase, timing.dateLabel, false), sub: people, backHref: `${prefix}/community/events`, backLabel: "イベント一覧へ", shareHref: `${prefix}/events/${enc}/share`, shareLabel: "共有する" })}
+      ${renderEventHero({ title: ev.title, chip: heroChip, sub: heroSub, backHref: `${prefix}/community/events`, backLabel: "イベント一覧へ", shareHref: `${prefix}/events/${enc}/share`, shareLabel: "共有する" })}
       ${sectionsHtml}
-      <aside class="ze-cta">${statusHtml}${primary}${secondary}<p class="ze-note">${joined || phase === "past" ? "" : "主催者に伝わるのはフィールドネームまでです。"}</p></aside>
+      <aside class="ze-cta">${statusHtml}${primary}${secondary}<p class="ze-note">${footNote}</p></aside>
+      <p class="ze-note">${FOOTNOTE}</p>
     </div>
   </div>`;
   return shell({ lang, title: ev.title, session, bodyHtml, pathname: `${prefix}/events/${enc}/preview` });

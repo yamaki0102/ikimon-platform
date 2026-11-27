@@ -38,7 +38,7 @@ function fixture(t: test.TestContext) {
       config_json TEXT NOT NULL DEFAULT '{}', field_id TEXT, template_source_session_id TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-    CREATE TABLE observation_event_participants (participant_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, user_id TEXT, display_name TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'registered');
+    CREATE TABLE observation_event_participants (participant_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, user_id TEXT, display_name TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'registered', checked_in_at TEXT);
     CREATE TABLE observation_event_live_events (live_event_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, type TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'all', actor_user_id TEXT, actor_guest_token TEXT, team_id TEXT, payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT);
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, visibility TEXT, emergency_hidden INTEGER DEFAULT 0);
@@ -46,7 +46,7 @@ function fixture(t: test.TestContext) {
     INSERT INTO places VALUES ('pl1', 'みなと通り');
   `);
   const ev = sqlite.prepare("INSERT INTO observation_event_sessions (session_id, event_code, title, organizer_user_id, location_lat, location_lng, started_at, ended_at, config_json, field_id) VALUES (?,?,?,?,?,?,?,?,?,?)");
-  const cfg = JSON.stringify({ meetingPoint: "北口 7:50", bring: "買い物袋・飲み物", schedule: ["8:00 集合", { time: "8:30", title: "朝市を歩く" }] });
+  const cfg = JSON.stringify({ meetingPoint: "北口 7:50", bring: "買い物袋・飲み物", nearestStation: "浜松駅", parking: "公園の駐車場（無料）", cautions: "足元に注意", capacity: 15, eventKind: "観察会", schedule: ["8:00 集合", { time: "8:30", title: "朝市を歩く" }] });
   ev.run("up2", "c-up2", "二つ目の朝市", "org", 35.0, 139.0, day(10), day(10, 11), cfg, "pl1");
   ev.run("up1", "c-up1", "一つ目のクリーン作戦", "org", 35.1, 139.1, day(3), day(3, 11), "{}", null);
   ev.run("td", "c-td", "本日の観察会", "org", 35.0, 139.0, day(0, 0), day(0, 23), cfg, "pl1");
@@ -85,9 +85,15 @@ test("list: date order, place, participants, distance, QA hidden", async (t) => 
   const order = ["本日の観察会", "一つ目のクリーン作戦", "二つ目の朝市"].map((n) => html.indexOf(n));
   assert.ok(order.every((i) => i > 0) && order[0]! < order[1]! && order[1]! < order[2]!);
   assert.match(html, /みなと通り/);
-  assert.match(html, /参加予定 2人/);
+  assert.match(html, /2人が参加します（定員15人）/);
   assert.match(html, /約\d+(\.\d)?km/);
   assert.match(html, /data-events-recent/);
+  assert.match(html, /<h3 class="zev-day">/);
+  assert.match(html, /参加はまだいません。最初の一人として参加できます/);
+  assert.match(html, /data-events-search/);
+  const found = await (await handleEventsV2List(new URL("https://x.test/ja/community/events?q=%E6%9C%9D%E5%B8%82"), "ja", null, db)).text();
+  assert.match(found, /二つ目の朝市/);
+  assert.ok(!found.includes("一つ目のクリーン作戦"));
   assert.match(html, /先月の朝市/);
 });
 
@@ -97,10 +103,16 @@ test("detail upcoming: meeting point, bring, flow, join button", async (t) => {
   assert.match(html, /集合場所/);
   assert.match(html, /北口 7:50/);
   assert.match(html, /買い物袋・飲み物/);
+  assert.match(html, /最寄り駅/);
+  assert.match(html, /浜松駅/);
+  assert.match(html, /公園の駐車場/);
+  assert.match(html, /足元に注意/);
   assert.match(html, /当日の流れ/);
   assert.match(html, /朝市を歩く/);
   assert.match(html, /data-event-cta="join"[^>]*>参加する/);
   assert.match(html, /\/ja\/events\/up2\/confirm/);
+  const bare = await (await handleEventsV2Detail("up1", "ja", { userId: "u9" }, db)).text();
+  assert.equal((bare.match(/まだ決まっていません。決まりしだい、このページで知らせます/g) ?? []).length, 5);
   const joined = await (await handleEventsV2Detail("up2", "ja", { userId: "u1" }, db)).text();
   assert.match(joined, /参加予定です/);
   assert.ok(!joined.includes('data-event-cta="join"'));
@@ -116,7 +128,10 @@ test("detail day-of: permitted records only, no duplicate photos", async (t) => 
   assert.match(html, /ツバメ/);
   assert.ok(!html.includes("カワセミ"));
   assert.match(html, /記録 2件・2種/);
-  assert.match(html, /data-event-cta="capture"/);
+  assert.match(html, /data-event-meet/);
+  assert.match(html, /data-event-checkin="open"/);
+  assert.match(html, /data-event-cta="checkin"[^>]*>チェックインする/);
+  assert.match(html, /\/api\/v1\/observation-events\/td\/checkin/);
   assert.equal((html.match(/derivatives\/o1\.jpg/g) ?? []).length, 1);
   const outsider = await (await handleEventsV2Detail("td", "ja", { userId: "u9" }, db)).text();
   assert.ok(!outsider.includes("アオサギ"));
@@ -127,8 +142,7 @@ test("detail after: summary counts, place link, rare hidden from outsiders, phot
   const db = fixture(t);
   const html = await (await handleEventsV2Detail("pa", "ja", { userId: "u9" }, db)).text();
   assert.match(html, /data-event-after/);
-  assert.match(html, /見つけた種<\/dt><dd>2</);
-  assert.match(html, /記録<\/dt><dd>2</);
+  assert.match(html, /公開された記録 2件 ・ 見つかった生きもの 2種/);
   assert.ok(!html.includes("シラサギ"));
   assert.match(html, /\/ja\/places\/pl1/);
   assert.equal((html.match(/derivatives\/o4\.jpg/g) ?? []).length, 1);
