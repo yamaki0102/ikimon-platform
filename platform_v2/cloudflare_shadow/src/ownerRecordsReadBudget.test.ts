@@ -97,66 +97,14 @@ function fixture() {
   };
 }
 
-test("empty and hidden-only owner Records skip both global media queries, including the legacy reader", async () => {
+test("signed-in owner Records redirect to the library without reading observations", async () => {
   const value = fixture();
   try {
-    for (const lang of ["ja", "en", "es", "pt-br"]) for (const method of ["GET", "HEAD"]) {
-      for (const [user, fault, queries] of [["empty", "", 1], ["hidden", "", 1], ["empty", "legacy", 2]] as const) {
-        const response = await value.fetch(user, `/${lang}/records?view=mine&q=missing`, method, fault);
-        const body = await response.text();
-        assert.equal(response.status, 200);
-        assert.match(response.headers.get("cache-control") ?? "", /no-store/u);
-        assert.equal(value.observationCalls().length, queries, `${lang}/${method}/${user}/${fault}`);
-        assert.equal(value.mediaCalls().length, 0);
-        if (method === "HEAD") assert.equal(body, "");
-        else {
-          assert.match(body, /data-records-mode="mine"/u);
-          assert.doesNotMatch(body, /role="status"|Other private record|Hidden owner record/u);
-        }
-      }
-    }
-  } finally { value.close(); }
-});
-
-test("nonempty owner results retain media reads and private ownership even when search returns no matches", async () => {
-  const value = fixture();
-  try {
-    for (const query of ["", "&q=missing"]) {
-      const response = await value.fetch("nonempty", `/ja/records?view=mine${query}`);
-      const body = await response.text();
-      assert.equal(response.status, 200);
-      // The search runs in SQL, so a query without matches reads no media at all.
-      assert.equal(value.observationCalls().length, query ? 1 : 3);
-      assert.equal(value.mediaCalls().length, query ? 0 : 2);
-      // Media kinds are read only for this owner's own rows, not the whole asset tables.
-      assert.ok(value.mediaCalls().every(call => /json_each\(\?\)/u.test(call.sql)));
-      assert.doesNotMatch(body, /Other private record|Hidden owner record/u);
-      if (!query) {
-        assert.match(body, /Private owner record/u);
-        assert.match(body, /非公開/u);
-      } else assert.doesNotMatch(body, /class="cf-records-native-card"/u);
-    }
-    const response = await value.fetch("nonempty", "/ja/records?view=mine", "GET", "media");
-    assert.match(await response.text(), /Private owner record/u);
-    // Both media readers run in parallel; one failing still leaves the owner card visible.
-    assert.equal(value.observationCalls().length, 3);
-    assert.equal(value.mediaCalls().length, 2);
-  } finally { value.close(); }
-});
-
-test("owner failures and malformed D1 results remain unavailable instead of becoming empty success", async () => {
-  const value = fixture();
-  try {
-    for (const fault of ["owner", "null-result", "null-rows", "not-an-array"] as const) {
-      const response = await value.fetch("empty", "/ja/records?view=mine", "GET", fault);
-      const body = await response.text();
-      assert.equal(response.status, 200);
-      assert.match(body, /role="status"/u);
-      assert.match(body, /記録を読み込めませんでした。/u);
-      assert.doesNotMatch(body, /まだ記録はありません。/u);
-      // A failed or malformed owner read never triggers the media lookup.
-      assert.equal(value.observationCalls().length, 1);
-      assert.equal(value.mediaCalls().length, 0);
+    for (const lang of ["ja", "en"]) for (const method of ["GET", "HEAD"]) {
+      const response = await value.fetch("nonempty", `/${lang}/records?view=mine&q=missing`, method);
+      assert.equal(response.status, 302);
+      assert.equal(response.headers.get("location"), `/${lang}/library?q=missing`);
+      assert.equal(value.observationCalls().length, 0);
     }
   } finally { value.close(); }
 });
