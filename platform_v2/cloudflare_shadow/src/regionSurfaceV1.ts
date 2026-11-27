@@ -1,4 +1,4 @@
-import { CHEV_ICON, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
+import { CHEV_ICON, SEO_DEFAULT_ORIGIN, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
@@ -277,6 +277,7 @@ export function renderRegionSurfacePage(options: {
   displayName?: string | null;
   cspNonce?: string | null;
   invasiveAvailable?: boolean;
+  origin?: string;
 }): string {
   const { data } = options;
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
@@ -317,7 +318,14 @@ export function renderRegionSurfacePage(options: {
     ${shelves.join("")}
     <p class="rs-foot" data-region-guide="1">${tr(L, "この地域の面には、記録や場所から集まったものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records and places. Shelves for shops, companies and organizations, and people will appear once there is content for them.")}</p>
   </div>${mapCard ? `<aside class="rs-rail" aria-label="${tr(L, "この地域の地図", "Map of this area")}">${mapCard}</aside>` : ""}</div>`;
+  const parts = L === "ja"
+    ? [data.species.length > 0 ? `記録された生きもの${data.species.length}種` : "", data.recordTotal > 0 ? `記録${data.recordTotal}件` : "", data.placeTotal > 0 ? `場所${data.placeTotal}か所` : ""].filter(Boolean)
+    : [data.species.length > 0 ? plural(data.species.length, "species", "species") : "", data.recordTotal > 0 ? plural(data.recordTotal, "record", "records") : "", data.placeTotal > 0 ? plural(data.placeTotal, "place", "places") : ""].filter(Boolean);
+  const description = L === "ja"
+    ? `${data.area}の生きものと場所。${parts.join("、")}。ZUKANの公開記録から集めています。`
+    : `Wildlife and places in ${data.area}: ${parts.join(", ")}. Gathered from public records on ZUKAN.`;
   return shell({
+    seo: { title: tr(L, `${data.area}の生きもの・場所 | ZUKAN`, `Wildlife and places in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(data.area)}`, image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: data.area,
     extraCss: EXTRA_CSS,
     lang: options.lang,
@@ -343,6 +351,7 @@ export function renderRegionSpeciesListPage(options: {
   displayName?: string | null;
   cspNonce?: string | null;
   invasiveAvailable?: boolean;
+  origin?: string;
 }): string {
   const { data } = options;
   const L = options.lang;
@@ -369,7 +378,11 @@ export function renderRegionSpeciesListPage(options: {
     ${callout}
     ${list}
   </div>`;
+  const description = L === "ja"
+    ? `${data.area}で記録されている生きもの${data.species.length}種の一覧。ZUKANの公開記録から。`
+    : `${plural(data.species.length, "species", "species")} recorded in ${data.area}. From public records on ZUKAN.`;
   return shell({
+    seo: { title: tr(L, `${data.area}の生きもの一覧 | ZUKAN`, `Wildlife in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(data.area)}/species`, image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: tr(L, `${data.area}の生物`, `Wildlife in ${data.area}`),
     extraCss: EXTRA_CSS,
     lang: options.lang,

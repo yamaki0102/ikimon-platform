@@ -37,7 +37,7 @@ test("region page shows only shelves with content and never repeats a photo", ()
   assert.match(html, /data-region-guide="1"/);
   assert.match(html, /\/ja\/regions\/%E3%83%86%E3%82%B9%E3%83%88%E5%B8%82\/species/);
   assert.match(html, /data-region-invasive="1"/);
-  assert.equal((html.match(/\/p\/1\.webp/g) ?? []).length, 1);
+  assert.equal((html.split("<body>")[1]!.match(/\/p\/1\.webp/g) ?? []).length, 1);
   assert.doesNotMatch(html, /店<|人<small/);
 });
 
@@ -155,7 +155,7 @@ test("region map card only when cells exist; photo never repeats", () => {
   const withCells = renderRegionSurfacePage({ data: sample({ cells: [{ cell: "34.70,137.70", count: 3 }, { cell: "34.71,137.72", count: 1 }] }), lang: "ja", authenticated: false });
   assert.match(withCells, /data-region-map="1"/);
   assert.match(withCells, /class="iv-col rs-col rs-wide"/);
-  assert.equal((withCells.match(/\/p\/1\.webp/g) ?? []).length, 1);
+  assert.equal((withCells.split("<body>")[1]!.match(/\/p\/1\.webp/g) ?? []).length, 1);
   const without = renderRegionSurfacePage({ data: sample(), lang: "ja", authenticated: false });
   assert.doesNotMatch(without, /data-region-map|class="iv-col rs-col rs-wide"/);
 });
@@ -215,4 +215,38 @@ test("place region lookup: published only, empty municipality yields null; place
   const base = { lang: "ja", prefix: "/ja", canonicalPlaceId: "a", name: "n", localName: null, locality: "", hasRecords: false, suppressed: false, shownCount: 0, startYear: "", latestLabel: null, records: [], photoUrls: [], recordHref: "/r", allRecordsHref: "/a", backHref: "/b", backLabel: "b", shareLabel: "s", copiedLabel: "c", shareTitle: "t", saveHtml: "", moreLabel: "m", moreHref: "#", mapHref: "/ja/map", externalMapHref: "", externalMapLabel: "", stewardIntro: null, events: [], steward: null, nearby: [], now: new Date() };
   assert.match(renderPlaceV3({ ...base, regionLink: { href: "/ja/regions/x", label: "xの地域ページ" } }), /data-pv3-region href="\/ja\/regions\/x"/);
   assert.doesNotMatch(renderPlaceV3(base), /data-pv3-region/);
+});
+
+test("region pages carry SEO head tags", () => {
+  const d = sample({ placeTotal: 2 });
+  const ja = renderRegionSurfacePage({ data: d, lang: "ja", authenticated: false, origin: "https://zukan.earth" });
+  assert.match(ja, /<title>テスト市の生きもの・場所 \| ZUKAN<\/title>/);
+  assert.match(ja, /<meta name="description" content="テスト市の生きものと場所。記録された生きもの3種、記録6件、場所2か所/);
+  assert.match(ja, /<link rel="canonical" href="https:\/\/zukan\.earth\/ja\/regions\/%E3%83%86%E3%82%B9%E3%83%88%E5%B8%82" \/>/);
+  assert.match(ja, /hreflang="en" href="https:\/\/zukan\.earth\/en\/regions\//);
+  assert.match(ja, /hreflang="x-default" href="https:\/\/zukan\.earth\/ja\/regions\//);
+  assert.match(ja, /property="og:image" content="https:\/\/zukan\.earth\/p\/1\.webp"/);
+  assert.match(ja, /property="og:url"/);
+  const en = renderRegionSurfacePage({ data: d, lang: "en", authenticated: false });
+  assert.match(en, /<title>Wildlife and places in テスト市 \| ZUKAN<\/title>/);
+  assert.match(en, /rel="canonical" href="https:\/\/zukan\.earth\/en\/regions\//);
+  const noImg = renderRegionSurfacePage({ data: sample({ species: sample().species.map((x) => ({ ...x, photoUrl: null })) }), lang: "ja", authenticated: false });
+  assert.doesNotMatch(noImg, /og:image/);
+  const list = renderRegionSpeciesListPage({ data: d, group: "bird", lang: "ja", authenticated: false });
+  assert.match(list, /<title>テスト市の生きもの一覧 \| ZUKAN<\/title>/);
+  assert.match(list, /rel="canonical" href="https:\/\/zukan\.earth\/ja\/regions\/[^"?]+\/species"/);
+  const iv = renderRegionInvasivePage({ area: "テスト市", records: [], lang: "ja", authenticated: false });
+  assert.match(iv, /<title>テスト市の外来種 \| ZUKAN<\/title>/);
+  assert.match(iv, /name="description"/);
+  assert.match(iv, /rel="canonical" href="https:\/\/zukan\.earth\/ja\/regions\/[^"]+\/invasive"/);
+});
+
+test("invasive species page has SEO head", async () => {
+  const { renderInvasiveSpeciesPage } = await import("./invasiveMapV1");
+  const { INVASIVE_SEED_ROWS } = await import("./mapInvasive");
+  const slug = INVASIVE_SEED_ROWS[0]![2];
+  const html = renderInvasiveSpeciesPage({ slug, records: [], lang: "ja", authenticated: false })!;
+  assert.match(html, /\(外来種） \| ZUKAN<\/title>|（外来種） \| ZUKAN<\/title>/);
+  assert.match(html, new RegExp(`rel="canonical" href="https://zukan\.earth/ja/invasive/${slug}"`));
+  assert.match(html, /hreflang="x-default"/);
 });

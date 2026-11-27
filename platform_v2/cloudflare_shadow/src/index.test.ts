@@ -34805,3 +34805,20 @@ test("map html includes the admin place-register button only for admin users whe
   const adminHtml = await fetchJaMap(flagOnEnv, adminCookie);
   assert.match(adminHtml, /<a class="me-admin-place-register" data-map-place-register href="\/ja\/admin\/places\/new">ここを場所に登録<\/a>/);
 });
+
+test("sitemap lists region surfaces and invasive pages when flags are on", async () => {
+  const { env } = createEnv();
+  const originalPrepare = env.OBS_DB.prepare.bind(env.OBS_DB);
+  const on = { ...env, ENVIRONMENT: "production", ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ REGION_SURFACE_V1_ENABLED: { state: "all" }, INVASIVE_MAP_V1_ENABLED: { state: "all" } }) } as typeof env;
+  on.OBS_DB.prepare = ((query: string) => {
+    if (query.includes("GROUP BY r.public_area_label")) {
+      return { bind: () => ({ all: async () => ({ results: [{ area: "浜松市", n: 9 }, { area: "", n: 3 }] }) }) } as unknown as ReturnType<typeof originalPrepare>;
+    }
+    return originalPrepare(query);
+  }) as typeof env.OBS_DB.prepare;
+  const xml = await withPublicPlacesInSitemap('<?xml version="1.0"?><urlset></urlset>', on);
+  assert.match(xml, /<loc>https:\/\/zukan\.earth\/ja\/regions\/%E6%B5%9C%E6%9D%BE%E5%B8%82<\/loc>/);
+  assert.match(xml, /\/ja\/regions\/%E6%B5%9C%E6%9D%BE%E5%B8%82\/species<\/loc>/);
+  assert.match(xml, /\/ja\/regions\/%E6%B5%9C%E6%9D%BE%E5%B8%82\/invasive<\/loc>/);
+  assert.match(xml, /\/ja\/invasive\/[a-z-]+<\/loc>/);
+});
