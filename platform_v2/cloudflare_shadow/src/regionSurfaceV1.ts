@@ -49,7 +49,22 @@ const PLACE_KIND_LABELS: Readonly<Record<string, string>> = {
 const esc = (v: unknown): string =>
   String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
-const PLACE_AREA_SQL = "public_profile_status = 'published' AND superseded_by_place_id IS NULL AND (municipality = ?1 OR prefecture = ?1)";
+const PREFECTURE_PREFIX = /^(?:北海道|東京都|京都府|大阪府|[^\s都道府県]{2,3}県)(?=.)/;
+const WARD_SUFFIX = /^(.{1,6}市).{1,6}区$/;
+
+export function regionKeyFromLabel(value: unknown): string | null {
+  let v = String(value ?? "").normalize("NFKC").replace(/\s+/g, "");
+  if (!v) return null;
+  v = v.replace(PREFECTURE_PREFIX, "");
+  v = v.replace(WARD_SUFFIX, "$1");
+  return v || null;
+}
+
+const PLACE_AREA_SQL = `public_profile_status = 'published' AND superseded_by_place_id IS NULL AND (
+  municipality = ?1 OR prefecture = ?1 OR locality_label = ?1
+  OR (locality_label LIKE '%' || ?1 AND length(locality_label) <= length(?1) + 4)
+  OR (locality_label LIKE '%' || ?1 || '%区' AND length(locality_label) <= length(?1) + 8)
+  OR CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json, '$.municipality') END = ?1)`;
 
 async function safeAll<T>(run: () => Promise<{ results?: T[] }>): Promise<T[]> {
   try { return (await run()).results ?? []; } catch { return []; }
@@ -129,9 +144,15 @@ export async function loadRegionSurfaceData(
 
 export async function loadPlaceRegionArea(db: Db, placeId: string, normalize: (v: string) => string | null): Promise<string | null> {
   try {
-    const row = await db.prepare("SELECT municipality FROM places WHERE place_id = ?1 AND public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 1").bind(placeId).first<{ municipality: string | null }>();
-    const area = row?.municipality ? String(row.municipality).trim() : "";
-    return area && normalize(area) === area ? area : null;
+    const row = await db.prepare("SELECT municipality, locality_label, metadata_json FROM places WHERE place_id = ?1 AND public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 1").bind(placeId).first<{ municipality: string | null; locality_label?: string | null; metadata_json?: string | null }>();
+    if (!row) return null;
+    let metaMunicipality: unknown = null;
+    try { metaMunicipality = row.metadata_json ? (JSON.parse(row.metadata_json) as { municipality?: unknown }).municipality : null; } catch { metaMunicipality = null; }
+    for (const candidate of [row.municipality, metaMunicipality, row.locality_label]) {
+      const area = regionKeyFromLabel(candidate);
+      if (area && normalize(area) === area) return area;
+    }
+    return null;
   } catch { return null; }
 }
 

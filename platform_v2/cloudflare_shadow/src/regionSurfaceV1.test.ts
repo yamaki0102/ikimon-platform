@@ -7,7 +7,7 @@ import { PROTOTYPE_FLAGS } from "./flags/index.generated";
 import * as regionFlag from "./flags/REGION_SURFACE_V1_ENABLED";
 import { renderRegionInvasivePage } from "./invasiveMapV1";
 import { renderPlaceV3 } from "./placeDetailV3";
-import { loadPlaceRegionArea, loadRegionSurfaceData, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage, type RegionSurfaceData } from "./regionSurfaceV1";
+import { loadPlaceRegionArea, loadRegionSurfaceData, regionKeyFromLabel, regionSurfaceHasContent, renderRegionSpeciesListPage, renderRegionSurfacePage, type RegionSurfaceData } from "./regionSurfaceV1";
 
 const sample = (over: Partial<RegionSurfaceData> = {}): RegionSurfaceData => ({
   area: "テスト市",
@@ -74,7 +74,7 @@ test("worker routes regions only when REGION_SURFACE_V1_ENABLED is on; unknown a
     CREATE TABLE observation_data_rights (visit_id TEXT, withdrawal_status TEXT, record_consent TEXT);
     CREATE TABLE observations (observation_id TEXT PRIMARY KEY, owner_user_id TEXT, visibility TEXT DEFAULT 'public', emergency_hidden INTEGER DEFAULT 0, taxon_label TEXT, note TEXT);
     CREATE TABLE asset_ledger (asset_id TEXT PRIMARY KEY, observation_id TEXT, mime TEXT, processing_state TEXT, public_derivative_key TEXT, public_derivative_verified_at TEXT, public_derivative_metadata_json TEXT, exif_scrub_state TEXT, public_ready_at TEXT);
-    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT, locality_label TEXT, place_kind TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, municipality TEXT, prefecture TEXT);
+    CREATE TABLE places (place_id TEXT PRIMARY KEY, canonical_name TEXT, locality_label TEXT, place_kind TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, municipality TEXT, prefecture TEXT, metadata_json TEXT);
     CREATE TABLE observation_event_sessions (session_id TEXT PRIMARY KEY, title TEXT, event_code TEXT, started_at TEXT, field_id TEXT);
   `);
   const ins = sqlite.prepare("INSERT INTO readmodel_public_observations (observation_id, public_cell, observed_at, taxon_label, public_area_label) VALUES (?,?,?,?,?)");
@@ -83,8 +83,8 @@ test("worker routes regions only when REGION_SURFACE_V1_ENABLED is on; unknown a
   own.run("w-1", "u1");
   ins.run("w-2", "34.70,137.70", "2026-11-02T01:00:00Z", "不明", "テスト市");
   own.run("w-2", "u1");
-  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?,?,?)").run("pl-1", "テスト公園", null, "park", "published", null, "場所だけの市", null);
-  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?,?,?)").run("pl-2", "下書き", null, "park", "draft", null, "場所だけの市", null);
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?,?,?,?)").run("pl-1", "テスト公園", null, "park", "published", null, "場所だけの市", null, "{}");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?,?,?,?)").run("pl-2", "下書き", null, "park", "draft", null, "場所だけの市", null, "{}");
   const db = {
     prepare(query: string) {
       let values: unknown[] = [];
@@ -172,12 +172,40 @@ test("invasive region page links to region only when regionHref given", () => {
   assert.doesNotMatch(off, /data-region-back/);
 });
 
+test("region key normalization and place fallback from locality/metadata", async () => {
+  assert.equal(regionKeyFromLabel("静岡県浜松市"), "浜松市");
+  assert.equal(regionKeyFromLabel("浜松市中央区"), "浜松市");
+  assert.equal(regionKeyFromLabel("静岡県浜松市中央区"), "浜松市");
+  assert.equal(regionKeyFromLabel("北海道札幌市"), "札幌市");
+  assert.equal(regionKeyFromLabel("東京都千代田区"), "千代田区");
+  assert.equal(regionKeyFromLabel("静岡県"), "静岡県");
+  assert.equal(regionKeyFromLabel("  "), null);
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE places (place_id TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, municipality TEXT, prefecture TEXT, locality_label TEXT, metadata_json TEXT, canonical_name TEXT, place_kind TEXT)");
+  const ins = sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?,?,?,?)");
+  ins.run("p1", "published", null, null, null, "静岡県浜松市", "{}", "a", "park");
+  ins.run("p2", "published", null, null, null, null, '{"municipality":"浜松市"}', "b", "park");
+  ins.run("p3", "published", null, null, null, "静岡県浜松市中央区", "not json", "c", "park");
+  ins.run("p4", "published", null, null, null, "静岡県静岡市", "{}", "d", "park");
+  ins.run("p5", "draft", null, null, null, "静岡県浜松市", "{}", "e", "park");
+  const db = { prepare(q: string) { let v: unknown[] = []; const st = { bind(...a: unknown[]) { v = a; return st; }, async first<T>() { return (sqlite.prepare(q).get(...(v as never[])) as T | undefined) ?? null; }, async all<T>() { return { results: sqlite.prepare(q).all(...(v as never[])) as T[] }; } }; return st; } };
+  const norm = (x: string) => x;
+  assert.equal(await loadPlaceRegionArea(db as never, "p1", norm), "浜松市");
+  assert.equal(await loadPlaceRegionArea(db as never, "p2", norm), "浜松市");
+  assert.equal(await loadPlaceRegionArea(db as never, "p3", norm), "浜松市");
+  assert.equal(await loadPlaceRegionArea(db as never, "p5", norm), null);
+  const data = await loadRegionSurfaceData(db, "浜松市", async () => new Map());
+  assert.equal(data.placeTotal, 3);
+  assert.deepEqual(data.places.map((p) => p.id).sort(), ["p1", "p2", "p3"]);
+  sqlite.close();
+});
+
 test("place region lookup: published only, empty municipality yields null; place v3 link by input", async () => {
   const sqlite = new DatabaseSync(":memory:");
-  sqlite.exec("CREATE TABLE places (place_id TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, municipality TEXT)");
-  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?)").run("a", "published", null, "テスト市");
-  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?)").run("b", "draft", null, "テスト市");
-  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?)").run("c", "published", null, "");
+  sqlite.exec("CREATE TABLE places (place_id TEXT, public_profile_status TEXT, superseded_by_place_id TEXT, municipality TEXT, locality_label TEXT, metadata_json TEXT)");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?)").run("a", "published", null, "テスト市", null, "{}");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?)").run("b", "draft", null, "テスト市", null, "{}");
+  sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?)").run("c", "published", null, "", null, "{}");
   const db = { prepare(q: string) { let v: unknown[] = []; const st = { bind(...a: unknown[]) { v = a; return st; }, async first<T>() { return (sqlite.prepare(q).get(...(v as never[])) as T | undefined) ?? null; }, async all<T>() { return { results: [] as T[] }; } }; return st; } };
   const norm = (x: string) => x;
   assert.equal(await loadPlaceRegionArea(db as never, "a", norm), "テスト市");
