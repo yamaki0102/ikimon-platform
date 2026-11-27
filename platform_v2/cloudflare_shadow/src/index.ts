@@ -277,6 +277,8 @@ import {
 } from "./fixedPointStationSurvey";
 import { PHOTO_UPLOAD_PREPARATION_SCRIPT } from "../../src/ui/photoUploadPreparation";
 import { FACE_PRIVACY_CLIENT_SCRIPT } from "../../src/ui/facePrivacyScript";
+import { findInvasiveSpeciesBySlug } from "../../src/services/invasiveSpeciesCatalog";
+import { renderInvasiveDetailDocument, renderInvasiveListDocument, renderInvasiveNotFoundDocument } from "../../src/ui/invasiveSpeciesPages";
 import { isJapaneseLearnHtmlKey, isJapaneseLearnHtmlPath } from "../../src/learn/paths";
 import { APP_EXPERIENCE_STYLES, renderAppExperienceHeader, renderAppExperienceNavigation, renderAppExperienceQuickCamera } from "../../src/ui/appExperience";
 import { DiscoveryError, type DiscoveryCaptureInput } from "./eventDiscovery";
@@ -3345,6 +3347,26 @@ export const worker = {
       if (request.method === "GET" || request.method === "HEAD") {
         const publicEntryRedirect = publicEntryRedirectResponse(url, nativePathname);
         if (publicEntryRedirect) return publicEntryRedirect;
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const invasiveGuideUrlLang = publicLangFromPath(url.pathname);
+        const invasiveGuideLang: SiteLang | null = invasiveGuideUrlLang === "pt-br" ? "pt-BR" : invasiveGuideUrlLang;
+        const invasiveGuideMatch = invasiveGuideLang && invasiveGuideLang !== "ja" ? nativePathname.match(/^\/learn\/invasive-species(?:\/([^/]+))?$/u) : null;
+        if (invasiveGuideLang && invasiveGuideMatch) {
+          const guideItem = invasiveGuideMatch[1] ? findInvasiveSpeciesBySlug((() => { try { return decodeURIComponent(invasiveGuideMatch[1]!); } catch { return ""; } })()) : null;
+          const guideCspNonce = createHtmlCspNonce();
+          const guideDoc = invasiveGuideMatch[1]
+            ? guideItem
+              ? renderInvasiveDetailDocument({ basePath: "", lang: invasiveGuideLang, item: guideItem, currentPath: url.pathname })
+              : renderInvasiveNotFoundDocument({ basePath: "", lang: invasiveGuideLang, currentPath: url.pathname })
+            : renderInvasiveListDocument({ basePath: "", lang: invasiveGuideLang, currentPath: url.pathname });
+          return html(request.method === "HEAD" ? "" : applyCspNonceToHtmlScripts(guideDoc, guideCspNonce), invasiveGuideMatch[1] && !guideItem ? 404 : 200, {
+            ...browserSecurityHeaders(guideCspNonce, env.ENVIRONMENT === "production"),
+            "cache-control": "public, max-age=300",
+            "x-ikimon-cloudflare-native": "invasive-guide-i18n"
+          });
+        }
       }
 
       if (request.method === "GET" || request.method === "HEAD") {

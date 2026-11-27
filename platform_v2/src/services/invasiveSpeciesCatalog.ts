@@ -53,17 +53,17 @@ export const INVASIVE_SPECIES_LIST_PATH = "/learn/invasive-species";
 export const INVASIVE_SPECIES_OFFICIAL_SOURCES = [
   {
     label: "環境省 特定外来生物等一覧",
-    labelEn: "Ministry of the Environment, List of Designated Invasive Alien Species (特定外来生物等一覧)",
+    labelEn: "Ministry of the Environment, List of Designated Invasive Alien Species (Japanese)",
     href: "https://www.env.go.jp/nature/intro/2outline/list.html",
   },
   {
     label: "環境省 生態系被害防止外来種リスト",
-    labelEn: "Ministry of the Environment, List of Invasive Alien Species Threatening Ecosystems (生態系被害防止外来種リスト)",
+    labelEn: "Ministry of the Environment, List of Invasive Alien Species Threatening Ecosystems (Japanese)",
     href: "https://www.env.go.jp/nature/intro/2outline/iaslist.html",
   },
   {
     label: "環境省 外来生物法の説明",
-    labelEn: "Ministry of the Environment, Overview of the Invasive Alien Species Act (外来生物法の説明)",
+    labelEn: "Ministry of the Environment, Overview of the Invasive Alien Species Act (Japanese)",
     href: "https://www.env.go.jp/nature/intro/1law/outline.html",
   },
 ] as const;
