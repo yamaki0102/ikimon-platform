@@ -20,6 +20,7 @@
 | RECORD_INLINE_EDIT_PROTOTYPE_ENABLED | 記録ページのその場で編集 | zukan_record_page | /ja/observations/<自分の記録> |
 | RECORD_PAGE_PER_MEDIA_PROTOTYPE_ENABLED | 記録ページの写真ごとの読み取り | zukan_record_page | /ja/observations/<記録> |
 | RECORD_READER_MODES_ENABLED | 記録詳細のこども・おや切り替え | zukan_record_reader | /ja/observations |
+| REGION_SURFACE_V1_ENABLED | 地域の面と生物の一覧（分類の棚） | zukan_region | /ja/regions/静岡市葵区 |
 | SEARCH_V2_ENABLED | 探す画面 再設計 v2（候補・最近・時期ことば） | zukan_search | /ja/search/explore |
 | SHOP_PHOTO_PERK_ENABLED | 店の写真投稿＋引換券 | zukan_shop_photo_perk | /ja/shops |
 | SPECIES_READER_LAYER_ENABLED | 種ごとの解説レイヤー（こども／おや／せんせい） | zukan_species_reader_layer | /ja/records |
