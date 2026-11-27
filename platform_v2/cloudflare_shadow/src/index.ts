@@ -4556,6 +4556,8 @@ export const worker = {
       }
       const eventsIndexMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/?$/);
       if ((request.method === "GET" || request.method === "HEAD") && eventsIndexMatch) return Response.redirect(`${url.origin}/${eventsIndexMatch[1] ?? "ja"}/events/nearby${url.search}`, 302);
+      const legalNonJaMatch = url.pathname.match(/^\/(?:en|es|pt-br)\/(privacy|terms)\/?$/);
+      if ((request.method === "GET" || request.method === "HEAD") && legalNonJaMatch) return Response.redirect(`${url.origin}/ja/${legalNonJaMatch[1]}${url.search}`, 302);
       const aliasMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/(invasive|me|mypage)\/?$/);
       if ((request.method === "GET" || request.method === "HEAD") && aliasMatch) return Response.redirect(`${url.origin}/${aliasMatch[1] ?? "ja"}/${aliasMatch[2] === "invasive" ? "learn/invasive-species" : "profile"}${url.search}`, 302);
       const eventsNearbyPageMatch = url.pathname.match(/^(?:\/(ja|en|es|pt-br))?\/events\/nearby$/);
