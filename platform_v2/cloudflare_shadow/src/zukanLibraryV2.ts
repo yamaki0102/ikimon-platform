@@ -405,7 +405,12 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 `;
 
 function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false): string {
-  const href = `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
+  const soleMedia = visit.photos.length + visit.videos.length === 1 && visit.audios.length === 0 && !visit.report
+    ? [...visit.photos, ...visit.videos][0]!
+    : null;
+  const href = soleMedia
+    ? `${prefix}/observations/${encodeURIComponent(soleMedia.observationId)}`
+    : `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
   const hasPlace = visit.areaLabel !== "";
   const reportTitle = visit.report?.title ?? "";
   const faceTitle = reportTitle || (hasPlace ? visit.placeName : "");
