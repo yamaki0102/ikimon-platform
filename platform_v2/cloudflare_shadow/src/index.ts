@@ -57,6 +57,7 @@ import {
   handleNearbyEventsApi,
   handleNearbyEventsPageRoute,
 } from "./zukanEventsNearbyAndDetails";
+import { handleMapPlaceSummaryApi } from "./zukanMapPlaceSummary";
 import { handleMapExploreRoute, handleMapPlacesBoundsApi, mapPlaceCardFromProfile, type MapPlaceCardExtras } from "./zukanMapView";
 import { handleEventAlbumOrShareRoute } from "./zukanEventAlbumAndShare";
 import {
@@ -4613,6 +4614,11 @@ export const worker = {
         const session = await readCompatibleSession(request, env).catch(() => null);
         if (eventsV2On(env, session)) return handleEventsV2Detail(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
         return handleEventDetailsRoute(decodeURIComponent(eventDetailsMatch[2]), viewLang, session, env.OBS_DB);
+      }
+
+      const mapPlaceSummaryMatch = url.pathname.match(/^\/api\/v1\/map\/places\/([^/]+)\/summary$/);
+      if (request.method === "GET" && mapPlaceSummaryMatch?.[1]) {
+        return handleMapPlaceSummaryApi(env.OBS_DB, decodeURIComponent(mapPlaceSummaryMatch[1]));
       }
 
       if (request.method === "GET" && url.pathname === "/api/v1/map/places") {

@@ -781,7 +781,7 @@ export async function loadOwnerPlaceRecordSummary(
   }
 }
 
-async function loadPhotoUrls(
+export async function loadPhotoUrls(
   db: PlaceAtlasD1Database,
   recordIds: string[],
 ): Promise<Map<string, string>> {
