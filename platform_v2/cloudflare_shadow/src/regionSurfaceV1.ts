@@ -1,4 +1,4 @@
-import { CHEV_ICON, SHARE_SCRIPT, headBar, shell } from "./invasiveMapV1";
+import { CHEV_ICON, SHARE_SCRIPT, cellHalfStep, headBar, parseCell, shell } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
@@ -18,7 +18,9 @@ export type RegionSurfaceData = {
   placeTotal: number;
   events: RegionEvent[];
   eventTotal: number;
+  cells?: RegionCell[];
 };
+export type RegionCell = { cell: string; count: number };
 
 type Db = { prepare(sql: string): { bind(...v: unknown[]): { all<T>(): Promise<{ results?: T[] }>; first<T>(): Promise<T | null> } } };
 
@@ -106,8 +108,16 @@ export async function loadRegionSurfaceData(
     `SELECT session_id, title, started_at ${eventScope} ORDER BY started_at DESC LIMIT 5`,
   ).bind(area).all<{ session_id: string; title: string; started_at: string }>());
   const eventCount = await db.prepare(`SELECT COUNT(*) AS n ${eventScope}`).bind(area).first<{ n: number }>().catch(() => null);
+  const cellRows = await safeAll(() => db.prepare(
+    `SELECT r.public_cell AS cell, COUNT(*) AS n
+       FROM readmodel_public_observations r
+       JOIN observations o ON o.observation_id = r.observation_id
+      WHERE r.public_area_label = ?1 AND r.public_cell IS NOT NULL AND o.visibility = 'public' AND o.emergency_hidden = 0
+      GROUP BY r.public_cell ORDER BY n DESC LIMIT 40`,
+  ).bind(area).all<{ cell: string; n: number }>());
   return {
     area,
+    cells: cellRows.map((c) => ({ cell: String(c.cell), count: Number(c.n) })),
     recordTotal: rows.length,
     species,
     places: placeRows.map((p) => ({ id: p.place_id, name: p.canonical_name, locality: p.locality_label, kind: p.place_kind })),
@@ -115,6 +125,42 @@ export async function loadRegionSurfaceData(
     events: eventRows.map((e) => ({ id: e.session_id, title: e.title, startedAt: e.started_at })),
     eventTotal: Number(eventCount?.n ?? 0),
   };
+}
+
+export async function loadPlaceRegionArea(db: Db, placeId: string, normalize: (v: string) => string | null): Promise<string | null> {
+  try {
+    const row = await db.prepare("SELECT municipality FROM places WHERE place_id = ?1 AND public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 1").bind(placeId).first<{ municipality: string | null }>();
+    const area = row?.municipality ? String(row.municipality).trim() : "";
+    return area && normalize(area) === area ? area : null;
+  } catch { return null; }
+}
+
+export function regionMapCardHtml(cells: readonly RegionCell[], mapHref: string): string {
+  const parsed = cells.map((c) => ({ ...c, p: parseCell(c.cell), h: cellHalfStep(c.cell) })).filter((c): c is typeof c & { p: { lat: number; lng: number } } => c.p !== null);
+  if (parsed.length === 0) return "";
+  const W = 288;
+  const H = 200;
+  const pad = 28;
+  const minLat = Math.min(...parsed.map((c) => c.p.lat - c.h));
+  const maxLat = Math.max(...parsed.map((c) => c.p.lat + c.h));
+  const minLng = Math.min(...parsed.map((c) => c.p.lng - c.h));
+  const maxLng = Math.max(...parsed.map((c) => c.p.lng + c.h));
+  const kx = Math.max(Math.cos(((minLat + maxLat) / 2) * Math.PI / 180), 0.1);
+  const spanX = Math.max((maxLng - minLng) * kx, 1e-6);
+  const spanY = Math.max(maxLat - minLat, 1e-6);
+  const scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY, 12000);
+  const offX = (W - spanX * scale) / 2;
+  const offY = (H - spanY * scale) / 2;
+  const rects = parsed.map((c) => {
+    const w = Math.max(c.h * 2 * kx * scale, 22);
+    const h = Math.max(c.h * 2 * scale, 22);
+    const cx = offX + (c.p.lng - minLng) * kx * scale;
+    const cy = offY + (maxLat - c.p.lat) * scale;
+    const x = Math.min(Math.max(cx - w / 2, 3), W - w - 3);
+    const y = Math.min(Math.max(cy - h / 2, 3), H - h - 3);
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="6" fill="#143F2E" fill-opacity="${(0.14 + Math.min(c.count, 20) / 20 * 0.4).toFixed(2)}" stroke="#143F2E" stroke-opacity=".55" stroke-width="1.5"/>`;
+  }).join("");
+  return `<div class="rs-rc" data-region-map="1"><div class="rs-rh">この地域の地図</div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="この地域の記録がある範囲（大まかな位置）" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="12" fill="#EDEFE7"/>${rects}</svg><p class="rs-rn">記録がある範囲を、大まかに表示しています。</p><a class="rs-all" href="${esc(mapHref)}">地図で見る</a></div>`;
 }
 
 export const regionSurfaceHasContent = (d: RegionSurfaceData): boolean => d.species.length > 0 || d.placeTotal > 0 || d.eventTotal > 0;
@@ -150,6 +196,12 @@ const EXTRA_CSS = `
 .rs-chip[aria-current="true"]{background:var(--green);color:#fff;border-color:var(--green)}
 .rs-foot{margin:28px 0 0;padding:16px;border-radius:16px;background:var(--surface);font-size:14.5px;line-height:1.75;color:var(--muted)}
 @media(min-width:1024px){.iv-col.rs-col{max-width:880px}}
+.rs-rail{display:none}
+@media(min-width:1280px){.iv-col.rs-col.rs-wide{max-width:1120px;display:grid;grid-template-columns:minmax(0,1fr) 320px;column-gap:40px;align-items:start}.rs-wide .rs-main{min-width:0}.rs-wide .rs-rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;padding-top:6px}}
+.rs-rc{background:var(--surface);border-radius:16px;padding:18px}
+.rs-rh{font-size:16px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.rs-rc svg{display:block;border:1px solid var(--line);border-radius:12px}
+.rs-rn{margin:10px 0 0;font-size:13.5px;line-height:1.65;color:var(--muted)}
 `;
 
 const regionBase = (lang: Lang, area: string): string => `${lang === "ja" ? "/ja" : `/${lang}`}/regions/${encodeURIComponent(area)}`;
@@ -210,7 +262,8 @@ export function renderRegionSurfacePage(options: {
     const rows = data.events.map((e) => `<a class="rs-row" data-region-event="${esc(e.id)}" href="${esc(`${prefix}/events/${encodeURIComponent(e.id)}/preview`)}"><span class="rs-b"><span class="rs-n">${esc(e.title)}</span><span class="rs-m">${esc(dateLabel(e.startedAt))}</span></span>${CHEV_ICON}</a>`).join("");
     shelves.push(`<section data-region-shelf="events"><div class="rs-shelf-h"><h2>行事<small>${data.eventTotal}件</small></h2></div>${rows}</section>`);
   }
-  const body = `<div class="iv-col rs-col" data-region-surface="${esc(data.area)}">
+  const mapCard = regionMapCardHtml(data.cells ?? [], `${prefix}/map`);
+  const body = `<div class="iv-col rs-col${mapCard ? " rs-wide" : ""}" data-region-surface="${esc(data.area)}"><div class="rs-main">
     ${headBar(`${prefix}/map`)}
     <div class="iv-crumb">${PIN_ICON}<span>${esc(data.area)}</span></div>
     <h1 class="iv-title">${esc(data.area)}</h1>
@@ -218,7 +271,7 @@ export function renderRegionSurfacePage(options: {
     <div class="rs-cta"><a class="iv-btn" href="${esc(`${prefix}/record`)}">この地域で記録する</a></div>
     ${shelves.join("")}
     <p class="rs-foot" data-region-guide="1">この地域の面には、記録や場所から集まったものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。</p>
-  </div>`;
+  </div>${mapCard ? `<aside class="rs-rail" aria-label="この地域の地図">${mapCard}</aside>` : ""}</div>`;
   return shell({
     title: data.area,
     extraCss: EXTRA_CSS,

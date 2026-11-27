@@ -56,7 +56,7 @@ export type InvasiveCellSummary = {
   species: InvasiveSpeciesSummary[];
 };
 
-function parseCell(value: string): { lat: number; lng: number } | null {
+export function parseCell(value: string): { lat: number; lng: number } | null {
   const [latRaw, lngRaw] = value.replace(/^cell:/, "").split(",");
   const lat = Number(latRaw);
   const lng = Number(lngRaw);
@@ -64,7 +64,7 @@ function parseCell(value: string): { lat: number; lng: number } | null {
   return { lat, lng };
 }
 
-function cellHalfStep(value: string): number {
+export function cellHalfStep(value: string): number {
   const latRaw = value.replace(/^cell:/, "").split(",")[0] ?? "";
   return /^-?\d+\.\d$/.test(latRaw) ? 0.05 : 0.005;
 }
@@ -388,6 +388,7 @@ export function renderRegionInvasivePage(options: {
   authenticated: boolean;
   displayName?: string | null;
   cspNonce?: string | null;
+  regionHref?: string | null;
 }): string {
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
   const area = esc(options.area);
@@ -431,6 +432,7 @@ export function renderRegionInvasivePage(options: {
     ${headBar(mapHref)}
     <div class="iv-crumb">${area}</div>
     <h1 class="iv-title">外来種</h1>
+    ${options.regionHref ? `<a class="iv-link" data-region-back="1" href="${esc(options.regionHref)}"><span>${area}の地域ページ</span>${CHEV_ICON}</a>` : ""}
     ${inner}
     ${sources}
   </div>`;

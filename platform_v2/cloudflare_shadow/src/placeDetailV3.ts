@@ -42,6 +42,7 @@ export type PlaceV3Input = {
   moreLabel: string;
   moreHref: string;
   mapHref: string;
+  regionLink?: { href: string; label: string } | null;
   externalMapHref: string;
   externalMapLabel: string;
   stewardIntro: string | null;
@@ -261,6 +262,7 @@ export function renderPlaceV3(input: PlaceV3Input): string {
   for (const n of input.nearby.slice(0, 4)) {
     aroundLinks.push(`<a href="${e(n.href)}"><span>${e(n.name)}${n.distanceLabel ? ` <small style="font-weight:600;color:#55615A">${e(n.distanceLabel)}</small>` : ""}</span>${CHEV}</a>`);
   }
+  if (input.regionLink) aroundLinks.push(`<a data-pv3-region href="${e(input.regionLink.href)}"><span>${e(input.regionLink.label)}</span>${CHEV}</a>`);
   if (input.mapHref) aroundLinks.push(`<a href="${e(input.mapHref)}"><span>${e(c.openMap)}</span>${CHEV}</a>`);
   if (input.externalMapHref) aroundLinks.push(`<a href="${e(input.externalMapHref)}" target="_blank" rel="noopener noreferrer"><span>${e(input.externalMapLabel)}</span>${CHEV}</a>`);
   if (aroundLinks.length) {
