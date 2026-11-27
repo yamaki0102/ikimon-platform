@@ -166,6 +166,7 @@ a,button{font:inherit;color:inherit}
 .zv2-peek-sub{margin-left:auto;font-size:14px;font-weight:600;color:#55615A;text-align:right}
 .zv2-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 18px}
 .zv2-sheet[data-sheet-state="collapsed"] .zv2-sheet-body{display:none}
+.zv2-sheet[data-sheet-state="selected-low"]{max-height:280px}
 .zv2-sheet[data-sheet-state="selected-low"] .zv2-sheet-body{display:block;overflow:hidden;padding:0 18px 14px}
 
 /* Shared list & selected card */
@@ -667,7 +668,8 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         if (isDesktop()) {
           return pt.x < 396 || pt.x > window.innerWidth - 24 || pt.y < 88 || pt.y > window.innerHeight - 24;
         }
-        return pt.x < 24 || pt.x > window.innerWidth - 24 || pt.y < topRect.bottom + 24 || pt.y > sheetRect.top - 24;
+        var lowTop = sheetRect.bottom - 280;
+        return pt.x < 24 || pt.x > window.innerWidth - 24 || pt.y < topRect.bottom + 24 || pt.y > Math.max(sheetRect.top, lowTop) - 24;
       })();
       if (pan) {
         state.map.easeTo({ center: [sel.lng, sel.lat] });
@@ -843,17 +845,6 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         },
         paint: { 'text-color': '#ffffff' }
       });
-      map.on('click', 'zv2-clusters', function (e) {
-        var f = e.features && e.features[0];
-        var cid = f && f.properties ? f.properties.cluster_id : null;
-        var src = map.getSource('zv2-recorded');
-        if (cid == null || !src || typeof src.getClusterExpansionZoom !== 'function') return;
-        src.getClusterExpansionZoom(cid, function (err, zoom) {
-          if (err) return;
-          var coords = f.geometry && f.geometry.coordinates;
-          if (coords) map.easeTo({ center: coords, zoom: zoom });
-        });
-      });
       map.addLayer({
         id: 'zv2-rec-pin',
         type: 'circle',
@@ -904,13 +895,31 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         filter: ['==', ['get', 'placeId'], ''],
         layout: { 'text-field': ['get', 'name'], 'text-size': 13, 'text-offset': [0, 1.4], 'text-allow-overlap': true }
       });
-      map.on('click', 'zv2-rec-pin', function (e) {
-        var f = e.features && e.features[0];
-        if (f && f.properties && f.properties.placeId) selectPlace(f.properties.placeId);
-      });
-      map.on('click', 'zv2-zero-hit', function (e) {
-        var f = e.features && e.features[0];
-        if (f && f.properties && f.properties.placeId) selectPlace(f.properties.placeId);
+      map.on('click', function (e) {
+        var rad = 24;
+        var fs = map.queryRenderedFeatures([[e.point.x - rad, e.point.y - rad], [e.point.x + rad, e.point.y + rad]], { layers: ['zv2-clusters', 'zv2-rec-pin', 'zv2-zero-hit'] });
+        var best = null;
+        var bestD = Infinity;
+        fs.forEach(function (f) {
+          var c = f.geometry && f.geometry.coordinates;
+          if (!c) return;
+          var pp = map.project(c);
+          var d = Math.hypot(pp.x - e.point.x, pp.y - e.point.y);
+          var w = f.layer.id === 'zv2-zero-hit' ? d + 6 : d;
+          if (w < bestD) { bestD = w; best = f; }
+        });
+        if (!best || !best.properties) return;
+        if (best.layer.id === 'zv2-clusters') {
+          var cid = best.properties.cluster_id;
+          var src = map.getSource('zv2-recorded');
+          if (cid == null || !src || typeof src.getClusterExpansionZoom !== 'function') return;
+          src.getClusterExpansionZoom(cid, function (err, zoom) {
+            if (err) return;
+            map.easeTo({ center: best.geometry.coordinates, zoom: zoom });
+          });
+          return;
+        }
+        if (best.properties.placeId) selectPlace(best.properties.placeId);
       });
       fetchPlaces();
     });
