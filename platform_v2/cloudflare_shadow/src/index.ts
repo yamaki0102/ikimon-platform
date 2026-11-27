@@ -176,7 +176,7 @@ const placePageV3On = (env: Env, session: Awaited<ReturnType<typeof readCompatib
 const RECORD_INLINE_EDIT_FLAG = "RECORD_INLINE_EDIT_PROTOTYPE_ENABLED";
 const recordInlineEditOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, RECORD_INLINE_EDIT_FLAG, v.principalId, v.role); };
 const observationCorrectionOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, OBSERVATION_CORRECTION_FLAG, v.principalId, v.role); };
-import { prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
+import { prototypeEnabledForPrincipal, prototypeEnabledForViewer, viewAsGuest, viewerFromSession } from "./prototype-flags";
 import { INVASIVE_TAXON_GROUP, decorateInvasiveItem, filterInvasiveRows, injectMapInvasiveMarker, invasiveCellExtras, isMapHtmlPath } from "./mapInvasive";
 import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTaxonGroup";
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
@@ -202,7 +202,7 @@ import { isPublicGlobalPlaceDetailProfile, renderGlobalPlaceDetailPage } from ".
 import { handlePlaceFixedPointTimelineApi, handlePlaceTimelinePageRoute } from "./zukanPlaceShareAndTimeline";
 import { handlePlaceAboutOrSeasonsRoute, handlePlaceSeasonsApi } from "./zukanPlaceAboutAndSeasons";
 import { FIELD_CARD_FLAG, fieldCardResponse } from "./fieldCard";
-import { handlePlaceRegisterRequest } from "./zukanPlaceRegister";
+import { PLACE_REGISTER_FLAG, handlePlaceRegisterRequest, injectMapAdminPlaceRegisterButton, isPlaceRegisterAdmin } from "./zukanPlaceRegister";
 import { handlePlaceRecordsOrPhotosRoute } from "./zukanPlaceRecordsAndPhotos";
 import {
   handleCreatePlaceProposal,
@@ -22739,7 +22739,14 @@ async function originalUiHtmlBodyForRequest(object: R2ObjectBody, request: Reque
     return originalUiHtmlQueryVariant(url) ? withHeaderMenu : injectRecentObservationRecords(withHeaderMenu, url, env);
   }
   const headerAdjusted = injectCompactHeaderMenu(text, url, session);
-  if (isMapHtmlPath(url.pathname)) return injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session));
+  if (isMapHtmlPath(url.pathname)) {
+    const withInvasive = injectMapInvasiveMarker(headerAdjusted, mapInvasiveOn(env, session));
+    const showPlaceRegister =
+      (url.pathname === "/ja/map" || url.pathname === "/ja/map/") &&
+      isPlaceRegisterAdmin(session) &&
+      prototypeEnabledForPrincipal(env, PLACE_REGISTER_FLAG, session.userId, session.roleName);
+    return injectMapAdminPlaceRegisterButton(withInvasive, showPlaceRegister);
+  }
   if (!isAuthHtmlPath(url.pathname)) return headerAdjusted;
   return injectOAuthEmailConflictNotice(personalizeAuthRedirectHtml(configureMaterializedAuthOAuthLinks(headerAdjusted, url, env), postAuthRedirect(url.searchParams.get("redirect"))), url);
 }
