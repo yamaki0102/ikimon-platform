@@ -10,6 +10,7 @@ import { handleMapPlacesBoundsApi } from "./zukanMapView";
 import {
   PLACE_REGISTER_RADII,
   circlePolygon,
+  guessPlaceKindFromName,
   handlePlaceRegisterRequest,
   haversineMeters,
   validatePlaceRegisterInput,
@@ -113,7 +114,8 @@ test("validation: name, kind, Japan bbox, radius set, locality", () => {
   assert.equal(bad({ name: "a\u0000b" }), "invalid_name");
   assert.equal(bad({ name: 12 }), "invalid_name");
   assert.equal(bad({ kind: "castle" }), "invalid_kind");
-  assert.equal(bad({ kind: undefined }), "invalid_kind");
+  assert.equal(bad({ kind: undefined }), "ok");
+  assert.equal(bad({ kind: 5 }), "invalid_kind");
   assert.equal(bad({ lat: 19.99 }), "invalid_location");
   assert.equal(bad({ lat: 46.01 }), "invalid_location");
   assert.equal(bad({ lng: 121.9 }), "invalid_location");
@@ -413,8 +415,7 @@ test("the form page lists the last 20 own registrations, escapes names, and offe
   assert.equal(page!.headers.get("cache-control"), "private, no-store");
   const html = await page!.text();
   assert.match(html, /場所を登録/);
-  assert.match(html, /いまいる場所を使う/);
-  assert.match(html, /続けて登録/);
+  assert.match(html, /ここを登録/);
   assert.match(html, /非公開に戻す/);
   assert.match(html, /公園・自然/);
   assert.match(html, /50m/);
@@ -446,4 +447,48 @@ test("worker serves /ja/places/<id> for an owner-registered place and keeps the 
   await f.call("POST", `/api/v1/admin/places/${id}/private`);
   const hidden = await worker.fetch(new Request(`https://zukan.earth/ja/places/${id}`), env);
   assert.equal(hidden.status, 404);
+});
+
+test("guessPlaceKindFromName maps names to kind and radius", () => {
+  const cases: Array<[string, string, number]> = [
+    ["浜松城公園", "park", 300], ["佐鳴湖", "park", 1000], ["天竜川", "park", 300], ["入野の森", "park", 1000], ["弁天島海岸", "park", 300], ["春野の湿地", "park", 1000], ["自然観察広場", "park", 300],
+    ["五社神社", "facility", 100], ["龍潭寺", "facility", 100], ["浜松城跡", "facility", 100], ["蜆塚遺跡", "facility", 100],
+    ["珈琲ひなた店", "shop", 50], ["カフェ木漏れ日", "shop", 50], ["山田食堂", "shop", 50], ["鰻の亭", "shop", 50], ["ベーカリー麦", "shop", 50],
+    ["株式会社イカン", "org", 100], ["浜松自然協会", "org", 100], ["○○(株)", "org", 100], ["静岡大学", "org", 100], ["有限会社山田", "org", 100],
+    ["私の庭", "other", 100], ["", "other", 100],
+  ];
+  for (const [name, kind, radiusM] of cases) assert.deepEqual(guessPlaceKindFromName(name), { kind, radiusM }, name);
+});
+
+test("POST with only name/lat/lng guesses kind and radius; explicit values win", async (t) => {
+  const f = fixture(t);
+  const meta = (id: string) => JSON.parse((f.sqlite.prepare("SELECT metadata_json FROM places WHERE place_id = ?").get(id) as { metadata_json: string }).metadata_json) as { registerKind: string; radiusM: number };
+  const a = await f.call("POST", "/api/v1/admin/places", { name: "佐鳴湖", lat: 34.7, lng: 137.7 });
+  assert.equal(a?.status, 201);
+  assert.deepEqual([meta((await a!.json() as { place: { placeId: string } }).place.placeId).registerKind, 1000], ["park", 1000]);
+  const b = await f.call("POST", "/api/v1/admin/places", { name: "ひなた食堂", lat: 34.9, lng: 137.9 });
+  const bm = meta((await b!.json() as { place: { placeId: string } }).place.placeId);
+  assert.deepEqual([bm.registerKind, bm.radiusM], ["shop", 50]);
+  const c = await f.call("POST", "/api/v1/admin/places", { name: "ひなた食堂", kind: "org", radiusM: 300, lat: 34.95, lng: 137.95 });
+  const cm = meta((await c!.json() as { place: { placeId: string } }).place.placeId);
+  assert.deepEqual([cm.registerKind, cm.radiusM], ["org", 300]);
+});
+
+test("page: only name and the register button are outside the details block", async (t) => {
+  const f = fixture(t);
+  const html = await (await f.call("GET", "/ja/admin/places/new"))!.text();
+  assert.match(html, /ここを登録/);
+  assert.match(html, /watchPosition/);
+  assert.match(html, /enterkeyhint="done"/);
+  const open = html.indexOf('<details class="pr-more">');
+  const close = html.indexOf("</details>");
+  assert.ok(open > 0 && close > open);
+  const inside = html.slice(open, close);
+  const outside = html.slice(0, open);
+  for (const id of ["pr-kind", "pr-radius", "pr-lat", "pr-lng", "pr-locality"]) {
+    assert.ok(inside.includes('id="' + id + '"'), id);
+    assert.ok(!outside.includes('id="' + id + '"'), id);
+  }
+  assert.ok(outside.includes('id="pr-name"') && outside.includes('id="pr-submit"'));
+  assert.ok(inside.includes("<summary>詳しく</summary>"));
 });
