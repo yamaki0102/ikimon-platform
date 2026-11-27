@@ -103,3 +103,25 @@ test("escapes dynamic text", () => {
   const main = mainOf(render(p, { e2: true }));
   assert.doesNotMatch(main, /<script>x|<b>y/);
 });
+
+test("invasive section only for confirmed invasive names; omitted otherwise", () => {
+  const none = mainOf(render(profile(), { e2: true }));
+  assert.doesNotMatch(none, /data-pe-invasive|外来種/);
+  const recs = [record(1, "ナガエツルノゲイトウ"), record(2, "クスノキ")];
+  const html = mainOf(render(profile({ recentRecords: recs }), { e2: true }));
+  assert.match(html, /data-pe-invasive[\s\S]*ナガエツルノゲイトウ[\s\S]*名前が確認されています/);
+  assert.doesNotMatch(html, /いません/);
+  const unconfirmed = [{ ...record(1, "ナガエツルノゲイトウ"), identificationStatus: "unconfirmed" }];
+  assert.doesNotMatch(mainOf(render(profile({ recentRecords: unconfirmed as never }), { e2: true })), /data-pe-invasive/);
+});
+
+test("loadPlaceLinkedEvents maps rows by field_id and tolerates failure", async () => {
+  const { loadPlaceLinkedEvents } = await import("./placeInvasive");
+  let bound: unknown;
+  const db = { prepare: () => ({ bind: (v: unknown) => { bound = v; return { all: async () => ({ results: [{ session_id: "s1", title: "観察会", started_at: "2026-12-20T01:00:00Z", ended_at: null }] }) }; } }) };
+  const out = await loadPlaceLinkedEvents(db as never, "plc_etest", "ja", () => ({ whenLabel: "12月20日" }));
+  assert.equal(bound, "plc_etest");
+  assert.deepEqual(out, [{ title: "観察会", href: "/ja/events/s1/preview", whenLabel: "12月20日" }]);
+  const bad = { prepare: () => { throw new Error("x"); } };
+  assert.deepEqual(await loadPlaceLinkedEvents(bad as never, "p", "ja", () => ({ whenLabel: "" })), []);
+});

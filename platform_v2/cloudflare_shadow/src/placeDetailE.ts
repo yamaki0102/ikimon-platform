@@ -3,6 +3,7 @@ import { sizedImageUrl, sizedImgAttrs } from "./derivedImageUrl";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 
 export type PlaceERecord = { id: string; href: string; name: string; mediaUrl: string | null; dateLabel: string | null; confirmed: boolean };
+import type { PlaceInvasiveItem } from "./placeInvasive";
 export type PlaceEEvent = { title: string; href: string; whenLabel: string; thumbUrl?: string | null };
 
 export type PlaceEInput = {
@@ -26,18 +27,19 @@ export type PlaceEInput = {
   moreHref: string;
   moreLabel: string;
   events: PlaceEEvent[];
+  invasive?: PlaceInvasiveItem[];
 };
 
 const COPY = {
   ja: {
-    top: "場所", records: "この場所の記録", seeAll: "すべて見る", events: "つながっているイベント",
+    top: "場所", records: "この場所の記録", seeAll: "すべて見る", events: "つながっているイベント", invasive: "この場所で見つかっている外来種", invConfirmed: (n: number, first: string | null) => `この場所の記録${n}件で、名前が確認されています。${first ? `最初に見つかったのは${first}です。` : ""}`, invSee: "見つかった記録を見る", invLearn: "この種について見る", cautionTitle: "見つけたときは", caution1: "持ち帰らないでください。飼うこと・運ぶことが法律で禁止されている種があります。", caution2: "駆除は自治体や専門家が行っています。写真で記録を残すことが、広がりを止める助けになります。",
     record: "この場所で記録する", first: "この場所で最初の記録を残す",
     emptyTitle: "まだ記録がありません", emptyBody: "この場所の最初の記録を残すと、ここから図鑑が始まります。写真1枚から残せます。",
     pendingTitle: "記録が集まり始めています", pendingBody: "公開できる記録がそろうと、ここに表示されます。",
     chipRecords: (n: number) => `記録 ${n}件`, chipLatest: (d: string) => `最新 ${d}`, unnamed: "名前は未確定", confirmed: "確認済み",
   },
   en: {
-    top: "Place", records: "Records here", seeAll: "See all", events: "Connected events",
+    top: "Place", records: "Records here", seeAll: "See all", events: "Connected events", invasive: "", invConfirmed: (_n: number, _f: string | null) => "", invSee: "", invLearn: "", cautionTitle: "", caution1: "", caution2: "",
     record: "Record at this place", first: "Leave the first record here",
     emptyTitle: "No records yet", emptyBody: "Leave the first record here and this place's guide begins. One photo is enough.",
     pendingTitle: "Records are starting to arrive", pendingBody: "They will appear here once enough can be shown.",
@@ -84,6 +86,19 @@ export const PLACE_E_STYLES = `
 .pe-row .t{font-size:16.5px;font-weight:800;line-height:1.5;overflow-wrap:anywhere}
 .pe-row .s{margin-top:2px;font-size:13.5px;color:#55615A;font-weight:600;line-height:1.55}
 .pe-chev{width:18px;height:18px;color:#8a948d}
+.pe-cnt{margin-left:auto;font-size:13.5px;font-weight:700;color:#55615A}
+.pe-inv{border:1.5px solid #E0CD9E;border-radius:16px;padding:16px;background:#fff;margin-bottom:12px}
+.pe-inv-h{display:flex;gap:13px;align-items:center}
+.pe-inv-h img{width:62px;height:62px;border-radius:12px;object-fit:cover;flex:none}
+.pe-inv-n{font-size:18px;font-weight:800;line-height:1.45;overflow-wrap:anywhere}
+.pe-warn{display:inline-flex;margin-top:5px;background:#FAF3E3;border:1px solid #E0CD9E;color:#8A4B00;font-size:13px;font-weight:800;border-radius:999px;padding:4px 11px;white-space:nowrap}
+.pe-inv p{margin:13px 0 0;font-size:15.5px;line-height:1.75}
+.pe-inv-l,.pe-inv-l:visited{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:6px;border-top:1px solid #EFE7D2;font-size:15.5px;font-weight:700;color:#0055AD;text-decoration:none}
+.pe-inv-l svg{margin-left:auto}
+.pe-caution{background:#FAF6EA;border-radius:16px;padding:18px}
+.pe-caution b{font-size:16px;font-weight:800;color:#8A4B00}
+.pe-caution ul{margin:10px 0 0;padding-left:20px}
+.pe-caution li{font-size:15.5px;line-height:1.75;margin-top:4px}
 .pe-empty{margin-top:28px;padding:32px 20px;border-radius:18px;background:#F7F7F3;text-align:center}
 .pe-empty i{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:#EDF2EC;color:#143F2E}
 .pe-empty i svg{width:26px;height:26px}
@@ -147,10 +162,16 @@ export function renderPlaceE(input: PlaceEInput): string {
     main = `<section class="pe-empty" data-pe-empty><i>${IMG}</i><h2>${e(input.suppressed ? c.pendingTitle : c.emptyTitle)}</h2><p>${e(input.suppressed ? c.pendingBody : c.emptyBody)}</p><div class="pe-actions">${primary(input.suppressed ? c.record : c.first)}</div></section><div class="pe-actions">${moreBtn}</div>`;
   } else {
     const recordsSec = `<section data-pe-records><div class="pe-h"><h2>${e(c.records)}</h2><a href="${e(input.allRecordsHref)}">${e(c.seeAll)}${CHEV}</a></div>${strip}${rows ? `<div class="pe-rows">${rows}</div>` : ""}</section>`;
+    const invList = c.invasive && input.invasive?.length
+      ? `<section data-pe-invasive><div class="pe-h"><h2>${e(c.invasive)}</h2><span class="pe-cnt">${input.invasive.length}種</span></div>${input.invasive.slice(0, 3).map((v) => {
+          const img = v.mediaUrl && !shown.has(v.mediaUrl) ? (shown.add(v.mediaUrl), `<img src="${e(sizedImageUrl(v.mediaUrl, 320))}" alt="" loading="lazy" decoding="async">`) : "";
+          return `<div class="pe-inv"><div class="pe-inv-h">${img}<div><div class="pe-inv-n">${e(v.name)}</div><span class="pe-warn">${e(v.label)}</span></div></div><p>${e(c.invConfirmed(v.count, v.firstLabel))}</p><a class="pe-inv-l" href="${e(v.recordHref)}">${e(c.invSee)}${CHEV}</a><a class="pe-inv-l" href="${e(v.learnHref)}">${e(c.invLearn)}${CHEV}</a></div>`;
+        }).join("")}<div class="pe-caution"><b>${e(c.cautionTitle)}</b><ul><li>${e(c.caution1)}</li><li>${e(c.caution2)}</li></ul></div></section>`
+      : "";
     const events = input.events.length
       ? `<section data-pe-events><div class="pe-h"><h2>${e(c.events)}</h2></div><div class="pe-rows">${input.events.slice(0, 3).map((ev) => `<a class="pe-row" href="${e(ev.href)}">${ev.thumbUrl && !shown.has(ev.thumbUrl) ? `<span class="pe-thumb"><img src="${e(ev.thumbUrl)}" alt="" loading="lazy"></span>` : ""}<span class="tx"><div class="t">${e(ev.title)}</div><div class="s">${e(ev.whenLabel)}</div></span>${CHEV}</a>`).join("")}</div></section>`
       : "";
-    main = `${recordsSec}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>`;
+    main = `${recordsSec}${invList}${events}<div class="pe-actions">${primary(c.record)}${moreBtn}</div>`;
   }
   return `<div class="pe" data-place-e-v2>${hero}<div class="pe-body">${head}${main}</div></div>`;
 }
