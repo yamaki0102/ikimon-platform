@@ -198,6 +198,9 @@ export async function querySearchV2Results(rawQuery: string, type: SearchV2Type,
   return { parsed, places, events, records };
 }
 
+export const placeRowMeta = (locality: string | null | undefined, count: number | null | undefined, isEn: boolean): string =>
+  [locality ?? "", count && count > 0 ? (isEn ? `${count} records` : `記録 ${count}件`) : ""].filter(Boolean).join(" ・ ");
+
 const prefixOf = (lang: SearchV2Lang): string => (lang === "ja" ? "/ja" : `/${lang}`);
 
 export async function loadSearchV2Suggestions(rawQuery: string, db: Db, lang: SearchV2Lang): Promise<{ suggestions: SearchV2Suggestion[]; seasonLabels: string[] }> {
@@ -332,7 +335,7 @@ export async function handleSearchExploreV2Route(
 
   const speciesChipHtml = (label: string) =>
     `<a class="zs-chip" data-zs2-q="${escapeHtml(label)}" href="${escapeHtml(`${prefix}/search/results?q=${encodeURIComponent(label)}`)}">${escapeHtml(label)}</a>`;
-  const seasonChips = (isEn ? [] : SEASON_EXAMPLES_JA).map((s) => `<a class="zs-chip" data-zs2-q="${escapeHtml(s)}" href="${escapeHtml(`${prefix}/search/results?q=${encodeURIComponent(s)}`)}">${escapeHtml(s)}</a>`).join("");
+  const seasonChips = (isEn ? [] : SEASON_EXAMPLES_JA).map((s) => `<a class="zs-chip" data-zs2-q="${escapeHtml(s)}" href="${escapeHtml(`${prefix}/search/seasons?q=${encodeURIComponent(s)}`)}">${escapeHtml(s)}</a>`).join("");
 
   const liveInner = q
     ? `<ul class="zs-list">${suggest.suggestions.map((s) => suggestionRowHtml(s, parsed.textTokens)).join("")}${searchAllRowHtml(prefix, q, isEn)}</ul>`
@@ -343,7 +346,7 @@ export async function handleSearchExploreV2Route(
       renderSearchRow({
         href: `${prefix}/places/${encodeURIComponent(p.placeId)}`,
         title: p.name,
-        meta: [p.locality ?? "", p.recordCount && p.recordCount > 0 ? (isEn ? `${p.recordCount} records` : `記録 ${p.recordCount}件`) : ""].filter(Boolean).join(" ・ "),
+        meta: placeRowMeta(p.locality, p.recordCount, isEn),
         badge: isEn ? "Place" : "場所",
         thumbUrl: thumbUrlOf(p.thumbAssetId),
       }),
@@ -425,7 +428,7 @@ export async function handleSearchResultsV2Route(
         href: `${prefix}/places/${encodeURIComponent(p.placeId)}`,
         title: p.name,
         titleHtml: highlightTokens(p.name, tokens),
-        meta: [p.locality ?? "", p.recordCount && p.recordCount > 0 ? (isEn ? `${p.recordCount} records` : `記録 ${p.recordCount}件`) : ""].filter(Boolean).join(" ・ "),
+        meta: placeRowMeta(p.locality, p.recordCount, isEn),
         badge: isEn ? "Place" : "場所",
         thumbUrl: thumbOnce(p.thumbAssetId),
       }),
