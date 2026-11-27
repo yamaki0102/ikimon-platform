@@ -7766,7 +7766,10 @@ class FakeStatement {
         .sort((a, b) => b.observed_at.localeCompare(a.observed_at));
       return { results: rows as T[] };
     }
-    if (normalized.startsWith("SELECT visit_id, cell_1000, observed_at, display_name, asset_count FROM public_map_snapshot_records_v1")) {
+    if (
+      normalized.startsWith("SELECT visit_id, cell_1000, observed_at, display_name, asset_count FROM public_map_snapshot_records_v1") ||
+      normalized.startsWith("SELECT visit_id, cell_1000, observed_at, display_name, taxon_group, asset_count FROM public_map_snapshot_records_v1")
+    ) {
       const rows = [...this.db.publicMapSnapshotRecords]
         .filter((row) => {
           const withdrawal = this.db.observationDataRights.get(row.visit_id)?.withdrawal_status;
@@ -34707,7 +34710,9 @@ test("map invasive layer is gated by flag and filters after the full-set coarsen
   assert.equal(stable(await get("&taxon_group=invasive", "observations", env)), baselineItems);
   assert.equal(await get("", "cells", flagOn), baselineCells);
   assert.equal(stable(await get("", "observations", flagOn)), baselineItems);
-  assert.equal(await get("&taxon_group=plant", "cells", flagOn), baselineCells);
+  const plantCellsRes = await get("&taxon_group=plant", "cells", flagOn);
+  assert.ok(!plantCellsRes.includes("invasiveCount"));
+  assert.equal((JSON.parse(plantCellsRes) as { stats: { totalRecords: number } }).stats.totalRecords, 2);
   assert.ok(!baselineCells.includes("invasiveCount"));
   assert.ok(!baselineItems.includes("\"invasive\""));
   const rolloutOnlyForOthers = { ...env, ZUKAN_FEATURE_ROLLOUTS: JSON.stringify({ MAP_INVASIVE_LAYER_ENABLED: { state: "allowlist", allowlist: ["someone-else"], expiresOn: "2099-01-01", removeBy: "2099-02-01" } }) } as typeof env;
