@@ -320,36 +320,39 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-sync-bar b{display:block;height:100%;width:40%;background:var(--green);animation:zv2l-sync-slide 1.4s ease-in-out infinite}
 @keyframes zv2l-sync-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
 @media (prefers-reduced-motion:reduce){.zv2l-sync-bar b{animation:none;width:60%}}
-.zv2l-dsep{display:flex;align-items:center;gap:10px;padding:18px 0 2px}
-.zv2l-dt{font-size:14px;font-weight:800;color:var(--green);white-space:nowrap}
-.zv2l-dl{flex:1;height:1px;background:#E4E9E4}
-.zv2l-visit{padding:16px 0 20px;border-bottom:1px solid #EDF0EC}
+.zv2l-dsep{display:flex;align-items:center;gap:12px;padding:22px 0 0}
+.zv2l-sync+.zv2l-dsep{padding-top:6px}
+.zv2l-dt{font-size:15px;font-weight:800;color:#55615A;white-space:nowrap}
+.zv2l-dl{flex:1;border-top:1px solid #DDE2DC}
+.zv2l-visit{padding:14px 0 20px;border-bottom:1px solid #EDF0EC}
 .zv2l-visit-link{text-decoration:none;color:inherit;display:block}
-.zv2l-vhead{margin:0;font-size:18px;font-weight:800;line-height:1.4;color:#17211B}
-.zv2l-vmeta{font-size:14.5px;color:#55615A;margin-top:3px;line-height:1.5}
-.zv2l-report{margin-top:10px;background:#F7F7F3;border-radius:10px;padding:12px 14px}
+.zv2l-vhead{margin:0;font-size:17.5px;font-weight:800;line-height:1.4;color:#17211B}
+.zv2l-vmeta{font-size:15px;color:#55615A;margin-top:3px;line-height:1.5}
+.zv2l-vmeta.first{margin-top:0}
+.zv2l-report{margin-top:12px;background:#F7F7F3;border-radius:10px;padding:13px 15px}
 .zv2l-rb{font-size:14.5px;color:#3C4A41;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.zv2l-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:12px;border-radius:12px;overflow:hidden}
-.zv2l-grid.two{grid-template-columns:repeat(2,1fr)}
+.zv2l-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:12px}
 .zv2l-grid.one{grid-template-columns:1fr}
-.zv2l-grid.one img,.zv2l-grid.one .zv2l-cellv{aspect-ratio:16/9}
-.zv2l-grid img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#EFF3EE}
-.zv2l-grid.one .zv2l-cellv img{aspect-ratio:16/9}
-.zv2l-cellv{position:relative}
-.zv2l-vbadge{position:absolute;left:8px;bottom:8px;width:32px;height:32px;border-radius:50%;background:rgba(9,25,16,.74);color:#fff;display:flex;align-items:center;justify-content:center}
-.zv2l-more-tile{aspect-ratio:1/1;background:#F7F7F3;display:flex;align-items:center;justify-content:center;gap:4px;color:var(--green);font-size:15px;font-weight:800}
-.zv2l-arow{display:flex;align-items:center;gap:12px;background:#F7F7F3;border-radius:12px;padding:12px 14px;margin-top:10px}
+.zv2l-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#EFF3EE;border-radius:8px}
+.zv2l-cellv{position:relative;display:block}
+.zv2l-vbadge{position:absolute;left:8px;bottom:8px;width:30px;height:30px;border-radius:50%;background:rgba(9,25,16,.72);color:#fff;display:flex;align-items:center;justify-content:center}
+.zv2l-vbadge svg{width:15px;height:15px}
+.zv2l-more-tile{aspect-ratio:4/3;background:#F7F7F3;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:3px;color:var(--green);font-size:15px;font-weight:800}
+.zv2l-arow{display:flex;align-items:center;gap:12px;background:#F7F7F3;border-radius:12px;padding:12px 14px;margin-top:8px}
+.zv2l-vmeta+.zv2l-arow,.zv2l-vmeta+.zv2l-visit-link .zv2l-arow{margin-top:12px}
 .zv2l-aplay{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
 .zv2l-ainfo{min-width:0}
 .zv2l-atitle{font-size:15px;font-weight:800;line-height:1.35}
 .zv2l-ameta{font-size:14px;color:#55615A;margin-top:2px}
 .zv2l-wave{margin-left:auto;display:flex;align-items:center;gap:2.5px;height:30px;flex:none}
 .zv2l-wave i{width:3px;border-radius:2px;background:#9DB4A6;display:block}
-.zv2l-types{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;font-size:14px;color:#3C4A41;margin-top:10px;line-height:1.45}
+.zv2l-types{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:14.5px;color:#3C4A41;margin-top:10px;line-height:1.45}
+.zv2l-types svg.zv2l-ic{width:16px;height:16px;color:#55615A}
 .zv2l-vt{display:inline-flex;align-items:center;gap:5px}
 .zv2l-sep{color:#B9C2B9}
 .zv2l-evlink{color:var(--link);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:2px;min-height:44px}
-.zv2l-status{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:14px;color:#55615A;margin-top:6px}
+.zv2l-status{display:flex;align-items:center;flex-wrap:wrap;gap:4px 7px;font-size:14px;color:#55615A;margin-top:5px;line-height:1.45}
+.zv2l-status svg.zv2l-ic{width:15px;height:15px}
 .zv2l-st{display:inline-flex;align-items:center;gap:5px}
 .zv2l-st.pub{color:var(--green);font-weight:800}
 
@@ -401,25 +404,28 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 `;
 
 function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false): string {
-  const dateLabel = isEn ? enDayLabel(visit.dateDay, visit.dateLabel) : visit.dateLabel;
-  const headingTitle = isEn && visit.headingTitle === "記録" ? "Record" : visit.headingTitle;
   const href = `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
+  const hasPlace = visit.areaLabel !== "";
+  const reportTitle = visit.report?.title ?? "";
+  const faceTitle = reportTitle || (hasPlace ? visit.placeName : "");
+  const faceIsReport = reportTitle !== "";
+  const metaPlace = faceIsReport ? (hasPlace ? visit.placeName : "") : (visit.areaLabel && visit.areaLabel !== visit.placeName ? visit.areaLabel : "");
+  const metaParts = [metaPlace, visit.timeRangeLabel].filter(Boolean);
   const mediaAll = [...visit.photos, ...visit.videos];
-  const shown = mediaAll.slice(0, 3);
-  const extraCount = mediaAll.length > 3 ? mediaAll.length - 2 : 0;
+  const hasMore = mediaAll.length > 4;
+  const shown = hasMore ? mediaAll.slice(0, 3) : mediaAll;
   let gridHtml = "";
   if (shown.length > 0) {
-    const cls = shown.length === 1 ? "zv2l-grid one" : shown.length === 2 ? "zv2l-grid two" : "zv2l-grid";
-    const cells = shown.map((m, idx) => {
-      if (extraCount > 0 && idx === 2) {
-        return `<span class="zv2l-more-tile">＋${extraCount}${isEn ? "" : "件"}</span>`;
-      }
-      if (m.isVideo) {
-        return `<span class="zv2l-cellv"><img src="${esc(m.url)}" alt="" loading="lazy"><span class="zv2l-vbadge">${ICONS.play}</span></span>`;
-      }
-      return `<img src="${esc(m.url)}" alt="" loading="lazy">`;
-    }).join("");
-    gridHtml = `<div class="${cls}">${cells}</div>`;
+    const cells = shown.map((m) =>
+      m.isVideo
+        ? `<span class="zv2l-cellv"><img src="${esc(m.url)}" alt="" loading="lazy"><span class="zv2l-vbadge">${ICONS.play}</span></span>`
+        : `<img src="${esc(m.url)}" alt="" loading="lazy">`,
+    );
+    if (hasMore) {
+      const rest = mediaAll.length - 3;
+      cells.push(`<span class="zv2l-more-tile">${isEn ? `+${rest} more` : `あと${rest}枚`}${ICONS.chev}</span>`);
+    }
+    gridHtml = `<div class="${mediaAll.length === 1 ? "zv2l-grid one" : "zv2l-grid"}">${cells.join("")}</div>`;
   }
 
   const reportHtml = visit.report?.body
@@ -433,13 +439,16 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   </div>`).join("");
 
   const typeParts: string[] = [];
-  if (visit.photos.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span>${isEn ? `${visit.photos.length} ${visit.photos.length === 1 ? "photo" : "photos"}` : `写真 ${visit.photos.length}枚`}</span></span>`);
-  if (visit.videos.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span>${isEn ? `${visit.videos.length} ${visit.videos.length === 1 ? "video" : "videos"}` : `動画 ${visit.videos.length}本`}</span></span>`);
-  if (visit.audios.length > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.audio}<span>${isEn ? `${visit.audios.length} ${visit.audios.length === 1 ? "sound" : "sounds"}` : `音 ${visit.audios.length}つ`}</span></span>`);
-  if (visit.report) typeParts.push(`<span class="zv2l-vt">${ICONS.report}<span>${isEn ? "Field report" : "フィールドレポート"}</span></span>`);
+  const nPhoto = visit.photos.length;
+  const nVideo = visit.videos.length;
+  const nAudio = visit.audios.length;
+  if (nPhoto > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span class="nw">${isEn ? `${nPhoto} ${nPhoto === 1 ? "photo" : "photos"}` : `写真${nPhoto}枚`}</span></span>`);
+  if (nVideo > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span class="nw">${isEn ? `${nVideo} ${nVideo === 1 ? "video" : "videos"}` : `動画${nVideo}本`}</span></span>`);
+  if (nAudio > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.audio}<span class="nw">${isEn ? `${nAudio} ${nAudio === 1 ? "sound" : "sounds"}` : `音${nAudio}つ`}</span></span>`);
+  if (visit.report) typeParts.push(`<span class="zv2l-vt">${ICONS.report}<span class="nw">${isEn ? "Field report" : "フィールドレポート"}</span></span>`);
   if (visit.eventParticipation) {
     typeParts.push(
-      `<a class="zv2l-evlink" href="${esc(`${prefix}/community/events`)}">${ICONS.event}<span>${esc(visit.eventParticipation.title)}</span>${ICONS.chev}</a>`,
+      `<span class="zv2l-vt">${ICONS.event}<span class="nw">${isEn ? "Joined an event" : "イベントに参加"}</span><a class="zv2l-evlink" href="${esc(`${prefix}/community/events`)}"><span>${esc(visit.eventParticipation.title)}</span>${ICONS.chev}</a></span>`,
     );
   }
   const typesHtml = typeParts.length > 0 ? `<div class="zv2l-types">${typeParts.join('<span class="zv2l-sep">・</span>')}</div>` : "";
@@ -451,18 +460,26 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
     ? `<div class="zv2l-status">${statusParts.join('<span class="zv2l-sep">・</span>')}</div>`
     : `<div class="zv2l-status"><span class="zv2l-st">${ICONS.lock}<span>${isEn ? "Only me" : "自分のみ"}</span></span></div>`;
 
-  const metaParts = [visit.areaLabel || visit.placeName, visit.timeRangeLabel].filter(Boolean);
+  const headHtml = faceTitle ? `<h3 class="zv2l-vhead">${faceIsReport ? esc(faceTitle) : `<span class="nw">${esc(faceTitle)}</span>`}</h3>` : "";
+  const metaHtml = metaParts.length > 0
+    ? `<div class="zv2l-vmeta${faceTitle ? "" : " first"}">${metaParts.map((m) => `<span class="nw">${esc(m)}</span>`).join(" ・ ")}</div>`
+    : "";
   return `<article class="zv2l-visit" data-library-visit="${esc(visit.visitKey)}">
     <a class="zv2l-visit-link" href="${esc(href)}">
-      <h3 class="zv2l-vhead"><span class="nw">${esc(dateLabel)}</span>・${esc(headingTitle)}</h3>
-      <div class="zv2l-vmeta">${metaParts.map((m) => `<span class="nw">${esc(m)}</span>`).join(" ・ ")}</div>
-      ${reportHtml}
+      ${headHtml}
+      ${metaHtml}
       ${gridHtml}
+      ${reportHtml}
       ${audioHtml}
     </a>
     ${typesHtml}
     ${statusHtml}
   </article>`;
+}
+
+function renderDateDividerHtml(visit: LibraryV2Visit, isEn: boolean): string {
+  const label = isEn ? enDayLabel(visit.dateDay, visit.dateLabel) : visit.dateLabel;
+  return `<div class="zv2l-dsep" data-library-date="${esc(visit.dateDay)}"><span class="zv2l-dt"><span class="nw">${esc(label)}</span></span><span class="zv2l-dl"></span></div>`;
 }
 
 export function renderLibraryV2Page(options: {
@@ -497,7 +514,7 @@ export function renderLibraryV2Page(options: {
       <div class="zv2l-zicon">${ZUKAN_SHELL_ICONS.search}</div>
       <h2>${t("条件に合う記録がありません", "No matching records")}</h2>
       <div class="zv2l-zbody">
-        <p>${isEn ? `No records of yours match "${esc(trimmedSearch)}". Try a species name, place, note, or season (like "last autumn").` : `「${esc(trimmedSearch)}」に一致する自分の記録が見つかりませんでした。生きものの名前・場所・メモ・季節（「去年の秋」など）でお試しください。`}</p>
+        <p>${isEn ? `No records of yours match "${esc(trimmedSearch)}". Try a species name, place, field report, or season (like "last autumn").` : `「${esc(trimmedSearch)}」に一致する自分の記録が見つかりませんでした。生きものの名前・場所・フィールドレポート・季節（「去年の秋」など）でお試しください。`}</p>
       </div>
       <a class="zv2l-btn-main" href="${esc(`${prefix}/library`)}">${t("検索をリセット", "Reset search")}</a>
     </section>`;
@@ -506,10 +523,11 @@ export function renderLibraryV2Page(options: {
       <div class="zv2l-zicon">${ICONS.photo}</div>
       <h2>${t("まだ記録がありません", "No records yet")}</h2>
       <div class="zv2l-zbody">
-        <p>${t("出かけた先で撮った写真が、ここに場所と日にちでたまります。", "Photos you take while out will collect here by place and date.")}</p>
+        <p>${t("出かけた先で残した記録が、ここに日付ごとに並びます。写真や動画、音、フィールドレポート、どれからでも始められます。", "Records you save while out will line up here by date. You can start with a photo, video, sound, or field report.")}</p>
+        <p>${t("公開しなくても、自分だけの記録として残せます。場所の図鑑に載せるかどうかは、後から決められます。", "You can keep records just for yourself. You can decide later whether to add them to a place's field guide.")}</p>
       </div>
-      <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">${ZUKAN_SHELL_ICONS.camera}<span>${t("撮る", "Capture")}</span></a>
-      <a class="zv2l-btn-sub" href="${esc(`${prefix}/record?mode=upload`)}">${t("写真を選ぶ", "Choose photos")}</a>
+      <a class="zv2l-btn-main" href="${esc(`${prefix}/record`)}">${t("記録をはじめる", "Start a record")}</a>
+      <a class="zv2l-zlink" href="${esc(`${prefix}/map`)}"><span>${t("近くの場所を見てみる", "See places nearby")}</span>${ICONS.chev}</a>
     </section>`;
     }
   } else {
@@ -517,7 +535,12 @@ export function renderLibraryV2Page(options: {
     if (trimmedSearch) {
       parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>${isEn ? `Results for "${esc(trimmedSearch)}" (${options.visits.length})` : `「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）`}</span><a href="${esc(`${prefix}/library`)}">${t("検索をリセット", "Reset search")}</a></div>`);
     }
+    let prevDay = "";
     for (const v of options.visits) {
+      if (v.dateDay !== prevDay) {
+        parts.push(renderDateDividerHtml(v, isEn));
+        prevDay = v.dateDay;
+      }
       parts.push(renderVisitCardHtml(v, prefix, isEn));
     }
     if (options.nextCursor) {
