@@ -35,7 +35,7 @@ test("renderFixedPointQrSignPage and renderFixedPointTimelineHtml render overlay
   const qrHtml = renderFixedPointQrSignPage({ station, records, lang: "ja", cspNonce: "n1" });
   assert.match(qrHtml, /定点QR標識/);
   assert.match(qrHtml, /池の東側ベンチ/);
-  assert.match(qrHtml, /前回の同じ定点の写真（半透明重ね）/);
+  assert.match(qrHtml, /この定点の見本写真（半透明重ね）/);
   assert.match(qrHtml, /1\. 水の色/);
   assert.match(qrHtml, /2\. 花の数/);
   assert.match(qrHtml, /3\. 鳥の声の有無/);

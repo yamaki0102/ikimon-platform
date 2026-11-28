@@ -294,7 +294,8 @@ export function renderFixedPointQrSignPage(input: {
   const prefix = `/${lang}`;
   const cspNonce = input.cspNonce ?? "";
   const st = input.station;
-  const previousPhoto = input.records.find((r) => r.photo_url)?.photo_url || st.reference_photo_url;
+  const exemplarPhoto = st.reference_photo_url;
+  const lastPhoto = input.records.find((r) => r.photo_url)?.photo_url || "";
 
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(lang)}">
@@ -311,6 +312,10 @@ export function renderFixedPointQrSignPage(input: {
     .fps-overlay-box{position:relative;border-radius:14px;overflow:hidden;border:1px solid #c8d3ca;background:#111;min-height:220px;display:grid;place-items:center}
     .fps-overlay-box img.fps-prev{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none;opacity:.45}
     .fps-overlay-box img.fps-new{width:100%;height:100%;object-fit:cover;display:none}
+    .fps-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;font-weight:600}
+    .fps-compare figure{margin:0;display:grid;gap:4px;min-width:0}
+    .fps-compare img,.fps-compare .fps-compare-now{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;border:1px solid #c8d3ca;background:#eef2ee;box-sizing:border-box}
+    .fps-compare .fps-compare-now{display:grid;place-items:center;color:#5a6b5f;font-weight:400;text-align:center;padding:6px}
     .fps-field{display:grid;gap:6px;font-size:14px;font-weight:600}
     .fps-input{width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid #c8d3ca;font:inherit}
     .fps-btn{min-height:44px;padding:10px 18px;border:0;border-radius:12px;background:#1e6f4c;color:#fff;font:inherit;font-weight:700;cursor:pointer}
@@ -324,12 +329,16 @@ export function renderFixedPointQrSignPage(input: {
       <h1>${escapeHtml(st.title)}</h1>
       <p><a href="${escapeHtml(`${prefix}/places/${encodeURIComponent(st.place_id)}`)}">← 場所ページに戻る</a></p>
       <div class="fps-overlay-box">
-        ${previousPhoto ? `<img id="fps-prev-photo" class="fps-prev" src="${escapeHtml(previousPhoto)}" alt="前回の同じ定点の写真（半透明重ね）">` : `<span style="color:#fff">前回の定点写真を重ねて同じ構図で撮れます</span>`}
+        ${exemplarPhoto ? `<img id="fps-prev-photo" class="fps-prev" src="${escapeHtml(exemplarPhoto)}" alt="この定点の見本写真（半透明重ね）">` : `<span style="color:#fff;padding:12px;text-align:center">この定点の見本写真がまだありません。最初に正しく撮れた1枚が見本になります</span>`}
         <img id="fps-new-photo" class="fps-new" alt="今回の撮影プレビュー">
       </div>
-      <label class="fps-field">重ね撮り透明度（前回写真）
+      <label class="fps-field">重ね撮り透明度（見本写真）
         <input id="fps-opacity" type="range" min="0" max="0.9" step="0.05" value="0.45">
       </label>
+      ${lastPhoto ? `<div class="fps-compare" data-fps-compare>
+        <figure><figcaption>前回</figcaption><img id="fps-last-photo" src="${escapeHtml(lastPhoto)}" alt="前回の同じ定点の写真" loading="lazy"></figure>
+        <figure><figcaption>今回</figcaption><div class="fps-compare-now">撮影後にここへ表示されます</div></figure>
+      </div>` : ""}
       <form id="fps-record-form" class="fps-card" style="padding:14px;background:#f9fbf9">
         <label class="fps-field"><span>1. ${escapeHtml(st.prompt_1)}</span><input class="fps-input" name="answer1" required></label>
         <label class="fps-field"><span>2. ${escapeHtml(st.prompt_2)}</span><input class="fps-input" name="answer2" required></label>
