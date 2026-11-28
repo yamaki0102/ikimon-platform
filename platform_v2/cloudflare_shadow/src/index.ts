@@ -192,7 +192,7 @@ import { renderMapExplorerV2Document } from "../../src/ui/mapExplorerV2";
 import { renderZukanShellDocument } from "./zukanShell";
 import { handleSearchSeasonsV2Route } from "./zukanSearchSeasonsV2";
 import { handleSearchExploreV2Route, handleSearchResultsV2Route, handleSearchSuggestV2Api } from "./zukanSearchV2";
-import { loadUserLibraryV2Data, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
+import { loadUserLibraryV2Data, normalizeLibrarySort, renderLibraryV2Page, renderLibraryV2VisitDetailPage } from "./zukanLibraryV2";
 import { handleEventsV2Detail, handleEventsV2List } from "./zukanEventsV2";
 const MAP_V2_FLAG = "MAP_V2_ENABLED";
 const mapV2On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, MAP_V2_FLAG, v.principalId, v.role); };
@@ -4087,7 +4087,8 @@ export const worker = {
         const searchQuery = url.searchParams.get("q") ?? "";
         const before = decodePageCursor(url.searchParams.get("before")) ? url.searchParams.get("before") : null;
         if (session && !session.banned && libraryV2On(env, session)) {
-          const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery, { before });
+          const librarySort = normalizeLibrarySort(url.searchParams.get("sort"));
+          const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery, { before, sort: librarySort });
           const cspNonce = createHtmlCspNonce();
           const body = request.method === "HEAD"
             ? null
@@ -4097,6 +4098,7 @@ export const worker = {
                 authenticated: true,
                 displayName: session.displayName,
                 searchQuery,
+                sort: librarySort,
                 nextCursor: v2.nextCursor,
                 cspNonce,
               });
@@ -23047,7 +23049,8 @@ async function getNativeZukanTopHtmlIfAvailable(
   const guestTopV2 = !authenticated && (asGuest || prototypeEnabledForViewer(env, GUEST_TOP_V2_FLAG, guestViewer.principalId, guestViewer.role));
   const searchQuery = authenticated ? (url.searchParams.get("q") ?? "") : "";
   if (authenticated && session && libraryV2On(env, session)) {
-    const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery);
+    const librarySort = normalizeLibrarySort(url.searchParams.get("sort"));
+    const v2 = await loadUserLibraryV2Data(env, session.userId, searchQuery, { sort: librarySort });
     const cspNonce = createHtmlCspNonce();
     const body = request.method === "HEAD"
       ? null
@@ -23057,6 +23060,7 @@ async function getNativeZukanTopHtmlIfAvailable(
           authenticated: true,
           displayName: session.displayName,
           searchQuery,
+          sort: librarySort,
           nextCursor: v2.nextCursor,
           cspNonce,
         });

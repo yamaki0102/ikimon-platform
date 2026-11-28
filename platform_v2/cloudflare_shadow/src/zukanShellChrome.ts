@@ -98,6 +98,7 @@ export type ZukanChromeOptions = {
   displayName?: string | null;
   searchAction?: string;
   searchQuery?: string;
+  searchHidden?: Record<string, string>;
   pathname?: string;
   homeHref?: string;
   nonce?: string;
@@ -149,7 +150,7 @@ export function renderZukanChrome(options: ZukanChromeOptions): {
         <a class="zt-login-btn" href="${esc(`${prefix}/login`)}">${isEn ? "Sign in" : "ログイン"}</a>
       </header>`;
   const searchHtml = options.searchAction
-    ? `<form class="zt-search" method="get" action="${esc(options.searchAction)}" role="search">${ZUKAN_SHELL_ICONS.search}<input type="search" name="q" value="${esc(options.searchQuery ?? "")}" placeholder="${isEn ? "Festival, river, last autumn" : "祭り・川・去年の秋で探す"}" aria-label="${isEn ? "Search" : "検索"}"></form>`
+    ? `<form class="zt-search" method="get" action="${esc(options.searchAction)}" role="search">${ZUKAN_SHELL_ICONS.search}<input type="search" name="q" value="${esc(options.searchQuery ?? "")}" placeholder="${isEn ? "Festival, river, last autumn" : "祭り・川・去年の秋で探す"}" aria-label="${isEn ? "Search" : "検索"}">${Object.entries(options.searchHidden ?? {}).map(([k, v]) => `<input type="hidden" name="${esc(k)}" value="${esc(v)}">`).join("")}</form>`
     : "";
   const bottomNavHtml = `<nav class="zt-bottom-nav" aria-label="${isEn ? "Menu" : "メニュー"}">
     <a class="zt-nav-item" href="${esc(items[0]![1])}"${cur("library")}>${items[0]![3]}<span>${esc(homeLabel)}</span></a>
