@@ -1,4 +1,5 @@
 import type { ScheduledController } from "../core/env";
+import { runCanonicalize } from "./canonicalize";
 import { extractCsv } from "./extractCsv";
 import { extractJsonLd } from "./extractJsonLd";
 import { extractRss } from "./extractRss";
@@ -60,6 +61,7 @@ export async function runExternalAggregationTick(env: ExternalAggregationEnv, _c
          ON CONFLICT(source_id) DO UPDATE SET last_fetched_at=excluded.last_fetched_at,etag=excluded.etag,last_modified=excluded.last_modified,last_status=excluded.last_status`,
       ).bind(source.source_id, nowIso, etag, lastModified, status).run();
     }
+    await runCanonicalize(env.OBS_DB, nowMs, 200);
   } catch {
     console.warn("external_aggregation_tick_pending");
   }
