@@ -67,7 +67,7 @@ test("events は予約語で、地域のURLと旧URLの規則に載る", () => {
   assert.equal(resolveRegionSlugPath(["jp", "shizuoka", "hamamatsu", "events"], NOW), null);
   assert.equal(resolveRegionSlugPath(["jp", "shizuoka", "hamamatsu"], NOW)?.kind, "current");
   const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-  assert.ok(src.includes("(\\/species|\\/invasive|\\/events|\\/places)?$/u"));
+  assert.ok(src.includes("(\\/species|\\/invasive|\\/events|\\/places|\\/calendar\\/(?:[1-9]|1[0-2]))?$/u"));
   assert.ok(src.includes('slugSuffix === "/events"'));
 });
 

@@ -215,6 +215,7 @@ const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatible
 import { localizePublicLocationLabel } from "./observationDetailLinks";
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
 import { listRegionAreasByRecords, regionHasPublicRecords } from "./regionCounts";
+import { REGION_SEASON_FLAG, loadRegionCalendar, loadRegionSeason, renderRegionCalendarPage } from "./regionSeason";
 import { PLACE_CATEGORIES_FLAG, loadRegionCategories, loadRegionCategoryPlaces } from "./placeCategoryRegion";
 import { isPlaceCategoryId } from "./placeCategories";
 import { renderRegionPlacesPage } from "./placeCategoryListPage";
@@ -224,6 +225,7 @@ import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegi
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
+const regionSeasonOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SEASON_FLAG, v.principalId, v.role); };
 const placeCategoriesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_CATEGORIES_FLAG, v.principalId, v.role); };
 const externalShelvesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, EXTERNAL_SHELVES_FLAG, v.principalId, v.role); };
 const speciesSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SPECIES_SURFACE_V1_FLAG, v.principalId, v.role); };
@@ -3875,11 +3877,12 @@ export const worker = {
 
       if (request.method === "GET" || request.method === "HEAD") {
         const slugNative = stripPublicLangPrefix(url.pathname);
-        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive|\/events|\/places)?$/u);
+        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive|\/events|\/places|\/calendar\/(?:[1-9]|1[0-2]))?$/u);
         if (slugMatch?.[1]) {
           const slugLang = publicLangFromPath(url.pathname);
           const slugPrefix = slugLang ? `/${slugLang}` : "";
-          const slugSuffix = (slugMatch[2] ?? "") as "" | "/species" | "/invasive" | "/events" | "/places";
+          const slugCalendar = /^\/calendar\/(\d{1,2})$/.exec(slugMatch[2] ?? "")?.[1];
+          const slugSuffix = (slugCalendar ? "" : slugMatch[2] ?? "") as "" | "/species" | "/invasive" | "/events" | "/places";
           const slugSegments = slugMatch[1].split("/");
           const redirectTo = (target: string) => new Response(null, { status: 301, headers: { location: `${slugPrefix}${target}${url.search}`, "cache-control": "public, max-age=300" } });
           if (slugSegments[0] === "jp") {
@@ -3891,7 +3894,11 @@ export const worker = {
                 if (resolved.level === "country" || resolved.level === "pref") {
                   return new Response(null, { status: 302, headers: { location: `${slugPrefix}/regions${url.search}`, "cache-control": "no-store" } });
                 }
-                if (slugSuffix === "/events") {
+                if (slugCalendar) {
+                  if (resolved.level === "city" && regionSeasonOn(env, slugSession)) {
+                    return handleRegionCalendarRoute(request, url, env, slugSession, resolved.label, Number(slugCalendar));
+                  }
+                } else if (slugSuffix === "/events") {
                   if (resolved.level === "city" && externalShelvesOn(env, slugSession)) {
                     return handleRegionEventsRoute(request, url, env, slugSession, resolved.label);
                   }
@@ -25550,6 +25557,7 @@ async function handleRegionSurfaceRoute(
   const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const data = await loadRegionSurfaceData(env.OBS_DB, area, (ids) => queryPublicMapPhotoUrls(env, ids));
   if (!speciesList && placeCategoriesOn(env, session)) data.categories = await loadRegionCategories(env.OBS_DB, area);
+  if (!speciesList && regionSeasonOn(env, session)) data.season = await loadRegionSeason(env.OBS_DB, area, new Date(), (ids) => queryPublicMapPhotoUrls(env, ids), async (id) => (await publicSafetyGateForObservation(id, env)).blocked);
   if (!speciesList && externalShelvesOn(env, session)) { const ext = await loadRegionExternalEvents(env.OBS_DB, area); data.extEvents = ext.items; data.extEventTotal = ext.total; }
   if (!regionSurfaceHasContent(data)) return notFound();
   const cspNonce = createHtmlCspNonce();
@@ -25567,6 +25575,31 @@ async function handleRegionSurfaceRoute(
       "cache-control": "private, max-age=120",
       "vary": "cookie, authorization",
       "x-ikimon-cloudflare-native": speciesList ? "region-species-v1" : "region-surface-v1",
+    },
+  });
+}
+
+async function handleRegionCalendarRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+  area: string,
+  month: number,
+): Promise<Response> {
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const data = await loadRegionCalendar(env.OBS_DB, area, month, new Date(), (ids) => queryPublicMapPhotoUrls(env, ids), async (id) => (await publicSafetyGateForObservation(id, env)).blocked);
+  if (!data.monthCounts.some((n) => n > 0)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const cspNonce = createHtmlCspNonce();
+  const page = renderRegionCalendarPage({ data, lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, cspNonce, origin: seoOrigin(env) });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "region-calendar-v1",
     },
   });
 }

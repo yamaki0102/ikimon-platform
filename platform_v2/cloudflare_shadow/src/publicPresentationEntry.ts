@@ -12,6 +12,7 @@ import { hardenSvgResponse } from "./svgResponseSecurity";
 import { handleStampRally, isStampRallyPath, runStampRallyRetention, type StampRallyEnv } from "./stampRally";
 import { runExternalAggregationTick } from "./externalAggregation/tick";
 import { runPlaceCategoryBackfill, type CategoryDb } from "./placeCategoryRegion";
+import { runPlacePeakMonthsBackfill } from "./regionSeason";
 import type { ExternalAggregationEnv } from "./externalAggregation/types";
 import type { ScheduledController } from "./core/env";
 import { handleZukanHpSiteReceiver, type ZukanHpReceiverEnv } from "./zukanHpSiteReceiver";
@@ -63,6 +64,7 @@ export default {
     ctx.waitUntil(runStampRallyRetention(env as StampRallyEnv));
     ctx.waitUntil(runExternalAggregationTick(env as ExternalAggregationEnv, controller as ScheduledController));
     ctx.waitUntil(runPlaceCategoryBackfill(env as { PLACE_CATEGORY_BACKFILL?: string; OBS_DB: CategoryDb }));
+    ctx.waitUntil(runPlacePeakMonthsBackfill(env as { PLACE_CATEGORY_BACKFILL?: string; OBS_DB: CategoryDb }));
     const scheduled = delegatedWorker.scheduled as ((controller: unknown, env: unknown, ctx: unknown) => Promise<void>) | undefined;
     if (scheduled) await scheduled.call(delegatedWorker, controller, env, ctx);
   },
