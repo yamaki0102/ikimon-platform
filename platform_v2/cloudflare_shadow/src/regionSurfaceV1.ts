@@ -3,6 +3,8 @@ import { regionPath, regionPathNoLang } from "./regionSlugs";
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
 import { PLACE_AREA_SQL, PREFECTURE_PREFIX, PUBLIC_RECORD_FROM_SQL, isHigherRankName, loadAllRegionCounts, loadRegionCounts } from "./regionCounts";
+import { PLACE_CATEGORY_CSS, renderRegionCategoryEntrances, type RegionCategories } from "./placeCategoryRegion";
+import { PLACE_CATEGORY_CSS, renderRegionCategoryEntrances, type RegionCategories } from "./placeCategoryRegion";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { inferTaxonGroupForLabel, resolveTaxonGroups } from "./zukanMapTaxonGroup";
 
@@ -24,6 +26,7 @@ export type RegionSurfaceData = {
   cells?: RegionCell[];
   extEvents?: ExtEventCard[];
   extEventTotal?: number;
+  categories?: RegionCategories | null;
 };
 export type RegionCell = { cell: string; count: number };
 
@@ -312,6 +315,7 @@ export function renderRegionSurfacePage(options: {
     <a class="rs-all" data-region-index-link="1" href="${esc(`${prefix}/regions`)}">${tr(L, "地域から探す", "Explore by region")}</a>
     ${stats.length ? `<div class="rs-stats">${stats.join("")}</div>` : ""}
     <div class="rs-cta"><a class="iv-btn" href="${esc(`${prefix}/record`)}">${tr(L, "この地域で記録する", "Record in this area")}</a></div>
+    ${renderRegionCategoryEntrances(L, base, data.categories, data.recordTotal)}
     ${shelves.join("")}
     <p class="rs-foot" data-region-guide="1">${extShelf ? tr(L, "この地域の面には、記録・場所・市や施設の公開情報から集めたものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records, places, and information published by the city and venues. Shelves for shops, companies and organizations, and people will appear once there is content for them.") : tr(L, "この地域の面には、記録や場所から集まったものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records and places. Shelves for shops, companies and organizations, and people will appear once there is content for them.")}</p>
   </div>${mapCard ? `<aside class="rs-rail" aria-label="${tr(L, "この地域の地図", "Map of this area")}">${mapCard}</aside>` : ""}</div>`;
@@ -324,7 +328,7 @@ export function renderRegionSurfacePage(options: {
   return shell({
     seo: { title: tr(L, `${data.area}の生きもの・場所 | ZUKAN`, `Wildlife and places in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: regionPathNoLang(data.area), image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: data.area,
-    extraCss: extShelf ? EXTRA_CSS + EXT_SHELF_CSS : EXTRA_CSS,
+    extraCss: (extShelf ? EXTRA_CSS + EXT_SHELF_CSS : EXTRA_CSS) + (data.categories?.entries.length ? PLACE_CATEGORY_CSS : ""),
     lang: options.lang,
     authenticated: options.authenticated,
     displayName: options.displayName,

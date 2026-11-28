@@ -117,6 +117,7 @@ export interface Env extends PrototypeEnvironment {
   CORE_DB: D1Database;
   OBS_DB: D1Database;
   EXTERNAL_FETCH_ENABLED?: string;
+  PLACE_CATEGORY_BACKFILL?: string;
   ASSET_BUCKET: R2Bucket;
   IMAGES?: ImagesBinding;
   AI?: WorkersAiBinding;

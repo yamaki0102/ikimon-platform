@@ -5,7 +5,7 @@ export type RegionSlugResolution =
   | { kind: "redirect"; to: string }
   | null;
 
-export const RESERVED_REGION_SLUGS: readonly string[] = ["events", "species", "invasive"];
+export const RESERVED_REGION_SLUGS: readonly string[] = ["events", "species", "invasive", "places"];
 
 const pathOf =(e: RegionSlugEntry): string =>
   e.level === "country" ? e.slug : e.parent_slug === "jp" ? `jp/${e.slug}` : `jp/${e.parent_slug}/${e.slug}`;
@@ -56,13 +56,13 @@ export function labelToSlugPath(label: string): string | null {
   return currentLabelIndex.get(label)?.path ?? null;
 }
 
-export function regionPath(lang: string, labelOrCode: string, suffix: "" | "/species" | "/invasive" | "/events" = ""): string {
+export function regionPath(lang: string, labelOrCode: string, suffix: "" | "/species" | "/invasive" | "/events" | "/places" = ""): string {
   const prefix = `/${lang}`;
   const slugPath = labelToSlugPath(labelOrCode) ?? currentCodeIndex.get(labelOrCode) ?? null;
   return slugPath ? `${prefix}/regions/${slugPath}${suffix}` : `${prefix}/regions/${encodeURIComponent(labelOrCode)}${suffix}`;
 }
 
-export function regionPathNoLang(label: string, suffix: "" | "/species" | "/invasive" | "/events" = ""): string {
+export function regionPathNoLang(label: string, suffix: "" | "/species" | "/invasive" | "/events" | "/places" = ""): string {
   const slugPath = labelToSlugPath(label);
   return slugPath ? `/regions/${slugPath}${suffix}` : `/regions/${encodeURIComponent(label)}${suffix}`;
 }
