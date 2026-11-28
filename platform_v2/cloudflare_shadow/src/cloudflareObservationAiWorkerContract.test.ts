@@ -96,3 +96,16 @@ test("photo upload, queue, cron, Gemini Batch, and review target form one durabl
     assert.match(environmentBlocks.production, new RegExp(`"${flag}": "on"`));
   }
 });
+
+test("observation guide runs once after AI reading: dual write off calls it directly, on goes only via refreshRecordAiNote", async () => {
+  const source = await readFile(new URL("./index.ts", import.meta.url), "utf8");
+  const start = source.search(/await env\.OBS_DB\.batch\(statements\);\s+if \(!\["person"/);
+  assert.ok(start > 0);
+  const tail = source.slice(start, start + 1200);
+  assert.match(tail, /\["person", "document", "object", "food"\]\.includes\(merged\.recordClass\)/);
+  assert.match(tail, /if \(observationDualWriteEnabled\(env\)\) \{\s*await refreshRecordAiNote\(/);
+  assert.match(tail, /else if \(env\.GEMINI_API_KEY\)[\s\S]*publicSafetyGateForObservation\(observationId, env\)\)\.blocked[\s\S]*runObservationGuide\(/);
+  assert.match(tail, /"guide_error"/);
+  assert.equal((source.match(/generateAndStoreObservationGuide\(\{/g) ?? []).length, 1);
+  assert.equal((source.match(/await runObservationGuide\(env/g) ?? []).length, 2);
+});
