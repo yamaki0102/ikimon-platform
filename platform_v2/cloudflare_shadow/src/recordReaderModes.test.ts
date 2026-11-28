@@ -7,6 +7,7 @@ import {
   RECORD_READER_MODES_FLAG,
   recordReaderModeCopy,
   renderRecordReaderModesHtml,
+  renderRecordReaderModesScript,
   resolveRecordReaderGroup,
 } from "./recordReaderModes";
 
@@ -77,15 +78,25 @@ test("renderRecordReaderModesHtml renders nothing when disabled, and omits speci
   assert.match(confirmed, /data-record-reader-modes/);
   assert.match(confirmed, /data-reader-mode-name[^>]*>ナミアゲハ</);
   assert.match(confirmed, /足は何本見える？もようはある？/);
-  assert.match(confirmed, /見つけたら、足やもようを指さしてもらおう/);
-  assert.match(confirmed, /data-reader-mode-tab="child"[^>]*>こども</);
-  assert.match(confirmed, /data-reader-mode-tab="parent"[^>]*>おや</);
+  assert.match(confirmed, /aria-label="観察の問いかけ"/);
+  assert.ok(!confirmed.includes("tablist"));
+  assert.ok(!confirmed.includes("data-reader-mode-tab"));
+  assert.ok(!confirmed.includes("おや"));
+  assert.ok(!confirmed.includes("こども"));
+  assert.ok(!confirmed.includes("data-reader-mode-panel=\"parent\""));
+  assert.ok(!confirmed.includes("気づいたところを指さしてもらおう"));
+  assert.ok(!confirmed.includes("hidden"));
 
   const unconfirmed = renderRecordReaderModesHtml({ enabled: true, group: "generic", speciesHeading: null });
   assert.match(unconfirmed, /data-record-reader-modes/);
   assert.ok(!unconfirmed.includes("data-reader-mode-name"));
   assert.match(unconfirmed, /どんな色やもようが見える？/);
-  assert.match(unconfirmed, /気づいたところを指さしてもらおう/);
+  assert.ok(!unconfirmed.includes("tablist"));
+});
+
+test("renderRecordReaderModesScript is empty now that tabs are removed", () => {
+  assert.equal(renderRecordReaderModesScript(true), "");
+  assert.equal(renderRecordReaderModesScript(false), "");
 });
 
 test("renderObservationFirstRecordDetailHtml toggles reader modes behind flag while preserving certainty and blurred location", () => {
@@ -109,7 +120,8 @@ test("renderObservationFirstRecordDetailHtml toggles reader modes behind flag wh
   });
   assert.match(onHtml, /data-record-reader-modes/);
   assert.match(onHtml, /足は何本見える？もようはある？/);
-  assert.match(onHtml, /見つけたら、足やもようを指さしてもらおう/);
+  assert.ok(!onHtml.includes("data-reader-mode-tab"));
+  assert.ok(!onHtml.includes("tablist"));
   assert.match(onHtml, /data-location-blur/);
   assert.match(onHtml, /of-found-status is-confirmed/);
   assert.match(onHtml, /data-reader-mode-name[^>]*>ナミアゲハ</);
