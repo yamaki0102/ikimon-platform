@@ -117,10 +117,10 @@ export async function runCanonicalize(db: ExtDb, nowMs: number, limit = 200): Pr
 
     const status = allGone ? "hidden" : endMs(fact.ends_at ?? fact.starts_at) < nowMs ? "expired" : "active";
     await db.prepare(
-      `INSERT INTO ext_events (event_id,org_id,place_id,title,starts_at,ends_at,all_day,status,city_unit_id,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(event_id) DO UPDATE SET org_id=excluded.org_id,place_id=excluded.place_id,title=excluded.title,starts_at=excluded.starts_at,
+      `INSERT INTO ext_events (event_id,org_id,place_id,title,category,starts_at,ends_at,all_day,status,city_unit_id,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(event_id) DO UPDATE SET org_id=excluded.org_id,place_id=excluded.place_id,title=excluded.title,category=excluded.category,starts_at=excluded.starts_at,
          ends_at=excluded.ends_at,all_day=excluded.all_day,status=excluded.status,city_unit_id=excluded.city_unit_id,updated_at=excluded.updated_at`,
-    ).bind(eventId, orgId, placeId, fact.title, fact.starts_at, fact.ends_at, fact.all_day ? 1 : 0, status, venue.city_unit_id, nowIso).run();
+    ).bind(eventId, orgId, placeId, fact.title, fact.category ?? null, fact.starts_at, fact.ends_at, fact.all_day ? 1 : 0, status, venue.city_unit_id, nowIso).run();
     events++;
   }
 

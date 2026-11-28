@@ -100,7 +100,7 @@ const fetchedLabel = (lang: Lang, iso: string): string => {
   return lang === "ja" ? `${j.getUTCMonth() + 1}月${j.getUTCDate()}日に取得` : `retrieved ${j.toISOString().slice(0, 10)}`;
 };
 
-export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents | null | undefined): string {
+export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents | null | undefined, allHref?: string): string {
   const cards = (data?.items ?? []).filter((c) => /^https?:\/\//i.test(c.url) && c.source_name.trim() !== "");
   if (cards.length === 0) return "";
   const rows = cards.map((c) => {
@@ -111,6 +111,14 @@ export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents
     return `<div class="rs-ev" data-region-ext-event="${esc(c.event_id)}"><div class="rs-ev-dt">${esc(when)}</div><div class="rs-ev-ti">${esc(c.title)}</div>${meta ? `<div class="rs-ev-pl">${meta}</div>` : ""}<div class="rs-ev-src" data-region-ext-source="1"><span class="rs-ev-from">${tr(lang, "出典：", "Source: ")}${src}</span><a href="${esc(c.url)}" target="_blank" rel="noopener nofollow">${tr(lang, "元のページへ ›", "Original page ›")}</a></div></div>`;
   }).join("");
   const rest = (data?.total ?? 0) - cards.length;
+<<<<<<< HEAD
+  const total = Math.max(data?.total ?? 0, cards.length);
+  const all = rest > 0 && allHref ? `<a class="rs-all" data-region-ext-all="1" href="${esc(allHref)}">${tr(lang, `すべて見る（${total}件）`, `See all (${total})`)}</a>` : "";
+  const more = rest > 0 && !allHref ? `<p class="rs-ext-src">${tr(lang, `ほか ${rest}件`, `${rest} more`)}</p>` : "";
+  const src = `<p class="rs-ext-src" data-region-ext-source="1">${tr(lang, `出典：${names.map(esc).join("、")}${fetched ? `／取得日 ${esc(fetched)}` : ""}`, `Source: ${names.map(esc).join(", ")}${fetched ? ` / Retrieved ${esc(fetched)}` : ""}`)}</p>`;
+  return `<section data-region-shelf="ext-events"><div class="rs-shelf-h"><h2>${tr(lang, "まちの行事", "Events in town")}</h2>${all}</div><p class="rs-ext-sub">${tr(lang, "市や施設が公開している行事です。申込みは元のページへ。", "Events published by the city and venues. Apply on the original page.")}</p>${rows}${more}${src}</section>`;
+=======
   const more = rest > 0 ? `<p class="rs-ext-more">${tr(lang, `もっと見る（あと ${rest}件）`, `See more (${rest} more)`)}</p>` : "";
   return `<section data-region-shelf="ext-events"><div class="rs-shelf-h"><h2>${tr(lang, "まちの行事", "Events in town")}</h2></div><p class="rs-ext-sub">${tr(lang, "市や施設のページから集めた行事です", "Events collected from city and venue pages")}</p>${rows}${more}<p class="rs-ext-note">${tr(lang, "申し込みは、それぞれの元のページからお願いします。", "Apply on the original page.")}</p></section>`;
+>>>>>>> origin/main
 }

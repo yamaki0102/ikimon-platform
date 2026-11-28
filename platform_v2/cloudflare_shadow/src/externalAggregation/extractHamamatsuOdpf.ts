@@ -47,7 +47,7 @@ export async function extractHamamatsuOdpf(body: string, sourceId: string, fetch
       kind: "event", source_id: sourceId, external_ref: ref, url: resolveUrl(cell(r, c.url), HAMAMATSU_ODPF_URL) ?? HAMAMATSU_ODPF_URL,
       title, starts_at: start.value, ends_at: end?.value ?? null, all_day: start.allDay,
       venue_name: clean(cell(r, c.venue)), venue_address: clean(cell(r, c.addr)),
-      lat: geo ? lat : null, lng: geo ? lng : null, organizer_name: clean(cell(r, c.org)), fetched_at: fetchedAt,
+      lat: geo ? lat : null, lng: geo ? lng : null, organizer_name: clean(cell(r, c.org)), category: category || null, fetched_at: fetchedAt,
     });
   }
   return facts;

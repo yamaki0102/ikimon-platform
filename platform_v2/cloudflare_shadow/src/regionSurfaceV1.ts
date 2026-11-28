@@ -302,7 +302,7 @@ export function renderRegionSurfacePage(options: {
     const rows = data.events.map((e) => `<a class="rs-row" data-region-event="${esc(e.id)}" href="${esc(`${prefix}/events/${encodeURIComponent(e.id)}/preview`)}"><span class="rs-b"><span class="rs-n">${esc(e.title)}</span><span class="rs-m">${esc(dateLabel(e.startedAt, L))}</span></span>${CHEV_ICON}</a>`).join("");
     shelves.push(`<section data-region-shelf="events"><div class="rs-shelf-h"><h2>${tr(L, "行事", "Events")}<small>${tr(L, `${data.eventTotal}件`, plural(data.eventTotal, "event", "events"))}</small></h2></div>${rows}</section>`);
   }
-  const extShelf = renderRegionExternalShelf(L, data.extEvents?.length ? { items: data.extEvents, total: data.extEventTotal ?? data.extEvents.length } : null);
+  const extShelf = renderRegionExternalShelf(L, data.extEvents?.length ? { items: data.extEvents, total: data.extEventTotal ?? data.extEvents.length } : null, `${base}/events`);
   if (extShelf) shelves.push(extShelf);
   const mapCard = regionMapCardHtml(data.cells ?? [], `${prefix}/map`, L);
   const body = `<div class="iv-col rs-col${mapCard ? " rs-wide" : ""}" data-region-surface="${esc(data.area)}"><div class="rs-main">

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { REGION_SLUG_ENTRIES } from "./regionSlugs.data";
-import { labelToSlugPath, regionPath, resolveRegionSlugPath } from "./regionSlugs";
+import { readFileSync } from "node:fs";
+import { RESERVED_REGION_SLUGS, labelToSlugPath, regionPath, resolveRegionSlugPath } from "./regionSlugs";
 
 const NOW = "2026-11-28";
 
@@ -57,6 +58,17 @@ test("リンク生成: 市は英字URL、他県ラベルは従来URL", () => {
   assert.equal(regionPath("ja", "22138"), "/ja/regions/jp/shizuoka/hamamatsu/chuo");
   assert.equal(regionPath("ja", "札幌市"), `/ja/regions/${encodeURIComponent("札幌市")}`);
   assert.equal(labelToSlugPath("浜松市中区"), null);
+});
+
+test("events は予約語で、地域のURLと旧URLの規則に載る", () => {
+  assert.equal(regionPath("ja", "浜松市", "/events"), "/ja/regions/jp/shizuoka/hamamatsu/events");
+  assert.equal(regionPath("ja", "札幌市", "/events"), `/ja/regions/${encodeURIComponent("札幌市")}/events`);
+  assert.ok(REGION_SLUG_ENTRIES.every((e) => !RESERVED_REGION_SLUGS.includes(e.slug)));
+  assert.equal(resolveRegionSlugPath(["jp", "shizuoka", "hamamatsu", "events"], NOW), null);
+  assert.equal(resolveRegionSlugPath(["jp", "shizuoka", "hamamatsu"], NOW)?.kind, "current");
+  const src = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+  assert.ok(src.includes("(\\/species|\\/invasive|\\/events)?$/u"));
+  assert.ok(src.includes('slugSuffix === "/events"'));
 });
 
 test("未知のslugはnull", () => {
