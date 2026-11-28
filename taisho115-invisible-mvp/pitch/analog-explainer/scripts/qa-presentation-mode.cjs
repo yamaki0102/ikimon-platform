@@ -7,6 +7,12 @@ const url = process.env.DECK_URL || "http://127.0.0.1:5178/";
 const outDir = process.env.QA_OUT_DIR ? path.resolve(process.env.QA_OUT_DIR) : path.resolve(__dirname, "..", ".runtime", "presentation-mode");
 fs.mkdirSync(outDir, { recursive: true });
 
+async function openDeck(page) {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForSelector(".slide.active", { state: "visible", timeout: 15000 });
+  await page.waitForTimeout(250);
+}
+
 const landscapeViewports = [
   { name: "iphone-se", width: 667, height: 375, minSlideWidth: 610, minSlideHeight: 340 }
 ];
@@ -23,15 +29,86 @@ function safeName(index) {
   const failures = [];
 
   await page.setViewportSize({ width: 375, height: 667 });
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
 
   const promptVisible = await page.locator(".mobile-fullscreen-prompt").isVisible();
   const promptText = await page.locator(".mobile-fullscreen-prompt").textContent().catch(() => "");
   if (!promptVisible) failures.push("mobile fullscreen prompt is not visible on iPhone SE portrait");
   if (!promptText?.includes("横長フルスクリーン")) failures.push(`mobile fullscreen prompt text missing: ${promptText}`);
+  const portraitEntry = await page.evaluate(() => {
+    const summary = document.querySelector(".mobile-entry-summary");
+    const prompt = document.querySelector(".mobile-fullscreen-prompt");
+    const visibleControls = [...document.querySelectorAll(".deck-toolbar button")].filter((button) => {
+      const rect = button.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
+    return {
+      summaryVisible: Boolean(summary && summary.getBoundingClientRect().height > 0),
+      summaryText: summary?.textContent || "",
+      promptHeight: prompt?.getBoundingClientRect().height || 0,
+      minControlWidth: Math.min(...visibleControls.map((button) => button.getBoundingClientRect().width)),
+      minControlHeight: Math.min(...visibleControls.map((button) => button.getBoundingClientRect().height)),
+      horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth
+    };
+  });
+  if (!portraitEntry.summaryVisible || !portraitEntry.summaryText.includes("異なる10地点") || !portraitEntry.summaryText.includes("突入で逮捕")) {
+    failures.push(`portrait win-condition summary is missing: ${JSON.stringify(portraitEntry)}`);
+  }
+  if (portraitEntry.promptHeight < 44 || portraitEntry.minControlWidth < 44 || portraitEntry.minControlHeight < 44) {
+    failures.push(`portrait tap targets are below 44px: ${JSON.stringify(portraitEntry)}`);
+  }
+  if (portraitEntry.horizontalOverflow > 2) failures.push(`portrait entry overflows horizontally: ${portraitEntry.horizontalOverflow}`);
+
+  await page.setViewportSize({ width: 667, height: 375 });
+  await openDeck(page);
+  await page.waitForTimeout(240);
+  const normalLandscapeHidden = await page.evaluate(() => {
+    const shell = document.querySelector(".deck-shell");
+    const toolbar = document.querySelector(".deck-toolbar");
+    const style = toolbar ? getComputedStyle(toolbar) : null;
+    return {
+      landscapeFit: shell?.classList.contains("landscape-fit-mode"),
+      chromeHidden: shell?.classList.contains("presentation-chrome-hidden"),
+      toolbarOpacity: style ? Number.parseFloat(style.opacity) : 1
+    };
+  });
+  if (!normalLandscapeHidden.landscapeFit || !normalLandscapeHidden.chromeHidden || normalLandscapeHidden.toolbarOpacity > 0.05) {
+    failures.push(`normal landscape does not start with unobstructed slide: ${JSON.stringify(normalLandscapeHidden)}`);
+  }
+  await page.mouse.click(333, 188);
+  await page.waitForTimeout(240);
+  const normalLandscapeVisible = await page.evaluate(() => {
+    const shell = document.querySelector(".deck-shell");
+    const toolbar = document.querySelector(".deck-toolbar");
+    const slide = document.querySelector(".slide.active");
+    const toolbarRect = toolbar?.getBoundingClientRect();
+    const slideRect = slide?.getBoundingClientRect();
+    const visibleControls = [...document.querySelectorAll(".deck-toolbar button")].filter((button) => {
+      const rect = button.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+    });
+    return {
+      chromeVisible: shell?.classList.contains("presentation-chrome-visible"),
+      minControlWidth: Math.min(...visibleControls.map((button) => button.getBoundingClientRect().width)),
+      minControlHeight: Math.min(...visibleControls.map((button) => button.getBoundingClientRect().height)),
+      toolbarBottom: toolbarRect?.bottom || 0,
+      slideTop: slideRect?.top || 0,
+      horizontalOverflow: document.documentElement.scrollWidth - window.innerWidth
+    };
+  });
+  if (!normalLandscapeVisible.chromeVisible || normalLandscapeVisible.minControlWidth < 44 || normalLandscapeVisible.minControlHeight < 44) {
+    failures.push(`normal landscape controls are not recoverable at 44px: ${JSON.stringify(normalLandscapeVisible)}`);
+  }
+  if (normalLandscapeVisible.slideTop < normalLandscapeVisible.toolbarBottom - 2) {
+    failures.push(`normal landscape toolbar covers the slide: ${JSON.stringify(normalLandscapeVisible)}`);
+  }
+  if (normalLandscapeVisible.horizontalOverflow > 2) failures.push(`normal landscape overflows horizontally: ${normalLandscapeVisible.horizontalOverflow}`);
+  await page.screenshot({ path: path.join(outDir, "normal-landscape-controls.png"), fullPage: false });
 
   await page.setViewportSize({ width: 1366, height: 768 });
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   await page.getByLabel("全画面で見る").click();
   await page.waitForTimeout(500);
   const desktopInitialMode = await page.evaluate(() => {
@@ -91,7 +168,7 @@ function safeName(index) {
 
   for (const viewport of landscapeViewports) {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto(url, { waitUntil: "networkidle" });
+    await openDeck(page);
     await page.locator(".mobile-fullscreen-prompt").click();
     await page.waitForTimeout(500);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
@@ -220,10 +297,31 @@ function safeName(index) {
         failures.push(`${label}: network gauge overlaps board area ${metrics.networkOverlap}px2`);
       }
     }
+
+    await page.mouse.click(Math.floor(viewport.width / 2), Math.floor(viewport.height / 2));
+    await page.waitForTimeout(240);
+    const exitButton = page.getByLabel("通常表示に戻る");
+    if (!(await exitButton.isVisible())) {
+      failures.push(`${viewport.name}: fullscreen exit control is not recoverable`);
+    } else {
+      await exitButton.click();
+      await page.waitForTimeout(500);
+      const exitState = await page.evaluate(() => {
+        const shell = document.querySelector(".deck-shell");
+        return {
+          presentationMode: shell?.classList.contains("presentation-mode"),
+          fullscreenActive: shell?.classList.contains("fullscreen-active") && !shell?.classList.contains("landscape-fit-mode"),
+          fullscreenElement: Boolean(document.fullscreenElement)
+        };
+      });
+      if (exitState.presentationMode || exitState.fullscreenActive || exitState.fullscreenElement) {
+        failures.push(`${viewport.name}: exit control did not leave presentation mode: ${JSON.stringify(exitState)}`);
+      }
+    }
   }
 
   await page.setViewportSize({ width: 375, height: 667 });
-  await page.goto(url, { waitUntil: "networkidle" });
+  await openDeck(page);
   await page.getByLabel("音声つき自動再生").click();
   await page.waitForTimeout(500);
   const autoplayMode = await page.evaluate(() => {
