@@ -74,24 +74,8 @@ test("resolveRecordReaderGroup maps names and taxonomy to insect/plant/bird or g
 test("renderRecordReaderModesHtml renders nothing when disabled, and omits species heading when unconfirmed", () => {
   assert.equal(renderRecordReaderModesHtml({ enabled: false, group: "insect", speciesHeading: "ナミアゲハ" }), "");
 
-  const confirmed = renderRecordReaderModesHtml({ enabled: true, group: "insect", speciesHeading: "ナミアゲハ" });
-  assert.match(confirmed, /data-record-reader-modes/);
-  assert.match(confirmed, /data-reader-mode-name[^>]*>ナミアゲハ</);
-  assert.match(confirmed, /足は何本見える？もようはある？/);
-  assert.match(confirmed, /aria-label="観察の問いかけ"/);
-  assert.ok(!confirmed.includes("tablist"));
-  assert.ok(!confirmed.includes("data-reader-mode-tab"));
-  assert.ok(!confirmed.includes("おや"));
-  assert.ok(!confirmed.includes("こども"));
-  assert.ok(!confirmed.includes("data-reader-mode-panel=\"parent\""));
-  assert.ok(!confirmed.includes("気づいたところを指さしてもらおう"));
-  assert.ok(!confirmed.includes("hidden"));
-
-  const unconfirmed = renderRecordReaderModesHtml({ enabled: true, group: "generic", speciesHeading: null });
-  assert.match(unconfirmed, /data-record-reader-modes/);
-  assert.ok(!unconfirmed.includes("data-reader-mode-name"));
-  assert.match(unconfirmed, /どんな色やもようが見える？/);
-  assert.ok(!unconfirmed.includes("tablist"));
+  assert.equal(renderRecordReaderModesHtml({ enabled: true, group: "insect", speciesHeading: "ナミアゲハ" }), "");
+  assert.equal(renderRecordReaderModesHtml({ enabled: true, group: "generic", speciesHeading: null }), "");
 });
 
 test("renderRecordReaderModesScript is empty now that tabs are removed", () => {
@@ -118,13 +102,15 @@ test("renderObservationFirstRecordDetailHtml toggles reader modes behind flag wh
     ...basePresentation,
     recordReaderModes: true,
   });
-  assert.match(onHtml, /data-record-reader-modes/);
-  assert.match(onHtml, /足は何本見える？もようはある？/);
+  assert.ok(!onHtml.includes("data-record-reader-modes"));
+  assert.ok(!onHtml.includes("足は何本見える？もようはある？"));
+  const guideHtml = renderObservationFirstRecordDetailHtml(baseDetail(), { ...basePresentation, recordReaderModes: true, observationGuide: "翅のもようを見てみてください。" });
+  assert.match(guideHtml, /data-observation-guide/);
+  assert.match(guideHtml, /翅のもようを見てみてください。/);
   assert.ok(!onHtml.includes("data-reader-mode-tab"));
   assert.ok(!onHtml.includes("tablist"));
   assert.match(onHtml, /data-location-blur/);
   assert.match(onHtml, /of-found-status is-confirmed/);
-  assert.match(onHtml, /data-reader-mode-name[^>]*>ナミアゲハ</);
 
   const pendingHtml = renderObservationFirstRecordDetailHtml(
     baseDetail({
@@ -152,8 +138,7 @@ test("renderObservationFirstRecordDetailHtml toggles reader modes behind flag wh
       recordReaderModes: true,
     },
   );
-  assert.match(pendingHtml, /data-record-reader-modes/);
-  assert.ok(!pendingHtml.includes("data-reader-mode-name"));
+  assert.ok(!pendingHtml.includes("data-record-reader-modes"));
   assert.match(pendingHtml, /data-location-blur/);
   assert.match(pendingHtml, /of-found-status is-proposed/);
 });

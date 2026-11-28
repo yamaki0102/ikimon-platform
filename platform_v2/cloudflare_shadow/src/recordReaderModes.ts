@@ -1,4 +1,5 @@
 import { FIELD_CARD_PROMPT, FIELD_CARD_QUESTION, type FieldCardGroup } from "./fieldCard";
+import { observationGuideFailures } from "./recordObservationGuide";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
 
@@ -63,21 +64,24 @@ export const RECORD_READER_MODES_STYLES = `
 .of-rm-tab.is-active{background:#143F2E;color:#fff}
 .of-rm-name{margin:0;font-size:16px;font-weight:800;color:#17211B}
 .of-rm-copy{margin:0;font-size:15px;line-height:1.75;color:#17211B;font-weight:600}
+.of-guide{margin-top:20px;border:1.5px solid #C9D4C2;border-radius:16px;padding:16px 17px;background:#FDFEFB}
+.of-guide p{margin:0;font-size:16.5px;line-height:1.65;color:#17211B}
+.of-guide .of-guide-ai{margin-top:7px;font-size:12.5px;color:#6b7a70}
 `;
 
 export function renderRecordReaderModesHtml(options: {
   enabled: boolean;
   group: FieldCardGroup;
   speciesHeading?: string | null;
+  guideText?: string | null;
+  aiNote?: string;
 }): string {
   if (!options.enabled) return "";
-  const copy = recordReaderModeCopy(options.group);
-  const cleanSpecies = (options.speciesHeading ?? "").trim();
-  const showName = Boolean(cleanSpecies && !isWeakTaxonLabel(cleanSpecies));
-  return `<section class="of-reader-modes" data-record-reader-modes aria-label="観察の問いかけ">
-${showName ? `<h3 class="of-rm-name" data-reader-mode-name>${esc(cleanSpecies)}</h3>` : ""}
-<p class="of-rm-copy" data-reader-mode-panel="child">${esc(copy.childQuestion)}</p>
-</section>`;
+  const guide = (options.guideText ?? "").trim();
+  if (guide && observationGuideFailures(guide).length === 0) {
+    return `<section class="of-guide" data-record-reader-modes data-observation-guide aria-label="観察ガイド"><p data-observation-guide-text>${esc(guide)}</p><p class="of-guide-ai">${esc(options.aiNote ?? "この文章はAIが作成しました")}</p></section>`;
+  }
+  return "";
 }
 
 export function renderRecordReaderModesScript(_enabled: boolean): string {
