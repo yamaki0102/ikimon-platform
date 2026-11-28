@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import worker, { withPublicPlacesInSitemap } from "./index";
 import type { Env } from "./core/env";
-import { renderRegionIndexPage, renderRegionSurfacePage } from "./regionSurfaceV1";
+import { loadRegionIndex, loadRegionSurfaceData, renderRegionIndexPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 
 const SCHEMA = `
   CREATE TABLE readmodel_public_observations (observation_id TEXT PRIMARY KEY, public_cell TEXT, observed_at TEXT, taxon_label TEXT, asset_count INTEGER DEFAULT 0, public_area_label TEXT);
@@ -100,4 +100,22 @@ test("explore shows the quiet regions link only when the flag is on", async (t) 
   const get = async (env: Env) => (await worker.fetch(new Request("https://zukan.earth/ja/search/explore"), env)).text();
   assert.match(await get(on), /data-search-regions-link="1" [^>]*href="\/ja\/regions"/);
   assert.doesNotMatch(await get(base), /data-search-regions-link/);
+});
+
+test("index counts match region page for unnamed records and locality-label places", async (t) => {
+  const { sqlite, db } = makeDb(true);
+  t.after(() => sqlite.close());
+  const ins = sqlite.prepare("INSERT INTO readmodel_public_observations (observation_id, public_cell, observed_at, taxon_label, public_area_label) VALUES (?,?,?,?,?)");
+  const own = sqlite.prepare("INSERT INTO observations (observation_id, owner_user_id) VALUES (?,?)");
+  for (const [id, label] of [["n1", null], ["n2", null]] as const) { ins.run(id, "34.70,137.70", "2026-11-01T01:00:00Z", label, "浜松市"); own.run(id, "u1"); }
+  const pl = sqlite.prepare("INSERT INTO places VALUES (?,?,?,?,?,?,?,?,?)");
+  pl.run("pl-3", "名前なし公園", "静岡県浜松市", "park", "published", null, null, null, "{}");
+  pl.run("pl-4", "別の場所", "静岡県浜松市", "park", "published", null, null, null, "{}");
+  const items = await loadRegionIndex(db as never, (v) => v);
+  const it = items.find((i) => i.area === "浜松市")!;
+  const page = await loadRegionSurfaceData(db as never, "浜松市", async () => new Map());
+  assert.equal(it.records, page.recordTotal);
+  assert.equal(it.places, page.placeTotal);
+  assert.equal(it.species, 2);
+  assert.equal(it.prefecture, "静岡県");
 });
