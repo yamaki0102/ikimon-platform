@@ -65,6 +65,11 @@
       "database_name": "ikimon_shadow_observations_2026_06",
       "database_id": "a6d64135-4420-47f7-b2fd-3155c0e0a3be",
       "migrations_dir": "migrations/observations"
+    },
+    {
+      "binding": "PLACE_DB",
+      "database_name": "place_data",
+      "database_id": "1ea7a8ca-26e8-4f43-9f3b-89b5fc7d1b62"
     }
   ],
   "r2_buckets": [
@@ -145,6 +150,11 @@
           "database_name": "ikimon_shadow_observations_2026_06",
           "database_id": "a6d64135-4420-47f7-b2fd-3155c0e0a3be",
           "migrations_dir": "migrations/observations"
+        },
+        {
+          "binding": "PLACE_DB",
+          "database_name": "place_data",
+          "database_id": "1ea7a8ca-26e8-4f43-9f3b-89b5fc7d1b62"
         }
       ],
       "r2_buckets": [
@@ -253,6 +263,11 @@
           "database_name": "ikimon_shadow_observations_2026_06",
           "database_id": "a6d64135-4420-47f7-b2fd-3155c0e0a3be",
           "migrations_dir": "migrations/observations"
+        },
+        {
+          "binding": "PLACE_DB",
+          "database_name": "place_data",
+          "database_id": "1ea7a8ca-26e8-4f43-9f3b-89b5fc7d1b62"
         }
       ],
       "r2_buckets": [
@@ -367,6 +382,11 @@
           "database_name": "ikimon_prod_observations_2026_06",
           "database_id": "c879eef6-009c-4710-a964-be343d96f3eb",
           "migrations_dir": "migrations/observations"
+        },
+        {
+          "binding": "PLACE_DB",
+          "database_name": "place_data",
+          "database_id": "1ea7a8ca-26e8-4f43-9f3b-89b5fc7d1b62"
         }
       ],
       "r2_buckets": [

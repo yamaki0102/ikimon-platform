@@ -22,7 +22,7 @@ const BOX_PLACE = `SELECT b.place_id FROM place_boundaries b JOIN places bp ON b
 const PLACE_OF_RECORD = `COALESCE((SELECT m.place_id FROM record_place_memberships m WHERE m.record_id = r.observation_id AND ${MEMBER_SQL} LIMIT 1), (${BOX_PLACE}))`;
 const SAFE_SQL = `AND NOT EXISTS (SELECT 1 FROM civic_observation_contexts c WHERE c.visit_id = r.observation_id
     AND (c.risk_lane <> 'normal' OR c.audience_scope <> 'public' OR c.public_precision NOT IN ('municipality', 'mesh')))`;
-const SAFE_PUBLIC_FROM = `${PUBLIC_RECORD_FROM_SQL} ${SAFE_SQL}`;
+export const SAFE_PUBLIC_FROM = `${PUBLIC_RECORD_FROM_SQL} ${SAFE_SQL}`;
 const MONTH_OF = `CAST(substr(r.observed_at, 6, 2) AS INTEGER)`;
 const seasonOf = (mo: number): number => (mo >= 3 && mo <= 5 ? 0 : mo >= 6 && mo <= 8 ? 1 : mo >= 9 && mo <= 11 ? 2 : 3);
 
@@ -94,7 +94,7 @@ export async function runPlacePeakMonthsBackfill(
   return result;
 }
 
-const speciesName = (label: string | null): string | null => {
+export const speciesName = (label: string | null): string | null => {
   if (isWeakTaxonLabel(label)) return null;
   const n = String(label).normalize("NFKC").trim();
   return n && !isHigherRankName(n) ? n : null;

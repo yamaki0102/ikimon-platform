@@ -116,6 +116,7 @@ export interface Env extends PrototypeEnvironment {
   ZUKAN_QUIET_HOME_MODE?: string;
   CORE_DB: D1Database;
   OBS_DB: D1Database;
+  PLACE_DB?: D1Database;
   EXTERNAL_FETCH_ENABLED?: string;
   PLACE_CATEGORY_BACKFILL?: string;
   ASSET_BUCKET: R2Bucket;
