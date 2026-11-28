@@ -44,3 +44,27 @@ test("running twice is idempotent", async () => {
   assert.deepEqual(count(), first);
   assert.equal(again.records, 0);
 });
+
+test("category is copied and NULL existing rows are backfilled", async () => {
+  const { db, sqlite } = migratedDb();
+  add(sqlite, "r1", fact({ category: "かんきょう" }));
+  await runCanonicalize(db, NOW);
+  assert.equal((sqlite.prepare("SELECT category c FROM ext_events").get() as any).c, "かんきょう");
+  sqlite.prepare("UPDATE ext_events SET category=NULL").run();
+  await runCanonicalize(db, NOW);
+  assert.equal((sqlite.prepare("SELECT category c FROM ext_events").get() as any).c, "かんきょう");
+});
+
+test("town-level or unknown place codes are recomputed to the current ward", async () => {
+  const { db, sqlite } = migratedDb();
+  sqlite.exec(`INSERT INTO admin_units (code,level,parent_code,name_ja,boundary_version) VALUES ('22130','city',NULL,'浜松市','t'),('22138','ward','22130','中央区','t')`);
+  add(sqlite, "r1", fact({ lat: null, lng: null, venue_address: "浜松市中央区元城町1-1" }));
+  await runCanonicalize(db, NOW);
+  const ev = sqlite.prepare("SELECT place_id FROM ext_events").get() as any;
+  sqlite.prepare("INSERT INTO ext_places (place_id,name,admin_unit_id,city_unit_id,created_at) VALUES ('old','x','221311060','22130','x')").run();
+  sqlite.prepare("UPDATE ext_events SET place_id='old'").run();
+  await runCanonicalize(db, NOW);
+  const p = sqlite.prepare("SELECT p.admin_unit_id a FROM ext_events e JOIN ext_places p ON p.place_id=e.place_id").get() as any;
+  assert.equal(p.a, "22138");
+  assert.ok(ev.place_id);
+});

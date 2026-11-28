@@ -37,7 +37,7 @@ async function resolveByAddress(db: ExtDb, address: string): Promise<VenueResolu
   if (!city) return null;
   let admin = city;
   if (m[2]) {
-    const ward = await db.prepare("SELECT code FROM admin_units WHERE level='ward' AND parent_code=? AND name_ja=? LIMIT 1").bind(city, m[2]).first<{ code: string }>();
+    const ward = await db.prepare("SELECT code FROM admin_units WHERE level='ward' AND parent_code=? AND name_ja=? AND valid_to IS NULL LIMIT 1").bind(city, m[2]).first<{ code: string }>();
     if (ward) admin = ward.code;
   }
   return { city_unit_id: city, admin_unit_id: admin, zukan_place_id: null };
@@ -55,7 +55,7 @@ export async function resolveVenue(db: ExtDb, fact: Pick<ExtractedFact, "lat" | 
     if (index && typeof fact.lat === "number" && typeof fact.lng === "number") {
       const codes = resolveAdminCodes(fact.lng, fact.lat, index);
       if (codes.city_code) {
-        return { city_unit_id: codes.city_code, admin_unit_id: codes.town_code ?? codes.ward_code ?? codes.city_code, zukan_place_id: placeId };
+        return { city_unit_id: codes.city_code, admin_unit_id: codes.ward_code ?? codes.city_code, zukan_place_id: placeId };
       }
     }
     if (fact.venue_name) {
