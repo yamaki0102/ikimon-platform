@@ -430,6 +430,17 @@ export type RegionIndexGroup = { prefecture: string | null; items: RegionIndexIt
 
 let regionIndexCache: { at: number; db: unknown; items: RegionIndexItem[] } | null = null;
 
+function placeInArea(p: { municipality: string | null; prefecture: string | null; locality_label: string | null; metadata_json?: string | null }, area: string): boolean {
+  if (p.municipality === area || p.prefecture === area || p.locality_label === area) return true;
+  const l = p.locality_label;
+  if (l) {
+    if (l.endsWith(area) && l.length <= area.length + 4) return true;
+    const i = l.indexOf(area);
+    if (i >= 0 && l.length <= area.length + 8 && l.lastIndexOf("区") >= i + area.length && l.endsWith("区")) return true;
+  }
+  try { return (p.metadata_json ? (JSON.parse(p.metadata_json) as { municipality?: unknown }).municipality : null) === area; } catch { return false; }
+}
+
 export async function loadRegionIndex(db: Db, normalize: (v: string) => string | null, limit = 300): Promise<RegionIndexItem[]> {
   if (regionIndexCache && regionIndexCache.db === db && Date.now() - regionIndexCache.at < 3_600_000) return regionIndexCache.items;
   const rows = await safeAll(() => db.prepare(
@@ -437,7 +448,7 @@ export async function loadRegionIndex(db: Db, normalize: (v: string) => string |
        SELECT r.public_area_label AS area, r.taxon_label AS label
          FROM readmodel_public_observations r
          JOIN observations o ON o.observation_id = r.observation_id
-        WHERE r.public_area_label IS NOT NULL AND r.taxon_label IS NOT NULL
+        WHERE r.public_area_label IS NOT NULL
           AND o.visibility = 'public' AND o.emergency_hidden = 0
           AND NOT EXISTS (
             SELECT 1 FROM observation_data_rights rights
@@ -448,11 +459,11 @@ export async function loadRegionIndex(db: Db, normalize: (v: string) => string |
      SELECT p.area AS area, p.label AS label, COUNT(*) AS n
        FROM pub p JOIN top t ON t.area = p.area
       GROUP BY p.area, p.label ORDER BY n DESC LIMIT 30000`,
-  ).bind(limit).all<{ area: string; label: string; n: number }>());
+  ).bind(limit).all<{ area: string; label: string | null; n: number }>());
   if (rows.length === 0) return [];
   const placeRows = await safeAll(() => db.prepare(
-    `SELECT municipality, prefecture, locality_label FROM places WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 5000`,
-  ).bind().all<{ municipality: string | null; prefecture: string | null; locality_label: string | null }>());
+    `SELECT municipality, prefecture, locality_label, metadata_json FROM places WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 5000`,
+  ).bind().all<{ municipality: string | null; prefecture: string | null; locality_label: string | null; metadata_json?: string | null }>());
   const agg = new Map<string, { records: number; names: Set<string>; fine: Set<string> }>();
   for (const r of rows) {
     if (typeof r.area !== "string" || normalize(r.area) !== r.area) continue;
@@ -470,9 +481,10 @@ export async function loadRegionIndex(db: Db, normalize: (v: string) => string |
     let places = 0;
     let pref: string | null = null;
     for (const p of placeRows) {
-      if (p.municipality === area || p.prefecture === area || p.locality_label === area) {
+      if (placeInArea(p, area)) {
         places += 1;
         if (!pref && p.municipality === area && p.prefecture) pref = p.prefecture;
+        if (!pref) pref = p.locality_label?.match(PREFECTURE_PREFIX)?.[0] ?? null;
       }
     }
     if (g.names.size === 0 && places === 0) continue;
