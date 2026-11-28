@@ -1,6 +1,6 @@
 import type { Env } from "./core/env";
 import { loadOwnerAreaLabels } from "./ownerAreaLabel";
-import { decodePageCursor, encodePageCursor, loadMoreScript } from "./ownerRecordPaging";
+import { decodePageCursor, encodePageCursor, likePatternFromQuery, loadMoreScript } from "./ownerRecordPaging";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
 
 export type LibraryV2ObservationInput = {
@@ -57,7 +57,14 @@ export type LibraryV2Visit = {
   eventParticipation: { sessionId: string; title: string } | null;
   isPublic: boolean;
   zukanPublished: boolean;
+  matchedByCandidate: boolean;
 };
+
+export type LibrarySort = "new" | "old";
+
+export function normalizeLibrarySort(raw: string | null | undefined): LibrarySort {
+  return raw === "old" ? "old" : "new";
+}
 
 const VISIT_GAP_MS = 3 * 60 * 60 * 1000;
 const VISIT_SAME_PLACE_METERS = 500;
@@ -275,6 +282,7 @@ export function groupObservationsIntoVisitsV2(items: readonly LibraryV2Observati
       eventParticipation,
       isPublic,
       zukanPublished,
+      matchedByCandidate: false,
     };
   });
 
@@ -368,6 +376,9 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-btn-sub,.zv2l-btn-sub:visited{display:flex;align-items:center;justify-content:center;min-height:48px;width:100%;max-width:320px;margin:12px auto 0;padding:12px 18px;border-radius:999px;border:1.5px solid var(--green);background:#fff;color:var(--green);font-weight:700;text-decoration:none;white-space:nowrap}
 .zv2l-btn-main svg{width:20px;height:20px;margin-right:8px}
 .zv2l-zlink{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-height:44px;margin-top:14px;font-size:15px;font-weight:700;color:var(--link)!important;text-decoration:none}
+.zv2l-sort{display:flex;gap:8px;margin-top:10px}
+.zv2l-sort a,.zv2l-sort a:visited{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid #DDE2DC;background:#fff;color:#3C4A41;font-size:14px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;text-decoration:none}
+.zv2l-sort a.on{border-color:var(--green);color:var(--green);background:#EFF3EE}
 .zv2l-search-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;padding:6px 12px;border-radius:10px;background:#EFF3EE;font-size:14px;color:#3C4A41}
 .zv2l-search-meta a,.zv2l-search-meta a:visited{min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:var(--green);text-decoration:none}
 
@@ -469,6 +480,9 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const metaHtml = metaParts.length > 0
     ? `<div class="zv2l-vmeta${faceTitle ? "" : " first"}">${metaParts.map((m) => `<span class="nw">${esc(m)}</span>`).join(" ・ ")}</div>`
     : "";
+  const candidateHtml = visit.matchedByCandidate
+    ? `<div class="zv2l-status"><span class="zv2l-st" data-library-candidate-match="1"><span>${isEn ? "Matched by AI candidate" : "候補で一致"}</span></span></div>`
+    : "";
   return `<article class="zv2l-visit" data-library-visit="${esc(visit.visitKey)}">
     <a class="zv2l-visit-link" href="${esc(href)}">
       ${headHtml}
@@ -478,6 +492,7 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
     </a>
     ${typesHtml}
     ${statusHtml}
+    ${candidateHtml}
   </article>`;
 }
 
@@ -492,9 +507,11 @@ export function renderLibraryV2Page(options: {
   authenticated: boolean;
   displayName?: string | null;
   searchQuery?: string;
+  sort?: LibrarySort;
   nextCursor?: string | null;
   cspNonce?: string | null;
 }): string {
+  const sort = normalizeLibrarySort(options.sort);
   const prefix = options.lang === "ja" ? "/ja" : `/${options.lang}`;
   const isEn = options.lang !== "ja";
   const t = (ja: string, en: string): string => (isEn ? en : ja);
@@ -506,6 +523,7 @@ export function renderLibraryV2Page(options: {
     displayName: options.displayName,
     searchAction: `${prefix}/library`,
     searchQuery: options.searchQuery,
+    searchHidden: sort === "old" ? { sort: "old" } : undefined,
     pathname: `${prefix}/library`,
     homeHref: `${prefix}/library`,
     nonce: options.cspNonce,
@@ -538,7 +556,7 @@ export function renderLibraryV2Page(options: {
   } else {
     const parts: string[] = [];
     if (trimmedSearch) {
-      parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>${isEn ? `Results for "${esc(trimmedSearch)}" (${options.visits.length})` : `「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）`}</span><a href="${esc(`${prefix}/library`)}">${t("検索をリセット", "Reset search")}</a></div>`);
+      parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>${isEn ? `Results for "${esc(trimmedSearch)}" (${options.visits.length})` : `「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）`}</span><a href="${esc(`${prefix}/library${sort === "old" ? "?sort=old" : ""}`)}">${t("検索をリセット", "Reset search")}</a></div>`);
     }
     let prevDay = "";
     const feed: string[] = [];
@@ -551,7 +569,7 @@ export function renderLibraryV2Page(options: {
     }
     parts.push(`<div class="zv2l-feed" data-library-feed="1">${feed.join("\n")}</div>`);
     if (options.nextCursor) {
-      const moreHref = `${prefix}/library?before=${encodeURIComponent(options.nextCursor)}${trimmedSearch ? `&q=${encodeURIComponent(trimmedSearch)}` : ""}`;
+      const moreHref = `${prefix}/library?before=${encodeURIComponent(options.nextCursor)}${trimmedSearch ? `&q=${encodeURIComponent(trimmedSearch)}` : ""}${sort === "old" ? "&sort=old" : ""}`;
       parts.push(`<div class="zv2l-more" data-library-more="1" style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" data-load-more="1" href="${esc(moreHref)}">${t("もっと見る", "Show more")}</a></div>`);
       parts.push(loadMoreScript({ list: "[data-library-feed]", more: "[data-library-more]", loading: t("読み込み中…", "Loading…") }).replace("<script data-load-more-script>", `<script${nonceAttr} data-load-more-script>`));
       parts.push(`<script${nonceAttr}>(function(){var f=document.querySelector("[data-library-feed]");if(!f||!window.MutationObserver)return;var d=function(){var p="";f.querySelectorAll("[data-library-date]").forEach(function(e){var k=e.getAttribute("data-library-date");if(k===p)e.remove();else p=k;});};new MutationObserver(d).observe(f,{childList:true});})();</script>`);
@@ -581,6 +599,14 @@ export function renderLibraryV2Page(options: {
     .filter((v) => Date.parse(v.endedAt) >= freshCutoff)
     .flatMap((v) => v.observationIds);
 
+  const sortHref = (k: LibrarySort): string => {
+    const qs: string[] = [];
+    if (trimmedSearch) qs.push(`q=${encodeURIComponent(trimmedSearch)}`);
+    if (k === "old") qs.push("sort=old");
+    return `${prefix}/library${qs.length ? `?${qs.join("&")}` : ""}`;
+  };
+  const sortHtml = `<nav class="zv2l-sort" data-library-sort="${sort}" aria-label="${t("並び順", "Sort order")}"><a href="${esc(sortHref("new"))}" data-library-sort-new="1"${sort === "new" ? ' aria-current="true" class="on"' : ""}>${t("新しい順", "Newest")}</a><a href="${esc(sortHref("old"))}" data-library-sort-old="1"${sort === "old" ? ' aria-current="true" class="on"' : ""}>${t("古い順", "Oldest")}</a></nav>`;
+
   const body = `<div class="zv2l-col" data-library-v2="1">
     <div class="zv2l-headbar">
       <h1 class="zv2l-title">${t("ライブラリ", "Library")}</h1>
@@ -588,6 +614,7 @@ export function renderLibraryV2Page(options: {
     </div>
     <p class="zv2l-sub">${t("あなたが残した記録です", "Records you have saved")}</p>
     ${chrome.searchHtml}
+    ${sortHtml}
     <div class="zv2l-sync" id="zv2l-sync" data-library-sync hidden></div>
     ${listContent}
   </div>${addSheetHtml}`;
@@ -948,33 +975,7 @@ type DbObsRow = {
   derivative_key: string | null;
 };
 
-export async function loadUserLibraryV2Data(
-  env: Env,
-  userId: string,
-  searchQuery = "",
-  options: { limit?: number; before?: string | null; nowMs?: number } = {},
-): Promise<{ visits: LibraryV2Visit[]; nextCursor: string | null }> {
-  const limit = options.limit ?? 60;
-  const trimmedQuery = searchQuery.trim();
-  const isSearchMode = trimmedQuery.length > 0;
-  const params: Array<string | number> = [userId];
-  const where: string[] = ["o.owner_user_id = ?1", "COALESCE(o.emergency_hidden, 0) = 0"];
-  const cursor = decodePageCursor(options.before);
-  if (!isSearchMode && cursor) {
-    params.push(cursor.observedAt);
-    const at = `?${params.length}`;
-    params.push(cursor.id);
-    const idp = `?${params.length}`;
-    where.push(`(o.observed_at < ${at} OR (o.observed_at = ${at} AND o.observation_id < ${idp}))`);
-  }
-  const sqlLimit = isSearchMode ? 300 : limit + 1;
-  params.push(sqlLimit);
-  const lim = `?${params.length}`;
-
-  let rows: DbObsRow[] = [];
-  try {
-    const res = await env.OBS_DB.prepare(
-      `SELECT o.observation_id,
+const OBS_SELECT_SQL = `SELECT o.observation_id,
               o.observed_at,
               o.taxon_label,
               o.note,
@@ -985,14 +986,89 @@ export async function loadUserLibraryV2Data(
               (SELECT a.mime FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' ORDER BY COALESCE(a.uploaded_at, '') DESC LIMIT 1) AS mime,
               (SELECT a.duration_ms FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' ORDER BY COALESCE(a.uploaded_at, '') DESC LIMIT 1) AS duration_ms,
               (SELECT a.public_derivative_key FROM asset_ledger a WHERE a.observation_id = o.observation_id AND a.processing_state = 'uploaded' AND a.public_derivative_key IS NOT NULL ORDER BY COALESCE(a.uploaded_at, '') DESC LIMIT 1) AS derivative_key
-         FROM observations o
-        WHERE ${where.join(" AND ")}
-        ORDER BY o.observed_at DESC, o.observation_id DESC
-        LIMIT ${lim}`,
-    ).bind(...params).all<DbObsRow>();
-    rows = res.results ?? [];
+         FROM observations o`;
+
+const SEARCH_SQL_CAP = 1000;
+
+export async function loadUserLibraryV2Data(
+  env: Env,
+  userId: string,
+  searchQuery = "",
+  options: { limit?: number; before?: string | null; nowMs?: number; sort?: string | null } = {},
+): Promise<{ visits: LibraryV2Visit[]; nextCursor: string | null }> {
+  const limit = options.limit ?? 60;
+  const sort = normalizeLibrarySort(options.sort);
+  const asc = sort === "old";
+  const dir = asc ? "ASC" : "DESC";
+  const trimmedQuery = searchQuery.trim();
+  const isSearchMode = trimmedQuery.length > 0;
+  const params: Array<string | number> = [userId];
+  const where: string[] = ["o.owner_user_id = ?1", "COALESCE(o.emergency_hidden, 0) = 0"];
+  const cursor = decodePageCursor(options.before);
+  if (!isSearchMode && cursor) {
+    params.push(cursor.observedAt);
+    const at = `?${params.length}`;
+    params.push(cursor.id);
+    const idp = `?${params.length}`;
+    const op = asc ? ">" : "<";
+    where.push(`(o.observed_at ${op} ${at} OR (o.observed_at = ${at} AND o.observation_id ${op} ${idp}))`);
+  }
+  const sqlLimit = isSearchMode ? SEARCH_SQL_CAP : limit + 1;
+  const runQuery = async (extraWhere: ((mark: () => string) => string) | null, extraParams: string[]): Promise<DbObsRow[]> => {
+    const p: Array<string | number> = [...params];
+    const w = [...where];
+    if (extraWhere) {
+      let i = 0;
+      w.push(extraWhere(() => {
+        p.push(extraParams[i++]!);
+        return `?${p.length}`;
+      }));
+    }
+    p.push(sqlLimit);
+    const res = await env.OBS_DB.prepare(`${OBS_SELECT_SQL}
+        WHERE ${w.join(" AND ")}
+        ORDER BY o.observed_at ${dir}, o.observation_id ${dir}
+        LIMIT ?${p.length}`).bind(...p).all<DbObsRow>();
+    return res.results ?? [];
+  };
+
+  let rows: DbObsRow[] = [];
+  try {
+    rows = await runQuery(null, []);
   } catch {
     return { visits: [], nextCursor: null };
+  }
+  if (isSearchMode) {
+    const patterns = trimmedQuery.normalize("NFKC").split(/\s+/u).filter(Boolean).slice(0, 8).map((tk) => likePatternFromQuery(tk)).filter((x): x is string => Boolean(x));
+    if (patterns.length > 0) {
+      const binds = (ai: boolean): string[] => patterns.flatMap((pat) => (ai ? [pat, pat, pat, pat, pat, pat] : [pat, pat, pat]));
+      const build = (ai: boolean) => (mark: () => string): string => {
+        const ors: string[] = [];
+        for (let n = 0; n < patterns.length; n += 1) {
+          for (const c of ["o.taxon_label", "o.note", "o.public_area_label"]) ors.push(`${c} LIKE ${mark()} ESCAPE '\\'`);
+          if (ai) {
+            const aiCols = ["t.candidate_vernacular_name", "t.candidate_scientific_name", "t.ai_recommended_taxon_name"].map((c) => `${c} LIKE ${mark()} ESCAPE '\\'`);
+            ors.push(`EXISTS (SELECT 1 FROM observation_ai_review_targets t WHERE t.occurrence_id = 'occ:' || o.observation_id || ':0' AND (${aiCols.join(" OR ")}))`);
+          }
+        }
+        return `(${ors.join(" OR ")})`;
+      };
+      let matched: DbObsRow[] | null = null;
+      try {
+        matched = await runQuery(build(true), binds(true));
+      } catch {
+        try {
+          matched = await runQuery(build(false), binds(false));
+        } catch { matched = null; }
+      }
+      if (matched && matched.length > 0) {
+        const byId = new Map<string, DbObsRow>();
+        for (const r of rows) byId.set(r.observation_id, r);
+        for (const r of matched) byId.set(r.observation_id, r);
+        const sign = asc ? 1 : -1;
+        rows = [...byId.values()].sort((x, y) => sign * (x.observed_at < y.observed_at ? -1 : x.observed_at > y.observed_at ? 1 : x.observation_id < y.observation_id ? -1 : x.observation_id > y.observation_id ? 1 : 0));
+      }
+    }
   }
 
   const sliced = isSearchMode ? rows : rows.slice(0, limit);
@@ -1079,6 +1155,8 @@ export async function loadUserLibraryV2Data(
   const titleMap = new Map(titleEntries);
 
   const obsExtraTextById = new Map<string, string[]>();
+  const obsExtraTextNoAiById = new Map<string, string[]>();
+  const aiOnlyAudioIds = new Set<string>();
   const inputs: LibraryV2ObservationInput[] = sliced.map((r) => {
     const mime = String(r.mime ?? "").toLowerCase();
     const mediaKind: LibraryV2ObservationInput["mediaKind"] = mime.startsWith("video/")
@@ -1097,6 +1175,8 @@ export async function loadUserLibraryV2Data(
     const aiLabel = aiLabelByObs.get(r.observation_id) || "";
     const customTitle = titleMap.get(r.observation_id) ?? null;
     obsExtraTextById.set(r.observation_id, [taxonLabel, aiLabel, customTitle ?? "", r.note ?? "", area, pl?.placeName ?? ""].filter(Boolean));
+    obsExtraTextNoAiById.set(r.observation_id, [taxonLabel, customTitle ?? "", r.note ?? "", area, pl?.placeName ?? ""].filter(Boolean));
+    if (!taxonLabel && aiLabel) aiOnlyAudioIds.add(r.observation_id);
     return {
       observationId: r.observation_id,
       observedAt: r.observed_at,
@@ -1118,21 +1198,24 @@ export async function loadUserLibraryV2Data(
   });
 
   const allVisits = groupObservationsIntoVisitsV2(inputs);
+  if (asc) allVisits.reverse();
   if (!isSearchMode) {
     return { visits: allVisits, nextCursor };
   }
 
   const visitExtraTexts = new Map<string, string[]>();
+  const visitTextsNoAi = new Map<string, string[]>();
   for (const v of allVisits) {
-    visitExtraTexts.set(
-      v.visitKey,
-      v.observationIds.flatMap((id) => obsExtraTextById.get(id) ?? []),
-    );
+    visitExtraTexts.set(v.visitKey, v.observationIds.flatMap((id) => obsExtraTextById.get(id) ?? []));
+    visitTextsNoAi.set(v.visitKey, v.observationIds.flatMap((id) => obsExtraTextNoAiById.get(id) ?? []));
   }
   const filtered = filterLibraryV2Visits(allVisits, trimmedQuery, visitExtraTexts, options.nowMs);
+  const noAiVisits = allVisits.map((v) => ({ ...v, audios: v.audios.map((a) => (aiOnlyAudioIds.has(a.observationId) ? { ...a, title: "" } : a)) }));
+  const confirmedKeys = new Set(filterLibraryV2Visits(noAiVisits, trimmedQuery, visitTextsNoAi, options.nowMs).map((v) => v.visitKey));
+  const marked = filtered.map((v) => ({ ...v, matchedByCandidate: !confirmedKeys.has(v.visitKey) }));
   const filteredCursor = cursor
-    ? filtered.filter((v) => v.endedAt < cursor.observedAt)
-    : filtered;
+    ? marked.filter((v) => (asc ? v.endedAt > cursor.observedAt : v.endedAt < cursor.observedAt))
+    : marked;
   const pageVisits = filteredCursor.slice(0, limit);
   const lastVisit = pageVisits[pageVisits.length - 1];
   const searchNextCursor = filteredCursor.length > limit && lastVisit
