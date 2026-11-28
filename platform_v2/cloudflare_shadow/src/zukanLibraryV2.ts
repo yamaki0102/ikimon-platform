@@ -316,7 +316,8 @@ ${ZUKAN_SHELL_CSS}
 svg.zv2l-ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 svg.zv2l-playic{fill:currentColor;stroke:none}
 .nw{white-space:nowrap}
-.zv2l-col{width:100%;max-width:760px;margin:0 auto;padding:6px 0 32px}
+.zv2l-col{width:100%;max-width:760px;margin:0 auto;padding:6px 0 32px;word-break:keep-all;overflow-wrap:anywhere}
+@supports(word-break:auto-phrase){.zv2l-col{word-break:auto-phrase}}
 .zv2l-headbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
 .zv2l-title{margin:0;font-size:24px;font-weight:800;line-height:1.35}
 .zv2l-sub{margin:2px 0 12px;font-size:14.5px;color:var(--muted)}
@@ -336,6 +337,7 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-visit-link{text-decoration:none;color:inherit;display:block}
 .zv2l-vhead{margin:0;font-size:17.5px;font-weight:800;line-height:1.4;color:#17211B}
 .zv2l-vmeta{font-size:15px;color:#55615A;margin-top:3px;line-height:1.5}
+.zv2l-vmeta b{font-weight:800;color:#17211B}
 .zv2l-vmeta.first{margin-top:0}
 .zv2l-report{margin-top:12px;background:#F7F7F3;border-radius:10px;padding:13px 15px}
 .zv2l-rb{font-size:14.5px;color:#3C4A41;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -377,8 +379,8 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-btn-main svg{width:20px;height:20px;margin-right:8px}
 .zv2l-zlink{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-height:44px;margin-top:14px;font-size:15px;font-weight:700;color:var(--link)!important;text-decoration:none}
 .zv2l-sort{display:flex;gap:8px;margin-top:10px}
-.zv2l-sort a,.zv2l-sort a:visited{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid #DDE2DC;background:#fff;color:#3C4A41;font-size:14px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;text-decoration:none}
-.zv2l-sort a.on{border-color:var(--green);color:var(--green);background:#EFF3EE}
+.zv2l-sort a,.zv2l-sort a:link,.zv2l-sort a:visited,.zv2l-sort a:hover,.zv2l-sort a:active{min-height:44px;padding:0 16px;border-radius:999px;border:1px solid #DDE2DC;background:#fff;color:#143F2E;font-size:14px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;text-decoration:none}
+.zv2l-sort a.on,.zv2l-sort a.on:link,.zv2l-sort a.on:visited,.zv2l-sort a.on:hover,.zv2l-sort a.on:active{border:1.5px solid #143F2E;color:#143F2E;background:#EFF3EE}
 .zv2l-search-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;padding:6px 12px;border-radius:10px;background:#EFF3EE;font-size:14px;color:#3C4A41}
 .zv2l-search-meta a,.zv2l-search-meta a:visited{min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:var(--green);text-decoration:none}
 
@@ -422,12 +424,10 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const href = soleMedia
     ? `${prefix}/observations/${encodeURIComponent(soleMedia.observationId)}`
     : `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
-  const hasPlace = visit.areaLabel !== "";
+  const placeText = visit.areaLabel !== "" ? visit.placeName : "";
   const reportTitle = visit.report?.title ?? "";
-  const faceTitle = reportTitle || (hasPlace ? visit.placeName : "");
-  const faceIsReport = reportTitle !== "";
-  const metaPlace = faceIsReport ? (hasPlace ? visit.placeName : "") : (visit.areaLabel && visit.areaLabel !== visit.placeName ? visit.areaLabel : "");
-  const metaParts = [metaPlace, visit.timeRangeLabel].filter(Boolean);
+  const faceTitle = reportTitle;
+  const timeText = visit.timeRangeLabel.replace("–", "〜");
   const mediaAll = [...visit.photos, ...visit.videos];
   const hasMore = mediaAll.length > 4;
   const shown = hasMore ? (visit.videos.length > 0 ? [...visit.photos.slice(0, 2), visit.videos[0]!] : mediaAll.slice(0, 3)) : mediaAll;
@@ -458,7 +458,7 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const nPhoto = visit.photos.length;
   const nVideo = visit.videos.length;
   const nAudio = visit.audios.length;
-  if (nPhoto > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span class="nw">${isEn ? `${nPhoto} ${nPhoto === 1 ? "photo" : "photos"}` : `写真${nPhoto}枚`}</span></span>`);
+  if (nPhoto > 1) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span class="nw">${isEn ? `${nPhoto} ${nPhoto === 1 ? "photo" : "photos"}` : `写真${nPhoto}枚`}</span></span>`);
   if (nVideo > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span class="nw">${isEn ? `${nVideo} ${nVideo === 1 ? "video" : "videos"}` : `動画${nVideo}本`}</span></span>`);
   if (nAudio > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.audio}<span class="nw">${isEn ? `${nAudio} ${nAudio === 1 ? "sound" : "sounds"}` : `音${nAudio}つ`}</span></span>`);
   if (visit.report) typeParts.push(`<span class="zv2l-vt">${ICONS.report}<span class="nw">${isEn ? "Field report" : "フィールドレポート"}</span></span>`);
@@ -472,13 +472,11 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const statusParts: string[] = [];
   if (visit.isPublic) statusParts.push(`<span class="zv2l-st pub">${ICONS.pubEye}<span>${isEn ? "Public" : "公開しています"}</span></span>`);
   if (visit.zukanPublished) statusParts.push(`<span class="zv2l-st pub">${ICONS.book}<span>${isEn ? "In the field guide" : "図鑑に載せています"}</span></span>`);
-  const statusHtml = statusParts.length > 0
-    ? `<div class="zv2l-status">${statusParts.join('')}</div>`
-    : `<div class="zv2l-status"><span class="zv2l-st">${ICONS.lock}<span>${isEn ? "Only me" : "自分のみ"}</span></span></div>`;
+  const statusHtml = statusParts.length > 0 ? `<div class="zv2l-status">${statusParts.join('')}</div>` : "";
 
-  const headHtml = faceTitle ? `<h3 class="zv2l-vhead">${faceIsReport ? esc(faceTitle) : `<span class="nw">${esc(faceTitle)}</span>`}</h3>` : "";
-  const metaHtml = metaParts.length > 0
-    ? `<div class="zv2l-vmeta${faceTitle ? "" : " first"}">${metaParts.map((m) => `<span class="nw">${esc(m)}</span>`).join(" ・ ")}</div>`
+  const headHtml = faceTitle ? `<h3 class="zv2l-vhead">${esc(faceTitle)}</h3>` : "";
+  const metaHtml = placeText
+    ? `<div class="zv2l-vmeta${faceTitle ? "" : " first"}"><b class="nw">${esc(placeText)}</b>${timeText ? ` ・ <span class="nw">${esc(timeText)}</span>` : ""}</div>`
     : "";
   const candidateHtml = visit.matchedByCandidate
     ? `<div class="zv2l-status"><span class="zv2l-st" data-library-candidate-match="1"><span>${isEn ? "Matched by AI candidate" : "候補で一致"}</span></span></div>`
@@ -487,12 +485,12 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
     <a class="zv2l-visit-link" href="${esc(href)}">
       ${headHtml}
       ${metaHtml}
+      ${statusHtml}
+      ${candidateHtml}
       ${gridHtml}
       ${reportHtml}
     </a>
     ${typesHtml}
-    ${statusHtml}
-    ${candidateHtml}
   </article>`;
 }
 

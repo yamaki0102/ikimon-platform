@@ -33,11 +33,10 @@ test("date dividers: one per day, visits under it, no date in visit heading", ()
 test("face priority: report title, then place name, then none (photo-only)", () => {
   const html = render();
   assert.match(html, /<h3 class="zv2l-vhead">池のまわりの観察記録<\/h3>/);
-  assert.match(html, /<h3 class="zv2l-vhead"><span class="nw">四日市少年自然の家<\/span><\/h3>/);
-  assert.match(html, /<h3 class="zv2l-vhead"><span class="nw">佐鳴湖<\/span><\/h3>/);
+  assert.match(html, /<div class="zv2l-vmeta"><b class="nw">四日市少年自然の家<\/b> ・ <span class="nw">\d+:\d+〜\d+:\d+<\/span><\/div>/);
+  assert.match(html, /<div class="zv2l-vmeta first"><b class="nw">佐鳴湖<\/b> ・ <span class="nw">\d+:\d+<\/span><\/div>/);
   const noFace = html.split('data-library-visit="').find((c) => c.includes("/d/n1.webp"))!;
-  assert.doesNotMatch(noFace.split("</article>")[0]!, /zv2l-vhead/);
-  assert.match(noFace, /zv2l-vmeta first/);
+  assert.doesNotMatch(noFace.split("</article>")[0]!, /zv2l-vhead|zv2l-vmeta/);
 });
 
 test("counts appear only in kind rows with real numbers; grid caps at 4 cells with remaining tile", () => {
@@ -97,4 +96,21 @@ test("open visit keeps single primary publish action with description", () => {
   assert.equal([...html.matchAll(/id="zv2l-publish-btn"/g)].length, 1);
   assert.match(html, /まだ載せていません。載せると/);
   assert.doesNotMatch(html, /メモ/);
+});
+
+test("sort: non-selected side has no purple/default link colour, :visited pinned", () => {
+  const html = render();
+  const css = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)![1]!;
+  const rules = css.split("\n").filter((l) => l.startsWith(".zv2l-sort a"));
+  assert.ok(rules.some((l) => l.includes(".zv2l-sort a:visited") && l.includes("color:#143F2E")));
+  assert.ok(rules.some((l) => l.includes(".zv2l-sort a.on:visited")));
+  assert.doesNotMatch(rules.join(" "), /purple|-webkit-link|#551a8b/i);
+});
+
+test("same day same place photos form one visit card with place and time range; no repeated default status", () => {
+  const same = [0, 1, 2].map((i) => obs({ observationId: `s${i}`, observedAt: `2026-11-20T00:${10 + i * 20}:00Z`, placeId: "pl-9", placeName: "連理の木の下で", areaLabel: "浜松市", lat: 34.7, lng: 137.7, photoUrl: `/d/s${i}.webp` }));
+  const html = renderLibraryV2Page({ visits: groupObservationsIntoVisitsV2([...same, obs({ observationId: "z9", observedAt: "2026-11-18T01:00:00Z", photoUrl: "/d/z9.webp" })]), lang: "ja", authenticated: true, nextCursor: null });
+  assert.equal([...html.matchAll(/<article class="zv2l-visit"/g)].length, 2);
+  assert.match(html, /<b class="nw">連理の木の下で<\/b> ・ <span class="nw">9:10〜9:50<\/span>/);
+  assert.doesNotMatch(html, /自分のみ|写真1枚|Only me/);
 });
