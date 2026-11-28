@@ -12,5 +12,5 @@ export function migratedDb(): { sqlite: DatabaseSync; db: ExtDb } {
     all: async <T>() => ({ results: sqlite.prepare(query).all(...(values as SQLInputValue[])) as T[] }),
     run: async () => ({ meta: { changes: Number(sqlite.prepare(query).run(...(values as SQLInputValue[])).changes) } }),
   });
-  return { sqlite, db: { prepare: q => stmt(q) } };
+  return { sqlite, db: { prepare: q => stmt(q), batch: async list => { for (const st of list) await st.run(); return []; } } };
 }

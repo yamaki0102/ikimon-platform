@@ -1,5 +1,7 @@
-import type { ExtDb, ExtractedFact } from "./types";
+import type { ExtDb, ExtStatement, ExtractedFact } from "./types";
 import { sha256Hex } from "./util";
+
+export const INGEST_BATCH_SIZE = 90;
 
 export interface IngestResult {
   upserted: number;
@@ -11,12 +13,21 @@ export async function ingestFacts(db: ExtDb, sourceId: string, facts: ExtractedF
     VALUES (?,?,?,?,?,?,?,?,?,NULL)
     ON CONFLICT(source_id,external_ref) DO UPDATE SET url=excluded.url,kind=excluded.kind,raw_json=excluded.raw_json,
       content_hash=excluded.content_hash,last_seen_at=excluded.last_seen_at,gone_at=NULL`;
+  const pending: ExtStatement[] = [];
+  const flush = async () => {
+    if (pending.length === 0) return;
+    const chunk = pending.splice(0, pending.length);
+    if (db.batch) await db.batch(chunk);
+    else for (const st of chunk) await st.run();
+  };
   for (const fact of facts) {
     const { fetched_at: _omit, ...stable } = fact;
     const raw = JSON.stringify(stable);
     const recordId = `xr_${(await sha256Hex(`${sourceId}\n${fact.external_ref}`)).slice(0, 32)}`;
-    await db.prepare(upsert).bind(recordId, sourceId, fact.external_ref, fact.url, fact.kind, raw, await sha256Hex(raw), nowIso, nowIso).run();
+    pending.push(db.prepare(upsert).bind(recordId, sourceId, fact.external_ref, fact.url, fact.kind, raw, await sha256Hex(raw), nowIso, nowIso));
+    if (pending.length >= INGEST_BATCH_SIZE) await flush();
   }
+  await flush();
   let gone = 0;
   if (facts.length > 0) {
     const res = await db.prepare("UPDATE ext_source_records SET gone_at=? WHERE source_id=? AND gone_at IS NULL AND last_seen_at<?")
