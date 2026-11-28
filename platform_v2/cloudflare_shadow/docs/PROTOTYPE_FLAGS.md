@@ -16,6 +16,7 @@
 | MAP_V2_ENABLED | マップ再設計 v2（Muse見本＋Fable/Astra修正） | zukan_map | /ja/map |
 | NOCOSIL_EVENT_START_LINK_ENABLED | 場所ページの「ここで観察会を開く」リンク（NOCOSIL） | zukan_place_event | /ja/places |
 | OBSERVATION_CORRECTION_PROTOTYPE_ENABLED | 記録の訂正と訂正履歴 | zukan_observation_correction | /ja/observations/<自分の記録> |
+| PARCEL_LEDGER_ENABLED | 公図の区画ごとの台帳 | zukan_region | /ja/parcels/test |
 | PLACE_CATEGORIES_ENABLED | 地域ページの目的から探す12の入口（場所の分類） | zukan_region | /ja/regions/jp/shizuoka/hamamatsu |
 | PLACE_E_V2_ENABLED | 場所ページ再設計 v2（E1/E3/E8） | zukan_place | /ja/places/plc_98aaae2aa4bd02fa |
 | PLACE_PAGE_V3_PROTOTYPE_ENABLED | 場所のページ v3 | zukan_place_page | /ja/places/<場所> |

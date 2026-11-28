@@ -225,6 +225,9 @@ import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegi
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
+import { PARCEL_LEDGER_FLAG, parcelLedgerLinkHtml, renderParcelLedgerPage } from "./parcelLedgerPage";
+import { loadParcel, parcelRefForObservation, recordsInParcel } from "./parcelLookup";
+const parcelLedgerOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return Boolean(env.PLACE_DB) && prototypeEnabledForViewer(env, PARCEL_LEDGER_FLAG, v.principalId, v.role); };
 const regionSeasonOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SEASON_FLAG, v.principalId, v.role); };
 const placeCategoriesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_CATEGORIES_FLAG, v.principalId, v.role); };
 const externalShelvesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, EXTERNAL_SHELVES_FLAG, v.principalId, v.role); };
@@ -4135,7 +4138,13 @@ export const worker = {
 
       const publicDetailPageMatch = nativePathname.match(/^\/observations\/([^/]+)$/);
       if ((request.method === "GET" || request.method === "HEAD") && publicDetailPageMatch?.[1]) {
-        return getPublicObservationDetailPage(decodeURIComponent(publicDetailPageMatch[1]), request, url, env, ctx);
+        const detailRawId = decodeURIComponent(publicDetailPageMatch[1]);
+        return withParcelLedgerLink(await getPublicObservationDetailPage(detailRawId, request, url, env, ctx), request, url, env, detailRawId);
+      }
+
+      const parcelPageMatch = nativePathname.match(/^\/parcels\/([^/]+)$/);
+      if ((request.method === "GET" || request.method === "HEAD") && parcelPageMatch?.[1]) {
+        return handleParcelLedgerRoute(request, url, env, decodeURIComponent(parcelPageMatch[1]));
       }
 
       const observationActionMatch = nativePathname.match(/^\/api\/v1\/records\/([^/]+)\/observation-actions$/);
@@ -25602,6 +25611,46 @@ async function handleRegionCalendarRoute(
       "x-ikimon-cloudflare-native": "region-calendar-v1",
     },
   });
+}
+
+async function handleParcelLedgerRoute(request: Request, url: URL, env: Env, pid: string): Promise<Response> {
+  const notFound = () => json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const session = await readCompatibleSession(request, env).catch(() => null);
+  if (!parcelLedgerOn(env, session)) return notFound();
+  const parcel = await loadParcel(env.PLACE_DB, pid);
+  if (!parcel) return notFound();
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const records = await recordsInParcel({ PLACE_DB: env.PLACE_DB, OBS_DB: env.OBS_DB }, pid, { photoLoader: (ids) => queryPublicMapPhotoUrls(env, ids), blocked: async (id) => (await publicSafetyGateForObservation(id, env)).blocked });
+  const cspNonce = createHtmlCspNonce();
+  const page = renderParcelLedgerPage({ parcel, records, lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, cspNonce, origin: seoOrigin(env) });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, no-store",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "parcel-ledger-v1",
+    },
+  });
+}
+
+async function withParcelLedgerLink(response: Response, request: Request, url: URL, env: Env, rawId: string): Promise<Response> {
+  if (request.method !== "GET" || response.status !== 200 || !env.PLACE_DB) return response;
+  try {
+    const session = await readCompatibleSession(request, env).catch(() => null);
+    if (!parcelLedgerOn(env, session)) return response;
+    const ref = await parcelRefForObservation(env, detailIdToVisitId(rawId), async (id) => (await publicSafetyGateForObservation(id, env)).blocked);
+    if (!ref) return response;
+    const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+    const text = await response.clone().text();
+    const link = parcelLedgerLinkHtml(lang, ref.pid);
+    const at = text.lastIndexOf("</main>") >= 0 ? text.lastIndexOf("</main>") : text.lastIndexOf("</body>");
+    if (at < 0) return response;
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(text.slice(0, at) + link + text.slice(at), { status: response.status, headers });
+  } catch { return response; }
 }
 
 async function handleRegionPlacesRoute(
