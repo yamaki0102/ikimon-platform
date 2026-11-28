@@ -878,11 +878,7 @@ function nav(basePath: string, lang: SiteLang, currentPath: string, _activeNav: 
   return `<header class="site-header">
     <div class="site-header-inner">
       <div class="site-brand-cluster">
-<<<<<<< HEAD
-        <button class="desktop-side-nav-toggle" type="button" aria-label="${lang === "ja" ? "左メニューを切り替える" : "Toggle the side menu"}" aria-pressed="false" data-desktop-side-nav-toggle>
-=======
         <button class="desktop-side-nav-toggle" type="button" aria-label="${escapeHtml(shellAria(lang)?.toggle ?? "左メニューを切り替える")}" aria-pressed="false" data-desktop-side-nav-toggle${shellAria(lang) ? ` data-title-open="${escapeHtml(shellAria(lang)!.open)}" data-title-close="${escapeHtml(shellAria(lang)!.close)}"` : ""}>
->>>>>>> origin/main
           <span class="desktop-side-nav-toggle-lines" aria-hidden="true"></span>
         </button>
         <a class="brand" href="${escapeHtml(appendLangToHref(withBasePath(basePath, "/"), lang))}" data-kpi-event="logo_home_tap" data-kpi-action="logo_home">
@@ -5276,11 +5272,7 @@ export function renderSiteDocument(options: SiteShellOptions): string {
     </div>
     <div class="language-suggestion-actions">
       <a class="language-suggestion-primary" data-language-suggestion-action href="/en/"></a>
-<<<<<<< HEAD
-      <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss aria-label="${lang === "ja" ? "閉じる" : "Close"}"></button>
-=======
       <button type="button" class="language-suggestion-dismiss" data-language-suggestion-dismiss aria-label="${escapeHtml(shellAria(lang)?.dismiss ?? "閉じる")}"></button>
->>>>>>> origin/main
     </div>
   </div>`;
   const shellClassName = options.shellClassName ?? "";
