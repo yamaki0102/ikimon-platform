@@ -26738,6 +26738,16 @@ async function refreshRecordAiNote(
 ): Promise<{ ok: boolean; called: boolean; stored: number[]; droppedCount: number; skipped?: string; error?: string }> {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) return { ok: true, called: false, stored: [], droppedCount: 0, skipped: "missing_api_key" };
+  const runGuide = async (blocked: boolean) => {
+    if (blocked) return;
+    await generateAndStoreObservationGuide({
+      db: env.OBS_DB,
+      recordId,
+      ownerUserId,
+      model: GEMINI_SUMMARY_MODEL,
+      generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
+    }).catch((error) => recordAiNoteFailure(env, recordId, "guide_error", { error: error instanceof Error ? error.message : String(error) }));
+  };
   try {
     const gate = await publicSafetyGateForObservation(recordId, env);
     const result = await generateAndStoreAiNote({
@@ -26749,16 +26759,7 @@ async function refreshRecordAiNote(
       counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
       generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
     });
-    if (!gate.blocked) {
-      await generateAndStoreObservationGuide({
-        db: env.OBS_DB,
-        recordId,
-        ownerUserId,
-        model: GEMINI_SUMMARY_MODEL,
-        counts: await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
-        generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
-      }).catch((error) => recordAiNoteFailure(env, recordId, "guide_error", { error: error instanceof Error ? error.message : String(error) }));
-    }
+    await runGuide(gate.blocked);
     if (result.called && result.stored.length === 0) {
       await recordAiNoteFailure(env, recordId, "all_slots_rejected", {
         dropped: result.dropped.map((entry) => ({ slot: entry.slot, failures: entry.failures })),
