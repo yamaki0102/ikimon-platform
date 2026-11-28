@@ -394,14 +394,24 @@ test("Playwright renders Hamamatsu Station and Miyakoda with 310 zero-record pla
 test("MAP_V2 tap selects the nearest dot, pin or cluster and the selected sheet is tall enough to show the card", () => {
   const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-tap-1" });
   const has = (needle: string) => assert.ok(html.includes(needle), needle);
-  has('.zv2-sheet[data-sheet-state="selected-low"]{max-height:320px}');
+  has('.zv2-sheet[data-sheet-state="selected-low"]{max-height:380px}');
   has("map.on('click', function (e) {");
   has("queryRenderedFeatures([[e.point.x - rad, e.point.y - rad], [e.point.x + rad, e.point.y + rad]], { layers: ['zv2-clusters', 'zv2-rec-pin', 'zv2-zero-hit'] })");
   assert.ok(!html.includes("map.on('click', 'zv2-"));
   has("selectPlace(best.properties.placeId)");
   has("getClusterExpansionZoom");
-  has("sheetRect.bottom - 320");
+  has("sheetRect.bottom - 380");
   has("ここで最初の記録を");
+});
+
+test("MAP_V2 search Enter flies the map to the nearest hit on mobile and PC", () => {
+  const html = renderMapExplorerV2Document({ lang: "ja", authenticated: false, basePath: "", cspNonce: "nonce-enter-1" });
+  const start = html.indexOf("function flyToSearchHit()");
+  assert.ok(start > 0);
+  const body = html.slice(start, start + 900);
+  assert.ok(body.includes("state.map.easeTo({ center: [top.lng, top.lat], zoom: Math.max(state.map.getZoom(), 15) })"));
+  assert.ok(html.includes("searchPc.addEventListener('keydown'"));
+  assert.ok(html.includes("renderUI();\n        flyToSearchHit();"));
 });
 
 test("MAP_V2 sheet drag: head pointer events, body touch drag at scroll top, velocity snap to true collapsed, selected can close", () => {
