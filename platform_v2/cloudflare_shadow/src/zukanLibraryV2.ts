@@ -508,6 +508,7 @@ export function renderLibraryV2Page(options: {
     searchQuery: options.searchQuery,
     pathname: `${prefix}/library`,
     homeHref: `${prefix}/library`,
+    nonce: options.cspNonce,
   });
 
   const trimmedSearch = (options.searchQuery ?? "").trim();
@@ -701,6 +702,7 @@ export function renderLibraryV2VisitDetailPage(
     displayName: options.displayName,
     pathname: `${prefix}/library/group`,
     homeHref: `${prefix}/library`,
+    nonce: options.cspNonce,
   });
 
   const sections: string[] = [];

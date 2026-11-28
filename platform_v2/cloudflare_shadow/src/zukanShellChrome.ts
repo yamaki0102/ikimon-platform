@@ -100,6 +100,7 @@ export type ZukanChromeOptions = {
   searchQuery?: string;
   pathname?: string;
   homeHref?: string;
+  nonce?: string;
 };
 
 export function zukanChromePrefix(lang: Lang): string {
@@ -161,5 +162,9 @@ export function renderZukanChrome(options: ZukanChromeOptions): {
     ? `<script src="/api/v1/profile/avatar/loader.js" defer></script>`
     : "";
   const feedbackFootHtml = `<p class="zt-feedback-foot"><a data-zukan-otayori-menu="1" href="${feedbackHref}">${feedbackLabel}</a></p>`;
-  return { sidebarHtml, topbarHtml, searchHtml, bottomNavHtml: `${bottomNavHtml}${avatarScriptHtml}`, feedbackFootHtml };
+  const prefetchUrls = [...items.filter((it) => it[0] !== options.activeNav).map((it) => it[1]), `${prefix}/record`].filter((u, i, a) => a.indexOf(u) === i && u !== options.pathname);
+  const prefetchHtml = options.nonce && prefetchUrls.length
+    ? `<script type="speculationrules" nonce="${esc(options.nonce)}">${JSON.stringify({ prefetch: [{ source: "list", urls: prefetchUrls, eagerness: "eager" }] }).replace(/</g, "\\u003c")}</script>`
+    : "";
+  return { sidebarHtml, topbarHtml, searchHtml, bottomNavHtml: `${bottomNavHtml}${avatarScriptHtml}${prefetchHtml}`, feedbackFootHtml };
 }

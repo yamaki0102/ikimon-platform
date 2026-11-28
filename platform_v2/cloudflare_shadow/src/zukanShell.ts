@@ -236,6 +236,7 @@ export function renderZukanShellDocument(options: {
     searchQuery: options.searchQuery,
     pathname: options.pathname ?? `${prefix}/`,
     homeHref: options.homeHref ?? `${prefix}/library`,
+    nonce: options.cspNonce,
   });
   const htmlLang = options.lang === "pt-br" ? "pt-BR" : options.lang;
   return `<!doctype html>

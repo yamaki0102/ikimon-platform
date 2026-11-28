@@ -1086,6 +1086,7 @@ export function renderIdentifyV3Page(data: IdentifyV3WorkspaceData): string {
     displayName: data.displayName,
     pathname: `${prefix}/identify`,
     homeHref: `${prefix}/library`,
+    nonce: data.cspNonce,
   });
 
   return `<!DOCTYPE html>
