@@ -215,12 +215,16 @@ const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatible
 import { localizePublicLocationLabel } from "./observationDetailLinks";
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
 import { listRegionAreasByRecords, regionHasPublicRecords } from "./regionCounts";
+import { PLACE_CATEGORIES_FLAG, loadRegionCategories, loadRegionCategoryPlaces } from "./placeCategoryRegion";
+import { isPlaceCategoryId } from "./placeCategories";
+import { renderRegionPlacesPage } from "./placeCategoryListPage";
 import { EXTERNAL_SHELVES_FLAG, loadRegionExternalEvents } from "./externalAggregation/regionShelf";
 import { loadRegionEventList, renderRegionEventsPage } from "./externalAggregation/regionEventsPage";
 import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegionIndex, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionIndexPage, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
+const placeCategoriesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, PLACE_CATEGORIES_FLAG, v.principalId, v.role); };
 const externalShelvesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, EXTERNAL_SHELVES_FLAG, v.principalId, v.role); };
 const speciesSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SPECIES_SURFACE_V1_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
@@ -3871,11 +3875,11 @@ export const worker = {
 
       if (request.method === "GET" || request.method === "HEAD") {
         const slugNative = stripPublicLangPrefix(url.pathname);
-        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive|\/events)?$/u);
+        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive|\/events|\/places)?$/u);
         if (slugMatch?.[1]) {
           const slugLang = publicLangFromPath(url.pathname);
           const slugPrefix = slugLang ? `/${slugLang}` : "";
-          const slugSuffix = (slugMatch[2] ?? "") as "" | "/species" | "/invasive" | "/events";
+          const slugSuffix = (slugMatch[2] ?? "") as "" | "/species" | "/invasive" | "/events" | "/places";
           const slugSegments = slugMatch[1].split("/");
           const redirectTo = (target: string) => new Response(null, { status: 301, headers: { location: `${slugPrefix}${target}${url.search}`, "cache-control": "public, max-age=300" } });
           if (slugSegments[0] === "jp") {
@@ -3890,6 +3894,10 @@ export const worker = {
                 if (slugSuffix === "/events") {
                   if (resolved.level === "city" && externalShelvesOn(env, slugSession)) {
                     return handleRegionEventsRoute(request, url, env, slugSession, resolved.label);
+                  }
+                } else if (slugSuffix === "/places") {
+                  if (resolved.level === "city" && placeCategoriesOn(env, slugSession)) {
+                    return handleRegionPlacesRoute(request, url, env, slugSession, resolved.label);
                   }
                 } else if (slugSuffix === "/invasive") {
                   if (invasiveMapV1On(env, slugSession)) {
@@ -25541,6 +25549,7 @@ async function handleRegionSurfaceRoute(
   if (!area || normalizeSafePublicAreaLabelCandidate(area) !== area) return notFound();
   const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const data = await loadRegionSurfaceData(env.OBS_DB, area, (ids) => queryPublicMapPhotoUrls(env, ids));
+  if (!speciesList && placeCategoriesOn(env, session)) data.categories = await loadRegionCategories(env.OBS_DB, area);
   if (!speciesList && externalShelvesOn(env, session)) { const ext = await loadRegionExternalEvents(env.OBS_DB, area); data.extEvents = ext.items; data.extEventTotal = ext.total; }
   if (!regionSurfaceHasContent(data)) return notFound();
   const cspNonce = createHtmlCspNonce();
@@ -25558,6 +25567,31 @@ async function handleRegionSurfaceRoute(
       "cache-control": "private, max-age=120",
       "vary": "cookie, authorization",
       "x-ikimon-cloudflare-native": speciesList ? "region-species-v1" : "region-surface-v1",
+    },
+  });
+}
+
+async function handleRegionPlacesRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+  area: string,
+): Promise<Response> {
+  const cat = url.searchParams.get("cat");
+  if (!isPlaceCategoryId(cat)) return json({ error: "not_found" }, 404, { "cache-control": "no-store" });
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const list = await loadRegionCategoryPlaces(env.OBS_DB, area, cat, Number(url.searchParams.get("page")));
+  const cspNonce = createHtmlCspNonce();
+  const page = renderRegionPlacesPage({ list, area, cat, lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, cspNonce, origin: seoOrigin(env) });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "region-places-v1",
     },
   });
 }
