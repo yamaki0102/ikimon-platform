@@ -79,12 +79,26 @@ const esc = (v: unknown): string =>
   String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
 export const EXT_SHELF_CSS = `
-.rs-ext-sub{margin:0 0 4px;font-size:14px;line-height:1.65;color:var(--muted)}
-.rs-row .rs-ext-t{display:block;min-height:44px;padding:10px 0;font-size:16.5px;font-weight:800;color:var(--ink);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
-.rs-ext-src{margin:10px 0 0;font-size:13.5px;line-height:1.65;color:var(--muted)}
+.rs-ext-sub{margin:0 0 4px;font-size:14px;line-height:1.65;color:#44546E}
+.rs-ev{background:#fff;border:1px solid #E3E6DF;border-radius:14px;padding:14px 16px;margin-top:10px}
+.rs-ev-dt{font-size:15px;font-weight:800;color:#143F2E}
+.rs-ev-ti{font-size:17.5px;font-weight:800;line-height:1.45;margin-top:2px;color:#17211B;overflow-wrap:anywhere}
+.rs-ev-pl{color:#44546E;font-size:14.5px;font-weight:700;margin-top:3px}
+.rs-ev-src{display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid #E3E6DF}
+.rs-ev-from{color:#44546E;font-size:13.5px;font-weight:600}
+.rs-ev-src a{margin-left:auto;display:inline-flex;align-items:center;min-height:44px;color:#1B5FBF;font-size:14.5px;font-weight:800;text-decoration:none;white-space:nowrap}
+.rs-nb{white-space:nowrap}
+.rs-ext-more{text-align:center;background:#fff;border:1px solid #E3E6DF;border-radius:14px;padding:13px 16px;margin:10px 0 0;color:#143F2E;font-size:15.5px;font-weight:800}
+.rs-ext-note{color:#44546E;font-size:13.5px;margin:16px 0 0}
 `;
 
 const dayOf = (iso: string): string => iso.slice(0, 10);
+const fetchedLabel = (lang: Lang, iso: string): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return dayOf(iso);
+  const j = new Date(d.getTime() + JST_MS);
+  return lang === "ja" ? `${j.getUTCMonth() + 1}月${j.getUTCDate()}日に取得` : `retrieved ${j.toISOString().slice(0, 10)}`;
+};
 
 export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents | null | undefined): string {
   const cards = (data?.items ?? []).filter((c) => /^https?:\/\//i.test(c.url) && c.source_name.trim() !== "");
@@ -92,13 +106,11 @@ export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents
   const rows = cards.map((c) => {
     const timing = eventTiming({ startedAt: c.starts_at, endedAt: c.ends_at && dayOf(c.ends_at) === dayOf(c.starts_at) ? c.ends_at : null }, lang);
     const when = c.all_day ? timing.dateLabel : timing.whenLabel;
-    const meta = [c.venue_name, c.organizer_name ? tr(lang, `主催：${c.organizer_name}`, `Organizer: ${c.organizer_name}`) : null].filter(Boolean).join(lang === "ja" ? " ・ " : " · ");
-    return `<div class="rs-row" data-region-ext-event="${esc(c.event_id)}"><span class="rs-b"><span class="rs-m">${esc(when)}</span><a class="rs-ext-t" href="${esc(c.url)}" target="_blank" rel="noopener nofollow">${esc(c.title)}</a>${meta ? `<span class="rs-m">${esc(meta)}</span>` : ""}</span></div>`;
+    const meta = [c.venue_name, c.organizer_name].filter(Boolean).map((v) => `<span class="rs-nb">${esc(v)}</span>`).join(lang === "ja" ? "・" : " · ");
+    const src = `${esc(c.source_name.trim())}<span class="rs-nb">（${esc(fetchedLabel(lang, c.fetched_at))}）</span>`;
+    return `<div class="rs-ev" data-region-ext-event="${esc(c.event_id)}"><div class="rs-ev-dt">${esc(when)}</div><div class="rs-ev-ti">${esc(c.title)}</div>${meta ? `<div class="rs-ev-pl">${meta}</div>` : ""}<div class="rs-ev-src" data-region-ext-source="1"><span class="rs-ev-from">${tr(lang, "出典：", "Source: ")}${src}</span><a href="${esc(c.url)}" target="_blank" rel="noopener nofollow">${tr(lang, "元のページへ ›", "Original page ›")}</a></div></div>`;
   }).join("");
-  const names = [...new Set(cards.map((c) => c.source_name.trim()))];
-  const fetched = cards.map((c) => dayOf(c.fetched_at)).filter(Boolean).sort().pop() ?? "";
   const rest = (data?.total ?? 0) - cards.length;
-  const more = rest > 0 ? `<p class="rs-ext-src">${tr(lang, `ほか ${rest}件`, `${rest} more`)}</p>` : "";
-  const src = `<p class="rs-ext-src" data-region-ext-source="1">${tr(lang, `出典：${names.map(esc).join("、")}${fetched ? `／取得日 ${esc(fetched)}` : ""}`, `Source: ${names.map(esc).join(", ")}${fetched ? ` / Retrieved ${esc(fetched)}` : ""}`)}</p>`;
-  return `<section data-region-shelf="ext-events"><div class="rs-shelf-h"><h2>${tr(lang, "まちの行事", "Events in town")}</h2></div><p class="rs-ext-sub">${tr(lang, "市や施設が公開している行事です。申込みは元のページへ。", "Events published by the city and venues. Apply on the original page.")}</p>${rows}${more}${src}</section>`;
+  const more = rest > 0 ? `<p class="rs-ext-more">${tr(lang, `もっと見る（あと ${rest}件）`, `See more (${rest} more)`)}</p>` : "";
+  return `<section data-region-shelf="ext-events"><div class="rs-shelf-h"><h2>${tr(lang, "まちの行事", "Events in town")}</h2></div><p class="rs-ext-sub">${tr(lang, "市や施設のページから集めた行事です", "Events collected from city and venue pages")}</p>${rows}${more}<p class="rs-ext-note">${tr(lang, "申し込みは、それぞれの元のページからお願いします。", "Apply on the original page.")}</p></section>`;
 }
