@@ -1273,6 +1273,24 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         if (pl && state.map) state.map.easeTo({ center: [pl.lng, pl.lat], zoom: Math.max(state.map.getZoom(), 15) });
       });
     }
+    function flyToSearchHit() {
+      if (!state.map) return;
+      var ref = state.userCenter || state.map.getCenter();
+      var hits = filteredPlaces().filter(function (p) { return typeof p.lat === 'number' && typeof p.lng === 'number'; })
+        .map(function (p) { return { p: p, d: distMeters(ref.lat, ref.lng, p.lat, p.lng) }; });
+      if (hits.length === 0) return;
+      hits.sort(function (a, b) { return a.d - b.d; });
+      var top = hits[0].p;
+      if (hits.length === 1) selectPlace(top.placeId);
+      state.map.easeTo({ center: [top.lng, top.lat], zoom: Math.max(state.map.getZoom(), 15) });
+    }
+    if (searchPc) {
+      searchPc.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter') return;
+        ev.preventDefault();
+        flyToSearchHit();
+      });
+    }
     if (searchM) {
       searchM.addEventListener('focus', renderSearchDrop);
       searchM.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== searchM && sdropEl) sdropEl.hidden = true; }, 0); });
@@ -1285,6 +1303,7 @@ export function renderMapExplorerV2Document(options: MapExplorerV2Options): stri
         state.selectedExpanded = false;
         state.sheetState = 'half';
         renderUI();
+        flyToSearchHit();
       });
       if (window.visualViewport) window.visualViewport.addEventListener('resize', renderSearchDrop);
     }
