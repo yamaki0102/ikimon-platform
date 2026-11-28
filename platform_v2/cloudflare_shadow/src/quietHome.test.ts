@@ -66,7 +66,7 @@ test("new Home joins live data only when explicitly enabled; guest and old mode 
 });
 test("native records renderer includes independent save buttons, not nested interactive links",()=>{
  const record={visitId:"record-one",displayName:"旅先の記録",observedAt:"2026-09-17T00:00:00.000Z",mediaKind:"photo",isAwaitingId:false,photoUrl:null,publicAreaLabel:"地域",ownerVisibility:"public"};
- const html=renderRecordsProductSection([record] as never,new URL("https://zukan.earth/ja/records?view=public"),"public",{userId:"one",banned:false} as never,false,new Map());
+ const html=renderRecordsProductSection([record] as never,new URL("https://zukan.earth/ja/records?view=public"),"mine",{userId:"one",banned:false} as never,false,new Map());
  assert.match(html,/data-zukan-save/);assert.match(html,/data-zukan-saved-status/);assert.match(html,/records\?view=saved/);
  const start=html.indexOf('data-zukan-save');assert.ok(html.lastIndexOf('</a>',start)>html.lastIndexOf('<a ',start));
 });

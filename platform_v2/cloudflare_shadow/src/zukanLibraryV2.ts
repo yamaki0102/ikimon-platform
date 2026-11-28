@@ -252,7 +252,7 @@ export function groupObservationsIntoVisitsV2(items: readonly LibraryV2Observati
 
     const timeRangeLabel =
       first.wall.hhmm && last.wall.hhmm && first.wall.hhmm !== last.wall.hhmm
-        ? `${first.wall.hhmm}–${last.wall.hhmm}`
+        ? `${first.wall.hhmm}〜${last.wall.hhmm}`
         : first.wall.hhmm;
 
     const headingTitle = report?.title || placeName || areaLabel || "記録";

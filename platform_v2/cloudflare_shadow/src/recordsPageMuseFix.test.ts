@@ -26,3 +26,14 @@ test("mine scope redirects to the library", async () => {
   assert.equal(res.status, 302);
   assert.equal(res.headers.get("location"), "/ja/library");
 });
+
+test("public records tab: no limit copy in any language, list before place chips, no photo placeholder, no repeated status", () => {
+  const noPhoto = { visitId: "obs-2", displayName: null, observedAt: "2026-11-24T00:00:00.000Z", assetCount: 0, photoUrl: null, publicAreaLabel: "公園", isAwaitingId: true, mediaKind: "photo" } as never;
+  for (const seg of ["ja", "en", "es", "pt-br"]) {
+    const h = renderRecordsProductSection([item, noPhoto], new URL(`https://zukan.earth/${seg}/records?view=public`), "public", null, false, null, [{ placeId: "plc_a", name: "公園" }]);
+    assert.ok(!/最大|hasta \d|até \d|120/.test(h.replace(/<style>[\s\S]*?<\/style>/g, "")), seg);
+    assert.ok(h.indexOf("cf-records-native-grid\"") < h.indexOf("<nav class=\"cf-records-places\""), seg);
+    assert.ok(!h.includes("cf-records-native-no-media\" aria"), seg);
+    assert.ok(!h.includes("名前は未確認") && !h.includes("自分の記録"), seg);
+  }
+});
