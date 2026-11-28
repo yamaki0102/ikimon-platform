@@ -183,13 +183,13 @@ test("root home page uses the state-split guest surface", async () => {
     assert.match(response.body, /data-home-view="guest"/);
     assert.match(response.body, /data-home-view="member"[^>]* hidden/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
-    assert.doesNotMatch(response.body, /<section class="home-section home-(?:category|value)-section"/);
+    assert.doesNotMatch(response.body, /<section class="home-section home-value-section"/);
     assert.match(response.body, /観察会を見る/);
     assert.match(response.body, /正確な位置は公開しません/);
-    assert.match(response.body, /撮ると、まちの今が図鑑になる。/);
-    assert.match(response.body, /home-empty-proof-flow/);
+    assert.match(response.body, /地域の今を見つけ、残し、また関わる。/);
+    assert.match(response.body, /home-empty-proof-copy/);
     assert.match(response.body, /現在は、招待された方をご案内しています。/);
-    assert.match(response.body, /<nav class="global-record-launcher"/);
+    assert.match(response.body, /<nav class="[^"]*global-record-launcher"/);
     assert.match(response.body, /data-global-record-trigger="photo"/);
     assert.doesNotMatch(response.body, /data-record-feed/);
     assert.doesNotMatch(response.body, /prototype-record-feed[^"]*is-guest/);

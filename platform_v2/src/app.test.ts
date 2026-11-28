@@ -212,14 +212,14 @@ test("root route serves the state-split guest home HTML even for generic accept 
     assert.doesNotMatch(response.body, /prototype-topa-actions/);
     assert.match(response.body, /data-home-contract="state-split-v1"/);
     assert.match(response.body, /data-home-auth-state="guest"/);
-    assert.match(response.body, /撮ると、まちの今が図鑑になる。/);
-    assert.doesNotMatch(response.body, /<section class="home-section home-(?:category|value)-section"/);
+    assert.match(response.body, /地域の今を見つけ、残し、また関わる。/);
+    assert.doesNotMatch(response.body, /<section class="home-section home-value-section"/);
     assert.match(response.body, /場所から見る/);
     assert.match(response.body, /観察会を見る/);
     assert.match(response.body, /正確な位置は公開しません/);
     assert.doesNotMatch(response.body, /<h1>記録を見る<\/h1>/);
-    assert.match(response.body, /class="site-header site-header-home"/);
-    assert.match(response.body, /class="global-record-launcher"/);
+    assert.match(response.body, /class="[^"]*site-header site-header-home[^"]*"/);
+    assert.match(response.body, /class="[^"]*global-record-launcher"/);
     assert.match(response.body, /data-global-record-trigger="photo"/);
     assert.doesNotMatch(response.body, /data-global-record-trigger="photo"[^>]*href="[^"]*\/record/);
     assert.doesNotMatch(response.body, /<nav class="desktop-side-nav-inner"/);
