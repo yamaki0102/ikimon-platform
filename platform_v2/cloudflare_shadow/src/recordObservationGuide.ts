@@ -195,3 +195,49 @@ export async function loadObservationGuide(db: GuideDb, recordId: string): Promi
   const body = row?.body?.trim() ?? "";
   return body && observationGuideFailures(body).length === 0 ? body : null;
 }
+
+export const OBSERVATION_GUIDE_ATTEMPT_AXIS = "observation_guide_attempted";
+
+export type ObservationGuideBackfillDeps = {
+  db: GuideDb;
+  model: string;
+  generate: ObservationGuideGenerate;
+  isProtected: (recordId: string) => Promise<boolean>;
+};
+
+export function parseGuideBackfillOwnerIds(raw: string | undefined): string[] {
+  return (raw ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+}
+
+export async function runObservationGuideOwnerBackfill(
+  deps: ObservationGuideBackfillDeps,
+  ownerIds: readonly string[],
+  limit = 8,
+): Promise<{ selected: number; stored: number }> {
+  if (ownerIds.length === 0 || limit <= 0) return { selected: 0, stored: 0 };
+  const marks = ownerIds.map(() => "?").join(",");
+  const rows = (await deps.db.prepare(
+    `SELECT o.observation_id AS record_id, o.owner_user_id AS owner_user_id
+       FROM observations o
+      WHERE o.owner_user_id IN (${marks})
+        AND NOT EXISTS (SELECT 1 FROM record_reading_cards c WHERE c.visit_id = o.observation_id AND c.axis IN (?, ?))
+        AND EXISTS (SELECT 1 FROM observation_ai_suggestions s JOIN record_observations ro ON ro.observation_id = s.observation_id
+                     WHERE ro.record_runtime = 'cloudflare_d1' AND ro.record_id = o.observation_id AND s.suggestion_status = 'active')
+      ORDER BY o.created_at DESC LIMIT ?`,
+  ).bind(...ownerIds, OBSERVATION_GUIDE_AXIS, OBSERVATION_GUIDE_ATTEMPT_AXIS, limit).all<{ record_id: string; owner_user_id: string }>()).results ?? [];
+  let stored = 0;
+  for (const row of rows.slice(0, limit)) {
+    await deps.db.prepare(
+      `INSERT OR IGNORE INTO record_reading_cards (card_id, visit_id, axis, title, body, sources_json, visibility, model_version, created_by_user_id)
+       VALUES (?, ?, ?, '', '', '[]', 'owner_only', ?, ?)`,
+    ).bind(`reading_card_guide_attempt_${row.record_id}`, row.record_id, OBSERVATION_GUIDE_ATTEMPT_AXIS, OBSERVATION_GUIDE_MODEL_VERSION, row.owner_user_id).run();
+    try {
+      const protectedRecord = await deps.isProtected(row.record_id);
+      const result = await generateAndStoreObservationGuide({
+        db: deps.db, recordId: row.record_id, ownerUserId: row.owner_user_id, model: deps.model, generate: deps.generate, protectedRecord,
+      });
+      if (result.stored) stored += 1;
+    } catch { /* attempt marker prevents retry */ }
+  }
+  return { selected: rows.length, stored };
+}

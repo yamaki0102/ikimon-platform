@@ -308,7 +308,7 @@ import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects
 import { d1ReadingQuery, readRecordReading, writeRecordMediaOrder } from "./recordReading";
 import { buildRecordPageSections, recordPageSectionsJson } from "./recordPageSections";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
-import { generateAndStoreObservationGuide, loadObservationGuide } from "./recordObservationGuide";
+import { generateAndStoreObservationGuide, loadObservationGuide, parseGuideBackfillOwnerIds, runObservationGuideOwnerBackfill } from "./recordObservationGuide";
 import {
   buildObservationAiQualityBacklogPayload,
   GEMINI_QUALITY_BACKLOG_MAX_ACTIVE,
@@ -5541,6 +5541,7 @@ export const worker = {
     ctx.waitUntil(runScheduledSentinelEnvironmentSnapshots(env));
     ctx.waitUntil(runScheduledGbifAreaSummaryRefresh(env, controller));
     ctx.waitUntil(runRecordHealthCheck(env).catch(() => null));
+    ctx.waitUntil(runScheduledObservationGuideBackfill(env).catch(() => null));
   },
 
   async queue(batch: { messages: Array<{ body: MediaJob | AlertDeliveryJob }> }, env: Env): Promise<void> {
@@ -26718,6 +26719,18 @@ async function runObservationGuide(env: Env, recordId: string, ownerUserId: stri
     model: GEMINI_SUMMARY_MODEL,
     generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
   }).catch((error) => recordAiNoteFailure(env, recordId, "guide_error", { error: error instanceof Error ? error.message : String(error) }));
+}
+
+async function runScheduledObservationGuideBackfill(env: Env): Promise<void> {
+  const apiKey = env.GEMINI_API_KEY;
+  const ownerIds = parseGuideBackfillOwnerIds(env.ZUKAN_GUIDE_BACKFILL_OWNER_IDS);
+  if (!apiKey || ownerIds.length === 0) return;
+  await runObservationGuideOwnerBackfill({
+    db: env.OBS_DB,
+    model: GEMINI_SUMMARY_MODEL,
+    generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
+    isProtected: async (recordId) => (await publicSafetyGateForObservation(recordId, env)).blocked,
+  }, ownerIds);
 }
 
 async function refreshRecordAiNote(
