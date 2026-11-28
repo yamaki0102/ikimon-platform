@@ -1,5 +1,6 @@
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
+import { PLACE_AREA_SQL, PREFECTURE_PREFIX, PUBLIC_RECORD_FROM_SQL, isHigherRankName, loadAllRegionCounts, loadRegionCounts } from "./regionCounts";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { inferTaxonGroupForLabel, resolveTaxonGroups } from "./zukanMapTaxonGroup";
 
@@ -70,7 +71,6 @@ const PLACE_KIND_LABELS_EN: Readonly<Record<string, string>> = {
 const esc = (v: unknown): string =>
   String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
 
-const PREFECTURE_PREFIX = /^(?:北海道|東京都|京都府|大阪府|[^\s都道府県]{2,3}県)(?=.)/;
 const WARD_SUFFIX = /^(.{1,6}市).{1,6}区$/;
 
 export function regionKeyFromLabel(value: unknown): string | null {
@@ -81,25 +81,11 @@ export function regionKeyFromLabel(value: unknown): string | null {
   return v || null;
 }
 
-const HIGHER_RANK_JA = /[界門綱目科]$/u;
-const COARSE_WORDS = new Set(["クモ", "アリ", "ハチ", "ガ", "チョウ", "トンボ", "カエル", "魚", "鳥", "虫", "昆虫", "草", "木", "花", "きのこ", "キノコ", "貝", "カビ", "コケ", "シダ"]);
-export function isHigherRankName(name: string): boolean {
-  const n = String(name ?? "").normalize("NFKC").trim();
-  if (!n) return false;
-  if (COARSE_WORDS.has(n)) return true;
-  if (n.length >= 2 && HIGHER_RANK_JA.test(n) && !/[A-Za-z]/.test(n)) return true;
-  return /^[A-Z][a-z]+$/.test(n) && /(?:idae|aceae|ales|inae|opsida|mycota|mycetes|phyta)$/.test(n);
-}
+export { isHigherRankName };
 export const splitByRank = <T extends { name: string }>(rows: readonly T[]): { fine: T[]; coarse: T[] } => ({
   fine: rows.filter((r) => !isHigherRankName(r.name)),
   coarse: rows.filter((r) => isHigherRankName(r.name)),
 });
-
-const PLACE_AREA_SQL = `public_profile_status = 'published' AND superseded_by_place_id IS NULL AND (
-  municipality = ?1 OR prefecture = ?1 OR locality_label = ?1
-  OR (locality_label LIKE '%' || ?1 AND length(locality_label) <= length(?1) + 4)
-  OR (locality_label LIKE '%' || ?1 || '%区' AND length(locality_label) <= length(?1) + 8)
-  OR CASE WHEN json_valid(metadata_json) THEN json_extract(metadata_json, '$.municipality') END = ?1)`;
 
 async function safeAll<T>(run: () => Promise<{ results?: T[] }>): Promise<T[]> {
   try { return (await run()).results ?? []; } catch { return []; }
@@ -110,21 +96,9 @@ export async function loadRegionSurfaceData(
   area: string,
   photoLoader: (ids: readonly string[]) => Promise<Map<string, string>>,
 ): Promise<RegionSurfaceData> {
+  const counts = await loadRegionCounts(db, area);
   const rows = await safeAll(() => db.prepare(
-    `SELECT r.observation_id, r.taxon_label, r.observed_at
-       FROM readmodel_public_observations r
-       JOIN observations o ON o.observation_id = r.observation_id
-      WHERE r.public_area_label = ?1
-        AND o.visibility = 'public'
-        AND o.emergency_hidden = 0
-        AND NOT EXISTS (
-          SELECT 1 FROM observation_data_rights rights
-           WHERE rights.visit_id = o.observation_id
-             AND rights.withdrawal_status IS NOT NULL
-             AND rights.withdrawal_status <> 'active'
-        )
-      ORDER BY r.observed_at DESC
-      LIMIT 3000`,
+    `SELECT r.observation_id, r.taxon_label, r.observed_at ${PUBLIC_RECORD_FROM_SQL} AND r.public_area_label = ?1 ORDER BY r.observed_at DESC LIMIT 3000`,
   ).bind(area).all<{ observation_id: string; taxon_label: string | null; observed_at: string }>());
   const byName = new Map<string, { ids: string[]; records: number }>();
   for (const r of rows) {
@@ -153,26 +127,22 @@ export async function loadRegionSurfaceData(
   const placeRows = await safeAll(() => db.prepare(
     `SELECT place_id, canonical_name, locality_label, place_kind FROM places WHERE ${PLACE_AREA_SQL} ORDER BY canonical_name LIMIT 5`,
   ).bind(area).all<{ place_id: string; canonical_name: string; locality_label: string | null; place_kind: string }>());
-  const placeCount = await db.prepare(`SELECT COUNT(*) AS n FROM places WHERE ${PLACE_AREA_SQL}`).bind(area).first<{ n: number }>().catch(() => null);
   const eventScope = `FROM observation_event_sessions WHERE event_code IS NOT NULL AND trim(event_code) <> '' AND title IS NOT NULL AND trim(title) <> '' AND field_id IN (SELECT place_id FROM places WHERE ${PLACE_AREA_SQL})`;
   const eventRows = await safeAll(() => db.prepare(
     `SELECT session_id, title, started_at ${eventScope} ORDER BY started_at DESC LIMIT 5`,
   ).bind(area).all<{ session_id: string; title: string; started_at: string }>());
   const eventCount = await db.prepare(`SELECT COUNT(*) AS n ${eventScope}`).bind(area).first<{ n: number }>().catch(() => null);
   const cellRows = await safeAll(() => db.prepare(
-    `SELECT r.public_cell AS cell, COUNT(*) AS n
-       FROM readmodel_public_observations r
-       JOIN observations o ON o.observation_id = r.observation_id
-      WHERE r.public_area_label = ?1 AND r.public_cell IS NOT NULL AND o.visibility = 'public' AND o.emergency_hidden = 0
+    `SELECT r.public_cell AS cell, COUNT(*) AS n ${PUBLIC_RECORD_FROM_SQL} AND r.public_area_label = ?1 AND r.public_cell IS NOT NULL
       GROUP BY r.public_cell ORDER BY n DESC LIMIT 40`,
   ).bind(area).all<{ cell: string; n: number }>());
   return {
     area,
     cells: cellRows.map((c) => ({ cell: String(c.cell), count: Number(c.n) })),
-    recordTotal: rows.length,
+    recordTotal: counts.records,
     species,
     places: placeRows.map((p) => ({ id: p.place_id, name: p.canonical_name, locality: p.locality_label, kind: p.place_kind })),
-    placeTotal: Number(placeCount?.n ?? 0),
+    placeTotal: counts.places,
     events: eventRows.map((e) => ({ id: e.session_id, title: e.title, startedAt: e.started_at })),
     eventTotal: Number(eventCount?.n ?? 0),
   };
@@ -430,68 +400,10 @@ export type RegionIndexGroup = { prefecture: string | null; items: RegionIndexIt
 
 let regionIndexCache: { at: number; db: unknown; items: RegionIndexItem[] } | null = null;
 
-function placeInArea(p: { municipality: string | null; prefecture: string | null; locality_label: string | null; metadata_json?: string | null }, area: string): boolean {
-  if (p.municipality === area || p.prefecture === area || p.locality_label === area) return true;
-  const l = p.locality_label;
-  if (l) {
-    if (l.endsWith(area) && l.length <= area.length + 4) return true;
-    const i = l.indexOf(area);
-    if (i >= 0 && l.length <= area.length + 8 && l.lastIndexOf("区") >= i + area.length && l.endsWith("区")) return true;
-  }
-  try { return (p.metadata_json ? (JSON.parse(p.metadata_json) as { municipality?: unknown }).municipality : null) === area; } catch { return false; }
-}
-
 export async function loadRegionIndex(db: Db, normalize: (v: string) => string | null, limit = 300): Promise<RegionIndexItem[]> {
   if (regionIndexCache && regionIndexCache.db === db && Date.now() - regionIndexCache.at < 3_600_000) return regionIndexCache.items;
-  const rows = await safeAll(() => db.prepare(
-    `WITH pub AS (
-       SELECT r.public_area_label AS area, r.taxon_label AS label
-         FROM readmodel_public_observations r
-         JOIN observations o ON o.observation_id = r.observation_id
-        WHERE r.public_area_label IS NOT NULL
-          AND o.visibility = 'public' AND o.emergency_hidden = 0
-          AND NOT EXISTS (
-            SELECT 1 FROM observation_data_rights rights
-             WHERE rights.visit_id = o.observation_id
-               AND rights.withdrawal_status IS NOT NULL
-               AND rights.withdrawal_status <> 'active')),
-     top AS (SELECT area FROM pub GROUP BY area ORDER BY COUNT(*) DESC LIMIT ?1)
-     SELECT p.area AS area, p.label AS label, COUNT(*) AS n
-       FROM pub p JOIN top t ON t.area = p.area
-      GROUP BY p.area, p.label ORDER BY n DESC LIMIT 30000`,
-  ).bind(limit).all<{ area: string; label: string | null; n: number }>());
-  if (rows.length === 0) return [];
-  const placeRows = await safeAll(() => db.prepare(
-    `SELECT municipality, prefecture, locality_label, metadata_json FROM places WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL LIMIT 5000`,
-  ).bind().all<{ municipality: string | null; prefecture: string | null; locality_label: string | null; metadata_json?: string | null }>());
-  const agg = new Map<string, { records: number; names: Set<string>; fine: Set<string> }>();
-  for (const r of rows) {
-    if (typeof r.area !== "string" || normalize(r.area) !== r.area) continue;
-    const g = agg.get(r.area) ?? { records: 0, names: new Set<string>(), fine: new Set<string>() };
-    g.records += Number(r.n) || 0;
-    if (!isWeakTaxonLabel(r.label)) {
-      const name = String(r.label).normalize("NFKC").trim();
-      g.names.add(name);
-      if (!isHigherRankName(name)) g.fine.add(name);
-    }
-    agg.set(r.area, g);
-  }
-  const items: RegionIndexItem[] = [];
-  for (const [area, g] of agg) {
-    let places = 0;
-    let pref: string | null = null;
-    for (const p of placeRows) {
-      if (placeInArea(p, area)) {
-        places += 1;
-        if (!pref && p.municipality === area && p.prefecture) pref = p.prefecture;
-        if (!pref) pref = p.locality_label?.match(PREFECTURE_PREFIX)?.[0] ?? null;
-      }
-    }
-    if (g.names.size === 0 && places === 0) continue;
-    if (!pref) pref = area.match(PREFECTURE_PREFIX)?.[0] ?? null;
-    items.push({ area, prefecture: pref, records: g.records, species: g.fine.size, places });
-  }
-  items.sort((a, b) => b.records - a.records || a.area.localeCompare(b.area, "ja"));
+  const items: RegionIndexItem[] = (await loadAllRegionCounts(db, normalize, limit)).map(({ area, prefecture, records, species, places }) => ({ area, prefecture, records, species, places }));
+  if (items.length === 0) return [];
   regionIndexCache = { at: Date.now(), db, items };
   return items;
 }

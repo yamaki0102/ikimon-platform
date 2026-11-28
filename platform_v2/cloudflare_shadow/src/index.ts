@@ -213,6 +213,7 @@ import { inferTaxonGroupForLabel, parseMapTaxonGroupFilter } from "./zukanMapTax
 const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, FIELD_CARD_FLAG, v.principalId, v.role); };
 import { localizePublicLocationLabel } from "./observationDetailLinks";
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
+import { listRegionAreasByRecords, regionHasPublicRecords } from "./regionCounts";
 import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegionIndex, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionIndexPage, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
@@ -23732,22 +23733,7 @@ let sitemapRegionCache: { at: number; areas: string[] } | null = null;
 async function listSitemapRegions(env: Env, limit = 200): Promise<string[]> {
   if (sitemapRegionCache && Date.now() - sitemapRegionCache.at < 3_600_000) return sitemapRegionCache.areas;
   try {
-    const result = await env.OBS_DB.prepare(
-      `SELECT r.public_area_label AS area, COUNT(*) AS n
-         FROM readmodel_public_observations r
-         JOIN observations o ON o.observation_id = r.observation_id
-        WHERE r.public_area_label IS NOT NULL AND r.taxon_label IS NOT NULL
-          AND o.visibility = 'public' AND o.emergency_hidden = 0
-          AND NOT EXISTS (
-            SELECT 1 FROM observation_data_rights rights
-             WHERE rights.visit_id = o.observation_id
-               AND rights.withdrawal_status IS NOT NULL
-               AND rights.withdrawal_status <> 'active')
-        GROUP BY r.public_area_label ORDER BY n DESC LIMIT ?1`
-    ).bind(limit).all<{ area?: unknown }>();
-    const areas = (result.results ?? [])
-      .map((row) => (typeof row.area === "string" ? row.area : ""))
-      .filter((a) => a !== "" && normalizeSafePublicAreaLabelCandidate(a) === a);
+    const areas = (await listRegionAreasByRecords(env.OBS_DB, limit)).filter((a) => normalizeSafePublicAreaLabelCandidate(a) === a);
     sitemapRegionCache = { at: Date.now(), areas };
     return areas;
   } catch {
@@ -25563,14 +25549,7 @@ async function handleSpeciesSurfaceRoute(
   });
 }
 
-async function invasiveRegionHasPublicRecords(env: Env, area: string): Promise<boolean> {
-  try {
-    const row = await env.OBS_DB.prepare("SELECT 1 AS present FROM readmodel_public_observations WHERE public_area_label = ? LIMIT 1").bind(area).first();
-    return Boolean(row);
-  } catch {
-    return false;
-  }
-}
+const invasiveRegionHasPublicRecords = (env: Env, area: string): Promise<boolean> => regionHasPublicRecords(env.OBS_DB, area);
 
 async function handleInvasiveMapV1Route(
   request: Request,
