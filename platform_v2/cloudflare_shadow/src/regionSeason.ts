@@ -110,7 +110,7 @@ const dateText = (iso: string, lang: Lang): string => {
   return lang === "ja" ? `${p.m}月${p.d}日` : `${p.m}/${p.d}`;
 };
 
-export type SeasonCard = { placeId: string; name: string; observationId: string; photoUrl: string; label: string | null; observedAt: string; records: number };
+export type SeasonCard = { placeId: string; name: string; observationId: string; photoUrl: string; label: string | null; observedAt: string; records: number; kind: "peak" | "month" };
 export type RegionSeasonData = { month: number; cards: SeasonCard[]; monthCounts: number[] };
 
 export async function loadMonthCounts(db: SeasonDb, area: string): Promise<number[]> {
@@ -126,30 +126,47 @@ export async function loadRegionSeason(db: SeasonDb, area: string, now: Date, ph
   const month = new Date(now.getTime() + 9 * 3600000).getUTCMonth() + 1;
   const monthCounts = await loadMonthCounts(db, area);
   const out: RegionSeasonData = { month, cards: [], monthCounts };
-  const peaks = await safeAll(() => db.prepare(
+  type Rec = { id: string; label: string | null; at: string; place_id: string };
+  const peaks = (await safeAll(() => db.prepare(
     `SELECT pm.place_id AS place_id, p.canonical_name AS name, pm.evidence_count AS n
        FROM place_peak_months pm JOIN places p ON p.place_id = pm.place_id
       WHERE pm.month = ?2 AND pm.place_id IN (SELECT place_id FROM places WHERE ${PLACE_AREA_SQL})
       ORDER BY pm.evidence_count DESC, pm.place_id LIMIT 12`,
-  ).bind(area, month).all<{ place_id: string; name: string; n: number }>());
-  if (peaks.length === 0) return out;
-  const recs = await safeAll(() => db.prepare(
+  ).bind(area, month).all<{ place_id: string; name: string; n: number }>())).map((p) => ({ ...p, kind: "peak" as const }));
+  const peakRecs = peaks.length === 0 ? [] : await safeAll(() => db.prepare(
     `SELECT r.observation_id AS id, r.taxon_label AS label, r.observed_at AS at, ${PLACE_OF_RECORD} AS place_id ${SAFE_PUBLIC_FROM}
        AND ${PLACE_OF_RECORD} IN (SELECT value FROM json_each(?1)) ORDER BY r.observed_at DESC LIMIT 800`,
-  ).bind(JSON.stringify(peaks.map((p) => p.place_id))).all<{ id: string; label: string | null; at: string; place_id: string }>());
-  const byPlace = new Map<string, typeof recs>();
-  for (const r of recs) byPlace.set(r.place_id, [...(byPlace.get(r.place_id) ?? []), r]);
-  const wanted = peaks.flatMap((p) => (byPlace.get(p.place_id) ?? []).slice(0, 6).map((r) => r.id));
+  ).bind(JSON.stringify(peaks.map((p) => p.place_id))).all<Rec>());
+  const byPlace = new Map<string, Rec[]>();
+  for (const r of peakRecs) byPlace.set(r.place_id, [...(byPlace.get(r.place_id) ?? []), r]);
+  const monthRecs = await safeAll(() => db.prepare(
+    `SELECT id, label, at, place_id FROM (SELECT r.observation_id AS id, r.taxon_label AS label, r.observed_at AS at, ${PLACE_OF_RECORD} AS place_id ${SAFE_PUBLIC_FROM} AND ${MONTH_OF} = ?2)
+      WHERE place_id IN (SELECT place_id FROM places WHERE ${PLACE_AREA_SQL}) ORDER BY at DESC LIMIT 800`,
+  ).bind(area, month).all<Rec>());
+  const monthByPlace = new Map<string, Rec[]>();
+  for (const r of monthRecs) monthByPlace.set(r.place_id, [...(monthByPlace.get(r.place_id) ?? []), r]);
+  const peakIds = new Set(peaks.map((p) => p.place_id));
+  const nameRows = monthByPlace.size === 0 ? [] : await safeAll(() => db.prepare(
+    `SELECT place_id, canonical_name AS name FROM places WHERE public_profile_status = 'published' AND superseded_by_place_id IS NULL AND place_id IN (SELECT value FROM json_each(?1))`,
+  ).bind(JSON.stringify([...monthByPlace.keys()].filter((id) => !peakIds.has(id)))).all<{ place_id: string; name: string }>());
+  const fallback = nameRows
+    .map((p) => ({ place_id: p.place_id, name: p.name, n: monthByPlace.get(p.place_id)!.length, kind: "month" as const }))
+    .sort((x, y) => y.n - x.n || (monthByPlace.get(y.place_id)![0]!.at > monthByPlace.get(x.place_id)![0]!.at ? 1 : -1) || (x.place_id < y.place_id ? -1 : 1))
+    .slice(0, 12);
+  const candidates = [...peaks, ...fallback];
+  if (candidates.length === 0) return out;
+  const recsOf = (p: { place_id: string; kind: "peak" | "month" }) => ((p.kind === "peak" ? byPlace : monthByPlace).get(p.place_id) ?? []).slice(0, 6);
+  const wanted = [...new Set(candidates.flatMap((p) => recsOf(p).map((r) => r.id)))];
   const photos = wanted.length ? await photoLoader(wanted).catch(() => new Map<string, string>()) : new Map<string, string>();
   const used = new Set<string>();
-  for (const p of peaks) {
+  for (const p of candidates) {
     if (out.cards.length >= SEASON_SHELF_MAX) break;
-    for (const r of (byPlace.get(p.place_id) ?? []).slice(0, 6)) {
+    for (const r of recsOf(p)) {
       const url = photos.get(r.id);
       if (!url || used.has(url)) continue;
       if (await blocked(r.id).catch(() => true)) continue;
       used.add(url);
-      out.cards.push({ placeId: p.place_id, name: p.name, observationId: r.id, photoUrl: url, label: speciesName(r.label), observedAt: r.at, records: Number(p.n) || 0 });
+      out.cards.push({ placeId: p.place_id, name: p.name, observationId: r.id, photoUrl: url, label: speciesName(r.label), observedAt: r.at, records: Number(p.n) || 0, kind: p.kind });
       break;
     }
   }
@@ -186,7 +203,7 @@ export function renderSeasonShelf(L: Lang, base: string, prefix: string, data: R
   if (!data) return "";
   const shelf = data.cards.length === 0 ? "" : `<section data-region-shelf="season"><div class="rs-shelf-h sn-h"><h2>${tr(L, "いまの季節の場所", "Places in season")}</h2></div><p class="sn-sub">${tr(L, `${data.month}月・${area}`, `${data.month}/${area}`)}</p>${data.cards.map((c) => {
     const line = c.label ? tr(L, `${c.label}の記録`, `Record of ${c.label}`) : tr(L, "生きものの記録", "A wildlife record");
-    return `<a class="sn-card" data-region-season-place="${esc(c.placeId)}" href="${esc(`${prefix}/places/${encodeURIComponent(c.placeId)}`)}"><img src="${esc(c.photoUrl)}" alt="" loading="lazy" width="640" height="360"><div class="sn-b"><div class="sn-nm">${esc(c.name)}</div><div class="sn-w">${esc(line)}</div><div class="sn-m">${tr(L, `この季節の記録 ${c.records}件・最新 ${dateText(c.observedAt, L)}`, `${c.records} records this season · latest ${dateText(c.observedAt, L)}`)}</div></div></a>`;
+    return `<a class="sn-card" data-region-season-place="${esc(c.placeId)}" href="${esc(`${prefix}/places/${encodeURIComponent(c.placeId)}`)}"><img src="${esc(c.photoUrl)}" alt="" loading="lazy" width="640" height="360"><div class="sn-b"><div class="sn-nm">${esc(c.name)}</div><div class="sn-w">${esc(line)}</div><div class="sn-m">${c.kind === "month" ? tr(L, `${data.month}月に記録あり（${ymd(c.observedAt)?.y ?? ""}年）`, `Recorded in month ${data.month} (${ymd(c.observedAt)?.y ?? ""})`) : tr(L, `この季節の記録 ${c.records}件・最新 ${dateText(c.observedAt, L)}`, `${c.records} records this season · latest ${dateText(c.observedAt, L)}`)}</div></div></a>`;
   }).join("")}</section>`;
   const chips = data.monthCounts.map((n, i) => {
     const mo = i + 1;
