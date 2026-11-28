@@ -4,8 +4,6 @@ import { inferTaxonGroupForLabel } from "./zukanMapTaxonGroup";
 
 export const RECORD_READER_MODES_FLAG = "RECORD_READER_MODES_ENABLED";
 
-export type RecordReaderMode = "child" | "parent";
-
 const esc = (value: string): string =>
   value
     .replaceAll("&", "&amp;")
@@ -70,26 +68,18 @@ export const RECORD_READER_MODES_STYLES = `
 export function renderRecordReaderModesHtml(options: {
   enabled: boolean;
   group: FieldCardGroup;
-  initialMode?: RecordReaderMode;
   speciesHeading?: string | null;
 }): string {
   if (!options.enabled) return "";
   const copy = recordReaderModeCopy(options.group);
-  const mode: RecordReaderMode = options.initialMode === "parent" ? "parent" : "child";
   const cleanSpecies = (options.speciesHeading ?? "").trim();
   const showName = Boolean(cleanSpecies && !isWeakTaxonLabel(cleanSpecies));
-  return `<section class="of-reader-modes" data-record-reader-modes aria-label="読み方の切り替え">
-<div class="of-rm-tabs" role="tablist" aria-label="読み方">
-  <button type="button" role="tab" class="of-rm-tab${mode === "child" ? " is-active" : ""}" data-reader-mode-tab="child" aria-selected="${mode === "child" ? "true" : "false"}">${copy.childLabel}</button>
-  <button type="button" role="tab" class="of-rm-tab${mode === "parent" ? " is-active" : ""}" data-reader-mode-tab="parent" aria-selected="${mode === "parent" ? "true" : "false"}">${copy.parentLabel}</button>
-</div>
+  return `<section class="of-reader-modes" data-record-reader-modes aria-label="観察の問いかけ">
 ${showName ? `<h3 class="of-rm-name" data-reader-mode-name>${esc(cleanSpecies)}</h3>` : ""}
-<p class="of-rm-copy" data-reader-mode-panel="child"${mode === "child" ? "" : " hidden"}>${esc(copy.childQuestion)}</p>
-<p class="of-rm-copy" data-reader-mode-panel="parent"${mode === "parent" ? "" : " hidden"}>${esc(copy.parentPrompt)}</p>
+<p class="of-rm-copy" data-reader-mode-panel="child">${esc(copy.childQuestion)}</p>
 </section>`;
 }
 
-export function renderRecordReaderModesScript(enabled: boolean): string {
-  if (!enabled) return "";
-  return `<script>(()=>{document.querySelectorAll('[data-record-reader-modes]').forEach((root)=>{const tabs=[...root.querySelectorAll('[data-reader-mode-tab]')];const panels=[...root.querySelectorAll('[data-reader-mode-panel]')];const setMode=(next)=>{tabs.forEach((tab)=>{const active=tab.getAttribute('data-reader-mode-tab')===next;tab.classList.toggle('is-active',active);tab.setAttribute('aria-selected',active?'true':'false');});panels.forEach((panel)=>{panel.hidden=panel.getAttribute('data-reader-mode-panel')!==next;});};tabs.forEach((tab)=>tab.addEventListener('click',()=>setMode(tab.getAttribute('data-reader-mode-tab')||'child')));});})();</script>`;
+export function renderRecordReaderModesScript(_enabled: boolean): string {
+  return "";
 }
