@@ -71,3 +71,21 @@ test("single photo card has no 写真1枚 chip", () => {
   const body = html.slice(html.indexOf('data-library-visit="v1"'));
   assert.ok(!body.includes("写真1枚"));
 });
+
+test("same-day same-place photos group into one visit with place and time range", async () => {
+  const { groupObservationsIntoVisitsV2 } = await import("./zukanLibraryV2");
+  const o = (id: string, at: string) => ({ observationId: id, observedAt: at, placeId: "plc_a", placeName: "連理の木の下で", areaLabel: null, lat: null, lng: null, reportTitle: null, reportBody: null, mediaKind: "photo" as const, photoUrl: `/p/${id}.jpg`, durationMs: null, visibility: "private" as const, zukanPublished: false, eventSession: null });
+  const visits = groupObservationsIntoVisitsV2([o("a", "2026-11-01T00:10:00.000Z"), o("b", "2026-11-01T00:48:00.000Z")]);
+  assert.equal(visits.length, 1);
+  assert.equal(visits[0]!.photos.length, 2);
+  assert.equal(visits[0]!.timeRangeLabel, "9:10〜9:48");
+  const html = page(visits);
+  assert.ok(html.includes("連理の木の下で"));
+  assert.ok(html.includes("9:10〜9:48"));
+});
+
+test("default statuses are not repeated on every card", () => {
+  const html = page([visit({ visitKey: "v1" }), visit({ visitKey: "v2", observationIds: ["o2"] })]);
+  const body = html.slice(html.indexOf('data-library-visit="v1"'));
+  assert.ok(!body.includes("自分のみ") && !body.includes("写真1枚") && !body.includes("自分の記録"));
+});
