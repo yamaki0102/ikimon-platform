@@ -427,7 +427,8 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const reportTitle = visit.report?.title ?? "";
   const faceTitle = reportTitle;
   const faceIsReport = reportTitle !== "";
-  const metaPlace = visit.placeName || visit.areaLabel || (isEn ? "A place nearby" : "身近な場所");
+  const generic = (v: string): string => (v === "身近な場所" ? "" : v);
+  const metaPlace = generic(visit.placeName) || generic(visit.areaLabel);
   const metaParts = [metaPlace, visit.timeRangeLabel].filter(Boolean);
   const mediaAll = [...visit.photos, ...visit.videos];
   const hasMore = mediaAll.length > 4;
