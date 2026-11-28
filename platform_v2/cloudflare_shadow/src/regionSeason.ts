@@ -15,7 +15,14 @@ export const PEAK_BACKFILL_LIMIT = 200;
 export const SEASON_SHELF_MAX = 3;
 
 const MEMBER_SQL = `m.membership_state = 'confirmed' AND m.public_precision = 'place' AND m.removed_at IS NULL`;
-const PLACE_OF_RECORD = `(SELECT m.place_id FROM record_place_memberships m WHERE m.record_id = r.observation_id AND ${MEMBER_SQL} LIMIT 1)`;
+const BOX_PLACE = `SELECT b.place_id FROM place_boundaries b JOIN places bp ON bp.place_id = b.place_id AND bp.public_profile_status = 'published' AND bp.superseded_by_place_id IS NULL
+    WHERE b.is_primary = 1 AND b.valid_to IS NULL AND b.superseded_by_boundary_id IS NULL
+      AND o.exact_lat BETWEEN b.bbox_south AND b.bbox_north AND o.exact_lng BETWEEN b.bbox_west AND b.bbox_east
+    ORDER BY b.area_ha IS NULL, b.area_ha, b.place_id LIMIT 1`;
+const PLACE_OF_RECORD = `COALESCE((SELECT m.place_id FROM record_place_memberships m WHERE m.record_id = r.observation_id AND ${MEMBER_SQL} LIMIT 1), (${BOX_PLACE}))`;
+const SAFE_SQL = `AND NOT EXISTS (SELECT 1 FROM civic_observation_contexts c WHERE c.visit_id = r.observation_id
+    AND (c.risk_lane <> 'normal' OR c.audience_scope <> 'public' OR c.public_precision NOT IN ('municipality', 'mesh')))`;
+const SAFE_PUBLIC_FROM = `${PUBLIC_RECORD_FROM_SQL} ${SAFE_SQL}`;
 const MONTH_OF = `CAST(substr(r.observed_at, 6, 2) AS INTEGER)`;
 const seasonOf = (mo: number): number => (mo >= 3 && mo <= 5 ? 0 : mo >= 6 && mo <= 8 ? 1 : mo >= 9 && mo <= 11 ? 2 : 3);
 
@@ -39,9 +46,8 @@ export async function runPlacePeakMonthsBackfill(
   if (env.PLACE_CATEGORY_BACKFILL !== "on") return result;
   try {
     const rows = (await env.OBS_DB.prepare(
-      `WITH pm AS (
-         SELECT m.place_id AS place_id, COUNT(*) AS n ${PUBLIC_RECORD_FROM_SQL.replace("WHERE", "JOIN record_place_memberships m ON m.record_id = r.observation_id WHERE")}
-           AND ${MEMBER_SQL} GROUP BY m.place_id)
+      `WITH rec AS (SELECT ${PLACE_OF_RECORD} AS place_id ${SAFE_PUBLIC_FROM}),
+       pm AS (SELECT place_id, COUNT(*) AS n FROM rec WHERE place_id IS NOT NULL GROUP BY place_id)
        SELECT pm.place_id AS place_id FROM pm
          LEFT JOIN place_peak_months s ON s.place_id = pm.place_id AND s.month = 0 AND s.source = 'records'
         WHERE s.place_id IS NULL OR s.evidence_count < pm.n
@@ -50,8 +56,8 @@ export async function runPlacePeakMonthsBackfill(
     if (rows.length === 0) return result;
     const ids = rows.map((r) => r.place_id);
     const counts = (await env.OBS_DB.prepare(
-      `SELECT m.place_id AS place_id, ${MONTH_OF} AS mo, COUNT(*) AS n ${PUBLIC_RECORD_FROM_SQL.replace("WHERE", "JOIN record_place_memberships m ON m.record_id = r.observation_id WHERE")}
-         AND ${MEMBER_SQL} AND m.place_id IN (SELECT value FROM json_each(?1)) GROUP BY m.place_id, mo`,
+      `SELECT place_id, mo, COUNT(*) AS n FROM (SELECT ${PLACE_OF_RECORD} AS place_id, ${MONTH_OF} AS mo ${SAFE_PUBLIC_FROM})
+        WHERE place_id IN (SELECT value FROM json_each(?1)) GROUP BY place_id, mo`,
     ).bind(JSON.stringify(ids)).all<{ place_id: string; mo: number; n: number }>()).results ?? [];
     const byPlace = new Map<string, Map<number, number>>();
     for (const c of counts) {
@@ -109,7 +115,7 @@ export type RegionSeasonData = { month: number; cards: SeasonCard[]; monthCounts
 
 export async function loadMonthCounts(db: SeasonDb, area: string): Promise<number[]> {
   const rows = await safeAll(() => db.prepare(
-    `SELECT ${MONTH_OF} AS mo, COUNT(*) AS n ${PUBLIC_RECORD_FROM_SQL} AND r.public_area_label = ?1 GROUP BY mo`,
+    `SELECT ${MONTH_OF} AS mo, COUNT(*) AS n ${SAFE_PUBLIC_FROM} AND r.public_area_label = ?1 GROUP BY mo`,
   ).bind(area).all<{ mo: number; n: number }>());
   const out = new Array<number>(12).fill(0);
   for (const r of rows) if (r.mo >= 1 && r.mo <= 12) out[r.mo - 1] = Number(r.n) || 0;
@@ -128,7 +134,7 @@ export async function loadRegionSeason(db: SeasonDb, area: string, now: Date, ph
   ).bind(area, month).all<{ place_id: string; name: string; n: number }>());
   if (peaks.length === 0) return out;
   const recs = await safeAll(() => db.prepare(
-    `SELECT r.observation_id AS id, r.taxon_label AS label, r.observed_at AS at, ${PLACE_OF_RECORD} AS place_id ${PUBLIC_RECORD_FROM_SQL}
+    `SELECT r.observation_id AS id, r.taxon_label AS label, r.observed_at AS at, ${PLACE_OF_RECORD} AS place_id ${SAFE_PUBLIC_FROM}
        AND ${PLACE_OF_RECORD} IN (SELECT value FROM json_each(?1)) ORDER BY r.observed_at DESC LIMIT 800`,
   ).bind(JSON.stringify(peaks.map((p) => p.place_id))).all<{ id: string; label: string | null; at: string; place_id: string }>());
   const byPlace = new Map<string, typeof recs>();
@@ -214,7 +220,7 @@ export async function loadRegionCalendar(db: SeasonDb, area: string, month: numb
     return out;
   }
   const rows = await safeAll(() => db.prepare(
-    `SELECT r.observation_id AS id, r.taxon_label AS label, r.observed_at AS at, ${PLACE_OF_RECORD} AS place_id ${PUBLIC_RECORD_FROM_SQL}
+    `SELECT r.observation_id AS id, r.taxon_label AS label, r.observed_at AS at, ${PLACE_OF_RECORD} AS place_id ${SAFE_PUBLIC_FROM}
        AND r.public_area_label = ?1 AND ${MONTH_OF} = ?2 ORDER BY r.observed_at DESC LIMIT 1500`,
   ).bind(area, month).all<{ id: string; label: string | null; at: string; place_id: string | null }>());
   const seenIds = new Set<string>();
