@@ -1,0 +1,46 @@
+{
+ "key": "habitat-社寺林",
+ "en": {
+  "habitat": "Shrine and Temple Forest",
+  "overview": "Remnant native groves preserved around shrines and temples, often harboring ancient trees and rich biodiversity within developed landscapes.",
+  "what_to_look_for": [
+   "Ancient, large-diameter evergreen broadleaf trees like chinquapin or camphor",
+   "Well-developed forest floor with ferns and shade-tolerant understory plants",
+   "Moss-covered stone lanterns, torii gates, or boundary markers",
+   "Woodland birds or insects relying on mature tree cavities"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing the forest canopy alongside shrine or temple structures",
+   "Close-up of ancient tree bark, buttress roots, or epiphytic mosses",
+   "Eye-level view of the understory vegetation density and leaf litter"
+  ],
+  "management_signs": [
+   "Cleared paths, raked leaf litter, or trimmed lower branches",
+   "Protective ropes (shimenawa) or fences around sacred specimen trees",
+   "Invasive species encroachment along the forest edges"
+  ],
+  "seasonal_note": "Evergreen canopies stay green year-round, while spring brings fresh foliage and autumn highlights deciduous accents."
+ },
+ "ja": {
+  "habitat": "社寺林",
+  "overview": "神社や寺院の周囲に守り伝えられてきた原生林の残存地。開発が進む現代の景観の中にあっても、巨木が残り、豊かな生物多様性を維持しています。",
+  "what_to_look_for": [
+   "スダジイやクスノキなどの、幹が太く歴史を感じさせる常緑広葉樹",
+   "シダ類や耐陰性のある植物が茂る、よく発達した林床",
+   "苔むした石灯籠、鳥居、境界を示す石碑",
+   "樹洞を利用して暮らす森林性の鳥類や昆虫"
+  ],
+  "confirm_more": [
+   "社寺の建造物と森林の樹冠を一緒に収めた広角写真",
+   "古木の樹皮、板根、または着生した苔のクローズアップ",
+   "林床の植生の密度や落ち葉の様子がわかる目線の高さでの写真"
+  ],
+  "management_signs": [
+   "整備された小道、掃き清められた落ち葉、剪定された下枝",
+   "ご神木に巻かれた注連縄（しめなわ）や、周囲を囲う柵",
+   "林縁部に見られる外来種の侵入"
+  ],
+  "seasonal_note": "常緑樹の樹冠は一年を通して緑を保ちますが、春には新緑が芽吹き、秋には混ざり合う落葉樹が彩りを添えます。"
+ },
+ "costUsd": 0.007792749999999999
+}

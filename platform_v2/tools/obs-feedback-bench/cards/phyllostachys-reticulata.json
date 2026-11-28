@@ -1,0 +1,66 @@
+{
+ "key": "phyllostachys-reticulata",
+ "en": {
+  "scientific_name": "Phyllostachys reticulata",
+  "english_name": "Japanese timber bamboo",
+  "rank": "species",
+  "overview": "A tall, fast-growing bamboo widely cultivated in Japan for its strong, versatile culms.",
+  "distinguishing_tips": [
+   "Smooth, bright green culms without white powdery rings below the nodes.",
+   "Two distinct raised ridges at each node.",
+   "Pale brown culm sheaths marked with dark purple-brown spots.",
+   "Two unequal branches emerging from each upper node."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Moso bamboo",
+    "scientific_name": "Phyllostachys edulis",
+    "distinction_point": "Moso bamboo has only one prominent ridge per node and velvety, dark-spotted culm sheaths."
+   },
+   {
+    "english_name": "Henon bamboo",
+    "scientific_name": "Phyllostachys nigra var. henonis",
+    "distinction_point": "Henon bamboo has a distinct white powdery ring below each node and smaller, finer leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a culm node showing the two ridges and lack of white powder.",
+   "New bamboo shoot or culm sheath showing the dark spots.",
+   "Branching pattern at an upper node."
+  ],
+  "season_habitat": "Commonly found in lowland groves, hillsides, and cultivated areas across Japan year-round, with new shoots emerging in late spring."
+ },
+ "ja": {
+  "scientific_name": "Phyllostachys reticulata",
+  "english_name": "マダケ",
+  "rank": "種",
+  "overview": "日本で広く栽培されている、背が高く成長の早い竹です。強靭で用途が広いため、古くから親しまれています。",
+  "distinguishing_tips": [
+   "稈（かん）は滑らかで鮮やかな緑色をしており、節の下に白い粉状の環がない。",
+   "各節に2本の隆起した線（節環と節内環）がはっきりと見える。",
+   "稈鞘（かんしょう）は淡褐色で、暗紫褐色の斑点がある。",
+   "上部の各節から、太さの異なる2本の枝が伸びる。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Moso bamboo",
+    "scientific_name": "Phyllostachys edulis",
+    "japanese_name": "モウソウチク",
+    "distinction_point": "モウソウチクは節の隆起が1本のみで、稈鞘はビロード状で暗い斑点がある。"
+   },
+   {
+    "english_name": "Henon bamboo",
+    "scientific_name": "Phyllostachys nigra var. henonis",
+    "japanese_name": "ハチク",
+    "distinction_point": "ハチクは節の下に白い粉状の環があり、葉がより小さく繊細である。"
+   }
+  ],
+  "confirm_more": [
+   "2本の隆起があり、白い粉がない節のクローズアップ写真。",
+   "暗い斑点がある新しいタケノコや稈鞘。",
+   "上部の節から伸びる枝の分岐パターン。"
+  ],
+  "season_habitat": "日本全国の低地や丘陵地、栽培地などで一年中見られ、晩春に新しいタケノコが出てくる。"
+ },
+ "costUsd": 0.00852775
+}

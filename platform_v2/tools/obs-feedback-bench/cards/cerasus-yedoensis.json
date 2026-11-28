@@ -1,0 +1,77 @@
+{
+ "key": "cerasus-yedoensis",
+ "en": {
+  "scientific_name": "Cerasus × yedoensis",
+  "english_name": "Yoshino Cherry",
+  "rank": "species",
+  "overview": "A widely planted deciduous cherry tree in Japan, famous for its pale pink blossoms that bloom before the leaves emerge.",
+  "distinguishing_tips": [
+   "Pale pink to nearly white five-petaled flowers",
+   "Flowers bloom densely before leaves appear",
+   "Hairy flower stalks and calyx tubes",
+   "Smooth gray-brown bark with horizontal lenticels"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Mountain Cherry",
+    "scientific_name": "Cerasus jamasakura",
+    "distinction_point": "Reddish young leaves emerge at the same time as the flowers, and flower stalks are hairless."
+   },
+   {
+    "english_name": "Oshima Cherry",
+    "scientific_name": "Cerasus speciosa",
+    "distinction_point": "Has pure white, fragrant flowers and green young leaves emerging alongside the blooms."
+   },
+   {
+    "english_name": "Edo Higan",
+    "scientific_name": "Cerasus itosakura",
+    "distinction_point": "Has a distinctly swollen, urn-shaped calyx tube and smaller, often deeper pink flowers."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower stalk and calyx tube to check for fine hairs",
+   "Side view of a blooming cluster showing whether leaves are absent",
+   "Bark of the main trunk showing horizontal lenticels"
+  ],
+  "season_habitat": "Blooms in early spring (late March to April) in parks, riverbanks, and urban areas across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cerasus × yedoensis",
+  "english_name": "Yoshino Cherry",
+  "rank": "species",
+  "overview": "日本で広く植栽されている落葉性のサクラで、葉が出る前に淡いピンク色の花を咲かせることで有名です。",
+  "distinguishing_tips": [
+   "淡いピンクからほぼ白色の5枚の花びら",
+   "葉が出る前に花が密集して咲く",
+   "花柄と萼筒に毛がある",
+   "横長の皮目がある滑らかな灰褐色の樹皮"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Mountain Cherry",
+    "scientific_name": "Cerasus jamasakura",
+    "japanese_name": "ヤマザクラ",
+    "distinction_point": "開花と同時に赤みを帯びた若葉が展開し、花柄に毛がない。"
+   },
+   {
+    "english_name": "Oshima Cherry",
+    "scientific_name": "Cerasus speciosa",
+    "japanese_name": "オオシマザクラ",
+    "distinction_point": "純白で香り高い花を咲かせ、開花と同時に緑色の若葉が出る。"
+   },
+   {
+    "english_name": "Edo Higan",
+    "scientific_name": "Cerasus itosakura",
+    "japanese_name": "エドヒガン",
+    "distinction_point": "萼筒がふっくらとした壺型をしており、花は小さく、色が濃いピンク色であることが多い。"
+   }
+  ],
+  "confirm_more": [
+   "花柄と萼筒を接写し、細かい毛があるか確認する",
+   "花の房を横から見て、葉が出ていないか確認する",
+   "幹の樹皮を観察し、横長の皮目があるか確認する"
+  ],
+  "season_habitat": "早春（3月下旬から4月）に開花し、日本全国の公園、河川敷、都市部で見られる。"
+ },
+ "costUsd": 0.00844575
+}

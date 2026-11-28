@@ -1,0 +1,77 @@
+{
+ "key": "prunus",
+ "en": {
+  "scientific_name": "Prunus",
+  "english_name": "Cherries, Plums, and Peaches",
+  "rank": "genus",
+  "overview": "A diverse genus of deciduous and evergreen trees and shrubs, famous in Japan for spring-blossoming cherries, plums, and peaches.",
+  "distinguishing_tips": [
+   "Five-petaled flowers in white, pink, or red",
+   "Bark often marked with horizontal lenticels",
+   "Simple, alternate leaves with serrated margins",
+   "Fleshy drupe fruit containing a single hard stone"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Apples and Crabapples",
+    "scientific_name": "Malus",
+    "distinction_point": "Flowers lack the distinct notch at petal tips often seen in cherries, and fruits are pomes."
+   },
+   {
+    "english_name": "Pears",
+    "scientific_name": "Pyrus",
+    "distinction_point": "Usually has dark anthers and gritty pome fruits rather than single-stoned drupes."
+   },
+   {
+    "english_name": "Flowering Quinces",
+    "scientific_name": "Chaenomeles",
+    "distinction_point": "Often has thorny branches and large, hard, stemless fruits."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of flower showing petal tips and calyx",
+   "Twig and leaf underside with petiole glands",
+   "Trunk bark showing horizontal lenticels"
+  ],
+  "season_habitat": "Blooms mainly in spring across mountains, forests, parks, and gardens throughout Japan."
+ },
+ "ja": {
+  "scientific_name": "Prunus",
+  "english_name": "サクラ属（サクラ、ウメ、モモなど）",
+  "rank": "属",
+  "overview": "落葉または常緑の木本で、日本では春に咲くサクラ、ウメ、モモとして広く親しまれている多様なグループです。",
+  "distinguishing_tips": [
+   "白、ピンク、赤の5弁花",
+   "樹皮には横長の皮目（ひもく）が目立つことが多い",
+   "葉は単葉で互生し、縁に鋸歯（ギザギザ）がある",
+   "果実は多肉質の核果で、中に硬い種子が1つ入っている"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Apples and Crabapples",
+    "scientific_name": "Malus",
+    "japanese_name": "リンゴ属",
+    "distinction_point": "サクラ類によく見られる花弁の先端のくぼみがなく、果実はナシ状果です。"
+   },
+   {
+    "english_name": "Pears",
+    "scientific_name": "Pyrus",
+    "japanese_name": "ナシ属",
+    "distinction_point": "通常、葯（やく）が黒っぽく、果実は核果ではなく石細胞を含むナシ状果です。"
+   },
+   {
+    "english_name": "Flowering Quinces",
+    "scientific_name": "Chaenomeles",
+    "japanese_name": "ボケ属",
+    "distinction_point": "枝にトゲがあることが多く、果実は大きく硬く、果柄がほとんどありません。"
+   }
+  ],
+  "confirm_more": [
+   "花弁の先端や萼（がく）の様子がわかる接写写真",
+   "小枝や葉の裏側、葉柄にある蜜腺",
+   "横長の皮目が特徴的な幹の樹皮"
+  ],
+  "season_habitat": "主に春に開花し、日本全国の山地、森林、公園、庭園などで見られます。"
+ },
+ "costUsd": 0.00874325
+}

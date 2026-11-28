@@ -1,0 +1,66 @@
+{
+ "key": "papilio-sp",
+ "en": {
+  "scientific_name": "Papilio",
+  "english_name": "Swallowtail butterflies",
+  "rank": "genus",
+  "overview": "Large, striking swallowtail butterflies common across Japan, typically featuring tailed hindwings and bold yellow, black, or iridescent blue-green patterns.",
+  "distinguishing_tips": [
+   "Large wingspan with distinct hindwing tails",
+   "Bold black-and-yellow stripes or dark iridescent wings",
+   "Red or blue eyespots near the hindwing margin",
+   "Six functional walking legs"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Chinese Windmill",
+    "scientific_name": "Byasa alcinous",
+    "distinction_point": "Has a bright red-spotted abdomen and slower, fluttering flight."
+   },
+   {
+    "english_name": "Common Bluebottle",
+    "scientific_name": "Graphium sarpedon",
+    "distinction_point": "Lacks hindwing tails and has a distinct translucent blue-green central band."
+   }
+  ],
+  "confirm_more": [
+   "Dorsal view of open wings to show full pattern",
+   "Ventral hindwing to check marginal spots",
+   "Head and abdomen to rule out red-bodied swallowtails"
+  ],
+  "season_habitat": "Active from spring to autumn in gardens, parks, woodlands, and mountain trails."
+ },
+ "ja": {
+  "scientific_name": "Papilio",
+  "english_name": "アゲハチョウ属",
+  "rank": "属",
+  "overview": "日本各地でよく見られる大型で美しいチョウのグループです。後翅にある尾状突起と、黄色と黒の鮮やかな模様、あるいは光沢のある青緑色の模様が特徴です。",
+  "distinguishing_tips": [
+   "大きな翅と後翅にある特徴的な尾状突起",
+   "黒と黄色の鮮やかな縞模様、または暗色で光沢のある翅",
+   "後翅の縁付近にある赤や青の眼状紋",
+   "6本の歩脚が発達している"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Chinese Windmill",
+    "scientific_name": "Byasa alcinous",
+    "japanese_name": "ジャコウアゲハ",
+    "distinction_point": "腹部が鮮やかな赤色で、ひらひらとゆっくり飛ぶのが特徴です。"
+   },
+   {
+    "english_name": "Common Bluebottle",
+    "scientific_name": "Graphium sarpedon",
+    "japanese_name": "アオスジアゲハ",
+    "distinction_point": "後翅に尾状突起がなく、翅の中央に半透明の青緑色の帯模様があります。"
+   }
+  ],
+  "confirm_more": [
+   "翅を広げた状態の背面から全体的な模様を確認する",
+   "後翅の裏面を見て縁の斑点を確認する",
+   "頭部や腹部を観察し、赤色のアゲハチョウ類ではないか確認する"
+  ],
+  "season_habitat": "春から秋にかけて、庭園、公園、森林、山道などで活動します。"
+ },
+ "costUsd": 0.0057824999999999994
+}

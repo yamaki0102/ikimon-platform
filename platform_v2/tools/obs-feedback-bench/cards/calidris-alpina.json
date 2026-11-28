@@ -1,0 +1,77 @@
+{
+ "key": "calidris-alpina",
+ "en": {
+  "scientific_name": "Calidris alpina",
+  "english_name": "Dunlin",
+  "rank": "species",
+  "overview": "A common medium-sized shorebird in Japan, known for its slightly drooped black bill and striking black belly patch in breeding plumage.",
+  "distinguishing_tips": [
+   "Medium-sized sandpiper with a relatively long, slightly decurved black bill",
+   "Breeding adults show a distinctive black belly patch and rufous-streaked back",
+   "Non-breeding birds are plain brownish-gray above and white below with a streaked breast",
+   "Shows a narrow white wingbar and dark-centered rump in flight"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Curlew Sandpiper",
+    "scientific_name": "Calidris ferruginea",
+    "distinction_point": "Slightly larger with a longer, more evenly curved bill and a completely white rump in flight."
+   },
+   {
+    "english_name": "Red-necked Stint",
+    "scientific_name": "Calidris ruficollis",
+    "distinction_point": "Noticeably smaller with a much shorter, straight bill."
+   },
+   {
+    "english_name": "Broad-billed Sandpiper",
+    "scientific_name": "Calidris falcinellus",
+    "distinction_point": "Smaller with a distinctly kinked bill tip and a bold double supercilium."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head and bill to show the slight downward curve",
+   "Underside or belly to check for the black breeding patch",
+   "Upperwing and rump in flight to confirm the white wingbar and dark-centered rump"
+  ],
+  "season_habitat": "Common winter visitor and passage migrant on tidal mudflats, estuaries, and coastal lagoons across Japan."
+ },
+ "ja": {
+  "scientific_name": "Calidris alpina",
+  "english_name": "Dunlin",
+  "rank": "species",
+  "overview": "日本でよく見られる中型のシギで、わずかに下に曲がった黒い嘴と、夏羽で見られる腹部の黒い斑紋が特徴です。",
+  "distinguishing_tips": [
+   "中型のシギで、比較的長く、わずかに下に曲がった黒い嘴を持つ",
+   "夏羽の成鳥は、腹部に特徴的な黒い斑紋があり、背中は赤褐色の縞模様がある",
+   "冬羽は上面が地味な褐色がかった灰色で、下面は白く、胸に縞模様がある",
+   "飛翔時には、細い白い翼帯と、中央が暗色の腰が見える"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Curlew Sandpiper",
+    "scientific_name": "Calidris ferruginea",
+    "japanese_name": "サルハマシギ",
+    "distinction_point": "ハマシギよりわずかに大きく、嘴はより長く均一に曲がっており、飛翔時には腰が完全に白い。"
+   },
+   {
+    "english_name": "Red-necked Stint",
+    "scientific_name": "Calidris ruficollis",
+    "japanese_name": "トウネン",
+    "distinction_point": "明らかに小型で、嘴は非常に短く真っ直ぐである。"
+   },
+   {
+    "english_name": "Broad-billed Sandpiper",
+    "scientific_name": "Calidris falcinellus",
+    "japanese_name": "キリアイ",
+    "distinction_point": "小型で、嘴の先がはっきりと折れ曲がっており、眉斑が二股に分かれているのが目立つ。"
+   }
+  ],
+  "confirm_more": [
+   "頭部と嘴の側面から、わずかに下に曲がった形状を確認する",
+   "腹部を見て、夏羽の黒い斑紋の有無を確認する",
+   "飛翔時の翼上面と腰を見て、白い翼帯と中央が暗色の腰を確認する"
+  ],
+  "season_habitat": "日本全国の干潟、河口、沿岸のラグーンなどで、冬鳥または旅鳥としてよく見られる。"
+ },
+ "costUsd": 0.00922975
+}

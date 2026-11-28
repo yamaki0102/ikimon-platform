@@ -1,0 +1,77 @@
+{
+ "key": "angiosperms",
+ "en": {
+  "scientific_name": "Angiospermae",
+  "english_name": "Angiosperms",
+  "rank": "class",
+  "overview": "Flowering plants that produce seeds enclosed within fruits, encompassing most broad-leaved trees, shrubs, and herbs across Japan.",
+  "distinguishing_tips": [
+   "Broad, flat leaves with branching veins",
+   "True flowers with petals, stamens, or pistils",
+   "Seeds enclosed inside a fruit or pod",
+   "Often deciduous, shedding leaves in autumn"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Conifers",
+    "scientific_name": "Pinopsida",
+    "distinction_point": "Conifers have needle-like or scale-like leaves and bear naked seeds in cones rather than flowers."
+   },
+   {
+    "english_name": "Ferns",
+    "scientific_name": "Polypodiopsida",
+    "distinction_point": "Ferns reproduce via spores on the undersides of fronds and never produce flowers or seeds."
+   },
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycadopsida",
+    "distinction_point": "Cycads have stiff, palm-like pinnate fronds and produce large cones instead of true flowers."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a flower showing petals and reproductive parts",
+   "Leaf surface and venation pattern",
+   "Fruit or seed pod attached to a branch"
+  ],
+  "season_habitat": "Found year-round across Japan from coastal forests to alpine zones, flowering mainly in spring and summer."
+ },
+ "ja": {
+  "scientific_name": "Angiospermae",
+  "english_name": "被子植物",
+  "rank": "綱",
+  "overview": "種子が果実の中に包まれる植物の総称。日本で見られる広葉樹、低木、草本の大部分が含まれます。",
+  "distinguishing_tips": [
+   "網目状の葉脈を持つ、幅広く平らな葉",
+   "花弁、雄しべ、雌しべを持つ典型的な花",
+   "果実やさやの中に包まれた種子",
+   "多くは落葉性で、秋に葉を落とす"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "針葉樹",
+    "scientific_name": "Pinopsida",
+    "japanese_name": "マツ綱",
+    "distinction_point": "針葉樹は針状や鱗片状の葉を持ち、花ではなく球果（松ぼっくりなど）の中に裸の種子をつけます。"
+   },
+   {
+    "english_name": "シダ植物",
+    "scientific_name": "Polypodiopsida",
+    "japanese_name": "シダ綱",
+    "distinction_point": "シダ植物は葉の裏にある胞子で繁殖し、花や種子を作ることはありません。"
+   },
+   {
+    "english_name": "ソテツ類",
+    "scientific_name": "Cycadopsida",
+    "japanese_name": "ソテツ綱",
+    "distinction_point": "ソテツ類は硬いヤシのような羽状複葉を持ち、花ではなく大きな球果をつけます。"
+   }
+  ],
+  "confirm_more": [
+   "花弁や生殖器官が確認できる花の接写",
+   "葉の表面と葉脈のパターン",
+   "枝についた果実や種子のさや"
+  ],
+  "season_habitat": "日本全国の海岸林から高山帯まで一年中見られ、主に春から夏にかけて開花します。"
+ },
+ "costUsd": 0.010324
+}

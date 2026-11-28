@@ -1,0 +1,11 @@
+{
+ "runId": "run9",
+ "version": "v1",
+ "configs": [
+  "card-lite"
+ ],
+ "items": 45,
+ "maxUsd": 1,
+ "spentUsd": 0.19436140000000005,
+ "stoppedByCap": false
+}

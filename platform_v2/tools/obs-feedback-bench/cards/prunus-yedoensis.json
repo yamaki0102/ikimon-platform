@@ -1,0 +1,77 @@
+{
+ "key": "prunus-yedoensis",
+ "en": {
+  "scientific_name": "Prunus × yedoensis",
+  "english_name": "Yoshino Cherry",
+  "rank": "species",
+  "overview": "A widely planted deciduous cherry tree in Japan, famous for its profuse pale-pink blossoms appearing before the leaves in early spring.",
+  "distinguishing_tips": [
+   "Flowers bloom in clusters before leaves emerge",
+   "Five pale-pink petals fading to nearly white",
+   "Hairy flower stalks and reddish-brown calyx tubes",
+   "Smooth gray-brown bark with horizontal lenticels"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Edo Higanzakura",
+    "scientific_name": "Prunus itosakura",
+    "distinction_point": "Has a rounder, swollen calyx base and slightly smaller flowers."
+   },
+   {
+    "english_name": "Oshima Cherry",
+    "scientific_name": "Prunus speciosa",
+    "distinction_point": "Flowers are pure white and bloom simultaneously with bright green young leaves."
+   },
+   {
+    "english_name": "Mountain Cherry",
+    "scientific_name": "Prunus jamasakura",
+    "distinction_point": "Reddish-brown young leaves emerge at the same time as the flowers."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower underside showing the hairy calyx tube and stalk",
+   "Overall branch showing whether leaves are absent during peak bloom",
+   "Tree trunk bark pattern with horizontal lenticels"
+  ],
+  "season_habitat": "Blooms from late March to April in parks, riverside avenues, and temple grounds across Japan."
+ },
+ "ja": {
+  "scientific_name": "Prunus × yedoensis",
+  "english_name": "ソメイヨシノ",
+  "rank": "種",
+  "overview": "日本で広く植栽されている落葉性のサクラで、春の初めに葉が出るよりも先に淡いピンク色の花を咲かせることで有名です。",
+  "distinguishing_tips": [
+   "葉が出る前に花が房状に咲く",
+   "5枚の淡いピンク色の花びらは、散り際にかけてほぼ白色になる",
+   "花柄（花の茎）に毛が生えており、萼筒（がくとう）が赤褐色をしている",
+   "滑らかな灰褐色の樹皮に、横長の皮目（ひもく）がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Edo Higanzakura",
+    "scientific_name": "Prunus itosakura",
+    "japanese_name": "エドヒガン",
+    "distinction_point": "萼筒の基部が丸く膨らんでおり、花がやや小さい。"
+   },
+   {
+    "english_name": "Oshima Cherry",
+    "scientific_name": "Prunus speciosa",
+    "japanese_name": "オオシマザクラ",
+    "distinction_point": "花は純白で、鮮やかな緑色の若葉と同時に開花する。"
+   },
+   {
+    "english_name": "Mountain Cherry",
+    "scientific_name": "Prunus jamasakura",
+    "japanese_name": "ヤマザクラ",
+    "distinction_point": "開花と同時に赤褐色の若葉が出てくる。"
+   }
+  ],
+  "confirm_more": [
+   "花柄と萼筒に毛が生えている様子を接写する",
+   "満開時に葉が出ていないか、枝全体を確認する",
+   "樹皮の模様と横長の皮目を確認する"
+  ],
+  "season_habitat": "3月下旬から4月にかけて、日本全国の公園、川沿いの並木道、寺院の境内などで開花する。"
+ },
+ "costUsd": 0.007669250000000001
+}

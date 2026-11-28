@@ -1,0 +1,1197 @@
+{
+ "version": "obs-feedback-bench/v1",
+ "items": [
+  {
+   "id": "org-egret-paddy",
+   "category": "environment",
+   "query": "Great egret rice field",
+   "ctx": {
+    "lat": 34.75,
+    "lng": 137.73,
+    "observedAt": "2026-06-14T08:10:00+09:00",
+    "place": "静岡県浜松市",
+    "memo": "田んぼに白い鳥"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "水田",
+      "田",
+      "湛水",
+      "水"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "org-whiteeye-flower",
+   "category": "organism",
+   "query": "Zosterops japonicus flower",
+   "ctx": {
+    "lat": 35,
+    "lng": 135.77,
+    "observedAt": "2026-03-02T09:30:00+09:00",
+    "place": "京都府京都市",
+    "memo": "梅に緑の小鳥"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "メジロ",
+      "Zosterops"
+     ]
+    ],
+    "must_not": [
+     "ウグイス"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-swallowtail",
+   "category": "organism",
+   "query": "Papilio machaon",
+   "ctx": {
+    "lat": 35.68,
+    "lng": 139.69,
+    "observedAt": "2026-05-20T11:00:00+09:00",
+    "place": "東京都",
+    "memo": "庭のチョウ"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "キアゲハ",
+      "Papilio",
+      "アゲハ"
+     ]
+    ],
+    "must_not": [
+     "モンシロチョウ"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-dayflower",
+   "category": "organism",
+   "query": "Commelina communis flower",
+   "ctx": {
+    "lat": 36.39,
+    "lng": 139.06,
+    "observedAt": "2026-08-03T07:40:00+09:00",
+    "place": "群馬県前橋市",
+    "memo": "道ばたの青い花"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "ツユクサ",
+      "Commelina"
+     ]
+    ],
+    "must_not": [
+     "アサガオ"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-treefrog",
+   "category": "organism",
+   "query": "Dryophytes japonicus",
+   "ctx": {
+    "lat": 36.65,
+    "lng": 138.19,
+    "observedAt": "2026-06-28T19:00:00+09:00",
+    "place": "長野県長野市",
+    "memo": "葉の上のカエル"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "アマガエル",
+      "Hyla",
+      "Dryophytes",
+      "カエル"
+     ]
+    ],
+    "must_not": [
+     "トカゲ"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-dragonfly-red",
+   "category": "organism",
+   "query": "Sympetrum frequens",
+   "ctx": {
+    "lat": 36.2,
+    "lng": 138.25,
+    "observedAt": "2026-10-05T13:00:00+09:00",
+    "place": "長野県",
+    "memo": "赤いトンボ"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "トンボ",
+      "Sympetrum",
+      "アカネ"
+     ]
+    ],
+    "must_not": [
+     "チョウ"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-joro-spider",
+   "category": "organism",
+   "query": "Trichonephila clavata web",
+   "ctx": {
+    "lat": 35.18,
+    "lng": 136.9,
+    "observedAt": "2026-10-12T10:00:00+09:00",
+    "place": "愛知県名古屋市",
+    "memo": "大きなクモ"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "ジョロウグモ",
+      "Trichonephila",
+      "Nephila",
+      "クモ"
+     ]
+    ],
+    "must_not": [
+     "昆虫"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-cherry-bloom",
+   "category": "organism",
+   "query": "Cerasus yedoensis Somei-yoshino blossom",
+   "ctx": {
+    "lat": 35.69,
+    "lng": 139.7,
+    "observedAt": "2026-03-30T12:00:00+09:00",
+    "place": "東京都",
+    "memo": "公園の桜"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "サクラ",
+      "Cerasus",
+      "Prunus",
+      "ソメイヨシノ"
+     ]
+    ],
+    "must_not": [
+     "ウメ"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-cassiope-rock",
+   "category": "organism",
+   "query": "Parmotrema tinctorum",
+   "ctx": {
+    "lat": 35.36,
+    "lng": 138.73,
+    "observedAt": "2026-07-20T10:00:00+09:00",
+    "place": "山梨県",
+    "memo": "岩についている模様"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "イワヒゲ",
+      "Cassiope",
+      "ツツジ科",
+      "高山植物"
+     ]
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-moss-carpet",
+   "category": "organism",
+   "query": "moss garden Kyoto",
+   "ctx": {
+    "lat": 35,
+    "lng": 135.68,
+    "observedAt": "2026-06-10T10:00:00+09:00",
+    "place": "京都府",
+    "memo": "苔の庭"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "コケ",
+      "苔",
+      "蘚"
+     ]
+    ],
+    "max_rank": "family",
+    "organism": true
+   }
+  },
+  {
+   "id": "org-mushroom",
+   "category": "organism",
+   "query": "Amanita muscaria",
+   "ctx": {
+    "lat": 43.06,
+    "lng": 141.35,
+    "observedAt": "2026-09-15T09:00:00+09:00",
+    "place": "北海道",
+    "memo": "赤いキノコ"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "テングタケ",
+      "Amanita",
+      "ベニテングタケ"
+     ]
+    ],
+    "must_not": [
+     "食べられます",
+     "食用になります",
+     "食べても大丈夫"
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-crow-city",
+   "category": "organism",
+   "query": "Corvus macrorhynchos",
+   "ctx": {
+    "lat": 35.66,
+    "lng": 139.7,
+    "observedAt": "2026-01-18T07:30:00+09:00",
+    "place": "東京都",
+    "memo": "電線の黒い鳥"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "カラス",
+      "Corvus"
+     ]
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "org-carp-pond",
+   "category": "organism",
+   "query": "koi carp pond Japan",
+   "ctx": {
+    "lat": 34.69,
+    "lng": 135.5,
+    "observedAt": "2026-05-03T14:00:00+09:00",
+    "place": "大阪府",
+    "memo": "池の魚"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "コイ",
+      "Cyprinus"
+     ]
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "land-terraced-paddy",
+   "category": "landscape",
+   "query": "terraced rice fields Japan",
+   "ctx": {
+    "lat": 34.36,
+    "lng": 136.15,
+    "observedAt": "2026-06-01T10:00:00+09:00",
+    "place": "三重県",
+    "memo": "棚田の景色"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "田",
+      "水田",
+      "稲"
+     ],
+     [
+      "収穫",
+      "秋",
+      "稲刈",
+      "はさ",
+      "山",
+      "実り"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "land-mountain-ridge",
+   "category": "landscape",
+   "query": "Japanese Alps ridge landscape",
+   "ctx": {
+    "lat": 36.29,
+    "lng": 137.65,
+    "observedAt": "2026-08-10T06:00:00+09:00",
+    "place": "長野県",
+    "memo": "稜線からの眺め"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "山",
+      "稜線",
+      "高山",
+      "岩"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "land-coastal-dune",
+   "category": "landscape",
+   "query": "Tottori sand dunes",
+   "ctx": {
+    "lat": 35.54,
+    "lng": 134.23,
+    "observedAt": "2026-04-20T11:00:00+09:00",
+    "place": "鳥取県",
+    "memo": "砂丘"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "砂丘",
+      "砂"
+     ],
+     [
+      "海",
+      "海岸",
+      "風"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "land-river-valley",
+   "category": "landscape",
+   "query": "Kurobe Gorge autumn",
+   "ctx": {
+    "lat": 36.7,
+    "lng": 137.6,
+    "observedAt": "2026-11-03T10:00:00+09:00",
+    "place": "富山県",
+    "memo": "渓谷"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "川",
+      "渓",
+      "谷",
+      "渓流"
+     ],
+     [
+      "紅葉",
+      "秋",
+      "落葉"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "land-satoyama",
+   "category": "landscape",
+   "query": "satoyama village Japan",
+   "ctx": {
+    "lat": 35.3,
+    "lng": 136.2,
+    "observedAt": "2026-05-15T09:00:00+09:00",
+    "place": "滋賀県",
+    "memo": "里の風景"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "里山",
+      "集落",
+      "農村",
+      "田",
+      "畑"
+     ],
+     [
+      "森",
+      "林",
+      "山"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "land-wetland-reed",
+   "category": "landscape",
+   "query": "Kushiro Shitsugen marsh",
+   "ctx": {
+    "lat": 43.1,
+    "lng": 144.4,
+    "observedAt": "2026-09-20T08:00:00+09:00",
+    "place": "北海道",
+    "memo": "湿原"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "湖",
+      "沼",
+      "水面",
+      "湿地",
+      "湿原",
+      "池"
+     ],
+     [
+      "雪",
+      "冬",
+      "枯れ",
+      "立ち枯れ"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-riverbank",
+   "category": "environment",
+   "query": "Tama River riverbed",
+   "ctx": {
+    "lat": 35.7,
+    "lng": 139.8,
+    "observedAt": "2026-07-05T08:00:00+09:00",
+    "place": "東京都",
+    "memo": "河川敷"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "河川",
+      "川",
+      "河原",
+      "堤防",
+      "土手"
+     ],
+     [
+      "草",
+      "草地",
+      "刈"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-pond-edge",
+   "category": "environment",
+   "query": "pond aquatic plants Japan",
+   "ctx": {
+    "lat": 35.9,
+    "lng": 139.6,
+    "observedAt": "2026-07-25T09:00:00+09:00",
+    "place": "埼玉県",
+    "memo": "ため池"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "池",
+      "水辺",
+      "水面",
+      "流れ",
+      "水"
+     ],
+     [
+      "暗",
+      "林",
+      "植物",
+      "岸",
+      "苔",
+      "石"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-cedar-plantation",
+   "category": "environment",
+   "query": "Cryptomeria japonica plantation forest",
+   "ctx": {
+    "lat": 34.2,
+    "lng": 135.6,
+    "observedAt": "2026-02-10T10:00:00+09:00",
+    "place": "奈良県",
+    "memo": "杉林"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "スギ",
+      "杉",
+      "針葉樹",
+      "人工林",
+      "植林"
+     ],
+     [
+      "一斉",
+      "密",
+      "同じ高さ",
+      "単一",
+      "人工林",
+      "植林"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-bamboo-grove",
+   "category": "environment",
+   "query": "bamboo grove Japan",
+   "ctx": {
+    "lat": 35.02,
+    "lng": 135.67,
+    "observedAt": "2026-04-05T10:00:00+09:00",
+    "place": "京都府",
+    "memo": "竹林"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "竹",
+      "タケ",
+      "モウソウ",
+      "Phyllostachys"
+     ],
+     [
+      "林",
+      "竹林"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-broadleaf-floor",
+   "category": "environment",
+   "query": "deciduous forest floor leaf litter",
+   "ctx": {
+    "lat": 36.1,
+    "lng": 140.1,
+    "observedAt": "2026-12-01T10:00:00+09:00",
+    "place": "茨城県",
+    "memo": "雑木林の地面"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "落葉",
+      "冬",
+      "枯"
+     ],
+     [
+      "林",
+      "藪",
+      "やぶ",
+      "低木",
+      "樹"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-farmland-veg",
+   "category": "environment",
+   "query": "cabbage field Japan",
+   "ctx": {
+    "lat": 36.3,
+    "lng": 139.9,
+    "observedAt": "2026-05-25T09:00:00+09:00",
+    "place": "栃木県",
+    "memo": "畑"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "畑",
+      "農地",
+      "耕作",
+      "作物",
+      "キャベツ"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-abandoned-field",
+   "category": "organism",
+   "query": "fallow field Japan",
+   "ctx": {
+    "lat": 34.9,
+    "lng": 137.4,
+    "observedAt": "2026-09-05T09:00:00+09:00",
+    "place": "愛知県",
+    "memo": "使われていない畑"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "コスモス",
+      "Cosmos",
+      "花畑"
+     ]
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "env-urban-park",
+   "category": "environment",
+   "query": "Yoyogi Park",
+   "ctx": {
+    "lat": 35.67,
+    "lng": 139.7,
+    "observedAt": "2026-05-10T12:00:00+09:00",
+    "place": "東京都",
+    "memo": "公園の緑"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "公園",
+      "芝",
+      "植栽",
+      "都市"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-street-trees",
+   "category": "environment",
+   "query": "Ginkgo street trees autumn Japan",
+   "ctx": {
+    "lat": 35.67,
+    "lng": 139.72,
+    "observedAt": "2026-11-25T10:00:00+09:00",
+    "place": "東京都",
+    "memo": "並木道"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "樹",
+      "木",
+      "高木"
+     ],
+     [
+      "住宅",
+      "建物",
+      "家",
+      "人工",
+      "都市",
+      "屋根"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-vacant-lot",
+   "category": "environment",
+   "query": "vacant lot Japan",
+   "ctx": {
+    "lat": 34.7,
+    "lng": 135.2,
+    "observedAt": "2026-08-20T09:00:00+09:00",
+    "place": "兵庫県",
+    "memo": "空き地"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "空き地",
+      "駐車場",
+      "舗装",
+      "アスファルト",
+      "都市"
+     ],
+     [
+      "夜",
+      "暗",
+      "照明"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-snow-forest",
+   "category": "environment",
+   "query": "snow covered forest Japan",
+   "ctx": {
+    "lat": 40.6,
+    "lng": 140.9,
+    "observedAt": "2026-01-25T10:00:00+09:00",
+    "place": "青森県",
+    "memo": "雪の森"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "雪",
+      "積雪",
+      "冬"
+     ],
+     [
+      "林",
+      "森",
+      "樹"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-tidal-flat",
+   "category": "environment",
+   "query": "tidal flat mudflat Japan",
+   "ctx": {
+    "lat": 33.1,
+    "lng": 130.2,
+    "observedAt": "2026-04-28T13:00:00+09:00",
+    "place": "佐賀県",
+    "memo": "干潟"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "干潟",
+      "泥",
+      "潮"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-flood-river",
+   "category": "environment",
+   "query": "river flood muddy water",
+   "ctx": {
+    "lat": 34.8,
+    "lng": 134.7,
+    "observedAt": "2026-07-10T15:00:00+09:00",
+    "place": "兵庫県",
+    "memo": "大雨のあとの川"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "増水",
+      "濁",
+      "洪水",
+      "浸水",
+      "冠水",
+      "出水"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "env-rocky-shore",
+   "category": "environment",
+   "query": "Jogasaki coast",
+   "ctx": {
+    "lat": 34.6,
+    "lng": 138.9,
+    "observedAt": "2026-05-05T11:00:00+09:00",
+    "place": "静岡県",
+    "memo": "磯"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "海岸",
+      "岩",
+      "磯",
+      "崖"
+     ],
+     [
+      "海",
+      "波"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "built-shrine-forest",
+   "category": "built",
+   "query": "chinju no mori",
+   "ctx": {
+    "lat": 35,
+    "lng": 135.78,
+    "observedAt": "2026-06-20T09:00:00+09:00",
+    "place": "京都府",
+    "memo": "神社の森"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "森",
+      "林",
+      "樹林"
+     ],
+     [
+      "下層",
+      "低木",
+      "シダ",
+      "草",
+      "照葉",
+      "常緑"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "built-concrete-revetment",
+   "category": "built",
+   "query": "concrete revetment",
+   "ctx": {
+    "lat": 35.6,
+    "lng": 139.5,
+    "observedAt": "2026-06-05T10:00:00+09:00",
+    "place": "神奈川県",
+    "memo": "コンクリートの護岸"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "護岸",
+      "堤防",
+      "舗装",
+      "遊歩道",
+      "人工"
+     ],
+     [
+      "海",
+      "干潟",
+      "水辺",
+      "海岸"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "built-stone-wall-plants",
+   "category": "built",
+   "query": "ishigaki stone wall castle",
+   "ctx": {
+    "lat": 34.69,
+    "lng": 133.92,
+    "observedAt": "2026-05-18T10:00:00+09:00",
+    "place": "岡山県",
+    "memo": "石垣"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "石垣",
+      "石",
+      "石積"
+     ],
+     [
+      "樹",
+      "林",
+      "草",
+      "植物",
+      "雪"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "built-mowing",
+   "category": "built",
+   "query": "lawn mower grass cutting",
+   "ctx": {
+    "lat": 36,
+    "lng": 139.4,
+    "observedAt": "2026-07-15T08:00:00+09:00",
+    "place": "埼玉県",
+    "memo": "草刈り作業"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "芝",
+      "草"
+     ],
+     [
+      "芝刈",
+      "刈",
+      "ロボット",
+      "機械",
+      "管理"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "built-japanese-garden",
+   "category": "built",
+   "query": "Japanese garden pond pine",
+   "ctx": {
+    "lat": 36.56,
+    "lng": 136.66,
+    "observedAt": "2026-11-10T10:00:00+09:00",
+    "place": "石川県",
+    "memo": "庭園"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "庭園",
+      "庭",
+      "池",
+      "植栽",
+      "手入れ"
+     ]
+    ],
+    "organism": false
+   }
+  },
+  {
+   "id": "hard-blur-bird",
+   "category": "hard",
+   "query": "Passer montanus",
+   "transform": "blur",
+   "ctx": {
+    "lat": 35.4,
+    "lng": 139.6,
+    "observedAt": "2026-02-15T08:00:00+09:00",
+    "place": "神奈川県",
+    "memo": "ぶれた"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "スズメ",
+      "Passer",
+      "鳥"
+     ]
+    ],
+    "organism": true
+   }
+  },
+  {
+   "id": "hard-tiny-distant",
+   "category": "hard",
+   "query": "Milvus migrans flying",
+   "transform": "tiny",
+   "ctx": {
+    "lat": 35.3,
+    "lng": 139.5,
+    "observedAt": "2026-03-10T11:00:00+09:00",
+    "place": "神奈川県",
+    "memo": "遠くの鳥"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "鳥",
+      "猛禽",
+      "トビ",
+      "Milvus"
+     ]
+    ],
+    "max_band": "medium",
+    "max_rank": "family",
+    "organism": true
+   }
+  },
+  {
+   "id": "hard-dark-night",
+   "category": "hard",
+   "query": "Procyon lotor",
+   "transform": "dark",
+   "ctx": {
+    "lat": 35.8,
+    "lng": 139.3,
+    "observedAt": "2026-08-25T22:00:00+09:00",
+    "place": "東京都",
+    "memo": "夜に何か"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "暗",
+      "夜",
+      "光",
+      "照明"
+     ],
+     [
+      "アライグマ",
+      "哺乳",
+      "タヌキ",
+      "動物"
+     ]
+    ],
+    "max_band": "medium",
+    "organism": true
+   }
+  },
+  {
+   "id": "hard-leaf-crop",
+   "category": "hard",
+   "query": "Quercus serrata leaf",
+   "transform": "crop",
+   "ctx": {
+    "lat": 35.1,
+    "lng": 136.9,
+    "observedAt": "2026-06-01T10:00:00+09:00",
+    "place": "愛知県",
+    "memo": "葉っぱ"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "葉"
+     ]
+    ],
+    "max_band": "medium",
+    "max_rank": "genus",
+    "organism": true
+   }
+  },
+  {
+   "id": "hard-oof-insect",
+   "category": "hard",
+   "query": "Coccinella septempunctata",
+   "transform": "blur",
+   "ctx": {
+    "lat": 34.4,
+    "lng": 132.5,
+    "observedAt": "2026-04-25T10:00:00+09:00",
+    "place": "広島県",
+    "memo": "ピンぼけ虫"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "テントウ",
+      "甲虫",
+      "昆虫",
+      "Coccinell"
+     ]
+    ],
+    "max_band": "medium",
+    "max_rank": "family",
+    "organism": true
+   }
+  },
+  {
+   "id": "hard-sky-only",
+   "category": "hard",
+   "query": "cumulus clouds blue sky",
+   "ctx": {
+    "lat": 35,
+    "lng": 137,
+    "observedAt": "2026-08-01T14:00:00+09:00",
+    "place": "愛知県",
+    "memo": "空"
+   },
+   "expect": {
+    "must_any": [
+     [
+      "空",
+      "雲",
+      "天気"
+     ]
+    ],
+    "max_band": "low",
+    "organism": false
+   }
+  },
+  {
+   "id": "own-forest-bird",
+   "category": "hidden-subject",
+   "source": "founder-own",
+   "images": [
+    "own-forest-bird-1.jpg",
+    "own-forest-bird-2.jpg"
+   ],
+   "ctx": {
+    "lat": null,
+    "lng": null,
+    "observedAt": "2026-11-22T07:03:00+09:00",
+    "place": "位置非公開",
+    "memo": ""
+   },
+   "expect": {
+    "must_any": [
+     [
+      "鳥",
+      "Aves",
+      "小鳥"
+     ]
+    ],
+    "subjects": [
+     {
+      "asset_index": 0,
+      "label": "鳥",
+      "min_rank": "class",
+      "box_2d": [
+       245,
+       495,
+       290,
+       595
+      ]
+     }
+    ],
+    "organism": true,
+    "note": "production v5.7 missed this bird (2026-11-22). photo2 has no confirmed bird."
+   }
+  }
+ ]
+}

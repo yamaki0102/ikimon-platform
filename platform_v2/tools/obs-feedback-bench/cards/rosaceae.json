@@ -1,0 +1,66 @@
+{
+ "key": "rosaceae",
+ "en": {
+  "scientific_name": "Rosaceae",
+  "english_name": "Rose family",
+  "rank": "family",
+  "overview": "Diverse flowering plants including roses, cherries, apples, and brambles, typically with five-petaled flowers and toothed leaves.",
+  "distinguishing_tips": [
+   "Usually 5-petaled radially symmetrical flowers",
+   "Numerous stamens often arranged in a ring",
+   "Alternate leaves, frequently with stipules at the base",
+   "Fruit types vary widely: drupes, pomes, achenes, or aggregates"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Buttercup family",
+    "scientific_name": "Ranunculaceae",
+    "distinction_point": "Lack stipules and usually have free, spiral carpels rather than a hypanthium."
+   },
+   {
+    "english_name": "Saxifrage family",
+    "scientific_name": "Saxifragaceae",
+    "distinction_point": "Typically have fewer stamens (5–10) and two fused carpels."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower center showing the hypanthium and stamens",
+   "Base of the leaf petiole to check for stipules",
+   "Mature fruit or developing seed head"
+  ],
+  "season_habitat": "Blooms mostly in spring to summer across forests, meadows, mountains, and cultivated areas."
+ },
+ "ja": {
+  "scientific_name": "Rosaceae",
+  "english_name": "バラ科",
+  "rank": "科",
+  "overview": "バラ、サクラ、リンゴ、キイチゴなどを含む多様な植物群です。一般的に5枚の花弁を持つ花と、縁にギザギザ（鋸歯）のある葉が特徴です。",
+  "distinguishing_tips": [
+   "通常5枚の花弁を持ち、放射相称の花をつける",
+   "多数の雄しべが輪状に並ぶことが多い",
+   "葉は互生し、付け根に托葉があることが多い",
+   "果実の形態は核果、梨状果、痩果、集合果など非常に多様"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "キンポウゲ科",
+    "scientific_name": "Ranunculaceae",
+    "japanese_name": "キンポウゲ科",
+    "distinction_point": "托葉がなく、花托筒（ヒパンチウム）を持たず、心皮が離生して螺旋状に並ぶことが多い。"
+   },
+   {
+    "english_name": "ユキノシタ科",
+    "scientific_name": "Saxifragaceae",
+    "japanese_name": "ユキノシタ科",
+    "distinction_point": "雄しべの数が少なく（5〜10本）、2つの心皮が癒合しているのが一般的。"
+   }
+  ],
+  "confirm_more": [
+   "花の中心部を拡大し、花托筒と雄しべの様子を確認する",
+   "葉柄の付け根を観察し、托葉の有無を確認する",
+   "成熟した果実や種子の様子を観察する"
+  ],
+  "season_habitat": "主に春から夏にかけて開花し、森林、草原、山地、耕作地など幅広い環境で見られます。"
+ },
+ "costUsd": 0.002988
+}

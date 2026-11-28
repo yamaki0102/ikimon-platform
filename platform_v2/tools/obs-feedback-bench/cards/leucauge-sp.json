@@ -1,0 +1,77 @@
+{
+ "key": "leucauge-sp",
+ "en": {
+  "scientific_name": "Leucauge",
+  "english_name": "Orchard orb-weavers",
+  "rank": "genus",
+  "overview": "Slender, metallic-silver and green orb-weaver spiders that build horizontal or tilted webs in shaded forest edges and gardens.",
+  "distinguishing_tips": [
+   "Metallic silver, green, or gold markings on abdomen",
+   "Slender, elongated green or yellowish legs",
+   "Hangs upside-down beneath horizontal or slanted orb webs",
+   "Bright orange or red patch often on underside of abdomen"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Long-jawed orb-weavers",
+    "scientific_name": "Tetragnatha",
+    "distinction_point": "Tetragnatha species have much longer, narrower abdomens and lack bright silver-green metallic coloration."
+   },
+   {
+    "english_name": "Garden spiders",
+    "scientific_name": "Argiope",
+    "distinction_point": "Argiope species are larger, build vertical webs with zigzag stabilimenta, and lack metallic green-silver sheen."
+   },
+   {
+    "english_name": "Golden silk orb-weavers",
+    "scientific_name": "Trichonephila",
+    "distinction_point": "Trichonephila species are much larger with distinct yellow-and-black banded legs and huge golden webs."
+   }
+  ],
+  "confirm_more": [
+   "Underside of the abdomen to show orange or red markings",
+   "Dorsal view of the abdomen's metallic silver pattern",
+   "Side profile showing the horizontal or tilted web orientation"
+  ],
+  "season_habitat": "Common from spring to autumn in shaded woodlands, bushes, and gardens across Japan."
+ },
+ "ja": {
+  "scientific_name": "Leucauge",
+  "english_name": "Orchard orb-weavers",
+  "rank": "属",
+  "overview": "森林の縁や庭の日陰に、水平または傾いた円網を張る、細身で金属光沢のある銀色や緑色のコガネグモ科のクモです。",
+  "distinguishing_tips": [
+   "腹部に金属光沢のある銀色、緑色、または金色の模様がある",
+   "細長く伸びた緑色または黄みがかった脚",
+   "水平または傾いた円網の下側にぶら下がっている",
+   "腹部の裏側に鮮やかなオレンジ色や赤色の斑点があることが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Long-jawed orb-weavers",
+    "scientific_name": "Tetragnatha",
+    "japanese_name": "アシナガグモ属",
+    "distinction_point": "アシナガグモ属は腹部がはるかに細長く、金属光沢のある銀緑色の模様がありません。"
+   },
+   {
+    "english_name": "Garden spiders",
+    "scientific_name": "Argiope",
+    "japanese_name": "コガネグモ属",
+    "distinction_point": "コガネグモ属は体が大きく、垂直な網を張り、ジグザグ模様の隠れ帯（白帯）を作ります。また、金属光沢のある緑銀色の輝きはありません。"
+   },
+   {
+    "english_name": "Golden silk orb-weavers",
+    "scientific_name": "Trichonephila",
+    "japanese_name": "ジョロウグモ属",
+    "distinction_point": "ジョロウグモ属は体がはるかに大きく、脚に特徴的な黄色と黒の縞模様があり、巨大な黄金色の網を張ります。"
+   }
+  ],
+  "confirm_more": [
+   "腹部の裏側（オレンジ色や赤色の斑点を確認するため）",
+   "腹部の背面（金属光沢のある銀色の模様を確認するため）",
+   "横からの姿（網が水平または傾いている様子を確認するため）"
+  ],
+  "season_habitat": "春から秋にかけて、日本全国の木陰や茂み、庭などでよく見られます。"
+ },
+ "costUsd": 0.00793225
+}

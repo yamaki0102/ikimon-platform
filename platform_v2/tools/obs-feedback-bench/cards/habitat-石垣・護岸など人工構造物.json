@@ -1,0 +1,46 @@
+{
+ "key": "habitat-石垣・護岸など人工構造物",
+ "en": {
+  "habitat": "Stone Walls & Revetments",
+  "overview": "Artificial stone walls, concrete embankments, and revetments that provide rocky crevices and sun-warmed surfaces for specialized urban and riparian wildlife.",
+  "what_to_look_for": [
+   "Ferns and mosses in damp crevices",
+   "Basking lizards such as the Japanese grass lizard",
+   "Wall-nesting solitary bees or wasps",
+   "Lichens on sun-exposed stone surfaces"
+  ],
+  "confirm_more": [
+   "Wide shot showing the structure's height and surrounding environment",
+   "Close-up of crevices, mortar gaps, and growing plants",
+   "Angle along the base where it meets soil or water"
+  ],
+  "management_signs": [
+   "Herbicide spraying or weed clearing along the base",
+   "Recent concrete patching or mortar repointing",
+   "Installed drainage pipes or weep holes"
+  ],
+  "seasonal_note": "Reptiles bask on warm stones in spring and autumn, while ferns thrive in summer."
+ },
+ "ja": {
+  "habitat": "石垣・護岸",
+  "overview": "人工的な石垣やコンクリート護岸は、岩の隙間や日光で温められた表面を提供し、都市部や河川沿いの特殊な野生生物の生息地となっています。",
+  "what_to_look_for": [
+   "湿った隙間に生えるシダ類やコケ類",
+   "日光浴をするニホンカナヘビなどのトカゲ類",
+   "壁の隙間に巣を作るハナバチやカリバチの仲間",
+   "日当たりの良い石の表面に付着した地衣類"
+  ],
+  "confirm_more": [
+   "構造物の高さと周囲の環境がわかる引きの構図",
+   "隙間やモルタルの割れ目、そこに生える植物の接写",
+   "地面や水面と接する基部を捉えたアングル"
+  ],
+  "management_signs": [
+   "基部周辺での除草剤散布や草刈りの跡",
+   "コンクリートの補修やモルタルの詰め直し",
+   "設置された排水パイプや水抜き穴"
+  ],
+  "seasonal_note": "春と秋には爬虫類が温かい石の上で日光浴をし、夏にはシダ類が元気に育ちます。"
+ },
+ "costUsd": 0.007098500000000001
+}

@@ -1,0 +1,77 @@
+{
+ "key": "crocodylia",
+ "en": {
+  "scientific_name": "Crocodylia",
+  "english_name": "Crocodilians",
+  "rank": "order",
+  "overview": "Large, semi-aquatic predatory reptiles with armored, scaly bodies, long snouts, and powerful tails, not native to Japan.",
+  "distinguishing_tips": [
+   "Thick, bony-plated skin (osteoderms) along the back",
+   "Elongated snout with heavy jaws",
+   "Eyes and nostrils positioned high on top of the head",
+   "Muscular, laterally flattened tail for swimming"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Giant Salamander",
+    "scientific_name": "Andrias japonicus",
+    "distinction_point": "Lacks scales and claws, featuring smooth, moist skin and a broad, rounded head."
+   },
+   {
+    "english_name": "Green Iguana",
+    "scientific_name": "Iguana iguana",
+    "distinction_point": "Has a throat dewlap, dorsal spines, and a much shorter snout without heavy bony armor."
+   },
+   {
+    "english_name": "Common Snapping Turtle",
+    "scientific_name": "Chelydra serpentina",
+    "distinction_point": "Possesses a hard, domed shell rather than an elongated, armored body."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head and snout to check tooth visibility",
+   "Top-down view of the snout shape (U-shaped vs. V-shaped)",
+   "Full-body shot showing the armored back and tail"
+  ],
+  "season_habitat": "Not native to Japan; occasionally observed in captivity or as rare escaped pets in warm-water habitats."
+ },
+ "ja": {
+  "scientific_name": "Crocodylia",
+  "english_name": "ワニ目",
+  "rank": "目",
+  "overview": "日本には生息していませんが、鎧のような鱗に覆われた体、長い吻（口先）、強力な尾を持つ、大型の半水生肉食爬虫類です。",
+  "distinguishing_tips": [
+   "背中に厚い骨質の板（皮骨板）がある",
+   "長く伸びた吻と強力な顎",
+   "目と鼻孔が頭部の高い位置にある",
+   "泳ぐための筋肉質で横に平たい尾"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "オオサンショウウオ",
+    "scientific_name": "Andrias japonicus",
+    "japanese_name": "オオサンショウウオ",
+    "distinction_point": "鱗や爪はなく、皮膚は滑らかで湿っており、頭部は幅広く丸みを帯びています。"
+   },
+   {
+    "english_name": "グリーンイグアナ",
+    "scientific_name": "Iguana iguana",
+    "japanese_name": "グリーンイグアナ",
+    "distinction_point": "喉に垂れ下がった皮膚（喉垂）や背中の棘があり、吻は短く、ワニのような重厚な骨質の鎧はありません。"
+   },
+   {
+    "english_name": "カミツキガメ",
+    "scientific_name": "Chelydra serpentina",
+    "japanese_name": "カミツキガメ",
+    "distinction_point": "細長い鎧状の体ではなく、硬いドーム状の甲羅を持っています。"
+   }
+  ],
+  "confirm_more": [
+   "頭部と吻の側面から歯の見える様子を確認する",
+   "吻の形（U字型かV字型か）を上から確認する",
+   "鎧のような背中と尾が写る全身写真"
+  ],
+  "season_habitat": "日本には生息していません。飼育下や、温暖な水域に稀に遺棄された個体が目撃されることがあります。"
+ },
+ "costUsd": 0.01064425
+}

@@ -1,0 +1,46 @@
+{
+ "key": "habitat-水田",
+ "en": {
+  "habitat": "Rice paddy",
+  "overview": "Flooded agricultural fields cultivating rice, forming vital seasonal wetlands for diverse amphibians, insects, and wading birds across Japan.",
+  "what_to_look_for": [
+   "Tadpoles or frogs such as the Japanese tree frog",
+   "Dragonflies and damselflies perched on rice stalks",
+   "Wading birds like egrets or herons foraging",
+   "Earthen bunds (aze) with wild grasses"
+  ],
+  "confirm_more": [
+   "Wide-angle view showing the entire flooded field and surrounding bunds",
+   "Close-up of the water surface, mud, or aquatic organisms",
+   "Detail of rice plants or edge vegetation"
+  ],
+  "management_signs": [
+   "Water-level control gates and concrete irrigation channels",
+   "Mowed or herbicide-treated grass along the bunds",
+   "Tractor tire tracks or neatly spaced rice rows"
+  ],
+  "seasonal_note": "Flooded in spring and summer, then drained in autumn for harvest."
+ },
+ "ja": {
+  "habitat": "水田",
+  "overview": "稲を育てるために水を張った農地で、日本各地で両生類、昆虫、水鳥など多様な生き物にとって重要な季節的な湿地となっています。",
+  "what_to_look_for": [
+   "ニホンアマガエルなどのオタマジャクシやカエル",
+   "稲の茎にとまるトンボやイトトンボ",
+   "餌を探すサギなどの水鳥",
+   "野草が生える土のあぜ道"
+  ],
+  "confirm_more": [
+   "水田全体と周囲のあぜ道がわかる広角の風景",
+   "水面、泥、または水生生物のクローズアップ",
+   "稲や水辺の植物の細部"
+  ],
+  "management_signs": [
+   "水位を調整する水門やコンクリート製の用水路",
+   "草刈りや除草剤で手入れされたあぜ道の草",
+   "トラクターの轍や整然と並んだ稲の列"
+  ],
+  "seasonal_note": "春から夏にかけては水が張られ、秋には収穫のために水が抜かれます。"
+ },
+ "costUsd": 0.00718875
+}

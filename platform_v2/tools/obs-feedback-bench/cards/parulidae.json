@@ -1,0 +1,77 @@
+{
+ "key": "parulidae",
+ "en": {
+  "scientific_name": "Parulidae",
+  "english_name": "New World warblers",
+  "rank": "family",
+  "overview": "Small, active, insectivorous songbirds native to the Americas, occurring in Japan only as very rare vagrants.",
+  "distinguishing_tips": [
+   "Fine, pointed, slender bill",
+   "Often bright yellow, olive, or boldly patterned plumage",
+   "Active, restless foraging in foliage",
+   "Nine-primaried wing structure"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Leaf warblers",
+    "scientific_name": "Phylloscopidae",
+    "distinction_point": "Leaf warblers usually have duller greenish-brown plumage and lack bright yellow or bold streaking."
+   },
+   {
+    "english_name": "Finches",
+    "scientific_name": "Fringillidae",
+    "distinction_point": "Finches have thicker, conical bills suited for seeds rather than thin insect-eating bills."
+   },
+   {
+    "english_name": "White-eyes",
+    "scientific_name": "Zosteropidae",
+    "distinction_point": "White-eyes have a distinct white eye-ring and uniform greenish upperparts."
+   }
+  ],
+  "confirm_more": [
+   "Clear side profile of the head and bill",
+   "Upperparts and wing-bar pattern",
+   "Undertail and rump coloration"
+  ],
+  "season_habitat": "Very rare vagrants in Japan, mostly recorded during spring or autumn migration in coastal woods and parks."
+ },
+ "ja": {
+  "scientific_name": "Parulidae",
+  "english_name": "New World warblers",
+  "rank": "科",
+  "overview": "アメリカ大陸に生息する小型で活発な食虫性の鳴禽類です。日本では非常に稀な迷鳥として記録されます。",
+  "distinguishing_tips": [
+   "細く尖った繊細な嘴",
+   "鮮やかな黄色やオリーブ色、または大胆な模様の羽衣",
+   "木の葉の間をせわしなく動き回る採餌行動",
+   "初列風切羽が9枚という構造"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Leaf warblers",
+    "scientific_name": "Phylloscopidae",
+    "japanese_name": "ムシクイ科",
+    "distinction_point": "ムシクイ類は全体的に地味な緑褐色をしており、鮮やかな黄色や大胆な縞模様は見られません。"
+   },
+   {
+    "english_name": "Finches",
+    "scientific_name": "Fringillidae",
+    "japanese_name": "アトリ科",
+    "distinction_point": "アトリ類は種子を食べるのに適した太く円錐形の嘴を持っており、食虫用の細い嘴とは異なります。"
+   },
+   {
+    "english_name": "White-eyes",
+    "scientific_name": "Zosteropidae",
+    "japanese_name": "メジロ科",
+    "distinction_point": "メジロ類は目の周りに特徴的な白いアイリングがあり、体の上面は一様な緑色をしています。"
+   }
+  ],
+  "confirm_more": [
+   "頭部と嘴の鮮明な横顔",
+   "体の上面と翼帯のパターン",
+   "下尾筒と腰の色彩"
+  ],
+  "season_habitat": "日本では非常に稀な迷鳥であり、主に春や秋の渡りの時期に沿岸部の森林や公園で記録されます。"
+ },
+ "costUsd": 0.0083145
+}

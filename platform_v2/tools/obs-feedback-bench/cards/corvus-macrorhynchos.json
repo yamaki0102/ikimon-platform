@@ -1,0 +1,77 @@
+{
+ "key": "corvus-macrorhynchos",
+ "en": {
+  "scientific_name": "Corvus macrorhynchos",
+  "english_name": "Large-billed Crow",
+  "rank": "species",
+  "overview": "A large, all-black crow common across Japan, recognizable by its heavy, arched bill and steep forehead.",
+  "distinguishing_tips": [
+   "Thick, strongly curved bill",
+   "Steeply rounded forehead",
+   "Glossy black plumage with purplish sheen",
+   "Large, heavy-bodied build"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Carrion Crow",
+    "scientific_name": "Corvus corone",
+    "distinction_point": "Has a thinner, straighter bill and a flatter forehead."
+   },
+   {
+    "english_name": "Rook",
+    "scientific_name": "Corvus frugilegus",
+    "distinction_point": "Shows bare whitish skin at the base of a thinner bill."
+   },
+   {
+    "english_name": "Common Raven",
+    "scientific_name": "Corvus corax",
+    "distinction_point": "Much larger with a wedge-shaped tail and shaggy throat feathers."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head to show bill thickness and forehead angle",
+   "Perched bird showing overall body proportions",
+   "In-flight silhouette to check tail shape"
+  ],
+  "season_habitat": "Year-round resident in urban areas, parks, forests, and coasts across Japan."
+ },
+ "ja": {
+  "scientific_name": "Corvus macrorhynchos",
+  "english_name": "Large-billed Crow",
+  "rank": "種",
+  "overview": "日本全国でよく見られる全身黒色の大型のカラス。太く湾曲したくちばしと、盛り上がった額が特徴です。",
+  "distinguishing_tips": [
+   "太く、強く湾曲したくちばし",
+   "急に盛り上がった額",
+   "紫色の光沢がある艶やかな黒い羽毛",
+   "大きく重厚な体格"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Carrion Crow",
+    "scientific_name": "Corvus corone",
+    "japanese_name": "ハシボソガラス",
+    "distinction_point": "くちばしが細く直線的で、額が平らです。"
+   },
+   {
+    "english_name": "Rook",
+    "scientific_name": "Corvus frugilegus",
+    "japanese_name": "ミヤマガラス",
+    "distinction_point": "くちばしの付け根が白く裸出しており、くちばし自体も細めです。"
+   },
+   {
+    "english_name": "Common Raven",
+    "scientific_name": "Corvus corax",
+    "japanese_name": "ワタリガラス",
+    "distinction_point": "ハシブトガラスよりはるかに大きく、尾羽がくさび形で、喉の羽毛がボサボサしています。"
+   }
+  ],
+  "confirm_more": [
+   "くちばしの太さと額の角度がわかる横顔",
+   "体全体のプロポーションがわかる止まっている姿",
+   "尾羽の形を確認できる飛翔時のシルエット"
+  ],
+  "season_habitat": "日本全国の市街地、公園、森林、海岸などに一年中生息する留鳥です。"
+ },
+ "costUsd": 0.00839375
+}

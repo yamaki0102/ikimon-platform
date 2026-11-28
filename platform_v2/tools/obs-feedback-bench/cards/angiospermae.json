@@ -1,0 +1,77 @@
+{
+ "key": "angiospermae",
+ "en": {
+  "scientific_name": "Angiospermae",
+  "english_name": "Flowering plants",
+  "rank": "class",
+  "overview": "Vascular plants that produce flowers and enclose their seeds within fruits, dominating most terrestrial ecosystems across Japan.",
+  "distinguishing_tips": [
+   "True flowers with petals, sepals, stamens, or carpels",
+   "Seeds enclosed inside a fruit or ovary",
+   "Broad, flat leaves with netted venation in most species",
+   "Diverse growth forms from tiny herbs to tall trees"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Gymnosperms",
+    "scientific_name": "Gymnospermae",
+    "distinction_point": "Produce naked seeds in cones rather than flowers and enclosed fruits."
+   },
+   {
+    "english_name": "Ferns",
+    "scientific_name": "Polypodiopsida",
+    "distinction_point": "Reproduce via spores on leaf undersides and lack flowers or seeds."
+   },
+   {
+    "english_name": "Mosses",
+    "scientific_name": "Bryophyta",
+    "distinction_point": "Small, non-vascular plants without true roots, flowers, or seeds."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of flowers showing reproductive parts",
+   "Fruits or seed pods, whole and in cross-section",
+   "Leaf arrangement and venation pattern"
+  ],
+  "season_habitat": "Year-round across all Japanese habitats from coastal lowlands to alpine zones."
+ },
+ "ja": {
+  "scientific_name": "Angiospermae",
+  "english_name": "被子植物",
+  "rank": "綱",
+  "overview": "花を咲かせ、種子を果実の中に包み込む維管束植物です。日本全国のほとんどの陸上生態系で優占しています。",
+  "distinguishing_tips": [
+   "花弁、萼、雄しべ、雌しべを持つ真の花がある",
+   "種子が果実や子房の中に包まれている",
+   "多くの種で、幅広く平らな葉に網状の葉脈が見られる",
+   "小さな草本から高木まで、多様な生育形態を持つ"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "裸子植物",
+    "scientific_name": "Gymnospermae",
+    "japanese_name": "ラシショクブツ",
+    "distinction_point": "花や果実は作らず、球果（まつぼっくりなど）の中に裸の種子を作る。"
+   },
+   {
+    "english_name": "シダ植物",
+    "scientific_name": "Polypodiopsida",
+    "japanese_name": "シダショクブツ",
+    "distinction_point": "葉の裏にある胞子で繁殖し、花や種子を作らない。"
+   },
+   {
+    "english_name": "コケ植物",
+    "scientific_name": "Bryophyta",
+    "japanese_name": "コケショクブツ",
+    "distinction_point": "維管束を持たない小型の植物で、真の根、花、種子がない。"
+   }
+  ],
+  "confirm_more": [
+   "生殖器官が確認できる花のクローズアップ",
+   "果実や種子のさや（全体および断面）",
+   "葉の付き方と葉脈のパターン"
+  ],
+  "season_habitat": "一年中、海岸の低地から高山帯まで、日本全国のあらゆる環境で見られます。"
+ },
+ "costUsd": 0.0101085
+}

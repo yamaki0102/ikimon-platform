@@ -1,0 +1,77 @@
+{
+ "key": "passeriformes",
+ "en": {
+  "scientific_name": "Passeriformes",
+  "english_name": "Perching birds",
+  "rank": "order",
+  "overview": "Small to medium-sized perching birds with specialized feet for gripping branches, representing over half of all bird species.",
+  "distinguishing_tips": [
+   "Three toes forward, one backward (anisodactyl)",
+   "Typically small to medium body size",
+   "Varied bill shapes adapted to diet",
+   "Often seen perching on twigs or wires"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Woodpeckers",
+    "scientific_name": "Piciformes",
+    "distinction_point": "Zygodactyl feet (two toes forward, two back) and stiff tail feathers."
+   },
+   {
+    "english_name": "Swifts",
+    "scientific_name": "Apodiformes",
+    "distinction_point": "Extremely long, scythe-shaped wings and inability to perch upright."
+   },
+   {
+    "english_name": "Cuckoos",
+    "scientific_name": "Cuculiformes",
+    "distinction_point": "Longer, graduated tails and zygodactyl feet."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of feet gripping a perch",
+   "Side profile showing bill shape",
+   "Full body shot to check proportions"
+  ],
+  "season_habitat": "Year-round across all habitats in Japan, from urban parks to alpine forests."
+ },
+ "ja": {
+  "scientific_name": "Passeriformes",
+  "english_name": "スズメ目",
+  "rank": "目",
+  "overview": "枝を掴むのに適した足を持つ小型から中型の鳥類で、全鳥類種の半数以上を占めるグループです。",
+  "distinguishing_tips": [
+   "前方に3本、後方に1本の指がある（不等趾足）",
+   "一般的に小型から中型の体格",
+   "食性に適応した多様な嘴の形状",
+   "枝や電線に止まっている姿がよく見られる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Woodpeckers",
+    "scientific_name": "Piciformes",
+    "japanese_name": "キツツキ目",
+    "distinction_point": "対趾足（前後に2本ずつの指）を持ち、尾羽が硬い。"
+   },
+   {
+    "english_name": "Swifts",
+    "scientific_name": "Apodiformes",
+    "japanese_name": "アマツバメ目",
+    "distinction_point": "非常に長く鎌のような翼を持ち、直立して止まることができない。"
+   },
+   {
+    "english_name": "Cuckoos",
+    "scientific_name": "Cuculiformes",
+    "japanese_name": "カッコウ目",
+    "distinction_point": "尾が長く階段状で、対趾足を持つ。"
+   }
+  ],
+  "confirm_more": [
+   "枝を掴んでいる足のクローズアップ",
+   "嘴の形がわかる横からのシルエット",
+   "プロポーションを確認できる全身写真"
+  ],
+  "season_habitat": "日本全国の都市公園から高山帯の森林まで、あらゆる環境で一年中見られます。"
+ },
+ "costUsd": 0.00752425
+}

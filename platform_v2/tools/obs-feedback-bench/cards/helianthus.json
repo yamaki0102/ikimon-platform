@@ -1,0 +1,77 @@
+{
+ "key": "helianthus",
+ "en": {
+  "scientific_name": "Helianthus",
+  "english_name": "Sunflowers",
+  "rank": "genus",
+  "overview": "Tall, rough-stemmed herbs with large, showy yellow flower heads that are widely cultivated and naturalized across Japan.",
+  "distinguishing_tips": [
+   "Large flower heads with bright yellow ray florets",
+   "Dark brown or yellow central disc",
+   "Rough, hairy, often tall stems",
+   "Broad, ovate to lanceolate leaves"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Mexican sunflowers",
+    "scientific_name": "Tithonia",
+    "distinction_point": "Tithonia has swollen, hollow flower stalks just below the flower head."
+   },
+   {
+    "english_name": "Coneflowers",
+    "scientific_name": "Rudbeckia",
+    "distinction_point": "Rudbeckia typically has a distinctly raised, cone-shaped central disc."
+   },
+   {
+    "english_name": "Oxeye sunflowers",
+    "scientific_name": "Heliopsis",
+    "distinction_point": "Heliopsis ray florets are fertile and persist on the seed head, unlike Helianthus."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the phyllaries (bracts) behind the flower head",
+   "Side view of the stem and leaf attachment",
+   "Base of the plant or underground tubers if visible"
+  ],
+  "season_habitat": "Blooms from summer to autumn in gardens, fields, and disturbed roadsides."
+ },
+ "ja": {
+  "scientific_name": "Helianthus",
+  "english_name": "ヒマワリ属",
+  "rank": "属",
+  "overview": "背が高く、茎がざらついた草本で、大きく華やかな黄色の頭状花をつけます。日本各地で広く栽培され、野生化しています。",
+  "distinguishing_tips": [
+   "鮮やかな黄色の舌状花を持つ大きな頭状花",
+   "暗褐色または黄色の中心部（筒状花）",
+   "ざらざらとした毛が生えた、多くの場合背の高い茎",
+   "幅の広い卵形から披針形の葉"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "メキシコヒマワリ",
+    "scientific_name": "Tithonia",
+    "japanese_name": "メキシコヒマワリ属",
+    "distinction_point": "Tithoniaは、頭状花のすぐ下の花柄が膨らんで中空になっています。"
+   },
+   {
+    "english_name": "ルドベキア",
+    "scientific_name": "Rudbeckia",
+    "japanese_name": "オオハンゴンソウ属",
+    "distinction_point": "Rudbeckiaは、中心部が円錐状に盛り上がっているのが特徴です。"
+   },
+   {
+    "english_name": "キクイモモドキ",
+    "scientific_name": "Heliopsis",
+    "japanese_name": "キクイモモドキ属",
+    "distinction_point": "Heliopsisの舌状花は結実し、Helianthusと異なり種子ができても花びらが残ります。"
+   }
+  ],
+  "confirm_more": [
+   "頭状花の裏側にある総苞片の接写",
+   "茎と葉の付け根の側面図",
+   "植物の根元、または確認できれば地下茎（塊茎）"
+  ],
+  "season_habitat": "夏から秋にかけて開花し、庭園、畑、荒れ地や道端で見られます。"
+ },
+ "costUsd": 0.010397749999999999
+}

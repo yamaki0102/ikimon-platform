@@ -1,0 +1,77 @@
+{
+ "key": "ardea-cinerea",
+ "en": {
+  "scientific_name": "Ardea cinerea",
+  "english_name": "Grey Heron",
+  "rank": "species",
+  "overview": "A large, long-legged heron with grey upperparts, a white head, and a bold black stripe above the eye.",
+  "distinguishing_tips": [
+   "Grey back and wings with black flight feathers",
+   "White head with a black supercilium extending into a crest",
+   "Long, pointed yellow-orange bill",
+   "White neck with dark vertical streaks down the front"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Purple Heron",
+    "scientific_name": "Ardea purpurea",
+    "distinction_point": "Darker overall with a reddish-brown neck and dark belly."
+   },
+   {
+    "english_name": "Great Egret",
+    "scientific_name": "Ardea alba",
+    "distinction_point": "Completely white plumage with no grey or black markings."
+   },
+   {
+    "english_name": "Black-crowned Night Heron",
+    "scientific_name": "Nycticorax nycticorax",
+    "distinction_point": "Much smaller and stockier with a black cap and back."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the head showing the black eye-stripe and crest",
+   "Full body shot in flight to show the grey and black wing pattern",
+   "Front view of the neck to capture the dark vertical streaking"
+  ],
+  "season_habitat": "Year-round resident across Japan, inhabiting rivers, lakes, marshes, rice paddies, and coastal mudflats."
+ },
+ "ja": {
+  "scientific_name": "Ardea cinerea",
+  "english_name": "Grey Heron",
+  "rank": "種",
+  "overview": "背中が灰色で、白い頭部に目の上から伸びる黒い筋模様が特徴的な、足の長い大型のサギです。",
+  "distinguishing_tips": [
+   "背中と翼は灰色で、風切羽が黒い",
+   "白い頭部に、冠羽へと続く黒い眉斑がある",
+   "長く尖った黄色からオレンジ色のくちばし",
+   "白い首の前面に黒い縦斑がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Purple Heron",
+    "scientific_name": "Ardea purpurea",
+    "japanese_name": "ムラサキサギ",
+    "distinction_point": "全体的に色が濃く、首が赤褐色で腹部が暗色。"
+   },
+   {
+    "english_name": "Great Egret",
+    "scientific_name": "Ardea alba",
+    "japanese_name": "ダイサギ",
+    "distinction_point": "全身が真っ白で、灰色や黒の模様がない。"
+   },
+   {
+    "english_name": "Black-crowned Night Heron",
+    "scientific_name": "Nycticorax nycticorax",
+    "japanese_name": "ゴイサギ",
+    "distinction_point": "体はずっと小さくずんぐりしており、頭頂部と背中が黒い。"
+   }
+  ],
+  "confirm_more": [
+   "黒い眉斑と冠羽がよくわかる頭部の横顔",
+   "灰色と黒の翼の模様がわかる飛翔中の全身写真",
+   "黒い縦斑が確認できる首の正面写真"
+  ],
+  "season_habitat": "日本全国に一年中生息し、川、湖、沼地、田んぼ、海岸の干潟などで見られます。"
+ },
+ "costUsd": 0.0089305
+}

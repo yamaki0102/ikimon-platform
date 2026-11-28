@@ -1,0 +1,66 @@
+{
+ "key": "alnus-maximowiczii",
+ "en": {
+  "scientific_name": "Alnus maximowiczii",
+  "english_name": "Maximilian's alder",
+  "rank": "species",
+  "overview": "A deciduous shrub or small tree of high mountains in Japan, featuring doubly serrated, glossy green leaves and woody cone-like catkins.",
+  "distinguishing_tips": [
+   "Broadly ovate leaves with sharp, irregular double teeth",
+   "Conspicuous, raised parallel leaf veins",
+   "Smooth, dark gray-brown bark with pale lenticels",
+   "Small, woody, cone-like female catkins persisting in winter"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Manchurian alder",
+    "scientific_name": "Alnus hirsuta",
+    "distinction_point": "Has hairy undersides on leaves and prefers lower mountain elevations."
+   },
+   {
+    "english_name": "Pendulous alder",
+    "scientific_name": "Alnus pendula",
+    "distinction_point": "Has narrower, lance-shaped leaves with more numerous parallel veins."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of leaf margin showing double teeth",
+   "Underside of the leaf to check for hairs along veins",
+   "Woody female catkins or winter buds"
+  ],
+  "season_habitat": "Blooms in spring; common in subalpine and alpine zones, volcanic slopes, and snowy mountain ridges."
+ },
+ "ja": {
+  "scientific_name": "Alnus maximowiczii",
+  "english_name": "Maximilian's alder",
+  "rank": "種",
+  "overview": "日本の高山に自生する落葉低木または小高木。光沢のある緑色の葉には重鋸歯があり、木質化した松ぼっくりのような果穂が特徴です。",
+  "distinguishing_tips": [
+   "広卵形の葉で、鋭く不規則な重鋸歯がある",
+   "平行に走る葉脈が隆起して目立つ",
+   "樹皮は滑らかで暗灰褐色、淡色の皮目がある",
+   "冬まで残る、小さく木質化した雌花穂（果穂）"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Manchurian alder",
+    "scientific_name": "Alnus hirsuta",
+    "japanese_name": "ヤマハンノキ",
+    "distinction_point": "葉の裏面に毛があり、より標高の低い山地に生育する。"
+   },
+   {
+    "english_name": "Pendulous alder",
+    "scientific_name": "Alnus pendula",
+    "japanese_name": "ヒメヤシャブシ",
+    "distinction_point": "葉がより細長い披針形で、平行脈の数が多い。"
+   }
+  ],
+  "confirm_more": [
+   "重鋸歯が確認できる葉縁のアップ",
+   "葉脈に沿った毛の有無を確認するための葉裏",
+   "木質化した雌花穂または冬芽"
+  ],
+  "season_habitat": "春に開花。亜高山帯から高山帯、火山の斜面や雪の多い尾根筋に広く分布。"
+ },
+ "costUsd": 0.00793775
+}

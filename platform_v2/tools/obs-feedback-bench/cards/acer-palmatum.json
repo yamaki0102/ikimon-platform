@@ -1,0 +1,77 @@
+{
+ "key": "acer-palmatum",
+ "en": {
+  "scientific_name": "Acer palmatum",
+  "english_name": "Japanese maple",
+  "rank": "species",
+  "overview": "A deciduous tree famous for its deeply lobed leaves that turn brilliant red and orange in autumn.",
+  "distinguishing_tips": [
+   "Leaves palmately 5- to 7-lobed (rarely 9)",
+   "Double-serrated leaf margins with sharp, uneven teeth",
+   "Smooth, greenish-gray to brown bark",
+   "Paired winged seeds (samaras) held at a wide, horizontal angle"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Large-leaved Japanese maple",
+    "scientific_name": "Acer amoenum",
+    "distinction_point": "Has larger leaves with finely single-serrated margins rather than double-serrated edges."
+   },
+   {
+    "english_name": "Fullmoon maple",
+    "scientific_name": "Acer japonicum",
+    "distinction_point": "Has 9 to 11 lobes forming a rounder leaf, with hairy petioles."
+   },
+   {
+    "english_name": "Shirasawa maple",
+    "scientific_name": "Acer shirasawanum",
+    "distinction_point": "Has 9 to 11 shallower lobes and hairless petioles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a single leaf showing lobe count and edge teeth",
+   "Leaf stalk (petiole) to check for hairs",
+   "Paired winged seeds (samaras) if present"
+  ],
+  "season_habitat": "Common in mountain forests, valleys, and cultivated in parks across Japan; autumn foliage peaks in late autumn."
+ },
+ "ja": {
+  "scientific_name": "Acer palmatum",
+  "english_name": "イロハモミジ",
+  "rank": "種",
+  "overview": "深く裂けた葉が特徴の落葉高木で、秋には鮮やかな赤やオレンジ色に紅葉することで知られています。",
+  "distinguishing_tips": [
+   "葉は掌状に5〜7裂（まれに9裂）する",
+   "葉の縁には鋭く不揃いな重鋸歯（じゅうきょし）がある",
+   "樹皮は滑らかで、緑灰色から褐色",
+   "翼果（種子）は対になっており、水平に近い角度で開く"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Large-leaved Japanese maple",
+    "scientific_name": "Acer amoenum",
+    "japanese_name": "オオモミジ",
+    "distinction_point": "葉が大きく、縁の鋸歯は重鋸歯ではなく単鋸歯である。"
+   },
+   {
+    "english_name": "Fullmoon maple",
+    "scientific_name": "Acer japonicum",
+    "japanese_name": "ハウチワカエデ",
+    "distinction_point": "葉は9〜11裂して円形に近く、葉柄に毛がある。"
+   },
+   {
+    "english_name": "Shirasawa maple",
+    "scientific_name": "Acer shirasawanum",
+    "japanese_name": "オオイタヤメイゲツ",
+    "distinction_point": "9〜11裂するが切れ込みが浅く、葉柄に毛がない。"
+   }
+  ],
+  "confirm_more": [
+   "葉の裂け目の数と縁のギザギザ（鋸歯）のアップ写真",
+   "葉柄（葉の付け根の茎）の毛の有無",
+   "あれば対になった翼果（種子）の形状"
+  ],
+  "season_habitat": "日本の山林や渓谷に広く自生し、公園などにも植栽されています。紅葉の見頃は晩秋です。"
+ },
+ "costUsd": 0.00823425
+}

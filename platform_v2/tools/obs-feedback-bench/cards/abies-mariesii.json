@@ -1,0 +1,66 @@
+{
+ "key": "abies-mariesii",
+ "en": {
+  "scientific_name": "Abies mariesii",
+  "english_name": "Maries' fir",
+  "rank": "species",
+  "overview": "A tall, evergreen subalpine fir endemic to central and northern Honshu, characterized by upright purplish cones and dense, glossy green needles.",
+  "distinguishing_tips": [
+   "Young shoots are densely covered with rusty-brown hairs.",
+   "Flat needles have notched tips and two pale bands underneath.",
+   "Cones grow upright on upper branches and turn dark purple.",
+   "Bark is smooth and grayish-white when young, becoming scaly with age."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Veitch's fir",
+    "scientific_name": "Abies veitchii",
+    "distinction_point": "A. veitchii has paler, less hairy young shoots and brighter white bands under the needles."
+   },
+   {
+    "english_name": "Northern Japanese hemlock",
+    "scientific_name": "Tsuga diversifolia",
+    "distinction_point": "T. diversifolia has smaller, stalked needles of uneven lengths and small hanging cones."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a young shoot to check for rusty-brown hairs.",
+   "Underside of the needles to see the pale stomatal bands.",
+   "Upper branches to look for upright purplish cones."
+  ],
+  "season_habitat": "Evergreen conifer found in subalpine forests of central and northern Honshu."
+ },
+ "ja": {
+  "scientific_name": "Abies mariesii",
+  "english_name": "Maries' fir",
+  "rank": "種",
+  "overview": "本州の中部から北部に自生する亜高山帯の常緑針葉樹です。直立する紫色の球果と、密に生えた光沢のある緑色の針葉が特徴です。",
+  "distinguishing_tips": [
+   "若い枝には赤褐色の毛が密生しています。",
+   "平たい針葉は先端がくぼんでおり、裏面には2本の白い気孔帯があります。",
+   "球果は枝の上部に直立し、濃い紫色になります。",
+   "樹皮は若いうちは滑らかな灰白色ですが、成長すると鱗状にはがれます。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Veitch's fir",
+    "scientific_name": "Abies veitchii",
+    "japanese_name": "シラビソ",
+    "distinction_point": "シラビソは若い枝の毛が少なく、針葉裏面の白い気孔帯がより鮮明です。"
+   },
+   {
+    "english_name": "Northern Japanese hemlock",
+    "scientific_name": "Tsuga diversifolia",
+    "japanese_name": "コメツガ",
+    "distinction_point": "コメツガは針葉が小さく柄があり、長さが不揃いです。また、小さな球果が垂れ下がります。"
+   }
+  ],
+  "confirm_more": [
+   "若い枝を接写し、赤褐色の毛が生えているか確認する。",
+   "針葉の裏面を見て、白い気孔帯があるか確認する。",
+   "枝の上部を見て、直立する紫色の球果を探す。"
+  ],
+  "season_habitat": "本州の中部から北部の亜高山帯の森林に生育する常緑針葉樹。"
+ },
+ "costUsd": 0.0104155
+}

@@ -1,0 +1,38 @@
+[
+ {
+  "id": "card-lite",
+  "n": 45,
+  "quality": 97.8,
+  "p50ms": 12125,
+  "p95ms": 34818,
+  "costPer1000Usd": 2.89,
+  "failureRate": 0,
+  "winRateVsBaseline": 0.8,
+  "byCategory": {
+   "organism": 100,
+   "environment": 100,
+   "landscape": 96,
+   "hard": 88,
+   "built": 100,
+   "hidden-subject": 100
+  }
+ },
+ {
+  "id": "prod-worker",
+  "n": 45,
+  "quality": 62.2,
+  "p50ms": 3682,
+  "p95ms": 6503,
+  "costPer1000Usd": 4.61,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 90,
+   "environment": 63,
+   "landscape": 24,
+   "built": 37,
+   "hard": 67,
+   "hidden-subject": 20
+  }
+ }
+]

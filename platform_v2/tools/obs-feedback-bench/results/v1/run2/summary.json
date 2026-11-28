@@ -1,0 +1,200 @@
+[
+ {
+  "id": "wai-deepseek41",
+  "n": 45,
+  "quality": 97.7,
+  "p50ms": 32235,
+  "p95ms": 40571,
+  "costPer1000Usd": 14.09,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "environment": 99,
+   "organism": 100,
+   "landscape": 100,
+   "built": 100,
+   "hard": 98,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "wai-gemma4",
+  "n": 45,
+  "quality": 97.1,
+  "p50ms": 94689,
+  "p95ms": 114546,
+  "costPer1000Usd": 3.44,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 96,
+   "environment": 99,
+   "landscape": 99,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 95
+  }
+ },
+ {
+  "id": "prod+sweep",
+  "n": 45,
+  "quality": 96.8,
+  "p50ms": 21300,
+  "p95ms": 24628,
+  "costPer1000Usd": 46.18,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 99,
+   "environment": 96,
+   "landscape": 99,
+   "built": 100,
+   "hard": 89,
+   "hidden-subject": 100
+  }
+ },
+ {
+  "id": "prod",
+  "n": 45,
+  "quality": 96.2,
+  "p50ms": 18482,
+  "p95ms": 22797,
+  "costPer1000Usd": 44.52,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 99,
+   "environment": 96,
+   "landscape": 99,
+   "built": 99,
+   "hard": 90,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "g35lite",
+  "n": 45,
+  "quality": 96.2,
+  "p50ms": 12141,
+  "p95ms": 14733,
+  "costPer1000Usd": 17.96,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 100,
+   "environment": 98,
+   "landscape": 100,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "lite-only",
+  "n": 45,
+  "quality": 95.8,
+  "p50ms": 10275,
+  "p95ms": 11483,
+  "costPer1000Usd": 10.83,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "environment": 98,
+   "organism": 100,
+   "landscape": 96,
+   "built": 96,
+   "hard": 88,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "g36flash",
+  "n": 45,
+  "quality": 95.7,
+  "p50ms": 18461,
+  "p95ms": 21681,
+  "costPer1000Usd": 23.49,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 99,
+   "environment": 95,
+   "landscape": 95,
+   "built": 100,
+   "hard": 91,
+   "hidden-subject": 70
+  }
+ },
+ {
+  "id": "hydrogen",
+  "n": 45,
+  "quality": 93.6,
+  "p50ms": 25461,
+  "p95ms": 35169,
+  "costPer1000Usd": 48.72,
+  "failureRate": 0,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "organism": 97,
+   "environment": 95,
+   "landscape": 96,
+   "built": 98,
+   "hard": 90,
+   "hidden-subject": 20
+  }
+ },
+ {
+  "id": "wai-qwen38",
+  "n": 45,
+  "quality": 74,
+  "p50ms": 144726,
+  "p95ms": 211998,
+  "costPer1000Usd": 21.14,
+  "failureRate": 0.2222222222222222,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "environment": 60,
+   "organism": 69,
+   "landscape": 89,
+   "built": 99,
+   "hard": 78,
+   "hidden-subject": 100
+  }
+ },
+ {
+  "id": "wai-inkling",
+  "n": 45,
+  "quality": 19.3,
+  "p50ms": 28271,
+  "p95ms": 35770,
+  "costPer1000Usd": 15.97,
+  "failureRate": 0.8,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "environment": 21,
+   "organism": 15,
+   "landscape": 33,
+   "built": 19,
+   "hard": 14,
+   "hidden-subject": 0
+  }
+ },
+ {
+  "id": "wai-llama4scout",
+  "n": 45,
+  "quality": 0,
+  "p50ms": 120397,
+  "p95ms": 120601,
+  "costPer1000Usd": 0,
+  "failureRate": 1,
+  "winRateVsBaseline": null,
+  "byCategory": {
+   "environment": 0,
+   "organism": 0,
+   "landscape": 0,
+   "built": 0,
+   "hard": 0,
+   "hidden-subject": 0
+  }
+ }
+]

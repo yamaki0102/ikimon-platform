@@ -1,0 +1,66 @@
+{
+ "key": "diapensia-lapponica-subsp-obovata",
+ "en": {
+  "scientific_name": "Diapensia lapponica subsp. obovata",
+  "english_name": "Lapland diapensia",
+  "rank": "subspecies",
+  "overview": "A low-growing, evergreen alpine cushion plant with dense leathery leaves and solitary white five-petaled flowers.",
+  "distinguishing_tips": [
+   "Forms dense, low, moss-like cushions on rocks",
+   "Small, thick, spoon-shaped glossy evergreen leaves",
+   "Solitary white, five-lobed flowers on short stalks",
+   "Prominent yellowish stamens alternating with petals"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Alpine azalea",
+    "scientific_name": "Loiseleuria procumbens",
+    "distinction_point": "Has opposite leaves and small pink-to-reddish flowers rather than white."
+   },
+   {
+    "english_name": "Clubmoss cassiope",
+    "scientific_name": "Cassiope lycopodioides",
+    "distinction_point": "Has tiny scale-like leaves pressed to stems and nodding bell-shaped flowers."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the five-lobed white flower and stamens",
+   "Top-down view of the glossy, spoon-shaped leaves",
+   "Overall cushion growth habit on alpine rocks"
+  ],
+  "season_habitat": "Blooms from June to August on windswept alpine rocky ridges and gravel."
+ },
+ "ja": {
+  "scientific_name": "Diapensia lapponica subsp. obovata",
+  "english_name": "イワウメ",
+  "rank": "亜種",
+  "overview": "高山の岩場に生える常緑の低木で、硬い葉を密生させてクッション状の塊を作ります。初夏には白い5弁の花を単独で咲かせます。",
+  "distinguishing_tips": [
+   "岩の上に苔のような密なクッション状の塊を作る",
+   "小さく厚みのある、へら形の光沢がある常緑の葉",
+   "短い茎の先に白い5弁の花を一つずつ咲かせる",
+   "花弁の間に黄色い雄しべが目立つ"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Alpine azalea",
+    "scientific_name": "Loiseleuria procumbens",
+    "japanese_name": "ミネズオウ",
+    "distinction_point": "葉が対生し、白ではなく小さくピンクから赤みがかった花を咲かせる。"
+   },
+   {
+    "english_name": "Clubmoss cassiope",
+    "scientific_name": "Cassiope lycopodioides",
+    "japanese_name": "イワヒゲ",
+    "distinction_point": "茎に密着した鱗片状の小さな葉を持ち、うつむいた鐘形の花を咲かせる。"
+   }
+  ],
+  "confirm_more": [
+   "5弁の白い花と雄しべのクローズアップ",
+   "光沢のあるへら形の葉を上から見た様子",
+   "高山の岩場におけるクッション状の生育形態"
+  ],
+  "season_habitat": "6月から8月にかけて、風当たりの強い高山の岩場や砂礫地に開花する。"
+ },
+ "costUsd": 0.009990500000000001
+}

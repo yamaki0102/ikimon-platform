@@ -1,0 +1,46 @@
+{
+ "key": "habitat-街路樹・市街地",
+ "en": {
+  "habitat": "Street Trees & Urban Areas",
+  "overview": "Artificial urban environments featuring planted roadside trees, concrete surfaces, and small green pockets that support adaptable wildlife.",
+  "what_to_look_for": [
+   "Planted street trees (ginkgo, zelkova, cherry)",
+   "Weeds growing in pavement cracks",
+   "Urban birds (pigeons, crows, sparrows)",
+   "Insects on tree trunks or streetlights"
+  ],
+  "confirm_more": [
+   "Wide shot showing tree spacing and surrounding buildings",
+   "Close-up of the tree base and soil pit",
+   "Detail of leaves, bark, or visiting insects"
+  ],
+  "management_signs": [
+   "Heavy pruning or pollarding of branches",
+   "Tree guards, stakes, or metal grates",
+   "Herbicide use or weeding around tree bases"
+  ],
+  "seasonal_note": "Spring blossoms and autumn foliage transform streets, while winter reveals bare branch structures."
+ },
+ "ja": {
+  "habitat": "街路樹・都市部",
+  "overview": "植栽された街路樹やコンクリートの地面、小さな緑地など、人工的な環境に適応した野生生物が生息する場所です。",
+  "what_to_look_for": [
+   "植栽された街路樹（イチョウ、ケヤキ、サクラなど）",
+   "舗装の隙間に生える雑草",
+   "都市部の鳥類（ハト、カラス、スズメ）",
+   "木の幹や街灯に集まる昆虫"
+  ],
+  "confirm_more": [
+   "街路樹の間隔や周囲の建物がわかる引きの構図",
+   "木の根元や植樹帯のアップ",
+   "葉、樹皮、または訪れている昆虫の詳細"
+  ],
+  "management_signs": [
+   "枝の強い剪定や切り詰め",
+   "樹木保護柵、支柱、または根元の金属製ガード",
+   "根元の除草や除草剤の使用跡"
+  ],
+  "seasonal_note": "春の開花や秋の紅葉が街を彩り、冬には落葉して枝の構造がよく観察できます。"
+ },
+ "costUsd": 0.00729825
+}

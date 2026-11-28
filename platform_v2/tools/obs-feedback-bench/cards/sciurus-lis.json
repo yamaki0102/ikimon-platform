@@ -1,0 +1,77 @@
+{
+ "key": "sciurus-lis",
+ "en": {
+  "scientific_name": "Sciurus lis",
+  "english_name": "Japanese Squirrel",
+  "rank": "species",
+  "overview": "A small, agile tree squirrel endemic to Japan's Honshu, Shikoku, and Kyushu islands, featuring seasonal coat changes and a bushy tail.",
+  "distinguishing_tips": [
+   "White belly contrasting with upperparts",
+   "Long ear tufts in winter",
+   "Bushy tail with white-tipped hairs",
+   "Reddish-brown summer coat, gray-brown winter coat"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Eurasian Red Squirrel",
+    "scientific_name": "Sciurus vulgaris",
+    "distinction_point": "Restricted to Hokkaido in Japan and generally slightly larger with a more uniformly colored tail."
+   },
+   {
+    "english_name": "Pallas's Squirrel",
+    "scientific_name": "Callosciurus erythraeus",
+    "distinction_point": "Introduced species with a reddish-chestnut belly rather than white, and always lacks ear tufts."
+   },
+   {
+    "english_name": "Japanese Dwarf Flying Squirrel",
+    "scientific_name": "Pteromys momonga",
+    "distinction_point": "Strictly nocturnal with much larger dark eyes and a gliding membrane between its limbs."
+   }
+  ],
+  "confirm_more": [
+   "Belly color from below",
+   "Ears in profile for winter tufts",
+   "Full tail showing white-tipped hairs"
+  ],
+  "season_habitat": "Year-round in lowland to montane broadleaf and mixed forests of Honshu, Shikoku, and Kyushu."
+ },
+ "ja": {
+  "scientific_name": "Sciurus lis",
+  "english_name": "Japanese Squirrel",
+  "rank": "種",
+  "overview": "本州、四国、九州に固有の小型で敏捷な樹上性のリスです。季節によって体毛の色が変わり、ふさふさとした尾が特徴です。",
+  "distinguishing_tips": [
+   "背側と対照的な白い腹部",
+   "冬に見られる長い耳のふさ毛",
+   "毛先が白い、ふさふさとした尾",
+   "夏は赤褐色、冬は灰褐色の体毛"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Eurasian Red Squirrel",
+    "scientific_name": "Sciurus vulgaris",
+    "japanese_name": "キタリス",
+    "distinction_point": "日本では北海道のみに生息し、一般的に体格がやや大きく、尾の色がより均一です。"
+   },
+   {
+    "english_name": "Pallas's Squirrel",
+    "scientific_name": "Callosciurus erythraeus",
+    "japanese_name": "タイワンリス",
+    "distinction_point": "外来種で、腹部が白ではなく赤褐色をしており、耳にふさ毛が生えることはありません。"
+   },
+   {
+    "english_name": "Japanese Dwarf Flying Squirrel",
+    "scientific_name": "Pteromys momonga",
+    "japanese_name": "ニホンモモンガ",
+    "distinction_point": "完全な夜行性で、目が非常に大きく黒いこと、手足の間に飛膜があることで見分けられます。"
+   }
+  ],
+  "confirm_more": [
+   "下から見た腹部の色",
+   "冬の耳のふさ毛を確認するための横顔",
+   "毛先が白いことを確認できる尾全体"
+  ],
+  "season_habitat": "本州、四国、九州の低地から山地の広葉樹林や混交林に一年中生息しています。"
+ },
+ "costUsd": 0.008806749999999999
+}

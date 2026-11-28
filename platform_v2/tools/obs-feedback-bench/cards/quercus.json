@@ -1,0 +1,77 @@
+{
+ "key": "quercus",
+ "en": {
+  "scientific_name": "Quercus",
+  "english_name": "Oaks",
+  "rank": "genus",
+  "overview": "Deciduous and evergreen trees or shrubs in Japan, known for producing acorns and lobed or serrated leaves.",
+  "distinguishing_tips": [
+   "Acorns seated in a scaly or ringed cupule.",
+   "Leaves alternate, often lobed, toothed, or leathery.",
+   "Clustered buds at the tips of twigs.",
+   "Rough, furrowed, or scaly bark on mature trunks."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Chinkapins",
+    "scientific_name": "Castanopsis",
+    "distinction_point": "The cupule completely encloses the nut and splits open, unlike oak acorn cups."
+   },
+   {
+    "english_name": "Stone oaks",
+    "scientific_name": "Lithocarpus",
+    "distinction_point": "They have erect, stiff male catkins and very hard, thick-walled acorns."
+   },
+   {
+    "english_name": "Beeches",
+    "scientific_name": "Fagus",
+    "distinction_point": "They have smooth gray bark and three-angled nuts inside a prickly bur."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of an acorn showing the cupule scales or rings.",
+   "Upper and lower surfaces of a mature leaf.",
+   "Twig tip showing the clustered terminal buds."
+  ],
+  "season_habitat": "Year-round in lowland to montane forests, with acorns maturing in autumn."
+ },
+ "ja": {
+  "scientific_name": "Quercus",
+  "english_name": "コナラ属（オーク）",
+  "rank": "属",
+  "overview": "日本に自生する落葉または常緑の高木や低木で、ドングリをつけることや、切れ込みや鋸歯のある葉が特徴です。",
+  "distinguishing_tips": [
+   "ドングリは鱗片や環状の模様がある殻斗（かくと）に収まっている。",
+   "葉は互生し、切れ込みや鋸歯があるものや、革質のものが多い。",
+   "枝先に芽が密集してつく。",
+   "成熟した幹の樹皮は荒く、深い割れ目や鱗片状になる。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Chinkapins",
+    "scientific_name": "Castanopsis",
+    "japanese_name": "シイ属",
+    "distinction_point": "ドングリが殻斗に完全に包まれており、熟すと殻斗が裂ける点がオークと異なります。"
+   },
+   {
+    "english_name": "Stone oaks",
+    "scientific_name": "Lithocarpus",
+    "japanese_name": "マテバシイ属",
+    "distinction_point": "直立した硬い雄花序をつけ、非常に硬く厚い殻を持つドングリが特徴です。"
+   },
+   {
+    "english_name": "Beeches",
+    "scientific_name": "Fagus",
+    "japanese_name": "ブナ属",
+    "distinction_point": "樹皮が滑らかな灰色で、トゲのある殻斗の中に三角形の堅果が入っている点が異なります。"
+   }
+  ],
+  "confirm_more": [
+   "殻斗の鱗片や環状模様がわかるドングリの接写。",
+   "成熟した葉の表面と裏面。",
+   "枝先に密集した頂芽の様子。"
+  ],
+  "season_habitat": "一年中、低地から山地の森林で見られ、ドングリは秋に成熟します。"
+ },
+ "costUsd": 0.008243
+}

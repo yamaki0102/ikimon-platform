@@ -1,0 +1,77 @@
+{
+ "key": "cryptomeria",
+ "en": {
+  "scientific_name": "Cryptomeria",
+  "english_name": "Japanese cedar",
+  "rank": "genus",
+  "overview": "A tall evergreen conifer genus native to Japan, widely planted for timber and recognizable by its fibrous reddish bark and spiraled needles.",
+  "distinguishing_tips": [
+   "Reddish-brown bark peeling in long vertical fibrous strips",
+   "Awl-shaped needles arranged spirally around the twig",
+   "Small, round woody cones with pointed, toothed scales",
+   "Conical crown with slightly drooping branches in mature trees"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Hinoki cypress",
+    "scientific_name": "Chamaecyparis obtusa",
+    "distinction_point": "Has flat, scale-like leaves in sprays rather than spiraled awl-shaped needles."
+   },
+   {
+    "english_name": "Dawn redwood",
+    "scientific_name": "Metasequoia glyptostroboides",
+    "distinction_point": "Deciduous with soft, flat needles arranged in opposite pairs."
+   },
+   {
+    "english_name": "Bald cypress",
+    "scientific_name": "Taxodium distichum",
+    "distinction_point": "Deciduous with feathery, flat needles and often grows in wet areas."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a leafy twig showing needle arrangement",
+   "Mature seed cones on the branch or ground",
+   "Trunk bark texture and vertical peeling pattern"
+  ],
+  "season_habitat": "Evergreen year-round; abundant in mountain forests, timber plantations, and shrine grounds across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cryptomeria",
+  "english_name": "スギ",
+  "rank": "属",
+  "overview": "日本原産の背の高い常緑針葉樹の属です。木材として広く植林されており、繊維状の赤茶色の樹皮と螺旋状につく針葉が特徴です。",
+  "distinguishing_tips": [
+   "赤茶色の樹皮が長く縦に繊維状に剥がれる",
+   "錐形の針葉が枝の周りに螺旋状につく",
+   "小さく丸い木質の球果（松ぼっくり）で、尖った鋸歯状の鱗片がある",
+   "成熟した木は円錐形の樹冠を持ち、枝がわずかに垂れ下がる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Hinoki cypress",
+    "scientific_name": "Chamaecyparis obtusa",
+    "japanese_name": "ヒノキ",
+    "distinction_point": "螺旋状の針葉ではなく、平らな鱗片状の葉が枝に密着している。"
+   },
+   {
+    "english_name": "Dawn redwood",
+    "scientific_name": "Metasequoia glyptostroboides",
+    "japanese_name": "メタセコイア",
+    "distinction_point": "落葉性で、柔らかく平らな葉が対生につく。"
+   },
+   {
+    "english_name": "Bald cypress",
+    "scientific_name": "Taxodium distichum",
+    "japanese_name": "ラクウショウ",
+    "distinction_point": "落葉性で、羽毛のような平らな葉を持ち、湿地帯に生育することが多い。"
+   }
+  ],
+  "confirm_more": [
+   "葉のつき方がわかる枝の接写",
+   "枝や地面にある成熟した球果",
+   "幹の樹皮の質感と縦に剥がれる模様"
+  ],
+  "season_habitat": "一年中常緑。日本の山林、植林地、神社境内などに広く分布。"
+ },
+ "costUsd": 0.00861675
+}

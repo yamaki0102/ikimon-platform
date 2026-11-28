@@ -1,0 +1,66 @@
+{
+ "key": "sympetrum-spp",
+ "en": {
+  "scientific_name": "Sympetrum",
+  "english_name": "Darters",
+  "rank": "genus",
+  "overview": "Small to medium-sized dragonflies, famous in Japan for turning bright red in autumn and gathering in large numbers.",
+  "distinguishing_tips": [
+   "Mature males typically have bright red or orange-red abdomens.",
+   "Often perch horizontally on tips of twigs or grass stems.",
+   "Relatively small body size compared to larger skimmers.",
+   "Some species have distinct dark bands or amber patches on wings."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Scarlet Skimmer",
+    "scientific_name": "Crocothemis servilia",
+    "distinction_point": "Uniformly brilliant scarlet including legs, with a noticeably broader, flatter abdomen."
+   },
+   {
+    "english_name": "Wandering Glider",
+    "scientific_name": "Pantala flavescens",
+    "distinction_point": "Yellowish-orange rather than true red, with broader hindwings and constant gliding flight."
+   }
+  ],
+  "confirm_more": [
+   "Side view of the thorax to see black stripe patterns.",
+   "Close-up of the face and frons markings.",
+   "Top view of the wings to check for dark bands or spots."
+  ],
+  "season_habitat": "Common from summer to late autumn in rice paddies, ponds, grasslands, and urban parks."
+ },
+ "ja": {
+  "scientific_name": "Sympetrum",
+  "english_name": "Darters",
+  "rank": "属",
+  "overview": "小型から中型のトンボで、秋になると体が鮮やかな赤色に染まり、群れをなす姿が日本ではよく知られています。",
+  "distinguishing_tips": [
+   "成熟したオスは、腹部が鮮やかな赤色やオレンジがかった赤色になります。",
+   "枝先や草の茎の先端に水平にとまることが多いです。",
+   "他の大型のトンボと比べて体が比較的小さいです。",
+   "種によっては、翅に明瞭な黒い帯や琥珀色の斑紋があります。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Scarlet Skimmer",
+    "scientific_name": "Crocothemis servilia",
+    "japanese_name": "ショウジョウトンボ",
+    "distinction_point": "脚まで含めて全身が均一な鮮紅色をしており、腹部がより幅広く平たいのが特徴です。"
+   },
+   {
+    "english_name": "Wandering Glider",
+    "scientific_name": "Pantala flavescens",
+    "japanese_name": "ウスバキトンボ",
+    "distinction_point": "純粋な赤色ではなく黄色がかったオレンジ色で、後翅が幅広く、常に滑空するように飛び続けます。"
+   }
+  ],
+  "confirm_more": [
+   "胸部の側面を観察し、黒い条紋のパターンを確認する。",
+   "顔面や額の模様を接写する。",
+   "翅を上から撮影し、黒い帯や斑点があるか確認する。"
+  ],
+  "season_habitat": "夏から晩秋にかけて、水田、池、草原、都市公園などでよく見られます。"
+ },
+ "costUsd": 0.00908925
+}

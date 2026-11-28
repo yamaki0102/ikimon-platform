@@ -1,0 +1,46 @@
+{
+ "key": "habitat-落葉広葉樹林",
+ "en": {
+  "habitat": "Deciduous Broadleaf Forest",
+  "overview": "A temperate forest dominated by seasonal broadleaf trees like beech and oak, featuring a rich understory and distinct seasonal changes.",
+  "what_to_look_for": [
+   "Beech or oak tree trunks",
+   "Thick fallen leaf litter layer",
+   "Spring ephemeral wildflowers",
+   "Woodpecker holes in standing deadwood"
+  ],
+  "confirm_more": [
+   "Wide-angle shot of the forest canopy",
+   "Close-up of bark texture and leaves",
+   "Ground-level view of the understory"
+  ],
+  "management_signs": [
+   "Coppiced tree stumps",
+   "Cleared walking trails",
+   "Deer browsing lines on low branches"
+  ],
+  "seasonal_note": "Leaves flush bright green in spring, turn vibrant colors in autumn, and drop completely in winter."
+ },
+ "ja": {
+  "habitat": "落葉広葉樹林",
+  "overview": "ブナやナラなどの季節によって葉を落とす広葉樹が優占する温帯の森林です。豊かな下層植生と、季節ごとの鮮やかな変化が特徴です。",
+  "what_to_look_for": [
+   "ブナやナラの木の幹",
+   "厚く積もった落ち葉の層",
+   "春の妖精と呼ばれるスプリング・エフェメラル（春植物）",
+   "立ち枯れした木にあるキツツキの穴"
+  ],
+  "confirm_more": [
+   "森林の樹冠を捉えた広角写真",
+   "樹皮の質感や葉のクローズアップ",
+   "下層植生を捉えた地面レベルからの視点"
+  ],
+  "management_signs": [
+   "萌芽更新（伐採跡）の切り株",
+   "整備された遊歩道",
+   "低い枝に見られるシカの食害痕"
+  ],
+  "seasonal_note": "春には鮮やかな緑の若葉が芽吹き、秋には紅葉し、冬には完全に落葉します。"
+ },
+ "costUsd": 0.00613825
+}

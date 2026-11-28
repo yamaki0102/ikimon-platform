@@ -1,0 +1,66 @@
+{
+ "key": "zosterops-japonicus",
+ "en": {
+  "scientific_name": "Zosterops japonicus",
+  "english_name": "Japanese White-eye",
+  "rank": "species",
+  "overview": "A small, active olive-green songbird famous for its bright white eye-ring and fondness for flower nectar and fruit.",
+  "distinguishing_tips": [
+   "Conspicuous pure white ring around each eye",
+   "Olive-green upperparts with a bright yellow throat",
+   "Whitish-gray belly with pale brown flanks",
+   "Slender, slightly decurved dark bill"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Bush Warbler",
+    "scientific_name": "Horornis diphone",
+    "distinction_point": "Lacks the bright white eye-ring and yellow throat, and is duller brown-olive overall."
+   },
+   {
+    "english_name": "Japanese Leaf Warbler",
+    "scientific_name": "Phylloscopus xanthodryas",
+    "distinction_point": "Has a pale eyebrow stripe (supercilium) and wing bar instead of a complete white eye-ring."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the head showing the complete white eye-ring and yellow throat",
+   "Side profile showing the whitish belly and slender dark bill",
+   "Feeding behavior on camellia or cherry blossoms"
+  ],
+  "season_habitat": "Resident year-round across Japan in forests, parks, and gardens, often foraging in flocks."
+ },
+ "ja": {
+  "scientific_name": "Zosterops japonicus",
+  "english_name": "Japanese White-eye",
+  "rank": "種",
+  "overview": "目の周りの白いアイリングが特徴的な、活発で小さなウグイス色の小鳥です。花の蜜や果実を好んで食べます。",
+  "distinguishing_tips": [
+   "目の周りにある目立つ純白のアイリング",
+   "オリーブグリーンの背中と鮮やかな黄色の喉",
+   "白っぽい灰色の腹部と淡い茶色の脇腹",
+   "細く、わずかに下に曲がった黒い嘴"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Bush Warbler",
+    "scientific_name": "Horornis diphone",
+    "japanese_name": "ウグイス",
+    "distinction_point": "白いアイリングや黄色い喉がなく、全体的にくすんだ茶褐色をしています。"
+   },
+   {
+    "english_name": "Japanese Leaf Warbler",
+    "scientific_name": "Phylloscopus xanthodryas",
+    "japanese_name": "メボソムシクイ",
+    "distinction_point": "白いアイリングの代わりに、淡い眉斑（眉のような模様）と翼帯があります。"
+   }
+  ],
+  "confirm_more": [
+   "白いアイリングと黄色い喉がはっきりとわかる頭部のアップ",
+   "白い腹部と細い黒い嘴がわかる横からの姿",
+   "ツバキやサクラの花で蜜を吸う様子"
+  ],
+  "season_habitat": "日本全国の森林、公園、庭園に一年中生息しており、よく群れで行動します。"
+ },
+ "costUsd": 0.006265499999999999
+}

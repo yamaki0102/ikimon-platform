@@ -1,0 +1,46 @@
+{
+ "key": "habitat-積雪地",
+ "en": {
+  "habitat": "Snow-covered Area",
+  "overview": "A cold, snow-covered landscape in Japan where deep winter snowpack insulates the ground and shapes seasonal plant and animal survival.",
+  "what_to_look_for": [
+   "Animal tracks (hare, fox, or deer) in fresh snow",
+   "Snow-bent bamboo or dwarf shrubs",
+   "Winter buds on deciduous trees",
+   "Subnivean tunnel openings near tree bases"
+  ],
+  "confirm_more": [
+   "Wide shot showing snow depth against tree trunks",
+   "Close-up of animal tracks with a scale reference",
+   "Low-angle view of snowpack layers or crust"
+  ],
+  "management_signs": [
+   "Snow-clearing piles or compacted trails",
+   "Snow fences or avalanche barriers",
+   "Protective netting around young trees"
+  ],
+  "seasonal_note": "Deepest snowpack occurs from January to March, followed by rapid snowmelt in spring."
+ },
+ "ja": {
+  "habitat": "積雪地帯",
+  "overview": "日本の寒冷な積雪地帯です。冬の深い積雪は地面を断熱し、植物や動物の季節的な生存戦略を形作っています。",
+  "what_to_look_for": [
+   "新雪に残された動物の足跡（ノウサギ、キツネ、シカなど）",
+   "雪の重みでしなった竹や低木",
+   "落葉樹の冬芽",
+   "木の根元付近に見られる雪下のトンネルの入り口"
+  ],
+  "confirm_more": [
+   "木の幹と積雪の深さがわかる引きの構図",
+   "スケール（比較対象）を置いた動物の足跡のクローズアップ",
+   "積雪の層や表面の硬さがわかるローアングルでの撮影"
+  ],
+  "management_signs": [
+   "除雪された雪の山や踏み固められた道",
+   "スノーフェンスや雪崩防止柵",
+   "若木を保護するためのネット"
+  ],
+  "seasonal_note": "1月から3月にかけて積雪が最も深くなり、春になると急速に雪解けが進みます。"
+ },
+ "costUsd": 0.0067835
+}

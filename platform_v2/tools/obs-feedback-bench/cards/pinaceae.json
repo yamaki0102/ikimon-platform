@@ -1,0 +1,77 @@
+{
+ "key": "pinaceae",
+ "en": {
+  "scientific_name": "Pinaceae",
+  "english_name": "Pine family",
+  "rank": "family",
+  "overview": "A major conifer family in Japan including pines, firs, spruces, and larches, characterized by needle-like leaves and woody cones.",
+  "distinguishing_tips": [
+   "Needle-like leaves arranged singly or in bundles",
+   "Woody cones with spirally arranged scales",
+   "Resinous bark and aromatic foliage",
+   "Mostly evergreen trees (except larches)"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Cypress family",
+    "scientific_name": "Cupressaceae",
+    "distinction_point": "Scale-like or awl-shaped leaves rather than true needles."
+   },
+   {
+    "english_name": "Yew family",
+    "scientific_name": "Taxaceae",
+    "distinction_point": "Fleshy red arils instead of woody cones."
+   },
+   {
+    "english_name": "Umbrella pine family",
+    "scientific_name": "Sciadopityaceae",
+    "distinction_point": "Thick, grooved double-needles arranged in whorls."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of needles showing attachment to the twig",
+   "Mature woody cone showing scale shape",
+   "Bark texture and overall tree silhouette"
+  ],
+  "season_habitat": "Found year-round in montane, subalpine, and coastal forests across Japan."
+ },
+ "ja": {
+  "scientific_name": "Pinaceae",
+  "english_name": "マツ科",
+  "rank": "科",
+  "overview": "マツ、モミ、トウヒ、カラマツなどを含む、日本を代表する針葉樹のグループです。針状の葉と木質の球果（まつぼっくり）が特徴です。",
+  "distinguishing_tips": [
+   "針状の葉が単生または束生する",
+   "螺旋状に鱗片が並ぶ木質の球果",
+   "樹脂を含む樹皮と芳香のある葉",
+   "ほとんどが常緑樹（カラマツを除く）"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ヒノキ科",
+    "scientific_name": "Cupressaceae",
+    "japanese_name": "ヒノキ科",
+    "distinction_point": "針状ではなく、鱗片状または錐状の葉を持つ。"
+   },
+   {
+    "english_name": "イチイ科",
+    "scientific_name": "Taxaceae",
+    "japanese_name": "イチイ科",
+    "distinction_point": "木質の球果ではなく、赤い仮種皮（果肉状）をつける。"
+   },
+   {
+    "english_name": "コウヤマキ科",
+    "scientific_name": "Sciadopityaceae",
+    "japanese_name": "コウヤマキ科",
+    "distinction_point": "厚みがあり溝のある二枚の葉が、輪生状につく。"
+   }
+  ],
+  "confirm_more": [
+   "枝への葉のつき方がわかる接写写真",
+   "鱗片の形がわかる成熟した球果",
+   "樹皮の質感と木全体のシルエット"
+  ],
+  "season_habitat": "日本全国の山地、亜高山帯、海岸沿いの森林で一年中見られます。"
+ },
+ "costUsd": 0.00744375
+}

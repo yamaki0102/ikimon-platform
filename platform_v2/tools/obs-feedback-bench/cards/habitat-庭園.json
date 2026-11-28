@@ -1,0 +1,46 @@
+{
+ "key": "habitat-庭園",
+ "en": {
+  "habitat": "Japanese Garden",
+  "overview": "A curated landscape of pruned trees, moss, water features, and stones that supports urban biodiversity and traditional aesthetics.",
+  "what_to_look_for": [
+   "Moss carpets on shaded ground and stones",
+   "Pruned pine or maple trees",
+   "Koi carp or dragonflies near ponds",
+   "Stone lanterns and stepping stones"
+  ],
+  "confirm_more": [
+   "Wide-angle view showing the overall layout and water features",
+   "Close-up of moss textures or pond-edge insects",
+   "Medium shot of pruned tree canopies"
+  ],
+  "management_signs": [
+   "Carefully pruned branches and shaped shrubs",
+   "Raked gravel patterns or weeded moss beds",
+   "Artificial pond liners or water pumps"
+  ],
+  "seasonal_note": "Cherry blossoms in spring and vibrant maple foliage in autumn mark key seasonal transitions."
+ },
+ "ja": {
+  "habitat": "日本庭園",
+  "overview": "手入れされた樹木、苔、水景、石組みで構成された景観です。伝統的な美しさを保ちつつ、都市部の生物多様性を支える場でもあります。",
+  "what_to_look_for": [
+   "日陰の地面や石を覆う苔の絨毯",
+   "剪定された松やカエデの木",
+   "池の周りの鯉やトンボ",
+   "石灯籠や飛び石"
+  ],
+  "confirm_more": [
+   "庭園全体のレイアウトや水景がわかる広角写真",
+   "苔の質感や池の縁にいる昆虫の接写",
+   "剪定された樹木の樹冠のミドルショット"
+  ],
+  "management_signs": [
+   "丁寧に剪定された枝や形を整えられた低木",
+   "掃き清められた砂利の模様や手入れされた苔床",
+   "人工的な池のライナーや循環ポンプ"
+  ],
+  "seasonal_note": "春の桜や秋の鮮やかな紅葉が、季節の移ろいを象徴します。"
+ },
+ "costUsd": 0.0068520000000000005
+}

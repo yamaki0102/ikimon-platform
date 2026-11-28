@@ -1,0 +1,46 @@
+{
+ "key": "habitat-河川敷",
+ "en": {
+  "habitat": "Riverbank & Floodplain",
+  "overview": "Open, dynamic zones along Japanese rivers shaped by periodic flooding, supporting specialized grasses, gravel-nesting birds, and insects.",
+  "what_to_look_for": [
+   "Miscanthus or reed beds",
+   "Gravel bars and sandbanks",
+   "Little ringed plovers or wagtails",
+   "Willow trees along the water's edge"
+  ],
+  "confirm_more": [
+   "Wide shot showing the river-to-bank transition",
+   "Close-up of dominant ground cover such as gravel or grass",
+   "Detail of any blooming riverside plants"
+  ],
+  "management_signs": [
+   "Mowed grass or cleared vegetation",
+   "Concrete embankments or tetrapods",
+   "Sports fields, parks, or paved walking paths"
+  ],
+  "seasonal_note": "Spring brings nesting birds to gravel bars, while autumn highlights blooming pampas grass."
+ },
+ "ja": {
+  "habitat": "河川敷・氾濫原",
+  "overview": "日本の河川沿いに広がる、定期的な増水によって形作られる開放的でダイナミックな環境です。特有の草本植物や、砂利地に営巣する鳥類、昆虫などが生息しています。",
+  "what_to_look_for": [
+   "ススキやヨシの群落",
+   "砂利や砂の堆積した中州（河原）",
+   "イカルチドリやセキレイの仲間",
+   "水辺に生えるヤナギの木"
+  ],
+  "confirm_more": [
+   "川から岸辺へと続く景観の全体像",
+   "砂利や草地など、その場所を特徴づける地面の様子",
+   "川辺に咲く植物のクローズアップ"
+  ],
+  "management_signs": [
+   "草刈りされた跡や植生が整理された場所",
+   "コンクリート護岸やテトラポッド",
+   "スポーツ広場、公園、舗装された遊歩道"
+  ],
+  "seasonal_note": "春には砂利地で鳥たちが営巣し、秋にはススキの穂が美しく色づきます。"
+ },
+ "costUsd": 0.006823
+}

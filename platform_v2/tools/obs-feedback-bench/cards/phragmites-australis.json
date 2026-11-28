@@ -1,0 +1,77 @@
+{
+ "key": "phragmites-australis",
+ "en": {
+  "scientific_name": "Phragmites australis",
+  "english_name": "Common Reed",
+  "rank": "species",
+  "overview": "A tall, perennial wetland grass forming dense stands with feathery, purplish-brown plumes and broad, flat leaves.",
+  "distinguishing_tips": [
+   "Feathery, dense, purplish-brown to silvery panicle plumes at stem tips.",
+   "Hollow, rigid stems growing 1.5 to 3 meters tall.",
+   "Broad, flat, lance-shaped leaves with rough margins.",
+   "Leaf blades lack a prominent white midrib."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Silver Grass",
+    "scientific_name": "Miscanthus sinensis",
+    "distinction_point": "Has a prominent white midrib on the leaves and grows in drier, upland habitats."
+   },
+   {
+    "english_name": "Giant Reed",
+    "scientific_name": "Arundo donax",
+    "distinction_point": "Much taller and thicker with broader leaves that clasp the stem with heart-shaped bases."
+   },
+   {
+    "english_name": "Japanese Reed",
+    "scientific_name": "Phragmites japonicus",
+    "distinction_point": "Spreads via long, above-ground stolons and has slightly smaller, more open plumes."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf base and hairy ligule where it meets the stem.",
+   "Full-length shot of the feathery flower plume.",
+   "Wide shot showing the wetland habitat and dense growth habit."
+  ],
+  "season_habitat": "Abundant year-round in marshes, riverbanks, and brackish coastal wetlands; flowers from August to October."
+ },
+ "ja": {
+  "scientific_name": "Phragmites australis",
+  "english_name": "Common Reed",
+  "rank": "species",
+  "overview": "湿地に群生する背の高い多年草で、羽毛のような紫褐色の花穂と、幅の広い平らな葉が特徴です。",
+  "distinguishing_tips": [
+   "茎の先に、羽毛状で密な紫褐色から銀色の円錐花序をつける。",
+   "中空で硬い茎は、高さ1.5〜3メートルに達する。",
+   "幅が広く平らな披針形の葉で、縁はざらついている。",
+   "葉身に目立つ白い中肋（ちゅうろく）がない。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Silver Grass",
+    "scientific_name": "Miscanthus sinensis",
+    "japanese_name": "ススキ",
+    "distinction_point": "葉に目立つ白い中肋があり、より乾燥した高台の環境に生育する。"
+   },
+   {
+    "english_name": "Giant Reed",
+    "scientific_name": "Arundo donax",
+    "japanese_name": "ダンチク",
+    "distinction_point": "より背が高く太い茎を持ち、葉は幅広く、基部が心形で茎を抱く。"
+   },
+   {
+    "english_name": "Japanese Reed",
+    "scientific_name": "Phragmites japonicus",
+    "japanese_name": "ツルヨシ",
+    "distinction_point": "地上を這う長い匍匐茎（ほふくけい）で広がり、花穂はやや小さく、より開いている。"
+   }
+  ],
+  "confirm_more": [
+   "葉の付け根と、茎との接合部にある毛状の葉舌のクローズアップ。",
+   "羽毛状の花穂の全体像。",
+   "湿地という生育環境と、群生している様子がわかる引きの構図。"
+  ],
+  "season_habitat": "一年を通して湿地、川岸、汽水域の沿岸湿地などに広く分布し、8月から10月にかけて開花する。"
+ },
+ "costUsd": 0.0084515
+}

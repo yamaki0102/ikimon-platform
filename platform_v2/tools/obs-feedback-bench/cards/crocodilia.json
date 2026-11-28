@@ -1,0 +1,66 @@
+{
+ "key": "crocodilia",
+ "en": {
+  "scientific_name": "Crocodilia",
+  "english_name": "Crocodilians",
+  "rank": "order",
+  "overview": "Large, semi-aquatic predatory reptiles with armored scales, elongated snouts, and powerful tails, not native to Japan.",
+  "distinguishing_tips": [
+   "Thick, bony-plated skin along the back",
+   "Elongated snout with visible teeth",
+   "Vertically flattened, muscular swimming tail",
+   "Eyes and nostrils positioned high on the head"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese giant salamander",
+    "scientific_name": "Andrias japonicus",
+    "distinction_point": "Has smooth, slimy skin without scales and a rounded, blunt head."
+   },
+   {
+    "english_name": "Common snapping turtle",
+    "scientific_name": "Chelydra serpentina",
+    "distinction_point": "Possesses a distinct hard shell and a much shorter snout."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the head and snout profile",
+   "Dorsal view showing the armored back scales",
+   "Full body shot including the tail"
+  ],
+  "season_habitat": "Not native to Japan; observed in captivity or rarely as escaped pets in warm-water habitats."
+ },
+ "ja": {
+  "scientific_name": "Crocodilia",
+  "english_name": "ワニ目",
+  "rank": "目",
+  "overview": "鎧のような鱗、長い吻部、力強い尾を持つ大型の半水生肉食爬虫類。日本には生息していません。",
+  "distinguishing_tips": [
+   "背中を覆う厚く硬い骨質の鱗",
+   "歯が見える長い吻部",
+   "左右に平たく筋肉質な遊泳用の尾",
+   "頭部の上方に位置する目と鼻孔"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "オオサンショウウオ",
+    "scientific_name": "Andrias japonicus",
+    "japanese_name": "オオサンショウウオ",
+    "distinction_point": "鱗がなく、滑らかでぬめりのある皮膚を持ち、頭部は丸く平たい。"
+   },
+   {
+    "english_name": "カミツキガメ",
+    "scientific_name": "Chelydra serpentina",
+    "japanese_name": "カミツキガメ",
+    "distinction_point": "特徴的な硬い甲羅を持ち、吻部ははるかに短い。"
+   }
+  ],
+  "confirm_more": [
+   "頭部と吻部の横顔のアップ",
+   "背中の鱗が確認できる背面からの写真",
+   "尾を含む全身の姿"
+  ],
+  "season_habitat": "日本には生息していません。動物園などの飼育下や、稀にペットが逃げ出した温暖な水辺で見られることがあります。"
+ },
+ "costUsd": 0.01065875
+}

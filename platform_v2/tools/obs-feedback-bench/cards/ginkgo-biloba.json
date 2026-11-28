@@ -1,0 +1,66 @@
+{
+ "key": "ginkgo-biloba",
+ "en": {
+  "scientific_name": "Ginkgo biloba",
+  "english_name": "Ginkgo",
+  "rank": "species",
+  "overview": "A deciduous gymnosperm tree with distinctive fan-shaped leaves that turn bright yellow in autumn, widely planted in Japanese parks and shrines.",
+  "distinguishing_tips": [
+   "Fan-shaped leaves with dichotomous forking veins",
+   "Leaves often notched at the outer edge",
+   "Bright golden-yellow autumn foliage",
+   "Fleshy, foul-smelling, plum-like seeds on female trees"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Tulip tree",
+    "scientific_name": "Liriodendron tulipifera",
+    "distinction_point": "Has larger, four-lobed leaves with a central midrib rather than fan-shaped leaves with forking veins."
+   },
+   {
+    "english_name": "Maidenhair fern",
+    "scientific_name": "Adiantum capillus-veneris",
+    "distinction_point": "A small herbaceous fern with delicate black stems, not a woody tree."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a single leaf showing the forking veins",
+   "Short spur-like twigs bearing clusters of leaves",
+   "Bark texture and overall tree silhouette"
+  ],
+  "season_habitat": "Planted year-round in urban parks, streets, and temple grounds across Japan, with peak yellow foliage in late autumn."
+ },
+ "ja": {
+  "scientific_name": "Ginkgo biloba",
+  "english_name": "イチョウ",
+  "rank": "種",
+  "overview": "扇形の独特な葉が特徴の落葉裸子植物です。秋には鮮やかな黄色に紅葉し、日本の公園や神社仏閣などで広く植栽されています。",
+  "distinguishing_tips": [
+   "扇形で、葉脈が二又に分かれている",
+   "葉の外縁に切れ込みが入ることが多い",
+   "秋には鮮やかな黄金色に紅葉する",
+   "雌株には、独特の強い臭いを放つ肉質の種子（銀杏）がなる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ユリノキ",
+    "scientific_name": "Liriodendron tulipifera",
+    "japanese_name": "ユリノキ",
+    "distinction_point": "葉は大きく4つに裂けており、扇形ではなく中央に主脈がある。"
+   },
+   {
+    "english_name": "ホウライシダ",
+    "scientific_name": "Adiantum capillus-veneris",
+    "japanese_name": "ホウライシダ",
+    "distinction_point": "繊細な黒い茎を持つ小さなシダ植物であり、木本ではない。"
+   }
+  ],
+  "confirm_more": [
+   "二又に分かれた葉脈がよくわかる葉の接写",
+   "葉が束になって生える短い枝（短枝）",
+   "樹皮の質感や木全体のシルエット"
+  ],
+  "season_habitat": "日本全国の都市公園、街路樹、寺社境内に一年中植えられており、晩秋に黄葉のピークを迎える。"
+ },
+ "costUsd": 0.00894525
+}

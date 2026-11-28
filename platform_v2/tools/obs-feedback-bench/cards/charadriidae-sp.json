@@ -1,0 +1,77 @@
+{
+ "key": "charadriidae-sp",
+ "en": {
+  "scientific_name": "Charadriidae",
+  "english_name": "Plovers and Lapwings",
+  "rank": "family",
+  "overview": "Small to medium-sized shorebirds with compact bodies, short necks, and relatively short, straight bills, often foraging with a run-and-pause technique.",
+  "distinguishing_tips": [
+   "Compact body with a large, rounded head and short neck",
+   "Short, straight, pigeon-like bill",
+   "Distinctive run-stop-peck foraging behavior",
+   "Often has bold breast bands or facial markings"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sandpipers",
+    "scientific_name": "Scolopacidae",
+    "distinction_point": "Sandpipers generally have longer, thinner bills and probe continuously rather than running and pausing."
+   },
+   {
+    "english_name": "Pratincoles",
+    "scientific_name": "Glareolidae",
+    "distinction_point": "Pratincoles have longer, pointed wings, forked tails, and often catch insects in flight."
+   },
+   {
+    "english_name": "Stilts and Avocets",
+    "scientific_name": "Recurvirostridae",
+    "distinction_point": "Stilts and avocets have much longer, thinner legs and long, slender bills."
+   }
+  ],
+  "confirm_more": [
+   "Clear side profile showing the bill shape and leg length",
+   "Front view to capture any breast bands or facial patterns",
+   "Upperwing pattern in flight if possible"
+  ],
+  "season_habitat": "Found year-round or as migrants in Japan on mudflats, sandy beaches, riverbanks, and open fields."
+ },
+ "ja": {
+  "scientific_name": "Charadriidae",
+  "english_name": "チドリ科",
+  "rank": "科",
+  "overview": "小型から中型のシギ・チドリ類で、丸みを帯びた体型、短い首、比較的短く真っ直ぐな嘴が特徴です。走っては止まるという独特の採餌行動をよく行います。",
+  "distinguishing_tips": [
+   "丸みを帯びた頭部と短い首を持つ、コンパクトな体型",
+   "ハトのように短く真っ直ぐな嘴",
+   "走っては止まり、ついばむという特徴的な採餌行動",
+   "胸の帯模様や顔の模様が目立つことが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sandpipers",
+    "scientific_name": "Scolopacidae",
+    "japanese_name": "シギ科",
+    "distinction_point": "シギ類は一般的に嘴が長く細く、走っては止まる動作ではなく、連続して地面をつつくように採餌します。"
+   },
+   {
+    "english_name": "Pratincoles",
+    "scientific_name": "Glareolidae",
+    "japanese_name": "ツバメチドリ科",
+    "distinction_point": "ツバメチドリ類は翼が長く尖っており、尾が二股に分かれています。また、飛翔しながら昆虫を捕食することがよくあります。"
+   },
+   {
+    "english_name": "Stilts and Avocets",
+    "scientific_name": "Recurvirostridae",
+    "japanese_name": "セイタカシギ科",
+    "distinction_point": "セイタカシギ類は脚が非常に長く細く、嘴も長く細いのが特徴です。"
+   }
+  ],
+  "confirm_more": [
+   "嘴の形や脚の長さがわかる横からの姿",
+   "胸の帯や顔の模様が確認できる正面からの姿",
+   "可能であれば、飛翔時の翼上面の模様"
+  ],
+  "season_habitat": "日本では留鳥または渡り鳥として、干潟、砂浜、河川敷、開けた農耕地などで一年を通じて観察されます。"
+ },
+ "costUsd": 0.00790825
+}

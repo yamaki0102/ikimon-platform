@@ -1,0 +1,66 @@
+{
+ "key": "erigeron-philadelphicus",
+ "en": {
+  "scientific_name": "Erigeron philadelphicus",
+  "english_name": "Philadelphia fleabane",
+  "rank": "species",
+  "overview": "A common naturalized perennial herb in Japan, bearing numerous daisy-like flowers with fine, pinkish or white ray florets and nodding buds.",
+  "distinguishing_tips": [
+   "Flower buds droop downward before opening.",
+   "Stem leaves clasp the stem at their base.",
+   "Stems are hollow inside when cut.",
+   "Ray florets are very thin, thread-like, and often pinkish."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Annual fleabane",
+    "scientific_name": "Erigeron annuus",
+    "distinction_point": "Has upright buds, solid stems, and stem leaves that do not clasp the stem."
+   },
+   {
+    "english_name": "Daisy fleabane",
+    "scientific_name": "Erigeron strigosus",
+    "distinction_point": "Has narrower, non-clasping stem leaves and solid stems."
+   }
+  ],
+  "confirm_more": [
+   "Side view of unopened flower buds to check if they nod.",
+   "Close-up of where the upper leaves attach to the stem.",
+   "Cross-section of the stem to check if it is hollow."
+  ],
+  "season_habitat": "Blooms from April to June in sunny roadsides, fields, and disturbed areas."
+ },
+ "ja": {
+  "scientific_name": "Erigeron philadelphicus",
+  "english_name": "Philadelphia fleabane",
+  "rank": "種",
+  "overview": "日本でよく見られる帰化植物の多年草です。ヒナギクに似た小さな花をたくさん咲かせ、花びら（舌状花）は細く、淡いピンク色や白色をしています。つぼみがうなだれるように下を向くのが特徴です。",
+  "distinguishing_tips": [
+   "開花前のつぼみが下を向く。",
+   "茎の付け根が葉で抱かれるように付いている（抱茎）。",
+   "茎を切ると中が空洞になっている。",
+   "舌状花が非常に細く糸状で、ピンク色を帯びることが多い。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Annual fleabane",
+    "scientific_name": "Erigeron annuus",
+    "japanese_name": "ヒメジョオン",
+    "distinction_point": "つぼみは上を向き、茎は中実（詰まっている）。また、葉は茎を抱かない。"
+   },
+   {
+    "english_name": "Daisy fleabane",
+    "scientific_name": "Erigeron strigosus",
+    "japanese_name": "ハルジオン",
+    "distinction_point": "葉がより細く、茎を抱かず、茎は中実である。"
+   }
+  ],
+  "confirm_more": [
+   "開花前のつぼみを横から見て、うなだれているか確認する。",
+   "茎の上部の葉の付け根が茎を抱いているか接写する。",
+   "茎の断面を切り、中が空洞かどうか確認する。"
+  ],
+  "season_habitat": "4月から6月にかけて、日当たりの良い道端や野原、荒れ地などで見られます。"
+ },
+ "costUsd": 0.009257000000000001
+}

@@ -1,0 +1,77 @@
+{
+ "key": "rhododendron",
+ "en": {
+  "scientific_name": "Rhododendron",
+  "english_name": "Rhododendrons and Azaleas",
+  "rank": "genus",
+  "overview": "A diverse genus of woody shrubs and small trees famous for their showy, bell- or funnel-shaped spring flowers.",
+  "distinguishing_tips": [
+   "Clusters of 5-lobed, funnel- or bell-shaped flowers",
+   "Alternate, simple, often leathery leaves",
+   "Prominent stamens, often curved upward",
+   "Woody stems, sometimes with hairy or scaly twigs"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Enkianthus",
+    "scientific_name": "Enkianthus",
+    "distinction_point": "Has much smaller, drooping, urn-shaped flowers and leaves that turn bright red in autumn."
+   },
+   {
+    "english_name": "Japanese Andromeda",
+    "scientific_name": "Pieris",
+    "distinction_point": "Bears tiny, white, urn-shaped flowers in drooping panicles rather than large funnel-shaped blooms."
+   },
+   {
+    "english_name": "Camellia",
+    "scientific_name": "Camellia",
+    "distinction_point": "Has thicker, glossier, finely serrated leaves and numerous stamens fused into a central column."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower interior showing stamen count and arrangement",
+   "Underside of leaves and young twigs to check for hairs or scales",
+   "Overall shrub habit showing branching and leaf arrangement"
+  ],
+  "season_habitat": "Blooms mainly from spring to early summer in mountain forests, rocky slopes, and cultivated gardens."
+ },
+ "ja": {
+  "scientific_name": "Rhododendron",
+  "english_name": "ツツジ属（シャクナゲ・ツツジ類）",
+  "rank": "属",
+  "overview": "春に咲く華やかな鐘形や漏斗形の美しい花で知られる、木本性の低木や小高木からなる多様なグループです。",
+  "distinguishing_tips": [
+   "5つに裂けた漏斗形または鐘形の花が房状に咲く",
+   "互生する単葉で、革質のものが多い",
+   "目立つ雄しべがあり、上向きに湾曲することが多い",
+   "木質の茎を持ち、小枝に毛や鱗片がある場合がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Enkianthus",
+    "scientific_name": "Enkianthus",
+    "japanese_name": "ドウダンツツジ属",
+    "distinction_point": "花がはるかに小さく、下向きの壺形で、秋には葉が鮮やかに紅葉します。"
+   },
+   {
+    "english_name": "Japanese Andromeda",
+    "scientific_name": "Pieris",
+    "japanese_name": "アセビ属",
+    "distinction_point": "大きな漏斗形の花ではなく、小さな白い壺形の花が垂れ下がる総状花序をつけます。"
+   },
+   {
+    "english_name": "Camellia",
+    "scientific_name": "Camellia",
+    "japanese_name": "ツバキ属",
+    "distinction_point": "葉がより厚く光沢があり、細かい鋸歯があります。また、多数の雄しべが中央で筒状に合着しています。"
+   }
+  ],
+  "confirm_more": [
+   "雄しべの数や配置がわかる花の内部の接写",
+   "毛や鱗片の有無を確認するための葉の裏側や若い枝",
+   "枝ぶりや葉の付き方がわかる低木全体の姿"
+  ],
+  "season_habitat": "主に春から初夏にかけて、山地の森林、岩場、庭園などで開花します。"
+ },
+ "costUsd": 0.008849
+}

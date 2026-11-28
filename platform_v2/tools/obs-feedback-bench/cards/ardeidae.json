@@ -1,0 +1,77 @@
+{
+ "key": "ardeidae",
+ "en": {
+  "scientific_name": "Ardeidae",
+  "english_name": "Herons, Egrets, and Bitterns",
+  "rank": "family",
+  "overview": "Medium to large wading birds with long legs, S-curved necks, and dagger-like bills, commonly seen stalking prey in Japanese wetlands.",
+  "distinguishing_tips": [
+   "Long, pointed, dagger-like bill",
+   "Neck retracted into an S-shape during flight",
+   "Long legs extending straight behind the tail in flight",
+   "Broad, rounded wings with slow, steady wingbeats"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Cranes",
+    "scientific_name": "Gruidae",
+    "distinction_point": "Cranes fly with their necks extended straight forward rather than retracted."
+   },
+   {
+    "english_name": "Storks",
+    "scientific_name": "Ciconiidae",
+    "distinction_point": "Storks fly with outstretched necks and generally have much heavier bills."
+   },
+   {
+    "english_name": "Ibises and Spoonbills",
+    "scientific_name": "Threskiornithidae",
+    "distinction_point": "Ibises have down-curved bills and spoonbills have flat, spatulate bills."
+   }
+  ],
+  "confirm_more": [
+   "Full-body profile showing bill color and leg or foot coloration",
+   "In-flight silhouette to confirm the retracted neck posture",
+   "Close-up of the head and lore area between the eye and bill"
+  ],
+  "season_habitat": "Year-round residents and migrants found in rice paddies, rivers, marshes, and coastal mudflats across Japan."
+ },
+ "ja": {
+  "scientific_name": "Ardeidae",
+  "english_name": "サギ科",
+  "rank": "科",
+  "overview": "長い脚とS字型に曲がる首、短剣のような鋭い嘴を持つ中型から大型の渉禽類です。日本の湿地で獲物を狙う姿がよく見られます。",
+  "distinguishing_tips": [
+   "短剣のように長く尖った嘴",
+   "飛翔時は首をS字型に折りたたむ",
+   "飛翔時、長い脚を尾の後ろにまっすぐ伸ばす",
+   "幅広く丸みを帯びた翼で、ゆっくりと力強く羽ばたく"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Cranes",
+    "scientific_name": "Gruidae",
+    "japanese_name": "ツル科",
+    "distinction_point": "ツルは飛翔時に首を折りたたまず、前方にまっすぐ伸ばします。"
+   },
+   {
+    "english_name": "Storks",
+    "scientific_name": "Ciconiidae",
+    "japanese_name": "コウノトリ科",
+    "distinction_point": "コウノトリは首を伸ばして飛び、一般的にサギよりも重厚な嘴を持っています。"
+   },
+   {
+    "english_name": "Ibises and Spoonbills",
+    "scientific_name": "Threskiornithidae",
+    "japanese_name": "トキ科",
+    "distinction_point": "トキは下に湾曲した嘴を持ち、ヘラサギは平らなヘラ状の嘴を持っています。"
+   }
+  ],
+  "confirm_more": [
+   "嘴の色や脚・足の色がわかる全身の横顔",
+   "首を折りたたんだ姿勢がわかる飛翔時のシルエット",
+   "目と嘴の間の顔面（目先）のクローズアップ"
+  ],
+  "season_habitat": "日本全国の田んぼ、川、湿地、干潟などで、留鳥または渡り鳥として一年中見られます。"
+ },
+ "costUsd": 0.0090515
+}

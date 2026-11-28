@@ -1,0 +1,77 @@
+{
+ "key": "aves",
+ "en": {
+  "scientific_name": "Aves",
+  "english_name": "Birds",
+  "rank": "class",
+  "overview": "Warm-blooded, feathered vertebrates with beaks and wings, found across diverse Japanese habitats from coastal waters to alpine peaks.",
+  "distinguishing_tips": [
+   "Body covered in feathers",
+   "Toothless beak or bill",
+   "Forelimbs modified into wings",
+   "Two scaly legs with clawed toes"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Bats",
+    "scientific_name": "Chiroptera",
+    "distinction_point": "Bats have leathery, featherless wings and erratic, fluttering flight at dusk or night."
+   },
+   {
+    "english_name": "Hawkmoths",
+    "scientific_name": "Sphingidae",
+    "distinction_point": "Hawkmoths are much smaller, have antennae, and lack feathers or a true beak."
+   },
+   {
+    "english_name": "Flying squirrels",
+    "scientific_name": "Pteromyini",
+    "distinction_point": "Flying squirrels glide silently between trees using furred membranes rather than flapping wings."
+   }
+  ],
+  "confirm_more": [
+   "Side profile showing beak shape and head markings",
+   "Spread wings or perched plumage pattern",
+   "Legs and feet to show toe arrangement"
+  ],
+  "season_habitat": "Present year-round throughout Japan in forests, wetlands, coastlines, and urban areas."
+ },
+ "ja": {
+  "scientific_name": "Aves",
+  "english_name": "鳥類",
+  "rank": "綱",
+  "overview": "羽毛に覆われ、くちばしと翼を持つ恒温脊椎動物です。日本の沿岸部から高山帯まで、多様な環境に生息しています。",
+  "distinguishing_tips": [
+   "全身が羽毛で覆われている",
+   "歯のないくちばしを持つ",
+   "前肢が翼に変化している",
+   "鱗のある2本の足と爪を持つ指"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "コウモリ",
+    "scientific_name": "Chiroptera",
+    "japanese_name": "コウモリ目",
+    "distinction_point": "コウモリの翼は羽毛のない皮膜で、夕方や夜間に不規則に羽ばたいて飛びます。"
+   },
+   {
+    "english_name": "スズメガ",
+    "scientific_name": "Sphingidae",
+    "japanese_name": "スズメガ科",
+    "distinction_point": "スズメガははるかに小型で触角があり、羽毛や本物のくちばしはありません。"
+   },
+   {
+    "english_name": "ムササビ・モモンガ",
+    "scientific_name": "Pteromyini",
+    "japanese_name": "リス族",
+    "distinction_point": "ムササビやモモンガは、翼を羽ばたかせるのではなく、毛に覆われた皮膜を使って木々の間を滑空します。"
+   }
+  ],
+  "confirm_more": [
+   "くちばしの形や頭部の模様がわかる横顔",
+   "広げた翼や止まっている時の羽の模様",
+   "足指の配置がわかる足元"
+  ],
+  "season_habitat": "日本全国の森林、湿地、海岸、都市部などで一年中見られます。"
+ },
+ "costUsd": 0.00987325
+}

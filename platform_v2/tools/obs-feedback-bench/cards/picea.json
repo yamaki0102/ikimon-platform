@@ -1,0 +1,77 @@
+{
+ "key": "picea",
+ "en": {
+  "scientific_name": "Picea",
+  "english_name": "Spruces",
+  "rank": "genus",
+  "overview": "Evergreen conifers native to Japan's cool temperate and subalpine forests, recognized by single needles on woody pegs and hanging cones.",
+  "distinguishing_tips": [
+   "Single needles attached to small woody pegs on twigs",
+   "Rough, scaly twigs left behind after needles fall",
+   "Pendulous cones that hang downward and stay intact",
+   "Four-angled or flattened needles, often stiff and sharp"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Firs",
+    "scientific_name": "Abies",
+    "distinction_point": "Firs have upright cones that disintegrate on the tree and smooth twigs with flat, notched needles."
+   },
+   {
+    "english_name": "Hemlocks",
+    "scientific_name": "Tsuga",
+    "distinction_point": "Hemlocks have flat, blunt needles with two white bands underneath and much smaller cones."
+   },
+   {
+    "english_name": "Yews",
+    "scientific_name": "Taxus",
+    "distinction_point": "Yews have flat, soft needles without woody pegs and produce red fleshy arils instead of woody cones."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a twig showing the woody pegs at needle bases",
+   "Hanging cones attached to the branches",
+   "Underside of needles to check for white stomatal bands"
+  ],
+  "season_habitat": "Year-round evergreen found in subalpine and cool temperate mountain forests across Japan."
+ },
+ "ja": {
+  "scientific_name": "Picea",
+  "english_name": "トウヒ属",
+  "rank": "属",
+  "overview": "日本の冷温帯から亜高山帯の森林に自生する常緑針葉樹です。小枝にある木質の突起に1本ずつ付く針葉と、垂れ下がる球果（まつぼっくり）が特徴です。",
+  "distinguishing_tips": [
+   "小枝の小さな木質の突起に針葉が1本ずつ付く",
+   "針葉が落ちた後の小枝はザラザラしている",
+   "球果は垂れ下がり、形を保ったまま落下する",
+   "針葉は断面が四角形または平らで、硬く尖っていることが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Firs",
+    "scientific_name": "Abies",
+    "japanese_name": "モミ属",
+    "distinction_point": "モミ属の球果は上向きに立ち、木の上でバラバラに崩れます。また、小枝は滑らかで、針葉は平らで先端がくぼんでいます。"
+   },
+   {
+    "english_name": "Hemlocks",
+    "scientific_name": "Tsuga",
+    "japanese_name": "ツガ属",
+    "distinction_point": "ツガ属の針葉は平らで先端が丸く、裏面に2本の白い気孔帯があります。球果はトウヒ属よりもずっと小型です。"
+   },
+   {
+    "english_name": "Yews",
+    "scientific_name": "Taxus",
+    "japanese_name": "イチイ属",
+    "distinction_point": "イチイ属の針葉は平らで柔らかく、木質の突起はありません。球果の代わりに赤い仮種皮に包まれた種子を付けます。"
+   }
+  ],
+  "confirm_more": [
+   "針葉の付け根にある木質の突起の接写",
+   "枝にぶら下がっている球果の様子",
+   "針葉の裏側を確認し、白い気孔帯があるかどうか"
+  ],
+  "season_habitat": "日本全国の亜高山帯や冷温帯の山林に自生する常緑樹で、一年中観察できます。"
+ },
+ "costUsd": 0.009279500000000001
+}

@@ -1,0 +1,46 @@
+{
+ "key": "habitat-常緑広葉樹林",
+ "en": {
+  "habitat": "Evergreen Broad-leaved Forest",
+  "overview": "Dense, shady forests dominated by glossy-leaved evergreen trees like oaks and camellias, typical of warm-temperate lowland Japan.",
+  "what_to_look_for": [
+   "Glossy-leaved canopy trees (Castanopsis, Quercus)",
+   "Thick, dark leaf litter on the forest floor",
+   "Shade-tolerant ferns and climbing vines",
+   "Distinct multi-layered canopy structure"
+  ],
+  "confirm_more": [
+   "Wide shot from a trail showing the dense canopy",
+   "Close-up of glossy evergreen leaves and acorns",
+   "Low-angle shot of the shaded understory and litter"
+  ],
+  "management_signs": [
+   "Cleared underbrush or cut vines along paths",
+   "Invasive bamboo or planted cedar encroachment",
+   "Old charcoal kilns or coppiced tree stumps"
+  ],
+  "seasonal_note": "Lush and dark year-round, with subtle new leaf flushes in spring and acorns in autumn."
+ },
+ "ja": {
+  "habitat": "常緑広葉樹林",
+  "overview": "シイやカシ、ツバキなど、光沢のある葉を持つ常緑樹が優占する、日本の暖温帯低地を代表する鬱蒼とした日陰の多い森林です。",
+  "what_to_look_for": [
+   "光沢のある葉を持つ高木（シイ類、カシ類）",
+   "林床に厚く積もった暗い落ち葉",
+   "日陰を好むシダ植物や蔓植物",
+   "多層構造になった特徴的な樹冠"
+  ],
+  "confirm_more": [
+   "トレイルから見た鬱蒼とした樹冠の広角写真",
+   "光沢のある常緑樹の葉やドングリの接写",
+   "日陰の林床や落ち葉を捉えたローアングル写真"
+  ],
+  "management_signs": [
+   "小道沿いの下草刈りや蔓の切断跡",
+   "侵入した竹や植林されたスギの混入",
+   "古い炭焼き窯の跡や萌芽更新された切り株"
+  ],
+  "seasonal_note": "一年を通して緑深く暗い森ですが、春には新緑が芽吹き、秋にはドングリが実るなど、季節ごとの変化が見られます。"
+ },
+ "costUsd": 0.007086
+}

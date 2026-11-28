@@ -1,0 +1,77 @@
+{
+ "key": "trichonephila-clavata",
+ "en": {
+  "scientific_name": "Trichonephila clavata",
+  "english_name": "Joro spider",
+  "rank": "species",
+  "overview": "A large orb-weaving spider common across Japan, recognized by its striking yellow, black, and red-tipped abdomen.",
+  "distinguishing_tips": [
+   "Yellow and black striped abdomen with a bright red patch near the tip",
+   "Long, slender black legs with yellow bands",
+   "Builds large, asymmetrical golden-tinted orb webs",
+   "Males are tiny and brown compared to the large, colorful females"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Wasp spider",
+    "scientific_name": "Argiope bruennichi",
+    "distinction_point": "Lacks the red abdominal patch and builds a vertical web with a zigzag stabilimentum."
+   },
+   {
+    "english_name": "St. Andrew's cross spider",
+    "scientific_name": "Argiope amoena",
+    "distinction_point": "Has broader yellow-black bands, rests with legs in an X-shape, and lacks red markings."
+   },
+   {
+    "english_name": "Giant golden orbweaver",
+    "scientific_name": "Nephila pilipes",
+    "distinction_point": "Restricted to southern Japan, much larger, and has a dark abdomen with yellow spots rather than stripes."
+   }
+  ],
+  "confirm_more": [
+   "Dorsal view of the abdomen to show the yellow, black, and red pattern",
+   "Ventral view to confirm the red markings near the spinnerets",
+   "Full web structure showing the golden silk and asymmetrical orb"
+  ],
+  "season_habitat": "Common in forests, parks, and gardens across Japan from late summer to late autumn."
+ },
+ "ja": {
+  "scientific_name": "Trichonephila clavata",
+  "english_name": "ジョロウグモ",
+  "rank": "種",
+  "overview": "日本各地でよく見られる大型のクモで、黄色と黒の縞模様に、お尻の先が赤く色づく鮮やかな見た目が特徴です。",
+  "distinguishing_tips": [
+   "黄色と黒の縞模様の腹部に、先端付近の鮮やかな赤色が特徴",
+   "長く細い黒い脚に、黄色い帯状の模様がある",
+   "大きく、非対称で黄金色に輝く円網（クモの巣）を張る",
+   "オスはメスに比べて非常に小さく、茶色い体色をしている"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Wasp spider",
+    "scientific_name": "Argiope bruennichi",
+    "japanese_name": "ナガコガネグモ",
+    "distinction_point": "腹部に赤い模様がなく、巣の中央にジグザグ模様（隠れ帯）がある垂直な網を張る。"
+   },
+   {
+    "english_name": "St. Andrew's cross spider",
+    "scientific_name": "Argiope amoena",
+    "japanese_name": "コガネグモ",
+    "distinction_point": "黄色と黒の帯が太く、脚をX字型に広げて静止し、赤い模様がない。"
+   },
+   {
+    "english_name": "Giant golden orbweaver",
+    "scientific_name": "Nephila pilipes",
+    "japanese_name": "オオジョロウグモ",
+    "distinction_point": "南日本に生息し、体格がはるかに大きく、腹部は縞模様ではなく暗色で黄色い斑点がある。"
+   }
+  ],
+  "confirm_more": [
+   "腹部を上から見て、黄色・黒・赤の模様を確認する",
+   "腹部を下から見て、糸いぼ付近の赤い模様を確認する",
+   "黄金色の糸でできた、非対称な円網の構造全体を確認する"
+  ],
+  "season_habitat": "晩夏から晩秋にかけて、日本各地の森林、公園、庭などでよく見られる。"
+ },
+ "costUsd": 0.006433
+}

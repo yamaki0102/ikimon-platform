@@ -1,0 +1,77 @@
+{
+ "key": "pinus",
+ "en": {
+  "scientific_name": "Pinus",
+  "english_name": "Pines",
+  "rank": "genus",
+  "overview": "Evergreen conifers native and planted across Japan, easily recognized by their bundled needle-like leaves and woody cones.",
+  "distinguishing_tips": [
+   "Needles grow in bundles (fascicles) of two, three, or five.",
+   "Woody cones with overlapping, often thickened scales.",
+   "Bark frequently plated, scaly, or furrowed with age.",
+   "Resinous scent when needles or twigs are crushed."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Cedar",
+    "scientific_name": "Cryptomeria japonica",
+    "distinction_point": "Has short, awl-shaped needles arranged spirally rather than in bundles."
+   },
+   {
+    "english_name": "Japanese Cypress",
+    "scientific_name": "Chamaecyparis obtusa",
+    "distinction_point": "Has flat, scale-like leaves instead of long needles."
+   },
+   {
+    "english_name": "Spruce",
+    "scientific_name": "Picea",
+    "distinction_point": "Needles attach singly to small woody pegs on twigs, not in bundles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a needle bundle showing the number of needles per fascicle.",
+   "Mature woody cone from the side to show scale shape.",
+   "Trunk bark texture and color."
+  ],
+  "season_habitat": "Evergreen year-round; widespread from coastal dunes and lowland forests to high alpine zones."
+ },
+ "ja": {
+  "scientific_name": "Pinus",
+  "english_name": "マツ属",
+  "rank": "属",
+  "overview": "日本各地に自生・植栽されている常緑針葉樹です。束になって生える針状の葉と、木質の松かさ（球果）が特徴で、誰にでも見分けやすい樹木です。",
+  "distinguishing_tips": [
+   "葉は2本、3本、または5本が束になって生えます。",
+   "木質の松かさには、重なり合った厚みのある鱗片があります。",
+   "樹皮は成長とともに板状や鱗状に剥がれたり、深い溝ができたりします。",
+   "葉や小枝を揉むと、樹脂特有の香りがします。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Cedar",
+    "scientific_name": "Cryptomeria japonica",
+    "japanese_name": "スギ",
+    "distinction_point": "束にならず、短く尖った葉が枝にらせん状につきます。"
+   },
+   {
+    "english_name": "Japanese Cypress",
+    "scientific_name": "Chamaecyparis obtusa",
+    "japanese_name": "ヒノキ",
+    "distinction_point": "長い針状の葉ではなく、平たい鱗片状の葉をしています。"
+   },
+   {
+    "english_name": "Spruce",
+    "scientific_name": "Picea",
+    "japanese_name": "トウヒ属",
+    "distinction_point": "葉は束にならず、枝の小さな突起に1本ずつ独立してつきます。"
+   }
+  ],
+  "confirm_more": [
+   "束になっている葉の数を確認できる接写写真。",
+   "鱗片の形がわかる、成熟した松かさの側面写真。",
+   "幹の樹皮の質感や色合い。"
+  ],
+  "season_habitat": "一年中緑を保つ常緑樹。海岸の砂丘から低地の森林、高山帯まで広く分布しています。"
+ },
+ "costUsd": 0.008455250000000001
+}

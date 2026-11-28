@@ -1,0 +1,77 @@
+{
+ "key": "trifolium-pratense",
+ "en": {
+  "scientific_name": "Trifolium pratense",
+  "english_name": "Red Clover",
+  "rank": "species",
+  "overview": "A common naturalized perennial herb in Japan, recognized by its round pinkish-purple flower heads and three-parted leaves with pale chevron markings.",
+  "distinguishing_tips": [
+   "Globular pinkish-purple flower heads.",
+   "Trifoliate leaves with a pale V-shaped mark.",
+   "Stems and leaves covered in fine hairs.",
+   "Pair of bracts directly beneath each flower head."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "White Clover",
+    "scientific_name": "Trifolium repens",
+    "distinction_point": "Has white flowers, hairless stems, and long-stalked flower heads without bracts."
+   },
+   {
+    "english_name": "Crimson Clover",
+    "scientific_name": "Trifolium incarnatum",
+    "distinction_point": "Features elongated, cylindrical bright crimson flower heads rather than round ones."
+   },
+   {
+    "english_name": "Chinese Milk Vetch",
+    "scientific_name": "Astragalus sinicus",
+    "distinction_point": "Has pinnately compound leaves with many leaflets instead of three-parted clover leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf surface showing the pale chevron mark.",
+   "Side view of the flower head base to show the supporting bracts.",
+   "Close-up of the stem to confirm fine hairs."
+  ],
+  "season_habitat": "Blooms from May to October in sunny grasslands, roadsides, and disturbed areas."
+ },
+ "ja": {
+  "scientific_name": "Trifolium pratense",
+  "english_name": "アカツメクサ（ムラサキツメクサ）",
+  "rank": "種",
+  "overview": "日本でよく見られる帰化植物の多年草です。丸みを帯びた赤紫色の花と、白いV字模様が入った3枚の小葉が特徴です。",
+  "distinguishing_tips": [
+   "球状の赤紫色の花。",
+   "葉に白いV字型の模様がある。",
+   "茎や葉に細かい毛が生えている。",
+   "花の下に一対の苞（ほう）がある。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "シロツメクサ",
+    "scientific_name": "Trifolium repens",
+    "japanese_name": "シロツメクサ",
+    "distinction_point": "花は白く、茎に毛がなく、花柄が長く、花の下に苞がない。"
+   },
+   {
+    "english_name": "ベニバナツメクサ",
+    "scientific_name": "Trifolium incarnatum",
+    "japanese_name": "ベニバナツメクサ",
+    "distinction_point": "花が丸型ではなく、細長い円筒形で鮮やかな深紅色をしている。"
+   },
+   {
+    "english_name": "レンゲソウ",
+    "scientific_name": "Astragalus sinicus",
+    "japanese_name": "レンゲソウ",
+    "distinction_point": "3枚の小葉ではなく、多数の小葉からなる羽状複葉を持つ。"
+   }
+  ],
+  "confirm_more": [
+   "葉の表面にある白いV字模様のアップ。",
+   "花の下にある苞を確認するための横からのアングル。",
+   "茎の細かい毛を確認するための拡大写真。"
+  ],
+  "season_habitat": "5月から10月にかけて、日当たりの良い草原や道端、荒れ地などで見られます。"
+ },
+ "costUsd": 0.00963725
+}

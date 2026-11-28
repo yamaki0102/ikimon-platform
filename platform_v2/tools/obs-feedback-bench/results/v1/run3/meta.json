@@ -1,0 +1,12 @@
+{
+ "runId": "run3",
+ "version": "v1",
+ "configs": [
+  "slim-deepseek41",
+  "slim-g35lite"
+ ],
+ "items": 45,
+ "maxUsd": 6.5,
+ "spentUsd": 4.940911549999996,
+ "stoppedByCap": false
+}

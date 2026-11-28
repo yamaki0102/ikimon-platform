@@ -1,0 +1,46 @@
+{
+ "key": "habitat-竹林",
+ "en": {
+  "habitat": "Bamboo Grove",
+  "overview": "Dense, fast-growing stands of Phyllostachys bamboo, often bordering satoyama woodlands and shading out native understory plants.",
+  "what_to_look_for": [
+   "Thick, jointed culms with powdery white rings at the nodes",
+   "Deep, persistent leaf litter suppressing native herbaceous plants",
+   "Shade-tolerant ferns or Aucuba japonica along the edges",
+   "Bamboo shoots emerging from the soil"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing stand density and canopy height",
+   "Close-up of culm nodes and branching pattern for species ID",
+   "Ground-level view of the leaf litter and any understory plants"
+  ],
+  "management_signs": [
+   "Cut bamboo stumps or neatly stacked harvested culms",
+   "Clearings or mowed paths where encroaching bamboo is controlled",
+   "Unmaintained edges invading adjacent broadleaf forests"
+  ],
+  "seasonal_note": "Young shoots emerge rapidly in spring, while leaf drop peaks in late spring to early summer."
+ },
+ "ja": {
+  "habitat": "竹林",
+  "overview": "マダケ属（Phyllostachys）の竹が密集して急速に成長する場所です。里山の境界によく見られ、日光を遮ることで在来の低木や草本の生育を阻害します。",
+  "what_to_look_for": [
+   "節に白い粉を吹いた、太く節のある稈（かん）",
+   "在来の草本植物の生育を抑える、厚く堆積した落ち葉",
+   "林縁に見られる耐陰性のあるシダ類やアオキ",
+   "地面から突き出たタケノコ"
+  ],
+  "confirm_more": [
+   "竹林の密度や高さを記録した広角写真",
+   "種を特定するための、稈の節や枝ぶりのクローズアップ写真",
+   "地面の落ち葉や下層植生の様子がわかる地表レベルの写真"
+  ],
+  "management_signs": [
+   "伐採された竹の切り株や、きれいに積み上げられた竹材",
+   "竹の侵入を防ぐために刈り払われた空き地や小道",
+   "手入れがされず、隣接する広葉樹林へ侵入している林縁"
+  ],
+  "seasonal_note": "春にはタケノコが急速に成長し、晩春から初夏にかけて落葉のピークを迎えます。"
+ },
+ "costUsd": 0.0076505
+}

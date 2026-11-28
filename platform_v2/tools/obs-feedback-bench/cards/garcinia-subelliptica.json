@@ -1,0 +1,77 @@
+{
+ "key": "garcinia-subelliptica",
+ "en": {
+  "scientific_name": "Garcinia subelliptica",
+  "english_name": "Happiness Tree",
+  "rank": "species",
+  "overview": "An evergreen coastal tree native to Okinawa, widely planted as windbreaks around traditional houses for its dense, glossy foliage.",
+  "distinguishing_tips": [
+   "Thick, leathery, opposite leaves with rounded tips",
+   "Dark green, glossy upper leaf surface",
+   "Yellowish-orange, globular fruits with a pleasant scent",
+   "Straight trunk with dark gray bark"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Alexandrian Laurel",
+    "scientific_name": "Calophyllum inophyllum",
+    "distinction_point": "Has numerous fine, parallel lateral veins on the leaves, unlike Garcinia subelliptica."
+   },
+   {
+    "english_name": "Chinese Banyan",
+    "scientific_name": "Ficus microcarpa",
+    "distinction_point": "Typically develops prominent aerial roots and has milky sap."
+   },
+   {
+    "english_name": "Japanese Pittosporum",
+    "scientific_name": "Pittosporum tobira",
+    "distinction_point": "Leaves are arranged alternately or in whorls rather than strictly opposite."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of opposite leaf arrangement and venation",
+   "Small creamy-white flowers or yellow-orange fruits",
+   "Overall tree shape showing its dense, conical crown"
+  ],
+  "season_habitat": "Flowers from May to June; inhabits coastal forests and traditional windbreaks in Okinawa."
+ },
+ "ja": {
+  "scientific_name": "Garcinia subelliptica",
+  "english_name": "フクギ (Happiness Tree)",
+  "rank": "種",
+  "overview": "沖縄原産の常緑高木で、その密で光沢のある葉から、伝統的な家屋の防風林として広く植栽されています。",
+  "distinguishing_tips": [
+   "厚みがあり革質で、対生する葉（先端は丸みを帯びる）",
+   "濃い緑色で光沢のある葉の表面",
+   "芳香のある黄色からオレンジ色の球状の果実",
+   "暗灰色の樹皮を持つ直立した幹"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Alexandrian Laurel",
+    "scientific_name": "Calophyllum inophyllum",
+    "japanese_name": "テリハボク",
+    "distinction_point": "フクギとは異なり、葉に多数の細かい平行な側脈があります。"
+   },
+   {
+    "english_name": "Chinese Banyan",
+    "scientific_name": "Ficus microcarpa",
+    "japanese_name": "ガジュマル",
+    "distinction_point": "特徴的な気根が発達し、枝を折ると白い乳液が出ます。"
+   },
+   {
+    "english_name": "Japanese Pittosporum",
+    "scientific_name": "Pittosporum tobira",
+    "japanese_name": "トベラ",
+    "distinction_point": "葉は対生ではなく、互生または輪生します。"
+   }
+  ],
+  "confirm_more": [
+   "対生する葉の付き方と葉脈のクローズアップ",
+   "小さなクリーム色の花や黄色からオレンジ色の果実",
+   "密で円錐形の樹冠が特徴的な樹形全体"
+  ],
+  "season_habitat": "5月から6月にかけて開花します。沖縄の海岸林や伝統的な防風林で見られます。"
+ },
+ "costUsd": 0.01095775
+}

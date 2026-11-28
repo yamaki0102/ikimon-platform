@@ -1,0 +1,77 @@
+{
+ "key": "charadriiformes",
+ "en": {
+  "scientific_name": "Charadriiformes",
+  "english_name": "Shorebirds, gulls, and alcids",
+  "rank": "order",
+  "overview": "A diverse order of coastal and wetland birds including sandpipers, plovers, gulls, terns, and alcids, adapted to foraging near water.",
+  "distinguishing_tips": [
+   "Often seen wading in shallow water or walking along shorelines.",
+   "Long, pointed wings suited for strong, sustained flight.",
+   "Plumage typically features cryptic browns, grays, whites, and blacks.",
+   "Bill shapes vary widely from needle-like to heavy and hooked."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Herons, egrets, and ibises",
+    "scientific_name": "Pelecaniformes",
+    "distinction_point": "Generally much larger with S-curved necks in flight and long, dagger-like bills."
+   },
+   {
+    "english_name": "Rails, crakes, and coots",
+    "scientific_name": "Gruiformes",
+    "distinction_point": "Usually have shorter, rounded wings, skulking habits in dense reeds, and longer toes."
+   },
+   {
+    "english_name": "Grebes",
+    "scientific_name": "Podicipediformes",
+    "distinction_point": "Strictly aquatic divers with lobed toes, lacking a visible tail, unlike swimming gulls or alcids."
+   }
+  ],
+  "confirm_more": [
+   "Full-body profile showing bill shape and leg length.",
+   "Upperwing pattern in flight to see wingbars or tail markings.",
+   "Close-up of the feet to check for webbing or toe length."
+  ],
+  "season_habitat": "Found year-round across Japan's mudflats, beaches, estuaries, and offshore waters, peaking during spring and autumn migrations."
+ },
+ "ja": {
+  "scientific_name": "Charadriiformes",
+  "english_name": "チドリ目 (Shorebirds, gulls, and alcids)",
+  "rank": "目",
+  "overview": "シギ、チドリ、カモメ、アジサシ、ウミスズメなどを含む、水辺での採餌に適応した多様な鳥類のグループです。",
+  "distinguishing_tips": [
+   "浅瀬で歩き回ったり、海岸線を歩いている姿がよく見られます。",
+   "力強く持続的な飛行に適した、長く尖った翼を持っています。",
+   "羽色は茶色、灰色、白、黒といった保護色であることが一般的です。",
+   "くちばしの形は、針のように細いものから、太くかぎ状のものまで非常に多様です。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Herons, egrets, and ibises",
+    "scientific_name": "Pelecaniformes",
+    "japanese_name": "ペリカン目",
+    "distinction_point": "一般的に体格がはるかに大きく、飛行中に首をS字に曲げ、長く鋭い短剣のような形をしたくちばしを持っています。"
+   },
+   {
+    "english_name": "Rails, crakes, and coots",
+    "scientific_name": "Gruiformes",
+    "japanese_name": "ツル目",
+    "distinction_point": "通常、翼は短く丸みを帯びており、密生した葦の中に隠れる習性があり、足の指が長いです。"
+   },
+   {
+    "english_name": "Grebes",
+    "scientific_name": "Podicipediformes",
+    "japanese_name": "カイツブリ目",
+    "distinction_point": "完全に水中で潜水する鳥で、足には弁足があり、泳ぐカモメやウミスズメ類とは異なり、目立つ尾羽がありません。"
+   }
+  ],
+  "confirm_more": [
+   "くちばしの形や足の長さがわかる全身の横顔。",
+   "翼帯や尾羽の模様を確認するための、飛行中の翼上面。",
+   "水かきの有無や足指の長さを確認するための足のアップ。"
+  ],
+  "season_habitat": "日本の干潟、海岸、河口、沖合で一年中見られますが、春と秋の渡りの時期に最も多く観察されます。"
+ },
+ "costUsd": 0.01078875
+}

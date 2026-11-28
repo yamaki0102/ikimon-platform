@@ -1,0 +1,46 @@
+{
+ "key": "habitat-ため池・湖沼",
+ "en": {
+  "habitat": "Irrigation Ponds & Lakes",
+  "overview": "Still freshwater bodies ranging from traditional agricultural ponds to natural lakes, supporting diverse aquatic plants, amphibians, and waterfowl.",
+  "what_to_look_for": [
+   "Floating-leaved plants like water lilies or lotus",
+   "Dragonflies and damselflies patrolling the shore",
+   "Waterbirds such as herons or diving ducks",
+   "Emergent reed beds along the shallow margins"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing the entire water body and surrounding banks",
+   "Close-up of aquatic vegetation at the water's edge",
+   "Detail of water clarity or any visible inlet/outlet structures"
+  ],
+  "management_signs": [
+   "Concrete embankments or artificial shoreline reinforcement",
+   "Mowed grass on levees and sluice gates for water control",
+   "Algal blooms or invasive species like water hyacinth"
+  ],
+  "seasonal_note": "Water levels often drop in autumn for pond maintenance, while winter brings migratory waterfowl."
+ },
+ "ja": {
+  "habitat": "ため池・湖沼",
+  "overview": "伝統的な農業用ため池から自然の湖まで、静かな淡水域です。多様な水生植物、両生類、水鳥たちの生息地となっています。",
+  "what_to_look_for": [
+   "スイレンやハスなどの浮葉植物",
+   "岸辺を飛び回るトンボやイトトンボ",
+   "サギ類や潜水ガモなどの水鳥",
+   "浅瀬に広がるヨシ原"
+  ],
+  "confirm_more": [
+   "水域全体と周囲の岸辺がわかる広角写真",
+   "水際の植生のクローズアップ",
+   "水の透明度や、目に見える取水・排水設備の詳細"
+  ],
+  "management_signs": [
+   "コンクリート護岸や人工的な岸辺の補強",
+   "堤防の草刈り跡や水門などの水位調節設備",
+   "アオコの発生やホテイアオイなどの外来種"
+  ],
+  "seasonal_note": "秋には池のメンテナンスのために水位が下がることが多く、冬には渡り鳥が飛来します。"
+ },
+ "costUsd": 0.00665975
+}

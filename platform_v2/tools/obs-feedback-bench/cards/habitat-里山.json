@@ -1,0 +1,46 @@
+{
+ "key": "habitat-里山",
+ "en": {
+  "habitat": "Satoyama",
+  "overview": "A mosaic of secondary forests, paddy fields, and grasslands shaped by traditional sustainable human use in Japan.",
+  "what_to_look_for": [
+   "Sawtooth oak and konara oak trees",
+   "Japanese brown frogs or fireflies near water",
+   "Terraced rice paddies and irrigation ditches",
+   "Wildflowers like bush clover on forest edges"
+  ],
+  "confirm_more": [
+   "Wide landscape shot showing forest-to-farmland transition",
+   "Close-up of tree trunks or coppice regrowth",
+   "Waterway or paddy edge from a low angle"
+  ],
+  "management_signs": [
+   "Coppiced trees or cleared forest understory",
+   "Mowed grass embankments along paths and paddies",
+   "Maintained stone walls or wooden irrigation sluices"
+  ],
+  "seasonal_note": "Spring brings blooming wildflowers and frogs, while autumn showcases vibrant foliage and harvested paddies."
+ },
+ "ja": {
+  "habitat": "里山",
+  "overview": "日本の伝統的な持続可能な土地利用によって形成された、二次林、水田、草地がモザイク状に広がる環境です。",
+  "what_to_look_for": [
+   "クヌギやコナラの木",
+   "水辺のアカガエルやホタル",
+   "棚田や用水路",
+   "林縁に咲くハギなどの野草"
+  ],
+  "confirm_more": [
+   "森林から農地へと移り変わる広大な風景",
+   "樹幹や萌芽更新した木のクローズアップ",
+   "低いアングルから撮影した水路や田んぼの縁"
+  ],
+  "management_signs": [
+   "伐採された木や手入れされた林床",
+   "草刈りされた道沿いや田んぼの土手",
+   "整備された石垣や木製の水門"
+  ],
+  "seasonal_note": "春には野草の開花やカエルの姿が見られ、秋には鮮やかな紅葉と稲刈り後の風景が楽しめます。"
+ },
+ "costUsd": 0.006784999999999999
+}

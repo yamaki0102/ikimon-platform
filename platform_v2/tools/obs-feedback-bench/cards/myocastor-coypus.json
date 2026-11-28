@@ -1,0 +1,77 @@
+{
+ "key": "myocastor-coypus",
+ "en": {
+  "scientific_name": "Myocastor coypus",
+  "english_name": "Coypu",
+  "rank": "species",
+  "overview": "A large, invasive semiaquatic rodent with bright orange incisors, webbed hind feet, and a long, cylindrical tail.",
+  "distinguishing_tips": [
+   "Large, stocky body up to 60 cm long",
+   "Bright orange-yellow front incisor teeth",
+   "Long, round, sparsely haired tail",
+   "White whiskers and pale muzzle"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Muskrat",
+    "scientific_name": "Ondatra zibethicus",
+    "distinction_point": "Much smaller with a laterally flattened, hairless tail."
+   },
+   {
+    "english_name": "American Mink",
+    "scientific_name": "Neovison vison",
+    "distinction_point": "Slender, mustelid body with a bushy tail and pointed snout."
+   },
+   {
+    "english_name": "Brown Rat",
+    "scientific_name": "Rattus norvegicus",
+    "distinction_point": "Significantly smaller overall with larger ears relative to its head."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the face showing the orange incisors and white whiskers",
+   "Side view of the body and long, cylindrical tail",
+   "Hind feet to show the webbing between toes"
+  ],
+  "season_habitat": "Active year-round in rivers, ponds, marshes, and irrigation canals, mainly in western Japan."
+ },
+ "ja": {
+  "scientific_name": "Myocastor coypus",
+  "english_name": "Coypu",
+  "rank": "種",
+  "overview": "鮮やかなオレンジ色の前歯、水かきのある後ろ足、そして長く円筒形の尾を持つ、大型の外来性半水生げっ歯類です。",
+  "distinguishing_tips": [
+   "最大60cmに達する大きくがっしりとした体",
+   "鮮やかなオレンジ黄色をした前歯",
+   "長く丸みを帯びた、まばらに毛が生えた尾",
+   "白いひげと淡い色の鼻先"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Muskrat",
+    "scientific_name": "Ondatra zibethicus",
+    "japanese_name": "マスクラット",
+    "distinction_point": "体はずっと小さく、尾は横に平たく毛が生えていません。"
+   },
+   {
+    "english_name": "American Mink",
+    "scientific_name": "Neovison vison",
+    "japanese_name": "アメリカミンク",
+    "distinction_point": "イタチ科特有の細長い体型で、ふさふさした尾と尖った鼻先をしています。"
+   },
+   {
+    "english_name": "Brown Rat",
+    "scientific_name": "Rattus norvegicus",
+    "japanese_name": "ドブネズミ",
+    "distinction_point": "全体的にかなり小さく、頭の大きさに比べて耳が大きいです。"
+   }
+  ],
+  "confirm_more": [
+   "オレンジ色の前歯と白いひげがよく見える顔のアップ",
+   "体と長く円筒形の尾が確認できる側面からの写真",
+   "足指の間の水かきがわかる後ろ足"
+  ],
+  "season_habitat": "一年中活動し、主に西日本の河川、池、湿地、用水路などに生息しています。"
+ },
+ "costUsd": 0.010613250000000001
+}

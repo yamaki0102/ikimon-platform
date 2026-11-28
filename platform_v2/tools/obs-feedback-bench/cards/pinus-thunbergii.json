@@ -1,0 +1,77 @@
+{
+ "key": "pinus-thunbergii",
+ "en": {
+  "scientific_name": "Pinus thunbergii",
+  "english_name": "Japanese Black Pine",
+  "rank": "species",
+  "overview": "A rugged evergreen conifer native to Japanese coasts, widely planted in gardens and windbreaks.",
+  "distinguishing_tips": [
+   "Stiff, dark green needles in bundles of two",
+   "Silvery-white winter buds at branch tips",
+   "Thick, deeply fissured, dark gray-black bark",
+   "Often grows with a twisted, windswept trunk"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Red Pine",
+    "scientific_name": "Pinus densiflora",
+    "distinction_point": "Has reddish-orange upper bark and softer, greener needles."
+   },
+   {
+    "english_name": "Japanese White Pine",
+    "scientific_name": "Pinus parviflora",
+    "distinction_point": "Has needles in bundles of five instead of two."
+   },
+   {
+    "english_name": "Okinawa Pine",
+    "scientific_name": "Pinus luchuensis",
+    "distinction_point": "Found in the Ryukyu Islands with longer, more slender needles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of needle bundles to count two per fascicle",
+   "Branch tip showing the silvery-white winter buds",
+   "Trunk bark texture and color"
+  ],
+  "season_habitat": "Year-round evergreen common along sandy coasts, sea cliffs, and in parks."
+ },
+ "ja": {
+  "scientific_name": "Pinus thunbergii",
+  "english_name": "Japanese Black Pine",
+  "rank": "種",
+  "overview": "日本の海岸沿いに自生する、力強い常緑針葉樹です。庭木や防風林として広く植栽されています。",
+  "distinguishing_tips": [
+   "2本ずつ束になった、硬く濃い緑色の葉",
+   "枝先にできる銀白色の冬芽",
+   "厚く深く裂けた、暗灰色から黒色の樹皮",
+   "風にさらされたような、ねじれた幹の形"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Red Pine",
+    "scientific_name": "Pinus densiflora",
+    "japanese_name": "アカマツ",
+    "distinction_point": "幹の上部が赤褐色で、葉がより柔らかく明るい緑色をしています。"
+   },
+   {
+    "english_name": "Japanese White Pine",
+    "scientific_name": "Pinus parviflora",
+    "japanese_name": "ゴヨウマツ",
+    "distinction_point": "葉が2本ではなく5本ずつ束になっています。"
+   },
+   {
+    "english_name": "Okinawa Pine",
+    "scientific_name": "Pinus luchuensis",
+    "japanese_name": "リュウキュウマツ",
+    "distinction_point": "琉球諸島に分布し、より長く細い葉を持っています。"
+   }
+  ],
+  "confirm_more": [
+   "葉の束を拡大し、1箇所から2本出ているか確認する",
+   "枝先の銀白色の冬芽を観察する",
+   "幹の樹皮の質感と色を確認する"
+  ],
+  "season_habitat": "一年中緑を保つ常緑樹で、砂浜の海岸、海食崖、公園などでよく見られます。"
+ },
+ "costUsd": 0.00736225
+}

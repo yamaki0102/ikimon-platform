@@ -87,7 +87,7 @@ test("non-biological subject repair migration is audit-backed and non-deleting",
 });
 
 test("observation reassess records candidate materialization telemetry", async () => {
-  const source = await readFile(path.join(process.cwd(), "src", "services", "observationReassess.ts"), "utf8");
+  const source = (await readFile(path.join(process.cwd(), "src", "services", "observationReassess.ts"), "utf8")) + (await readFile(path.join(process.cwd(), "src", "services", "observationReassessPrompts.ts"), "utf8"));
 
   assert.match(source, /materializedCandidateRecordCount/);
   assert.match(source, /matchedCandidateRecordCount/);

@@ -1,0 +1,77 @@
+{
+ "key": "fagaceae",
+ "en": {
+  "scientific_name": "Fagaceae",
+  "english_name": "Beech and oak family",
+  "rank": "family",
+  "overview": "A major family of trees and shrubs in Japan, famous for producing acorns and beechnuts.",
+  "distinguishing_tips": [
+   "Nuts (acorns or beechnuts) partially or fully enclosed in a scaly or spiny cupule.",
+   "Alternate, simple leaves with prominent pinnate veins.",
+   "Male flowers arranged in dangling catkins or small clusters.",
+   "Distinctive clustered buds at the tips of twigs."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Birch family",
+    "scientific_name": "Betulaceae",
+    "distinction_point": "Betulaceae produce winged nutlets in cone-like structures rather than acorns in cupules."
+   },
+   {
+    "english_name": "Elm family",
+    "scientific_name": "Ulmaceae",
+    "distinction_point": "Ulmaceae have asymmetrical leaf bases and flat, winged samaras instead of nuts."
+   },
+   {
+    "english_name": "Walnut family",
+    "scientific_name": "Juglandaceae",
+    "distinction_point": "Juglandaceae have pinnately compound leaves, whereas Fagaceae have simple leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the nut and its scaly or spiny cupule.",
+   "Underside of a leaf showing the vein pattern and any hairs.",
+   "Twig tip showing the arrangement of clustered terminal buds."
+  ],
+  "season_habitat": "Found year-round in temperate and subtropical forests across Japan, fruiting in autumn."
+ },
+ "ja": {
+  "scientific_name": "Fagaceae",
+  "english_name": "ブナ科",
+  "rank": "科",
+  "overview": "日本に広く分布する樹木や低木の主要なグループで、ドングリやブナの実をつけることで知られています。",
+  "distinguishing_tips": [
+   "果実（ドングリやブナの実）が、鱗片やトゲに覆われた殻斗（かくと）に包まれている。",
+   "葉は互生し、単葉で、はっきりとした羽状の葉脈を持つ。",
+   "雄花は垂れ下がる尾状花序、または小さな房状になる。",
+   "枝先に特徴的な芽の集まり（頂芽の集まり）が見られる。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Birch family",
+    "scientific_name": "Betulaceae",
+    "japanese_name": "カバノキ科",
+    "distinction_point": "カバノキ科はドングリのような殻斗ではなく、松ぼっくりのような構造の中に翼のある小さな果実をつけます。"
+   },
+   {
+    "english_name": "Elm family",
+    "scientific_name": "Ulmaceae",
+    "japanese_name": "ニレ科",
+    "distinction_point": "ニレ科は葉の付け根が左右非対称で、ドングリではなく平らな翼のある果実（翼果）をつけます。"
+   },
+   {
+    "english_name": "Walnut family",
+    "scientific_name": "Juglandaceae",
+    "japanese_name": "クルミ科",
+    "distinction_point": "クルミ科は羽状複葉ですが、ブナ科は単葉です。"
+   }
+  ],
+  "confirm_more": [
+   "果実と、それを包む鱗片やトゲのある殻斗の接写。",
+   "葉の裏側の葉脈のパターンや毛の有無。",
+   "枝先の芽の集まりの様子。"
+  ],
+  "season_habitat": "日本全国の温帯から亜熱帯の森林に一年中見られ、秋に結実します。"
+ },
+ "costUsd": 0.01060025
+}

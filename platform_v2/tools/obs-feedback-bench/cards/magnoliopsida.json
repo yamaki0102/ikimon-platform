@@ -1,0 +1,77 @@
+{
+ "key": "magnoliopsida",
+ "en": {
+  "scientific_name": "Magnoliopsida",
+  "english_name": "Dicotyledons",
+  "rank": "class",
+  "overview": "Diverse flowering plants typically featuring broad leaves with netted veins, two seed leaves, and floral parts in fours or fives.",
+  "distinguishing_tips": [
+   "Broad leaves with branching, netted venation",
+   "Floral parts usually in multiples of four or five",
+   "Woody stems with distinct bark and branching",
+   "Seeds containing two embryonic leaves (cotyledons)"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Monocotyledons",
+    "scientific_name": "Liliopsida",
+    "distinction_point": "Monocots have parallel leaf veins and floral parts in threes."
+   },
+   {
+    "english_name": "Conifers",
+    "scientific_name": "Pinopsida",
+    "distinction_point": "Conifers bear cones and needle-like or scale-like leaves instead of broad leaves."
+   },
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgoopsida",
+    "distinction_point": "Ginkgo has distinctive fan-shaped leaves with dichotomous venation."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of leaf venation",
+   "Open flower showing petal count",
+   "Overall tree bark and branching"
+  ],
+  "season_habitat": "Found year-round across Japan's temperate forests, mountains, and urban parks."
+ },
+ "ja": {
+  "scientific_name": "Magnoliopsida",
+  "english_name": "双子葉植物綱",
+  "rank": "綱",
+  "overview": "多様な被子植物のグループで、一般的に網目状の葉脈を持つ幅広い葉、2枚の子葉、4または5の倍数の花弁を持つのが特徴です。",
+  "distinguishing_tips": [
+   "枝分かれした網目状の葉脈を持つ幅広い葉",
+   "花弁などの花のパーツが通常4または5の倍数",
+   "樹皮や枝ぶりがはっきりとした木本性の茎",
+   "2枚の胚葉（子葉）を持つ種子"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "単子葉植物",
+    "scientific_name": "Liliopsida",
+    "japanese_name": "単子葉植物綱",
+    "distinction_point": "単子葉植物は葉脈が平行で、花のパーツは3の倍数です。"
+   },
+   {
+    "english_name": "針葉樹",
+    "scientific_name": "Pinopsida",
+    "japanese_name": "マツ綱",
+    "distinction_point": "針葉樹は幅広い葉ではなく、球果（松ぼっくり）をつけ、針状または鱗片状の葉を持ちます。"
+   },
+   {
+    "english_name": "イチョウ",
+    "scientific_name": "Ginkgoopsida",
+    "japanese_name": "イチョウ綱",
+    "distinction_point": "イチョウは二又分枝する葉脈を持つ、特徴的な扇形の葉をしています。"
+   }
+  ],
+  "confirm_more": [
+   "葉脈のクローズアップ",
+   "花弁の数を確認できる開花した花",
+   "樹皮や枝ぶりの全体像"
+  ],
+  "season_habitat": "日本の温帯林、山地、都市部の公園など、一年を通じて見られます。"
+ },
+ "costUsd": 0.00680225
+}

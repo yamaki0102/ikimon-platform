@@ -1,0 +1,42 @@
+{
+  "prices": {
+    "gemini:gemini-3.1-flash-lite": [0.25, 1.5],
+    "gemini:gemini-3.5-flash": [1.5, 9],
+    "gemini:gemini-3.5-flash-lite": [0.3, 2.5],
+    "gemini:gemini-3.6-flash": [0.75, 3.75],
+    "gemini:gemini-4-hydrogen": [1.5, 7.5],
+    "wai:@cf/thinkingmachines/inkling-2-small": [0.3, 1.0],
+    "wai:@cf/google/gemma-4-26b-a4b-it": [0.1, 0.3],
+    "wai:@cf/qwen/qwen3.8-27b": [0.45, 3.2],
+    "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017": [0.3, 1.2],
+    "wai:@cf/meta/llama-4-scout-17b-16e-instruct": [0.27, 0.85]
+  },
+  "baseline": "prod",
+  "judge": "gemini:gemini-3.5-flash",
+  "configs": [
+    {"id": "prod", "extract": "gemini:gemini-3.5-flash", "summary": "gemini:gemini-3.1-flash-lite"},
+    {"id": "prod-worker", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "worker"},
+    {"id": "lite-only", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite"},
+    {"id": "g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite"},
+    {"id": "g36flash", "extract": "gemini:gemini-3.6-flash", "summary": "gemini:gemini-3.1-flash-lite"},
+    {"id": "hydrogen", "extract": "gemini:gemini-4-hydrogen", "summary": "gemini:gemini-3.1-flash-lite", "extractThinking": "low"},
+    {"id": "prod+sweep", "extract": "gemini:gemini-3.5-flash", "summary": "gemini:gemini-3.1-flash-lite", "sweep": "gemini:gemini-3.1-flash-lite"},
+    {"id": "wai-inkling", "extract": "wai:@cf/thinkingmachines/inkling-2-small", "summary": "wai:@cf/thinkingmachines/inkling-2-small"},
+    {"id": "wai-gemma4", "extract": "wai:@cf/google/gemma-4-26b-a4b-it", "summary": "wai:@cf/google/gemma-4-26b-a4b-it"},
+    {"id": "wai-qwen38", "extract": "wai:@cf/qwen/qwen3.8-27b", "summary": "wai:@cf/qwen/qwen3.8-27b"},
+    {"id": "wai-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017"},
+    {"id": "wai-llama4scout", "extract": "wai:@cf/meta/llama-4-scout-17b-16e-instruct", "summary": "wai:@cf/meta/llama-4-scout-17b-16e-instruct"},
+    {"id": "single-lite", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite", "mode": "single"},
+    {"id": "single-g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "single"},
+    {"id": "single-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "mode": "single"},
+    {"id": "single-gemma4", "extract": "wai:@cf/google/gemma-4-26b-a4b-it", "summary": "wai:@cf/google/gemma-4-26b-a4b-it", "mode": "single"},
+    {"id": "slim-prod", "extract": "gemini:gemini-3.5-flash", "summary": "gemini:gemini-3.1-flash-lite", "mode": "slim"},
+    {"id": "slim-lite", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite", "mode": "slim"},
+    {"id": "slim-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "mode": "slim"},
+    {"id": "slim-g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "slim"},
+    {"id": "card-gemma4", "extract": "wai:@cf/google/gemma-4-26b-a4b-it", "summary": "wai:@cf/google/gemma-4-26b-a4b-it", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"},
+    {"id": "card-lite", "extract": "gemini:gemini-3.1-flash-lite", "summary": "gemini:gemini-3.1-flash-lite", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"},
+    {"id": "card-g35lite", "extract": "gemini:gemini-3.5-flash-lite", "summary": "gemini:gemini-3.5-flash-lite", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"},
+    {"id": "card-deepseek41", "extract": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "summary": "wai:@cf/deepseek-ai/deepseek-v4.1-flash-1017", "mode": "card", "card": "gemini:gemini-4-hydrogen", "translate": "gemini:gemini-3.1-flash-lite", "sweep": "wai:@cf/google/gemma-4-26b-a4b-it", "tiles": 5, "verify": "gemini:gemini-3.1-flash-lite"}
+  ]
+}

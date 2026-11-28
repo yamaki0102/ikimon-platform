@@ -1,0 +1,46 @@
+{
+ "key": "habitat-耕作放棄地",
+ "en": {
+  "habitat": "Abandoned Farmland",
+  "overview": "Former agricultural fields left uncultivated, transitioning from open herbaceous meadows to dense scrub and secondary woodland over time.",
+  "what_to_look_for": [
+   "Tall invasive grasses like goldenrod or Japanese pampas grass",
+   "Pioneering shrubs and young trees such as mulberry or sumac",
+   "Remnant farm structures like irrigation ditches or stone walls",
+   "Grassland insects, spiders, and small birds using the dense cover"
+  ],
+  "confirm_more": [
+   "Wide-angle shot showing overall vegetation height and surrounding landscape",
+   "Close-up of dominant weed or shrub species to show succession stage",
+   "Detail of old furrows, ridges, or neglected agricultural infrastructure"
+  ],
+  "management_signs": [
+   "Periodic mowing or brush clearing to prevent forest regrowth",
+   "Wild boar rooting or deer browsing tracks",
+   "Deteriorating fences, plastic mulch, or collapsed greenhouses"
+  ],
+  "seasonal_note": "Late summer to autumn highlights tall flowering weeds, while winter reveals the underlying field structure."
+ },
+ "ja": {
+  "habitat": "放棄耕作地",
+  "overview": "かつて農地として利用されていた場所が耕作放棄され、草地から低木林、そして二次林へと植生が遷移していく過程にある環境です。",
+  "what_to_look_for": [
+   "セイタカアワダチソウやススキなどの背の高い草本",
+   "クワやヌルデなどの先駆的な低木や若木",
+   "用水路や石垣といったかつての農地の名残",
+   "草地を好む昆虫、クモ類、および茂みを利用する小鳥類"
+  ],
+  "confirm_more": [
+   "植生の高さや周囲の景観がわかる広角写真",
+   "遷移段階を示す優占的な雑草や低木種のクローズアップ",
+   "古い畝（うね）や畦（あぜ）、放置された農業用インフラの詳細"
+  ],
+  "management_signs": [
+   "森林化を防ぐための定期的な草刈りや伐採の跡",
+   "イノシシの掘り返し跡やシカの食害痕",
+   "老朽化したフェンス、残されたマルチシート、倒壊したビニールハウス"
+  ],
+  "seasonal_note": "晩夏から秋にかけては背の高い草花が目立ち、冬になると草が枯れ、かつての農地の構造がはっきりと観察できます。"
+ },
+ "costUsd": 0.00723375
+}

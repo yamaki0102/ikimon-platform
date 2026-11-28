@@ -1,0 +1,77 @@
+{
+ "key": "コケ類",
+ "en": {
+  "scientific_name": "Bryophyta",
+  "english_name": "Mosses",
+  "rank": "division",
+  "overview": "Small, non-vascular, flowerless plants that form dense green mats or cushions on damp surfaces throughout Japan.",
+  "distinguishing_tips": [
+   "Tiny, soft, green leaf-like structures",
+   "Lacks true roots, flowers, and seeds",
+   "Often grows in dense carpets or cushions",
+   "Produces slender stalks with spore capsules"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Lichens",
+    "scientific_name": "Lichenes",
+    "distinction_point": "Lichens are crusty or papery and lack distinct tiny green leaves."
+   },
+   {
+    "english_name": "Liverworts",
+    "scientific_name": "Marchantiophyta",
+    "distinction_point": "Liverworts often have flat, ribbon-like bodies rather than leafy stems."
+   },
+   {
+    "english_name": "Spike mosses",
+    "scientific_name": "Selaginella",
+    "distinction_point": "Spike mosses have vascular tissue and more structured, branching stems."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of individual leaves and stems",
+   "Spore capsules (sporophytes) if present",
+   "Substrate and overall growth habit"
+  ],
+  "season_habitat": "Found year-round in moist, shaded forests, on rocks, tree bark, and soil."
+ },
+ "ja": {
+  "scientific_name": "Bryophyta",
+  "english_name": "コケ植物（蘚類）",
+  "rank": "門",
+  "overview": "日本各地の湿った場所に生息する、小さく維管束を持たない花を咲かせない植物です。密集して緑色のマットやクッションのような群落を作ります。",
+  "distinguishing_tips": [
+   "小さく柔らかい、葉のような構造を持つ",
+   "根、花、種子がない",
+   "密集したカーペットやクッション状に育つことが多い",
+   "胞子嚢をつけた細い茎を伸ばす"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Lichens",
+    "scientific_name": "Lichenes",
+    "japanese_name": "地衣類",
+    "distinction_point": "地衣類はかさぶた状や紙状で、はっきりとした小さな緑色の葉を持ちません。"
+   },
+   {
+    "english_name": "Liverworts",
+    "scientific_name": "Marchantiophyta",
+    "japanese_name": "苔類",
+    "distinction_point": "苔類は、葉状の茎よりも平らなリボン状の体をしていることが多いです。"
+   },
+   {
+    "english_name": "Spike mosses",
+    "scientific_name": "Selaginella",
+    "japanese_name": "イワヒバ属",
+    "distinction_point": "イワヒバ属は維管束を持ち、より構造化された枝分かれする茎を持っています。"
+   }
+  ],
+  "confirm_more": [
+   "個々の葉や茎のクローズアップ",
+   "胞子嚢（胞子体）の有無",
+   "生育基質と全体的な生育形態"
+  ],
+  "season_habitat": "一年中、湿った日陰の森、岩の上、樹皮、土壌で見られます。"
+ },
+ "costUsd": 0.008561
+}

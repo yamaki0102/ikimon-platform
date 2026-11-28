@@ -1,0 +1,77 @@
+{
+ "key": "scolopacidae",
+ "en": {
+  "scientific_name": "Scolopacidae",
+  "english_name": "Sandpipers and allies",
+  "rank": "family",
+  "overview": "A diverse family of small to medium-sized waders, mostly with long, slender bills and legs for probing mud and shallow water.",
+  "distinguishing_tips": [
+   "Long, slender bill (straight, decurved, or slightly upturned)",
+   "Long legs adapted for wading in shallow water",
+   "Cryptic brown, gray, and white plumage, often streaked or barred",
+   "Pointed wings and rapid, direct flight"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Plovers",
+    "scientific_name": "Charadriidae",
+    "distinction_point": "Plovers have shorter, thicker bills, larger eyes, and a characteristic stop-run-peck foraging style."
+   },
+   {
+    "english_name": "Stilts and Avocets",
+    "scientific_name": "Recurvirostridae",
+    "distinction_point": "They have extremely long, thin legs and very fine, straight or sharply upturned bills."
+   },
+   {
+    "english_name": "Herons",
+    "scientific_name": "Ardeidae",
+    "distinction_point": "Herons are much larger with long S-curved necks and heavy, dagger-like bills."
+   }
+  ],
+  "confirm_more": [
+   "Side profile of the bill to show exact length and curvature",
+   "Clear view of the legs and feet to check color and toe webbing",
+   "Upperwing pattern in flight (wingbars, rump, and tail)"
+  ],
+  "season_habitat": "Commonly seen during spring and autumn migration, and in winter, on tidal mudflats, estuaries, and flooded rice fields."
+ },
+ "ja": {
+  "scientific_name": "Scolopacidae",
+  "english_name": "シギ科",
+  "rank": "科",
+  "overview": "小型から中型の水鳥のグループで、泥の中や浅瀬で餌を探すのに適した、長く細い嘴と脚を持つ種が多いのが特徴です。",
+  "distinguishing_tips": [
+   "長く細い嘴（まっすぐなもの、下に曲がったもの、わずかに上に反ったものがある）",
+   "浅瀬を歩くのに適した長い脚",
+   "保護色となる茶色、灰色、白の羽色で、縞模様や斑点があることが多い",
+   "尖った翼を持ち、速く直線的な飛び方をする"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Plovers",
+    "scientific_name": "Charadriidae",
+    "japanese_name": "チドリ科",
+    "distinction_point": "チドリ類は嘴が短く太めで、目が大きく、「走っては止まり、ついばむ」という独特の採餌行動をとります。"
+   },
+   {
+    "english_name": "Stilts and Avocets",
+    "scientific_name": "Recurvirostridae",
+    "japanese_name": "セイタカシギ科",
+    "distinction_point": "非常に長く細い脚を持ち、嘴は極めて細く、まっすぐか鋭く上に反っています。"
+   },
+   {
+    "english_name": "Herons",
+    "scientific_name": "Ardeidae",
+    "japanese_name": "サギ科",
+    "distinction_point": "サギ類は体がずっと大きく、S字に曲がった長い首と、短剣のような太い嘴を持っています。"
+   }
+  ],
+  "confirm_more": [
+   "嘴の正確な長さと曲がり具合を確認するための横顔",
+   "脚や足の色、水かきの有無を確認できる観察",
+   "飛翔時の翼の模様（翼帯、腰、尾羽のパターン）"
+  ],
+  "season_habitat": "主に春と秋の渡りの時期や冬に見られ、干潟、河口、水田などで観察されます。"
+ },
+ "costUsd": 0.00453225
+}

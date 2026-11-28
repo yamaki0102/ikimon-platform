@@ -1,0 +1,66 @@
+{
+ "key": "fagus-crenata",
+ "en": {
+  "scientific_name": "Fagus crenata",
+  "english_name": "Japanese beech",
+  "rank": "species",
+  "overview": "A dominant deciduous broadleaf tree of Japan's cool-temperate forests, recognized by its smooth pale-gray bark and wavy-margined leaves.",
+  "distinguishing_tips": [
+   "Smooth, pale-gray bark often patterned with lichen",
+   "Ovate leaves with 7–11 pairs of veins and wavy margins",
+   "Slender, pointed, reddish-brown winter buds",
+   "Spiky cupules enclosing two three-angled nuts"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese blue beech",
+    "scientific_name": "Fagus japonica",
+    "distinction_point": "Has darker, rougher bark and leaves with 11–15 pairs of veins."
+   },
+   {
+    "english_name": "Redvein hornbeam",
+    "scientific_name": "Carpinus laxiflora",
+    "distinction_point": "Has doubly serrated leaf margins and fluted, darker gray bark."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the smooth gray trunk bark",
+   "Underside of a leaf showing vein count",
+   "Fallen spiky nut cupules on the forest floor"
+  ],
+  "season_habitat": "Found in cool-temperate mountain forests across Japan, leafing out in spring and turning golden-brown in autumn."
+ },
+ "ja": {
+  "scientific_name": "Fagus crenata",
+  "english_name": "Japanese beech",
+  "rank": "種",
+  "overview": "日本の冷温帯林を代表する落葉広葉樹です。滑らかで淡い灰色の樹皮と、波打つような縁を持つ葉が特徴です。",
+  "distinguishing_tips": [
+   "地衣類が付着した、滑らかで淡い灰色の樹皮",
+   "7〜11対の側脈があり、縁が波打つ卵形の葉",
+   "細長く尖った、赤褐色の冬芽",
+   "2つの三角形の堅果を包む、トゲのある殻斗"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese blue beech",
+    "scientific_name": "Fagus japonica",
+    "japanese_name": "イヌブナ",
+    "distinction_point": "樹皮がより暗く荒れており、葉の側脈が11〜15対あります。"
+   },
+   {
+    "english_name": "Redvein hornbeam",
+    "scientific_name": "Carpinus laxiflora",
+    "japanese_name": "アカシデ",
+    "distinction_point": "葉の縁に二重の鋸歯があり、樹皮は暗灰色で縦に筋が入ります。"
+   }
+  ],
+  "confirm_more": [
+   "滑らかな灰色の幹の樹皮のアップ",
+   "葉の側脈の数を確認できる裏面",
+   "林床に落ちているトゲのある殻斗"
+  ],
+  "season_habitat": "日本各地の冷温帯の山地に自生します。春に芽吹き、秋には黄金色から茶色に紅葉します。"
+ },
+ "costUsd": 0.005927999999999999
+}

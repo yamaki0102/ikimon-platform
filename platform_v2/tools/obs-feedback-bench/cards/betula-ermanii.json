@@ -1,0 +1,77 @@
+{
+ "key": "betula-ermanii",
+ "en": {
+  "scientific_name": "Betula ermanii",
+  "english_name": "Erman's birch",
+  "rank": "species",
+  "overview": "A hardy deciduous birch of subalpine slopes, noted for its peeling pinkish-white bark and twisted, wind-sculpted branches.",
+  "distinguishing_tips": [
+   "Peeling papery bark, pinkish-white to reddish-brown",
+   "Ovate leaves with 7 to 11 pairs of lateral veins",
+   "Stout, often twisted trunk and branches",
+   "Erect, cylindrical female catkins"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese white birch",
+    "scientific_name": "Betula platyphylla var. japonica",
+    "distinction_point": "Has chalkier white, smoother bark and grows at lower elevations."
+   },
+   {
+    "english_name": "Monarch birch",
+    "scientific_name": "Betula maximowicziana",
+    "distinction_point": "Has larger heart-shaped leaves and darker grey-brown bark."
+   },
+   {
+    "english_name": "Hazel-leaved birch",
+    "scientific_name": "Betula corylifolia",
+    "distinction_point": "Has rounder leaves with fewer veins and darker, non-peeling bark."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of peeling bark color and texture",
+   "Underside of a leaf to count lateral veins",
+   "Overall tree form and surrounding elevation"
+  ],
+  "season_habitat": "Deciduous tree found in subalpine and alpine zones across Japan, blooming from May to June."
+ },
+ "ja": {
+  "scientific_name": "Betula ermanii",
+  "english_name": "Erman's birch",
+  "rank": "種",
+  "overview": "亜高山の斜面に自生する強健な落葉高木。ピンクがかった白色の剥がれやすい樹皮と、風雪に耐えてねじれた枝ぶりが特徴です。",
+  "distinguishing_tips": [
+   "ピンクがかった白色から赤褐色の、紙のように剥がれる樹皮",
+   "7〜11対の側脈がある卵形の葉",
+   "太く、しばしばねじれた幹と枝",
+   "直立する円筒形の雌花序"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese white birch",
+    "scientific_name": "Betula platyphylla var. japonica",
+    "japanese_name": "シラカンバ",
+    "distinction_point": "樹皮はより白く滑らかで、より標高の低い場所に生育します。"
+   },
+   {
+    "english_name": "Monarch birch",
+    "scientific_name": "Betula maximowicziana",
+    "japanese_name": "ウダイカンバ",
+    "distinction_point": "葉がより大きくハート形で、樹皮は暗い灰褐色をしています。"
+   },
+   {
+    "english_name": "Hazel-leaved birch",
+    "scientific_name": "Betula corylifolia",
+    "japanese_name": "ウラジロカンバ",
+    "distinction_point": "葉がより丸く側脈の数が少なく、樹皮は暗色で剥がれません。"
+   }
+  ],
+  "confirm_more": [
+   "剥がれる樹皮の色と質感の接写",
+   "葉の裏側の側脈の数",
+   "木全体の樹形と周囲の標高"
+  ],
+  "season_habitat": "日本各地の亜高山帯から高山帯に自生する落葉高木。5月から6月にかけて開花します。"
+ },
+ "costUsd": 0.008578249999999999
+}

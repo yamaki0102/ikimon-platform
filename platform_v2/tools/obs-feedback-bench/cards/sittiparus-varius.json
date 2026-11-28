@@ -1,0 +1,77 @@
+{
+ "key": "sittiparus-varius",
+ "en": {
+  "scientific_name": "Sittiparus varius",
+  "english_name": "Varied Tit",
+  "rank": "species",
+  "overview": "A small, boldly patterned woodland tit with a chestnut back and belly, black cap, and pale cheeks, common across Japanese forests.",
+  "distinguishing_tips": [
+   "Chestnut-orange belly and upper back",
+   "Black cap and bib with pale buffy-white cheeks",
+   "Thin pale stripe down the back of the neck",
+   "Blue-gray wings and tail"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Tit",
+    "scientific_name": "Parus minor",
+    "distinction_point": "Has a white belly with a black central stripe instead of a chestnut belly."
+   },
+   {
+    "english_name": "Willow Tit",
+    "scientific_name": "Poecile montanus",
+    "distinction_point": "Dull gray-brown overall without any chestnut coloration and has a smaller black bib."
+   },
+   {
+    "english_name": "Coal Tit",
+    "scientific_name": "Periparus ater",
+    "distinction_point": "Smaller with white wingbars and a white nape patch, lacking chestnut."
+   }
+  ],
+  "confirm_more": [
+   "Side profile showing the chestnut belly and upper back",
+   "Back of the head to show the pale nape stripe",
+   "Clear view of the black bib and pale cheeks"
+  ],
+  "season_habitat": "Resident year-round in deciduous, mixed, and evergreen forests, as well as wooded parks."
+ },
+ "ja": {
+  "scientific_name": "Sittiparus varius",
+  "english_name": "Varied Tit",
+  "rank": "species",
+  "overview": "日本の森林でよく見られる、栗色の背中と腹部、黒い頭部、淡い頬の模様が特徴的な小型のシジュウカラの仲間です。",
+  "distinguishing_tips": [
+   "栗色からオレンジ色の腹部と背中",
+   "黒い頭部と喉、淡い黄白色の頬",
+   "後頭部から首にかけての細い淡色の筋",
+   "青みがかった灰色の翼と尾"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Tit",
+    "scientific_name": "Parus minor",
+    "japanese_name": "シジュウカラ",
+    "distinction_point": "腹部は白く、中央に黒い縦線がある。栗色の腹部とは明確に異なる。"
+   },
+   {
+    "english_name": "Willow Tit",
+    "scientific_name": "Poecile montanus",
+    "japanese_name": "コガラ",
+    "distinction_point": "全体的にくすんだ灰褐色で栗色はなく、喉の黒い斑点も小さい。"
+   },
+   {
+    "english_name": "Coal Tit",
+    "scientific_name": "Periparus ater",
+    "japanese_name": "ヒガラ",
+    "distinction_point": "より小型で翼に白い帯があり、後頭部に白い斑点がある。栗色の羽毛はない。"
+   }
+  ],
+  "confirm_more": [
+   "栗色の腹部と背中が確認できる横からの姿",
+   "後頭部の淡い筋が確認できる頭部の後ろ側",
+   "黒い喉と淡い頬がはっきりと見える角度"
+  ],
+  "season_habitat": "一年中、落葉樹林、混交林、常緑樹林、および樹木のある公園に生息する留鳥です。"
+ },
+ "costUsd": 0.008569499999999999
+}

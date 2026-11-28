@@ -1,0 +1,77 @@
+{
+ "key": "zoysia-japonica",
+ "en": {
+  "scientific_name": "Zoysia japonica",
+  "english_name": "Japanese lawn grass",
+  "rank": "species",
+  "overview": "A tough, creeping perennial grass native to Japan, forming dense, low-growing mats in sunny open areas and lawns.",
+  "distinguishing_tips": [
+   "Stiff, narrow leaves with a pointed tip",
+   "Short, dense, spike-like flower heads on upright stems",
+   "Creeping underground rhizomes and surface stolons",
+   "Hairy ligule at the base of the leaf blade"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Manila grass",
+    "scientific_name": "Zoysia matrella",
+    "distinction_point": "Has finer, narrower leaves and forms a denser, softer turf."
+   },
+   {
+    "english_name": "Bermuda grass",
+    "scientific_name": "Cynodon dactylon",
+    "distinction_point": "Has finger-like branched seed heads instead of a single spike."
+   },
+   {
+    "english_name": "Mascarene grass",
+    "scientific_name": "Zoysia pacifica",
+    "distinction_point": "Has much finer, needle-like leaves forming bumpy, cushion-like mounds."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the leaf base showing the hairy ligule",
+   "Side view of the upright, spike-like seed head",
+   "Creeping stolons spreading along the ground"
+  ],
+  "season_habitat": "Flowers from late spring to summer in sunny grasslands, coastal areas, parks, and lawns across Japan."
+ },
+ "ja": {
+  "scientific_name": "Zoysia japonica",
+  "english_name": "Japanese lawn grass",
+  "rank": "種",
+  "overview": "日本原産の丈夫な多年草で、日当たりの良い場所や芝生で密なマット状に広がります。",
+  "distinguishing_tips": [
+   "硬く細い葉で、先端が尖っている",
+   "直立した茎に短く密な穂をつける",
+   "地下茎と地表を這う匍匐茎（ほふくけい）を持つ",
+   "葉の付け根に毛状の葉舌がある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Manila grass",
+    "scientific_name": "Zoysia matrella",
+    "japanese_name": "コウライシバ",
+    "distinction_point": "葉がより細く、より密で柔らかい芝生を形成する。"
+   },
+   {
+    "english_name": "Bermuda grass",
+    "scientific_name": "Cynodon dactylon",
+    "japanese_name": "ギョウギシバ",
+    "distinction_point": "穂が一本ではなく、指状に枝分かれする。"
+   },
+   {
+    "english_name": "Mascarene grass",
+    "scientific_name": "Zoysia pacifica",
+    "japanese_name": "オニシバ",
+    "distinction_point": "葉が非常に細く針状で、こんもりとしたクッションのような塊を作る。"
+   }
+  ],
+  "confirm_more": [
+   "葉の付け根にある毛状の葉舌のクローズアップ",
+   "直立した穂の側面からの観察",
+   "地面を這う匍匐茎の様子"
+  ],
+  "season_habitat": "晩春から夏にかけて開花。日本全国の日当たりの良い草原、海岸、公園、芝生などで見られる。"
+ },
+ "costUsd": 0.00885325
+}

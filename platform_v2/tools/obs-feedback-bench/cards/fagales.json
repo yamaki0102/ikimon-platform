@@ -1,0 +1,77 @@
+{
+ "key": "fagales",
+ "en": {
+  "scientific_name": "Fagales",
+  "english_name": "Beech, Oak, and Birch Order",
+  "rank": "order",
+  "overview": "An order of woody trees and shrubs, including oaks, beeches, and birches, characterized by wind-pollinated flowers and nuts.",
+  "distinguishing_tips": [
+   "Alternate, simple or pinnately compound leaves",
+   "Small, petal-less flowers in drooping catkins",
+   "Fruits are typically nuts, acorns, or samaras",
+   "Woody trees or shrubs with prominent winter buds"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Willow and Spurge Order",
+    "scientific_name": "Malpighiales",
+    "distinction_point": "Willows produce fluffy, wind-dispersed seeds in capsules rather than hard nuts."
+   },
+   {
+    "english_name": "Rose and Elm Order",
+    "scientific_name": "Rosales",
+    "distinction_point": "Usually have showy flowers with petals or asymmetrical leaf bases without true catkins."
+   },
+   {
+    "english_name": "Maple and Citrus Order",
+    "scientific_name": "Sapindales",
+    "distinction_point": "Often have opposite leaves and winged double samaras rather than catkins and nuts."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the fruit, acorn, or nutlet",
+   "Underside of a leaf showing venation and margin teeth",
+   "Drooping catkins or winter buds on a twig"
+  ],
+  "season_habitat": "Common year-round in temperate deciduous and evergreen forests across Japan."
+ },
+ "ja": {
+  "scientific_name": "Fagales",
+  "english_name": "ブナ目",
+  "rank": "目",
+  "overview": "ブナ、ナラ、カバノキなどを含む木本植物のグループです。風媒花を咲かせ、堅果（どんぐりなど）をつけるのが特徴です。",
+  "distinguishing_tips": [
+   "葉は互生し、単葉または羽状複葉",
+   "花弁のない小さな花が、垂れ下がる尾状花序（びじょうかじょ）を形成する",
+   "果実は一般的に堅果、どんぐり、または翼果",
+   "目立つ冬芽を持つ木本植物"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "キントラノオ目",
+    "scientific_name": "Malpighiales",
+    "japanese_name": "キントラノオ目",
+    "distinction_point": "ヤナギ類などは堅果ではなく、綿毛のついた種子を蒴果（さくか）の中に作ります。"
+   },
+   {
+    "english_name": "バラ目",
+    "scientific_name": "Rosales",
+    "japanese_name": "バラ目",
+    "distinction_point": "多くは花弁のある目立つ花を咲かせるか、尾状花序を作らず、葉の基部が左右非対称になる傾向があります。"
+   },
+   {
+    "english_name": "ムクロジ目",
+    "scientific_name": "Sapindales",
+    "japanese_name": "ムクロジ目",
+    "distinction_point": "尾状花序や堅果ではなく、対生する葉や、翼のある二翼果を持つことが多いです。"
+   }
+  ],
+  "confirm_more": [
+   "果実、どんぐり、または小堅果のクローズアップ",
+   "葉脈や葉縁の鋸歯が確認できる葉の裏面",
+   "枝についた垂れ下がる尾状花序や冬芽"
+  ],
+  "season_habitat": "日本の温帯落葉樹林や常緑樹林で一年中よく見られます。"
+ },
+ "costUsd": 0.0111275
+}

@@ -1,0 +1,77 @@
+{
+ "key": "cirsium",
+ "en": {
+  "scientific_name": "Cirsium",
+  "english_name": "Plume thistles",
+  "rank": "genus",
+  "overview": "Spiny-leaved wildflowers with purple, pink, or white brush-like flower heads, widely distributed across Japanese mountains and grasslands.",
+  "distinguishing_tips": [
+   "Deeply lobed leaves with sharp spines along the margins",
+   "Brush-like flower heads made entirely of tubular florets",
+   "Layered, often spiny bracts beneath the flower head",
+   "Feathery pappus bristles attached to maturing seeds"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Welted thistle",
+    "scientific_name": "Carduus crispus",
+    "distinction_point": "Has spiny wings running down the stems, which Cirsium species lack."
+   },
+   {
+    "english_name": "Saw-wort",
+    "scientific_name": "Saussurea",
+    "distinction_point": "Lacks sharp spines on the leaves and stems."
+   },
+   {
+    "english_name": "Lyre-leaved thistle",
+    "scientific_name": "Hemisteptia lyrata",
+    "distinction_point": "Lacks leaf spines and has white-woolly leaf undersides."
+   }
+  ],
+  "confirm_more": [
+   "Side view of the flower head base (involucre) to check bract spines and stickiness",
+   "Stem and leaf base to see if leaves clasp the stem",
+   "Underside of a mid-stem leaf"
+  ],
+  "season_habitat": "Blooms from spring to autumn in sunny grasslands, forest edges, and alpine meadows."
+ },
+ "ja": {
+  "scientific_name": "Cirsium",
+  "english_name": "アザミ属",
+  "rank": "属",
+  "overview": "日本の山野や草原に広く分布する、トゲのある葉と紫、ピンク、または白のブラシ状の花が特徴の野草です。",
+  "distinguishing_tips": [
+   "葉は深く裂け、縁に鋭いトゲがある",
+   "筒状花のみで構成されたブラシのような花頭",
+   "花頭の下に重なり合う総苞片があり、しばしばトゲを持つ",
+   "成熟した種子には羽毛状の冠毛がついている"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ヒレアザミ",
+    "scientific_name": "Carduus crispus",
+    "japanese_name": "ヒレアザミ",
+    "distinction_point": "茎に翼（ひれ）があり、アザミ属にはこれがない。"
+   },
+   {
+    "english_name": "Saw-wort",
+    "scientific_name": "Saussurea",
+    "japanese_name": "トウヒレン属",
+    "distinction_point": "葉や茎に鋭いトゲがない。"
+   },
+   {
+    "english_name": "Lyre-leaved thistle",
+    "scientific_name": "Hemisteptia lyrata",
+    "japanese_name": "キツネアザミ",
+    "distinction_point": "葉にトゲがなく、葉の裏面が白い綿毛で覆われている。"
+   }
+  ],
+  "confirm_more": [
+   "花頭の基部（総苞）を横から見て、総苞片のトゲや粘り気を確認する",
+   "茎と葉の付け根を見て、葉が茎を抱いているか確認する",
+   "茎の中ほどの葉の裏面を確認する"
+  ],
+  "season_habitat": "春から秋にかけて、日当たりの良い草原、林縁、高山草原などで開花します。"
+ },
+ "costUsd": 0.008941250000000001
+}

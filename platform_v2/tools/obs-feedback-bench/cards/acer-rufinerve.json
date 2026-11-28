@@ -1,0 +1,77 @@
+{
+ "key": "acer-rufinerve",
+ "en": {
+  "scientific_name": "Acer rufinerve",
+  "english_name": "Redvein maple",
+  "rank": "species",
+  "overview": "A common deciduous snakebark maple in Japanese mountain forests, recognized by its green-and-white striped bark and three-lobed leaves.",
+  "distinguishing_tips": [
+   "Smooth green bark with vertical white or pale-gray stripes.",
+   "Leaves are 3-lobed with doubly serrated margins.",
+   "Rust-colored hairs along the veins on the leaf underside.",
+   "Reddish-purple young twigs often covered in a whitish bloom."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Red snakebark maple",
+    "scientific_name": "Acer capillipes",
+    "distinction_point": "Lacks the rust-colored hairs on the underside leaf veins and has longer, redder petioles."
+   },
+   {
+    "english_name": "Hawthorn-leaved maple",
+    "scientific_name": "Acer crataegifolium",
+    "distinction_point": "Has smaller, narrower leaves that are often unlobed or only shallowly lobed."
+   },
+   {
+    "english_name": "Small-flowered maple",
+    "scientific_name": "Acer micranthum",
+    "distinction_point": "Features smaller, deeply 5-lobed leaves with long, pointed tips."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the trunk showing the green-and-white striped bark.",
+   "Underside of a leaf to check for rust-colored hairs along the veins.",
+   "Upper surface of a whole leaf showing the three-lobed shape."
+  ],
+  "season_habitat": "Common in deciduous mountain forests across Japan, flowering in spring and turning red or yellow in autumn."
+ },
+ "ja": {
+  "scientific_name": "Acer rufinerve",
+  "english_name": "ウリハダカエデ",
+  "rank": "種",
+  "overview": "日本の山地の森林でよく見られる落葉性のカエデの仲間です。緑色と白色の縞模様が入った樹皮と、3つに裂けた葉が特徴です。",
+  "distinguishing_tips": [
+   "滑らかな緑色の樹皮に、垂直方向の白または淡灰色の縞模様が入る。",
+   "葉は3つに裂け、縁には二重の鋸歯がある。",
+   "葉の裏側の葉脈に沿って、赤褐色の毛が生えている。",
+   "赤紫色の若い枝には、しばしば白い粉（ブルーム）がつく。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Red snakebark maple",
+    "scientific_name": "Acer capillipes",
+    "japanese_name": "ホソエカエデ",
+    "distinction_point": "葉の裏の葉脈に赤褐色の毛がなく、葉柄がより長く赤みを帯びている。"
+   },
+   {
+    "english_name": "Hawthorn-leaved maple",
+    "scientific_name": "Acer crataegifolium",
+    "japanese_name": "ウリカエデ",
+    "distinction_point": "葉がより小さく細長く、裂け目がないか、あっても浅い。"
+   },
+   {
+    "english_name": "Small-flowered maple",
+    "scientific_name": "Acer micranthum",
+    "japanese_name": "コミネカエデ",
+    "distinction_point": "葉がより小さく、深く5つに裂けており、先端が長く尖っている。"
+   }
+  ],
+  "confirm_more": [
+   "緑と白の縞模様がはっきりわかる幹のアップ。",
+   "葉の裏側を観察し、葉脈に沿った赤褐色の毛の有無を確認する。",
+   "3つに裂けた形がわかる葉全体の表面。"
+  ],
+  "season_habitat": "日本各地の山地の落葉広葉樹林に広く分布。春に花を咲かせ、秋には赤や黄色に紅葉する。"
+ },
+ "costUsd": 0.009144
+}

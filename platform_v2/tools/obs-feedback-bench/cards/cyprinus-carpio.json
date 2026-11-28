@@ -1,0 +1,66 @@
+{
+ "key": "cyprinus-carpio",
+ "en": {
+  "scientific_name": "Cyprinus carpio",
+  "english_name": "Common Carp",
+  "rank": "species",
+  "overview": "A large, heavy-bodied freshwater fish widely found in Japanese rivers, lakes, and ornamental ponds, including domesticated colorful koi varieties.",
+  "distinguishing_tips": [
+   "Two pairs of barbels on the upper jaw.",
+   "Long dorsal fin with a serrated first spine.",
+   "Large, thick scales, often golden-brown or patterned in koi.",
+   "Protrusible, downward-pointing mouth."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Crucian Carp",
+    "scientific_name": "Carassius spp.",
+    "distinction_point": "Crucian carp lack barbels around the mouth and are generally smaller."
+   },
+   {
+    "english_name": "Grass Carp",
+    "scientific_name": "Ctenopharyngodon idella",
+    "distinction_point": "Grass carp have a shorter dorsal fin, no barbels, and a more cylindrical body."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the mouth to show the two pairs of barbels.",
+   "Side profile showing the long dorsal fin.",
+   "Full body shot to check scale size and coloration."
+  ],
+  "season_habitat": "Year-round in slow-moving rivers, lakes, agricultural canals, and urban ponds across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cyprinus carpio",
+  "english_name": "Common Carp",
+  "rank": "species",
+  "overview": "日本の河川や湖沼、観賞用の池などで広く見られる大型で重量感のある淡水魚です。品種改良された色鮮やかな「錦鯉」もこの種に含まれます。",
+  "distinguishing_tips": [
+   "上顎に2対の口ひげがある。",
+   "背びれが長く、最初の棘条（きょくじょう）に鋸歯（ギザギザ）がある。",
+   "鱗が大きく厚い。体色は黄金褐色や、錦鯉のような模様があるものも多い。",
+   "口は突き出すことができ、下向きについている。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Crucian Carp",
+    "scientific_name": "Carassius spp.",
+    "japanese_name": "フナ属",
+    "distinction_point": "フナ類には口ひげがなく、全体的にコイよりも小型です。"
+   },
+   {
+    "english_name": "Grass Carp",
+    "scientific_name": "Ctenopharyngodon idella",
+    "japanese_name": "ソウギョ",
+    "distinction_point": "ソウギョは背びれが短く、口ひげがなく、体型がより円筒形をしています。"
+   }
+  ],
+  "confirm_more": [
+   "口元のアップを撮影し、2対の口ひげを確認する。",
+   "側面から撮影し、長い背びれの特徴を捉える。",
+   "全身を撮影し、鱗の大きさや体色を確認する。"
+  ],
+  "season_habitat": "日本全国の緩やかな流れの河川、湖沼、農業用水路、都市部の池などで一年中見られます。"
+ },
+ "costUsd": 0.00855775
+}

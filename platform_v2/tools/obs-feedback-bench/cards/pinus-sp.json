@@ -1,0 +1,77 @@
+{
+ "key": "pinus-sp",
+ "en": {
+  "scientific_name": "Pinus",
+  "english_name": "Pines",
+  "rank": "genus",
+  "overview": "Evergreen conifers featuring long needle-like leaves bundled in papery sheaths and woody, spirally scaled cones.",
+  "distinguishing_tips": [
+   "Needles grow in bundles of 2, 3, or 5.",
+   "Papery sheath wraps the base of each needle bundle.",
+   "Woody cones with thick, spirally arranged scales.",
+   "Bark often forms scaly plates or deep fissures."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "True cedars",
+    "scientific_name": "Cedrus",
+    "distinction_point": "Needles grow in dense, rosette-like clusters on short shoots rather than bundled sheaths."
+   },
+   {
+    "english_name": "Larches",
+    "scientific_name": "Larix",
+    "distinction_point": "Deciduous conifers with soft needles arranged in clusters of 20 to 50 on short shoots."
+   },
+   {
+    "english_name": "Firs",
+    "scientific_name": "Abies",
+    "distinction_point": "Flat needles attach singly to twigs without sheaths, leaving circular scars when shed."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a needle bundle base to count needles per sheath.",
+   "Mature woody cone showing scale shape.",
+   "Trunk bark texture and overall tree silhouette."
+  ],
+  "season_habitat": "Evergreen; widespread across Japan from coastal dunes to alpine zones, including urban parks."
+ },
+ "ja": {
+  "scientific_name": "Pinus",
+  "english_name": "マツ属",
+  "rank": "属",
+  "overview": "紙のような鞘に束ねられた長い針葉と、螺旋状に鱗片が並ぶ木質の球果（松ぼっくり）が特徴の常緑針葉樹です。",
+  "distinguishing_tips": [
+   "針葉は2本、3本、または5本が束になって生える。",
+   "針葉の束の根元は、紙のような鞘で包まれている。",
+   "木質の球果は、厚みのある鱗片が螺旋状に並んでいる。",
+   "樹皮は鱗状の板や深い割れ目ができることが多い。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ヒマラヤスギ属",
+    "scientific_name": "Cedrus",
+    "japanese_name": "ヒマラヤスギ属",
+    "distinction_point": "針葉は鞘に束ねられるのではなく、短枝の上にロゼット状の密な房となって生える。"
+   },
+   {
+    "english_name": "カラマツ属",
+    "scientific_name": "Larix",
+    "japanese_name": "カラマツ属",
+    "distinction_point": "落葉性の針葉樹で、短枝に20〜50本の柔らかい針葉が束になって生える。"
+   },
+   {
+    "english_name": "モミ属",
+    "scientific_name": "Abies",
+    "japanese_name": "モミ属",
+    "distinction_point": "平たい針葉が枝に一つずつ直接ついており、鞘はなく、落ちた跡は円形の傷になる。"
+   }
+  ],
+  "confirm_more": [
+   "針葉の束の根元を拡大し、1束あたりの本数を数える。",
+   "成熟した木質の球果の鱗片の形を確認する。",
+   "幹の樹皮の質感と、木全体のシルエットを観察する。"
+  ],
+  "season_habitat": "常緑性。海岸の砂丘から高山帯、都市部の公園まで、日本全国に広く分布しています。"
+ },
+ "costUsd": 0.00848425
+}

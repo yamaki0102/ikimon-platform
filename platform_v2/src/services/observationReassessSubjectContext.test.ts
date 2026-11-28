@@ -56,7 +56,7 @@ test("observation package summary carries existing subject candidates into reass
 
 test("reassess prompt treats observed subjects as candidate reading targets", () => {
   const prompt = readFileSync(new URL("../prompts/observation_reassess.md", import.meta.url), "utf8");
-  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const service = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
 
   assert.match(prompt, /observed_subjects/);
   assert.match(prompt, /candidate_readings.*observed_subjects/s);
@@ -84,7 +84,7 @@ test("reassess prompt treats observed subjects as candidate reading targets", ()
 });
 
 test("visual reassess keeps Lite-first behind an environment-aware escalation gate", () => {
-  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const service = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
 
   assert.match(service, /AI_OBSERVATION_VISUAL_LITE_FIRST/);
   assert.match(service, /runVisualExtractWithOptionalLiteFirst/);
@@ -95,7 +95,7 @@ test("visual reassess keeps Lite-first behind an environment-aware escalation ga
 });
 
 test("visual extract prompt separates biological coexisting taxa from environment context", () => {
-  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const service = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
 
   assert.match(service, /非生物は coexisting_taxa に入れず/);
   assert.match(service, /area_inference は写真から読める植生構造/);
@@ -108,7 +108,7 @@ test("visual extract prompt separates biological coexisting taxa from environmen
 });
 
 test("visual reassess can downscale stored photos before Gemini behind an env gate", () => {
-  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const service = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
 
   assert.match(service, /import sharp from "sharp"/);
   assert.match(service, /AI_OBSERVATION_IMAGE_MAX_EDGE/);
@@ -118,7 +118,7 @@ test("visual reassess can downscale stored photos before Gemini behind an env ga
 });
 
 test("subject rescue follows the same Lite-first cost path before 3.5 escalation", () => {
-  const service = readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8");
+  const service = (readFileSync(new URL("./observationReassess.ts", import.meta.url), "utf8") + readFileSync(new URL("./observationReassessPrompts.ts", import.meta.url), "utf8"));
 
   assert.match(service, /parseSubjectRescueCandidates/);
   assert.match(service, /subjectRescueLiteFirst/);

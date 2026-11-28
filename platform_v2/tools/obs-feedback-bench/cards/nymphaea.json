@@ -1,0 +1,77 @@
+{
+ "key": "nymphaea",
+ "en": {
+  "scientific_name": "Nymphaea",
+  "english_name": "Water lilies",
+  "rank": "genus",
+  "overview": "Aquatic perennials with floating round leaves and showy, multi-petaled flowers that float on or rise slightly above still water.",
+  "distinguishing_tips": [
+   "Round floating leaves with a distinct V-shaped notch",
+   "Showy, multi-petaled flowers resting on the water surface",
+   "Flat, glossy leaves without raised rims",
+   "Numerous yellow stamens at the center of the flower"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Sacred lotus",
+    "scientific_name": "Nelumbo nucifera",
+    "distinction_point": "Leaves lack a V-shaped notch and often rise high above the water."
+   },
+   {
+    "english_name": "Spatterdock",
+    "scientific_name": "Nuphar",
+    "distinction_point": "Has smaller, cup-shaped yellow flowers held above the water on stout stalks."
+   },
+   {
+    "english_name": "Floating-heart",
+    "scientific_name": "Nymphoides",
+    "distinction_point": "Much smaller flowers with five fringed petals and smaller leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower center showing petals and stamens",
+   "Top-down view of a floating leaf showing the V-shaped notch",
+   "Side view showing whether flowers float on or rise above the water"
+  ],
+  "season_habitat": "Blooms from May to October in ponds, lakes, and slow-moving rivers across Japan."
+ },
+ "ja": {
+  "scientific_name": "Nymphaea",
+  "english_name": "スイレン属",
+  "rank": "属",
+  "overview": "水面に浮かぶ円形の葉と、華やかで花びらが多い花が特徴の多年生水生植物です。花は水面に浮かぶか、わずかに水面から突き出て咲きます。",
+  "distinguishing_tips": [
+   "円形の葉には、はっきりとしたV字型の切れ込みがある",
+   "水面に浮かぶように咲く、花びらの多い華やかな花",
+   "葉は平らで光沢があり、縁が立ち上がっていない",
+   "花の中心部に多数の黄色い雄しべがある"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ハス",
+    "scientific_name": "Nelumbo nucifera",
+    "japanese_name": "ハス",
+    "distinction_point": "葉にV字型の切れ込みがなく、水面から高く突き出ることが多い。"
+   },
+   {
+    "english_name": "コウホネ属",
+    "scientific_name": "Nuphar",
+    "japanese_name": "コウホネ属",
+    "distinction_point": "小さめのカップ状の黄色い花をつけ、太い茎で水面より上に持ち上がる。"
+   },
+   {
+    "english_name": "アサザ属",
+    "scientific_name": "Nymphoides",
+    "japanese_name": "アサザ属",
+    "distinction_point": "花が非常に小さく、5枚の花びらの縁がフリンジ状になり、葉も小さい。"
+   }
+  ],
+  "confirm_more": [
+   "花びらと雄しべがよく見える花の中心部のクローズアップ",
+   "V字型の切れ込みが確認できる、真上から見た葉の様子",
+   "花が水面に浮かんでいるか、水面から突き出ているかがわかる側面からの観察"
+  ],
+  "season_habitat": "5月から10月にかけて開花し、日本各地の池、湖、流れの緩やかな河川で見られます。"
+ },
+ "costUsd": 0.008357749999999999
+}

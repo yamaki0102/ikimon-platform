@@ -1,0 +1,77 @@
+{
+ "key": "pinus-spp",
+ "en": {
+  "scientific_name": "Pinus",
+  "english_name": "Pines",
+  "rank": "genus",
+  "overview": "Evergreen conifers widespread across Japan, easily recognized by their bundled needle-like leaves and woody, scaled cones.",
+  "distinguishing_tips": [
+   "Needles grow in bundles of two, three, or five.",
+   "Woody cones with thick, overlapping scales.",
+   "Scaly, plated, or furrowed bark, often reddish or dark gray.",
+   "Resinous sap and distinct pine scent."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Larch",
+    "scientific_name": "Larix kaempferi",
+    "distinction_point": "Larch needles grow in dense clusters on short shoots and turn yellow in autumn."
+   },
+   {
+    "english_name": "Firs",
+    "scientific_name": "Abies spp.",
+    "distinction_point": "Fir needles attach singly to twigs and cones stand upright."
+   },
+   {
+    "english_name": "Hemlocks",
+    "scientific_name": "Tsuga spp.",
+    "distinction_point": "Hemlock needles are flat, short, and attach singly rather than in bundles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a needle bundle showing the base sheath and needle count.",
+   "Mature or immature cones on the branch or ground.",
+   "Trunk bark texture and overall tree silhouette."
+  ],
+  "season_habitat": "Evergreen year-round; found in coastal dunes, lowland forests, and alpine zones."
+ },
+ "ja": {
+  "scientific_name": "Pinus",
+  "english_name": "マツ属",
+  "rank": "属",
+  "overview": "日本各地に広く分布する常緑針葉樹です。束になって生える針状の葉と、木質で鱗片状の松ぼっくりが特徴で、誰にでも見分けやすい樹木です。",
+  "distinguishing_tips": [
+   "針葉が2本、3本、または5本ずつ束になって生える。",
+   "厚く重なり合った鱗片を持つ木質の松ぼっくり。",
+   "赤褐色や暗灰色の、鱗状、板状、または深い溝のある樹皮。",
+   "樹脂を含んだ樹液と、独特の松の香り。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Larch",
+    "scientific_name": "Larix kaempferi",
+    "japanese_name": "カラマツ",
+    "distinction_point": "カラマツの葉は短枝に密生し、秋には黄色く紅葉して落葉します。"
+   },
+   {
+    "english_name": "Firs",
+    "scientific_name": "Abies spp.",
+    "japanese_name": "モミ属",
+    "distinction_point": "モミの葉は枝に1本ずつ付き、松ぼっくりは上向きに直立します。"
+   },
+   {
+    "english_name": "Hemlocks",
+    "scientific_name": "Tsuga spp.",
+    "japanese_name": "ツガ属",
+    "distinction_point": "ツガの葉は平たく短く、束にならずに1本ずつ枝に付きます。"
+   }
+  ],
+  "confirm_more": [
+   "葉の付け根の鞘（はかま）と、束になっている葉の数を確認する。",
+   "枝や地面に落ちている成熟した、または未成熟な松ぼっくりを観察する。",
+   "幹の樹皮の質感と、木全体のシルエットを確認する。"
+  ],
+  "season_habitat": "一年中常緑。海岸の砂丘、低地の森林、高山帯まで幅広く生育しています。"
+ },
+ "costUsd": 0.009581
+}

@@ -1,0 +1,66 @@
+{
+ "key": "larix-kaempferi",
+ "en": {
+  "scientific_name": "Larix kaempferi",
+  "english_name": "Japanese Larch",
+  "rank": "species",
+  "overview": "A deciduous conifer native to central Japan, turning bright golden-yellow in autumn before shedding its soft needle clusters.",
+  "distinguishing_tips": [
+   "Soft, light-green needles in tufted clusters on short woody spurs",
+   "Turns brilliant golden-yellow in autumn before dropping all needles",
+   "Small, rounded cones with outward-curling (reflexed) scale tips",
+   "Reddish-brown, deeply furrowed, scaly bark on mature trunks"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Deodar Cedar",
+    "scientific_name": "Cedrus deodara",
+    "distinction_point": "Evergreen with stiffer needles and large, upright barrel-shaped cones."
+   },
+   {
+    "english_name": "Japanese Red Pine",
+    "scientific_name": "Pinus densiflora",
+    "distinction_point": "Evergreen with long needles in pairs rather than tufted clusters."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of needle clusters growing on short woody spurs",
+   "Side view of a cone showing the outward-curling scale tips",
+   "Overall tree silhouette showing horizontal, slightly drooping branches"
+  ],
+  "season_habitat": "Montane forests and plantations in central to northern Japan; conspicuous in spring flush and autumn gold."
+ },
+ "ja": {
+  "scientific_name": "Larix kaempferi",
+  "english_name": "Japanese Larch",
+  "rank": "種",
+  "overview": "日本中部原産の落葉針葉樹です。秋には柔らかい針葉の束が鮮やかな黄金色に染まり、その後すべて落葉します。",
+  "distinguishing_tips": [
+   "短枝から束になって生える、柔らかく明るい緑色の針葉",
+   "秋になると鮮やかな黄金色に変わり、冬には完全に落葉する",
+   "小さく丸みを帯びた球果（まつぼっくり）で、鱗片の先が外側に反り返っている",
+   "成熟した幹の樹皮は赤褐色で、深く裂けて鱗片状になる"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Deodar Cedar",
+    "scientific_name": "Cedrus deodara",
+    "japanese_name": "ヒマラヤスギ",
+    "distinction_point": "常緑樹であり、より硬い針葉と、大きく直立した樽型の球果をつける。"
+   },
+   {
+    "english_name": "Japanese Red Pine",
+    "scientific_name": "Pinus densiflora",
+    "japanese_name": "アカマツ",
+    "distinction_point": "常緑樹であり、針葉は束生ではなく2本ずつ生える。"
+   }
+  ],
+  "confirm_more": [
+   "短枝から生える針葉の束のクローズアップ",
+   "鱗片の先が外側に反り返った球果の側面図",
+   "水平に伸び、わずかに垂れ下がった枝を持つ樹形全体のシルエット"
+  ],
+  "season_habitat": "日本の中部から北部の山地林や植林地に生育。春の新緑と秋の黄葉が特に目立ちます。"
+ },
+ "costUsd": 0.00841875
+}

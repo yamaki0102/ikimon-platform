@@ -1,0 +1,77 @@
+{
+ "key": "cupressaceae",
+ "en": {
+  "scientific_name": "Cupressaceae",
+  "english_name": "Cypress family",
+  "rank": "family",
+  "overview": "Evergreen conifers including cedar and cypress, characterized by scale-like or awl-shaped leaves and small woody cones.",
+  "distinguishing_tips": [
+   "Scale-like, overlapping leaves or short awl-shaped needles",
+   "Fibrous, peeling reddish-brown or grayish bark",
+   "Small, round or oval woody cones with few scales",
+   "Resinous, aromatic foliage when crushed"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Pine family",
+    "scientific_name": "Pinaceae",
+    "distinction_point": "Needles are long and in bundles or spirals, with larger elongated cones."
+   },
+   {
+    "english_name": "Yew family",
+    "scientific_name": "Taxaceae",
+    "distinction_point": "Flat, two-ranked needles and fleshy red arils instead of woody cones."
+   },
+   {
+    "english_name": "Podocarp family",
+    "scientific_name": "Podocarpaceae",
+    "distinction_point": "Broad, flat, leathery leaves and fleshy seed receptacles rather than woody cones."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the scale-like or needle-like foliage arrangement",
+   "Underside of the leaves to check for white stomatal bands",
+   "Woody cones and fibrous, peeling bark"
+  ],
+  "season_habitat": "Year-round evergreen trees and shrubs found in forests, mountains, and planted groves across Japan."
+ },
+ "ja": {
+  "scientific_name": "Cupressaceae",
+  "english_name": "ヒノキ科",
+  "rank": "科",
+  "overview": "スギやヒノキを含む常緑針葉樹のグループです。鱗片状または錐形の葉と、小さな木質の球果（松ぼっくり状のもの）が特徴です。",
+  "distinguishing_tips": [
+   "鱗片状に重なり合う葉、または短い錐形の針葉",
+   "繊維状で剥がれやすい赤褐色または灰色の樹皮",
+   "鱗片が少なく、小さく丸い、あるいは楕円形の木質の球果",
+   "葉を揉むと樹脂の強い芳香がする"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "マツ科",
+    "scientific_name": "Pinaceae",
+    "japanese_name": "マツ科",
+    "distinction_point": "針葉が長く、束生または螺旋状につき、より大きく細長い球果をつける。"
+   },
+   {
+    "english_name": "イチイ科",
+    "scientific_name": "Taxaceae",
+    "japanese_name": "イチイ科",
+    "distinction_point": "平らな針葉が二列に並び、木質の球果ではなく赤い仮種皮（果肉状）をつける。"
+   },
+   {
+    "english_name": "マキ科",
+    "scientific_name": "Podocarpaceae",
+    "japanese_name": "マキ科",
+    "distinction_point": "幅広く平らで革質の葉を持ち、木質の球果ではなく肉質の種托をつける。"
+   }
+  ],
+  "confirm_more": [
+   "鱗片状または針状の葉のつき方の接写",
+   "葉の裏側を確認し、白い気孔帯があるかチェックする",
+   "木質の球果と、繊維状に剥がれる樹皮の観察"
+  ],
+  "season_habitat": "日本各地の森林、山地、植林地などで一年中見られる常緑の高木または低木です。"
+ },
+ "costUsd": 0.00971125
+}

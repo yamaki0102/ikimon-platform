@@ -1,0 +1,66 @@
+{
+ "key": "sympetrum-species",
+ "en": {
+  "scientific_name": "Sympetrum",
+  "english_name": "Darters / Meadowhawks",
+  "rank": "genus",
+  "overview": "A diverse genus of small to medium-sized dragonflies, famous in Japan for turning bright red in autumn.",
+  "distinguishing_tips": [
+   "Small to medium size with slender bodies",
+   "Mature males (and some females) turn bright red or orange-red",
+   "Black markings on the sides of the thorax",
+   "Often perch horizontally on grass tips or twigs"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Scarlet Skimmer",
+    "scientific_name": "Crocothemis servilia",
+    "distinction_point": "Lacks black markings on the thorax and has a broader, flatter abdomen."
+   },
+   {
+    "english_name": "Wandering Glider",
+    "scientific_name": "Pantala flavescens",
+    "distinction_point": "Larger with broader hindwings, yellowish-orange body, and rarely perches."
+   }
+  ],
+  "confirm_more": [
+   "Side view of the thorax to show black stripe patterns",
+   "Close-up of the face and wing bases",
+   "Dorsal view of the abdomen to check black markings"
+  ],
+  "season_habitat": "Common from summer to late autumn near ponds, rice paddies, grasslands, and parks."
+ },
+ "ja": {
+  "scientific_name": "Sympetrum",
+  "english_name": "アカネ属",
+  "rank": "属",
+  "overview": "小型から中型のトンボのグループで、日本では秋になると体が鮮やかな赤色に染まることでよく知られています。",
+  "distinguishing_tips": [
+   "小型から中型で、細身の体型",
+   "成熟したオス（および一部のメス）は鮮やかな赤色や橙赤色になる",
+   "胸部の側面に黒い模様がある",
+   "草の先や小枝に水平にとまることが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ショウジョウトンボ",
+    "scientific_name": "Crocothemis servilia",
+    "japanese_name": "ショウジョウトンボ",
+    "distinction_point": "胸部に黒い模様がなく、腹部がより幅広く平たい。"
+   },
+   {
+    "english_name": "ウスバキトンボ",
+    "scientific_name": "Pantala flavescens",
+    "japanese_name": "ウスバキトンボ",
+    "distinction_point": "より大型で後翅が広く、体色は黄色から橙色。めったにとまらない。"
+   }
+  ],
+  "confirm_more": [
+   "胸部の側面を観察し、黒い筋模様を確認する",
+   "顔や翅の付け根を接写する",
+   "腹部を背面から観察し、黒い模様の入り方を確認する"
+  ],
+  "season_habitat": "夏から晩秋にかけて、池、田んぼ、草原、公園などでよく見られます。"
+ },
+ "costUsd": 0.0093405
+}

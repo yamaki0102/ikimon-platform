@@ -1,0 +1,13 @@
+{
+ "runId": "run2",
+ "version": "v1",
+ "configs": [
+  "wai-inkling",
+  "wai-qwen38",
+  "wai-deepseek41"
+ ],
+ "items": 45,
+ "maxUsd": 24,
+ "spentUsd": 11.123945450000006,
+ "stoppedByCap": false
+}

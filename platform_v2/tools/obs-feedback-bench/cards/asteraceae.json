@@ -1,0 +1,77 @@
+{
+ "key": "asteraceae",
+ "en": {
+  "scientific_name": "Asteraceae",
+  "english_name": "Daisy family",
+  "rank": "family",
+  "overview": "A massive family of flowering plants characterized by composite flower heads made of many tiny florets.",
+  "distinguishing_tips": [
+   "Composite flower head (capitulum) resembling a single flower.",
+   "Green bracts (involucre) cupping the base of the flower head.",
+   "Seeds often topped with a fluffy pappus for wind dispersal.",
+   "Alternate or opposite leaves, frequently lobed or toothed."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Honeysuckle family",
+    "scientific_name": "Caprifoliaceae",
+    "distinction_point": "Scabiosa-like heads lack the fused anther tube of Asteraceae and have distinct calyxes on each floret."
+   },
+   {
+    "english_name": "Carrot family",
+    "scientific_name": "Apiaceae",
+    "distinction_point": "Tiny flowers form umbrella-like umbels on distinct stalks rather than dense, bract-cupped heads."
+   },
+   {
+    "english_name": "Pipewort family",
+    "scientific_name": "Eriocaulaceae",
+    "distinction_point": "Has grass-like basal leaves and tiny, papery white-gray button heads in wet habitats."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower head underside to show the involucre bracts.",
+   "Top-down view of the florets to distinguish ray and disc types.",
+   "Clear shot of the stem and leaf arrangement."
+  ],
+  "season_habitat": "Found year-round across Japan in grasslands, roadsides, forests, and alpine meadows, peaking in autumn."
+ },
+ "ja": {
+  "scientific_name": "Asteraceae",
+  "english_name": "キク科",
+  "rank": "科",
+  "overview": "非常に大きな植物のグループで、多数の小さな花が集まって一つの花のように見える「頭状花序」が特徴です。",
+  "distinguishing_tips": [
+   "一つの花のように見える複合的な頭状花序。",
+   "花序の基部を包む緑色の総苞片。",
+   "種子には風で運ばれるための綿毛（冠毛）がついていることが多い。",
+   "葉は互生または対生し、切れ込みや鋸歯があることが多い。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "スイカズラ科",
+    "scientific_name": "Caprifoliaceae",
+    "japanese_name": "スイカズラ科",
+    "distinction_point": "マツムシソウのような頭状花序は、キク科のような葯の合着がなく、個々の小花に明確な萼がある。"
+   },
+   {
+    "english_name": "セリ科",
+    "scientific_name": "Apiaceae",
+    "japanese_name": "セリ科",
+    "distinction_point": "小さな花が総苞に包まれた頭状花序ではなく、柄のある傘状の散形花序を形成する。"
+   },
+   {
+    "english_name": "ホシクサ科",
+    "scientific_name": "Eriocaulaceae",
+    "japanese_name": "ホシクサ科",
+    "distinction_point": "湿地に生育し、草のような根生葉と、紙質で白灰色の小さなボタン状の花序を持つ。"
+   }
+  ],
+  "confirm_more": [
+   "花序の裏側を接写し、総苞片を確認する。",
+   "上から見て、舌状花と筒状花のタイプを見分ける。",
+   "茎と葉の付き方がわかる鮮明な写真。"
+  ],
+  "season_habitat": "日本全国の草原、道端、森林、高山帯などで一年中見られ、秋に最盛期を迎える。"
+ },
+ "costUsd": 0.010585500000000001
+}

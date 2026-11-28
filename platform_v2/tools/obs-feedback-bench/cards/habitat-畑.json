@@ -1,0 +1,46 @@
+{
+ "key": "habitat-畑",
+ "en": {
+  "habitat": "Upland Field",
+  "overview": "Cultivated dry fields in Japan growing vegetables and grains, supporting open-land birds, insects, and adaptable weeds.",
+  "what_to_look_for": [
+   "Open-ground birds like Eurasian Skylark or Bull-headed Shrike",
+   "Pollinators and butterflies around crop flowers",
+   "Field-edge weeds such as shepherd's purse or mugwort",
+   "Tilled soil ridges and irrigation ditches"
+  ],
+  "confirm_more": [
+   "Wide shot showing field layout and surrounding edges",
+   "Medium shot of crop rows and soil condition",
+   "Close-up of weeds, insects, or crop damage"
+  ],
+  "management_signs": [
+   "Recent tilling, mulching, or plastic sheeting",
+   "Herbicide use or mowed field margins",
+   "Netting, scarecrows, or fencing"
+  ],
+  "seasonal_note": "Crop rotation and seasonal tilling rapidly change available cover and food."
+ },
+ "ja": {
+  "habitat": "畑地",
+  "overview": "日本国内の野菜や穀物を栽培する畑です。開けた土地を好む鳥類や昆虫、環境に適応した雑草が生息しています。",
+  "what_to_look_for": [
+   "ヒバリやモズなどの開けた場所を好む鳥類",
+   "作物の花に集まるポリネーター（送粉者）やチョウ類",
+   "ナズナやヨモギなどの畑の縁に見られる雑草",
+   "耕された畝や灌漑用の溝"
+  ],
+  "confirm_more": [
+   "畑の全体像や周囲の環境がわかる広角写真",
+   "作物の列や土の状態がわかる中距離写真",
+   "雑草、昆虫、または作物への食害の様子がわかる接写"
+  ],
+  "management_signs": [
+   "最近の耕起、マルチング、またはビニールシートの設置",
+   "除草剤の使用や畑の縁の草刈り",
+   "防鳥ネット、案山子、または柵の設置"
+  ],
+  "seasonal_note": "輪作や季節ごとの耕起により、隠れ場所や餌となる環境が急速に変化します。"
+ },
+ "costUsd": 0.006725
+}

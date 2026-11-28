@@ -1,0 +1,77 @@
+{
+ "key": "unknown",
+ "en": {
+  "scientific_name": "Plantae",
+  "english_name": "Plants",
+  "rank": "Kingdom",
+  "overview": "Multicellular photosynthetic organisms with cell walls, forming the foundational producers of terrestrial and aquatic ecosystems across Japan.",
+  "distinguishing_tips": [
+   "Green chlorophyll-containing leaves or stems",
+   "Rooted or anchored to a substrate",
+   "Presence of flowers, cones, or spores",
+   "Stationary growth habit"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Fungi",
+    "scientific_name": "Fungi",
+    "distinction_point": "Lacks chlorophyll and green coloration, absorbing nutrients rather than photosynthesizing."
+   },
+   {
+    "english_name": "Brown algae",
+    "scientific_name": "Phaeophyceae",
+    "distinction_point": "Marine algae lacking true roots, stems, or leaves, typically brown or olive."
+   },
+   {
+    "english_name": "Lichens",
+    "scientific_name": "Lichenes",
+    "distinction_point": "Symbiotic composite of fungi and algae forming crusty or leafy growths on rocks and bark."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of leaves, needles, or fronds",
+   "Flowers, fruits, cones, or spore structures",
+   "Overall growth habit and stem or bark texture"
+  ],
+  "season_habitat": "Present year-round across all terrestrial and freshwater habitats in Japan."
+ },
+ "ja": {
+  "scientific_name": "Plantae",
+  "english_name": "植物界",
+  "rank": "界",
+  "overview": "細胞壁を持ち、光合成を行う多細胞生物。日本の陸上および水域の生態系において、生産者として基盤を支えています。",
+  "distinguishing_tips": [
+   "葉や茎に緑色の葉緑体を持つ",
+   "根を張るか、基質に固着している",
+   "花、球果、または胞子を持つ",
+   "移動せずその場で成長する"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "菌類",
+    "scientific_name": "Fungi",
+    "japanese_name": "菌界",
+    "distinction_point": "葉緑体を持たず緑色ではない。光合成は行わず、栄養分を吸収して生活する。"
+   },
+   {
+    "english_name": "褐藻類",
+    "scientific_name": "Phaeophyceae",
+    "japanese_name": "褐藻綱",
+    "distinction_point": "海藻の一種で、真の根・茎・葉の区別がない。通常は茶色やオリーブ色をしている。"
+   },
+   {
+    "english_name": "地衣類",
+    "scientific_name": "Lichenes",
+    "japanese_name": "地衣類",
+    "distinction_point": "菌類と藻類が共生した複合体。岩や樹皮の上に、かさぶた状や葉状の成長を見せる。"
+   }
+  ],
+  "confirm_more": [
+   "葉、針葉、または葉状体の接写",
+   "花、果実、球果、または胞子構造",
+   "全体の成長の様子や、茎・樹皮の質感"
+  ],
+  "season_habitat": "日本全国のあらゆる陸上および淡水環境で、一年中見られます。"
+ },
+ "costUsd": 0.0088685
+}

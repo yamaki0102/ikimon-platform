@@ -1,0 +1,77 @@
+{
+ "key": "pinophyta",
+ "en": {
+  "scientific_name": "Pinophyta",
+  "english_name": "Conifers",
+  "rank": "class",
+  "overview": "Evergreen or rarely deciduous woody plants bearing cones and needle-like or scale-like leaves, widespread across Japanese forests.",
+  "distinguishing_tips": [
+   "Needle-like, awl-shaped, or scale-like leaves",
+   "Woody seed cones instead of flowers",
+   "Resinous bark and aromatic foliage",
+   "Typically straight trunk with conical crown"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgo biloba",
+    "distinction_point": "Ginkgo has distinctive fan-shaped deciduous leaves and fleshy seeds rather than needles or woody cones."
+   },
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycas revoluta",
+    "distinction_point": "Cycads have large, stiff, palm-like pinnate fronds instead of needles or scales."
+   },
+   {
+    "english_name": "She-oaks",
+    "scientific_name": "Casuarina equisetifolia",
+    "distinction_point": "She-oaks have jointed, horsetail-like green branchlets with tiny toothed leaf whorls rather than true needles."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of needles or scale-like leaves and their arrangement",
+   "Mature woody cones or pollen cones on branches",
+   "Bark texture and overall tree silhouette"
+  ],
+  "season_habitat": "Year-round across Japan, from coastal lowlands to subalpine forests."
+ },
+ "ja": {
+  "scientific_name": "Pinophyta",
+  "english_name": "針葉樹",
+  "rank": "門",
+  "overview": "常緑（まれに落葉）の木本植物で、球果（松ぼっくりなど）をつけ、針状または鱗片状の葉を持ちます。日本の森林に広く分布しています。",
+  "distinguishing_tips": [
+   "針状、錐状、または鱗片状の葉",
+   "花ではなく木質の球果をつける",
+   "樹脂を含む樹皮と芳香のある葉",
+   "一般的に真っ直ぐな幹と円錐形の樹冠"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Ginkgo",
+    "scientific_name": "Ginkgo biloba",
+    "japanese_name": "イチョウ",
+    "distinction_point": "イチョウは特徴的な扇形の落葉葉を持ち、針葉や木質の球果ではなく、肉質の種子をつけます。"
+   },
+   {
+    "english_name": "Cycads",
+    "scientific_name": "Cycas revoluta",
+    "japanese_name": "ソテツ",
+    "distinction_point": "ソテツは針葉や鱗片葉ではなく、大きく硬いヤシのような羽状複葉を持ちます。"
+   },
+   {
+    "english_name": "She-oaks",
+    "scientific_name": "Casuarina equisetifolia",
+    "japanese_name": "モクマオウ",
+    "distinction_point": "モクマオウは針葉ではなく、節のあるトクサのような緑色の小枝と、小さな歯状の葉が輪生しています。"
+   }
+  ],
+  "confirm_more": [
+   "針葉や鱗片葉の形と付き方の接写",
+   "枝についている成熟した木質の球果や雄花",
+   "樹皮の質感と木全体のシルエット"
+  ],
+  "season_habitat": "日本全国で一年中見られ、海岸沿いの低地から亜高山帯の森林まで分布しています。"
+ },
+ "costUsd": 0.0077865
+}

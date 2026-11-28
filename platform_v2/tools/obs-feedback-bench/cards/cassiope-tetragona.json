@@ -1,0 +1,77 @@
+{
+ "key": "cassiope-tetragona",
+ "en": {
+  "scientific_name": "Cassiope tetragona",
+  "english_name": "Arctic white heather",
+  "rank": "species",
+  "overview": "A low, evergreen alpine shrub with four-ranked, scale-like leaves and nodding, bell-shaped white flowers.",
+  "distinguishing_tips": [
+   "Leaves arranged in four distinct vertical rows",
+   "Deep groove along the back of each leaf",
+   "Nodding, bell-shaped white flowers on slender stalks",
+   "Densely branching, prostrate woody stems"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese cassiope",
+    "scientific_name": "Cassiope lycopodioides",
+    "distinction_point": "Leaves are tightly appressed and cylindrical rather than four-angled."
+   },
+   {
+    "english_name": "Alaskan bellheather",
+    "scientific_name": "Harrimanella stelleriana",
+    "distinction_point": "Leaves spread outward from the stem instead of overlapping in four rows."
+   },
+   {
+    "english_name": "Aleutian mountainheath",
+    "scientific_name": "Phyllodoce aleutica",
+    "distinction_point": "Has needle-like, spreading leaves and clustered urn-shaped flowers."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the stem showing the four-rowed leaf arrangement",
+   "Side view of the nodding, bell-shaped white flower",
+   "Overall mat-forming growth habit on rocky ground"
+  ],
+  "season_habitat": "Blooms in summer on rocky alpine tundra; not native to Japan, where related species occur."
+ },
+ "ja": {
+  "scientific_name": "Cassiope tetragona",
+  "english_name": "Arctic white heather",
+  "rank": "種",
+  "overview": "背の低い常緑の高山低木で、4列に並んだ鱗片状の葉と、うつむいて咲く鐘形の白い花が特徴です。",
+  "distinguishing_tips": [
+   "葉がはっきりと4列に並んでいる",
+   "各葉の背面に深い溝がある",
+   "細い茎の先に、うつむいた鐘形の白い花をつける",
+   "枝が密に分かれ、地面を這うように広がる木質の茎"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese cassiope",
+    "scientific_name": "Cassiope lycopodioides",
+    "japanese_name": "イワヒゲ",
+    "distinction_point": "葉は4列ではなく、密着した円筒状をしている。"
+   },
+   {
+    "english_name": "Alaskan bellheather",
+    "scientific_name": "Harrimanella stelleriana",
+    "japanese_name": "Harrimanella stelleriana",
+    "distinction_point": "葉が4列に重なるのではなく、茎から外側に向かって広がっている。"
+   },
+   {
+    "english_name": "Aleutian mountainheath",
+    "scientific_name": "Phyllodoce aleutica",
+    "japanese_name": "アオノツガザクラ",
+    "distinction_point": "針状の葉が広がってつき、壺形の小さな花が房状に集まって咲く。"
+   }
+  ],
+  "confirm_more": [
+   "葉が4列に並んでいる様子がわかる茎の接写",
+   "うつむいて咲く鐘形の白い花の側面図",
+   "岩場にマット状に広がっている全体の生育状況"
+  ],
+  "season_habitat": "夏に岩の多い高山ツンドラで開花します。日本には自生していませんが、近縁種が分布しています。"
+ },
+ "costUsd": 0.012739249999999999
+}

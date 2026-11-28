@@ -1,0 +1,77 @@
+{
+ "key": "prunus-mume",
+ "en": {
+  "scientific_name": "Prunus mume",
+  "english_name": "Japanese apricot",
+  "rank": "species",
+  "overview": "A deciduous tree famous in Japan for its fragrant, early-spring blossoms and sour fruits used in umeboshi and liqueurs.",
+  "distinguishing_tips": [
+   "Rounded petals without notches at the tips.",
+   "Flowers lack stalks, sitting directly on the twigs.",
+   "Young twigs are distinctly green.",
+   "Leaves are broadly ovate with a long, pointed tip."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Yoshino cherry",
+    "scientific_name": "Prunus × yedoensis",
+    "distinction_point": "Cherry blossoms have notched petal tips and long flower stalks."
+   },
+   {
+    "english_name": "Peach",
+    "scientific_name": "Prunus persica",
+    "distinction_point": "Peach blossoms have pointed petals and often bloom alongside emerging leaves."
+   },
+   {
+    "english_name": "Apricot",
+    "scientific_name": "Prunus armeniaca",
+    "distinction_point": "Apricot sepals reflex backward completely when blooming, unlike ume sepals."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a flower showing petal tips and attachment to the twig.",
+   "Young twigs to check for green coloration.",
+   "Leaves or developing fruit later in the season."
+  ],
+  "season_habitat": "Blooms from late winter to early spring in gardens, parks, and orchards across Japan."
+ },
+ "ja": {
+  "scientific_name": "Prunus mume",
+  "english_name": "Japanese apricot",
+  "rank": "species",
+  "overview": "早春に香り高い花を咲かせ、梅干しや梅酒に使われる果実でも知られる、日本を代表する落葉高木です。",
+  "distinguishing_tips": [
+   "花びらの先端が丸く、切れ込みがない。",
+   "花柄（花の茎）がなく、枝に直接張り付くように咲く。",
+   "若い枝が鮮やかな緑色をしている。",
+   "葉は広卵形で、先端が長く尖っている。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Yoshino cherry",
+    "scientific_name": "Prunus × yedoensis",
+    "japanese_name": "ソメイヨシノ",
+    "distinction_point": "サクラの花びらには先端に切れ込みがあり、長い花柄がある。"
+   },
+   {
+    "english_name": "Peach",
+    "scientific_name": "Prunus persica",
+    "japanese_name": "モモ",
+    "distinction_point": "モモの花びらは先端が尖っており、開花時に若葉が同時に出ることが多い。"
+   },
+   {
+    "english_name": "Apricot",
+    "scientific_name": "Prunus armeniaca",
+    "japanese_name": "アンズ",
+    "distinction_point": "アンズの萼（がく）は開花時に完全に後ろへ反り返るが、ウメの萼は反り返らない。"
+   }
+  ],
+  "confirm_more": [
+   "花びらの先端の形と、枝への付き方のアップ写真。",
+   "若い枝の緑色の確認。",
+   "季節が進んだ後の葉や果実の様子。"
+  ],
+  "season_habitat": "冬の終わりから春先にかけて、日本各地の庭園、公園、果樹園などで見られます。"
+ },
+ "costUsd": 0.008132249999999999
+}

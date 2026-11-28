@@ -1,0 +1,77 @@
+{
+ "key": "bryanthus-gmelinii",
+ "en": {
+  "scientific_name": "Bryanthus gmelinii",
+  "english_name": "Gmelin's bryanthus",
+  "rank": "species",
+  "overview": "A low, creeping evergreen alpine shrub with tiny needle-like leaves and clusters of small, four-lobed pink flowers.",
+  "distinguishing_tips": [
+   "Creeping, mat-forming woody stems",
+   "Tiny, crowded, needle-like evergreen leaves",
+   "Four-lobed, pink, bell-shaped flowers",
+   "Flowers borne in small terminal clusters"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Blue mountain heath",
+    "scientific_name": "Phyllodoce caerulea",
+    "distinction_point": "Has five-lobed, urn-shaped purplish-pink flowers instead of four-lobed open bells."
+   },
+   {
+    "english_name": "Clubmoss cassiope",
+    "scientific_name": "Cassiope lycopodioides",
+    "distinction_point": "Has white five-lobed flowers and tiny scale-like leaves pressed against the stem."
+   },
+   {
+    "english_name": "Alpine azalea",
+    "scientific_name": "Loiseleuria procumbens",
+    "distinction_point": "Has five-lobed pink flowers and broader, opposite leaves."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower showing the four-lobed corolla",
+   "Detail of the tiny, crowded needle-like leaves",
+   "Overall creeping mat-like growth habit on rock"
+  ],
+  "season_habitat": "Blooms in summer on alpine rocky slopes and gravelly ridges in northern Japan."
+ },
+ "ja": {
+  "scientific_name": "Bryanthus gmelinii",
+  "english_name": "Gmelin's bryanthus",
+  "rank": "種",
+  "overview": "地面を這うように広がる常緑の低木で、小さな針状の葉と、4つに裂けたピンク色の花を房状に咲かせる高山植物です。",
+  "distinguishing_tips": [
+   "木質の茎が地面を這い、マット状に広がる",
+   "小さく密集した針状の常緑の葉",
+   "4つに裂けたピンク色の鐘形の花",
+   "枝先に小さな房状になって花がつく"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Blue mountain heath",
+    "scientific_name": "Phyllodoce caerulea",
+    "japanese_name": "エゾノツガザクラ",
+    "distinction_point": "4つに裂けた開いた鐘形の花ではなく、5つに裂けた壺形（つぼがた）の紫がかったピンク色の花をつける。"
+   },
+   {
+    "english_name": "Clubmoss cassiope",
+    "scientific_name": "Cassiope lycopodioides",
+    "japanese_name": "イワヒゲ",
+    "distinction_point": "5つに裂けた白い花をつけ、茎に密着した小さな鱗片状の葉を持つ。"
+   },
+   {
+    "english_name": "Alpine azalea",
+    "scientific_name": "Loiseleuria procumbens",
+    "japanese_name": "ミネズオウ",
+    "distinction_point": "5つに裂けたピンク色の花をつけ、より幅の広い葉が対生する。"
+   }
+  ],
+  "confirm_more": [
+   "4つに裂けた花冠のクローズアップ",
+   "小さく密集した針状の葉の詳細",
+   "岩場でのマット状に広がる全体的な生育の様子"
+  ],
+  "season_habitat": "日本の北部の高山の岩場や砂礫（されき）の尾根に生育し、夏に開花する。"
+ },
+ "costUsd": 0.00696625
+}

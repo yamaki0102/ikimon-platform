@@ -1,0 +1,66 @@
+{
+ "key": "passer-montanus",
+ "en": {
+  "scientific_name": "Passer montanus",
+  "english_name": "Eurasian Tree Sparrow",
+  "rank": "species",
+  "overview": "A familiar, plump brown sparrow with a chestnut cap and a distinct black cheek spot, common around human settlements across Japan.",
+  "distinguishing_tips": [
+   "Chestnut-brown crown and nape",
+   "Black spot on white cheek",
+   "Small black bib on throat",
+   "Two faint white wingbars"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Russet Sparrow",
+    "scientific_name": "Passer cinnamomeus",
+    "distinction_point": "Lacks the black cheek spot and has a brighter rufous back."
+   },
+   {
+    "english_name": "House Sparrow",
+    "scientific_name": "Passer domesticus",
+    "distinction_point": "Rare in Japan; male has a gray crown and lacks the black cheek spot."
+   }
+  ],
+  "confirm_more": [
+   "Clear side profile of the head showing the cheek spot",
+   "Dorsal view of the crown and back",
+   "Front view showing the throat bib"
+  ],
+  "season_habitat": "Year-round resident in urban areas, parks, and farmlands throughout Japan."
+ },
+ "ja": {
+  "scientific_name": "Passer montanus",
+  "english_name": "Eurasian Tree Sparrow",
+  "rank": "種",
+  "overview": "日本中の人里でよく見られる、ふっくらとした茶色のスズメです。頭頂部の栗色と、白い頬にある黒い斑点が特徴です。",
+  "distinguishing_tips": [
+   "頭頂部から後頭部にかけての栗色",
+   "白い頬にある黒い斑点",
+   "喉にある小さな黒いよだれかけ状の模様",
+   "翼にある2本の薄い白い帯"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Russet Sparrow",
+    "scientific_name": "Passer cinnamomeus",
+    "japanese_name": "ニュウナイスズメ",
+    "distinction_point": "頬に黒い斑点がなく、背中がより鮮やかな赤褐色をしています。"
+   },
+   {
+    "english_name": "House Sparrow",
+    "scientific_name": "Passer domesticus",
+    "japanese_name": "イエスズメ",
+    "distinction_point": "日本では稀な種です。オスは頭頂部が灰色で、頬に黒い斑点がありません。"
+   }
+  ],
+  "confirm_more": [
+   "頬の斑点がはっきりと見える横顔",
+   "頭頂部と背中が見える背面",
+   "喉の黒い模様が見える正面"
+  ],
+  "season_habitat": "日本全国の市街地、公園、農耕地などに一年中生息しています。"
+ },
+ "costUsd": 0.007263
+}

@@ -1,0 +1,77 @@
+{
+ "key": "scolopacidae-sp",
+ "en": {
+  "scientific_name": "Scolopacidae",
+  "english_name": "Sandpipers and allies",
+  "rank": "family",
+  "overview": "A diverse family of small to medium-sized wading birds characterized by long bills and legs adapted for probing mudflats and shorelines.",
+  "distinguishing_tips": [
+   "Slender, often elongated bills (straight or curved)",
+   "Cryptic brown, gray, or streaked plumage",
+   "Long, slender legs for wading",
+   "Continuous probing or pecking foraging behavior"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Plovers",
+    "scientific_name": "Charadriidae",
+    "distinction_point": "Plovers have shorter, thicker bills, larger eyes, and a distinct run-stop-peck foraging style."
+   },
+   {
+    "english_name": "Painted-snipes",
+    "scientific_name": "Rostratulidae",
+    "distinction_point": "Greater Painted-snipes have a bold white eye-ring, pale shoulder straps, and slower, rail-like movements."
+   },
+   {
+    "english_name": "Stilts and Avocets",
+    "scientific_name": "Recurvirostridae",
+    "distinction_point": "Black-winged Stilts have disproportionately long, bright pink legs and stark black-and-white plumage."
+   }
+  ],
+  "confirm_more": [
+   "Side profile showing exact bill length and curvature",
+   "Clear view of leg color and relative length",
+   "Open wing pattern in flight to check wingbars"
+  ],
+  "season_habitat": "Mostly seen during spring and autumn migrations on tidal mudflats, estuaries, and flooded rice paddies, with some species wintering or breeding in Japan."
+ },
+ "ja": {
+  "scientific_name": "Scolopacidae",
+  "english_name": "シギ科",
+  "rank": "科",
+  "overview": "干潟や水辺で泥の中を探るのに適した長い嘴と脚を持つ、小型から中型の水鳥の多様なグループです。",
+  "distinguishing_tips": [
+   "細長く、まっすぐまたは湾曲した嘴",
+   "保護色となる茶色や灰色、または縞模様の羽毛",
+   "水辺を歩くのに適した長く細い脚",
+   "絶えず泥をつついたり探ったりする採餌行動"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Plovers",
+    "scientific_name": "Charadriidae",
+    "japanese_name": "チドリ科",
+    "distinction_point": "チドリ類は嘴が短く太めで、目が大きく、「走っては止まる」という独特の採餌スタイルをとります。"
+   },
+   {
+    "english_name": "Painted-snipes",
+    "scientific_name": "Rostratulidae",
+    "japanese_name": "タマシギ科",
+    "distinction_point": "タマシギは目の周りに目立つ白い輪があり、肩に淡い色の帯模様があります。動きはクイナのようにゆっくりとしています。"
+   },
+   {
+    "english_name": "Stilts and Avocets",
+    "scientific_name": "Recurvirostridae",
+    "japanese_name": "セイタカシギ科",
+    "distinction_point": "セイタカシギは非常に長い鮮やかなピンク色の脚と、白黒のコントラストがはっきりした羽毛が特徴です。"
+   }
+  ],
+  "confirm_more": [
+   "嘴の正確な長さと湾曲具合がわかる横顔",
+   "脚の色と相対的な長さ",
+   "飛翔時の翼の模様（翼帯の有無）"
+  ],
+  "season_habitat": "主に春と秋の渡りの時期に、干潟や河口、水田などで見られます。日本で越冬や繁殖をする種もいます。"
+ },
+ "costUsd": 0.01130725
+}

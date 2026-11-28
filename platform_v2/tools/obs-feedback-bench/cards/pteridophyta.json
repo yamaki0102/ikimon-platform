@@ -1,0 +1,77 @@
+{
+ "key": "pteridophyta",
+ "en": {
+  "scientific_name": "Pteridophyta",
+  "english_name": "Ferns",
+  "rank": "class",
+  "overview": "Vascular plants reproducing via spores rather than seeds, characterized by coiled young fronds and diverse compound leaves.",
+  "distinguishing_tips": [
+   "Young fronds uncoil from tight spirals (fiddleheads)",
+   "Leaves often divided into intricate pinnate leaflets",
+   "Clusters of spore cases (sori) on frond undersides",
+   "Absence of flowers, fruits, or seeds"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Sago Palm",
+    "scientific_name": "Cycas revoluta",
+    "distinction_point": "Has stiff, leathery, sharp-tipped leaflets and produces large seeds in cones rather than spores."
+   },
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiophyta",
+    "distinction_point": "Possess tiny, scale-like leaves spirally arranged along creeping stems rather than broad fronds."
+   },
+   {
+    "english_name": "Carrot family",
+    "scientific_name": "Apiaceae",
+    "distinction_point": "Produces umbels of small flowers and seeds, and lacks coiled fiddleheads or sori."
+   }
+  ],
+  "confirm_more": [
+   "Underside of a mature frond showing sori arrangement",
+   "Base of the stem (stipe) showing scales or hairs",
+   "Newly emerging coiled fiddleheads"
+  ],
+  "season_habitat": "Year-round in Japan, thriving in damp, shaded forest floors, rocky crevices, and stream banks."
+ },
+ "ja": {
+  "scientific_name": "Pteridophyta",
+  "english_name": "シダ植物",
+  "rank": "門",
+  "overview": "種子ではなく胞子で繁殖する維管束植物。渦巻き状に巻いた若葉（ゼンマイ状）と、多様で複雑な形の葉が特徴です。",
+  "distinguishing_tips": [
+   "若葉が渦巻き状に巻いている（ゼンマイ状）",
+   "葉が細かく分かれた羽状複葉であることが多い",
+   "葉の裏側に胞子嚢群（ソーラス）がある",
+   "花、果実、種子をつけない"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Japanese Sago Palm",
+    "scientific_name": "Cycas revoluta",
+    "japanese_name": "ソテツ",
+    "distinction_point": "葉が硬く革質で先端が鋭く、胞子ではなく球果（松ぼっくりのようなもの）の中に大きな種子を作る。"
+   },
+   {
+    "english_name": "Clubmosses",
+    "scientific_name": "Lycopodiophyta",
+    "japanese_name": "ヒカゲノカズラ植物門",
+    "distinction_point": "大きな葉ではなく、這う茎に小さな鱗片状の葉が螺旋状につく。"
+   },
+   {
+    "english_name": "Carrot family",
+    "scientific_name": "Apiaceae",
+    "japanese_name": "セリ科",
+    "distinction_point": "小さな花が集まった散形花序をつけ、種子で繁殖する。ゼンマイ状の若葉やソーラスは見られない。"
+   }
+  ],
+  "confirm_more": [
+   "成熟した葉の裏側にある胞子嚢群（ソーラス）の並び方",
+   "葉柄の基部にある鱗片や毛の様子",
+   "新しく出てきた渦巻き状の若葉"
+  ],
+  "season_habitat": "日本国内では一年中見られ、湿った日陰の林床、岩の隙間、川沿いなどを好む。"
+ },
+ "costUsd": 0.00595375
+}

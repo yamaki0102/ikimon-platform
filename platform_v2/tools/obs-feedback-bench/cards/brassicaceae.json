@@ -1,0 +1,77 @@
+{
+ "key": "brassicaceae",
+ "en": {
+  "scientific_name": "Brassicaceae",
+  "english_name": "Mustard family",
+  "rank": "family",
+  "overview": "A diverse family of mostly herbaceous plants recognized by their four-petaled, cross-shaped flowers and distinctive pod-like fruits.",
+  "distinguishing_tips": [
+   "Four petals arranged in a cross shape",
+   "Six stamens (four long, two short)",
+   "Elongated or flattened seed pods (siliques or silicles)",
+   "Often has a pungent or peppery scent when crushed"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Poppy family",
+    "scientific_name": "Papaveraceae",
+    "distinction_point": "Poppies usually have crinkled petals, numerous stamens, and milky or colored sap."
+   },
+   {
+    "english_name": "Pink family",
+    "scientific_name": "Caryophyllaceae",
+    "distinction_point": "Pinks have opposite leaves with swollen stem nodes and usually five-petaled flowers."
+   },
+   {
+    "english_name": "Spiderflower family",
+    "scientific_name": "Cleomaceae",
+    "distinction_point": "Spiderflowers have palmately compound leaves and long-stalked seed pods."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of the flower showing petal and stamen arrangement",
+   "Developing or mature seed pods",
+   "Basal rosette and stem leaves"
+  ],
+  "season_habitat": "Most common in spring to early summer in open fields, roadsides, and disturbed areas across Japan."
+ },
+ "ja": {
+  "scientific_name": "Brassicaceae",
+  "english_name": "アブラナ科",
+  "rank": "科",
+  "overview": "主に草本からなる多様なグループで、十字状に並ぶ4枚の花弁と、特徴的な鞘（さや）状の果実が識別ポイントです。",
+  "distinguishing_tips": [
+   "十字状に並ぶ4枚の花弁",
+   "6本の雄しべ（長いものが4本、短いものが2本）",
+   "細長い、または平たい種子の鞘（長角果または短角果）",
+   "ちぎるとピリッとした辛味のある香りがすることが多い"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "ケシ科",
+    "scientific_name": "Papaveraceae",
+    "japanese_name": "ケシ科",
+    "distinction_point": "ケシ科は花弁がしわ状になることが多く、雄しべが多数あり、乳液や色のついた液が出るのが特徴です。"
+   },
+   {
+    "english_name": "ナデシコ科",
+    "scientific_name": "Caryophyllaceae",
+    "japanese_name": "ナデシコ科",
+    "distinction_point": "ナデシコ科は葉が対生し、茎の節が膨らんでおり、花弁は通常5枚です。"
+   },
+   {
+    "english_name": "フウチョウソウ科",
+    "scientific_name": "Cleomaceae",
+    "japanese_name": "フウチョウソウ科",
+    "distinction_point": "フウチョウソウ科は掌状複葉を持ち、種子の鞘に長い柄があるのが特徴です。"
+   }
+  ],
+  "confirm_more": [
+   "花弁と雄しべの配置がわかる接写写真",
+   "成長中または成熟した種子の鞘",
+   "根生葉（ロゼット）と茎葉"
+  ],
+  "season_habitat": "春から初夏にかけて、日本全国の開けた野原、道端、荒れ地などでよく見られます。"
+ },
+ "costUsd": 0.00872525
+}

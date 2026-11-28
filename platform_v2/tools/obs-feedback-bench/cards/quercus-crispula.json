@@ -1,0 +1,77 @@
+{
+ "key": "quercus-crispula",
+ "en": {
+  "scientific_name": "Quercus crispula",
+  "english_name": "Japanese Oak",
+  "rank": "species",
+  "overview": "A large deciduous oak native to Japan, prized for its timber and recognized by its coarsely toothed leaves and scaly-cupped acorns.",
+  "distinguishing_tips": [
+   "Leaves are obovate with large, pointed, saw-like teeth along the margins.",
+   "Leaf base is heart-shaped or ear-lobed with a very short petiole.",
+   "Acorns sit in deep, scaly, bowl-shaped cups.",
+   "Bark is grayish-brown with deep vertical fissures on mature trees."
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Jolcham Oak",
+    "scientific_name": "Quercus serrata",
+    "distinction_point": "Jolcham Oak has smaller, narrower leaves with longer petioles and less-pointed teeth."
+   },
+   {
+    "english_name": "Daimyo Oak",
+    "scientific_name": "Quercus dentata",
+    "distinction_point": "Daimyo Oak has much larger, thicker leaves with wavy, rounded lobes and fuzzy undersides."
+   },
+   {
+    "english_name": "Sawtooth Oak",
+    "scientific_name": "Quercus acutissima",
+    "distinction_point": "Sawtooth Oak has narrow, chestnut-like leaves with bristle-tipped teeth and bristly acorn cups."
+   }
+  ],
+  "confirm_more": [
+   "Close-up of a leaf showing the very short petiole and ear-lobed base.",
+   "Acorns with their scaly, bowl-shaped cups.",
+   "Mature trunk bark showing vertical fissures."
+  ],
+  "season_habitat": "Deciduous; common in cool-temperate montane forests across Japan, fruiting in autumn."
+ },
+ "ja": {
+  "scientific_name": "Quercus crispula",
+  "english_name": "Japanese Oak",
+  "rank": "種",
+  "overview": "日本原産の大型の落葉広葉樹です。良質な木材として重宝され、粗い鋸歯のある葉と、鱗片に覆われた殻斗（どんぐりの帽子）が特徴です。",
+  "distinguishing_tips": [
+   "葉は倒卵形で、縁に大きく尖った鋸歯があります。",
+   "葉の付け根は心形または耳垂状で、葉柄は非常に短いです。",
+   "どんぐりは、深く鱗片に覆われたお椀型の殻斗に収まっています。",
+   "成木の樹皮は灰褐色で、深い縦の割れ目が入ります。"
+  ],
+  "confusable_groups": [
+   {
+    "english_name": "Jolcham Oak",
+    "scientific_name": "Quercus serrata",
+    "japanese_name": "コナラ",
+    "distinction_point": "コナラは葉が小さく細長く、葉柄がより長く、鋸歯の尖り方も控えめです。"
+   },
+   {
+    "english_name": "Daimyo Oak",
+    "scientific_name": "Quercus dentata",
+    "japanese_name": "カシワ",
+    "distinction_point": "カシワは葉が非常に大きく厚みがあり、波打つような丸い裂片を持ち、葉の裏に毛が生えています。"
+   },
+   {
+    "english_name": "Sawtooth Oak",
+    "scientific_name": "Quercus acutissima",
+    "japanese_name": "クヌギ",
+    "distinction_point": "クヌギはクリの葉のような細長い形をしており、鋸歯の先が針状に尖り、殻斗には長い突起があります。"
+   }
+  ],
+  "confirm_more": [
+   "葉柄が非常に短く、付け根が耳垂状になっている様子を接写する。",
+   "鱗片に覆われたお椀型の殻斗を持つどんぐり。",
+   "縦に深い割れ目が入った成木の樹皮。"
+  ],
+  "season_habitat": "落葉樹。日本全国の冷温帯の山林に広く分布し、秋に結実します。"
+ },
+ "costUsd": 0.01015075
+}

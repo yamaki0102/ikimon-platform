@@ -1,0 +1,4 @@
+results/**/raw.jsonl
+results/**/judge.jsonl
+results/*/smoke*/
+results/*/run0-aborted/
