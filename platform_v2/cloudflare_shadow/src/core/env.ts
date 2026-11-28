@@ -151,6 +151,7 @@ export interface Env extends PrototypeEnvironment {
   PUBLIC_DERIVED_IMAGE_TRANSFORM_MODE?: string;
   V2_PRIVILEGED_WRITE_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  ZUKAN_GUIDE_BACKFILL_OWNER_IDS?: string;
   CONTACT_FORM_SECRET?: string;
   CONTACT_ADMIN_TO?: string;
   GOOGLE_CLIENT_ID?: string;

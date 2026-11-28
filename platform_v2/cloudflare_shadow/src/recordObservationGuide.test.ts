@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildObservationGuideMaterial, generateAndStoreObservationGuide, observationGuideFailures } from "./recordObservationGuide";
+import { buildObservationGuideMaterial, generateAndStoreObservationGuide, observationGuideFailures, parseGuideBackfillOwnerIds, runObservationGuideOwnerBackfill } from "./recordObservationGuide";
 import { renderRecordReaderModesHtml } from "./recordReaderModes";
 
 test("gate accepts a plain guide", () => {
@@ -62,6 +62,62 @@ function fakeDb(opts: { human?: boolean; cues?: unknown[]; existingHash?: string
   };
   return { db: db as never, writes };
 }
+
+function backfillDb(rows: { id: string; owner: string; done?: boolean }[]) {
+  const marked: string[] = [];
+  const stored: string[] = [];
+  const db = {
+    prepare(sql: string) {
+      return {
+        bind(...args: unknown[]) {
+          return {
+            async all() {
+              if (!sql.includes("FROM observations o")) return { results: [] };
+              const n = (sql.match(/IN \(([?,]+)\)/)?.[1].split(",").length) ?? 0;
+              const owners = args.slice(0, n) as string[];
+              const limit = Number(args[args.length - 1]);
+              const picked = rows.filter((r) => owners.includes(r.owner) && !r.done && !marked.includes(r.id)).slice(0, limit);
+              return { results: picked.map((r) => ({ record_id: r.id, owner_user_id: r.owner })) };
+            },
+            async first() { return null; },
+            async run() {
+              if (sql.includes("observation_guide") || sql.includes("record_reading_cards")) {
+                if (args[2] === "observation_guide_attempted") marked.push(String(args[1]));
+                else if (args[2] === "observation_guide") stored.push(String(args[1]));
+              }
+              return {};
+            },
+          };
+        },
+      };
+    },
+    batch: async () => [],
+  };
+  return { db: db as never, marked, stored };
+}
+
+test("backfill: owner filter, skips done/attempted, limit, empty owners", async () => {
+  const rows = [
+    { id: "a", owner: "me" }, { id: "b", owner: "other" }, { id: "c", owner: "me", done: true },
+    { id: "d", owner: "me" }, { id: "e", owner: "me" },
+  ];
+  const generate = async () => JSON.stringify({ guide: "" });
+  const mk = () => backfillDb(rows);
+  const none = mk();
+  const r0 = await runObservationGuideOwnerBackfill({ db: none.db, model: "m", generate, isProtected: async () => false }, []);
+  assert.deepEqual([r0.selected, none.marked.length], [0, 0]);
+  assert.deepEqual(parseGuideBackfillOwnerIds(" , "), []);
+  assert.deepEqual(parseGuideBackfillOwnerIds("x, y"), ["x", "y"]);
+  const first = mk();
+  const r1 = await runObservationGuideOwnerBackfill({ db: first.db, model: "m", generate, isProtected: async () => false }, ["me"], 2);
+  assert.equal(r1.selected, 2);
+  assert.deepEqual(first.marked, ["a", "d"]);
+  const r2 = await runObservationGuideOwnerBackfill({ db: first.db, model: "m", generate, isProtected: async () => false }, ["me"], 8);
+  assert.deepEqual(first.marked, ["a", "d", "e"]);
+  assert.equal(r2.selected, 1);
+  assert.equal(first.marked.includes("b"), false);
+  assert.equal(first.marked.includes("c"), false);
+});
 
 test("material: names, evidence, cues filtered by confidence", () => {
   const m = buildObservationGuideMaterial({
