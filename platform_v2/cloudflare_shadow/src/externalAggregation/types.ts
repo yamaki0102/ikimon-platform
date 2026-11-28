@@ -12,6 +12,7 @@ export interface ExtractedFact {
   lat: number | null;
   lng: number | null;
   organizer_name: string | null;
+  category?: string | null;
   fetched_at: string;
 }
 

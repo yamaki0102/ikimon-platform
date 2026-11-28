@@ -216,6 +216,7 @@ import { localizePublicLocationLabel } from "./observationDetailLinks";
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
 import { listRegionAreasByRecords, regionHasPublicRecords } from "./regionCounts";
 import { EXTERNAL_SHELVES_FLAG, loadRegionExternalEvents } from "./externalAggregation/regionShelf";
+import { loadRegionEventList, renderRegionEventsPage } from "./externalAggregation/regionEventsPage";
 import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegionIndex, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionIndexPage, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
@@ -3870,11 +3871,11 @@ export const worker = {
 
       if (request.method === "GET" || request.method === "HEAD") {
         const slugNative = stripPublicLangPrefix(url.pathname);
-        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive)?$/u);
+        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive|\/events)?$/u);
         if (slugMatch?.[1]) {
           const slugLang = publicLangFromPath(url.pathname);
           const slugPrefix = slugLang ? `/${slugLang}` : "";
-          const slugSuffix = (slugMatch[2] ?? "") as "" | "/species" | "/invasive";
+          const slugSuffix = (slugMatch[2] ?? "") as "" | "/species" | "/invasive" | "/events";
           const slugSegments = slugMatch[1].split("/");
           const redirectTo = (target: string) => new Response(null, { status: 301, headers: { location: `${slugPrefix}${target}${url.search}`, "cache-control": "public, max-age=300" } });
           if (slugSegments[0] === "jp") {
@@ -3886,7 +3887,11 @@ export const worker = {
                 if (resolved.level === "country" || resolved.level === "pref") {
                   return new Response(null, { status: 302, headers: { location: `${slugPrefix}/regions${url.search}`, "cache-control": "no-store" } });
                 }
-                if (slugSuffix === "/invasive") {
+                if (slugSuffix === "/events") {
+                  if (resolved.level === "city" && externalShelvesOn(env, slugSession)) {
+                    return handleRegionEventsRoute(request, url, env, slugSession, resolved.label);
+                  }
+                } else if (slugSuffix === "/invasive") {
                   if (invasiveMapV1On(env, slugSession)) {
                     return handleInvasiveMapV1Route(request, url, env, slugSession, { kind: "region", value: encodeURIComponent(resolved.label) });
                   }
@@ -25553,6 +25558,29 @@ async function handleRegionSurfaceRoute(
       "cache-control": "private, max-age=120",
       "vary": "cookie, authorization",
       "x-ikimon-cloudflare-native": speciesList ? "region-species-v1" : "region-surface-v1",
+    },
+  });
+}
+
+async function handleRegionEventsRoute(
+  request: Request,
+  url: URL,
+  env: Env,
+  session: Awaited<ReturnType<typeof readCompatibleSession>>,
+  area: string,
+): Promise<Response> {
+  const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
+  const list = await loadRegionEventList(env.OBS_DB, area, new Date(), { page: Number(url.searchParams.get("page")), cat: url.searchParams.get("cat"), ward: url.searchParams.get("ward") });
+  const cspNonce = createHtmlCspNonce();
+  const page = renderRegionEventsPage({ list, area, lang, authenticated: Boolean(session && !session.banned), displayName: session?.displayName ?? null, cspNonce, origin: seoOrigin(env) });
+  return new Response(request.method === "HEAD" ? null : page, {
+    status: 200,
+    headers: {
+      ...browserSecurityHeaders(cspNonce, env.ENVIRONMENT === "production"),
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, max-age=120",
+      "vary": "cookie, authorization",
+      "x-ikimon-cloudflare-native": "region-events-v1",
     },
   });
 }

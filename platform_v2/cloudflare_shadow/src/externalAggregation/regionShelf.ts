@@ -86,7 +86,7 @@ export const EXT_SHELF_CSS = `
 
 const dayOf = (iso: string): string => iso.slice(0, 10);
 
-export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents | null | undefined): string {
+export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents | null | undefined, allHref?: string): string {
   const cards = (data?.items ?? []).filter((c) => /^https?:\/\//i.test(c.url) && c.source_name.trim() !== "");
   if (cards.length === 0) return "";
   const rows = cards.map((c) => {
@@ -98,7 +98,9 @@ export function renderRegionExternalShelf(lang: Lang, data: RegionExternalEvents
   const names = [...new Set(cards.map((c) => c.source_name.trim()))];
   const fetched = cards.map((c) => dayOf(c.fetched_at)).filter(Boolean).sort().pop() ?? "";
   const rest = (data?.total ?? 0) - cards.length;
-  const more = rest > 0 ? `<p class="rs-ext-src">${tr(lang, `ほか ${rest}件`, `${rest} more`)}</p>` : "";
+  const total = Math.max(data?.total ?? 0, cards.length);
+  const all = rest > 0 && allHref ? `<a class="rs-all" data-region-ext-all="1" href="${esc(allHref)}">${tr(lang, `すべて見る（${total}件）`, `See all (${total})`)}</a>` : "";
+  const more = rest > 0 && !allHref ? `<p class="rs-ext-src">${tr(lang, `ほか ${rest}件`, `${rest} more`)}</p>` : "";
   const src = `<p class="rs-ext-src" data-region-ext-source="1">${tr(lang, `出典：${names.map(esc).join("、")}${fetched ? `／取得日 ${esc(fetched)}` : ""}`, `Source: ${names.map(esc).join(", ")}${fetched ? ` / Retrieved ${esc(fetched)}` : ""}`)}</p>`;
-  return `<section data-region-shelf="ext-events"><div class="rs-shelf-h"><h2>${tr(lang, "まちの行事", "Events in town")}</h2></div><p class="rs-ext-sub">${tr(lang, "市や施設が公開している行事です。申込みは元のページへ。", "Events published by the city and venues. Apply on the original page.")}</p>${rows}${more}${src}</section>`;
+  return `<section data-region-shelf="ext-events"><div class="rs-shelf-h"><h2>${tr(lang, "まちの行事", "Events in town")}</h2>${all}</div><p class="rs-ext-sub">${tr(lang, "市や施設が公開している行事です。申込みは元のページへ。", "Events published by the city and venues. Apply on the original page.")}</p>${rows}${more}${src}</section>`;
 }

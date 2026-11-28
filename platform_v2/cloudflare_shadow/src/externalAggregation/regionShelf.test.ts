@@ -31,6 +31,7 @@ test("more than the limit shows the remainder count", async () => {
   const r = await loadRegionExternalEvents(db, "浜松市", NOW);
   assert.equal(r.items.length, 5);
   assert.equal(r.total, 7);
+  assert.match(renderRegionExternalShelf("ja", r, "/ja/regions/jp/shizuoka/hamamatsu/events"), /href="\/ja\/regions\/jp\/shizuoka\/hamamatsu\/events">すべて見る（7件）/);
   assert.match(renderRegionExternalShelf("ja", r), /ほか 2件/);
 });
 
