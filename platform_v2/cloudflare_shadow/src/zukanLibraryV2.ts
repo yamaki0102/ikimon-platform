@@ -1,6 +1,6 @@
 import type { Env } from "./core/env";
 import { loadOwnerAreaLabels } from "./ownerAreaLabel";
-import { decodePageCursor, encodePageCursor } from "./ownerRecordPaging";
+import { decodePageCursor, encodePageCursor, loadMoreScript } from "./ownerRecordPaging";
 import { ZUKAN_SHELL_CSS, ZUKAN_SHELL_ICONS, renderZukanChrome } from "./zukanShellChrome";
 
 export type LibraryV2ObservationInput = {
@@ -321,7 +321,7 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 @keyframes zv2l-sync-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
 @media (prefers-reduced-motion:reduce){.zv2l-sync-bar b{animation:none;width:60%}}
 .zv2l-dsep{display:flex;align-items:center;gap:12px;padding:22px 0 0}
-.zv2l-sync+.zv2l-dsep{padding-top:6px}
+.zv2l-sync+.zv2l-feed>.zv2l-dsep:first-child{padding-top:6px}
 .zv2l-dt{font-size:15px;font-weight:800;color:#55615A;white-space:nowrap}
 .zv2l-dl{flex:1;border-top:1px solid #DDE2DC}
 .zv2l-visit{padding:14px 0 20px;border-bottom:1px solid #EDF0EC}
@@ -540,16 +540,20 @@ export function renderLibraryV2Page(options: {
       parts.push(`<div class="zv2l-search-meta" data-library-search-summary="1"><span>${isEn ? `Results for "${esc(trimmedSearch)}" (${options.visits.length})` : `「${esc(trimmedSearch)}」の検索結果（${options.visits.length}件）`}</span><a href="${esc(`${prefix}/library`)}">${t("検索をリセット", "Reset search")}</a></div>`);
     }
     let prevDay = "";
+    const feed: string[] = [];
     for (const v of options.visits) {
       if (v.dateDay !== prevDay) {
-        parts.push(renderDateDividerHtml(v, isEn));
+        feed.push(renderDateDividerHtml(v, isEn));
         prevDay = v.dateDay;
       }
-      parts.push(renderVisitCardHtml(v, prefix, isEn));
+      feed.push(renderVisitCardHtml(v, prefix, isEn));
     }
+    parts.push(`<div class="zv2l-feed" data-library-feed="1">${feed.join("\n")}</div>`);
     if (options.nextCursor) {
       const moreHref = `${prefix}/library?before=${encodeURIComponent(options.nextCursor)}${trimmedSearch ? `&q=${encodeURIComponent(trimmedSearch)}` : ""}`;
-      parts.push(`<div style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" href="${esc(moreHref)}">${t("もっと見る", "Show more")}</a></div>`);
+      parts.push(`<div class="zv2l-more" data-library-more="1" style="margin-top:24px;text-align:center;"><a class="zv2l-add-btn" data-load-more="1" href="${esc(moreHref)}">${t("もっと見る", "Show more")}</a></div>`);
+      parts.push(loadMoreScript({ list: "[data-library-feed]", more: "[data-library-more]", loading: t("読み込み中…", "Loading…") }).replace("<script data-load-more-script>", `<script${nonceAttr} data-load-more-script>`));
+      parts.push(`<script${nonceAttr}>(function(){var f=document.querySelector("[data-library-feed]");if(!f||!window.MutationObserver)return;var d=function(){var p="";f.querySelectorAll("[data-library-date]").forEach(function(e){var k=e.getAttribute("data-library-date");if(k===p)e.remove();else p=k;});};new MutationObserver(d).observe(f,{childList:true});})();</script>`);
     }
     listContent = parts.join("\n");
   }

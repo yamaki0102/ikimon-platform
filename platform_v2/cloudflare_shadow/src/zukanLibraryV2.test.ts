@@ -631,3 +631,33 @@ test("Playwright verifies library v2 search results and empty-search UI at 375px
     await ctx.close();
   }
 });
+
+test("library v2 emits infinite-scroll hooks only when nextCursor exists", () => {
+  const visits = groupObservationsIntoVisitsV2([
+    {
+      observationId: "o-1",
+      observedAt: "2026-11-23T00:12:00Z",
+      placeId: "pl-1",
+      placeName: "佐鳴湖",
+      areaLabel: "浜松市",
+      lat: 35.01,
+      lng: 136.47,
+      reportTitle: "池",
+      reportBody: "カワセミ",
+      mediaKind: "photo",
+      photoUrl: "/derived-transform/w360/derived/o1/display.webp",
+      durationMs: null,
+      visibility: "public",
+      zukanPublished: true,
+      eventSession: null,
+    },
+  ]);
+  const withMore = renderLibraryV2Page({ visits, lang: "ja", authenticated: true, nextCursor: "abc", cspNonce: "n1" });
+  assert.match(withMore, /data-library-feed="1"/);
+  assert.match(withMore, /data-library-more="1"/);
+  assert.match(withMore, /data-load-more="1"/);
+  assert.match(withMore, /<script nonce="n1" data-load-more-script>/);
+  const noMore = renderLibraryV2Page({ visits, lang: "ja", authenticated: true, nextCursor: null });
+  assert.match(noMore, /data-library-feed="1"/);
+  assert.doesNotMatch(noMore, /data-library-more|data-load-more/);
+});
