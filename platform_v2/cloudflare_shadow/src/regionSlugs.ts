@@ -5,7 +5,7 @@ export type RegionSlugResolution =
   | { kind: "redirect"; to: string }
   | null;
 
-export const RESERVED_REGION_SLUGS: readonly string[] = ["events", "species", "invasive", "places"];
+export const RESERVED_REGION_SLUGS: readonly string[] = ["events", "species", "invasive", "places", "calendar"];
 
 const pathOf =(e: RegionSlugEntry): string =>
   e.level === "country" ? e.slug : e.parent_slug === "jp" ? `jp/${e.slug}` : `jp/${e.parent_slug}/${e.slug}`;
