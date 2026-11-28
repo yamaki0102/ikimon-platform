@@ -377,8 +377,10 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-btn-main svg{width:20px;height:20px;margin-right:8px}
 .zv2l-zlink{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-height:44px;margin-top:14px;font-size:15px;font-weight:700;color:var(--link)!important;text-decoration:none}
 .zv2l-sort{display:flex;gap:8px;margin-top:10px}
-.zv2l-sort a,.zv2l-sort a:visited{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid #DDE2DC;background:#fff;color:#3C4A41;font-size:14px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;text-decoration:none}
-.zv2l-sort a.on{border-color:var(--green);color:var(--green);background:#EFF3EE}
+.zv2l-sort a,.zv2l-sort a:link,.zv2l-sort a:visited,.zv2l-sort a:hover,.zv2l-sort a:active,.zv2l-sort a:focus-visible{min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid #DDE2DC;background:#fff;color:#3C4A41;font-size:14px;font-weight:800;display:inline-flex;align-items:center;white-space:nowrap;text-decoration:none}
+.zv2l-sort a.on,.zv2l-sort a.on:link,.zv2l-sort a.on:visited,.zv2l-sort a.on:hover,.zv2l-sort a.on:active{border-color:var(--green);color:var(--green);background:#EFF3EE}
+.zv2l-sort a:hover,.zv2l-sort a:active{background:#EFF3EE;color:#3C4A41}
+.zv2l-sort a:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .zv2l-search-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:14px;padding:6px 12px;border-radius:10px;background:#EFF3EE;font-size:14px;color:#3C4A41}
 .zv2l-search-meta a,.zv2l-search-meta a:visited{min-height:44px;display:inline-flex;align-items:center;font-weight:700;color:var(--green);text-decoration:none}
 
@@ -422,11 +424,10 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const href = soleMedia
     ? `${prefix}/observations/${encodeURIComponent(soleMedia.observationId)}`
     : `${prefix}/library/group?group=${encodeURIComponent(visit.visitKey)}`;
-  const hasPlace = visit.areaLabel !== "";
   const reportTitle = visit.report?.title ?? "";
-  const faceTitle = reportTitle || (hasPlace ? visit.placeName : "");
+  const faceTitle = reportTitle;
   const faceIsReport = reportTitle !== "";
-  const metaPlace = faceIsReport ? (hasPlace ? visit.placeName : "") : (visit.areaLabel && visit.areaLabel !== visit.placeName ? visit.areaLabel : "");
+  const metaPlace = visit.placeName || visit.areaLabel || (isEn ? "A place nearby" : "身近な場所");
   const metaParts = [metaPlace, visit.timeRangeLabel].filter(Boolean);
   const mediaAll = [...visit.photos, ...visit.videos];
   const hasMore = mediaAll.length > 4;
@@ -458,8 +459,8 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   const nPhoto = visit.photos.length;
   const nVideo = visit.videos.length;
   const nAudio = visit.audios.length;
-  if (nPhoto > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span class="nw">${isEn ? `${nPhoto} ${nPhoto === 1 ? "photo" : "photos"}` : `写真${nPhoto}枚`}</span></span>`);
-  if (nVideo > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span class="nw">${isEn ? `${nVideo} ${nVideo === 1 ? "video" : "videos"}` : `動画${nVideo}本`}</span></span>`);
+  if (nPhoto > 0 && hasMore) typeParts.push(`<span class="zv2l-vt">${ICONS.photo}<span class="nw">${isEn ? `${nPhoto} ${nPhoto === 1 ? "photo" : "photos"}` : `写真${nPhoto}枚`}</span></span>`);
+  if (nVideo > 0 && hasMore) typeParts.push(`<span class="zv2l-vt">${ICONS.video}<span class="nw">${isEn ? `${nVideo} ${nVideo === 1 ? "video" : "videos"}` : `動画${nVideo}本`}</span></span>`);
   if (nAudio > 0) typeParts.push(`<span class="zv2l-vt">${ICONS.audio}<span class="nw">${isEn ? `${nAudio} ${nAudio === 1 ? "sound" : "sounds"}` : `音${nAudio}つ`}</span></span>`);
   if (visit.report) typeParts.push(`<span class="zv2l-vt">${ICONS.report}<span class="nw">${isEn ? "Field report" : "フィールドレポート"}</span></span>`);
   if (visit.eventParticipation) {
@@ -474,7 +475,7 @@ function renderVisitCardHtml(visit: LibraryV2Visit, prefix: string, isEn = false
   if (visit.zukanPublished) statusParts.push(`<span class="zv2l-st pub">${ICONS.book}<span>${isEn ? "In the field guide" : "図鑑に載せています"}</span></span>`);
   const statusHtml = statusParts.length > 0
     ? `<div class="zv2l-status">${statusParts.join('')}</div>`
-    : `<div class="zv2l-status"><span class="zv2l-st">${ICONS.lock}<span>${isEn ? "Only me" : "自分のみ"}</span></span></div>`;
+    : "";
 
   const headHtml = faceTitle ? `<h3 class="zv2l-vhead">${faceIsReport ? esc(faceTitle) : `<span class="nw">${esc(faceTitle)}</span>`}</h3>` : "";
   const metaHtml = metaParts.length > 0
