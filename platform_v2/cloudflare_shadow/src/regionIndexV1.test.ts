@@ -63,7 +63,7 @@ test("regions index lists areas by prefecture sorted by records, empty state is 
   assert.match(html, /data-region-group="静岡県"/);
   assert.match(html, /data-region-row="浜松市 静岡県"/);
   assert.match(html, /種 <span class="iv-nb">2<\/span> ・ 記録 <span class="iv-nb">4件<\/span> ・ 場所 <span class="iv-nb">1か所<\/span>/);
-  assert.match(html, /\/ja\/regions\/%E6%B5%9C%E6%9D%BE%E5%B8%82/);
+  assert.match(html, /\/ja\/regions\/jp\/shizuoka\/hamamatsu"/);
   const en = await (await get("/en/regions", on)).text();
   assert.match(en, /Explore by region \| ZUKAN/);
   const empty = makeDb(false);
