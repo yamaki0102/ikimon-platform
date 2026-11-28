@@ -14,7 +14,7 @@ function seedMore(sqlite: any, n: number) {
     const day = String(1 + Math.floor(i / 3)).padStart(2, "0");
     const cat = i % 2 === 0 ? "かんきょう" : "講座・教室";
     sqlite.prepare("INSERT INTO ext_events (event_id,org_id,place_id,title,category,starts_at,status,city_unit_id,updated_at) VALUES (?,?,?,?,?,?,?,?,'x')")
-      .run(id, "o1", i % 3 === 0 ? "p2" : "p1", `行事${id}`, i === 5 ? null : cat, `2026-12-${day}T1${i % 10}:00:00+09:00`, "active", "22130");
+      .run(id, "o1", i % 3 === 0 ? "p2" : "p1", `行事${id}`, cat, `2026-12-${day}T1${i % 10}:00:00+09:00`, "active", "22130");
     sqlite.prepare("INSERT INTO ext_source_records (record_id,source_id,external_ref,url,kind,raw_json,content_hash,first_seen_at,last_seen_at) VALUES (?,?,?,?,?,?,?,?,?)")
       .run(`r-${id}`, "S1", id, `https://x/${id}`, "event", i === 5 ? JSON.stringify({ category: "かんきょう" }) : "{}", "h", "2026-11-20", "2026-11-27T01:00:00Z");
     sqlite.prepare("INSERT INTO ext_item_sources (item_kind,item_id,record_id,role) VALUES ('event',?,?,'official')").run(id, `r-${id}`);
@@ -56,11 +56,16 @@ test("category filter uses column or record json; ward filter narrows", async ()
   const { db, sqlite } = migratedDb();
   seedExt(sqlite);
   seedMore(sqlite, 12);
+  sqlite.prepare("INSERT INTO admin_units (code,level,parent_code,name_ja,boundary_version) VALUES ('22138','ward','22130','中央区','t')").run();
+  sqlite.prepare("UPDATE ext_places SET admin_unit_id='22138' WHERE place_id='p1'").run();
+  const w38 = await loadRegionEventList(db, "浜松市", NOW, { ward: "22138" });
+  assert.ok(w38.items.length > 0 && w38.items.every((i) => !i.venue_name?.includes("浜名")));
+  assert.equal(w38.total, 9);
+  sqlite.prepare("UPDATE ext_places SET admin_unit_id='22131' WHERE place_id='p1'").run();
   const nature = await loadRegionEventList(db, "浜松市", NOW, { cat: "かんきょう" });
-  assert.equal(nature.items.length, 7);
-  assert.ok(nature.items.some((i) => i.event_id === "m05"));
+  assert.equal(nature.items.length, 6);
   const course = await loadRegionEventList(db, "浜松市", NOW, { cat: "講座" });
-  assert.equal(course.items.length, 5);
+  assert.equal(course.items.length, 6);
   const ward = await loadRegionEventList(db, "浜松市", NOW, { ward: "22132" });
   assert.deepEqual(ward.items.map((i) => i.event_id), ["m00", "m03", "m06", "m09"]);
   assert.deepEqual(ward.wards.map((w) => w.code), ["22131", "22132"]);

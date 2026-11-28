@@ -42,7 +42,7 @@ const SOURCED = `EXISTS (SELECT 1 FROM ext_item_sources i JOIN ext_source_record
 const REP = `SELECT r.record_id FROM ext_item_sources i JOIN ext_source_records r ON r.record_id=i.record_id JOIN ext_sources s ON s.source_id=r.source_id
   WHERE i.item_kind='event' AND i.item_id=e.event_id AND ${SRC_COND}
   ORDER BY CASE i.role WHEN 'official' THEN 0 ELSE 1 END, r.record_id LIMIT 1`;
-const CAT_EXPR = `COALESCE(NULLIF(e.category,''), json_extract(rr.raw_json,'$.category'))`;
+const CAT_EXPR = `e.category`;
 
 type Row = {
   event_id: string; title: string; starts_at: string; ends_at: string | null; all_day: number;
@@ -69,7 +69,7 @@ export async function loadRegionEventList(
     const wardRows = (await db.prepare(
       `SELECT DISTINCT w.code AS code, w.name_ja AS name FROM ext_events e
        JOIN ext_places p ON p.place_id=e.place_id
-       JOIN admin_units w ON w.code=p.admin_unit_id AND w.level='ward' AND w.valid_to IS NULL
+       JOIN admin_units w ON w.code=p.admin_unit_id AND w.level='ward' AND w.valid_to IS NULL AND w.parent_code=?1
        WHERE e.city_unit_id=?1 AND e.status='active' AND e.starts_at>=?2 AND ${SOURCED}
        ORDER BY w.code`,
     ).bind(city.code, day).all<{ code: string; name: string }>()).results ?? [];

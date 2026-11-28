@@ -46,6 +46,14 @@ const PENDING_SQL = `SELECT r.record_id,r.source_id,r.raw_json,r.gone_at,s.name,
       WHERE i.item_kind='event' AND i.record_id=r.record_id AND e.status='hidden'))
   ) ORDER BY r.record_id LIMIT ?`;
 
+const BACKFILL_SQL = `SELECT e.event_id FROM ext_events e WHERE
+  (COALESCE(e.category,'')='' AND EXISTS (SELECT 1 FROM ext_item_sources i JOIN ext_source_records r ON r.record_id=i.record_id
+     WHERE i.item_kind='event' AND i.item_id=e.event_id
+       AND COALESCE(CASE WHEN json_valid(r.raw_json) THEN json_extract(r.raw_json,'$.category') END,'')<>''))
+  OR e.place_id IN (SELECT p.place_id FROM ext_places p WHERE p.admin_unit_id IS NOT NULL
+     AND p.admin_unit_id NOT IN (SELECT code FROM admin_units WHERE level IN ('city','ward') AND valid_to IS NULL))
+  ORDER BY e.event_id LIMIT ?`;
+
 export async function runCanonicalize(db: ExtDb, nowMs: number, limit = 200): Promise<{ records: number; events: number }> {
   const nowIso = new Date(nowMs).toISOString();
   const pending = (await db.prepare(PENDING_SQL).bind(limit).all<RecordRow>()).results;
@@ -53,14 +61,6 @@ export async function runCanonicalize(db: ExtDb, nowMs: number, limit = 200): Pr
   for (const row of pending) {
     try { parsed.push({ row, fact: JSON.parse(row.raw_json) as ExtractedFact }); } catch { /* skip */ }
   }
-  const coords = parsed.filter(p => typeof p.fact.lat === "number" && typeof p.fact.lng === "number");
-  const index = coords.length
-    ? await loadAdminIndexForBbox(db, [
-      Math.min(...coords.map(p => p.fact.lng!)), Math.min(...coords.map(p => p.fact.lat!)),
-      Math.max(...coords.map(p => p.fact.lng!)), Math.max(...coords.map(p => p.fact.lat!)),
-    ])
-    : null;
-
   const touched = new Set<string>();
   for (const { row, fact } of parsed) {
     const eventId = `xe_${(await dedupeKey(fact)).slice(0, 32)}`;
@@ -76,19 +76,44 @@ export async function runCanonicalize(db: ExtDb, nowMs: number, limit = 200): Pr
     touched.add(eventId);
   }
 
-  let events = 0;
+  try {
+    const stale = (await db.prepare(BACKFILL_SQL).bind(limit).all<{ event_id: string }>()).results;
+    for (const e of stale) touched.add(e.event_id);
+  } catch { /* backfill is best effort */ }
+
+  type Linked = { record_id: string; source_id: string; raw_json: string; gone_at: string | null };
+  const loaded: { eventId: string; linked: Linked[]; fact: ExtractedFact }[] = [];
   for (const eventId of touched) {
     const linked = (await db.prepare(
       `SELECT r.record_id,r.source_id,r.raw_json,r.gone_at FROM ext_item_sources i JOIN ext_source_records r ON r.record_id=i.record_id
        WHERE i.item_kind='event' AND i.item_id=? ORDER BY (r.gone_at IS NOT NULL), r.record_id`,
-    ).bind(eventId).all<{ record_id: string; source_id: string; raw_json: string; gone_at: string | null }>()).results;
+    ).bind(eventId).all<Linked>()).results;
     if (!linked.length) {
       await db.prepare("DELETE FROM ext_events WHERE event_id=?").bind(eventId).run();
       continue;
     }
-    const rep = linked[0]!;
     let fact: ExtractedFact;
-    try { fact = JSON.parse(rep.raw_json) as ExtractedFact; } catch { continue; }
+    try { fact = JSON.parse(linked[0]!.raw_json) as ExtractedFact; } catch { continue; }
+    loaded.push({ eventId, linked, fact });
+  }
+  const coords = loaded.map(l => l.fact).filter(f => typeof f.lat === "number" && typeof f.lng === "number");
+  const index = coords.length
+    ? await loadAdminIndexForBbox(db, [
+      Math.min(...coords.map(f => f.lng!)), Math.min(...coords.map(f => f.lat!)),
+      Math.max(...coords.map(f => f.lng!)), Math.max(...coords.map(f => f.lat!)),
+    ])
+    : null;
+
+  let events = 0;
+  for (const { eventId, linked, fact } of loaded) {
+    const rep = linked[0]!;
+    let category = fact.category?.trim() || null;
+    if (!category) {
+      for (const l of linked) {
+        try { category = (JSON.parse(l.raw_json) as ExtractedFact).category?.trim() || null; } catch { /* skip */ }
+        if (category) break;
+      }
+    }
     const allGone = linked.every(l => l.gone_at !== null);
 
     const venue = await resolveVenue(db, fact, index);
@@ -120,7 +145,7 @@ export async function runCanonicalize(db: ExtDb, nowMs: number, limit = 200): Pr
       `INSERT INTO ext_events (event_id,org_id,place_id,title,category,starts_at,ends_at,all_day,status,city_unit_id,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(event_id) DO UPDATE SET org_id=excluded.org_id,place_id=excluded.place_id,title=excluded.title,category=excluded.category,starts_at=excluded.starts_at,
          ends_at=excluded.ends_at,all_day=excluded.all_day,status=excluded.status,city_unit_id=excluded.city_unit_id,updated_at=excluded.updated_at`,
-    ).bind(eventId, orgId, placeId, fact.title, fact.category ?? null, fact.starts_at, fact.ends_at, fact.all_day ? 1 : 0, status, venue.city_unit_id, nowIso).run();
+    ).bind(eventId, orgId, placeId, fact.title, category, fact.starts_at, fact.ends_at, fact.all_day ? 1 : 0, status, venue.city_unit_id, nowIso).run();
     events++;
   }
 
