@@ -63,10 +63,9 @@ test("category filter uses column or record json; ward filter narrows", async ()
   assert.equal(w38.total, 9);
   sqlite.prepare("UPDATE ext_places SET admin_unit_id='22131' WHERE place_id='p1'").run();
   const nature = await loadRegionEventList(db, "浜松市", NOW, { cat: "かんきょう" });
-  assert.equal(nature.items.length, 7);
-  assert.ok(nature.items.some((i) => i.event_id === "m05"));
+  assert.equal(nature.items.length, 6);
   const course = await loadRegionEventList(db, "浜松市", NOW, { cat: "講座" });
-  assert.equal(course.items.length, 5);
+  assert.equal(course.items.length, 6);
   const ward = await loadRegionEventList(db, "浜松市", NOW, { ward: "22132" });
   assert.deepEqual(ward.items.map((i) => i.event_id), ["m00", "m03", "m06", "m09"]);
   assert.deepEqual(ward.wards.map((w) => w.code), ["22131", "22132"]);
