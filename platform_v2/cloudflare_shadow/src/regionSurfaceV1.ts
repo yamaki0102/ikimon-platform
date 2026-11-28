@@ -1,4 +1,5 @@
 import { EXT_SHELF_CSS, renderRegionExternalShelf, type ExtEventCard } from "./externalAggregation/regionShelf";
+import { regionPath, regionPathNoLang } from "./regionSlugs";
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
 import { PLACE_AREA_SQL, PREFECTURE_PREFIX, PUBLIC_RECORD_FROM_SQL, isHigherRankName, loadAllRegionCounts, loadRegionCounts } from "./regionCounts";
@@ -238,7 +239,7 @@ export const EXTRA_CSS = `
 .rs-rn{margin:10px 0 0;font-size:13.5px;line-height:1.65;color:var(--muted)}
 `;
 
-const regionBase = (lang: Lang, area: string): string => `${lang === "ja" ? "/ja" : `/${lang}`}/regions/${encodeURIComponent(area)}`;
+const regionBase = (lang: Lang, area: string): string => regionPath(lang, area);
 
 const thumb = (url: string | null): string => url
   ? `<img class="iv-thumb" src="${esc(url)}" alt="" loading="lazy" width="56" height="56">`
@@ -321,7 +322,7 @@ export function renderRegionSurfacePage(options: {
     ? `${data.area}の生きものと場所。${parts.join("、")}。ZUKANの公開記録から集めています。`
     : `Wildlife and places in ${data.area}: ${parts.join(", ")}. Gathered from public records on ZUKAN.`;
   return shell({
-    seo: { title: tr(L, `${data.area}の生きもの・場所 | ZUKAN`, `Wildlife and places in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(data.area)}`, image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
+    seo: { title: tr(L, `${data.area}の生きもの・場所 | ZUKAN`, `Wildlife and places in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: regionPathNoLang(data.area), image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: data.area,
     extraCss: extShelf ? EXTRA_CSS + EXT_SHELF_CSS : EXTRA_CSS,
     lang: options.lang,
@@ -387,7 +388,7 @@ export function renderRegionSpeciesListPage(options: {
     ? `${data.area}で記録されている生きもの${fine.length}種の一覧。ZUKANの公開記録から。`
     : `${plural(fine.length, "species", "species")} recorded in ${data.area}. From public records on ZUKAN.`;
   return shell({
-    seo: { title: tr(L, `${data.area}の生きもの一覧 | ZUKAN`, `Wildlife in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(data.area)}/species`, image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
+    seo: { title: tr(L, `${data.area}の生きもの一覧 | ZUKAN`, `Wildlife in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: regionPathNoLang(data.area, "/species"), image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: tr(L, `${data.area}の生物`, `Wildlife in ${data.area}`),
     extraCss: EXTRA_CSS,
     lang: options.lang,
@@ -450,7 +451,7 @@ export function renderRegionIndexPage(options: {
     const meta = L === "ja"
       ? [it.species > 0 ? `種 <span class="iv-nb">${it.species}</span>` : "", `記録 <span class="iv-nb">${it.records}件</span>`, it.places > 0 ? `場所 <span class="iv-nb">${it.places}か所</span>` : ""].filter(Boolean).join(" ・ ")
       : [it.species > 0 ? `<span class="iv-nb">${plural(it.species, "species", "species")}</span>` : "", `<span class="iv-nb">${plural(it.records, "record", "records")}</span>`, it.places > 0 ? `<span class="iv-nb">${plural(it.places, "place", "places")}</span>` : ""].filter(Boolean).join(" · ");
-    return `<a class="rs-row" data-region-row="${esc(`${it.area} ${it.prefecture ?? ""}`.trim())}" href="${esc(`${prefix}/regions/${encodeURIComponent(it.area)}`)}"><span class="rs-b"><span class="rs-n">${esc(it.area)}</span><span class="rs-m">${meta}</span></span>${CHEV_ICON}</a>`;
+    return `<a class="rs-row" data-region-row="${esc(`${it.area} ${it.prefecture ?? ""}`.trim())}" href="${esc(regionPath(L, it.area))}"><span class="rs-b"><span class="rs-n">${esc(it.area)}</span><span class="rs-m">${meta}</span></span>${CHEV_ICON}</a>`;
   }).join("")}</section>`).join("");
   const body = `<div class="iv-col rs-col" data-region-index="1">
     ${headBar(`${prefix}/search/explore`, L)}

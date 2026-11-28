@@ -1,4 +1,5 @@
 import type { ObservationRecordLang } from "./observationFirstRecordDetailI18n";
+import { regionPath } from "./regionSlugs";
 import { isHigherRankName, regionKeyFromLabel } from "./regionSurfaceV1";
 import { canonicalSpeciesKey, resolveSpeciesKey } from "./speciesSurfaceV1";
 
@@ -42,7 +43,7 @@ export function observationDetailLinks(input: ObservationDetailLinkInput): Obser
   let region: ObservationDetailLinks["region"] = null;
   if (input.regionOn) {
     const key = regionKeyFromLabel(input.areaLabel);
-    if (key) region = { href: `${prefix}/regions/${encodeURIComponent(key)}`, area: key };
+    if (key) region = { href: regionPath(input.lang, key), area: key };
   }
   const placeId = input.place?.id?.trim();
   const placeName = input.place?.name?.trim();

@@ -1,4 +1,5 @@
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, canonicalSpeciesName, headBar, plural, scientificNameFromSlug, shareScript, shell, tr } from "./invasiveMapV1";
+import { regionPath } from "./regionSlugs";
 import { INVASIVE_LEARN_PATH, classifyInvasive } from "./mapInvasive";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { inferTaxonGroupForLabel, resolveTaxonGroups } from "./zukanMapTaxonGroup";
@@ -152,7 +153,7 @@ export function renderSpeciesSurfacePage(options: {
     const meta = L === "ja" ? `記録 <span class="iv-nb">${a.count}件</span>` : `<span class="iv-nb">${plural(a.count, "record", "records")}</span>`;
     const inner = `<span class="rs-b"><span class="rs-n">${esc(a.area)}</span><span class="rs-m">${meta}</span></span>${options.regionAvailable ? CHEV_ICON : ""}`;
     return options.regionAvailable
-      ? `<a class="rs-row" data-species-area="${esc(a.area)}" href="${esc(`${prefix}/regions/${encodeURIComponent(a.area)}`)}">${inner}</a>`
+      ? `<a class="rs-row" data-species-area="${esc(a.area)}" href="${esc(regionPath(L, a.area))}">${inner}</a>`
       : `<div class="rs-row" data-species-area="${esc(a.area)}">${inner}</div>`;
   }).join("");
   const mapCard = regionMapCardHtml(data.cells, `${prefix}/map`, L, {
