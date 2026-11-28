@@ -40,9 +40,22 @@ test("sort pills use palette colors only and never purple", () => {
   assert.ok(!/purple|#[89a-f][0-9a-f]?[0-9a-f]?[0-9a-f]?[0-9a-f]?[0-9a-f]?\b.*purple/i.test(css));
 });
 
-test("visit without areaLabel shows place and time in one meta line", () => {
-  const html = page([visit()]);
-  assert.match(html, /<div class="zv2l-vmeta[^"]*"><span class="nw">身近な場所<\/span> ・ <span class="nw">9:10〜10:40<\/span><\/div>/);
+test("visit meta shows real place and time range; generic place is omitted", () => {
+  const html = page([visit({ placeName: "連理の木の下で" })]);
+  assert.match(html, /<div class="zv2l-vmeta[^"]*"><span class="nw">連理の木の下で<\/span> ・ <span class="nw">9:10〜10:40<\/span><\/div>/);
+  const gen = page([visit()]);
+  assert.ok(!gen.slice(gen.indexOf('data-library-visit="v1"')).includes("身近な場所"));
+});
+
+test("sort pills have no default link color and no purple", () => {
+  const css = page([visit()]).split(String.fromCharCode(10)).filter((l) => l.includes(".zv2l-sort")).join(String.fromCharCode(10));
+  assert.ok(css.includes(".zv2l-sort a:visited") && !/purple|#(6|7|8|9)[0-9a-f]{0,2}[0-9a-f]{0,2}[0-9a-f]{0,2}.*(purple)/i.test(css));
+});
+
+test("same-day same-place photos merge into one visit card", () => {
+  const html = page([visit({ placeName: "連理の木の下で", photos: [1, 2, 3].map((i) => ({ observationId: `o${i}`, url: `/p/${i}.jpg`, isVideo: false }) as never) })]);
+  assert.equal((html.match(/data-library-visit=/g) ?? []).length, 1);
+  assert.ok(html.includes("連理の木の下で") && html.includes("9:10〜10:40"));
 });
 
 test("private card hides 自分のみ and public card shows 公開しています", () => {

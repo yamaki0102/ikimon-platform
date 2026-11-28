@@ -33,8 +33,8 @@ test("date dividers: one per day, visits under it, no date in visit heading", ()
 test("face priority: report title, then place name, then none (photo-only)", () => {
   const html = render();
   assert.match(html, /<h3 class="zv2l-vhead">池のまわりの観察記録<\/h3>/);
-  assert.match(html, /<h3 class="zv2l-vhead"><span class="nw">四日市少年自然の家<\/span><\/h3>/);
-  assert.match(html, /<h3 class="zv2l-vhead"><span class="nw">佐鳴湖<\/span><\/h3>/);
+  assert.match(html, /<div class="zv2l-vmeta first"><span class="nw">四日市少年自然の家<\/span> ・/);
+  assert.match(html, /<div class="zv2l-vmeta first"><span class="nw">佐鳴湖<\/span> ・/);
   const noFace = html.split('data-library-visit="').find((c) => c.includes("/d/n1.webp"))!;
   assert.doesNotMatch(noFace.split("</article>")[0]!, /zv2l-vhead/);
   assert.match(noFace, /zv2l-vmeta first/);
