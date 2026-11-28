@@ -19,10 +19,19 @@ test("shelf loads only sourced, current, active events of the area", async () =>
   assert.match(html, /data-region-shelf="ext-events"/);
   assert.match(html, /まちの行事/);
   assert.match(html, /rel="noopener nofollow"/);
-  assert.match(html, /出典：浜松市オープンデータ（イベント情報）／取得日 2026-11-27/);
+  assert.match(html, /市や施設のページから集めた行事です/);
+  assert.match(html, /出典：浜松市オープンデータ（イベント情報）<span class="rs-nb">（11月27日に取得）<\/span>/);
+  assert.match(html, /<a href="https?:\/\/[^"]+" target="_blank" rel="noopener nofollow">元のページへ ›<\/a>/);
+  assert.match(html, /申し込みは、それぞれの元のページからお願いします。/);
+  assert.equal(html.match(/data-region-ext-source/g)?.length, 1);
+  assert.doesNotMatch(html, /もっと見る/);
   assert.doesNotMatch(html, /出典なし|過去の行事|非表示|他市/);
   assert.doesNotMatch(html, /<img/);
-  assert.match(renderRegionExternalShelf("en", r), /Events in town/);
+  const en = renderRegionExternalShelf("en", r);
+  assert.match(en, /Events in town/);
+  assert.match(en, /Source: .*retrieved 2026-11-27/);
+  assert.match(en, /Original page ›/);
+  assert.match(en, /Apply on the original page\./);
 });
 
 test("more than the limit shows the remainder count", async () => {
@@ -31,7 +40,7 @@ test("more than the limit shows the remainder count", async () => {
   const r = await loadRegionExternalEvents(db, "浜松市", NOW);
   assert.equal(r.items.length, 5);
   assert.equal(r.total, 7);
-  assert.match(renderRegionExternalShelf("ja", r), /ほか 2件/);
+  assert.match(renderRegionExternalShelf("ja", r), /もっと見る（あと 2件）/);
 });
 
 test("missing tables or empty data give empty output", async () => {
