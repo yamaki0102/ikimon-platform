@@ -259,7 +259,7 @@ test("external shelf appears only when EXTERNAL_SHELVES_ENABLED is on; ext-only 
   seedExt(sqlite);
   const base = { ENVIRONMENT: "staging", CORE_DB: db, OBS_DB: db } as unknown as Env;
   const rollouts = (extState: string) => JSON.stringify({ REGION_SURFACE_V1_ENABLED: { state: "all" }, EXTERNAL_SHELVES_ENABLED: { state: extState } });
-  const get = (env: Env) => worker.fetch(new Request("https://zukan.earth/ja/regions/" + encodeURIComponent("浜松市")), env);
+  const get = (env: Env) => worker.fetch(new Request("https://zukan.earth/ja/regions/jp/shizuoka/hamamatsu"), env);
   const off = await get({ ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("off") } as unknown as Env);
   assert.equal(off.status, 404);
   const on = await get({ ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("all") } as unknown as Env);
@@ -268,6 +268,14 @@ test("external shelf appears only when EXTERNAL_SHELVES_ENABLED is on; ext-only 
   assert.match(html, /data-region-shelf="ext-events"/);
   assert.match(html, /自然観察会/);
   assert.match(html, /市や施設の公開情報/);
+  const legacy = await worker.fetch(new Request("https://zukan.earth/ja/regions/" + encodeURIComponent("浜松市") + "/species?group=bird"), { ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("all") } as unknown as Env, undefined as never);
+  assert.equal(legacy.status, 301);
+  assert.equal(legacy.headers.get("location"), "/ja/regions/jp/shizuoka/hamamatsu/species?group=bird");
+  const oldWard = await worker.fetch(new Request("https://zukan.earth/ja/regions/jp/shizuoka/hamamatsu/kita"), { ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("all") } as unknown as Env, undefined as never);
+  assert.equal(oldWard.status, 301);
+  assert.equal(oldWard.headers.get("location"), "/ja/regions/jp/shizuoka/hamamatsu");
+  const otherPref = await worker.fetch(new Request("https://zukan.earth/ja/regions/" + encodeURIComponent("札幌市")), { ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("all") } as unknown as Env, undefined as never);
+  assert.equal(otherPref.status, 404);
 });
 
 test("render without ext data has no ext shelf", () => {

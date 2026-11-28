@@ -1,3 +1,4 @@
+import { labelToSlugPath, regionPath, resolveRegionSlugPath } from "./regionSlugs";
 import {
   computePublicLocationView,
   formatPublicDateOnly,
@@ -2714,7 +2715,7 @@ async function getGlobalPlaceDetailPage(
     ...(shopPhotoPerkHtml ? { shopPhotoPerkHtml } : {}),
     ...(speciesReaderLayersHtml ? { speciesReaderLayersHtml } : {}),
     ...(placePageV3On(env, session) ? { v3: true } : {}),
-    ...(regionArea ? { regionLink: { href: `/${lang}/regions/${encodeURIComponent(regionArea)}`, label: lang === "ja" ? `${regionArea}の地域ページ` : `Region: ${regionArea}` } } : {}),
+    ...(regionArea ? { regionLink: { href: regionPath(lang, regionArea), label: lang === "ja" ? `${regionArea}の地域ページ` : `Region: ${regionArea}` } } : {}),
     ...(placeEV2On(env, session) ? { e2: true, e2Events } : {}),
     ...(placeEV2On(env, session) && nocosilEventLinkOn(env, session) ? { nocosilEventLink: true } : {}),
     ...(lang === "ja" && fieldCardOn(env, session) ? { fieldCardHref: `/ja/places/${encodeURIComponent(canonicalPlaceId)}/card` } : {})
@@ -3865,6 +3866,45 @@ export const worker = {
           ).bind(groupKey, now, session.userId).run();
         }
         return json({ ok: true, published: false, groupKey, observationIds }, 200, { "cache-control": "no-store" });
+      }
+
+      if (request.method === "GET" || request.method === "HEAD") {
+        const slugNative = stripPublicLangPrefix(url.pathname);
+        const slugMatch = slugNative.match(/^\/regions\/([^/]+(?:\/[^/]+){0,4}?)(\/species|\/invasive)?$/u);
+        if (slugMatch?.[1]) {
+          const slugLang = publicLangFromPath(url.pathname);
+          const slugPrefix = slugLang ? `/${slugLang}` : "";
+          const slugSuffix = (slugMatch[2] ?? "") as "" | "/species" | "/invasive";
+          const slugSegments = slugMatch[1].split("/");
+          const redirectTo = (target: string) => new Response(null, { status: 301, headers: { location: `${slugPrefix}${target}${url.search}`, "cache-control": "public, max-age=300" } });
+          if (slugSegments[0] === "jp") {
+            const resolved = resolveRegionSlugPath(slugSegments);
+            if (resolved?.kind === "redirect") return redirectTo(`${resolved.to}${slugSuffix}`);
+            if (resolved?.kind === "current") {
+              const slugSession = await readCompatibleSession(request, env).catch(() => null);
+              if (regionSurfaceV1On(env, slugSession)) {
+                if (resolved.level === "country" || resolved.level === "pref") {
+                  return new Response(null, { status: 302, headers: { location: `${slugPrefix}/regions${url.search}`, "cache-control": "no-store" } });
+                }
+                if (slugSuffix === "/invasive") {
+                  if (invasiveMapV1On(env, slugSession)) {
+                    return handleInvasiveMapV1Route(request, url, env, slugSession, { kind: "region", value: encodeURIComponent(resolved.label) });
+                  }
+                } else {
+                  return handleRegionSurfaceRoute(request, url, env, slugSession, encodeURIComponent(resolved.label), slugSuffix === "/species");
+                }
+              }
+            }
+          } else if (slugSegments.length === 1) {
+            let legacyLabel = "";
+            try { legacyLabel = decodeURIComponent(slugSegments[0]!); } catch { legacyLabel = ""; }
+            const legacyPath = legacyLabel ? labelToSlugPath(legacyLabel) : null;
+            if (legacyPath) {
+              const legacySession = await readCompatibleSession(request, env).catch(() => null);
+              if (regionSurfaceV1On(env, legacySession)) return redirectTo(`/regions/${legacyPath}${slugSuffix}`);
+            }
+          }
+        }
       }
 
       if (request.method === "GET" || request.method === "HEAD") {
@@ -23789,8 +23829,7 @@ export async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<
   if (regionSurfaceV1On(env, null)) {
     locs.push(`${origin}/ja/regions`);
     for (const area of await listSitemapRegions(env)) {
-      const base = `${origin}/ja/regions/${encodeURIComponent(area)}`;
-      locs.push(base, `${base}/species`);
+      locs.push(`${origin}${regionPath("ja", area)}`, `${origin}${regionPath("ja", area, "/species")}`);
     }
   }
   if (speciesSurfaceV1On(env, null)) {
@@ -23798,7 +23837,7 @@ export async function withPublicPlacesInSitemap(xml: string, env: Env): Promise<
   }
   if (invasiveMapV1On(env, null)) {
     if (regionSurfaceV1On(env, null)) {
-      for (const area of await listSitemapRegions(env)) locs.push(`${origin}/ja/regions/${encodeURIComponent(area)}/invasive`);
+      for (const area of await listSitemapRegions(env)) locs.push(`${origin}${regionPath("ja", area, "/invasive")}`);
     }
     for (const row of INVASIVE_SEED_ROWS) locs.push(`${origin}/ja/invasive/${row[2]}`);
   }
@@ -25593,7 +25632,7 @@ async function handleInvasiveMapV1Route(
   const authenticated = Boolean(session && !session.banned);
   let regionHref: string | null = null;
   if (route.kind === "region" && regionSurfaceV1On(env, session) && (inRegion.length > 0 || await regionContent())) {
-    regionHref = `/${lang}/regions/${encodeURIComponent(area)}`;
+    regionHref = regionPath(lang, area);
   }
   const page = route.kind === "region"
     ? renderRegionInvasivePage({ area, records: inRegion, lang, authenticated, displayName: session?.displayName ?? null, cspNonce, regionHref, origin: seoOrigin(env) })

@@ -25,7 +25,7 @@ const render = (lang: "ja" | "en", extra: Record<string, unknown>, detail = base
 test("link targets: species skips coarse names, region strips prefecture, place is encoded", () => {
   const l = observationDetailLinks({ lang: "en", speciesName: " カワヅザクラ ", speciesOn: true, areaLabel: "静岡県浜松市", regionOn: true, place: { id: "p/1", name: "公園" } });
   assert.equal(l.species?.href, "/en/species/%E3%82%AB%E3%83%AF%E3%83%85%E3%82%B6%E3%82%AF%E3%83%A9");
-  assert.equal(l.region?.href, "/en/regions/%E6%B5%9C%E6%9D%BE%E5%B8%82");
+  assert.equal(l.region?.href, "/en/regions/jp/shizuoka/hamamatsu");
   assert.equal(l.place?.href, "/en/places/p%2F1");
   assert.equal(observationDetailLinks({ lang: "ja", speciesName: "チョウ", speciesOn: true }).species, null);
   assert.equal(observationDetailLinks({ lang: "ja", speciesName: "バラ科", speciesOn: true }).species, null);
@@ -45,7 +45,7 @@ test("detail page renders species, region and place links only for public record
   const detailLinks = { speciesOn: true, regionOn: true, areaLabel: "浜松市", place: { id: "pl1", name: "公園" } };
   const html = render("en", { detailLinks });
   assert.match(html, /<nav class="of-links"/);
-  assert.match(html, /href="\/en\/regions\/%E6%B5%9C%E6%9D%BE%E5%B8%82" data-of-link="region"/);
+  assert.match(html, /href="\/en\/regions\/jp\/shizuoka\/hamamatsu" data-of-link="region"/);
   assert.match(html, /href="\/en\/places\/pl1" data-of-link="place"/);
   assert.doesNotMatch(html, /位置をぼかしています|前の写真|次の写真/);
   assert.match(html, /Location is blurred/);

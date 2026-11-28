@@ -1,4 +1,5 @@
 import { isLocationDelayed24Hours } from "./locationPrivacy";
+import { regionPath, regionPathNoLang } from "./regionSlugs";
 import { INVASIVE_LEARN_PATH, classifyInvasive, INVASIVE_SEED_ROWS, type InvasiveCategory } from "./mapInvasive";
 import { isWeakTaxonLabel } from "./taxonNameResolver";
 import { ZUKAN_SHELL_CSS, renderZukanChrome } from "./zukanShellChrome";
@@ -497,12 +498,12 @@ export function renderRegionInvasivePage(options: {
     ? tr(options.lang, `${options.area}で見つかっている外来種${species.length}種。種ごとの区分と見つかった場所を、国のリストに基づいて表示しています。`, `${plural(species.length, "invasive species", "invasive species")} found in ${options.area}, with categories based on national lists.`)
     : tr(options.lang, `${options.area}の外来種の記録。国のリストに基づく区分と、公式の案内を表示しています。`, `Invasive species records in ${options.area}, with categories based on national lists and official guidance.`);
   return shell({
-    seo: { title: tr(options.lang, `${options.area}の外来種 | ZUKAN`, `Invasive species in ${options.area} | ZUKAN`), description: ivDesc, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(options.area)}/invasive`, noindex: species.length === 0 },
+    seo: { title: tr(options.lang, `${options.area}の外来種 | ZUKAN`, `Invasive species in ${options.area} | ZUKAN`), description: ivDesc, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: regionPathNoLang(options.area, "/invasive"), noindex: species.length === 0 },
     title: tr(options.lang, `${options.area}の外来種`, `Invasive species in ${options.area}`),
     lang: options.lang,
     authenticated: options.authenticated,
     displayName: options.displayName,
-    pathname: `${prefix}/regions/${encodeURIComponent(options.area)}/invasive`,
+    pathname: regionPath(options.lang, options.area, "/invasive"),
     body,
     cspNonce: options.cspNonce,
     script: shareScript(options.lang),
@@ -550,7 +551,7 @@ export function renderInvasiveSpeciesPage(options: {
   }
   const areaRows = [...areas.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).slice(0, 12).map(([area, list]) => {
     const first = [...list].sort((a, b) => a.observedAt.localeCompare(b.observedAt))[0]!;
-    return `<a class="iv-sprow" href="${esc(`${prefix}/regions/${encodeURIComponent(area)}/invasive`)}"><span class="iv-sb"><span class="iv-sname">${esc(area)}</span><span class="iv-sstate">${options.lang === "ja" ? `記録 <span class="iv-nb">${list.length}件</span> ・ ${esc(monthLabel(first.observedAt))}から` : `<span class="iv-nb">${plural(list.length, "record", "records")}</span> · since ${esc(monthLabel(first.observedAt, options.lang))}`}</span></span>${CHEV_ICON}</a>`;
+    return `<a class="iv-sprow" href="${esc(regionPath(options.lang, area, "/invasive"))}"><span class="iv-sb"><span class="iv-sname">${esc(area)}</span><span class="iv-sstate">${options.lang === "ja" ? `記録 <span class="iv-nb">${list.length}件</span> ・ ${esc(monthLabel(first.observedAt))}から` : `<span class="iv-nb">${plural(list.length, "record", "records")}</span> · since ${esc(monthLabel(first.observedAt, options.lang))}`}</span></span>${CHEV_ICON}</a>`;
   }).join("");
   const cellCount = new Set(own.map((r) => r.cell)).size;
   const found = own.length > 0
