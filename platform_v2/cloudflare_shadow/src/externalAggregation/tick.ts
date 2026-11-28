@@ -4,10 +4,12 @@ import { extractCsv } from "./extractCsv";
 import { extractJsonLd } from "./extractJsonLd";
 import { extractRss } from "./extractRss";
 import { fetchSource, type FetchImpl, type FetchOutcome } from "./fetchSource";
+import { SOURCE_ADAPTERS } from "./sourceAdapters";
 import { ingestFacts, touchSourceRecords } from "./ingest";
 import type { ExternalAggregationEnv, ExtractedFact, ExtSourceRow } from "./types";
 
 export const MAX_SOURCES_PER_TICK = 2;
+export const CANONICALIZE_LIMIT = 500;
 export const MIN_REFETCH_MS = 6 * 60 * 60 * 1000;
 
 export interface TickDeps {
@@ -16,6 +18,8 @@ export interface TickDeps {
 }
 
 async function extract(source: ExtSourceRow, out: FetchOutcome, fetchedAt: string): Promise<ExtractedFact[]> {
+  const adapter = SOURCE_ADAPTERS[source.source_id];
+  if (adapter) return adapter.extract(out.body, source.source_id, fetchedAt);
   const { body, contentType } = out;
   const path = new URL(source.listing_url).pathname.toLowerCase();
   if (source.method === "rss" || /xml|rss|atom/i.test(contentType) || /^\s*<\?xml|^\s*<rss|^\s*<feed/i.test(body)) {
@@ -43,7 +47,8 @@ export async function runExternalAggregationTick(env: ExternalAggregationEnv, _c
       let etag: string | null = source.etag;
       let lastModified: string | null = source.last_modified;
       try {
-        const out = await fetchSource(source, fetchImpl);
+        const adapter = SOURCE_ADAPTERS[source.source_id];
+        const out = await fetchSource(adapter ? { ...source, listing_url: adapter.url } : source, fetchImpl);
         status = out.status === "ok" ? "ok" : out.status === "not_modified" ? "not_modified" : out.status === "robots_blocked" ? "robots_blocked" : `error:${out.httpStatus ?? "network"}`;
         if (out.status === "ok") {
           etag = out.etag;
@@ -61,7 +66,7 @@ export async function runExternalAggregationTick(env: ExternalAggregationEnv, _c
          ON CONFLICT(source_id) DO UPDATE SET last_fetched_at=excluded.last_fetched_at,etag=excluded.etag,last_modified=excluded.last_modified,last_status=excluded.last_status`,
       ).bind(source.source_id, nowIso, etag, lastModified, status).run();
     }
-    await runCanonicalize(env.OBS_DB, nowMs, 200);
+    await runCanonicalize(env.OBS_DB, nowMs, CANONICALIZE_LIMIT);
   } catch {
     console.warn("external_aggregation_tick_pending");
   }

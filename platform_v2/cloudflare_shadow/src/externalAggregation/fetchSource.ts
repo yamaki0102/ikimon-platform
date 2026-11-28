@@ -3,7 +3,7 @@ import { sha256Hex } from "./util";
 
 export const EXTERNAL_FETCH_UA = "ZUKAN external events contact: https://zukan.earth";
 export const MAX_FETCHES_PER_SOURCE = 3;
-export const MAX_BODY_CHARS = 2_000_000;
+export const MAX_BODY_CHARS = 6_000_000;
 
 export type FetchImpl = (input: string, init?: RequestInit) => Promise<Response>;
 

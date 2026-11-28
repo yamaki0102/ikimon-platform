@@ -23,6 +23,7 @@ export interface ExtStatement {
 }
 export interface ExtDb {
   prepare(query: string): ExtStatement;
+  batch?(statements: ExtStatement[]): Promise<unknown>;
 }
 export interface ExternalAggregationEnv {
   EXTERNAL_FETCH_ENABLED?: string;
