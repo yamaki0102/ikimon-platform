@@ -308,7 +308,7 @@ ${ZUKAN_SHELL_CSS}
 svg.zv2l-ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 svg.zv2l-playic{fill:currentColor;stroke:none}
 .nw{white-space:nowrap}
-.zv2l-col{max-width:760px;margin:0 auto;padding:6px 0 32px}
+.zv2l-col{width:100%;max-width:760px;margin:0 auto;padding:6px 0 32px}
 .zv2l-headbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
 .zv2l-title{margin:0;font-size:24px;font-weight:800;line-height:1.35}
 .zv2l-sub{margin:2px 0 12px;font-size:14.5px;color:var(--muted)}
@@ -333,7 +333,7 @@ svg.zv2l-playic{fill:currentColor;stroke:none}
 .zv2l-rb{font-size:14.5px;color:#3C4A41;line-height:1.65;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .zv2l-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:12px}
 .zv2l-grid.one{grid-template-columns:1fr}
-.zv2l-grid.one img{aspect-ratio:auto;height:auto;max-height:360px;object-fit:cover}
+.zv2l-grid.one img{aspect-ratio:4/3;height:auto;max-height:none;object-fit:cover}
 .zv2l-grid img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#EFF3EE;border-radius:8px}
 .zv2l-cellv{position:relative;display:block}
 .zv2l-vbadge{position:absolute;left:8px;bottom:8px;width:30px;height:30px;border-radius:50%;background:rgba(9,25,16,.72);color:#fff;display:flex;align-items:center;justify-content:center}
