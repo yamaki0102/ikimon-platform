@@ -169,3 +169,36 @@ test("routes: flag off changes nothing; on serves the calendar month page and th
   assert.match(await page.text(), /data-region-calendar-month-page=/);
   assert.equal((await get("/ja/regions/jp/shizuoka/hamamatsu/calendar/13", "all")).status === 200, false);
 });
+
+test("records link to places by boundary box without memberships; protected records are not linked", async (t) => {
+  const { db, sqlite } = migratedDb();
+  t.after(() => sqlite.close());
+  seed(sqlite);
+  sqlite.prepare(`INSERT INTO place_boundaries (boundary_id,place_id,geometry_kind,boundary_geojson,source_type,is_primary,bbox_west,bbox_south,bbox_east,bbox_north) VALUES ('bA','pA','polygon','{}','test',1,137.0,34.0,137.1,34.1)`).run();
+  const at = (id: string, d: string, lat: number, lng: number, ctx?: { risk?: string; prec?: string; aud?: string }) => {
+    rec(sqlite, id, `${d}T10:00:00+09:00`, "カモ", null);
+    sqlite.prepare("UPDATE observations SET exact_lat = ?, exact_lng = ? WHERE observation_id = ?").run(lat, lng, id);
+    if (ctx) sqlite.prepare(`INSERT INTO civic_observation_contexts (context_id,visit_id,audience_scope,public_precision,risk_lane) VALUES (?,?,?,?,?)`).run(`c-${id}`, id, ctx.aud ?? "public", ctx.prec ?? "municipality", ctx.risk ?? "normal");
+  };
+  for (const d of ["2025-11-03", "2026-11-10"]) at(`in-n-${d}`, d, 34.05, 137.05);
+  for (const d of ["2026-04-03", "2026-04-09"]) at(`in-a-${d}`, d, 34.05, 137.05, {});
+  at("rare-1", "2026-07-01", 34.05, 137.05, { risk: "rare_sensitive" });
+  at("rare-2", "2026-07-02", 34.05, 137.05, { prec: "hidden" });
+  at("rare-3", "2026-07-03", 34.05, 137.05, { aud: "private" });
+  at("out-1", "2026-07-04", 35.0, 138.0);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM record_place_memberships").get().n, 0);
+  const r = await runPlacePeakMonthsBackfill({ PLACE_CATEGORY_BACKFILL: "on", OBS_DB: db as never });
+  assert.deepEqual([r.scanned, r.assigned], [1, 1]);
+  assert.deepEqual(peakRows(sqlite, "pA"), [
+    { month: 0, source: "records", evidence_count: 4 },
+    { month: 4, source: "records", evidence_count: 2 },
+    { month: 11, source: "records", evidence_count: 2 },
+  ]);
+  const photos = photosFor({ "in-n-2026-11-10": "/m/n.jpg", "rare-1": "/m/r.jpg" });
+  const data = await loadRegionSeason(db as never, AREA, NOW, photos, never);
+  assert.deepEqual(data.cards.map((c) => c.placeId), ["pA"]);
+  assert.equal(data.cards[0]!.observationId, "in-n-2026-11-10");
+  const cal = await loadRegionCalendar(db as never, AREA, 11, NOW, photos, never);
+  assert.ok(cal.finds.every((f) => f.placeName === "佐鳴湖公園"));
+  assert.equal(cal.monthCounts[6], 1);
+});
