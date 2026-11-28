@@ -202,3 +202,33 @@ test("records link to places by boundary box without memberships; protected reco
   assert.ok(cal.finds.every((f) => f.placeName === "佐鳴湖公園"));
   assert.equal(cal.monthCounts[6], 1);
 });
+
+test("season shelf fallback: places with a record in this month fill in after peak places, max 3, no photo twice, protected skipped", async (t) => {
+  const { db, sqlite } = migratedDb();
+  t.after(() => sqlite.close());
+  seed(sqlite);
+  rec(sqlite, "a1", "2026-11-12T09:00:00+09:00", "カモ", "pA");
+  rec(sqlite, "b1", "2025-11-20T09:00:00+09:00", "カエデ", "pB");
+  rec(sqlite, "b2", "2024-11-02T09:00:00+09:00", "カエデ", "pB");
+  rec(sqlite, "c1", "2025-11-03T09:00:00+09:00", "ヒヨドリ", "pC");
+  rec(sqlite, "d1", "2025-11-05T09:00:00+09:00", "メダカ", "pD");
+  rec(sqlite, "x1", "2025-11-06T09:00:00+09:00", "他市", "pX");
+  rec(sqlite, "bpriv", "2026-11-25T09:00:00+09:00", "ひみつ", "pC", { vis: "private" });
+  const photos = photosFor({ a1: "/m/a1.jpg", b1: "/m/shared.jpg", b2: "/m/b2.jpg", c1: "/m/shared.jpg", d1: "/m/d1.jpg", x1: "/m/x1.jpg", bpriv: "/m/p.jpg" });
+  const none = await loadRegionSeason(db as never, AREA, NOW, photos, never);
+  assert.equal(none.cards.length, 3);
+  assert.ok(none.cards.every((c) => c.kind === "month"));
+  assert.equal(none.cards[0]!.placeId, "pB");
+  assert.ok(!none.cards.some((c) => c.placeId === "pX" || c.observationId === "bpriv"));
+  assert.equal(new Set(none.cards.map((c) => c.photoUrl)).size, none.cards.length);
+  sqlite.prepare("INSERT INTO place_peak_months (place_id, month, source, evidence_count) VALUES ('pD', 11, 'records', 3)").run();
+  const mixed = await loadRegionSeason(db as never, AREA, NOW, photos, never);
+  assert.equal(mixed.cards.length, 3);
+  assert.deepEqual([mixed.cards[0]!.placeId, mixed.cards[0]!.kind], ["pD", "peak"]);
+  assert.ok(mixed.cards.slice(1).every((c) => c.kind === "month"));
+  assert.equal(new Set(mixed.cards.map((c) => c.photoUrl)).size, 3);
+  const html = renderSeasonShelf("ja", "/ja/regions/jp/shizuoka/hamamatsu", "/ja", mixed, AREA);
+  assert.match(html, /11月に記録あり（2025年）/);
+  const zero = await loadRegionSeason(db as never, AREA, NOW, async () => new Map(), never);
+  assert.equal(zero.cards.length, 0);
+});
