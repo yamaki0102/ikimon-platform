@@ -411,6 +411,7 @@ export function shell(options: {
     displayName: options.displayName,
     pathname: options.pathname,
     homeHref: options.authenticated ? `${prefix}/library` : `${prefix}/`,
+    nonce: options.cspNonce,
   });
   return `<!doctype html>
 <html lang="${esc(options.lang)}">
