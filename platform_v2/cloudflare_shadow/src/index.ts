@@ -214,10 +214,12 @@ const fieldCardOn = (env: Env, session: Awaited<ReturnType<typeof readCompatible
 import { localizePublicLocationLabel } from "./observationDetailLinks";
 import { SPECIES_SURFACE_V1_FLAG, loadSpeciesSurfaceData, renderSpeciesSurfacePage, resolveSpeciesKey } from "./speciesSurfaceV1";
 import { listRegionAreasByRecords, regionHasPublicRecords } from "./regionCounts";
+import { EXTERNAL_SHELVES_FLAG, loadRegionExternalEvents } from "./externalAggregation/regionShelf";
 import { REGION_SURFACE_V1_FLAG, loadPlaceRegionArea, isHigherRankName, loadRegionIndex, loadRegionSurfaceData, parseGroupFilter, regionSurfaceHasContent, renderRegionIndexPage, renderRegionSpeciesListPage, renderRegionSurfacePage } from "./regionSurfaceV1";
 import { INVASIVE_MAP_V1_FLAG, buildInvasiveRecords, mapCellsPayload, parseInvasiveSlug, recordsForRegion, renderInvasiveSpeciesPage, renderRegionInvasivePage, type InvasiveRecord } from "./invasiveMapV1";
 const invasiveMapV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, INVASIVE_MAP_V1_FLAG, v.principalId, v.role); };
 const regionSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, REGION_SURFACE_V1_FLAG, v.principalId, v.role); };
+const externalShelvesOn = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, EXTERNAL_SHELVES_FLAG, v.principalId, v.role); };
 const speciesSurfaceV1On = (env: Env, session: Awaited<ReturnType<typeof readCompatibleSession>>): boolean => { const v = viewerFromSession(session); return prototypeEnabledForViewer(env, SPECIES_SURFACE_V1_FLAG, v.principalId, v.role); };
 const MAP_INVASIVE_FLAG = "MAP_INVASIVE_LAYER_ENABLED";
 const MAP_INVASIVE_TOP_CHIP_FLAG = "MAP_INVASIVE_TOP_CHIP_ENABLED";
@@ -25495,6 +25497,7 @@ async function handleRegionSurfaceRoute(
   if (!area || normalizeSafePublicAreaLabelCandidate(area) !== area) return notFound();
   const lang = (publicLangFromPath(url.pathname) ?? "ja") as "ja" | "en" | "es" | "pt-br";
   const data = await loadRegionSurfaceData(env.OBS_DB, area, (ids) => queryPublicMapPhotoUrls(env, ids));
+  if (!speciesList && externalShelvesOn(env, session)) { const ext = await loadRegionExternalEvents(env.OBS_DB, area); data.extEvents = ext.items; data.extEventTotal = ext.total; }
   if (!regionSurfaceHasContent(data)) return notFound();
   const cspNonce = createHtmlCspNonce();
   const authenticated = Boolean(session && !session.banned);

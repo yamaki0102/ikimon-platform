@@ -250,3 +250,29 @@ test("invasive species page has SEO head", async () => {
   assert.match(html, new RegExp(`rel="canonical" href="https://zukan\.earth/ja/invasive/${slug}"`));
   assert.match(html, /hreflang="x-default"/);
 });
+
+test("external shelf appears only when EXTERNAL_SHELVES_ENABLED is on; ext-only area returns 200", async (t) => {
+  const { migratedDb } = await import("./externalAggregation/sqliteDb.testkit");
+  const { seedExt } = await import("./externalAggregation/regionShelf.testkit");
+  const { db, sqlite } = migratedDb();
+  t.after(() => sqlite.close());
+  seedExt(sqlite);
+  const base = { ENVIRONMENT: "staging", CORE_DB: db, OBS_DB: db } as unknown as Env;
+  const rollouts = (extState: string) => JSON.stringify({ REGION_SURFACE_V1_ENABLED: { state: "all" }, EXTERNAL_SHELVES_ENABLED: { state: extState } });
+  const get = (env: Env) => worker.fetch(new Request("https://zukan.earth/ja/regions/" + encodeURIComponent("浜松市")), env);
+  const off = await get({ ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("off") } as unknown as Env);
+  assert.equal(off.status, 404);
+  const on = await get({ ...base, ZUKAN_FEATURE_ROLLOUTS: rollouts("all") } as unknown as Env);
+  assert.equal(on.status, 200);
+  const html = await on.text();
+  assert.match(html, /data-region-shelf="ext-events"/);
+  assert.match(html, /自然観察会/);
+  assert.match(html, /市や施設の公開情報/);
+});
+
+test("render without ext data has no ext shelf", () => {
+  const html = renderRegionSurfacePage({ data: sample(), lang: "ja", authenticated: false });
+  assert.doesNotMatch(html, /data-region-shelf="ext-events"/);
+  assert.match(html, /記録や場所から集まったものだけ/);
+  assert.equal(regionSurfaceHasContent(sample({ species: [], recordTotal: 0, extEvents: [{ event_id: "e", title: "t", starts_at: "2026-12-05T10:00:00+09:00", ends_at: null, all_day: false, venue_name: null, organizer_name: null, url: "https://x/e", source_name: "S", fetched_at: "2026-11-27" }] })), true);
+});
