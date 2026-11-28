@@ -307,6 +307,7 @@ import { VIDEO_READ_MODEL, VIDEO_READ_PROMPT_VERSION, candidateWithVideoSubjects
 import { d1ReadingQuery, readRecordReading, writeRecordMediaOrder } from "./recordReading";
 import { buildRecordPageSections, recordPageSectionsJson } from "./recordPageSections";
 import { generateAndStoreAiNote, loadVisibleAiNote } from "./recordAiNoteService";
+import { generateAndStoreObservationGuide, loadObservationGuide } from "./recordObservationGuide";
 import {
   buildObservationAiQualityBacklogPayload,
   GEMINI_QUALITY_BACKLOG_MAX_ACTIVE,
@@ -9022,6 +9023,7 @@ async function listD1RecordReadingCards(visitId: string, viewerUserId: string, e
             generation_condition_json, quality_gate_json, model_version, created_at, updated_at
        FROM record_reading_cards
       WHERE visit_id = ?
+        AND axis <> 'observation_guide'
         AND visibility <> 'hidden'
         AND (visibility = 'public' OR created_by_user_id = ?)
       ORDER BY CASE axis
@@ -26649,6 +26651,7 @@ async function getPublicObservationDetailPage(rawId: string, request: Request, u
         savedControlHtml: savedContinuity.controlHtml,
         savedScriptHtml: savedContinuity.scriptHtml,
         recordReaderModes: recordLang === "ja" && recordReaderModesOn(env, session),
+        observationGuide: recordLang === "ja" && recordReaderModesOn(env, session) ? await loadObservationGuide(env.OBS_DB, detail.visitId).catch(() => null) : null,
         speciesReaderLayer: recordLang === "ja" && speciesReaderLayerOn(env, session)
           ? await loadSpeciesReaderLayerForRecord(
               env.OBS_DB,
@@ -26746,6 +26749,16 @@ async function refreshRecordAiNote(
       counts: gate.blocked ? [] : await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
       generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
     });
+    if (!gate.blocked) {
+      await generateAndStoreObservationGuide({
+        db: env.OBS_DB,
+        recordId,
+        ownerUserId,
+        model: GEMINI_SUMMARY_MODEL,
+        counts: await readPlaceSeasonCountFacts(recordCountBandDeps(env), recordId),
+        generate: async (request) => (await generateGeminiContent(apiKey, GEMINI_SUMMARY_MODEL, request)).text,
+      }).catch((error) => recordAiNoteFailure(env, recordId, "guide_error", { error: error instanceof Error ? error.message : String(error) }));
+    }
     if (result.called && result.stored.length === 0) {
       await recordAiNoteFailure(env, recordId, "all_slots_rejected", {
         dropped: result.dropped.map((entry) => ({ slot: entry.slot, failures: entry.failures })),

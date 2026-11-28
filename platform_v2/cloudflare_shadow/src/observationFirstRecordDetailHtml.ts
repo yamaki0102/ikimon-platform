@@ -133,6 +133,7 @@ export type ObservationFirstRecordPresentation = {
   observedAtIso?: string | null;
   inlineEditEnvironment?: { fields: Array<{ field: string; label: string; options: Array<{ value: string; label: string }> }> } | null;
   recordReaderModes?: boolean;
+  observationGuide?: string | null;
   speciesReaderLayer?: LoadedSpeciesReaderLayer | null;
 };
 
@@ -1499,6 +1500,8 @@ export function renderObservationFirstRecordDetailHtml(
     enabled: readerModesEnabled,
     group: readerModesGroup,
     speciesHeading: confirmedSummaryName,
+    guideText: presentation.observationGuide ?? null,
+    aiNote: copy.aiGeneratedNote,
   });
   const speciesLayerActive = Boolean(presentation.speciesReaderLayer && lang === "ja" && !signboard);
   const speciesReaderLayerHtml = renderSpeciesReaderLayerHtml({
