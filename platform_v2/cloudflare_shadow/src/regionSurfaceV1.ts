@@ -1,3 +1,4 @@
+import { EXT_SHELF_CSS, renderRegionExternalShelf, type ExtEventCard } from "./externalAggregation/regionShelf";
 import { CHEV_ICON, SEO_DEFAULT_ORIGIN, cellHalfStep, headBar, parseCell, plural, shareScript, shell, tr } from "./invasiveMapV1";
 import { classifyInvasive } from "./mapInvasive";
 import { PLACE_AREA_SQL, PREFECTURE_PREFIX, PUBLIC_RECORD_FROM_SQL, isHigherRankName, loadAllRegionCounts, loadRegionCounts } from "./regionCounts";
@@ -20,6 +21,8 @@ export type RegionSurfaceData = {
   events: RegionEvent[];
   eventTotal: number;
   cells?: RegionCell[];
+  extEvents?: ExtEventCard[];
+  extEventTotal?: number;
 };
 export type RegionCell = { cell: string; count: number };
 
@@ -192,7 +195,7 @@ export function regionMapCardHtml(cells: readonly RegionCell[], mapHref: string,
   return `<div class="rs-rc" data-region-map="1"><div class="rs-rh">${tr(lang, copy?.title[0] ?? "この地域の地図", copy?.title[1] ?? "Map of this area")}</div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${tr(lang, copy?.aria[0] ?? "この地域の記録がある範囲（大まかな位置）", copy?.aria[1] ?? "Area with records in this region (approximate location)")}" preserveAspectRatio="xMidYMid meet"><rect width="${W}" height="${H}" rx="12" fill="#EDEFE7"/>${rects}</svg><p class="rs-rn">${tr(lang, copy?.note[0] ?? "記録がある範囲を、大まかに表示しています。", copy?.note[1] ?? "The area with records is shown roughly.")}</p><a class="rs-all" href="${esc(mapHref)}">${tr(lang, "地図で見る", "View on map")}</a></div>`;
 }
 
-export const regionSurfaceHasContent = (d: RegionSurfaceData): boolean => d.species.length > 0 || d.placeTotal > 0 || d.eventTotal > 0;
+export const regionSurfaceHasContent = (d: RegionSurfaceData): boolean => d.species.length > 0 || d.placeTotal > 0 || d.eventTotal > 0 || (d.extEvents?.length ?? 0) > 0;
 
 const EN_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dateLabel = (iso: string, lang: Lang = "ja"): string => {
@@ -298,6 +301,8 @@ export function renderRegionSurfacePage(options: {
     const rows = data.events.map((e) => `<a class="rs-row" data-region-event="${esc(e.id)}" href="${esc(`${prefix}/events/${encodeURIComponent(e.id)}/preview`)}"><span class="rs-b"><span class="rs-n">${esc(e.title)}</span><span class="rs-m">${esc(dateLabel(e.startedAt, L))}</span></span>${CHEV_ICON}</a>`).join("");
     shelves.push(`<section data-region-shelf="events"><div class="rs-shelf-h"><h2>${tr(L, "行事", "Events")}<small>${tr(L, `${data.eventTotal}件`, plural(data.eventTotal, "event", "events"))}</small></h2></div>${rows}</section>`);
   }
+  const extShelf = renderRegionExternalShelf(L, data.extEvents?.length ? { items: data.extEvents, total: data.extEventTotal ?? data.extEvents.length } : null);
+  if (extShelf) shelves.push(extShelf);
   const mapCard = regionMapCardHtml(data.cells ?? [], `${prefix}/map`, L);
   const body = `<div class="iv-col rs-col${mapCard ? " rs-wide" : ""}" data-region-surface="${esc(data.area)}"><div class="rs-main">
     ${headBar(`${prefix}/map`, L)}
@@ -307,7 +312,7 @@ export function renderRegionSurfacePage(options: {
     ${stats.length ? `<div class="rs-stats">${stats.join("")}</div>` : ""}
     <div class="rs-cta"><a class="iv-btn" href="${esc(`${prefix}/record`)}">${tr(L, "この地域で記録する", "Record in this area")}</a></div>
     ${shelves.join("")}
-    <p class="rs-foot" data-region-guide="1">${tr(L, "この地域の面には、記録や場所から集まったものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records and places. Shelves for shops, companies and organizations, and people will appear once there is content for them.")}</p>
+    <p class="rs-foot" data-region-guide="1">${extShelf ? tr(L, "この地域の面には、記録・場所・市や施設の公開情報から集めたものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records, places, and information published by the city and venues. Shelves for shops, companies and organizations, and people will appear once there is content for them.") : tr(L, "この地域の面には、記録や場所から集まったものだけを並べています。店、会社・団体、人の棚は、中身が集まってから出します。", "This area page lists only what has been gathered from records and places. Shelves for shops, companies and organizations, and people will appear once there is content for them.")}</p>
   </div>${mapCard ? `<aside class="rs-rail" aria-label="${tr(L, "この地域の地図", "Map of this area")}">${mapCard}</aside>` : ""}</div>`;
   const parts = L === "ja"
     ? [fineSpecies.length > 0 ? `記録された生きもの${fineSpecies.length}種` : "", data.recordTotal > 0 ? `記録${data.recordTotal}件` : "", data.placeTotal > 0 ? `場所${data.placeTotal}か所` : ""].filter(Boolean)
@@ -318,7 +323,7 @@ export function renderRegionSurfacePage(options: {
   return shell({
     seo: { title: tr(L, `${data.area}の生きもの・場所 | ZUKAN`, `Wildlife and places in ${data.area} | ZUKAN`), description, origin: options.origin ?? SEO_DEFAULT_ORIGIN, suffix: `/regions/${encodeURIComponent(data.area)}`, image: data.species.slice(0, 5).find((sp) => sp.photoUrl)?.photoUrl ?? null },
     title: data.area,
-    extraCss: EXTRA_CSS,
+    extraCss: extShelf ? EXTRA_CSS + EXT_SHELF_CSS : EXTRA_CSS,
     lang: options.lang,
     authenticated: options.authenticated,
     displayName: options.displayName,

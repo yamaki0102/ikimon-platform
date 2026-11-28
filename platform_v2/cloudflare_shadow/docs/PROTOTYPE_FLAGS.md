@@ -4,6 +4,7 @@
 | BIOSECURITY_GENERIC_ENABLED | 気になる外来種の見守り | zukan_biosecurity | /ja/biosecurity/gairai |
 | BIOSECURITY_NAGAETSURU_ENABLED | ナガエツルノゲイトウの見守り | zukan_biosecurity | /ja/biosecurity/nagaetsuru |
 | EVENTS_V2_ENABLED | 観察会ページ v2（近くのイベント・詳細・当日・終了後） | zukan_events | /ja/community/events |
+| EXTERNAL_SHELVES_ENABLED | 地域ページの外部の行事の棚（市や施設の公開情報） | zukan_region | /ja/regions/浜松市 |
 | FIELD_CARD_ENABLED | 出発前カード | zukan_field_card | /ja/places |
 | GUEST_TOP_V2_PROTOTYPE_ENABLED | ログイン前トップv2 | zukan_guest_top | /ja/?as=guest |
 | IDENTIFY_V3_ENABLED | 同定の作業場 identify-v3 | zukan_identify | /ja/identify |
